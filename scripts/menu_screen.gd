@@ -27,8 +27,10 @@ func show_menu(title: String, subtitle: String, items: Array, footer := "", dim 
 	_build(title, subtitle, items, footer, dim)
 	visible = true
 	get_tree().paused = true
-	if not _buttons.is_empty():
-		_buttons[clampi(focus, 0, _buttons.size() - 1)].grab_focus()
+	var focusable := _buttons.filter(func(b: Button) -> bool: return not b.disabled)
+	if not focusable.is_empty():
+		var want := _buttons[clampi(focus, 0, _buttons.size() - 1)]
+		(want if not want.disabled else focusable[0]).grab_focus()
 
 
 ## Shared Settings screen (title and pause). `back` reopens the caller's menu.
@@ -103,6 +105,11 @@ func _build(title: String, subtitle: String, items: Array, footer: String, dim: 
 		b.add_theme_stylebox_override("focus", _style(Color(0.2, 0.15, 0.28), Color(1.0, 0.7, 0.3)))
 		b.add_theme_stylebox_override("pressed", _style(Color(0.3, 0.2, 0.1), Color(1.0, 0.8, 0.4)))
 		b.pressed.connect(item[1])
+		if item.size() > 2 and item[2]:  # optional third entry: disabled
+			b.disabled = true
+			b.add_theme_stylebox_override("disabled", _style(Color(0.08, 0.07, 0.1), Color(0.25, 0.22, 0.3)))
+			b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
+			b.focus_mode = Control.FOCUS_NONE
 		col.add_child(b)
 		_buttons.append(b)
 

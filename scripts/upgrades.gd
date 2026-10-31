@@ -89,11 +89,12 @@ static func level_tag(level: int) -> String:
 ## Up to `count` random cards: upgrades the player doesn't own yet and
 ## level-ups of owned ones below MAX_LEVEL. `owned` maps id -> level.
 ## Each card is the upgrade's entry plus "level" (the level it grants).
-static func roll(owned: Dictionary, count := 3) -> Array:
+## `level_ups_only` limits it to owned upgrades (the camp's "hone").
+static func roll(owned: Dictionary, count := 3, level_ups_only := false) -> Array:
 	var pool: Array = []
 	for u in ALL:
 		var level: int = owned.get(u.id, 0)
-		if level < MAX_LEVEL:
+		if level < MAX_LEVEL and (level > 0 or not level_ups_only):
 			var card: Dictionary = u.duplicate()
 			card.level = level + 1
 			pool.append(card)

@@ -7,8 +7,9 @@ extends Node3D
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
 ## `--max-upgrades` gives them all at MAX_LEVEL),
-## `--start-room=N` to begin at a later room, and `--start-awakened` to begin
-## with a full Awakening meter.
+## `--start-room=N` to begin at a later room, `--start-rest` to make it a rest
+## (camp) room with some bones, and `--start-awakened` to begin with a full
+## Awakening meter.
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
@@ -23,6 +24,7 @@ const SPIKES := preload("res://scripts/spike_trap.gd")
 const PATH := preload("res://scripts/path_choice.gd")
 const RECORDS := preload("res://scripts/records.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
+const CAMP_MENU := preload("res://scripts/camp.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -54,6 +56,12 @@ const ENEMY_TYPES := {
 const RUN_LENGTH := 8
 const REST_HEAL := 0.4
 const ELITE_REWARDS := 2
+# Camp (rest rooms): what bones buy. Shown in this order; "Move on" leaves.
+const CAMP := {
+	"vigor": {"text": "Vigor: +15 max HP", "cost": 15, "max_hp": 15.0},
+	"power": {"text": "Seek a new power", "cost": 20},
+	"hone": {"text": "Hone: level up a power", "cost": 25},
+}
 # Fraction of max HP restored when a room (other than the boss) is cleared.
 const ROOM_CLEAR_HEAL := 0.25
 # Spawn pacing: at most MAX_ALIVE enemies are up at once; the rest of the
@@ -111,6 +119,7 @@ var summary: CanvasLayer
 var room := 0
 var room_kind := "fight"
 var path_menu: CanvasLayer
+var camp_menu: CanvasLayer
 var _alive := 0
 var _queue: Array = []  # [kind, elite] pairs waiting to spawn this room (MAX_ALIVE)
 var _between_rooms := false
@@ -181,6 +190,8 @@ func _ready() -> void:
 	add_child(PAUSE.new())
 	path_menu = PATH.new()
 	add_child(path_menu)
+	camp_menu = CAMP_MENU.new()
+	add_child(camp_menu)
 	Game.combo_changed.connect(_track_combo)
 
 	if "--start-awakened" in OS.get_cmdline_user_args():
@@ -210,6 +221,9 @@ func _ready() -> void:
 			room = clampi(arg.get_slice("=", 1).to_int() - 1, 0, RUN_LENGTH - 1)
 			if room + 1 >= RUN_LENGTH:
 				room_kind = "boss"
+		elif arg == "--start-rest":
+			room_kind = "rest"
+			Game.add_bones(30)
 	if not _autotest and not Game.skip_title:
 		var title := TITLE.new()
 		add_child(title)
@@ -261,8 +275,31 @@ func _rest() -> void:
 	Game.sfx("wave_clear", -4.0, 0.0)
 	await get_tree().create_timer(1.4).timeout
 	if not player.is_dead():
+		await _camp()
 		await _choose_path()
 		_next_room()
+
+
+## Spend bones at the camp until the player moves on.
+func _camp() -> void:
+	var bought := 0
+	while true:
+		camp_menu.open(CAMP, Game.bones, not Upgrades.roll(player.upgrades, 1, true).is_empty())
+		if _autotest:
+			_autotest_camp(bought)
+		var choice: String = await camp_menu.chosen
+		if choice == "leave":
+			return
+		Game.add_bones(-CAMP[choice].cost)
+		bought += 1
+		match choice:
+			"vigor":
+				player.max_hp += CAMP.vigor.max_hp
+				player.heal(CAMP.vigor.max_hp)
+			"power":
+				await _offer_reward()
+			"hone":
+				await _offer_reward(true)
 
 
 ## Ask which door to take next (or go straight on when there's only one).
@@ -371,8 +408,8 @@ func _on_enemy_died(e: Node) -> void:
 		_next_room()
 
 
-func _offer_reward() -> void:
-	var choices := Upgrades.roll(player.upgrades)
+func _offer_reward(level_ups_only := false) -> void:
+	var choices := Upgrades.roll(player.upgrades, 3, level_ups_only)
 	if choices.is_empty():
 		return
 	reward.open(choices)
@@ -696,6 +733,16 @@ func _autotest_pick() -> void:
 	await get_tree().create_timer(0.5).timeout
 	_snap("user://autotest_reward.png")
 	reward.pick(0)
+
+
+## Buy the first affordable thing once, then move on.
+func _autotest_camp(bought: int) -> void:
+	await get_tree().create_timer(0.5).timeout
+	if bought == 0:
+		_snap("user://autotest_camp.png")
+		camp_menu.pick(camp_menu.first_affordable())
+	else:
+		camp_menu.pick(CAMP.size())
 
 
 func _autotest_path() -> void:
