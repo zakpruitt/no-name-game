@@ -12,6 +12,9 @@ const FILL_COLOR := Color(0.95, 0.25, 0.2)
 const ELITE_COLOR := Color(1.0, 0.75, 0.25)
 const TRAIL_COLOR := Color(1.0, 0.95, 0.85)
 const BACK_COLOR := Color(0.05, 0.03, 0.08, 0.8)
+## Bars never go above this (the HP / room band at the top of the HUD), so
+## enemies juggled off the top of the screen pin their bar just below it.
+const TOP_MARGIN := 96.0
 
 var _trail := {}  # enemy instance id -> trailing hp fraction
 
@@ -36,6 +39,7 @@ func _draw() -> void:
 	if cam == null:
 		return
 	var now := Time.get_ticks_msec()
+	var screen := get_viewport_rect().size
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.has_method("is_boss") or e.state == e.State.SPAWN:
 			continue
@@ -47,6 +51,8 @@ func _draw() -> void:
 		if cam.is_position_behind(head):
 			continue
 		var at := cam.unproject_position(head) - Vector2(SIZE.x * 0.5, 0.0)
+		at.x = clampf(at.x, 4.0, screen.x - SIZE.x - 4.0)
+		at.y = clampf(at.y, TOP_MARGIN, screen.y - SIZE.y - 4.0)
 		var ratio: float = clampf(e.hp / e.max_hp, 0.0, 1.0)
 		var trail: float = maxf(_trail.get(e.get_instance_id(), ratio), ratio)
 		draw_rect(Rect2(at - Vector2.ONE, SIZE + Vector2.ONE * 2.0), Color(BACK_COLOR, BACK_COLOR.a * alpha))

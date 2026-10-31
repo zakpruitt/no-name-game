@@ -88,7 +88,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 9
 - [x] Shrine in the world: a glowing shrine prop in the shrine room (KayKit piece + light) so it isn't just a menu over an empty arena — `shrine_prop.gd`: draped altar, candles, gilded sword-and-shield offering, pulsing violet light and motes; rises up-screen of the hero (clear of the menu title) and sinks after the trade; `autotest_shrine_room.png`
-- [ ] Health bars vs top HUD: keep enemy bars clear of the HP/room bars when juggled elites fly high (clamp below the HUD band)
+- [x] Health bars vs top HUD: keep enemy bars clear of the HP/room bars when juggled elites fly high (clamp below the HUD band) — `enemy_bars.TOP_MARGIN` 96px: bars pin just below the HUD band (and inside the screen edges), so off-screen juggled enemies still show their HP
 - [ ] Enemy variety pass: a second elite-only twist trait per late room (rooms 6–7 roll two twists) for late-run spice
 - [ ] Power synergy tags: upgrades with a shared tag (fire, bone, quake) offer a small bonus when you own two, shown in the pause build view
 - [ ] Autotest coverage: `--start-room=N --start-shrine`-style coverage for every room kind in one scripted run (fight → rest → shrine → elite → boss) printing a pass/fail line
