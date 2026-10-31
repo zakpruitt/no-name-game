@@ -87,6 +87,8 @@ const SYNERGIES := {
 		"desc": "healing powers heal +30%", "boost": {"heal": 1.3, "hp": 1.2}},
 	"night": {"name": "Night", "ids": ["overflow", "long_night", "phoenix_heart"],
 		"desc": "Awakening powers are 25% stronger", "boost": {"bonus": 1.25}},
+	"bone": {"name": "Bone", "ids": ["shatter", "bone_breaker"],
+		"desc": "bone powers hit 30% harder and shatter 20% wider", "boost": {"damage": 1.3, "bonus": 1.3, "radius": 1.2}},
 }
 
 
