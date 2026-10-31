@@ -50,6 +50,13 @@ const HINTS := {
 	"shield": "Shields block hits from the front.\nHit from behind, or hold heavy to charge a guard-breaking slam.",
 	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
 }
+# Gamepad rumble per event: [weak motor, strong motor, seconds]. Toggle in menus.
+const RUMBLE := {
+	"hit_big": [0.3, 0.5, 0.12],
+	"perfect": [0.6, 0.2, 0.18],
+	"hurt": [0.2, 0.8, 0.22],
+	"awaken": [0.7, 1.0, 0.45],
+}
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
@@ -64,6 +71,7 @@ var skip_title := false
 ## Multiplier on all screen shake (accessibility / taste).
 var shake_scale := 1.0
 var music_scale := 1.0
+var rumble_on := true
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
@@ -230,6 +238,25 @@ func reset_hints() -> void:
 	_save_settings()
 
 
+## Buzz every connected gamepad with RUMBLE[event] (if rumble is on).
+func rumble(event: String) -> void:
+	if not rumble_on:
+		return
+	var r: Array = RUMBLE[event]
+	for pad in Input.get_connected_joypads():
+		Input.start_joy_vibration(pad, r[0], r[1], r[2])
+
+
+func toggle_rumble() -> void:
+	rumble_on = not rumble_on
+	_save_settings()
+	rumble("hit_big")  # a taste of it when switching on
+
+
+func rumble_label() -> String:
+	return "Rumble: %s" % ("On" if rumble_on else "Off")
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -246,6 +273,7 @@ func _load_settings() -> void:
 	if cfg.load(SETTINGS_PATH) == OK:
 		shake_scale = cfg.get_value("video", "shake_scale", 1.0)
 		music_scale = cfg.get_value("audio", "music_scale", 1.0)
+		rumble_on = cfg.get_value("input", "rumble", true)
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -253,6 +281,7 @@ func _save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("video", "shake_scale", shake_scale)
 	cfg.set_value("audio", "music_scale", music_scale)
+	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 
@@ -291,6 +320,7 @@ func _end_air_combo() -> void:
 
 
 func perfect_dodge(awaken_refund: float) -> void:
+	rumble("perfect")
 	perfect_dodges += 1
 	style += 12.0
 	_combo_timer = COMBO_TIMEOUT
@@ -301,6 +331,7 @@ func perfect_dodge(awaken_refund: float) -> void:
 
 
 func player_damaged() -> void:
+	rumble("hurt")
 	style *= 0.4
 	if air_hits > 0:
 		_end_air_combo()

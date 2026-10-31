@@ -11,6 +11,7 @@ func open(focus := 0) -> void:
 		["Start run", _start],
 		[Game.shake_label(), _cycle_shake],
 		[Game.music_label(), _cycle_music],
+		[Game.rumble_label(), _toggle_rumble],
 		["Quit", _quit],
 	], _footer(), 0.85, focus)
 
@@ -30,6 +31,11 @@ func _cycle_shake() -> void:
 func _cycle_music() -> void:
 	Game.cycle_music()
 	open(2)
+
+
+func _toggle_rumble() -> void:
+	Game.toggle_rumble()
+	open(3)
 
 
 func _start() -> void:

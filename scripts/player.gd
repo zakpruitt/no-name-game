@@ -492,6 +492,8 @@ func _do_hit() -> void:
 					Game.register_hit("skybreaker")
 	if hit_any:
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
+		if _move.get("big", false):
+			Game.rumble("hit_big")
 		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0))
 		Game.shake(_move.shake)
 
@@ -582,6 +584,7 @@ func try_awaken() -> void:
 		return
 	_set_awakened(true)
 	Game.sfx("awaken", 0.0, 0.0)
+	Game.rumble("awaken")
 	if has_upgrade("phoenix_heart"):
 		heal(upg("phoenix_heart", "heal"))
 	# Activation burst: big freeze, shockwave that blows enemies back.
