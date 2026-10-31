@@ -25,6 +25,7 @@ const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
 const PATH := preload("res://scripts/path_choice.gd")
 const RECORDS := preload("res://scripts/records.gd")
+const BONE_CAGE := preload("res://scripts/bone_cage.gd")
 const ALTAR := preload("res://scripts/altar.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
 const CAMP_MENU := preload("res://scripts/camp.gd")
@@ -1094,9 +1095,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f hints=%s upgrades=%s" % [
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
 		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:
@@ -1194,6 +1195,27 @@ func _bot_threatened() -> bool:
 	return false
 
 
+## Inside a bone cage: run for the gap; if a wall is about to reach the hero
+## away from the gap, dash out through it on i-frames.
+func _bot_escape_cage() -> bool:
+	for cage in get_tree().get_nodes_in_group("bone_cage"):
+		if not cage.traps(player.global_position):
+			continue
+		var r: float = cage.ring_radius()
+		var gap_dir := Vector3(cos(cage.gap_angle), 0.0, sin(cage.gap_angle))
+		var out: Vector3 = cage.global_position + gap_dir * (r + 2.0) - player.global_position
+		out.y = 0.0
+		player.bot_move = out.normalized()
+		var from: Vector3 = player.global_position - cage.global_position
+		from.y = 0.0
+		var off_gap := absf(angle_difference(atan2(from.z, from.x), cage.gap_angle)) > deg_to_rad(cage.gap) * 0.5
+		if off_gap and r - from.length() < 1.3 and player.state == player.State.MOVE:
+			player.bot_move = from.normalized()
+			Input.action_press("dash")
+		return true
+	return false
+
+
 func _drive_bot() -> void:
 	var nearest: Node3D = null
 	var nd := INF
@@ -1218,6 +1240,8 @@ func _drive_bot() -> void:
 	Input.action_release("attack_heavy")
 	Input.action_release("dash")
 	Input.action_release("awaken")
+	if _bot_escape_cage():
+		return
 	if nearest == null:
 		player.bot_move = Vector3.ZERO
 		return

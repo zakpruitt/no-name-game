@@ -115,7 +115,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Recent runs: the title screen lists the last 5 runs (room reached, result, seed) from `records.cfg` (disabled in tests) — "RECENT RUNS" panel right of the title menu (`records.recent_runs()`, `RECENT` = 5, saved under `[recent]` in records.cfg); lines read "Fell in room 6   rank A   seed N" or "Victory   rank S   daily DATE"; save/cap checked with a temp records.cfg, then deleted
 
 ## Round 13
-- [ ] Bot cage escape: the autotest bot heads for the bone cage's gap (or dashes a wall) so `--boss-attack=cage` runs survive and exercise the escape path; print `cage_escapes=`
+- [x] Bot cage escape: the autotest bot heads for the bone cage's gap (or dashes a wall) so `--boss-attack=cage` runs survive and exercise the escape path; print `cage_escapes=` — `main._bot_escape_cage()` runs for the gap and dashes a wall when it is about to reach the hero away from the gap; `bone_cage.raised`/`escapes` counters; three forced-cage runs: 5/7, 8/9, 7/8 escaped, hero survived all (was dying)
 - [ ] Replay a recent run: picking a line in the title's RECENT RUNS starts a new run on that seed
 - [ ] New elite twist "Splitting": slain foes split into two minions (once), shown on the door like the other twists
 - [ ] Death recap for hazards: "Slain by" names the bone cage / spike line / volatile burst instead of the Warden or a generic foe

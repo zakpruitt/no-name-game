@@ -19,6 +19,10 @@ var walls := 22  # wall pieces around a full ring (some are left out for the gap
 var damage := 20.0
 var source: Node  # the boss (a perfect dodge through a wall stuns it)
 
+## Autotest counters: cages raised, and how many the hero left unhurt.
+static var raised := 0
+static var escapes := 0
+
 var _t := 0.0
 var _r := 0.0
 var _hit_done := false
@@ -28,9 +32,12 @@ var _floor_ring: MeshInstance3D
 var _floor_mat: StandardMaterial3D
 var _floor_edge: MeshInstance3D  # light rim + dark outline at the band's outer edge
 var _done := false
+var _escaped := false
 
 
 func _ready() -> void:
+	add_to_group("bone_cage")
+	raised += 1
 	_r = radius
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = BONE_COLOR
@@ -96,6 +103,7 @@ func _physics_process(delta: float) -> void:
 	gap_angle += deg_to_rad(spin) * delta
 	_place()
 	_check_walls()
+	_check_escape()
 	if k >= 1.0:
 		_shut()
 
@@ -129,6 +137,30 @@ func _check_walls() -> void:
 	if absf(angle_difference(ang, gap_angle)) < deg_to_rad(gap) * 0.5:
 		return  # slipping out through the gap
 	_hurt(p, to)
+
+
+## Out past the walls without being hurt counts as an escape.
+func _check_escape() -> void:
+	var p := _player()
+	if p == null or _hit_done or _escaped:
+		return
+	var to := p.global_position - global_position
+	to.y = 0.0
+	if to.length() > _r + 0.7:
+		_escaped = true
+		escapes += 1
+
+
+## True while the hero is inside the closing ring (for the autotest bot).
+func traps(pos: Vector3) -> bool:
+	var to := pos - global_position
+	to.y = 0.0
+	return not _done and not _escaped and to.length() < _r + 0.3
+
+
+## The ring's radius right now.
+func ring_radius() -> float:
+	return _r
 
 
 func _hurt(p: Node3D, to: Vector3) -> void:
