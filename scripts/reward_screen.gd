@@ -103,7 +103,9 @@ func _build() -> void:
 		var head := "%s%s" % [u.name, Upgrades.level_tag(level)]
 		if level > 1:
 			head += "\nLEVEL UP"
-		b.text = "%d   [%s]\n\n%s\n\n%s" % [i + 1, u.slot, head, Upgrades.describe(u, level)]
+		var tags := Upgrades.tags(u.id)
+		b.text = "%d   [%s]%s\n\n%s\n\n%s" % [i + 1, u.slot, ("  ·  " + tags) if tags != "" else "", head,
+			Upgrades.describe(u, level)]
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 20)
 		b.add_theme_stylebox_override("normal", _card_style(Color(0.12, 0.1, 0.18), Color(0.4, 0.35, 0.55)))

@@ -69,6 +69,55 @@ const ALL := [
 ]
 
 
+## Synergies: own SYNERGY_NEED of a tag's `ids` and every one of them gets
+## its `boost` (a multiplier on those lv keys, applied in player.upg()).
+## A power can carry more than one tag.
+const SYNERGY_NEED := 2
+const SYNERGIES := {
+	"storm": {"name": "Storm", "ids": ["static_step", "chain_spark"],
+		"desc": "lightning powers deal +35% damage", "boost": {"damage": 1.35}},
+	"tremor": {"name": "Tremor", "ids": ["skybreaker", "riposte", "fault_line", "quake"],
+		"desc": "shockwaves hit 25% harder and reach 15% further", "boost": {"damage": 1.25, "radius": 1.15}},
+	"ember": {"name": "Ember", "ids": ["ember_cleave", "phoenix_heart"],
+		"desc": "fire powers deal +30% damage and heal +30%", "boost": {"damage": 1.3, "heal": 1.3}},
+	"blood": {"name": "Blood", "ids": ["bloodthirst", "reaper", "second_wind", "phoenix_heart"],
+		"desc": "healing powers heal +30%", "boost": {"heal": 1.3, "hp": 1.2}},
+	"night": {"name": "Night", "ids": ["overflow", "long_night", "phoenix_heart"],
+		"desc": "Awakening powers are 25% stronger", "boost": {"bonus": 1.25}},
+}
+
+
+## Synergy ids active for `owned` (id -> level).
+static func active_synergies(owned: Dictionary) -> Array:
+	var active: Array = []
+	for tag: String in SYNERGIES:
+		var n := 0
+		for id: String in SYNERGIES[tag].ids:
+			if owned.has(id):
+				n += 1
+		if n >= SYNERGY_NEED:
+			active.append(tag)
+	return active
+
+
+## Multiplier on upgrade `id`'s lv `key` from the synergies `active`.
+static func boost(active: Array, id: String, key: String) -> float:
+	var mult := 1.0
+	for tag: String in active:
+		if id in SYNERGIES[tag].ids:
+			mult *= SYNERGIES[tag].boost.get(key, 1.0)
+	return mult
+
+
+## Synergy names upgrade `id` belongs to ("Storm", "Blood · Ember"...).
+static func tags(id: String) -> String:
+	var names: Array = []
+	for tag: String in SYNERGIES:
+		if id in SYNERGIES[tag].ids:
+			names.append(SYNERGIES[tag].name)
+	return " · ".join(names)
+
+
 static func get_by_id(id: String) -> Dictionary:
 	for u in ALL:
 		if u.id == id:

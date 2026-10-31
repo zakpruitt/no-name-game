@@ -116,6 +116,7 @@ var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
+var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
 var _awaken_light: OmniLight3D
@@ -529,14 +530,20 @@ func has_upgrade(id: String) -> bool:
 	return upgrades.has(id)
 
 
-## Current level's tuning number `key` for owned upgrade `id` (upgrades.gd lv).
+## Current level's tuning number `key` for owned upgrade `id` (upgrades.gd
+## lv), boosted by any active synergy (Upgrades.SYNERGIES).
 func upg(id: String, key: String) -> float:
-	return Upgrades.value(id, key, upgrades.get(id, 1))
+	return Upgrades.value(id, key, upgrades.get(id, 1)) * Upgrades.boost(synergies, id, key)
 
 
 ## Gain an upgrade, or level it up if it's already owned (up to MAX_LEVEL).
 func add_upgrade(id: String) -> void:
 	upgrades[id] = mini(upgrades.get(id, 0) + 1, Upgrades.MAX_LEVEL)
+	var before := synergies
+	synergies = Upgrades.active_synergies(upgrades)
+	for tag: String in synergies:
+		if tag not in before:
+			Game.announced.emit("%s SYNERGY" % Upgrades.SYNERGIES[tag].name.to_upper())
 	if id == "overflow":
 		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
 	if id == "long_night":

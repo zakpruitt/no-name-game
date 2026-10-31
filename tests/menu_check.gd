@@ -20,10 +20,12 @@ func _initialize() -> void:
 	var title: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
 	title._start()
 	await create_timer(1.5).timeout
-	# A couple of powers so the pause menu's build panel has something to list.
+	# A few powers so the pause menu's build panel has something to list,
+	# including an active synergy (Skybreaker + Quake = Tremor).
 	main.player.add_upgrade("ember_cleave")
 	main.player.add_upgrade("skybreaker")
 	main.player.add_upgrade("skybreaker")
+	main.player.add_upgrade("quake")
 	var ev := InputEventAction.new()
 	ev.action = "pause"
 	ev.pressed = true

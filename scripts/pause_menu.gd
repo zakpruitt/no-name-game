@@ -48,12 +48,20 @@ func _build_powers() -> void:
 	for id: String in player.upgrades:
 		var u := Upgrades.get_by_id(id)
 		var level: int = player.upgrades[id]
-		var head := _label(list, "%s%s   [%s]" % [u.name, Upgrades.level_tag(level), u.slot], 21, Color(1.0, 0.85, 0.55))
+		var tags := Upgrades.tags(id)
+		var head := _label(list, "%s%s   [%s]%s" % [u.name, Upgrades.level_tag(level), u.slot,
+			("   " + tags) if tags != "" else ""], 21, Color(1.0, 0.85, 0.55))
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		var desc := _label(list, Upgrades.describe(u, level), 17, Color(0.85, 0.8, 0.95))
 		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc.custom_minimum_size = Vector2(400, 0)
+	for tag: String in player.synergies:
+		var s: Dictionary = Upgrades.SYNERGIES[tag]
+		var line := _label(list, "%s synergy: %s" % [s.name, s.desc], 18, Color(0.6, 0.95, 0.85))
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.custom_minimum_size = Vector2(400, 0)
 
 
 func _restart(skip_title: bool) -> void:

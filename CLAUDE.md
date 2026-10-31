@@ -18,7 +18,7 @@ characters only (no licensed IP in the repo).
 - `scripts/player.gd` — hero state machine; moves live in the `MOVES` table (timings are fractions of anim length)
 - `scripts/enemy.gd` — skeleton AI: spawn → chase → telegraphed windup → strike; poise, launch/juggle
 - `scripts/main.gd` — builds arena from KayKit pieces, run of rooms (`RUN_LENGTH`, `path_options()`, `ENEMY_TYPES`, `wave_composition()` are the tuning data), autotest bot
-- `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`, per-level numbers in each `lv`); effects are implemented in `player.gd` by id. `reward_screen.gd` offers 3 between rooms; `run_summary.gd` ends the run
+- `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`, per-level numbers in each `lv`); effects are implemented in `player.gd` by id; `Upgrades.SYNERGIES` boosts tagged powers once two are owned (applied in `player.upg()`). `reward_screen.gd` offers 3 between rooms; `run_summary.gd` ends the run
 - `scripts/boss.gd` — Bone Warden boss (extends enemy.gd); attack tuning in its `ATTACKS` table, fought in the last room (`main.RUN_LENGTH`)
 - `scripts/altar.gd` — bone altar: banked bones and permanent boons (`BOONS`, `user://altar.cfg`), bought from the title screen, applied in `main._apply_altar()`; disabled in the autotest
 - `scripts/records.gd` — saved run records (`user://records.cfg`), shown on the title screen and flagged on the run summary
