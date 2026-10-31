@@ -26,7 +26,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Simple title screen + pause menu
 
 ## Polish / tech
-- [ ] Fade pillars/walls that block the camera's view of the hero (found in autotest screenshots)
+- [x] Fade pillars that block the camera's view of the hero: `main._fade_occluders`; check with `tests/occlusion_check.gd`
 - [ ] Toon outline shader pass
 - [ ] Juggle counter / air-combo bonus feedback in HUD
 - [ ] Settings for screen shake intensity

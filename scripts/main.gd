@@ -22,6 +22,8 @@ var hud: CanvasLayer
 var wave := 0
 var _alive := 0
 var _between_waves := false
+# Tall props that fade out when they sit between the camera and the hero.
+var _occluders: Array[Node3D] = []
 
 var _autotest := false
 var _autotest_t := 0.0
@@ -169,7 +171,7 @@ func _build_arena() -> void:
 
 	# Pillars to fight around.
 	for p in [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)]:
-		_place("pillar_decorated", p)
+		_occluders.append(_place("pillar_decorated", p))
 		_cyl_collider(p, 0.75, 4.0)
 
 	# Torches on the back wall, with real light.
@@ -225,9 +227,24 @@ func _cyl_collider(pos: Vector3, radius: float, height: float) -> void:
 	add_child(body)
 
 
+## The camera looks down from +Z, so a prop hides the hero when it's a little
+## in front (larger Z) and roughly lined up on X.
+func _fade_occluders(delta: float) -> void:
+	if not is_instance_valid(player):
+		return
+	var hp := player.global_position
+	for o in _occluders:
+		var d := o.global_position - hp
+		var blocking := d.z > 0.0 and d.z < 7.0 and absf(d.x) < 1.8
+		var target := 0.7 if blocking else 0.0
+		for mi: MeshInstance3D in o.find_children("*", "MeshInstance3D", true, false):
+			mi.transparency = move_toward(mi.transparency, target, delta * 4.0)
+
+
 # --- Autotest bot -----------------------------------------------------------
 
 func _process(delta: float) -> void:
+	_fade_occluders(delta)
 	if not _autotest:
 		return
 	_autotest_t += delta

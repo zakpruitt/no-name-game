@@ -26,6 +26,7 @@ characters only (no licensed IP in the repo).
 - Visual check (screenshots to `%APPDATA%/Godot/app_userdata/Awaken/autotest_*.png`): `godot --path . -- --autotest`
 - Effect preview (isolated, screenshot to `user://fx_preview.png`): `godot --path . -s tests/fx_preview.gd`
 - Autotest also saves `autotest_hit.png` ~0.2s after the first big hit, for checking impact VFX
+- Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
 - After adding assets: `godot --headless --import --path .`
 - Scenes are mostly built in code; keep `.tscn` files minimal unless the user wants editor-authored scenes.
 - KayKit models face +Z; facing yaw = `atan2(dir.x, dir.z)`. Characters share one rig, so any KayKit animation works on any character.
