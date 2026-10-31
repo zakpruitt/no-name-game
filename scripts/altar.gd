@@ -6,7 +6,7 @@ extends RefCounted
 
 const PATH := "user://altar.cfg"
 ## Boons: cost per level (its length is the max level) and the amount each
-## level adds (see apply() in main.gd for what "amount" means per id).
+## level adds (see _apply_altar() in main.gd for what "amount" means per id).
 const BOONS := {
 	"hardened": {"name": "Hardened", "desc": "+{amount} max HP", "amount": 10, "cost": [30, 60, 100]},
 	"scavenger": {"name": "Scavenger", "desc": "start runs with +{amount} bones", "amount": 10, "cost": [25, 50, 90]},
@@ -14,6 +14,9 @@ const BOONS := {
 }
 ## Off in the autotest so bot runs don't bank bones or read real boons.
 static var enabled := true
+## Boon levels to use instead of the saved ones ({} = use saved); set by the
+## autotest's `--altar=hardened:3,scavenger:1` flag. Never saved.
+static var override := {}
 
 
 ## {bank: int, levels: {boon id: level}}.
@@ -46,6 +49,8 @@ static func bank(count: int) -> void:
 
 
 static func level(id: String) -> int:
+	if not override.is_empty():
+		return mini(override.get(id, 0), BOONS[id].cost.size())
 	return load_altar().levels.get(id, 0)
 
 

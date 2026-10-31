@@ -7,7 +7,8 @@ extends Node3D
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
 ## `--max-upgrades` gives them all at MAX_LEVEL), `--upgrades=id,id` for just
-## those, `--low-hp` to start at 15% HP (low-HP vignette → autotest_lowhp.png), `--start-room=N` to begin at a later room, `--boss-enraged` to start
+## those, `--altar=hardened:3,scavenger:1` for bone altar boons (not saved),
+## `--low-hp` to start at 15% HP (low-HP vignette → autotest_lowhp.png), `--start-room=N` to begin at a later room, `--boss-enraged` to start
 ## the boss at half HP (enraged; it uses the spike line), `--twist=volatile` to make
 ## it an elite room with that twist, `--start-rest` to make it a rest (camp) room with some bones, and `--start-awakened` to begin
 ## with a full Awakening meter.
@@ -566,6 +567,10 @@ func _track_combo(count: int, rank: String) -> void:
 
 ## Bone altar boons bought between runs (altar.gd BOONS).
 func _apply_altar() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--altar="):
+			for pair in arg.get_slice("=", 1).split(","):
+				ALTAR.override[pair.get_slice(":", 0)] = pair.get_slice(":", 1).to_int()
 	player.max_hp += ALTAR.bonus("hardened")
 	player.hp = player.max_hp
 	Game.bones += ALTAR.bonus("scavenger")
@@ -867,6 +872,8 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
+	if not ALTAR.override.is_empty():
+		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
 	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, player.upgrades])
