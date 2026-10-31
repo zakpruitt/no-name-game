@@ -80,7 +80,8 @@ const ELITE_REWARDS := 2
 # Elite rooms roll one twist (two different ones from DOUBLE_TWIST_ROOM on),
 # shown on the door and the room title. "mult" scales those ENEMY_TYPES stats
 # for every enemy in the room; "volatile" makes them burst shortly after
-# dying (enemy.gd VOLATILE_*).
+# dying (enemy.gd VOLATILE_*); "split" foes break into that many small
+# minions when slain (SPLIT_* below; the minions don't split again).
 const DOUBLE_TWIST_ROOM := 6
 # `--tour` autotest: take these doors in order (room 1 is always a fight),
 # wipe each fight after TOUR_FIGHT_TIME s, and print PASS if the run reaches
@@ -95,7 +96,10 @@ const ELITE_TWISTS := {
 		"attack_recover": 0.8}},
 	"armored": {"name": "Armored", "desc": "+60% enemy HP", "mult": {"max_hp": 1.6}},
 	"volatile": {"name": "Volatile", "desc": "foes burst when slain", "volatile": true},
+	"splitting": {"name": "Splitting", "desc": "foes split in two when slain", "split": 2},
 }
+const SPLIT_HP := 0.5  # split minions' HP vs a normal minion
+const SPLIT_SCALE := 0.7  # and their size
 # Reroll on the reward screen: first costs REROLL_COST bones, each further
 # reroll of the same offer REROLL_COST_STEP more.
 const REROLL_COST := 8
@@ -193,6 +197,8 @@ var _tour_seen: Array[String] = []
 var _tour_room_t := 0.0
 var _tour_trades: Array[String] = []  # "camp:vigor", "shrine:melt"... taken on the tour
 var _won := false
+var _split_shot_taken := false
+var _splits := 0  # minions split off by the Splitting twist (autotest line)
 var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
 var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
 var path_menu: CanvasLayer
@@ -690,6 +696,7 @@ func _on_enemy_died(e: Node) -> void:
 		for m in get_tree().get_nodes_in_group("enemies"):
 			if m.has_meta("master") and m.get_meta("master") == e:
 				m.crumble()
+	_split(e)
 	_alive -= 1
 	_kills += 1
 	hud.set_remaining(_alive + _queue.size())
@@ -714,6 +721,29 @@ func _on_enemy_died(e: Node) -> void:
 			return
 		await _choose_path()
 		_next_room()
+
+
+## Splitting twist: a slain foe (not itself a split) breaks into small minions.
+func _split(e: Node) -> void:
+	var count := 0
+	for id in room_twists:
+		count = maxi(count, ELITE_TWISTS[id].get("split", 0))
+	if count == 0 or e.has_meta("split") or e.has_meta("master"):
+		return
+	Fx.burst(self, e.global_position + Vector3.UP * 0.6, Color(0.92, 0.88, 0.78), 14, 5.0)
+	for i in count:
+		var ang := TAU * i / count + randf() * 0.5
+		var m := _spawn("minion", false, e.global_position + Vector3(cos(ang), 0.0, sin(ang)) * 0.9)
+		m.set_meta("split", true)
+		m.bones = 0
+		m.max_hp *= SPLIT_HP
+		m.hp = m.max_hp
+		m.model_scale *= SPLIT_SCALE  # (squash tweens restore model.scale from it)
+		m.model.scale = Vector3.ONE * m.model_scale
+		_splits += 1
+	if _autotest and not _split_shot_taken:
+		_split_shot_taken = true
+		get_tree().create_timer(0.5).timeout.connect(_snap.bind("user://autotest_split.png"))
 
 
 func _offer_reward(level_ups_only := false) -> void:
@@ -1099,9 +1129,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
 		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:
