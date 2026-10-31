@@ -8,11 +8,12 @@ signal died
 ## Fired when any attack begins (enemies that dodge listen for this).
 signal attack_started(move_id: String)
 
-enum State { MOVE, ATTACK, DASH, HURT, CHARGE, DEAD }
+enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD }
 
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
 const HERO_LOOK := preload("res://scripts/hero_look.gd")
+const ELEMENTS := preload("res://scripts/elements.gd")
 const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
 const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug"]
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
@@ -48,8 +49,8 @@ const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
 		"stop": 0.045, "shake": 0.12},
-	"L2": {"anim": "1H_Melee_Attack_Slice_Horizontal", "damage": 9.0, "range": 2.5, "arc": 160.0,
-		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
+	"L2": {"anim": "Throw", "damage": 9.0, "range": 2.5, "arc": 160.0,
+		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
 		"stop": 0.05, "shake": 0.14},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
@@ -58,9 +59,10 @@ const MOVES := {
 	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
 		"hits": [0.3, 0.45, 0.6], "cancel": 0.7, "end": 0.85, "lunge": 4.0, "knockback": 3.0, "launch": 0.0,
 		"stop": 0.035, "shake": 0.12},
-	# Heavy after any light hit: launcher. Juggled enemies take bonus style.
-	"LH": {"anim": "2H_Melee_Attack_Chop", "damage": 14.0, "range": 2.6, "arc": 120.0,
-		"hits": [0.4], "cancel": 0.55, "end": 0.8, "lunge": 6.0, "knockback": 2.0, "launch": 9.0,
+	# Heavy after any light hit: launcher (raises a pillar of the element under
+	# the target). Juggled enemies take bonus style.
+	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
+		"hits": [0.3], "cancel": 0.42, "end": 0.58, "lunge": 3.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true},
 	# Heavy right after L2 (L L H): Ground Breaker, a lunging thrust that
 	# knocks down everything in a strip ahead (launch > 0 also breaks guards).
@@ -91,7 +93,29 @@ const COMBOS := {
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
 	"AF": {"name": "Cataclysm", "input": "L L L H (Awakened)", "tier": 3},
+	"SKY": {"name": "Ancestor's Fall", "input": "L H H (Awakened)", "tier": 3},
+	"RUSH": {"name": "Spirit Stampede", "input": "Dash L H (Awakened)", "tier": 3},
 }
+# Awakened ultimates: these combos turn into a cinematic move (AF, the
+# finisher, is the third). The hero is invulnerable throughout. Each ultimate
+# in the same Awakening adds ULT_CHAIN_BONUS damage to the next, and landing
+# all three calls down the TRINITY storm. Names per element (spirit = no
+# Ascendancy yet). Damage is before the Awakened damage multiplier.
+#   SKY   leap toward a foe within `reach`, gather the element overhead, smash
+#         down at `impact` (fraction of `time`) hitting everything in `radius`
+#   RUSH  wind up for `go`, charge `length` ahead over `dash` hitting what's in
+#         `width`, then the whole line erupts `wake` later for `wake_damage`
+const ULTIMATES := {
+	"SKY": {"time": 1.05, "impact": 0.62, "rise": 3.2, "reach": 6.0, "damage": 36.0, "radius": 4.8, "launch": 10.0,
+		"names": {"spirit": "Ancestor's Fall", "wind": "Thunder Dive", "earth": "Meteor Fall", "water": "Frozen Comet"}},
+	"RUSH": {"time": 0.85, "go": 0.16, "dash": 0.26, "length": 9.0, "width": 1.6, "damage": 26.0, "launch": 6.0,
+		"wake": 0.12, "wake_damage": 12.0,
+		"names": {"spirit": "Spirit Stampede", "wind": "Gale Rush", "earth": "Tectonic Charge", "water": "Tidal Surge"}},
+}
+const ULT_CHAIN_BONUS := 0.3
+const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
+	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
+const CAST_SFX_DB := -11.0
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
 const COMBO_SFX_DB := -9.0
@@ -157,6 +181,24 @@ var _aura: CPUParticles3D
 var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _trails: Array = []
+var _orbit: Node3D
+var _ult_id := ""
+var _ult_from := Vector3.ZERO
+var _ult_at := Vector3.ZERO
+var _ult_dir := Vector3.FORWARD
+var _ult_len := 0.0  # RUSH distance, cut short by walls
+var _ult_hit := {}
+var _ult_step_d := 0.0
+var _ult_phase := 0
+var _ult_fired := false
+var _ult_fx_t := 0.0
+var _ult_chain := 0  # ultimates so far this Awakening
+var _ult_kinds: Array[String] = []
+var _trinity_done := false
+var ults := 0  # ultimates started (autotest)
+var max_chain := 0
+var ult_impacts := 0  # SKY/RUSH impacts (autotest screenshot)
+var trinities := 0
 var _ghost_t := 0.0
 var _since_dash := 99.0
 var _perfect_this_dash := false
@@ -247,6 +289,9 @@ func _ready() -> void:
 	_callout.outline_modulate = Color(0.1, 0.05, 0.1)
 	_callout.visible = false
 	add_child(_callout)
+	_orbit = ELEMENTS.Orbit.new()
+	add_child(_orbit)
+	_orbit.setup(element(), false)
 
 	health_changed.emit(hp, max_hp)
 	_play("Idle")
@@ -271,12 +316,13 @@ func _physics_process(delta: float) -> void:
 		State.DASH: _state_dash(delta)
 		State.HURT: _state_hurt(delta)
 		State.CHARGE: _state_charge(delta)
+		State.ULT: _state_ult(delta)
 		State.DEAD:
 			velocity.x = move_toward(velocity.x, 0.0, 40.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
 
 	move_and_slide()
-	var swinging: bool = state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel
+	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
 	for trail in _trails:
 		trail.emitting = swinging
 	model.rotation.y = lerp_angle(model.rotation.y, _facing_yaw, 1.0 - exp(-25.0 * delta))
@@ -457,6 +503,10 @@ func _next_move(kind: String) -> String:
 	# Heavy: Awakened finisher off L3, launcher if mid-string, spin from neutral.
 	if awakened and state == State.ATTACK and _move_id == "L3":
 		return "AF"
+	if awakened and state == State.ATTACK and _move_id == "LH":
+		return "SKY"
+	if awakened and state == State.ATTACK and _move_id == "DL":
+		return "RUSH"
 	if (state == State.ATTACK and _move_id == "L2") or (state != State.ATTACK and _chain_i == 2):
 		return "LLH"
 	if (state == State.ATTACK and _move_id != "H") or _chain_i > 0:
@@ -466,6 +516,9 @@ func _next_move(kind: String) -> String:
 
 func _start_attack(id: String) -> void:
 	_buffered = ""
+	if ULTIMATES.has(id):
+		_start_ult(id)
+		return
 	_move_id = id
 	_move = _effective_move(id)
 	_move_len = anim.get_animation(_move.anim).length
@@ -483,6 +536,9 @@ func _start_attack(id: String) -> void:
 	attack_started.emit(id)
 	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
+	if id == "AF":
+		_ult_begin(id)
+		_move.damage *= _ult_mult()
 
 
 func _start_dash() -> void:
@@ -566,6 +622,7 @@ func _do_hit() -> void:
 			_element_hit(e)
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
+		_cast(fwd)
 		if _move_id == "L3" and has_upgrade("ember_cleave"):
 			var w := FIRE_WAVE.new()
 			w.direction = fwd
@@ -576,6 +633,7 @@ func _do_hit() -> void:
 			_combo_callout(_move_id)  # big enough to name even on a whiff
 		if _move_id == "AF":
 			_finisher(fwd)
+			_ult_landed()
 		if awakened and ascendancy == "earth" and _move_id in Ascendancy.HEAVY_MOVES and _move_id != "AF":
 			element_procs += 1
 			var r: float = Ascendancy.PATHS.earth.magma_radius
@@ -634,6 +692,305 @@ func _combo_callout(id: String) -> void:
 	_callout_tw.parallel().tween_property(_callout, "position:y", 3.2, 0.6).set_ease(Tween.EASE_OUT)
 	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.35)
 	_callout_tw.tween_callback(_callout.hide)
+
+
+# --- Elements and ultimates ---------------------------------------------------
+
+## The hero's element: the Ascendancy path, or spirit before one.
+func element() -> String:
+	return ascendancy if ascendancy != "" else "spirit"
+
+
+## The element cast that comes with the current move (ELEMENTS.CASTS), on its first active frame.
+func _cast(fwd: Vector3) -> void:
+	if not ELEMENTS.CASTS.has(_move_id):
+		return
+	var c: Dictionary = ELEMENTS.CASTS[_move_id]
+	var el := element()
+	var parent := get_parent()
+	ELEMENTS.casts += 1
+	Game.sfx(ELEMENTS.LOOK[el].sfx, CAST_SFX_DB, 0.1)
+	match c.kind:
+		"bolt":
+			var n: int = c.get("fan", 1)
+			for i in n:
+				var b := ELEMENTS.Bolt.new()
+				b.el = el
+				b.dir = fwd.rotated(Vector3.UP, deg_to_rad(c.get("spread", 0.0) * (i - (n - 1) * 0.5)))
+				b.speed = c.speed
+				b.reach = minf(c.range, _clear_ahead(b.dir, c.range) + 0.6)  # stops at walls
+				b.damage = c.damage * _dmg_mult
+				b.size = c.get("size", 1.0)
+				b.tilt = c.tilt
+				b.on_hit = _cast_hit
+				parent.add_child(b)
+				b.global_position = global_position + b.dir * 0.7 + Vector3.UP * (0.25 if el == "earth" else 1.0)
+		"vortex":
+			ELEMENTS.vortex(self, el, c.radius, c.time)
+		"pillar":
+			var at := _cast_target(fwd, c.reach, c.ahead)
+			ELEMENTS.pillar(parent, at, el, c.height, c.radius)
+			ELEMENTS.hit_area(get_tree(), at, c.radius, c.damage * _dmg_mult, c.launch, false, "cast", _cast_hit)
+		"fissure":
+			ELEMENTS.fissure(parent, global_position, fwd, c.length, c.steps, el)
+		"nova":
+			var at := global_position + fwd * 1.6
+			ELEMENTS.nova(parent, at, el, c.radius, c.count)
+			ELEMENTS.hit_area(get_tree(), at, c.radius, c.damage * _dmg_mult, 6.0, true, "cast", _cast_hit)
+
+
+## Element casts and ultimates hitting `e`: the Awakened path passive applies.
+func _cast_hit(e: Node) -> void:
+	if awakened and ascendancy != "":
+		_element_hit(e)
+
+
+## Ground point for a targeted cast: the nearest foe roughly ahead within `reach`, else `ahead` m in front.
+func _cast_target(fwd: Vector3, reach: float, ahead: float) -> Vector3:
+	var best: Node3D = null
+	var best_d := reach
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not e.is_alive():
+			continue
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		var d := to.length()
+		if d < best_d and (d < 0.5 or rad_to_deg(fwd.angle_to(to / d)) < 50.0):
+			best_d = d
+			best = e
+	var at := best.global_position if best else global_position + fwd * ahead
+	return Vector3(at.x, 0.0, at.z)
+
+
+func _ult_mult() -> float:
+	return 1.0 + ULT_CHAIN_BONUS * maxi(_ult_chain - 1, 0)
+
+
+## An ultimate starts: chain count, banner, slow-mo, camera punch, light.
+func _ult_begin(id: String) -> void:
+	_ult_chain += 1
+	if id not in _ult_kinds:
+		_ult_kinds.append(id)
+	ults += 1
+	max_chain = maxi(max_chain, _ult_chain)
+	_callout_done = true  # the banner names it
+	var c: Color = ELEMENTS.color(element())
+	if id == "AF":
+		c = Ascendancy.color(ascendancy) if ascendancy != "" else COMBO_TIER_COLORS[2]
+	Game.ultimate.emit(combo_name(id), c, _ult_chain)
+	Game.sfx("ult", -3.0, 0.0)
+	Game.hitstop(0.16, 0.2)
+	Game.rumble("awaken")
+	if Game.camera_rig:
+		Game.camera_rig.punch(0.78, 0.6)
+	Fx.flash(model)
+	ELEMENTS.light_pop(get_parent(), global_position, c, 6.0, 7.0, 0.5)
+	ELEMENTS.gather(get_parent(), global_position + Vector3.UP, c, 3.5, 40)
+
+
+## An ultimate hit home; once all three have landed this Awakening, the Trinity follows.
+func _ult_landed() -> void:
+	if _ult_kinds.size() >= ULTIMATES.size() + 1 and not _trinity_done:
+		_trinity_done = true
+		_trinity()
+
+
+func _start_ult(id: String) -> void:
+	_ult_id = id
+	_move_id = id
+	_ult_fired = false
+	_ult_hit.clear()
+	_ult_step_d = 0.0
+	_ult_phase = 0
+	_ult_fx_t = 0.0
+	_chain_i = 0
+	_post_dash_t = 0.0
+	_aim()
+	_ult_dir = _facing()
+	_ult_from = global_position
+	if id == "SKY":
+		_ult_at = _cast_target(_ult_dir, ULTIMATES.SKY.reach, 3.0)
+	if id == "RUSH":
+		_ult_len = _clear_ahead(_ult_dir, ULTIMATES.RUSH.length)
+	_set_state(State.ULT)
+	_ult_begin(id)
+	attack_started.emit(id)
+	_play("Jump_Start" if id == "SKY" else "Spellcasting", 0.05, true)
+
+
+func _state_ult(delta: float) -> void:
+	var u: Dictionary = ULTIMATES[_ult_id]
+	var t := _state_t
+	var el := element()
+	var c := ELEMENTS.color(el)
+	_invuln_t = maxf(_invuln_t, 0.15)
+	_ghost_t -= delta
+	if _ghost_t <= 0.0 and (_ult_id == "RUSH" or t < u.time * u.get("impact", 1.0)):
+		_ghost_t = afterimage_interval * 1.5
+		Fx.afterimage(get_parent(), model, Color(c, 0.4))
+	if _ult_id == "SKY":
+		_state_sky(u, t, el, c, delta)
+	else:
+		_state_rush(u, t, el, delta)
+	if t >= u.time:
+		_end_ult()
+
+
+## SKY: leap toward the target, gather the element overhead, smash down.
+func _state_sky(u: Dictionary, t: float, el: String, c: Color, delta: float) -> void:
+	var hit_t: float = u.time * u.impact
+	var k := clampf(t / hit_t, 0.0, 1.0)
+	var to := _ult_at - _ult_from
+	to.y = 0.0
+	velocity.x = to.x / hit_t if k < 1.0 else 0.0
+	velocity.z = to.z / hit_t if k < 1.0 else 0.0
+	_face(to)
+	var rise: float = u.rise
+	model.position.y = rise * (1.0 - pow(1.0 - k / 0.7, 3.0)) if k < 0.7 else rise * (1.0 - pow((k - 0.7) / 0.3, 2.0))
+	if k >= 0.3 and _ult_phase == 0:
+		_ult_phase = 1
+		_play("Spellcast_Raise", 0.08, true)
+		if el == "earth":
+			ELEMENTS.meteor(get_parent(), _ult_at, hit_t * 0.7)
+	if _ult_phase == 1:
+		_ult_fx_t -= delta
+		if _ult_fx_t <= 0.0:
+			_ult_fx_t = 0.1
+			ELEMENTS.gather(get_parent(), global_position + Vector3.UP * (model.position.y + 2.4), c, 2.2, 14)
+	if k >= 0.72 and _ult_phase == 1:
+		_ult_phase = 2
+		_play("2H_Melee_Attack_Chop", 0.04, true)
+		anim.seek(anim.current_animation_length * 0.25, true)
+	if k >= 1.0 and not _ult_fired:
+		_ult_fired = true
+		model.position.y = 0.0
+		var at := Vector3(global_position.x, 0.0, global_position.z)
+		ELEMENTS.sky_impact(get_parent(), at, el, u.radius)
+		var water: Dictionary = Ascendancy.PATHS.water
+		ELEMENTS.hit_area(get_tree(), at, u.radius, u.damage * _dmg_mult * _ult_mult(), u.launch, true, "ult",
+			func(e: Node) -> void:
+				_cast_hit(e)
+				if el == "water" and e.is_alive() and not e.has_method("is_boss"):
+					e.freeze(water.glacier_freeze, water.shatter_mult))
+		_ult_impact()
+
+
+## RUSH: wind up, charge through everything ahead, then the line erupts.
+func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
+	var go: float = u.go
+	var dash_end: float = go + u.dash
+	_face(_ult_dir)
+	if t < go:
+		velocity.x = 0.0
+		velocity.z = 0.0
+	elif t < dash_end:
+		if _ult_phase == 0:
+			_ult_phase = 1
+			_play("Dodge_Forward", 0.03, true)
+			Game.sfx("dash", 0.0, 0.0)
+			if el == "water":
+				ELEMENTS.wave_wall(model, u.dash + 0.25)
+		var spd: float = _ult_len / u.dash
+		velocity.x = _ult_dir.x * spd
+		velocity.z = _ult_dir.z * spd
+		_ult_step_d += spd * delta
+		if _ult_step_d >= 1.2:
+			_ult_step_d = 0.0
+			ELEMENTS.rush_step(get_parent(), global_position, _ult_dir, el)
+		for e in Ascendancy.enemies_near(get_tree(), global_position, u.width):
+			if _ult_hit.has(e):
+				continue
+			_ult_hit[e] = true
+			var side: Vector3 = e.global_position - global_position
+			side.y = 0.0
+			side = (side - _ult_dir * side.dot(_ult_dir)).normalized()
+			e.take_hit(u.damage * _dmg_mult * _ult_mult(), side * 6.0 + _ult_dir * 3.0, u.launch, true)
+			Game.register_hit("ult")
+			_cast_hit(e)
+			Game.hitstop(0.03)
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, 80.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 80.0 * delta)
+		if _ult_phase == 1:
+			_ult_phase = 2
+			_play("2H_Melee_Attack_Slice", 0.04, true)
+			anim.seek(anim.current_animation_length * 0.3, true)
+		if not _ult_fired and t >= dash_end + u.wake:
+			_ult_fired = true
+			var line := global_position - _ult_from
+			line.y = 0.0
+			var length := maxf(line.length(), 2.0)
+			ELEMENTS.rush_wake(get_parent(), _ult_from, _ult_dir, length, el)
+			for e in get_tree().get_nodes_in_group("enemies"):
+				var to: Vector3 = e.global_position - _ult_from
+				to.y = 0.0
+				if e.is_alive() and _in_strip(to, _ult_dir, length, u.width, e.radius):
+					e.take_hit(u.wake_damage * _dmg_mult * _ult_mult(), Vector3.UP, 7.0, true)
+					Game.register_hit("ult")
+					_cast_hit(e)
+			_ult_impact()
+
+
+## How far the hero can travel along `dir` (up to `length`) before a wall.
+func _clear_ahead(dir: Vector3, length: float) -> float:
+	var from := global_position + Vector3.UP * 0.9
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * (length + 0.6), collision_mask)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return length
+	return maxf(from.distance_to(hit.position) - 0.6, 0.0)
+
+
+## A SKY or RUSH impact: the big hit juice.
+func _ult_impact() -> void:
+	ult_impacts += 1
+	Game.sfx("ult_impact", 0.0, 0.05)
+	Game.hitstop(0.12)
+	Game.shake(0.9)
+	Game.rumble("hit_big")
+	_ult_landed()
+
+
+func _end_ult() -> void:
+	model.position.y = 0.0
+	_buffered = ""
+	_chain_reset_t = 0.0
+	_ghost_t = 0.0
+	_set_state(State.MOVE)
+
+
+## All three ultimates in one Awakening: a strike of the element on every foe around.
+func _trinity() -> void:
+	trinities += 1
+	var el := element()
+	var c := ELEMENTS.color(el)
+	var parent := get_parent()
+	await get_tree().create_timer(TRINITY.delay, false).timeout
+	if not is_inside_tree():
+		return
+	Game.ultimate.emit(TRINITY.names[el], c, 0)
+	Game.sfx("ult", 0.0, 0.0)
+	Game.hitstop(0.25, 0.15)
+	Game.shake(1.0)
+	if Game.camera_rig:
+		Game.camera_rig.punch(1.15, 0.8)
+	ELEMENTS.light_pop(parent, global_position, c, 12.0, 20.0, 0.8)
+	Fx.ring(parent, global_position, Color(c, 0.95), TRINITY.radius, 0.6)
+	var targets := Ascendancy.enemies_near(get_tree(), global_position, TRINITY.radius)
+	if targets.is_empty():
+		for i in 6:
+			var ang := TAU * i / 6.0
+			ELEMENTS.storm_strike(parent, global_position + Vector3(sin(ang), 0.0, cos(ang)) * 4.0, el)
+	for e in targets:
+		if not is_instance_valid(e) or not e.is_alive():
+			continue
+		ELEMENTS.storm_strike(parent, e.global_position, el)
+		e.take_hit(TRINITY.damage * _dmg_mult, Vector3.ZERO, 6.0, true)
+		Game.register_hit("trinity")
+		_cast_hit(e)
+		await get_tree().create_timer(TRINITY.gap, false).timeout
+		if not is_inside_tree():
+			return
 
 
 # --- Upgrades ---------------------------------------------------------------
@@ -869,6 +1226,8 @@ func _path(key: String, fallback: float) -> float:
 
 ## COMBOS name, with the finisher renamed by the Ascendancy path.
 func combo_name(id: String) -> String:
+	if ULTIMATES.has(id):
+		return ULTIMATES[id].names[element()]
 	if id == "AF" and ascendancy != "":
 		return Ascendancy.PATHS[ascendancy].finisher
 	return COMBOS[id].name
@@ -881,6 +1240,7 @@ func ascend(path: String) -> void:
 	var c := Ascendancy.color(path)
 	Fx.ring(get_parent(), global_position, Color(c, 0.95), 5.0, 0.5)
 	Fx.burst(get_parent(), global_position + Vector3.UP * 0.6, c, 40, 9.0, 0.15, 0.6, Vector3.UP, 60.0)
+	_orbit.setup(element(), awakened)
 	if awakened:
 		_set_awakened(true)
 
@@ -945,6 +1305,11 @@ func _set_awakened(on: bool) -> void:
 		trail.color = Color(c, 0.9) if on else Color(1.0, 0.95, 0.8, 0.8)
 	_aura.color = c
 	_aura.emitting = on and ascendancy != ""
+	_orbit.setup(element(), on)
+	if on:
+		_ult_chain = 0
+		_ult_kinds.clear()
+		_trinity_done = false
 	awakened_changed.emit(on)
 
 

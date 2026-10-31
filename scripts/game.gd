@@ -15,6 +15,8 @@ signal bones_changed(count: int)
 ## Hero level (1..LEVEL_MAX) and progress toward the next one.
 signal level_changed(level: int, xp_into: int, xp_needed: int)
 signal leveled_up(level: int)
+## An Awakened ultimate began (chain: its number this Awakening; 0 = the Trinity storm).
+signal ultimate(ult_name: String, color: Color, chain: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
@@ -145,6 +147,7 @@ func _exit_tree() -> void:
 	stop_all_sfx()
 	Fx.release()
 	preload("res://scripts/hero_look.gd").release()
+	preload("res://scripts/elements.gd").release()
 	_sfx_streams.clear()
 
 

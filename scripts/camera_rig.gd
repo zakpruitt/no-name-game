@@ -10,6 +10,9 @@ extends Node3D
 
 var trauma := 0.0
 var camera: Camera3D
+var _zoom := 1.0
+var _zoom_to := 1.0
+var _zoom_until_ms := 0
 
 
 func _ready() -> void:
@@ -23,6 +26,12 @@ func _ready() -> void:
 	Game.camera_rig = self
 
 
+## Push the camera in (zoom < 1) or out for `hold` seconds of real time (ultimates).
+func punch(zoom: float, hold: float) -> void:
+	_zoom_to = zoom
+	_zoom_until_ms = Time.get_ticks_msec() + int(hold * 1000.0)
+
+
 func add_trauma(amount: float) -> void:
 	trauma = clampf(trauma + amount, 0.0, 1.0)
 
@@ -31,8 +40,14 @@ func _process(delta: float) -> void:
 	if target:
 		var goal := target.global_position
 		goal.y = 0.0
-		global_position = global_position.lerp(goal, 1.0 - exp(-follow_speed * delta))
+		var speed := follow_speed * (3.0 if _zoom_to != 1.0 else 1.0)  # keep up with ultimates
+		global_position = global_position.lerp(goal, 1.0 - exp(-speed * delta))
 	trauma = maxf(trauma - trauma_decay * delta, 0.0)
+	if Time.get_ticks_msec() >= _zoom_until_ms:
+		_zoom_to = 1.0
+	var real_delta := delta / maxf(Engine.time_scale, 0.01)  # slow-mo shouldn't slow the push-in
+	_zoom = lerpf(_zoom, _zoom_to, 1.0 - exp(-9.0 * real_delta))
+	camera.position = offset * _zoom
 	var s := trauma * trauma
 	camera.h_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
 	camera.v_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
