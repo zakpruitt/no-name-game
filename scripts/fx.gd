@@ -182,6 +182,8 @@ static func release() -> void:
 
 ## Give every mesh under `root` a dark toon outline (inverted hull pass).
 static func outline(root: Node) -> void:
+	if DisplayServer.get_name() == "headless":
+		return  # the dummy renderer errors on the shared override materials at exit
 	if _outline_mat == null:
 		_outline_mat = ShaderMaterial.new()
 		_outline_mat.shader = load("res://shaders/outline.gdshader")
