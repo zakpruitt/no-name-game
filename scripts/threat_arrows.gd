@@ -24,7 +24,7 @@ func _draw() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.state == e.State.WINDUP:
 			var k: float = clampf(e._state_t / maxf(e.attack_windup, 0.01), 0.0, 1.0)
-			_mark(cam, e.global_position + Vector3.UP, RANGED_COLOR if e.attack_kind == "ranged" else MELEE_COLOR, k)
+			_mark(cam, e.global_position + Vector3.UP, RANGED_COLOR if e.is_ranged() else MELEE_COLOR, k)
 	for p in get_tree().get_nodes_in_group("projectiles"):
 		_mark(cam, p.global_position, RANGED_COLOR, 0.5)
 

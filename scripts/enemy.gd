@@ -1,7 +1,8 @@
 extends CharacterBody3D
 ## Skeleton enemy: spawns from the ground, chases (melee) or keeps its
-## distance and fires bolts (ranged), telegraphs every attack, staggers when
-## hit (unless its poise holds), and can be launched/juggled.
+## distance and fires bolts (ranged) or crossbow shots (line), telegraphs
+## every attack, staggers when hit (unless its poise holds), and can be
+## launched/juggled.
 
 signal died(enemy: Node)
 
@@ -21,7 +22,10 @@ const PROJECTILE := preload("res://scripts/projectile.gd")
 @export var poise := 0.0
 @export var model_scale := 1.0
 @export var run_anim := "Running_A"
-## "melee" or "ranged". Ranged enemies hold `preferred_range` and shoot.
+## "melee", "ranged" or "line". Ranged and line enemies hold
+## `preferred_range` and shoot; "line" is a fast crossbow bolt aimed along a
+## ground line that tracks the player until `AIM_LOCK` of the windup, then
+## freezes, so sidestepping late dodges it.
 @export var attack_kind := "melee"
 @export var preferred_range := 7.0
 @export var projectile_speed := 9.0
@@ -48,6 +52,10 @@ const ELITE_AWAKEN_BONUS := 15.0
 @export var shield := false
 const SHIELD_SCENE := "res://assets/kaykit/props/Skeleton_Shield_Large_A.gltf"
 const SHIELD_BREAK_TIME := 2.0
+## Crossbow archer (attack_kind "line").
+const CROSSBOW_SCENE := "res://assets/kaykit/props/Skeleton_Crossbow.gltf"
+const AIM_LOCK := 0.7
+const LINE_COLOR := Color(1.0, 0.55, 0.15)
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -72,6 +80,8 @@ var _squash_tween: Tween
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
 var _guard_broken_t := 0.0
+var _aim_dir := Vector3.FORWARD
+var _aim_line: Node3D
 
 
 func _ready() -> void:
@@ -98,6 +108,10 @@ func _ready() -> void:
 	add_child(model)
 	if shield:
 		_attach_shield()
+	if attack_kind == "line":
+		var bow: Node3D = load(CROSSBOW_SCENE).instantiate()
+		bow.rotation_degrees.y = 90.0  # point down the aim
+		_attach_to_hand("handslot.r", bow)
 	Fx.outline(model)
 	anim = model.find_child("AnimationPlayer", true, false)
 	for a in LOOPING:
@@ -114,6 +128,11 @@ func _ready() -> void:
 	_orbit_side = 1.0 if randf() < 0.5 else -1.0
 	_play("Spawn_Ground_Skeletons", 0.0, 1.6)
 	Game.sfx("spawn", -10.0, 0.2)
+
+
+## Shoots from a distance (doesn't need a melee slot).
+func is_ranged() -> bool:
+	return attack_kind != "melee"
 
 
 ## Targetable: spawned, not dead, and not mid-dodge.
@@ -189,9 +208,13 @@ func _state_chase(delta: float) -> void:
 	to.y = 0.0
 	var d := to.length()
 	_face(to)
-	if d <= attack_range and _attack_cd <= 0.0 and (attack_kind == "ranged" or _melee_slot_free()):
+	if d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()):
 		_set_state(State.WINDUP)
-		if attack_kind == "ranged":
+		_aim_dir = to / maxf(d, 0.001)
+		if attack_kind == "line":
+			_play("2H_Ranged_Aiming", 0.1)
+			Game.sfx("swing", -12.0, 0.15)
+		elif attack_kind == "ranged":
 			_play("Spellcasting", 0.1, 1.2)
 		else:
 			_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
@@ -201,7 +224,7 @@ func _state_chase(delta: float) -> void:
 	behind.y = 0.0
 	if flank and d > attack_range + 1.5 and behind.length() > 1.0:
 		dir = behind.normalized()
-	elif attack_kind == "ranged":
+	elif is_ranged():
 		# Back off when crowded, close in when too far, otherwise hold.
 		if d < preferred_range - 1.5:
 			dir = -to / maxf(d, 0.001)
@@ -248,11 +271,17 @@ func _state_windup(delta: float) -> void:
 	_friction(delta, 30.0)
 	var k := clampf(_state_t / attack_windup, 0.0, 1.0)
 	_telegraph.visible = true
-	_telegraph.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
 	_telegraph_mat.albedo_color.a = lerpf(0.15, 0.55, k)
+	if attack_kind == "line":
+		_track_aim(k)
+	else:
+		_telegraph.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
 	if _state_t >= attack_windup:
 		_telegraph.visible = false
-		if attack_kind == "ranged":
+		if attack_kind == "line":
+			_shoot_line()
+			_attack_cd = randf_range(1.8, 2.8)
+		elif attack_kind == "ranged":
 			_shoot()
 			_attack_cd = randf_range(1.6, 2.6)
 		else:
@@ -285,6 +314,36 @@ func _shoot() -> void:
 	p.source = self
 	get_parent().add_child(p)
 	p.global_position = origin + p.direction * 0.8
+
+
+## Follow the player with the aim line until AIM_LOCK, then hold still;
+## the line narrows and brightens as the shot nears.
+func _track_aim(k: float) -> void:
+	if k < AIM_LOCK and is_instance_valid(_player):
+		var to := _player.global_position - global_position
+		to.y = 0.0
+		if to.length() > 0.1:
+			_aim_dir = to.normalized()
+	_face(_aim_dir)
+	_aim_line.rotation.y = atan2(_aim_dir.x, _aim_dir.z)
+	var locked := k >= AIM_LOCK
+	_aim_line.scale.x = 0.35 if locked else lerpf(1.6, 0.6, k / AIM_LOCK)
+	_telegraph_mat.albedo_color = Color(1.0, 0.2, 0.1, 0.75) if locked else Color(LINE_COLOR, _telegraph_mat.albedo_color.a)
+
+
+func _shoot_line() -> void:
+	_play("2H_Ranged_Shoot", 0.05, 1.2, true)
+	Game.sfx("dash", -6.0, 0.1)
+	var p := PROJECTILE.new()
+	p.direction = _aim_dir
+	p.speed = projectile_speed
+	p.damage = attack_damage
+	p.source = self
+	p.color = LINE_COLOR
+	p.bolt = true
+	p.lifetime = (attack_range + 6.0) / projectile_speed
+	get_parent().add_child(p)
+	p.global_position = global_position + Vector3.UP * 1.0 + _aim_dir * 0.8
 
 
 ## Stunned and open (e.g. after the player perfect-dodges this enemy's attack).
@@ -386,13 +445,17 @@ func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
 
 
 func _attach_shield() -> void:
-	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
-	var hand := BoneAttachment3D.new()
-	hand.bone_name = "handslot.l"
-	skel.add_child(hand)
 	var s: Node3D = load(SHIELD_SCENE).instantiate()
 	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
-	hand.add_child(s)
+	_attach_to_hand("handslot.l", s)
+
+
+func _attach_to_hand(bone: String, item: Node3D) -> void:
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var hand := BoneAttachment3D.new()
+	hand.bone_name = bone
+	skel.add_child(hand)
+	hand.add_child(item)
 
 
 func _die(knockback: Vector3) -> void:
@@ -477,8 +540,8 @@ func _build_elite_aura() -> void:
 func _build_telegraph() -> void:
 	_telegraph = MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	# Melee rings show the reach; casters get a small ring at their feet.
-	var r := 1.1 if attack_kind == "ranged" else attack_range + 0.3
+	# Melee rings show the reach; shooters get a small ring at their feet.
+	var r := 1.1 if is_ranged() else attack_range + 0.3
 	mesh.top_radius = r
 	mesh.bottom_radius = r
 	mesh.height = 0.02
@@ -492,3 +555,17 @@ func _build_telegraph() -> void:
 	_telegraph.position.y = 0.08
 	_telegraph.visible = false
 	add_child(_telegraph)
+	if attack_kind == "line":
+		_telegraph_mat.albedo_color = Color(LINE_COLOR, 0.3)
+		# Long strip along the shot (pivot at the archer; rotated in _track_aim).
+		_aim_line = Node3D.new()
+		var strip := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		var length := attack_range + 4.0
+		box.size = Vector3(0.5, 0.02, length)
+		box.material = _telegraph_mat
+		strip.mesh = box
+		strip.position.z = length * 0.5 + 0.6
+		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_aim_line.add_child(strip)
+		_telegraph.add_child(_aim_line)

@@ -7,6 +7,8 @@ extends Node3D
 @export var lifetime := 3.0
 @export var hit_radius := 0.7
 @export var color := Color(0.75, 0.35, 1.0)
+## Thin crossbow bolt instead of a glowing orb (the archer's fast shot).
+@export var bolt := false
 
 static var fired := 0  # running count, reported by the autotest
 
@@ -22,9 +24,19 @@ func _ready() -> void:
 	add_to_group("projectiles")
 	_player = get_tree().get_first_node_in_group("player")
 	var m := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.28
-	mesh.height = 0.56
+	var mesh: PrimitiveMesh
+	if bolt:
+		var shaft := CapsuleMesh.new()
+		shaft.radius = 0.09
+		shaft.height = 1.1
+		mesh = shaft
+		m.rotation.x = PI * 0.5  # lie along +Z
+		rotation.y = atan2(direction.x, direction.z)
+	else:
+		var orb := SphereMesh.new()
+		orb.radius = 0.28
+		orb.height = 0.56
+		mesh = orb
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = color.lightened(0.4)

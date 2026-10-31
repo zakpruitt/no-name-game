@@ -32,6 +32,9 @@ const ENEMY_TYPES := {
 		"attack_recover": 0.5, "projectile_speed": 9.0},
 	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
 		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
+	"archer": {"model": "Skeleton_Rogue", "max_hp": 22.0, "move_speed": 3.2, "attack_kind": "line",
+		"attack_range": 13.0, "preferred_range": 10.0, "attack_damage": 14.0, "attack_windup": 1.1,
+		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A"},
 	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
 }
@@ -80,7 +83,7 @@ static func path_options(n: int, prev: String) -> Array:
 
 ## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
-	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2}
+	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2, "archer": n / 3}
 
 
 ## How many of an elite room's enemies are promoted to elites (never mages).
@@ -118,6 +121,7 @@ var _hit_shot_taken := false
 var _dash_shot_taken := false
 var _dash_shot_at := 0
 var _finisher_shot_taken := false
+var _archer_shot_taken := false
 var _quitting := false
 var _hits := 0
 
@@ -544,6 +548,12 @@ func _process(delta: float) -> void:
 	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
+	if not _archer_shot_taken:
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.attack_kind == "line" and e.state == e.State.WINDUP and e._state_t >= e.attack_windup * 0.8:
+				_archer_shot_taken = true
+				_snap("user://autotest_archer.png")
+				break
 	if not _finisher_shot_taken and player.cataclysms > 0:
 		_finisher_shot_taken = true
 		await get_tree().create_timer(0.35, true, false, true).timeout
