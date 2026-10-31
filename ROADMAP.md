@@ -35,6 +35,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Healing between rooms: `main.ROOM_CLEAR_HEAL` (25% max HP) on each room clear; `player.heal()` + `Fx.heal` green "+N" and ring (Bloodthirst uses it silently)
 - [x] More upgrades (8 → 14): Rising Edge [L2], Riposte [Perfect], Long Night + Phoenix Heart [Awaken], Second Wind [Death], Reaper [Kill] (`Game.enemy_killed` signal)
 - [x] Awakened moveset: Cataclysm (`MOVES.AF`) replaces heavy after L3 while Awakened; 360° launch + fire rings + `CATACLYSM_WAVES` radiating fire waves. `--start-awakened` flag, `autotest_finisher.png`
-- [ ] Shield skeleton: blocks frontal hits, guard broken by heavies/launchers or hitting from behind
+- [x] Shield skeleton: `ENEMY_TYPES.shield` (from room 3), blocks frontal hits while walking/recovering; big hits/launchers break guard 2s; sides/back always land. Shield model in `assets/kaykit/props/`
 - [ ] Room variety: a few arena layouts (pillar placement) and a hazard (spike traps) for later rooms
 - [ ] Off-screen threat indicators for windups/bolts outside the camera view

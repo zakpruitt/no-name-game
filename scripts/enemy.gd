@@ -42,11 +42,18 @@ const ELITE_DAMAGE_MULT := 1.4
 const ELITE_SCALE_MULT := 1.3
 const ELITE_POISE_BONUS := 6.0
 const ELITE_AWAKEN_BONUS := 15.0
+## Shield bearer: blocks hits from the front while walking/recovering (not
+## while attacking). Big hits and launchers break the guard for a while;
+## hits from the side or behind always land.
+@export var shield := false
+const SHIELD_SCENE := "res://assets/kaykit/props/Skeleton_Shield_Large_A.gltf"
+const SHIELD_BREAK_TIME := 2.0
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
 
 static var dodges := 0  # running count, reported by the autotest
+static var blocks := 0
 
 var radius := 0.55
 var hp := 0.0
@@ -64,6 +71,7 @@ var _frozen_speed := -1.0
 var _squash_tween: Tween
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
+var _guard_broken_t := 0.0
 
 
 func _ready() -> void:
@@ -88,6 +96,8 @@ func _ready() -> void:
 	model.scale = Vector3.ONE * model_scale
 	radius *= model_scale
 	add_child(model)
+	if shield:
+		_attach_shield()
 	Fx.outline(model)
 	anim = model.find_child("AnimationPlayer", true, false)
 	for a in LOOPING:
@@ -131,6 +141,7 @@ func _physics_process(delta: float) -> void:
 	_state_t += delta
 	_attack_cd -= delta
 	_dodge_cd -= delta
+	_guard_broken_t -= delta
 	velocity.y -= (14.0 if state == State.AIRBORNE else 30.0) * delta
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
@@ -311,6 +322,8 @@ func _on_player_attack(_move_id: String) -> void:
 func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> void:
 	if state == State.DEAD or state == State.SPAWN or state == State.DODGE:
 		return
+	if _shield_blocks(knockback, launch, big):
+		return
 	hp -= damage
 	Fx.damage_number(get_parent(), global_position, damage, big)
 	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
@@ -343,6 +356,43 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 func crumble() -> void:
 	if state != State.DEAD:
 		_die(Vector3.ZERO)
+
+
+## True if the shield stopped this hit. Big hits/launchers break the guard
+## instead (and land).
+func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
+	if not shield or _guard_broken_t > 0.0 or (state != State.CHASE and state != State.RECOVER):
+		return false
+	if knockback.length() < 0.01:
+		return false
+	var fwd := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
+	if fwd.dot(knockback.normalized()) > -0.3:
+		return false  # from the side or behind
+	var shield_pos := global_position + Vector3.UP * 1.0 + fwd * 0.6 * model_scale
+	if big or launch > 0.0:
+		_guard_broken_t = SHIELD_BREAK_TIME
+		Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.3, 0.9), 2.2, 0.3)
+		Fx.burst(get_parent(), shield_pos, Color(1.0, 0.85, 0.4), 18, 8.0, 0.14, 0.35, -knockback.normalized(), 70.0)
+		Game.announced.emit("GUARD BREAK")
+		return false
+	blocks += 1
+	Fx.hit_spark(get_parent(), shield_pos, Color(0.7, 0.85, 1.0), 0.8)
+	Game.sfx("hit", -6.0, 0.3)
+	Game.hitstop(0.03)
+	velocity.x = knockback.x * 0.4
+	velocity.z = knockback.z * 0.4
+	_squash(Vector3(1.08, 0.94, 1.08))
+	return true
+
+
+func _attach_shield() -> void:
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var hand := BoneAttachment3D.new()
+	hand.bone_name = "handslot.l"
+	skel.add_child(hand)
+	var s: Node3D = load(SHIELD_SCENE).instantiate()
+	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
+	hand.add_child(s)
 
 
 func _die(knockback: Vector3) -> void:

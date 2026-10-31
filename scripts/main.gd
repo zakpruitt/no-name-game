@@ -29,6 +29,8 @@ const ENEMY_TYPES := {
 		"attack_recover": 0.5, "projectile_speed": 9.0},
 	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
 		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
+	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
+		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
 }
 # A run is a fixed sequence of rooms; clearing one (except the boss) offers
 # an upgrade. Room n's difficulty is its position in the run.
@@ -45,7 +47,7 @@ const BOSS_ESCORT := {"minion": 2, "mage": 1}
 
 ## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
-	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3}
+	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2}
 
 
 ## How many of an elite room's enemies are promoted to elites (never mages).
@@ -445,9 +447,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d upgrades=%s" % [
+	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d upgrades=%s" % [
 		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.upgrades])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
 	await get_tree().create_timer(0.3, true, false, true).timeout
