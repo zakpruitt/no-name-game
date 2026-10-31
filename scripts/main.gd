@@ -30,27 +30,27 @@ const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
 const ENEMY_TYPES := {
-	"minion": {"model": "Skeleton_Minion", "bones": 1},
-	"warrior": {"model": "Skeleton_Warrior", "max_hp": 75.0, "move_speed": 2.8, "attack_damage": 16.0,
+	"minion": {"model": "Skeleton_Minion", "title": "skeleton minion", "bones": 1},
+	"warrior": {"model": "Skeleton_Warrior", "title": "skeleton warrior", "max_hp": 75.0, "move_speed": 2.8, "attack_damage": 16.0,
 		"attack_windup": 0.8, "poise": 8.0, "model_scale": 1.15, "bones": 3},
-	"mage": {"model": "Skeleton_Mage", "max_hp": 24.0, "move_speed": 3.0, "attack_kind": "ranged",
+	"mage": {"model": "Skeleton_Mage", "title": "skeleton mage", "max_hp": 24.0, "move_speed": 3.0, "attack_kind": "ranged",
 		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
 		"attack_recover": 0.5, "projectile_speed": 9.0, "bones": 2},
-	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
+	"rogue": {"model": "Skeleton_Rogue", "title": "skeleton rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
 		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C",
 		"bones": 2},
-	"archer": {"model": "Skeleton_Rogue", "max_hp": 22.0, "move_speed": 3.2, "attack_kind": "line",
+	"archer": {"model": "Skeleton_Rogue", "title": "skeleton archer", "max_hp": 22.0, "move_speed": 3.2, "attack_kind": "line",
 		"attack_range": 13.0, "preferred_range": 10.0, "attack_damage": 14.0, "attack_windup": 1.1,
 		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A",
 		"cloth_color": Color(0.22, 0.42, 0.3), "bones": 2},
-	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
+	"shield": {"model": "Skeleton_Minion", "title": "shield skeleton", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons",
 		"bones": 2},
-	"necromancer": {"model": "Skeleton_Mage", "max_hp": 34.0, "move_speed": 2.8, "attack_kind": "raise",
+	"necromancer": {"model": "Skeleton_Mage", "title": "necromancer", "max_hp": 34.0, "move_speed": 2.8, "attack_kind": "raise",
 		"attack_range": 14.0, "preferred_range": 11.0, "attack_damage": 8.0, "attack_windup": 1.2,
 		"attack_recover": 0.6, "projectile_speed": 8.0, "cloth_color": Color(0.1, 0.13, 0.1),
 		"raise_count": 2, "raise_cooldown": 5.0, "bones": 4},
-	"bomber": {"model": "Skeleton_Minion", "max_hp": 26.0, "move_speed": 4.2, "attack_kind": "bomb",
+	"bomber": {"model": "Skeleton_Minion", "title": "bomber", "max_hp": 26.0, "move_speed": 4.2, "attack_kind": "bomb",
 		"attack_range": 2.6, "attack_damage": 22.0, "attack_windup": 1.5, "blast_radius": 3.2,
 		"blast_enemy_damage": 40.0, "model_scale": 0.9, "run_anim": "Running_C",
 		"body_tint": Color(1.0, 0.62, 0.42), "bones": 2},
@@ -376,10 +376,11 @@ func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	var spec: Dictionary = ENEMY_TYPES[kind]
 	e.model_scene = _model(spec.model)
 	for key in spec:
-		if key != "model":
+		if key not in ["model", "title"]:
 			e.set(key, spec[key])
 	e.elite = elite
 	e.set_meta("kind", kind)
+	e.set_meta("title", spec.get("title", kind))
 	if room_twist != "":
 		var twist: Dictionary = ELITE_TWISTS[room_twist]
 		for key in twist.get("mult", {}):
@@ -564,7 +565,10 @@ func _end_run(victory: bool) -> void:
 		return
 	_run_over = true
 	var cleared := room if victory else room - 1
-	var stats := {
+	var stats := {}
+	if not victory and player.last_hit_by != "":
+		stats["Slain by"] = player.last_hit_by
+	stats.merge({
 		"Rooms cleared": "%d / %d" % [cleared, RUN_LENGTH],
 		"Time": RECORDS.time_text(_run_time),
 		"Enemies slain": _kills,
@@ -573,7 +577,7 @@ func _end_run(victory: bool) -> void:
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
 		"Bones collected": Game.bones_total,
-	}
+	})
 	var bests := RECORDS.submit({"victory": victory, "rooms": cleared, "combo": _max_combo,
 		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time})
 	# Summary rows to flag as new personal bests.

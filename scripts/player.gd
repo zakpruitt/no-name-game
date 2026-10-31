@@ -108,6 +108,7 @@ var _charged := false
 var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
+var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
 var _awaken_light: OmniLight3D
 var _trails: Array = []
@@ -688,6 +689,17 @@ func heal(amount: float, show := true) -> void:
 		Fx.heal(get_parent(), global_position, hp - before)
 
 
+## "a spike trap" (no attacker), "the Bone Warden", "an elite skeleton
+## archer"... (titles come from main.ENEMY_TYPES).
+static func _describe_attacker(attacker: Node) -> String:
+	if attacker == null:
+		return "a spike trap"
+	if attacker.has_method("is_boss"):
+		return "the Bone Warden"
+	var kind: String = ("elite " if attacker.elite else "") + attacker.get_meta("title", "skeleton")
+	return ("an " if kind[0] in "aeiou" else "a ") + kind
+
+
 func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 	if state == State.DEAD:
 		return
@@ -696,6 +708,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 			_perfect_dodge(attacker)
 		return
 	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
+	last_hit_by = _describe_attacker(attacker)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()
 	Game.sfx("player_hurt")
