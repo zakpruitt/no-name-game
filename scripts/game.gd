@@ -48,6 +48,7 @@ const HINTS := {
 	"attack": "Light [J / LMB] and heavy [K / RMB] chain into combos.\nMixing different moves raises your style rank.",
 	"dash": "Dash [Space] through attacks.\nDash just before a hit lands for a PERFECT dodge.",
 	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
+	"breaker": "Light, light, heavy is a GROUND BREAKER:\na lunging thrust that knocks down everything in a line.",
 	"shield": "Shields block hits from the front.\nHit from behind, or hold heavy to charge a guard-breaking slam.",
 	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
 	"bomber": "Bombers explode when their fuse runs out, hurting skeletons too.\nKnock them into a crowd, or dash clear.",

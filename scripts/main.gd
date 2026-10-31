@@ -844,6 +844,8 @@ func _check_hints(delta: float) -> void:
 		id = "necro"
 	elif not Game.hint_seen("launch") and Game.combo_count >= 4:
 		id = "launch"
+	elif Game.hint_seen("launch") and not Game.hint_seen("breaker") and Game.best_air > 0 			and player.ground_breakers == 0:
+		id = "breaker"  # the next combo route, once launching has clicked
 	elif not Game.hint_seen("dash"):
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if e.state == e.State.WINDUP and e.global_position.distance_to(player.global_position) < e.attack_range + 2.0:
@@ -883,9 +885,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f upgrades=%s" % [
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f hints=%s upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	# Exercise the summary screen too.
