@@ -11,6 +11,7 @@ const ENEMY := preload("res://scripts/enemy.gd")
 const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
 const REWARD := preload("res://scripts/reward_screen.gd")
+const BOSS := preload("res://scripts/boss.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -24,6 +25,13 @@ const ENEMY_TYPES := {
 	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
 		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
 }
+# Boss: every BOSS_EVERY-th wave is the Bone Warden plus a small escort.
+# Attack timings live in boss.gd's ATTACKS table.
+const BOSS_EVERY := 5
+const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
+	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons"}
+const BOSS_ESCORT := {"minion": 2, "mage": 1}
+
 ## How many of each type wave n spawns.
 static func wave_composition(n: int) -> Dictionary:
 	return {"minion": 3 + n, "warrior": n / 2, "mage": (n + 1) / 2, "rogue": n - 1}
@@ -110,6 +118,9 @@ func _next_wave() -> void:
 	wave += 1
 	_between_waves = false
 	hud.set_wave(wave)
+	if is_boss_wave(wave):
+		_spawn_boss()
+		return
 	var comp := wave_composition(wave)
 	var kinds: Array[String] = []
 	for kind in comp:
@@ -141,6 +152,38 @@ func _spawn(kind: String, elite := false) -> void:
 	e.global_position = Vector3(clampf(p.x, -lim, lim), 0.0, clampf(p.z, -lim, lim))
 	e.died.connect(_on_enemy_died)
 	_alive += 1
+
+
+static func is_boss_wave(n: int) -> bool:
+	return n % BOSS_EVERY == 0
+
+
+func _spawn_boss() -> void:
+	hud.flash_message("THE BONE WARDEN", 1.6)
+	var b := BOSS.new()
+	b.model_scene = load("res://assets/kaykit/characters/%s.glb" % BOSS_SPEC.model)
+	for key in BOSS_SPEC:
+		if key != "model":
+			b.set(key, BOSS_SPEC[key])
+	add_child(b)
+	b.global_position = Vector3(0.0, 0.0, -9.0)
+	b.died.connect(_on_boss_died)
+	b.summon.connect(func(count: int) -> void:
+		for i in count:
+			_spawn("minion"))
+	_alive += 1
+	hud.show_boss(b)
+	for kind in BOSS_ESCORT:
+		for i in BOSS_ESCORT[kind]:
+			_spawn(kind)
+
+
+## The Warden's minions crumble with it.
+func _on_boss_died(_b: Node) -> void:
+	hud.flash_message("WARDEN DEFEATED", 1.4)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		e.crumble()
+	_on_enemy_died(_b)
 
 
 func _on_enemy_died(_e: Node) -> void:

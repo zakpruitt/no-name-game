@@ -338,6 +338,12 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	_squash(Vector3(1.25, 0.78, 1.25) if big else Vector3(1.15, 0.87, 1.15))
 
 
+## Fall apart on the spot (e.g. when the boss that summoned it dies).
+func crumble() -> void:
+	if state != State.DEAD:
+		_die(Vector3.ZERO)
+
+
 func _die(knockback: Vector3) -> void:
 	_set_state(State.DEAD)
 	remove_from_group("enemies")

@@ -12,6 +12,11 @@ var rank_label: Label
 var wave_label: Label
 var center_label: Label
 var upgrades_label: Label
+var boss_root: Control
+var boss_bar: ProgressBar
+var boss_break_bar: ProgressBar
+var boss_name: Label
+var _boss: Node
 
 
 func _ready() -> void:
@@ -52,6 +57,18 @@ func _ready() -> void:
 	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 
+	# Boss bar: top center, hidden until a boss spawns.
+	boss_root = Control.new()
+	boss_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_anchor(boss_root, 0.5, 0.0, Rect2(-320, 70, 640, 70))
+	root.add_child(boss_root)
+	boss_name = _label(boss_root, "", 22, Color(1.0, 0.85, 0.7))
+	boss_name.size = Vector2(640, 30)
+	boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_bar = _bar(boss_root, Vector2(0, 34), Vector2(640, 18), Color(0.85, 0.15, 0.2))
+	boss_break_bar = _bar(boss_root, Vector2(80, 66), Vector2(480, 6), Color(1.0, 0.8, 0.3))
+	boss_root.visible = false
+
 	Game.combo_changed.connect(_on_combo)
 	Game.announced.connect(func(text: String) -> void: flash_message(text, 0.5))
 	Game.awakening_changed.connect(_on_awakening)
@@ -65,13 +82,31 @@ func bind_player(p: Node) -> void:
 	hp_bar.value = p.hp
 
 
+func show_boss(boss: Node) -> void:
+	_boss = boss
+	boss_name.text = boss.display_name
+	boss_bar.max_value = boss.max_hp
+	boss_break_bar.max_value = 1.0
+	boss_root.visible = true
+
+
+func _process(_delta: float) -> void:
+	if not boss_root.visible:
+		return
+	if not is_instance_valid(_boss) or _boss.hp <= 0.0:
+		boss_root.visible = false
+		return
+	boss_bar.value = _boss.hp
+	boss_break_bar.value = _boss.break_ratio()
+	boss_name.add_theme_color_override("font_color", Color(1.0, 0.35, 0.25) if _boss.is_enraged else Color(1.0, 0.85, 0.7))
+
+
 func set_upgrades(ids: Array) -> void:
 	var lines: Array[String] = []
 	for id in ids:
 		var u := Upgrades.get_by_id(id)
 		lines.append("%s  [%s]" % [u.name, u.slot])
-	upgrades_label.text = "
-".join(lines)
+	upgrades_label.text = "\n".join(lines)
 
 
 func set_wave(n: int) -> void:

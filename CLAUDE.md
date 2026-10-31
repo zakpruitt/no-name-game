@@ -19,6 +19,7 @@ characters only (no licensed IP in the repo).
 - `scripts/enemy.gd` — skeleton AI: spawn → chase → telegraphed windup → strike; poise, launch/juggle
 - `scripts/main.gd` — builds arena from KayKit pieces, wave spawner (`ENEMY_TYPES` + `wave_composition()` are the tuning data), autotest bot
 - `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`); effects are implemented in `player.gd` by id. `reward_screen.gd` offers 3 between waves
+- `scripts/boss.gd` — Bone Warden boss (extends enemy.gd); attack tuning in its `ATTACKS` table, spawned every `main.BOSS_EVERY` waves
 - `scripts/projectile.gd` — enemy bolts; i-frames pass through, perfect dodge still triggers
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`
 - `scripts/hud.gd`, `scripts/camera_rig.gd`, `scripts/fx.gd` (damage numbers, sparks, rings, flash)
