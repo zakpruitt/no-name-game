@@ -7,6 +7,7 @@ var _root: Control
 var _buttons: Array[Button] = []
 ## Title font size; 0 picks 96 (with a subtitle, e.g. the game title) or 64.
 var title_size := 0
+var _settings_back := Callable()  # reopens the caller's menu while Settings shows
 
 
 func _ready() -> void:
@@ -28,6 +29,34 @@ func show_menu(title: String, subtitle: String, items: Array, footer := "", dim 
 	get_tree().paused = true
 	if not _buttons.is_empty():
 		_buttons[clampi(focus, 0, _buttons.size() - 1)].grab_focus()
+
+
+## Shared Settings screen (title and pause). `back` reopens the caller's menu.
+func open_settings(back: Callable, dim := 0.7, focus := 0) -> void:
+	_settings_back = back
+	show_menu("SETTINGS", "", [
+		[Game.shake_label(), _setting.bind(Game.cycle_shake, 0, dim)],
+		[Game.music_label(), _setting.bind(Game.cycle_music, 1, dim)],
+		[Game.rumble_label(), _setting.bind(Game.toggle_rumble, 2, dim)],
+		["Reset hints", _setting.bind(Game.reset_hints, 3, dim)],
+		["Back", settings_back],
+	], "", dim, focus)
+
+
+func in_settings() -> bool:
+	return is_open() and _settings_back.is_valid()
+
+
+func settings_back() -> void:
+	var back := _settings_back
+	_settings_back = Callable()
+	back.call()
+
+
+## Apply a setting change and redraw Settings with the same button focused.
+func _setting(change: Callable, index: int, dim: float) -> void:
+	change.call()
+	open_settings(_settings_back, dim, index)
 
 
 func close_menu(unpause := true) -> void:

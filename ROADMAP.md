@@ -55,7 +55,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Gamepad rumble on big hits, perfect dodges and taking damage (respects a setting) — `Game.RUMBLE` table (hit_big / perfect / hurt / awaken: weak, strong, seconds), `Game.rumble()`; "Rumble: On/Off" in title + pause, saved. Untested on a real pad
 
 ## Round 5
-- [ ] Settings submenu: move shake / music / rumble / reset hints into one Settings screen shared by title and pause (menus are getting long); give hints a soft backdrop for readability
+- [x] Settings submenu: move shake / music / rumble / reset hints into one Settings screen shared by title and pause (menus are getting long); give hints a soft backdrop for readability — `menu_screen.open_settings()`; Esc backs out to pause; hint sits on a dark rounded panel; `menu_check` also saves `menu_settings.png`
 - [ ] Bones: enemies drop bones (auto-collected, more from elites); HUD counter; kept per run and listed on the summary
 - [ ] Camp: rest rooms let you spend bones (max HP up, reroll a power, upgrade a power) besides the free heal
 - [ ] Reward reroll: spend bones to reroll the 3 power cards

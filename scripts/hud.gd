@@ -15,6 +15,7 @@ var center_label: Label
 var upgrades_label: Label
 var _room_text := ""
 var hint_label: Label
+var hint_panel: PanelContainer
 var _hint_tween: Tween
 var boss_root: Control
 var boss_bar: ProgressBar
@@ -67,11 +68,26 @@ func _ready() -> void:
 	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 
-	hint_label = _label(root, "", 22, Color(1.0, 0.92, 0.75))
-	_anchor(hint_label, 0.5, 1.0, Rect2(-480, -190, 960, 80))
+	# Hint: a soft dark panel sized to the text, bottom center.
+	hint_panel = PanelContainer.new()
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.03, 0.02, 0.06, 0.65)
+	panel_style.set_corner_radius_all(10)
+	panel_style.set_content_margin_all(12)
+	panel_style.content_margin_left = 22
+	panel_style.content_margin_right = 22
+	hint_panel.add_theme_stylebox_override("panel", panel_style)
+	hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hint_row := CenterContainer.new()  # keeps the panel centered at its text size
+	hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(hint_row)
+	hint_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hint_row.offset_top = -200
+	hint_row.offset_bottom = -100
+	hint_row.add_child(hint_panel)
+	hint_label = _label(hint_panel, "", 22, Color(1.0, 0.92, 0.75))
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	hint_label.modulate.a = 0.0
+	hint_panel.modulate.a = 0.0
 	Game.hint_shown.connect(show_hint)
 
 	# Boss bar: top center, hidden until a boss spawns.
@@ -150,9 +166,9 @@ func show_hint(text: String, hold := 5.0) -> void:
 	if _hint_tween:
 		_hint_tween.kill()
 	_hint_tween = create_tween()
-	_hint_tween.tween_property(hint_label, "modulate:a", 1.0, 0.25)
+	_hint_tween.tween_property(hint_panel, "modulate:a", 1.0, 0.25)
 	_hint_tween.tween_interval(hold)
-	_hint_tween.tween_property(hint_label, "modulate:a", 0.0, 0.6)
+	_hint_tween.tween_property(hint_panel, "modulate:a", 0.0, 0.6)
 
 
 func flash_message(text: String, duration := 0.0) -> void:

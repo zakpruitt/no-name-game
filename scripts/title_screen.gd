@@ -9,33 +9,14 @@ const CONTROLS := "WASD / left stick move    J / LMB / X light    K / RMB / Y he
 func open(focus := 0) -> void:
 	show_menu("AWAKEN", "a combo roguelike", [
 		["Start run", _start],
-		[Game.shake_label(), _cycle_shake],
-		[Game.music_label(), _cycle_music],
-		[Game.rumble_label(), _toggle_rumble],
+		["Settings", open_settings.bind(open.bind(1), 0.85)],
 		["Quit", _quit],
 	], _footer(), 0.85, focus)
 
 
 func _footer() -> String:
 	var records: String = preload("res://scripts/records.gd").summary_line()
-	return (records + "
-
-" + CONTROLS) if records != "" else CONTROLS
-
-
-func _cycle_shake() -> void:
-	Game.cycle_shake()
-	open(1)
-
-
-func _cycle_music() -> void:
-	Game.cycle_music()
-	open(2)
-
-
-func _toggle_rumble() -> void:
-	Game.toggle_rumble()
-	open(3)
+	return (records + "\n\n" + CONTROLS) if records != "" else CONTROLS
 
 
 func _start() -> void:

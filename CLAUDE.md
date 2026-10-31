@@ -33,7 +33,7 @@ characters only (no licensed IP in the repo).
 - Visual check (screenshots to `%APPDATA%/Godot/app_userdata/Awaken/autotest_*.png`): `godot --path . -- --autotest`
 - Effect preview (isolated, screenshot to `user://fx_preview.png`): `godot --path . -s tests/fx_preview.gd`
 - Autotest also saves `autotest_hit.png` ~0.2s after the first big hit, for checking impact VFX, and prints a `[perf]` line (avg/worst frame ms, spikes >25ms with timestamps, max enemies/draw calls); measure perf windowed, not headless
-- Menu check (title + pause screenshots to `user://menu_*.png`): `godot --path . -s tests/menu_check.gd`
+- Menu check (title + pause + settings screenshots to `user://menu_*.png`): `godot --path . -s tests/menu_check.gd`
 - Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
 - After adding assets **or a new `class_name`**: `godot --headless --import --path .` (registers global classes)
 - `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects (`--max-upgrades`: all at max level); `--start-room=N` skips ahead (8 = boss), `--start-awakened` starts with a full meter (bot lands Cataclysm → `autotest_finisher.png`). Autotest also saves `autotest_summary.png`
