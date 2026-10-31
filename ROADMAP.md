@@ -119,3 +119,9 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Replay a recent run: picking a line in the title's RECENT RUNS starts a new run on that seed — each RECENT RUNS line is a flat button ("Pick a run to replay its seed"); `title.replay` → main sets `run_seed`/`run_rng` (and `daily_date` for a daily); checked: picking a line started seed 404135889
 - [x] New elite twist "Splitting": slain foes split into two minions (once), shown on the door like the other twists — `ELITE_TWISTS.splitting` ("split": 2), `main._split()`: minions at `SPLIT_HP` 0.5 HP, `SPLIT_SCALE` 0.7 size, no bones, never split again or from raised minions; autotest prints `splits=`, `--twist=splitting` → `autotest_split.png`; combines with Volatile (splits=8 blasts=12)
 - [x] Death recap for hazards: "Slain by" names the bone cage / spike line / volatile burst instead of the Warden or a generic foe — `player.take_hit(..., cause)`; reads "the Bone Warden's cage", "the Bone Warden's bone spikes", "a skeleton warrior's dying burst" (volatile), "a bomber's blast"; spike traps already said "a spike trap"
+
+## Round 14
+- [ ] Recent runs focus: keyboard/gamepad can move from the title buttons into the RECENT RUNS lines (explicit focus neighbours), checked by a menu_check step
+- [ ] New power "Shatter" [H finisher]: a heavy that kills a foe bursts it into bone shards that hit nearby enemies (per-level damage/radius in `Upgrades.ALL`, Tremor-free so it opens a new build)
+- [ ] Reduce flashing setting: a Settings toggle that tones down full-screen flashes and hit flashes (saved like the other settings)
+- [ ] Elite pacing check: autotest prints room clear time; compare Splitting/Volatile/Armored rooms against a plain fight over a few seeds and note the numbers in ROADMAP
