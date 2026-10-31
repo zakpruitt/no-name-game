@@ -264,6 +264,7 @@ var _dash_shot_at := 0
 var _finisher_shot_taken := false
 var _callout_shot_taken := false
 var _ult_shot_taken := false
+var _trinity_shot_taken := false
 var _cast_shot_taken := false
 var _archer_shot_taken := false
 var _quitting := false
@@ -1113,6 +1114,10 @@ func _process(delta: float) -> void:
 		_ult_shot_taken = true
 		await get_tree().create_timer(0.08, true, false, true).timeout
 		_snap("user://autotest_ult.png")
+	if not _trinity_shot_taken and player.trinities > 0:
+		_trinity_shot_taken = true
+		await get_tree().create_timer(0.75, true, false, true).timeout
+		_snap("user://autotest_trinity.png")
 	if not _finisher_shot_taken and player.cataclysms > 0:
 		_finisher_shot_taken = true
 		await get_tree().create_timer(0.35, true, false, true).timeout
@@ -1375,6 +1380,9 @@ func _drive_bot() -> void:
 		_bot_charge_t = player.CHARGE_TIME + 0.15
 		_bot_next_charge = _autotest_t + 5.0
 		return
+	if player.awakened and player.state == player.State.ATTACK and player._move_id in ["L3", "LH", "DL"] and f % 9 == 0:
+		Input.action_press("attack_heavy")  # finish into the ultimate even if the hit knocked the target away
+		return
 	if nd < 3.0:
 		# Cycle through routes: L H (launch), L L H (ground breaker), L L L.
 		var step := (f / 9) % 8
@@ -1392,7 +1400,7 @@ func _drive_bot() -> void:
 				return
 		if f % 9 == 0:
 			Input.action_press("attack_heavy" if heavy else "attack_light")
-	elif nd < 7.0 and f % 40 == 0:
+	elif nd < 7.0 and f % 40 == 0 and not (player.awakened and "RUSH" in player._ult_kinds):  # walk in for the other ultimates
 		Input.action_press("dash")
 	if Game.awakening >= Game.AWAKEN_MAX:
 		Input.action_press("awaken")
