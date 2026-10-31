@@ -6,6 +6,8 @@ extends RefCounted
 const PATH := "user://records.cfg"
 ## Off in the autotest so bot runs don't overwrite real records.
 static var enabled := true
+## How many recent runs the title screen lists.
+const RECENT := 5
 
 
 ## {runs, wins, best_room, best_combo, best_rank, best_juggle, fastest_win}
@@ -20,7 +22,8 @@ static func load_records() -> Dictionary:
 
 
 ## Record a finished run and return the keys it set new bests for.
-## `run` has: victory, rooms, combo, rank, juggle, time.
+## `run` has: victory, rooms, combo, rank, juggle, time, and for the recent
+## list room (reached), seed, daily ("" or the date).
 static func submit(run: Dictionary) -> Array[String]:
 	var r := load_records()
 	var bests: Array[String] = []
@@ -38,11 +41,35 @@ static func submit(run: Dictionary) -> Array[String]:
 		r.best_rank = run.rank
 		bests.append("best_rank")
 	if enabled:
+		var recent := recent_runs()
+		recent.push_front({"victory": run.victory, "room": run.get("room", run.rooms), "rank": run.rank,
+			"seed": run.get("seed", -1), "daily": run.get("daily", "")})
 		var cfg := ConfigFile.new()
 		for key in r:
 			cfg.set_value("records", key, r[key])
+		cfg.set_value("recent", "runs", recent.slice(0, RECENT))
 		cfg.save(PATH)
 	return bests
+
+
+## The last RECENT runs, newest first: {victory, room, rank, seed, daily}.
+static func recent_runs() -> Array:
+	var cfg := ConfigFile.new()
+	if cfg.load(PATH) != OK:
+		return []
+	return cfg.get_value("recent", "runs", [])
+
+
+## "Victory   rank S   seed 123" / "Fell in room 4   rank B   daily 2026-10-31".
+static func recent_line(run: Dictionary) -> String:
+	var parts: Array[String] = ["Victory" if run.victory else "Fell in room %d" % run.room]
+	if run.rank != "":
+		parts.append("rank " + run.rank)
+	if run.daily != "":
+		parts.append("daily " + run.daily)
+	elif run.seed >= 0:
+		parts.append("seed %d" % run.seed)
+	return "   ".join(parts)
 
 
 ## One line for the title screen ("" before the first run).

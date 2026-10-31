@@ -786,7 +786,8 @@ func _end_run(victory: bool) -> void:
 	})
 	ALTAR.bank(Game.bones)
 	var bests := RECORDS.submit({"victory": victory, "rooms": cleared, "combo": _max_combo,
-		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time})
+		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time,
+		"room": room, "seed": run_seed, "daily": daily_date})
 	# Summary rows to flag as new personal bests.
 	var rows := {"best_room": "Rooms cleared", "best_combo": "Best combo", "best_rank": "Best style rank",
 		"best_juggle": "Best juggle", "fastest_win": "Time"}
