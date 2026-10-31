@@ -56,6 +56,10 @@ const SHIELD_BREAK_TIME := 2.0
 const CROSSBOW_SCENE := preload("res://assets/kaykit/props/Skeleton_Crossbow.gltf")
 const AIM_LOCK := 0.7
 const LINE_COLOR := Color(1.0, 0.55, 0.15)
+## Flat colour for the model's hood/cape/cloak meshes (alpha 0 = keep the
+## texture). Lets types that share a model read differently (archer vs rogue).
+@export var cloth_color := Color(0, 0, 0, 0)
+const CLOTH_MESHES := ["Hood", "Cape", "Cloak"]
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -108,6 +112,8 @@ func _ready() -> void:
 	add_child(model)
 	if shield:
 		_attach_shield()
+	if cloth_color.a > 0.0:
+		_tint_cloth()
 	if attack_kind == "line":
 		var bow: Node3D = CROSSBOW_SCENE.instantiate()
 		bow.rotation_degrees.y = 90.0  # point down the aim
@@ -448,6 +454,18 @@ func _attach_shield() -> void:
 	var s: Node3D = SHIELD_SCENE.instantiate()
 	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
 	_attach_to_hand("handslot.l", s)
+
+
+func _tint_cloth() -> void:
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if not CLOTH_MESHES.any(func(part: String) -> bool: return part in mi.name):
+			continue
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(i).duplicate() as StandardMaterial3D
+			if mat:
+				mat.albedo_texture = null
+				mat.albedo_color = cloth_color
+				mi.set_surface_override_material(i, mat)
 
 
 func _attach_to_hand(bone: String, item: Node3D) -> void:

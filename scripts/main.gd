@@ -35,7 +35,8 @@ const ENEMY_TYPES := {
 		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
 	"archer": {"model": "Skeleton_Rogue", "max_hp": 22.0, "move_speed": 3.2, "attack_kind": "line",
 		"attack_range": 13.0, "preferred_range": 10.0, "attack_damage": 14.0, "attack_windup": 1.1,
-		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A"},
+		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A",
+		"cloth_color": Color(0.22, 0.42, 0.3)},
 	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
 }
@@ -592,7 +593,8 @@ func _process(delta: float) -> void:
 		_snap("user://autotest_dash.png")
 	if not _archer_shot_taken:
 		for e in get_tree().get_nodes_in_group("enemies"):
-			if e.attack_kind == "line" and e.state == e.State.WINDUP and e._state_t >= e.attack_windup * 0.8:
+			if e.attack_kind == "line" and e.state == e.State.WINDUP and e._state_t >= e.attack_windup * 0.8 \
+					and get_viewport().get_camera_3d().is_position_in_frustum(e.global_position):
 				_archer_shot_taken = true
 				_snap("user://autotest_archer.png")
 				break

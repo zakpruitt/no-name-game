@@ -5,6 +5,8 @@ extends CanvasLayer
 
 var _root: Control
 var _buttons: Array[Button] = []
+## Title font size; 0 picks 96 (with a subtitle, e.g. the game title) or 64.
+var title_size := 0
 
 
 func _ready() -> void:
@@ -53,7 +55,8 @@ func _build(title: String, subtitle: String, items: Array, footer: String, dim: 
 	col.add_theme_constant_override("separation", 16)
 	_root.add_child(col)
 
-	_label(col, title, 96 if subtitle != "" else 64, Color(1.0, 0.7, 0.25))
+	var size := title_size if title_size > 0 else (96 if subtitle != "" else 64)
+	_label(col, title, size, Color(1.0, 0.7, 0.25))
 	if subtitle != "":
 		_label(col, subtitle, 24, Color(0.85, 0.8, 0.95))
 	var gap := Control.new()

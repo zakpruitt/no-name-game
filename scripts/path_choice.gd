@@ -11,6 +11,11 @@ const DOORS := {
 }
 
 
+func _ready() -> void:
+	super()
+	title_size = 56
+
+
 func open(kinds: Array, next_room: int) -> void:
 	var items: Array = []
 	for k in kinds:
