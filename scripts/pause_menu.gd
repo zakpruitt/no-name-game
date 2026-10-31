@@ -1,7 +1,8 @@
 extends "res://scripts/menu_screen.gd"
 ## Pause menu: Esc / Start toggles it during a run (backs out of Settings
 ## first). Won't open over other screens that already pause the game (title,
-## rewards, run summary). A panel on the left lists the run's powers.
+## rewards, run summary). A panel on the left lists the run's powers; the
+## footer shows the room and the run's seed (replay with --seed).
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -25,8 +26,20 @@ func _open(focus := 0) -> void:
 		["Restart run", _restart.bind(true)],
 		["Quit to title", _restart.bind(false)],
 		["Quit game", _quit],
-	], "", 0.7, focus)
+	], _run_info(), 0.7, focus)
 	_build_powers()
+
+
+## "Room 3 / 8   ·   daily run 2026-10-31   ·   seed 975604274"
+func _run_info() -> String:
+	var main := get_parent()
+	if main == null or not "run_seed" in main:
+		return ""
+	var parts: Array[String] = ["Room %d / %d" % [main.room, main.RUN_LENGTH]]
+	if main.daily_date != "":
+		parts.append("daily run " + main.daily_date)
+	parts.append("seed %d" % main.run_seed)
+	return "   ·   ".join(parts)
 
 
 ## "YOUR BUILD": each owned power with its level and current effect.
