@@ -33,6 +33,6 @@ characters only (no licensed IP in the repo).
 - Menu check (title + pause screenshots to `user://menu_*.png`): `godot --path . -s tests/menu_check.gd`
 - Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
 - After adding assets **or a new `class_name`**: `godot --headless --import --path .` (registers global classes)
-- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects; `--start-room=N` skips ahead (8 = boss). Autotest also saves `autotest_summary.png`
+- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects; `--start-room=N` skips ahead (8 = boss), `--start-awakened` starts with a full meter (bot lands Cataclysm → `autotest_finisher.png`). Autotest also saves `autotest_summary.png`
 - Scenes are mostly built in code; keep `.tscn` files minimal unless the user wants editor-authored scenes.
 - KayKit models face +Z; facing yaw = `atan2(dir.x, dir.z)`. Characters share one rig, so any KayKit animation works on any character.

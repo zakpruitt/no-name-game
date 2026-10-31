@@ -59,9 +59,14 @@ const MOVES := {
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
 		"stop": 0.07, "shake": 0.22},
+	# Awakened only: heavy right after L3. Huge two-handed swing that erupts all around.
+	"AF": {"anim": "2H_Melee_Attack_Slice", "damage": 30.0, "range": 4.5, "arc": 360.0,
+		"hits": [0.45], "cancel": 0.7, "end": 0.9, "lunge": 5.0, "knockback": 6.0, "launch": 10.0,
+		"stop": 0.16, "shake": 0.7, "big": true},
 }
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
 const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
+const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
 var hp := max_hp
 var state := State.MOVE
@@ -88,6 +93,7 @@ var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
 var _second_wind_used := false
+var cataclysms := 0  # finishers landed (reported by the autotest)
 var _awaken_light: OmniLight3D
 var _trails: Array = []
 var _ghost_t := 0.0
@@ -304,7 +310,9 @@ func _next_move(kind: String) -> String:
 			return "DL"
 		var id: String = LIGHT_CHAIN[_chain_i % LIGHT_CHAIN.size()]
 		return id
-	# Heavy: launcher if we're mid-string, spin from neutral.
+	# Heavy: Awakened finisher off L3, launcher if mid-string, spin from neutral.
+	if awakened and state == State.ATTACK and _move_id == "L3":
+		return "AF"
 	if (state == State.ATTACK and _move_id != "H") or _chain_i > 0:
 		return "LH"
 	return "H"
@@ -326,7 +334,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "AF"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 
 
@@ -405,6 +413,8 @@ func _do_hit() -> void:
 			w.direction = fwd
 			get_parent().add_child(w)
 			w.global_position = global_position + fwd * 1.0
+		if _move_id == "AF":
+			_cataclysm()
 		if _move_id == "LH" and has_upgrade("skybreaker"):
 			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), 4.0, 0.3)
 			for e in get_tree().get_nodes_in_group("enemies"):
@@ -537,6 +547,23 @@ func _perfect_dodge(attacker: Node) -> void:
 		attacker.stagger(perfect_dodge_stun)
 	if has_upgrade("riposte"):
 		_riposte()
+
+
+## Cataclysm's eruption: fire rings, embers and radiating fire waves on top of the move's own hit.
+func _cataclysm() -> void:
+	cataclysms += 1
+	Game.sfx("awaken", -4.0, 0.1)
+	Fx.ring(get_parent(), global_position, Color(1.0, 0.5, 0.15, 0.95), _move.range + 0.5, 0.4)
+	Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.4, 0.8), _move.range * 0.5, 0.25)
+	Fx.burst(get_parent(), global_position + Vector3.UP * 0.3, Color(1.0, 0.5, 0.15), 50, 11.0, 0.2, 0.5, Vector3.UP, 160.0, -8.0, 1.0)
+	Fx.dust(get_parent(), global_position, 24, 1.2)
+	for i in CATACLYSM_WAVES:
+		var ang := TAU * i / CATACLYSM_WAVES
+		var w := FIRE_WAVE.new()
+		w.direction = Vector3(cos(ang), 0.0, sin(ang))
+		w.damage = 8.0
+		get_parent().add_child(w)
+		w.global_position = global_position + w.direction * 1.0
 
 
 func _riposte() -> void:

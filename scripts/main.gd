@@ -5,7 +5,8 @@ extends Node3D
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects)
-## and `--start-room=N` to begin at a later room.
+## `--start-room=N` to begin at a later room, and `--start-awakened` to begin
+## with a full Awakening meter.
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
@@ -77,6 +78,7 @@ var _shots_taken := 0
 var _hit_shot_taken := false
 var _dash_shot_taken := false
 var _dash_shot_at := 0
+var _finisher_shot_taken := false
 var _quitting := false
 var _hits := 0
 
@@ -106,6 +108,8 @@ func _ready() -> void:
 	add_child(PAUSE.new())
 	Game.combo_changed.connect(_track_combo)
 
+	if "--start-awakened" in OS.get_cmdline_user_args():
+		Game.add_awakening(Game.AWAKEN_MAX)
 	if "--all-upgrades" in OS.get_cmdline_user_args():
 		for u in Upgrades.ALL:
 			player.add_upgrade(u.id)
@@ -427,6 +431,10 @@ func _process(delta: float) -> void:
 	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
+	if not _finisher_shot_taken and player.cataclysms > 0:
+		_finisher_shot_taken = true
+		await get_tree().create_timer(0.35, true, false, true).timeout
+		_snap("user://autotest_finisher.png")
 	if _autotest_t >= 16.0:
 		_autotest_finish()
 
@@ -437,8 +445,8 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d bolts=%d dodges=%d upgrades=%s" % [
-		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
+	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d upgrades=%s" % [
+		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, player.upgrades])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
@@ -494,8 +502,10 @@ func _drive_bot() -> void:
 	if nd < 3.0:
 		# Cycle through routes: L L L, L H (launch) L L, H spin.
 		var step := (f / 9) % 8
+		# While Awakened: L L L H to land the Cataclysm finisher.
+		var heavy: bool = (player._move_id == "L3" and player.state == player.State.ATTACK) if player.awakened 			else (step in [1, 7])
 		if f % 9 == 0:
-			Input.action_press("attack_heavy" if step in [1, 7] else "attack_light")
+			Input.action_press("attack_heavy" if heavy else "attack_light")
 	elif nd < 7.0 and f % 40 == 0:
 		Input.action_press("dash")
 	if Game.awakening >= Game.AWAKEN_MAX:
