@@ -99,3 +99,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Seeded runs: `--seed=N` makes layouts, doors, rewards and twists reproducible for comparing autotest runs — seeds the global RNG plus a dedicated `main.run_rng` for doors/twists/spawn order/reward rolls (combat FX and AI draw from the global one, so they no longer shift the run); `seed=` in the autotest line; checked: two `--tour --seed=1234` runs picked identical powers
 - [x] Shrine variety: a third trade that rotates per shrine (e.g. lose a power level for 30 bones, or take a curse for an extra power) — `main.SHRINE_ROTATING`: Dark vow (next room gets the Armored twist, gain a power) or Melt down (a random owned power for 20 bones/level), rolled with `run_rng`; `--shrine-trade=` forces one; autotest `kind=` now shows twists (`fight+armored`)
 - [x] Synergy sound + flash: a distinct chime and a ring burst on the hero when a synergy activates (gen_sfx) — `synergy.wav` (rising C-E-G-C arpeggio + whoosh), teal ring, flash and sparks from `player._synergy_burst()`; autotest snaps `autotest_synergy.png` on the first one (`--upgrades=skybreaker,quake` triggers it at once)
+
+## Round 11
+- [ ] Run summary: show the run's seed and active synergies, so a good run can be replayed and its build read at a glance
+- [ ] Daily run: a title-screen option that starts a run from today's date as the seed (same doors/rewards for everyone that day)
+- [ ] Boss variety: a new Bone Warden attack for phase 2 (e.g. a ring of bone walls that closes in, with a gap to dash through)
+- [ ] Tour coverage: the `--tour` shrine takes the rotating trade and the rest camp buys something, so those paths run every tour
+- [ ] Telegraph readability: enemy attack rings get a pulsing edge so they read on bright floor tiles and for colour-blind players
