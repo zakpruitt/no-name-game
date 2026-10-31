@@ -15,7 +15,7 @@ characters only (no licensed IP in the repo).
 
 ## Layout
 - `scripts/game.gd` — autoload `Game`: hitstop, shake, combo/style rank, Awakening meter, input map (bound in code)
-- `scripts/player.gd` — hero state machine; moves live in the `MOVES` table (timings are fractions of anim length)
+- `scripts/player.gd` — hero state machine; moves live in the `MOVES` table (timings are fractions of anim length); `COMBOS` names the combos (name, input, tier): landing one plays `combo_<tier>` and shows the name above the hero, and the pause menu lists them as MOVES
 - `scripts/enemy.gd` — skeleton AI: spawn → chase → telegraphed windup → strike; poise, launch/juggle
 - `scripts/main.gd` — builds arena from KayKit pieces, run of rooms (`RUN_LENGTH`, `path_options()`, `ENEMY_TYPES`, `wave_composition()` are the tuning data), autotest bot
 - `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`, per-level numbers in each `lv`); effects are implemented in `player.gd` by id; `Upgrades.SYNERGIES` boosts tagged powers once two are owned (applied in `player.upg()`). `reward_screen.gd` offers 3 between rooms; `run_summary.gd` ends the run

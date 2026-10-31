@@ -28,6 +28,7 @@ func _open(focus := 0) -> void:
 		["Quit game", _quit],
 	], _run_info(), 0.7, focus)
 	_build_powers()
+	_build_moves()
 
 
 ## "Room 3 / 8   ·   daily run 2026-10-31   ·   seed 975604274"
@@ -75,6 +76,30 @@ func _build_powers() -> void:
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size = Vector2(400, 0)
+
+
+## "MOVES": the fixed move list, basics plus the named combos (player.COMBOS).
+func _build_moves() -> void:
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null or _root == null:
+		return
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _style(Color(0.06, 0.05, 0.1, 0.85), Color(0.4, 0.35, 0.55)))
+	panel.custom_minimum_size = Vector2(380, 0)
+	panel.position = Vector2(1600 - 48 - 380, 120)
+	_root.add_child(panel)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	panel.add_child(list)
+	_label(list, "MOVES", 30, Color(1.0, 0.7, 0.25))
+	var rows: Array = [["L", "Slice"], ["H", "Spin"], ["Dash", "Dodge"], ["Q", "Awaken"]]
+	for id: String in player.COMBOS:
+		rows.append([player.COMBOS[id].input, player.COMBOS[id].name, player.COMBOS[id].tier])
+	for r: Array in rows:
+		var tier: int = r[2] if r.size() > 2 else 0
+		var line := _label(list, "%s   %s" % [r[0], r[1]], 19,
+			player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95))
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func _restart(skip_title: bool) -> void:

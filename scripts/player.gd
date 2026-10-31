@@ -76,6 +76,20 @@ const MOVES := {
 		"hits": [0.45], "cancel": 0.7, "end": 0.9, "lunge": 5.0, "knockback": 6.0, "launch": 10.0,
 		"stop": 0.16, "shake": 0.7, "big": true},
 }
+# The named combos: landing one plays its tier's sound and shows its name
+# above the hero. Moves not listed here (L1, L2, H) stay quiet. Also the
+# pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
+const COMBOS := {
+	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
+	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
+	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
+	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
+	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
+	"AF": {"name": "Cataclysm", "input": "L L L H (Awakened)", "tier": 3},
+}
+const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
+const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
+const COMBO_SFX_DB := -9.0
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
 # Charging (hold heavy from neutral): release before CHARGE_TIME for the
 # normal spin (H), after it for the charged slam (CH). You can creep while
@@ -124,6 +138,11 @@ const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
+var callouts := 0  # combo callouts shown (autotest)
+var last_callout_tier := 0  # (autotest screenshot)
+var _callout: Label3D
+var _callout_tw: Tween
+var _callout_done := false
 var _awaken_light: OmniLight3D
 var _trails: Array = []
 var _ghost_t := 0.0
@@ -181,6 +200,15 @@ func _ready() -> void:
 	_charge_light.omni_range = 4.0
 	_charge_light.position.y = 1.0
 	add_child(_charge_light)
+	_callout = Label3D.new()
+	_callout.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_callout.no_depth_test = true
+	_callout.font_size = 84
+	_callout.outline_size = 24
+	_callout.pixel_size = 0.006
+	_callout.outline_modulate = Color(0.1, 0.05, 0.1)
+	_callout.visible = false
+	add_child(_callout)
 
 	health_changed.emit(hp, max_hp)
 	_play("Idle")
@@ -400,6 +428,7 @@ func _start_attack(id: String) -> void:
 	_move = _effective_move(id)
 	_move_len = anim.get_animation(_move.anim).length
 	_hits_done = 0
+	_callout_done = false
 	if id in LIGHT_CHAIN:
 		_chain_i = (LIGHT_CHAIN.find(id) + 1) % LIGHT_CHAIN.size()
 	elif id == "DL":
@@ -499,6 +528,8 @@ func _do_hit() -> void:
 			w.damage = upg("ember_cleave", "damage")
 			get_parent().add_child(w)
 			w.global_position = global_position + fwd * 1.0
+		if _move_id in ["AF", "LLH"]:
+			_combo_callout(_move_id)  # big enough to name even on a whiff
 		if _move_id == "AF":
 			_cataclysm()
 		if _move_id == "LLH":
@@ -524,11 +555,37 @@ func _do_hit() -> void:
 					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
 					Game.register_hit("skybreaker")
 	if hit_any:
+		_combo_callout(_move_id)
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		if _move.get("big", false):
 			Game.rumble("hit_big")
 		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0))
 		Game.shake(_move.shake)
+
+
+## Names a landed combo (COMBOS) above the hero with its tier's sound, once per move.
+func _combo_callout(id: String) -> void:
+	if _callout_done or not COMBOS.has(id):
+		return
+	_callout_done = true
+	var c: Dictionary = COMBOS[id]
+	var tier: int = c.tier
+	callouts += 1
+	last_callout_tier = tier
+	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
+	_callout.text = c.name
+	_callout.modulate = COMBO_TIER_COLORS[tier - 1]
+	_callout.position = Vector3(0.0, 2.9, 0.0)
+	_callout.scale = Vector3.ONE * 0.6
+	_callout.visible = true
+	if _callout_tw:
+		_callout_tw.kill()
+	_callout_tw = _callout.create_tween()
+	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * 1.15, 0.08)
+	_callout_tw.tween_property(_callout, "scale", Vector3.ONE, 0.08)
+	_callout_tw.parallel().tween_property(_callout, "position:y", 3.2, 0.6).set_ease(Tween.EASE_OUT)
+	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.35)
+	_callout_tw.tween_callback(_callout.hide)
 
 
 # --- Upgrades ---------------------------------------------------------------

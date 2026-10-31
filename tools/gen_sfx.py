@@ -135,6 +135,10 @@ def main():
     # Low-HP heartbeat: "lub" then a softer "dub".
     save("heartbeat", mix(thump(0.22, 70, 45, 0.06),
                           [0.0] * int(0.17 * RATE) + gain(thump(0.2, 60, 40, 0.05), 0.7)), 0.7)
+    # Combo callouts, quiet and short, one per tier: string, heavy route, finisher.
+    save("combo_1", chime(0.2, [1320, 1760], 0.04, 0.035), 0.35)
+    save("combo_2", mix(chime(0.3, [880, 1320], 0.07, 0.06), gain(thump(0.2, 160, 90, 0.05), 0.35)), 0.4)
+    save("combo_3", mix(chime(0.35, [660, 880, 1320], 0.1, 0.04), gain(whoosh(0.35, 17, 0.5), 0.35)), 0.45)
     print("wrote", sorted(os.listdir(OUT)))
 
 

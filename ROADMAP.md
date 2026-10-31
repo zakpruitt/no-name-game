@@ -137,3 +137,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] "Bone" synergy: Shatter + Bone Breaker share a tag that boosts both (shard damage and the slam bonus), so the new power has a build to grow into — `SYNERGIES.bone` (shatter + bone_breaker): damage ×1.3, bonus ×1.3, radius ×1.2; checked: Shatter L1 reads "10 → 13 damage ... 3 → 3.6m", Bone Breaker bonus 80→104%, synergy burst fires
 - [x] Split minions read apart: tint the Splitting twist's minions (pale bone glow) so they're distinguishable from regular minions — `enemy.set_glow()` rim overlay (restored after hit flashes), `main.SPLIT_GLOW` pale icy blue; split screenshot now 1.3s after the split
 - [ ] Boss pacing baseline: `--pace` also covers the boss room (time to kill the Warden, hero HP left) over a few seeds, numbers noted in ROADMAP
+
+## Round 16 (feedback)
+- [x] Combo callouts: landing a named combo (`player.COMBOS`: Triple Chop, Dash Stab, Launcher, Ground Breaker, Charged Slam, Cataclysm) plays a quiet tier sound (`combo_1..3`) and shows its name above the hero; pause menu gets a fixed MOVES list. Autotest prints `callouts=` and saves `autotest_callout.png`
