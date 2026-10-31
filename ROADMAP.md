@@ -69,3 +69,11 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Low-HP feedback: red edge vignette and a heartbeat below 25% HP — `hud._update_low_hp`: shader vignette fades in below `LOW_HP` and throbs on each `heartbeat` sfx (new in `gen_sfx.py`), beats quicken as HP drops; `--low-hp` autotest flag → `autotest_lowhp.png`
 - [x] Bomber skeleton: walks up, lights a fuse (telegraph ring) and explodes — it hurts skeletons too, so lure it into crowds — `"bomber"` in `ENEMY_TYPES` (attack_kind "bomb", from room 4): carries a bomb, lights a fuse in range (flashing orange `blast_radius` ring); the fuse burns through hits/launches; blast hurts hero + skeletons, killed-while-lit bombers blow too (chains); hint + bot dashes clear. Looks close to a minion, could use its own look
 - [x] Elite room twists: each elite room rolls one modifier (Hasted, Armored, Volatile = explode on death), shown on the door and the room title — `main.ELITE_TWISTS` (stat `mult`s or `volatile`), rolled per door offer; elite door reads "Elite · Hasted: faster foes"; HUD room line + banner show it; volatile corpses flash an orange ring then burst 0.7s later; `--twist=<id>` autotest flag
+
+## Round 7
+- [ ] Bomber look: give bombers their own colour and silhouette so they read apart from minions at a glance
+- [ ] Elite door check: autotest snaps a path screen that includes an elite door, and the twist text fits the button
+- [ ] Enemy health bars: a thin bar over enemies once they've taken damage (elites always), fading when untouched
+- [ ] Death recap: when you fall, the run summary says what killed you (enemy type / hazard)
+- [ ] New combo route: L L H finisher (a forward ground-breaker that knocks down everything in a line), with a matching upgrade slot
+- [ ] Bone altar: between runs, spend saved bones on small permanent boosts (start HP, starting bones), saved in user:// and off in the autotest
