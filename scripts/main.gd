@@ -29,6 +29,7 @@ const ALTAR := preload("res://scripts/altar.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
 const CAMP_MENU := preload("res://scripts/camp.gd")
 const SHRINE_MENU := preload("res://scripts/shrine.gd")
+const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -362,6 +363,15 @@ func _rest() -> void:
 ## Shrine room: no enemies; offer one SHRINE trade, then the next door.
 func _shrine() -> void:
 	_between_rooms = true
+	var prop := SHRINE_PROP.new()
+	add_child(prop)
+	# Up-screen of the hero (clear of the menu title), kept inside the walls.
+	var at := player.global_position + Vector3(0.0, 0.0, -5.0)
+	prop.global_position = Vector3(clampf(at.x, -ARENA_HALF + 3.0, ARENA_HALF - 3.0), 0.0,
+		clampf(at.z, -ARENA_HALF + 3.0, ARENA_HALF - 3.0))
+	prop.rise()
+	if _autotest:
+		get_tree().create_timer(2.2).timeout.connect(_snap.bind("user://autotest_shrine_room.png"))
 	await get_tree().create_timer(2.3).timeout  # let the room title fade first
 	shrine_menu.open(SHRINE, player.hp, player.max_hp, Game.bones)
 	if _autotest:
@@ -379,6 +389,7 @@ func _shrine() -> void:
 			Game.add_bones(-SHRINE.mend.cost)
 			player.heal(player.max_hp)
 			Game.sfx("wave_clear", -4.0, 0.0)
+	prop.sink()
 	if not player.is_dead():
 		await _choose_path()
 		_next_room()

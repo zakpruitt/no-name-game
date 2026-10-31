@@ -87,7 +87,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Shrine room: a new door type with a trade (lose HP for a power, or bones for a full heal) for more route choices — `shrine` door from room 3 (never right after a rest or shrine); trades live in `main.SHRINE`, menu in `shrine.gd`; `--start-shrine` → `autotest_shrine.png`
 
 ## Round 9
-- [ ] Shrine in the world: a glowing shrine prop in the shrine room (KayKit piece + light) so it isn't just a menu over an empty arena
+- [x] Shrine in the world: a glowing shrine prop in the shrine room (KayKit piece + light) so it isn't just a menu over an empty arena — `shrine_prop.gd`: draped altar, candles, gilded sword-and-shield offering, pulsing violet light and motes; rises up-screen of the hero (clear of the menu title) and sinks after the trade; `autotest_shrine_room.png`
 - [ ] Health bars vs top HUD: keep enemy bars clear of the HP/room bars when juggled elites fly high (clamp below the HUD band)
 - [ ] Enemy variety pass: a second elite-only twist trait per late room (rooms 6–7 roll two twists) for late-run spice
 - [ ] Power synergy tags: upgrades with a shared tag (fire, bone, quake) offer a small bonus when you own two, shown in the pause build view
