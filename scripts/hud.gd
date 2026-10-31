@@ -19,7 +19,7 @@ void fragment() {
 var hp_bar: ProgressBar
 var awaken_bar: ProgressBar
 var awaken_hint: Label
-var xp_bar: ProgressBar
+var xp_fill: ColorRect
 var level_label: Label
 var combo_label: Label
 var rank_label: Label
@@ -67,7 +67,16 @@ func _ready() -> void:
 	bones_label = _label(root, "BONES  0", 22, Color(0.95, 0.9, 0.75))
 	bones_label.position = Vector2(408, 24)
 	Game.bones_changed.connect(func(n: int) -> void: bones_label.text = "BONES  %d" % n)
-	xp_bar = _bar(root, Vector2(32, 78), Vector2(360, 5), Color(1.0, 0.85, 0.4))
+	# XP: a thin strip (ProgressBar has a font-sized minimum height).
+	var xp_back := ColorRect.new()
+	xp_back.color = Color(0, 0, 0, 0.55)
+	xp_back.position = Vector2(32, 78)
+	xp_back.size = Vector2(360, 5)
+	root.add_child(xp_back)
+	xp_fill = ColorRect.new()
+	xp_fill.color = Color(1.0, 0.85, 0.4)
+	xp_fill.size = Vector2(0, 5)
+	xp_back.add_child(xp_fill)
 	level_label = _label(root, "LV 1", 22, Color(1.0, 0.85, 0.4))
 	level_label.position = Vector2(408, 52)
 	Game.level_changed.connect(_on_level)
@@ -283,8 +292,7 @@ func _on_air_combo(count: int) -> void:
 
 func _on_level(level: int, into: int, needed: int) -> void:
 	level_label.text = "LV %d" % level if level < Game.LEVEL_MAX else "LV %d  MAX" % level
-	xp_bar.max_value = needed
-	xp_bar.value = into
+	xp_fill.size.x = 360.0 * clampf(float(into) / maxf(needed, 1.0), 0.0, 1.0)
 
 
 func _on_awakening(v: float) -> void:

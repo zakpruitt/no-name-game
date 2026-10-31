@@ -29,6 +29,7 @@ const BONE_CAGE := preload("res://scripts/bone_cage.gd")
 const ALTAR := preload("res://scripts/altar.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
 const CAMP_MENU := preload("res://scripts/camp.gd")
+const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
 const SHRINE_MENU := preload("res://scripts/shrine.gd")
 const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
@@ -210,6 +211,9 @@ var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
 var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
+var ascend_menu: CanvasLayer
+var _ascend_pick := ""  # --ascend=path: the autotest's pick (or applied at start)
+var _ascend_shot_taken := false
 var shrine_menu: CanvasLayer
 var _reward_rerolls := 0  # rerolls bought for the reward currently open
 var _reward_level_ups_only := false
@@ -312,6 +316,8 @@ func _ready() -> void:
 	add_child(path_menu)
 	camp_menu = CAMP_MENU.new()
 	add_child(camp_menu)
+	ascend_menu = ASCEND_MENU.new()
+	add_child(ascend_menu)
 	shrine_menu = SHRINE_MENU.new()
 	add_child(shrine_menu)
 	reward.reroll_pressed.connect(_reroll_reward)
@@ -322,6 +328,12 @@ func _ready() -> void:
 			var lv := arg.get_slice("=", 1).to_int()
 			if lv > 1:
 				Game.add_xp(Game.LEVEL_XP[mini(lv, Game.LEVEL_MAX) - 2])
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--ascend="):  # start ascended (implies level 6)
+			_ascend_pick = arg.get_slice("=", 1)
+			if Ascendancy.PATHS.has(_ascend_pick):
+				Game.add_xp(Game.LEVEL_XP[-1] - Game.xp)
+				player.ascend(_ascend_pick)
 	if "--start-awakened" in OS.get_cmdline_user_args():
 		Game.add_awakening(Game.AWAKEN_MAX)
 	var max_upgrades := "--max-upgrades" in OS.get_cmdline_user_args()
@@ -738,6 +750,8 @@ func _on_enemy_died(e: Node) -> void:
 			_end_run(true)
 			return
 		player.heal(player.max_hp * ROOM_CLEAR_HEAL)
+		if Game.level >= Game.LEVEL_MAX and player.ascendancy == "":
+			await _offer_ascendancy()
 		for i in ELITE_REWARDS if room_kind == "elite" else 1:
 			await _offer_reward()
 		await get_tree().create_timer(0.6).timeout
@@ -769,6 +783,20 @@ func _split(e: Node) -> void:
 	if _autotest and not _split_shot_taken:
 		_split_shot_taken = true
 		get_tree().create_timer(1.3).timeout.connect(_snap.bind("user://autotest_split.png"))
+
+
+func _offer_ascendancy() -> void:
+	ascend_menu.open()
+	if _autotest:
+		if not _ascend_shot_taken:
+			_ascend_shot_taken = true
+			await get_tree().create_timer(0.4, true, false, true).timeout
+			_snap("user://autotest_ascend.png")
+		var keys: Array = Ascendancy.PATHS.keys()
+		ascend_menu.pick.call_deferred(maxi(keys.find(_ascend_pick), 0) if _ascend_pick != "" else run_rng.randi() % keys.size())
+	var path: String = await ascend_menu.chosen
+	player.ascend(path)
+	await get_tree().create_timer(0.6).timeout
 
 
 func _offer_reward(level_ups_only := false) -> void:
@@ -1161,9 +1189,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d callouts=%d level=%d xp=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d callouts=%d level=%d xp=%d ascend=%s procs=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
 		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.callouts, Game.level, Game.xp, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.callouts, Game.level, Game.xp, player.ascendancy if player.ascendancy != "" else "-", player.element_procs, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:

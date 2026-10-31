@@ -116,6 +116,14 @@ var _glow_mat: ShaderMaterial  # set_glow() rim, kept on through hit flashes
 var _glow_meshes: Array[Node] = []
 var _attack_cd := 0.0
 var _freeze_t := 0.0
+# Water Ascendancy: chilled foes move and act at chill_mult speed; frozen ones
+# are encased (stunned) and the next hit shatters the ice for frozen_mult damage.
+var chill_t := 0.0
+var chill_mult := 1.0
+var chill_hits := 0
+var frozen_t := 0.0
+var frozen_mult := 1.0
+var _ice: MeshInstance3D
 var _frozen_speed := -1.0
 var _squash_tween: Tween
 var _orbit_side := 1.0
@@ -216,7 +224,13 @@ func _physics_process(delta: float) -> void:
 		anim.speed_scale = _frozen_speed
 		_frozen_speed = -1.0
 		model.position = Vector3.ZERO
-	_state_t += delta
+	chill_t -= delta
+	var slow := chill_mult if chill_t > 0.0 else 1.0
+	if frozen_t > 0.0:
+		frozen_t -= delta
+		if frozen_t <= 0.0:
+			_thaw(false)
+	_state_t += delta * slow
 	_attack_cd -= delta
 	_dodge_cd -= delta
 	_guard_broken_t -= delta
@@ -257,7 +271,14 @@ func _physics_process(delta: float) -> void:
 		State.DEAD:
 			_friction(delta, 20.0)
 
-	move_and_slide()
+	if slow < 1.0 and state != State.AIRBORNE:
+		velocity.x *= slow
+		velocity.z *= slow
+		move_and_slide()
+		velocity.x /= slow
+		velocity.z /= slow
+	else:
+		move_and_slide()
 
 
 func _state_chase(delta: float) -> void:
@@ -421,6 +442,51 @@ func _shoot_line() -> void:
 
 
 ## Stunned and open (e.g. after the player perfect-dodges this enemy's attack).
+func chill(time: float, mult: float) -> void:
+	if state == State.DEAD:
+		return
+	if chill_t <= 0.0:
+		Fx.burst(get_parent(), global_position + Vector3.UP * 0.8, Color(0.7, 0.92, 1.0), 6, 3.0, 0.12, 0.4, Vector3.UP, 60.0)
+	chill_t = maxf(chill_t, time)
+	chill_mult = mult
+
+
+## Encase in ice and stun for `time`; the next hit deals `mult` x damage and breaks it.
+func freeze(time: float, mult: float) -> void:
+	if state == State.DEAD or state == State.SPAWN:
+		return
+	stagger(time)
+	frozen_t = time
+	frozen_mult = mult
+	if _ice == null:
+		_ice = MeshInstance3D.new()
+		var m := CylinderMesh.new()
+		m.top_radius = radius + 0.25
+		m.bottom_radius = radius + 0.35
+		m.height = 2.0 * model_scale
+		_ice.mesh = m
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.65, 0.9, 1.0, 0.45)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = Color(0.2, 0.45, 0.6)
+		_ice.material_override = mat
+		add_child(_ice)
+		_ice.position.y = m.height * 0.5
+	_ice.visible = true
+	Game.sfx("cage_shut", -10.0, 0.1)
+
+
+## Ice ends: on a hit (`shattered`) it bursts into shards.
+func _thaw(shattered: bool) -> void:
+	frozen_t = 0.0
+	if _ice:
+		_ice.visible = false
+	if shattered:
+		Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
+		Game.register_hit("shatter_ice")
+
+
 func stagger(time: float) -> void:
 	if state == State.DEAD or state == State.SPAWN:
 		return
@@ -457,6 +523,9 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		return
 	if _shield_blocks(knockback, launch, big):
 		return
+	if frozen_t > 0.0:
+		damage *= frozen_mult
+		_thaw(true)
 	hp -= damage
 	last_hit_ms = Time.get_ticks_msec()
 	Fx.damage_number(get_parent(), global_position, damage, big)

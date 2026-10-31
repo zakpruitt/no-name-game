@@ -94,7 +94,7 @@ func _build_moves() -> void:
 	_label(list, "MOVES", 30, Color(1.0, 0.7, 0.25))
 	var rows: Array = [["L", "Slice"], ["H", "Spin"], ["Dash", "Dodge"], ["Q", "Awaken"]]
 	for id: String in player.COMBOS:
-		rows.append([player.COMBOS[id].input, player.COMBOS[id].name, player.COMBOS[id].tier])
+		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier])
 	for r: Array in rows:
 		var tier: int = r[2] if r.size() > 2 else 0
 		var line := _label(list, "%s   %s" % [r[0], r[1]], 19,
