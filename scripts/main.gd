@@ -117,6 +117,13 @@ var _layout := -1
 
 var _autotest := false
 var _autotest_t := 0.0
+# Character models by name, loaded once up front: loading a .glb mid-fight
+# (e.g. the boss room after its models were freed) hitched ~150ms.
+var _models := {}
+# Autotest frame stats (real time, so hitstop slow-mo doesn't skew them).
+var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemies": 0, "draws": 0, "nodes": 0}
+var _perf_last_us := 0
+var _perf_last_frame := 0
 var _shots_taken := 0
 var _hit_shot_taken := false
 var _dash_shot_taken := false
@@ -132,6 +139,8 @@ func _ready() -> void:
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	_build_environment()
 	_build_arena()
+	for spec in ENEMY_TYPES.values() + [BOSS_SPEC]:
+		_model(spec.model)
 
 	player = PLAYER.new()
 	add_child(player)
@@ -247,7 +256,7 @@ func _choose_path() -> void:
 func _spawn(kind: String, elite := false) -> void:
 	var e := ENEMY.new()
 	var spec: Dictionary = ENEMY_TYPES[kind]
-	e.model_scene = load("res://assets/kaykit/characters/%s.glb" % spec.model)
+	e.model_scene = _model(spec.model)
 	for key in spec:
 		if key != "model":
 			e.set(key, spec[key])
@@ -263,10 +272,16 @@ func _spawn(kind: String, elite := false) -> void:
 	_alive += 1
 
 
+func _model(model_name: String) -> PackedScene:
+	if not _models.has(model_name):
+		_models[model_name] = load("res://assets/kaykit/characters/%s.glb" % model_name)
+	return _models[model_name]
+
+
 func _spawn_boss() -> void:
 	hud.flash_message("THE BONE WARDEN", 1.6)
 	var b := BOSS.new()
-	b.model_scene = load("res://assets/kaykit/characters/%s.glb" % BOSS_SPEC.model)
+	b.model_scene = _model(BOSS_SPEC.model)
 	for key in BOSS_SPEC:
 		if key != "model":
 			b.set(key, BOSS_SPEC[key])
@@ -536,6 +551,7 @@ func _process(delta: float) -> void:
 	if not _autotest:
 		return
 	_autotest_t += delta
+	_sample_perf()
 	_drive_bot()
 	var shot_times := [2.5, 6.0, 9.5]
 	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
@@ -567,6 +583,25 @@ func _process(delta: float) -> void:
 
 ## Print stats, show the summary screen, screenshot it and quit. Also runs
 ## when the run ends on its own (the summary pauses _process).
+func _sample_perf() -> void:
+	var now := Time.get_ticks_usec()
+	var frame := Engine.get_process_frames()
+	# Skip gaps from paused menus and screenshot saves (not gameplay frames).
+	if _perf_last_us > 0 and frame == _perf_last_frame + 1 and _autotest_t > 1.0:
+		var ms := (now - _perf_last_us) / 1000.0
+		_perf.frames += 1
+		_perf.total_ms += ms
+		_perf.worst_ms = maxf(_perf.worst_ms, ms)
+		if ms > 25.0:
+			_perf.spikes += 1
+			print("[perf] spike %.1fms at t=%.2f room=%d enemies=%d" % [ms, _autotest_t, room, get_tree().get_nodes_in_group("enemies").size()])
+		_perf.enemies = maxi(_perf.enemies, get_tree().get_nodes_in_group("enemies").size())
+		_perf.draws = maxi(_perf.draws, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
+		_perf.nodes = maxi(_perf.nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
+	_perf_last_us = now
+	_perf_last_frame = frame
+
+
 func _autotest_finish() -> void:
 	if _quitting:
 		return
@@ -574,6 +609,8 @@ func _autotest_finish() -> void:
 	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, Game._combat_level, player.upgrades])
+	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
+		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
 	await get_tree().create_timer(0.3, true, false, true).timeout
@@ -600,6 +637,7 @@ func _snap(path: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	get_viewport().get_texture().get_image().save_png(path)
+	_perf_last_us = 0  # the save stalls this frame; keep it out of the stats
 	print("[autotest] screenshot ", ProjectSettings.globalize_path(path))
 
 

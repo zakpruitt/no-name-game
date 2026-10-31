@@ -50,10 +50,10 @@ const ELITE_AWAKEN_BONUS := 15.0
 ## while attacking). Big hits and launchers break the guard for a while;
 ## hits from the side or behind always land.
 @export var shield := false
-const SHIELD_SCENE := "res://assets/kaykit/props/Skeleton_Shield_Large_A.gltf"
+const SHIELD_SCENE := preload("res://assets/kaykit/props/Skeleton_Shield_Large_A.gltf")
 const SHIELD_BREAK_TIME := 2.0
 ## Crossbow archer (attack_kind "line").
-const CROSSBOW_SCENE := "res://assets/kaykit/props/Skeleton_Crossbow.gltf"
+const CROSSBOW_SCENE := preload("res://assets/kaykit/props/Skeleton_Crossbow.gltf")
 const AIM_LOCK := 0.7
 const LINE_COLOR := Color(1.0, 0.55, 0.15)
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
@@ -109,7 +109,7 @@ func _ready() -> void:
 	if shield:
 		_attach_shield()
 	if attack_kind == "line":
-		var bow: Node3D = load(CROSSBOW_SCENE).instantiate()
+		var bow: Node3D = CROSSBOW_SCENE.instantiate()
 		bow.rotation_degrees.y = 90.0  # point down the aim
 		_attach_to_hand("handslot.r", bow)
 	Fx.outline(model)
@@ -445,7 +445,7 @@ func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
 
 
 func _attach_shield() -> void:
-	var s: Node3D = load(SHIELD_SCENE).instantiate()
+	var s: Node3D = SHIELD_SCENE.instantiate()
 	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
 	_attach_to_hand("handslot.l", s)
 
