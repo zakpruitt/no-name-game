@@ -41,6 +41,9 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color
+	if Game.reduce_flashing:
+		mat.albedo_color.a *= 0.45
+		size *= 0.6
 	mesh.material = mat
 	m.mesh = mesh
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -183,7 +186,7 @@ static func flash(root: Node, duration := 0.08) -> void:
 		_flash_mat = StandardMaterial3D.new()
 		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_flash_mat.albedo_color = Color(1, 1, 1, 0.85)
+	_flash_mat.albedo_color = Color(1, 1, 1, 0.3 if Game.reduce_flashing else 0.85)
 	var meshes := root.find_children("*", "MeshInstance3D", true, false)
 	for mi in meshes:
 		mi.material_overlay = _flash_mat

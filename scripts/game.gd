@@ -79,6 +79,9 @@ var skip_title := false
 var shake_scale := 1.0
 var music_scale := 1.0
 var rumble_on := true
+## Reduce flashing (Settings): softer white hit flashes and sparks, and a
+## steady low-HP vignette instead of a throbbing one (Fx, hud.gd).
+var reduce_flashing := false
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
@@ -273,6 +276,15 @@ func rumble_label() -> String:
 	return "Rumble: %s" % ("On" if rumble_on else "Off")
 
 
+func toggle_reduce_flashing() -> void:
+	reduce_flashing = not reduce_flashing
+	_save_settings()
+
+
+func flashing_label() -> String:
+	return "Reduce flashing: %s" % ("On" if reduce_flashing else "Off")
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -290,6 +302,7 @@ func _load_settings() -> void:
 		shake_scale = cfg.get_value("video", "shake_scale", 1.0)
 		music_scale = cfg.get_value("audio", "music_scale", 1.0)
 		rumble_on = cfg.get_value("input", "rumble", true)
+		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -298,6 +311,7 @@ func _save_settings() -> void:
 	cfg.set_value("video", "shake_scale", shake_scale)
 	cfg.set_value("audio", "music_scale", music_scale)
 	cfg.set_value("input", "rumble", rumble_on)
+	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 

@@ -214,7 +214,8 @@ func _update_low_hp(delta: float) -> void:
 		_beat_t = 0.0
 	_pulse = move_toward(_pulse, 0.0, delta * 2.5)
 	_vignette = move_toward(_vignette, 0.5 if low else 0.0, delta * 1.5)
-	_vignette_mat.set_shader_parameter("strength", _vignette * (1.0 + 0.7 * _pulse))
+	var throb := 0.0 if Game.reduce_flashing else 0.7 * _pulse
+	_vignette_mat.set_shader_parameter("strength", _vignette * (1.0 + throb))
 
 
 ## Tutorial tip above the controls line: fades in, holds, fades out.

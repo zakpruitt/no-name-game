@@ -41,7 +41,8 @@ func open_settings(back: Callable, dim := 0.7, focus := 0) -> void:
 		[Game.shake_label(), _setting.bind(Game.cycle_shake, 0, dim)],
 		[Game.music_label(), _setting.bind(Game.cycle_music, 1, dim)],
 		[Game.rumble_label(), _setting.bind(Game.toggle_rumble, 2, dim)],
-		["Reset hints", _setting.bind(Game.reset_hints, 3, dim)],
+		[Game.flashing_label(), _setting.bind(Game.toggle_reduce_flashing, 3, dim)],
+		["Reset hints", _setting.bind(Game.reset_hints, 4, dim)],
 		["Back", settings_back],
 	], "", dim, focus)
 

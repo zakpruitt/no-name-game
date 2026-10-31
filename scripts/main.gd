@@ -364,6 +364,8 @@ func _ready() -> void:
 			Game.add_bones(30)
 		elif arg.begins_with("--shrine-trade="):
 			_shrine_trade = arg.get_slice("=", 1)
+		elif arg == "--reduce-flashing":  # the setting, without saving it
+			Game.reduce_flashing = true
 		elif arg == "--tour":
 			_tour = true
 		elif arg == "--start-shrine":
