@@ -8,7 +8,7 @@ signal died
 ## Fired when any attack begins (enemies that dodge listen for this).
 signal attack_started(move_id: String)
 
-enum State { MOVE, ATTACK, DASH, HURT, DEAD }
+enum State { MOVE, ATTACK, DASH, HURT, CHARGE, DEAD }
 
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
@@ -55,6 +55,11 @@ const MOVES := {
 	"LH": {"anim": "2H_Melee_Attack_Chop", "damage": 14.0, "range": 2.6, "arc": 120.0,
 		"hits": [0.4], "cancel": 0.55, "end": 0.8, "lunge": 6.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true},
+	# Charged heavy: hold heavy from neutral for CHARGE_TIME, then release.
+	# Big launching slam; breaks shield guards (launch > 0).
+	"CH": {"anim": "2H_Melee_Attack_Chop", "damage": 30.0, "range": 3.4, "arc": 160.0,
+		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 10.0, "knockback": 12.0, "launch": 8.0,
+		"stop": 0.14, "shake": 0.55, "big": true},
 	# Light right out of a dash: long lunging stab.
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
@@ -65,6 +70,12 @@ const MOVES := {
 		"stop": 0.16, "shake": 0.7, "big": true},
 }
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
+# Charging (hold heavy from neutral): release before CHARGE_TIME for the
+# normal spin (H), after it for the charged slam (CH). You can creep while
+# charging at CHARGE_MOVE_MULT speed; dash cancels the charge.
+const CHARGE_TIME := 0.8
+const CHARGE_MOVE_MULT := 0.35
+const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
 const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
 const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
@@ -93,6 +104,10 @@ var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
 var _second_wind_used := false
+var _charged := false
+var _charge_fx_t := 0.0
+var _charge_light: OmniLight3D
+var charged_slams := 0  # reported by the autotest
 var cataclysms := 0  # finishers landed (reported by the autotest)
 var _awaken_light: OmniLight3D
 var _trails: Array = []
@@ -145,6 +160,12 @@ func _ready() -> void:
 	_awaken_light.omni_range = 5.0
 	_awaken_light.position.y = 1.2
 	add_child(_awaken_light)
+	_charge_light = OmniLight3D.new()
+	_charge_light.light_color = CHARGE_COLOR
+	_charge_light.light_energy = 0.0
+	_charge_light.omni_range = 4.0
+	_charge_light.position.y = 1.0
+	add_child(_charge_light)
 
 	health_changed.emit(hp, max_hp)
 	_play("Idle")
@@ -164,6 +185,7 @@ func _physics_process(delta: float) -> void:
 		State.ATTACK: _state_attack(delta)
 		State.DASH: _state_dash(delta)
 		State.HURT: _state_hurt(delta)
+		State.CHARGE: _state_charge(delta)
 		State.DEAD:
 			velocity.x = move_toward(velocity.x, 0.0, 40.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
@@ -243,8 +265,42 @@ func _state_move(delta: float) -> void:
 
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0:
 		_start_dash()
+	elif _buffered == "heavy" and _next_move("heavy") == "H" and Input.is_action_pressed("attack_heavy"):
+		_start_charge()
 	elif _buffered != "":
 		_start_attack(_next_move(_buffered))
+
+
+func _start_charge() -> void:
+	_buffered = ""
+	_charged = false
+	_charge_fx_t = 0.0
+	_set_state(State.CHARGE)
+	_play("2H_Melee_Idle", 0.1)
+
+
+func _state_charge(delta: float) -> void:
+	var dir := _input_dir()
+	var target := dir * move_speed * CHARGE_MOVE_MULT
+	velocity.x = move_toward(velocity.x, target.x, accel * delta)
+	velocity.z = move_toward(velocity.z, target.z, accel * delta)
+	_face(dir)
+	var k := clampf(_state_t / CHARGE_TIME, 0.0, 1.0)
+	_charge_light.light_energy = k * 2.5
+	_charge_fx_t -= delta
+	if _charge_fx_t <= 0.0:
+		_charge_fx_t = 0.12
+		Fx.burst(get_parent(), global_position + Vector3.UP * 0.2, CHARGE_COLOR, 4 + int(k * 8), 2.0 + k * 3.0,
+			0.08, 0.35, Vector3.UP, 30.0, 2.0, 0.9 - k * 0.4)
+	if k >= 1.0 and not _charged:
+		_charged = true
+		Fx.ring(get_parent(), global_position, Color(CHARGE_COLOR, 0.9), 2.2, 0.25)
+		Fx.flash(model)
+		Game.sfx("perfect", -6.0, 0.0)
+	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0:
+		_start_dash()
+	elif not Input.is_action_pressed("attack_heavy"):
+		_start_attack("CH" if _charged else "H")
 
 
 func _state_attack(delta: float) -> void:
@@ -301,6 +357,8 @@ func _state_hurt(delta: float) -> void:
 func _set_state(s: State) -> void:
 	state = s
 	_state_t = 0.0
+	if s != State.CHARGE:
+		_charge_light.light_energy = 0.0
 
 
 # --- Actions ----------------------------------------------------------------
@@ -335,7 +393,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "AF"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "AF", "CH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 
 
@@ -417,6 +475,12 @@ func _do_hit() -> void:
 			w.global_position = global_position + fwd * 1.0
 		if _move_id == "AF":
 			_cataclysm()
+		if _move_id == "CH":
+			charged_slams += 1
+			var at := global_position + fwd * 1.6
+			Fx.ring(get_parent(), at, Color(CHARGE_COLOR, 0.9), _move.range, 0.3)
+			Fx.burst(get_parent(), at + Vector3.UP * 0.2, CHARGE_COLOR, 24, 9.0, 0.14, 0.35, Vector3.UP, 80.0)
+			Fx.dust(get_parent(), at, 16, 1.0)
 		if _move_id == "LH" and has_upgrade("skybreaker"):
 			var r := upg("skybreaker", "radius")
 			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), r, 0.3)
