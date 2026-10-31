@@ -32,6 +32,11 @@ window.NOTES =
     "spikes": {"name": "Spike line", "enraged": true, "note": "Bone spikes run at you, steering; each flags red just before it stabs. Sidestep."},
     "cage": {"name": "Bone cage", "enraged": true, "note": "A ring of bone walls closes in, turning, with one gap. Leave through the gap or dash through a wall."}
   },
+  "ascendancy": {
+    "wind": {"passive": "Light green storm. Faster movement, quicker dashes, and every few hits calls a lightning bolt on the target.", "finisher": "a cyclone that drags foes to its centre and strikes them with lightning."},
+    "earth": {"passive": "Magma and stone. Takes much less damage, and heavy moves leave pools of burning magma.", "finisher": "a volcano bursts up and lobs lava bombs at nearby foes; each bomb leaves magma."},
+    "water": {"passive": "Ice and tide. Hits chill (slow) foes; enough hits freeze them solid, and the next hit shatters the ice for bonus damage.", "finisher": "ice spikes burst up all around, damaging and freezing everyone in range (the boss is only chilled)."}
+  },
   "twists": {
     "hasted": {"note": "Enemies move faster with shorter windups and recovery."},
     "armored": {"note": "Enemies have more HP."},
@@ -40,6 +45,8 @@ window.NOTES =
   },
   "screens": [
     {"img": "menu_title", "title": "Title screen", "caption": "Start, Daily run, Bone altar, Settings. Recent runs show on the right once you have some.", "review": "Is the title strong enough, or does it want art behind it?"},
+    {"img": "hero_preview", "title": "The shaman", "caption": "Recoloured Barbarian with feathers, necklace and axe runes; Awakened in each element.", "review": "Does he read as a shaman? Feathers and necklace the right size?"},
+    {"img": "autotest_ascend", "title": "Ascendancy choice", "caption": "Picked once per run at level 6.", "review": "Is one line per path enough to choose by?"},
     {"img": "autotest_callout", "title": "Combo callout", "caption": "Landing a named combo shows its name above the hero with a tier sound.", "review": "Is the size right? Are the three sounds distinct but quiet?"},
     {"img": "autotest_finisher", "title": "Cataclysm", "caption": "The Awakened L L L H finisher.", "review": "Does the payoff feel big enough for a full meter?"},
     {"img": "autotest_spikes", "title": "Spike line", "caption": "Enraged Warden attack.", "review": "Fair to sidestep, or too fast?"},

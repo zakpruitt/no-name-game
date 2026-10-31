@@ -105,7 +105,9 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     <a href="#play">Play it in Godot</a>
     <a href="#controls">Controls</a>
     <a href="#combat">Moves &amp; combos</a>
+    <a href="#shaman">The shaman</a>
     <a href="#awakening">Style &amp; Awakening</a>
+    <a href="#ascend">Levels &amp; Ascendancy</a>
     <a href="#run">The run</a>
     <a href="#bestiary">Bestiary</a>
     <a href="#warden">The Bone Warden</a>
@@ -119,7 +121,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     <header class="hero">
       <div class="eyebrow" id="built"></div>
       <h1>Awaken</h1>
-      <p>A fast 3D combo roguelike. You are a barbarian fighting through rooms of skeletons to the Bone Warden. Light and heavy strings, dash cancels, launches and juggles feed a style rank, the style rank fills Awakening, and every reward is a power bolted onto one specific move.</p>
+      <p>A fast 3D combo roguelike. You are an axe-wielding shaman fighting through rooms of skeletons to the Bone Warden. Light and heavy strings, dash cancels, launches and juggles feed a style rank, the style rank fills Awakening, and every reward is a power bolted onto one specific move.</p>
       <div class="statline" id="statline"></div>
       <p class="note warn" id="nodata">data.js is missing. Run <code>python tools/wiki.py</code> from the repo.</p>
     </header>
@@ -179,12 +181,37 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
       <p id="dash-text"></p>
     </section>
 
+    <section id="shaman">
+      <h2>The shaman</h2>
+      <div class="split">
+        <div style="display:grid;gap:12px;min-width:0">
+          <p>An enhancement shaman with twin rune-carved axes, a grey wolf-pelt hood, feathers and a bead-and-fang necklace. The axes shimmer teal at rest.</p>
+          <p>Awakening calls the ancestors: the shaman glows <b style="color:var(--gold)">gold</b> until reaching level <span id="lvmax"></span>, then takes on the chosen element's colour and power.</p>
+          <p class="lede">Built on the KayKit Barbarian. The texture is recoloured by <code>tools/gen_shaman_texture.gd</code>, and the extra pieces come from <code>scripts/hero_look.gd</code>.</p>
+        </div>
+        <figure>
+          <img src="img/hero_preview.jpg" alt="The shaman front and back, then Awakened in gold, wind green, magma red and ice blue" loading="lazy">
+          <figcaption><b>Front, back, then Awakened</b>: base, Wind, Earth, Water.</figcaption>
+        </figure>
+      </div>
+    </section>
+
     <section id="awakening">
       <h2>Style &amp; Awakening</h2>
       <p>Each hit adds style. A move you haven't used recently is worth four times a repeat, so mixing routes climbs the rank and mashing one button stalls it. Higher ranks fill Awakening faster, and the combat music layer fades in with your rank.</p>
       <div class="ranks" id="ranks" aria-label="Style ranks and their thresholds"></div>
       <p id="awaken-text"></p>
       <p id="air-text"></p>
+    </section>
+
+    <section id="ascend">
+      <h2>Levels &amp; Ascendancy</h2>
+      <p id="level-text"></p>
+      <div id="ascend-table"></div>
+      <figure>
+        <img src="img/autotest_ascend.jpg" alt="The Ascendancy choice screen" loading="lazy">
+        <figcaption><b>The choice</b> appears after the room in which you reach level <span class="lvmax"></span>. Every run ascends once.</figcaption>
+      </figure>
     </section>
 
     <section id="run">
@@ -323,7 +350,25 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     return '<div><b style="color:' + col + '">' + r[0] + "</b><small>" + r[1] + "</small></div>";
   }).join("");
   $("awaken-text").innerHTML = "When the meter is full, press <kbd>Q</kbd> to <b>Awaken</b> for " + n(H.awaken_duration) +
-    "s: faster, harder hits, super armor, less damage taken, and the Cataclysm finisher unlocked.";
+    "s: faster, harder hits, super armor, less damage taken, and the finisher unlocked. It's short on purpose: nothing extends it, the meter can't fill while you're Awakened, and it ends empty.";
+
+  // Levels + Ascendancy
+  var L = D.levels;
+  $("lvmax").textContent = L.max;
+  document.querySelectorAll(".lvmax").forEach(function (el) { el.textContent = L.max; });
+  $("level-text").innerHTML = "Kills give XP equal to the skeleton's bones (risen and split minions give none). Levels come at " +
+    L.xp.map(function (x, i) { return "<b>" + (i + 2) + "</b> " + x + " XP"; }).join(", ") + ", each adding " + n(H.level_hp) +
+    " max HP. That usually puts level " + L.max + " around room 5. At level " + L.max + " you choose an <b>Ascendancy</b>, and it reshapes Awakening for the rest of the run:";
+  var A = D.ascendancy;
+  $("ascend-table").innerHTML = table(["Path", "While Awakened", "Finisher (L L L H)", "Key numbers"], Object.keys(A).map(function (k) {
+    var a = A[k], nt = note("ascendancy", k), nums;
+    if (k === "wind") nums = "speed ×" + a.speed + ", dash cooldown ×" + a.dash_cd + ", strike " + a.strike_damage + " dmg every " + a.strike_every + " hits; tempest " + a.tempest_time + "s, " + a.tempest_strikes + " strikes × " + a.tempest_damage;
+    else if (k === "earth") nums = "damage taken ×" + a.armor + ", magma " + a.magma_damage + " dmg / " + a.magma_tick + "s for " + a.magma_time + "s; " + a.volcano_bombs + " bombs × " + a.bomb_damage;
+    else if (k === "water") nums = "slow ×" + a.chill_slow + ", freeze after " + a.freeze_hits + " hits for " + a.freeze_time + "s, frozen hit ×" + a.shatter_mult + "; glacier " + a.glacier_damage + " dmg, freeze " + a.glacier_freeze + "s";
+    else nums = "";
+    return ['<b style="color:#' + a.color + '">' + esc(a.name) + "</b><br><span class=\"lede\">" + esc(a.title.toLowerCase()) + "</span>",
+      nt ? esc(nt.passive) : miss(), "<b>" + esc(a.finisher) + "</b>: " + (nt ? esc(nt.finisher) : miss()), nums];
+  }));
   $("air-text").innerHTML = "Juggle milestones pay out bonus style and Awakening: " + Object.keys(D.air_milestones).map(function (k) {
     var a = D.air_milestones[k]; return "<b>" + a.text + "</b> at " + k + " air hits (+" + n(a.awaken) + ")"; }).join(", ") + ".";
 

@@ -32,6 +32,8 @@ SHOTS = [
     (["--", "--autotest", "--start-shrine"], ["autotest_shrine_room"]),
     (["-s", "tests/menu_check.gd"], ["menu_title", "menu_path", "menu_pause", "menu_altar"]),
     (["-s", "tests/enemy_lineup.gd"], ["enemy_lineup"]),
+    (["--", "--autotest", "--level=6"], ["autotest_ascend"]),
+    (["-s", "tests/hero_preview.gd"], ["hero_preview"]),
 ]
 
 
@@ -56,7 +58,7 @@ def check_notes():
         if m not in notes["moves"]:
             missing.append("moves." + m)
     for section, ids in (("enemies", data["enemies"]), ("boss_attacks", data["boss"]["attacks"]),
-                         ("twists", data["twists"])):
+                         ("twists", data["twists"]), ("ascendancy", data["ascendancy"])):
         missing += ["%s.%s" % (section, i) for i in ids if i not in notes[section]]
     stale = [i for i in notes["moves"] if i not in data["moves"]]
     for s in notes["screens"]:
