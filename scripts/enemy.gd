@@ -626,7 +626,9 @@ func _blast() -> void:
 		var to: Vector3 = _player.global_position - at
 		to.y = 0.0
 		if to.length() <= blast_radius:
-			_player.take_hit(attack_damage, to.normalized() * 10.0, self)
+			var who: String = _player._describe_attacker(self)
+			_player.take_hit(attack_damage, to.normalized() * 10.0, self,
+				("%s's blast" if attack_kind == "bomb" else "%s's dying burst") % who)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = e.global_position - at
 		to.y = 0.0

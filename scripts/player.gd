@@ -800,7 +800,9 @@ static func _describe_attacker(attacker: Node) -> String:
 	return ("an " if kind[0] in "aeiou" else "a ") + kind
 
 
-func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
+## `cause` names hazards for the death recap ("the Bone Warden's cage");
+## otherwise the attacker is described.
+func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause := "") -> void:
 	if state == State.DEAD:
 		return
 	if _invuln_t > 0.0:
@@ -808,7 +810,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 			_perfect_dodge(attacker)
 		return
 	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
-	last_hit_by = _describe_attacker(attacker)
+	last_hit_by = cause if cause != "" else _describe_attacker(attacker)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()
 	Game.sfx("player_hurt")
