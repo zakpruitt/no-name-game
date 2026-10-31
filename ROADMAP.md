@@ -124,4 +124,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Recent runs focus: keyboard/gamepad can move from the title buttons into the RECENT RUNS lines (explicit focus neighbours), checked by a menu_check step — title buttons' `focus_neighbor_right` → first recent line, lines' left → Start run; menu_check builds a sample line and prints `recent focus=true` after ui_right (left not separately checked)
 - [x] New power "Shatter" [H finisher]: a heavy that kills a foe bursts it into bone shards that hit nearby enemies (per-level damage/radius in `Upgrades.ALL`, Tremor-free so it opens a new build) — `Upgrades.ALL` shatter (slot Heavy: H/LH/LLH/CH/AF kills, not the boss), damage 10/16/24, radius 3/3.5/4; `player._shatter()`; autotest `shatters=` + `autotest_shatter.png`; 1–5 per bot run
 - [x] Reduce flashing setting: a Settings toggle that tones down full-screen flashes and hit flashes (saved like the other settings) — "Reduce flashing: On/Off" in Settings (`Game.reduce_flashing`, saved as video/reduce_flashing): white hit flash alpha 0.85→0.3, hit sparks 60% size / 45% alpha, low-HP vignette stops throbbing; `--reduce-flashing` for tests (not saved)
-- [ ] Elite pacing check: autotest prints room clear time; compare Splitting/Volatile/Armored rooms against a plain fight over a few seeds and note the numbers in ROADMAP
+- [x] Elite pacing check: autotest prints room clear time; compare Splitting/Volatile/Armored rooms against a plain fight over a few seeds and note the numbers in ROADMAP — `--pace` ends the autotest at the first clear and prints `cleared room=N kind=... time=`. Bot, room 3, seeds 1–3 (clear time s / hero HP left):
+  - plain fight: 13.2, 23.0, 11.7 → avg 16.0 (HP 86–100)
+  - elite+armored: 22.0, 19.7, 28.4 → avg 23.4 (HP 64–100)
+  - elite+splitting: 20.2, 25.8, 23.7 → avg 23.2 (HP 76–100)
+  - elite+hasted: 16.5, 19.3, 14.1 → avg 16.6 (HP 82–100)
+  - elite+volatile: 8.5, 17.3, 12.1 → avg 12.6 (HP 72–100) — bursts chain-kill the crowd, so it's the fastest room
+  - Splitting ≈ Armored (~45% longer than a plain fight); Volatile clears faster than plain and may want a nerf (smaller VOLATILE_RADIUS or less blast_enemy_damage). Bot-only numbers; a human will differ

@@ -91,6 +91,9 @@ const DOUBLE_TWIST_ROOM := 6
 const TOUR := ["fight", "rest", "shrine", "elite", "boss"]
 const TOUR_FIGHT_TIME := 1.5
 const TOUR_TIMEOUT := 120.0
+# `--pace`: run until the first room clears (prints `cleared ... time=`), for
+# comparing room lengths; give up after PACE_TIMEOUT s.
+const PACE_TIMEOUT := 90.0
 const ELITE_TWISTS := {
 	"hasted": {"name": "Hasted", "desc": "faster foes", "mult": {"move_speed": 1.3, "attack_windup": 0.8,
 		"attack_recover": 0.8}},
@@ -197,6 +200,8 @@ var _tour_seen: Array[String] = []
 var _tour_room_t := 0.0
 var _tour_trades: Array[String] = []  # "camp:vigor", "shrine:melt"... taken on the tour
 var _won := false
+var _pace := false  # --pace: end the autotest when the first room clears
+var _room_start_t := 0.0  # _autotest_t when this room began (clear time)
 var _split_shot_taken := false
 var _shatter_shot_taken := false
 var _splits := 0  # minions split off by the Splitting twist (autotest line)
@@ -364,6 +369,8 @@ func _ready() -> void:
 			Game.add_bones(30)
 		elif arg.begins_with("--shrine-trade="):
 			_shrine_trade = arg.get_slice("=", 1)
+		elif arg == "--pace":
+			_pace = true
 		elif arg == "--reduce-flashing":  # the setting, without saving it
 			Game.reduce_flashing = true
 		elif arg == "--tour":
@@ -397,6 +404,7 @@ func _ready() -> void:
 func _next_room() -> void:
 	room += 1
 	_between_rooms = false
+	_room_start_t = _autotest_t
 	if _tour:
 		_tour_seen.append(room_kind)
 		_tour_room_t = _autotest_t
@@ -709,6 +717,12 @@ func _on_enemy_died(e: Node) -> void:
 	if _alive <= 0 and not _between_rooms and not player.is_dead():
 		_between_rooms = true
 		hud.flash_message("CLEARED", 1.0)
+		if _autotest:
+			print("[autotest] cleared room=%d kind=%s time=%.1fs hp=%.0f" % [room,
+				"+".join([room_kind] + Array(room_twists)), _autotest_t - _room_start_t, player.hp])
+			if _pace:
+				_autotest_finish()
+				return
 		Game.sfx("wave_clear", -2.0, 0.0)
 		await get_tree().create_timer(1.2).timeout
 		if player.is_dead():
@@ -1054,7 +1068,7 @@ func _process(delta: float) -> void:
 		_snap("user://autotest_finisher.png")
 	if _tour:
 		_drive_tour()
-	elif _autotest_t >= 16.0:
+	elif _autotest_t >= (PACE_TIMEOUT if _pace else 16.0):
 		_autotest_finish()
 
 
