@@ -112,6 +112,8 @@ var _telegraph: MeshInstance3D
 var _telegraph_mat: StandardMaterial3D
 var _edge: MeshInstance3D  # bright pulsing rim + dark outline on the telegraph ring (Fx.edge_ring)
 var _edge_t := 0.0
+var _glow_mat: ShaderMaterial  # set_glow() rim, kept on through hit flashes
+var _glow_meshes: Array[Node] = []
 var _attack_cd := 0.0
 var _freeze_t := 0.0
 var _frozen_speed := -1.0
@@ -197,6 +199,11 @@ func is_airborne() -> bool:
 func _physics_process(delta: float) -> void:
 	if _telegraph.visible:
 		_pulse_edge(delta)
+	# Fx.flash clears overlays on hit; put the glow back afterwards.
+	if _glow_mat != null:
+		for mi: MeshInstance3D in _glow_meshes:
+			if is_instance_valid(mi) and mi.material_overlay == null:
+				mi.material_overlay = _glow_mat
 	# Hit freeze: hold the pose and shudder; knockback starts once it ends.
 	if _freeze_t > 0.0:
 		_freeze_t -= delta
@@ -699,6 +706,13 @@ func _squash(amount: Vector3) -> void:
 	model.scale = amount * model_scale
 	_squash_tween = create_tween()
 	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, 0.3) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+## A coloured rim glow over the whole model (e.g. split minions).
+func set_glow(color: Color) -> void:
+	_glow_mat = Fx.rim_material().duplicate()
+	_glow_mat.set_shader_parameter("glow_color", color)
+	_glow_meshes = model.find_children("*", "MeshInstance3D", true, false)
 
 
 func _build_elite_aura() -> void:

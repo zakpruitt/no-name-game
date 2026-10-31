@@ -103,6 +103,7 @@ const ELITE_TWISTS := {
 }
 const SPLIT_HP := 0.5  # split minions' HP vs a normal minion
 const SPLIT_SCALE := 0.7  # and their size
+const SPLIT_GLOW := Color(0.6, 0.9, 1.0)  # rim glow that marks them apart
 # Reroll on the reward screen: first costs REROLL_COST bones, each further
 # reroll of the same offer REROLL_COST_STEP more.
 const REROLL_COST := 8
@@ -757,10 +758,11 @@ func _split(e: Node) -> void:
 		m.hp = m.max_hp
 		m.model_scale *= SPLIT_SCALE  # (squash tweens restore model.scale from it)
 		m.model.scale = Vector3.ONE * m.model_scale
+		m.set_glow(SPLIT_GLOW)
 		_splits += 1
 	if _autotest and not _split_shot_taken:
 		_split_shot_taken = true
-		get_tree().create_timer(0.5).timeout.connect(_snap.bind("user://autotest_split.png"))
+		get_tree().create_timer(1.3).timeout.connect(_snap.bind("user://autotest_split.png"))
 
 
 func _offer_reward(level_ups_only := false) -> void:
