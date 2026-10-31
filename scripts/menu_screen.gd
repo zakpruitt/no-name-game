@@ -18,13 +18,14 @@ func is_open() -> bool:
 
 
 ## `items` is an Array of [text, Callable] pairs, top to bottom.
-func show_menu(title: String, subtitle: String, items: Array, footer := "", dim := 0.7) -> void:
-	close_menu()
+## `focus` picks which button starts selected (e.g. to stay on a toggle).
+func show_menu(title: String, subtitle: String, items: Array, footer := "", dim := 0.7, focus := 0) -> void:
+	close_menu(false)
 	_build(title, subtitle, items, footer, dim)
 	visible = true
 	get_tree().paused = true
 	if not _buttons.is_empty():
-		_buttons[0].grab_focus()
+		_buttons[clampi(focus, 0, _buttons.size() - 1)].grab_focus()
 
 
 func close_menu(unpause := true) -> void:

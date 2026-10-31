@@ -6,11 +6,17 @@ signal started
 const CONTROLS := "WASD / left stick move    J / LMB / X light    K / RMB / Y heavy\nSpace / A dash    Q / RB awaken    Esc / Start pause"
 
 
-func open() -> void:
+func open(focus := 0) -> void:
 	show_menu("AWAKEN", "a combo roguelike", [
 		["Start run", _start],
+		[Game.shake_label(), _cycle_shake],
 		["Quit", _quit],
-	], CONTROLS, 0.85)
+	], CONTROLS, 0.85, focus)
+
+
+func _cycle_shake() -> void:
+	Game.cycle_shake()
+	open(1)
 
 
 func _start() -> void:

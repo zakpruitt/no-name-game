@@ -14,6 +14,9 @@ const STYLE_DECAY := 6.0  # style points lost per second while not hitting
 const AWAKEN_MAX := 100.0
 # Style rank thresholds. Varied moves earn more style than repeating one.
 const RANKS := [["SSS", 160.0], ["SS", 110.0], ["S", 70.0], ["A", 40.0], ["B", 20.0], ["C", 8.0], ["D", 0.0]]
+# Player settings, saved to SETTINGS_PATH. Screen shake cycles through these.
+const SETTINGS_PATH := "user://settings.cfg"
+const SHAKE_LEVELS := [1.0, 0.5, 0.0, 1.5]
 const SFX_PATH := "res://assets/sfx/%s.wav"
 const SFX_VOICES := 16
 const SFX_MIN_GAP_MS := 35  # same sound can't restart faster than this
@@ -36,6 +39,8 @@ var air_hits := 0
 var best_air := 0
 ## Survives scene reloads: start the next run without the title screen.
 var skip_title := false
+## Multiplier on all screen shake (accessibility / taste).
+var shake_scale := 1.0
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
 var _combo_timer := 0.0
@@ -52,6 +57,7 @@ var _sfx_muted := false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_setup_input()
+	_load_settings()
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -131,8 +137,31 @@ func sfx(sound_name: String, volume_db := 0.0, pitch_jitter := 0.08) -> void:
 
 
 func shake(amount: float) -> void:
-	if camera_rig:
-		camera_rig.add_trauma(amount)
+	if camera_rig and shake_scale > 0.0:
+		camera_rig.add_trauma(amount * shake_scale)
+
+
+## Step to the next screen shake level and save it.
+func cycle_shake() -> void:
+	var i := SHAKE_LEVELS.find(shake_scale)
+	shake_scale = SHAKE_LEVELS[(i + 1) % SHAKE_LEVELS.size()]
+	_save_settings()
+
+
+func shake_label() -> String:
+	return "Screen shake: %d%%" % roundi(shake_scale * 100.0)
+
+
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) == OK:
+		shake_scale = cfg.get_value("video", "shake_scale", 1.0)
+
+
+func _save_settings() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("video", "shake_scale", shake_scale)
+	cfg.save(SETTINGS_PATH)
 
 
 ## Called once per enemy struck. move_id lets us reward variety.

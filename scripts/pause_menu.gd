@@ -15,13 +15,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func _open() -> void:
+func _open(focus := 0) -> void:
 	show_menu("PAUSED", "", [
 		["Resume", close_menu],
+		[Game.shake_label(), _cycle_shake],
 		["Restart run", _restart.bind(true)],
 		["Quit to title", _restart.bind(false)],
 		["Quit game", _quit],
-	])
+	], "", 0.7, focus)
+
+
+func _cycle_shake() -> void:
+	Game.cycle_shake()
+	_open(1)
 
 
 func _restart(skip_title: bool) -> void:
