@@ -135,7 +135,7 @@ const BOSS_ESCORT := {"minion": 2, "mage": 1}
 ## The (up to) two doors offered for room n, given the previous room's kind.
 ## Elites, rests and shrines unlock from room 3; never two fightless rooms
 ## (rest, shrine) in a row.
-static func path_options(n: int, prev: String) -> Array:
+static func path_options(n: int, prev: String, rng: RandomNumberGenerator = null) -> Array:
 	if n >= RUN_LENGTH:
 		return ["boss"]
 	var pool := ["fight", "elite", "rest", "shrine"]
@@ -144,7 +144,7 @@ static func path_options(n: int, prev: String) -> Array:
 	if prev in ["rest", "shrine"]:
 		pool.erase("rest")
 		pool.erase("shrine")
-	pool.shuffle()
+	Upgrades.shuffle(pool, rng)
 	return pool.slice(0, 2)
 
 
@@ -170,6 +170,8 @@ var summary: CanvasLayer
 var room := 0
 var room_kind := "fight"
 var room_twists: Array[String] = []  # ELITE_TWISTS keys for this (elite) room
+var run_seed := 0
+var run_rng := RandomNumberGenerator.new()
 var _tour := false
 var _tour_seen: Array[String] = []
 var _tour_room_t := 0.0
@@ -230,6 +232,16 @@ var _hits := 0
 func _ready() -> void:
 	Game.reset()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
+	# One seed drives the global RNG (arena dressing, combat effects) and
+	# run_rng (doors, twists, spawn order, reward offers), which nothing else
+	# draws from, so `--seed=N` repeats a run's rolls even though combat
+	# timing varies. The autotest prints the seed.
+	run_seed = randi()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--seed="):
+			run_seed = arg.get_slice("=", 1).to_int()
+	seed(run_seed)
+	run_rng.seed = run_seed
 	if _autotest:
 		RECORDS.enabled = false
 		ALTAR.enabled = false
@@ -353,7 +365,7 @@ func _next_room() -> void:
 		for i in comp[kind]:
 			kinds.append(kind)
 	var elites := elite_count(room) if room_kind == "elite" else 0
-	kinds.shuffle()
+	Upgrades.shuffle(kinds, run_rng)
 	_queue.clear()
 	for kind in kinds:
 		var make_elite := elites > 0 and kind not in ["mage", "necromancer", "bomber"]
@@ -437,7 +449,7 @@ func _camp() -> void:
 
 ## Ask which door to take next (or go straight on when there's only one).
 func _choose_path() -> void:
-	var options := path_options(room + 1, room_kind)
+	var options := path_options(room + 1, room_kind, run_rng)
 	room_twists.clear()
 	if _tour and _tour_seen.size() < TOUR.size():
 		room_kind = TOUR[_tour_seen.size()]
@@ -448,7 +460,7 @@ func _choose_path() -> void:
 		room_kind = options[0]
 		return
 	var twists: Array = ELITE_TWISTS.keys()
-	twists.shuffle()
+	Upgrades.shuffle(twists, run_rng)
 	twists = twists.slice(0, 2 if room + 1 >= DOUBLE_TWIST_ROOM else 1)
 	path_menu.open(options, room + 1, _twist_text(twists, "name", " + "), _twist_text(twists, "desc", ", "))
 	if _autotest:
@@ -614,7 +626,7 @@ func _on_enemy_died(e: Node) -> void:
 
 
 func _offer_reward(level_ups_only := false) -> void:
-	var choices := Upgrades.roll(player.upgrades, 3, level_ups_only)
+	var choices := Upgrades.roll(player.upgrades, 3, level_ups_only, run_rng)
 	if choices.is_empty():
 		return
 	_reward_rerolls = 0
@@ -638,7 +650,7 @@ func _reroll_reward() -> void:
 	Game.add_bones(-_reroll_cost())
 	_reward_rerolls += 1
 	Game.sfx("pickup", -6.0, 0.1)
-	reward.open(Upgrades.roll(player.upgrades, 3, _reward_level_ups_only), _reroll_cost())
+	reward.open(Upgrades.roll(player.upgrades, 3, _reward_level_ups_only, run_rng), _reroll_cost())
 
 
 func _on_player_died() -> void:
@@ -994,8 +1006,8 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f hints=%s upgrades=%s" % [
-		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f hints=%s upgrades=%s" % [
+		run_seed, room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])

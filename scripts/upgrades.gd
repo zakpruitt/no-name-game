@@ -164,7 +164,7 @@ static func level_tag(level: int) -> String:
 ## level-ups of owned ones below MAX_LEVEL. `owned` maps id -> level.
 ## Each card is the upgrade's entry plus "level" (the level it grants).
 ## `level_ups_only` limits it to owned upgrades (the camp's "hone").
-static func roll(owned: Dictionary, count := 3, level_ups_only := false) -> Array:
+static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: RandomNumberGenerator = null) -> Array:
 	var pool: Array = []
 	for u in ALL:
 		var level: int = owned.get(u.id, 0)
@@ -172,5 +172,18 @@ static func roll(owned: Dictionary, count := 3, level_ups_only := false) -> Arra
 			var card: Dictionary = u.duplicate()
 			card.level = level + 1
 			pool.append(card)
-	pool.shuffle()
+	shuffle(pool, rng)
 	return pool.slice(0, count)
+
+
+## Shuffle `arr` in place with `rng` (main.run_rng, so seeded runs repeat
+## their rolls), or the global RNG when it's null.
+static func shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
+	if rng == null:
+		arr.shuffle()
+		return
+	for i in range(arr.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t: Variant = arr[i]
+		arr[i] = arr[j]
+		arr[j] = t
