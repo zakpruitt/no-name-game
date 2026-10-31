@@ -95,6 +95,7 @@ func _build() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(row)
 
+	var player := get_tree().get_first_node_in_group("player")
 	for i in _choices.size():
 		var u: Dictionary = _choices[i]
 		var b := Button.new()
@@ -103,7 +104,15 @@ func _build() -> void:
 		var head := "%s%s" % [u.name, Upgrades.level_tag(level)]
 		if level > 1:
 			head += "\nLEVEL UP"
-		b.text = "%d   [%s]\n\n%s\n\n%s" % [i + 1, u.slot, head, Upgrades.describe(u, level)]
+		var tags := Upgrades.tags(u.id)
+		# Numbers as they'd be once taken, counting any synergy it completes.
+		var owned: Dictionary = player.upgrades if player != null else {}
+		var after := owned.duplicate()
+		after[u.id] = level
+		var desc := Upgrades.describe(u, level, Upgrades.active_synergies(after))
+		for tag: String in Upgrades.would_activate(owned, u.id):
+			desc += "\nCompletes %s synergy!" % Upgrades.SYNERGIES[tag].name
+		b.text = "%d   [%s]%s\n\n%s\n\n%s" % [i + 1, u.slot, ("  ·  " + tags) if tags != "" else "", head, desc]
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 20)
 		b.add_theme_stylebox_override("normal", _card_style(Color(0.12, 0.1, 0.18), Color(0.4, 0.35, 0.55)))

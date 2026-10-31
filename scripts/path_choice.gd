@@ -8,13 +8,14 @@ const DOORS := {
 	"fight": "Fight\nskeletons, 1 power",
 	"elite": "Elite\ntougher foes, 2 powers",
 	"rest": "Rest\nheal 40%, no fight",
+	"shrine": "Shrine\na trade, no fight",
 }
 
 
 func _ready() -> void:
 	super()
 	title_size = 56
-	button_width = 440  # doors share a width, even with an elite twist line
+	button_width = 580  # doors share a width, even with two elite twists
 
 
 ## The rolled elite twist (`twist_name`, `twist_desc`) is shown on the elite door.

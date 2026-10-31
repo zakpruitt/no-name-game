@@ -13,8 +13,11 @@ func _ready() -> void:
 
 ## `stats` is an ordered Dictionary of label -> value text.
 ## `new_bests` lists the stats keys to flag as new personal records.
-func open(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array = []) -> void:
-	_build(victory, stats, upgrades, new_bests)
+## `synergies`: active Upgrades.SYNERGIES ids; `run_seed` (if >= 0) is shown
+## small under the button so a run can be replayed with `--seed`.
+func open(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array = [], synergies: Array = [],
+		run_seed := -1, daily_date := "") -> void:
+	_build(victory, stats, upgrades, new_bests, synergies, run_seed, daily_date)
 	visible = true
 	get_tree().paused = true
 
@@ -31,7 +34,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		new_run()
 
 
-func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array) -> void:
+func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array, synergies: Array,
+		run_seed: int, daily_date: String) -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
@@ -69,6 +73,10 @@ func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: A
 	ups.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ups.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ups.custom_minimum_size = Vector2(700, 0)
+	if not synergies.is_empty():
+		var syn := _label(col, "Synergies: " + ", ".join(synergies.map(func(t: String) -> String:
+			return Upgrades.SYNERGIES[t].name)), 20, Color(0.6, 0.95, 0.85))
+		syn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	var b := Button.new()
 	b.text = "New run  [Enter]"
@@ -78,6 +86,9 @@ func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: A
 	b.pressed.connect(new_run)
 	col.add_child(b)
 	b.grab_focus()
+	if run_seed >= 0:
+		var seed_text := ("daily run %s   ·   " % daily_date if daily_date != "" else "") + "seed %d" % run_seed
+		_label(col, seed_text, 16, Color(1, 1, 1, 0.4)).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# Center the column once its size is known.
 	await get_tree().process_frame

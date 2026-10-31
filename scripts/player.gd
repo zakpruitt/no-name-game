@@ -37,6 +37,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 # anim_speed keeps everything in sync.
 #   hits: when damage is dealt   cancel: when the next input is accepted
 #   end: when control returns    lunge: forward burst speed at start
+#   width: (optional) hits a straight strip `range` long and 2x`width` wide
+#          instead of the `arc` cone
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -55,6 +57,11 @@ const MOVES := {
 	"LH": {"anim": "2H_Melee_Attack_Chop", "damage": 14.0, "range": 2.6, "arc": 120.0,
 		"hits": [0.4], "cancel": 0.55, "end": 0.8, "lunge": 6.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true},
+	# Heavy right after L2 (L L H): Ground Breaker, a lunging thrust that
+	# knocks down everything in a strip ahead (launch > 0 also breaks guards).
+	"LLH": {"anim": "2H_Melee_Attack_Stab", "damage": 18.0, "range": 5.0, "width": 1.1, "arc": 360.0,
+		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 8.0, "knockback": 12.0, "launch": 4.0,
+		"stop": 0.1, "shake": 0.4, "big": true},
 	# Charged heavy: hold heavy from neutral for CHARGE_TIME, then release.
 	# Big launching slam; breaks shield guards (launch > 0).
 	"CH": {"anim": "2H_Melee_Attack_Chop", "damage": 30.0, "range": 3.4, "arc": 160.0,
@@ -76,6 +83,7 @@ const LIGHT_CHAIN := ["L1", "L2", "L3"]
 const CHARGE_TIME := 0.8
 const CHARGE_MOVE_MULT := 0.35
 const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
+const SYNERGY_COLOR := Color(0.45, 1.0, 0.85)
 const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
 const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
@@ -108,6 +116,12 @@ var _charged := false
 var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
+var ground_breakers := 0  # reported by the autotest
+var shatters := 0  # Shatter bursts (autotest)
+## Moves that count as heavy for Shatter.
+const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF"]
+const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
+var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
 var _awaken_light: OmniLight3D
@@ -373,6 +387,8 @@ func _next_move(kind: String) -> String:
 	# Heavy: Awakened finisher off L3, launcher if mid-string, spin from neutral.
 	if awakened and state == State.ATTACK and _move_id == "L3":
 		return "AF"
+	if (state == State.ATTACK and _move_id == "L2") or (state != State.ATTACK and _chain_i == 2):
+		return "LLH"
 	if (state == State.ATTACK and _move_id != "H") or _chain_i > 0:
 		return "LH"
 	return "H"
@@ -394,7 +410,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "AF", "CH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 
 
@@ -452,7 +468,10 @@ func _do_hit() -> void:
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		var d := to.length()
-		if d > _move.range + e.radius:
+		if _move.has("width"):
+			if not _in_strip(to, fwd, _move.range, _move.width, e.radius):
+				continue
+		elif d > _move.range + e.radius:
 			continue
 		if _move.arc < 360.0 and d > 0.4 and rad_to_deg(fwd.angle_to(to / d)) > _move.arc * 0.5:
 			continue
@@ -466,6 +485,8 @@ func _do_hit() -> void:
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
+		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
+			_shatter(e)
 		if was_airborne and has_upgrade("chain_spark"):
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
@@ -480,6 +501,11 @@ func _do_hit() -> void:
 			w.global_position = global_position + fwd * 1.0
 		if _move_id == "AF":
 			_cataclysm()
+		if _move_id == "LLH":
+			ground_breakers += 1
+			_crack_line(fwd, Color(0.85, 0.75, 0.6))
+			if has_upgrade("fault_line"):
+				_fault_line(global_position, fwd)
 		if _move_id == "CH":
 			charged_slams += 1
 			var at := global_position + fwd * 1.6
@@ -511,14 +537,35 @@ func has_upgrade(id: String) -> bool:
 	return upgrades.has(id)
 
 
-## Current level's tuning number `key` for owned upgrade `id` (upgrades.gd lv).
+## Current level's tuning number `key` for owned upgrade `id` (upgrades.gd
+## lv), boosted by any active synergy (Upgrades.SYNERGIES).
 func upg(id: String, key: String) -> float:
-	return Upgrades.value(id, key, upgrades.get(id, 1))
+	return Upgrades.value(id, key, upgrades.get(id, 1)) * Upgrades.boost(synergies, id, key)
+
+
+## A synergy switched on: chime, a teal ring and sparks around the hero.
+func _synergy_burst() -> void:
+	Game.sfx("synergy", -2.0, 0.0)
+	Fx.flash(model)
+	Fx.ring(get_parent(), global_position, Color(SYNERGY_COLOR, 0.9), 3.0, 0.5)
+	Fx.burst(get_parent(), global_position + Vector3.UP, SYNERGY_COLOR, 24, 5.0, 0.12, 0.6, Vector3.UP, 60.0, -4.0)
+
+
+## Lose upgrade `id` entirely (shrine melt).
+func remove_upgrade(id: String) -> void:
+	upgrades.erase(id)
+	synergies = Upgrades.active_synergies(upgrades)
 
 
 ## Gain an upgrade, or level it up if it's already owned (up to MAX_LEVEL).
 func add_upgrade(id: String) -> void:
 	upgrades[id] = mini(upgrades.get(id, 0) + 1, Upgrades.MAX_LEVEL)
+	var before := synergies
+	synergies = Upgrades.active_synergies(upgrades)
+	for tag: String in synergies:
+		if tag not in before:
+			Game.announced.emit("%s SYNERGY" % Upgrades.SYNERGIES[tag].name.to_upper())
+			_synergy_burst()
 	if id == "overflow":
 		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
 	if id == "long_night":
@@ -531,6 +578,85 @@ func _on_enemy_killed(_e: Node) -> void:
 	if has_upgrade("reaper") and state != State.DEAD:
 		heal(upg("reaper", "heal"), false)
 		Game.add_awakening(upg("reaper", "awaken"))
+
+
+## True if offset `to` (flat) lies in the strip `length` ahead along `fwd`.
+static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: float, pad: float) -> bool:
+	var ahead := to.dot(fwd)
+	var side := (to - fwd * ahead).length()
+	return ahead > -0.5 and ahead <= length + pad and side <= half_width + pad
+
+
+## Dust bursts along the Ground Breaker's strip.
+## Shatter: the slain foe bursts into bone shards that hit everyone close by
+## (shard kills don't shatter again).
+func _shatter(dead: Node3D) -> void:
+	shatters += 1
+	var at := dead.global_position
+	var r: float = upg("shatter", "radius")
+	Fx.burst(get_parent(), at + Vector3.UP * 0.7, SHATTER_COLOR, 26, 9.0, 0.12, 0.35, Vector3.UP, 160.0)
+	Fx.ring(get_parent(), at, Color(SHATTER_COLOR, 0.8), r, 0.3)
+	Game.sfx("enemy_death", 0.0, 0.15)
+	Game.shake(0.25)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == dead or not e.is_alive():
+			continue
+		var to: Vector3 = e.global_position - at
+		to.y = 0.0
+		if to.length() <= r + e.radius:
+			e.take_hit(upg("shatter", "damage"), to.normalized() * 6.0, 3.0, false)
+			Game.register_hit("shatter")
+
+
+func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
+	var start := global_position if from == Vector3.INF else from
+	var length: float = MOVES.LLH.range
+	for i in 5:
+		var at := start + fwd * (1.0 + i * (length - 1.0) / 4.0)
+		Fx.dust(get_parent(), at, 6, 0.7)
+		Fx.burst(get_parent(), at + Vector3.UP * 0.1, color, 5, 4.0, 0.08, 0.25, Vector3.UP, 40.0)
+
+
+## Fault Line: the strip erupts again a moment later, launching what's on it.
+func _fault_line(origin: Vector3, fwd: Vector3) -> void:
+	var delay: float = upg("fault_line", "delay")
+	var glow := _fault_glow(origin, fwd)
+	glow.create_tween().tween_property(glow.mesh.material, "albedo_color:a", 0.75, delay)
+	await get_tree().create_timer(delay, false).timeout
+	var mat: StandardMaterial3D = glow.mesh.material
+	mat.albedo_color.a = 0.95
+	var tw := glow.create_tween()
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.35).set_ease(Tween.EASE_IN)
+	tw.tween_callback(glow.queue_free)
+	_crack_line(fwd, Color(1.0, 0.55, 0.2), origin)
+	Game.shake(0.3)
+	Game.sfx("hit_big", -6.0, 0.1)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - origin
+		to.y = 0.0
+		if e.is_alive() and _in_strip(to, fwd, MOVES.LLH.range, MOVES.LLH.width, e.radius):
+			e.take_hit(upg("fault_line", "damage"), fwd * 3.0, 7.0, true)
+			Game.register_hit("fault_line")
+
+
+## Glowing crack along the Ground Breaker's strip; it brightens until the
+## Fault Line erupts, so the eruption reads as a telegraph.
+func _fault_glow(origin: Vector3, fwd: Vector3) -> MeshInstance3D:
+	var length: float = MOVES.LLH.range
+	var m := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(MOVES.LLH.width * 1.2, 0.02, length)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.45, 0.1, 0.35)
+	mesh.material = mat
+	m.mesh = mesh
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_parent().add_child(m)
+	m.global_position = origin + fwd * (length * 0.5 + 0.5) + Vector3.UP * 0.06
+	m.rotation.y = atan2(fwd.x, fwd.z)
+	return m
 
 
 ## Quake: a shockwave out from the charged slam's impact.
@@ -700,7 +826,9 @@ static func _describe_attacker(attacker: Node) -> String:
 	return ("an " if kind[0] in "aeiou" else "a ") + kind
 
 
-func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
+## `cause` names hazards for the death recap ("the Bone Warden's cage");
+## otherwise the attacker is described.
+func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause := "") -> void:
 	if state == State.DEAD:
 		return
 	if _invuln_t > 0.0:
@@ -708,7 +836,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 			_perfect_dodge(attacker)
 		return
 	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
-	last_hit_by = _describe_attacker(attacker)
+	last_hit_by = cause if cause != "" else _describe_attacker(attacker)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()
 	Game.sfx("player_hurt")

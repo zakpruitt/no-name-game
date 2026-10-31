@@ -72,13 +72,16 @@ const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
 ## alike. Killed while lit, it blows up on the spot (chains into other bombs).
 @export var blast_radius := 3.2
 @export var blast_enemy_damage := 40.0
+@export var blast_enemy_launch := 7.0
 const BOMB_COLOR := Color(1.0, 0.5, 0.1)
 var _fuse := -1.0  # seconds left once lit; < 0 = not lit
 ## Volatile (elite room twist): bursts VOLATILE_DELAY s after dying, with a
-## smaller blast_radius; the ring warns where.
+## smaller blast_radius and much less damage to other skeletons; the ring warns where.
 var volatile := false
 const VOLATILE_DELAY := 0.7
 const VOLATILE_RADIUS := 2.4
+const VOLATILE_ENEMY_DAMAGE := 12.0  # to other skeletons (bombers do blast_enemy_damage)
+const VOLATILE_ENEMY_LAUNCH := 0.0  # stagger only; a launch left crowds helpless
 var _spark: MeshInstance3D
 ## Necromancer (attack_kind "raise"): hangs back and raises up to raise_count
 ## fallen minions (main.gd keeps the graves; `can_raise` asks it whether any
@@ -107,6 +110,10 @@ var _state_t := 0.0
 var _player: Node3D
 var _telegraph: MeshInstance3D
 var _telegraph_mat: StandardMaterial3D
+var _edge: MeshInstance3D  # bright pulsing rim + dark outline on the telegraph ring (Fx.edge_ring)
+var _edge_t := 0.0
+var _glow_mat: ShaderMaterial  # set_glow() rim, kept on through hit flashes
+var _glow_meshes: Array[Node] = []
 var _attack_cd := 0.0
 var _freeze_t := 0.0
 var _frozen_speed := -1.0
@@ -190,6 +197,13 @@ func is_airborne() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if _telegraph.visible:
+		_pulse_edge(delta)
+	# Fx.flash clears overlays on hit; put the glow back afterwards.
+	if _glow_mat != null:
+		for mi: MeshInstance3D in _glow_meshes:
+			if is_instance_valid(mi) and mi.material_overlay == null:
+				mi.material_overlay = _glow_mat
 	# Hit freeze: hold the pose and shudder; knockback starts once it ends.
 	if _freeze_t > 0.0:
 		_freeze_t -= delta
@@ -586,6 +600,8 @@ func _burn_fuse(delta: float) -> void:
 
 func _volatile_pop() -> void:
 	blast_radius = VOLATILE_RADIUS
+	blast_enemy_damage = VOLATILE_ENEMY_DAMAGE
+	blast_enemy_launch = VOLATILE_ENEMY_LAUNCH
 	var warn := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = blast_radius
@@ -622,12 +638,14 @@ func _blast() -> void:
 		var to: Vector3 = _player.global_position - at
 		to.y = 0.0
 		if to.length() <= blast_radius:
-			_player.take_hit(attack_damage, to.normalized() * 10.0, self)
+			var who: String = _player._describe_attacker(self)
+			_player.take_hit(attack_damage, to.normalized() * 10.0, self,
+				("%s's blast" if attack_kind == "bomb" else "%s's dying burst") % who)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = e.global_position - at
 		to.y = 0.0
 		if e != self and e.is_alive() and to.length() <= blast_radius:
-			e.take_hit(blast_enemy_damage, to.normalized() * 6.0, 7.0, true)
+			e.take_hit(blast_enemy_damage, to.normalized() * 6.0, blast_enemy_launch, true)
 			Game.register_hit("bomb")
 
 
@@ -690,6 +708,13 @@ func _squash(amount: Vector3) -> void:
 	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, 0.3) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
+## A coloured rim glow over the whole model (e.g. split minions).
+func set_glow(color: Color) -> void:
+	_glow_mat = Fx.rim_material().duplicate()
+	_glow_mat.set_shader_parameter("glow_color", color)
+	_glow_meshes = model.find_children("*", "MeshInstance3D", true, false)
+
+
 func _build_elite_aura() -> void:
 	var ring := MeshInstance3D.new()
 	var mesh := TorusMesh.new()
@@ -716,6 +741,26 @@ func _build_elite_aura() -> void:
 	add_child(light)
 
 
+## Telegraph rim (Fx.edge_ring): pulses faster as the windup runs out.
+const EDGE_PULSE_HZ := Vector2(3.0, 9.0)  # pulses/s at windup start, end
+
+
+func _build_edge(r: float) -> void:
+	_edge = Fx.edge_ring(r)
+	_telegraph.add_child(_edge)
+
+
+## Match the rim to a ring of radius r (boss.gd resizes its telegraph).
+func fit_edge(r: float) -> void:
+	Fx.fit_edge(_edge, r)
+
+
+func _pulse_edge(delta: float) -> void:
+	var k := clampf(_state_t / maxf(attack_windup, 0.01), 0.0, 1.0) if state == State.WINDUP else 1.0
+	_edge_t += delta * lerpf(EDGE_PULSE_HZ.x, EDGE_PULSE_HZ.y, k)
+	Fx.pulse_edge(_edge, _telegraph_mat.albedo_color, _edge_t)
+
+
 func _build_telegraph() -> void:
 	_telegraph = MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
@@ -738,6 +783,7 @@ func _build_telegraph() -> void:
 	_telegraph.position.y = 0.08
 	_telegraph.visible = false
 	add_child(_telegraph)
+	_build_edge(r)
 	if attack_kind == "line":
 		_telegraph_mat.albedo_color = Color(LINE_COLOR, 0.3)
 		# Long strip along the shot (pivot at the archer; rotated in _track_aim).

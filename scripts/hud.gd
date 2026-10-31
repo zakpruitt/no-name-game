@@ -6,6 +6,7 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
+const POWER_LINES := 14  # powers listed at full size before the list shrinks
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
 uniform float strength = 0.0;
@@ -179,6 +180,8 @@ func set_upgrades(owned: Dictionary) -> void:
 		var u := Upgrades.get_by_id(id)
 		lines.append("%s%s  [%s]" % [u.name, Upgrades.level_tag(owned[id]), u.slot])
 	upgrades_label.text = "\n".join(lines)
+	# Long builds shrink so the list stays inside its box above the screen edge.
+	upgrades_label.add_theme_font_size_override("font_size", 16 if lines.size() <= POWER_LINES else 13)
 
 
 ## `twist`: the elite room's twist name ("" for none).
@@ -191,6 +194,8 @@ func set_room(n: int, total: int, kind: String, twist := "") -> void:
 		flash_message("ROOM %d\nELITES%s" % [n, ("  ·  " + twist.to_upper()) if twist != "" else ""], 1.4)
 	elif kind == "rest":
 		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
+	elif kind == "shrine":
+		flash_message("ROOM %d\nA QUIET SHRINE" % n, 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
 
@@ -209,7 +214,8 @@ func _update_low_hp(delta: float) -> void:
 		_beat_t = 0.0
 	_pulse = move_toward(_pulse, 0.0, delta * 2.5)
 	_vignette = move_toward(_vignette, 0.5 if low else 0.0, delta * 1.5)
-	_vignette_mat.set_shader_parameter("strength", _vignette * (1.0 + 0.7 * _pulse))
+	var throb := 0.0 if Game.reduce_flashing else 0.7 * _pulse
+	_vignette_mat.set_shader_parameter("strength", _vignette * (1.0 + throb))
 
 
 ## Tutorial tip above the controls line: fades in, holds, fades out.

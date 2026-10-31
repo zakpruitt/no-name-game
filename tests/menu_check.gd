@@ -10,13 +10,33 @@ func _initialize() -> void:
 	get_root().add_child(main)
 	await create_timer(0.6).timeout
 	_save("user://menu_title.png")
+	# The bone altar (read-only here: nothing is bought).
+	var title_menu: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
+	title_menu.open_altar()
+	await create_timer(0.3).timeout
+	_save("user://menu_altar.png")
+	title_menu.open()
+	# RECENT RUNS (sample lines, nothing saved): right arrow moves focus into it.
+	title_menu.build_recent([{"victory": false, "room": 4, "rank": "B", "seed": 7, "daily": ""}])
+	await create_timer(0.2).timeout
+	var right := InputEventAction.new()
+	right.action = "ui_right"
+	right.pressed = true
+	Input.parse_input_event(right)
+	await create_timer(0.1).timeout
+	var focused := get_root().gui_get_focus_owner()
+	print("recent focus=", focused is Button and focused.flat)
+	title_menu.open()
+	await create_timer(0.2).timeout
 	var title: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
 	title._start()
 	await create_timer(1.5).timeout
-	# A couple of powers so the pause menu's build panel has something to list.
+	# A few powers so the pause menu's build panel has something to list,
+	# including an active synergy (Skybreaker + Quake = Tremor).
 	main.player.add_upgrade("ember_cleave")
 	main.player.add_upgrade("skybreaker")
 	main.player.add_upgrade("skybreaker")
+	main.player.add_upgrade("quake")
 	var ev := InputEventAction.new()
 	ev.action = "pause"
 	ev.pressed = true
@@ -32,10 +52,10 @@ func _initialize() -> void:
 	Input.parse_input_event(ev)
 	await create_timer(0.3).timeout
 	print("back in pause menu=", pause.is_open() and not pause.in_settings())
-	# Door choice with an elite twist (the longest door text).
+	# Door choice with a late elite's two twists (the longest door text).
 	pause.close_menu()
-	var twist: Dictionary = main.ELITE_TWISTS.volatile
-	main.path_menu.open(["fight", "elite"], 4, twist.name, twist.desc)
+	var twists := ["volatile", "hasted"]
+	main.path_menu.open(["fight", "elite"], 6, main._twist_text(twists, "name", " + "), main._twist_text(twists, "desc", ", "))
 	await create_timer(0.3).timeout
 	_save("user://menu_path.png")
 	main.path_menu.close_menu()

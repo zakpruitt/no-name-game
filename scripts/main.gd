@@ -7,9 +7,10 @@ extends Node3D
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
 ## `--max-upgrades` gives them all at MAX_LEVEL), `--upgrades=id,id` for just
-## those, `--low-hp` to start at 15% HP (low-HP vignette → autotest_lowhp.png), `--start-room=N` to begin at a later room, `--boss-enraged` to start
-## the boss at half HP (enraged; it uses the spike line), `--twist=volatile` to make
-## it an elite room with that twist, `--start-rest` to make it a rest (camp) room with some bones, and `--start-awakened` to begin
+## those, `--altar=hardened:3,scavenger:1` for bone altar boons (not saved),
+## `--low-hp` to start at 15% HP (low-HP vignette → autotest_lowhp.png), `--start-room=N` to begin at a later room, `--boss-enraged` to start
+## the boss at half HP (enraged; it uses the spike line), `--twist=volatile` (or
+## `--twist=volatile,hasted`) to make it an elite room with those twists, `--start-rest` to make it a rest (camp) room with some bones, and `--start-awakened` to begin
 ## with a full Awakening meter.
 
 const PLAYER := preload("res://scripts/player.gd")
@@ -24,8 +25,12 @@ const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
 const PATH := preload("res://scripts/path_choice.gd")
 const RECORDS := preload("res://scripts/records.gd")
+const BONE_CAGE := preload("res://scripts/bone_cage.gd")
+const ALTAR := preload("res://scripts/altar.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
 const CAMP_MENU := preload("res://scripts/camp.gd")
+const SHRINE_MENU := preload("res://scripts/shrine.gd")
+const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -67,24 +72,56 @@ const RAISE_FX_COLOR := Color(0.45, 1.0, 0.4)
 #   fight  regular enemy mix (wave_composition), 1 power
 #   elite  the same mix with several elites (elite_count), 2 powers
 #   rest   no enemies, heals REST_HEAL of max HP
+#   shrine no enemies, one trade from SHRINE (or walk on)
 #   boss   the Bone Warden and a small escort; beating it wins the run
 const RUN_LENGTH := 8
 const REST_HEAL := 0.4
 const ELITE_REWARDS := 2
-# Elite rooms roll one twist, shown on the door and the room title. "mult"
-# scales those ENEMY_TYPES stats for every enemy in the room; "volatile"
-# makes them burst shortly after dying (enemy.gd VOLATILE_*).
+# Elite rooms roll one twist (two different ones from DOUBLE_TWIST_ROOM on),
+# shown on the door and the room title. "mult" scales those ENEMY_TYPES stats
+# for every enemy in the room; "volatile" makes them burst shortly after
+# dying (enemy.gd VOLATILE_*); "split" foes break into that many small
+# minions when slain (SPLIT_* below; the minions don't split again).
+const DOUBLE_TWIST_ROOM := 6
+# `--tour` autotest: take these doors in order (room 1 is always a fight),
+# wipe each fight after TOUR_FIGHT_TIME s, and print PASS if the run reaches
+# and beats the boss having seen every kind (FAIL after TOUR_TIMEOUT s).
+# The camp is topped up to afford its first offer and buys it; the shrine
+# takes its rotating trade (vow or melt). Both must happen to PASS.
+const TOUR := ["fight", "rest", "shrine", "elite", "boss"]
+const TOUR_FIGHT_TIME := 1.5
+const TOUR_TIMEOUT := 120.0
+# `--pace`: run until the first room clears (prints `cleared ... time=`), for
+# comparing room lengths; give up after PACE_TIMEOUT s.
+const PACE_TIMEOUT := 90.0
 const ELITE_TWISTS := {
 	"hasted": {"name": "Hasted", "desc": "faster foes", "mult": {"move_speed": 1.3, "attack_windup": 0.8,
 		"attack_recover": 0.8}},
 	"armored": {"name": "Armored", "desc": "+60% enemy HP", "mult": {"max_hp": 1.6}},
 	"volatile": {"name": "Volatile", "desc": "foes burst when slain", "volatile": true},
+	"splitting": {"name": "Splitting", "desc": "foes split in two when slain", "split": 2},
 }
+const SPLIT_HP := 0.5  # split minions' HP vs a normal minion
+const SPLIT_SCALE := 0.7  # and their size
+const SPLIT_GLOW := Color(0.6, 0.9, 1.0)  # rim glow that marks them apart
 # Reroll on the reward screen: first costs REROLL_COST bones, each further
 # reroll of the same offer REROLL_COST_STEP more.
 const REROLL_COST := 8
 const REROLL_COST_STEP := 4
 # Camp (rest rooms): what bones buy. Shown in this order; "Move on" leaves.
+# Shrine trades (pick one). "hp_frac": HP paid as a fraction of max HP
+# ({hp} in the text); "cost": bones paid.
+const SHRINE := {
+	"blood": {"text": "Blood pact: lose {hp} HP, gain a new power", "hp_frac": 0.3},
+	"mend": {"text": "Bone offering: heal to full", "cost": 15},
+}
+# Each shrine also offers one of these, picked per shrine.
+#   vow   the next room gets the `twist` (ELITE_TWISTS key); gain a new power
+#   melt  destroy one owned power (picked per shrine) for `bones` per level
+const SHRINE_ROTATING := {
+	"vow": {"text": "Dark vow: next room's foes are {twist}, gain a new power", "twist": "armored"},
+	"melt": {"text": "Melt down {power}: lose it, gain {bones} bones", "bones": 20},
+}
 const CAMP := {
 	"vigor": {"text": "Vigor: +15 max HP", "cost": 15, "max_hp": 15.0},
 	"power": {"text": "Seek a new power", "cost": 20},
@@ -113,17 +150,24 @@ const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 
 	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons", "bones": 0}
 const BOSS_ESCORT := {"minion": 2, "mage": 1}
 
+## Seed for the daily run on `date` ("YYYY-MM-DD"): the same all day, for everyone.
+static func daily_seed(date: String) -> int:
+	return hash("awaken-daily-" + date) & 0x7fffffff
+
+
 ## The (up to) two doors offered for room n, given the previous room's kind.
-## Elites and rests unlock from room 3; never two rests in a row.
-static func path_options(n: int, prev: String) -> Array:
+## Elites, rests and shrines unlock from room 3; never two fightless rooms
+## (rest, shrine) in a row.
+static func path_options(n: int, prev: String, rng: RandomNumberGenerator = null) -> Array:
 	if n >= RUN_LENGTH:
 		return ["boss"]
-	var pool := ["fight", "elite", "rest"]
+	var pool := ["fight", "elite", "rest", "shrine"]
 	if n < 3:
 		return ["fight"]
-	if prev == "rest":
+	if prev in ["rest", "shrine"]:
 		pool.erase("rest")
-	pool.shuffle()
+		pool.erase("shrine")
+	Upgrades.shuffle(pool, rng)
 	return pool.slice(0, 2)
 
 
@@ -148,9 +192,25 @@ var reward: CanvasLayer
 var summary: CanvasLayer
 var room := 0
 var room_kind := "fight"
-var room_twist := ""  # ELITE_TWISTS key for this (elite) room, else ""
+var room_twists: Array[String] = []  # ELITE_TWISTS keys for this (elite) room
+var run_seed := 0
+var run_rng := RandomNumberGenerator.new()
+var daily_date := ""  # "2026-10-31" on a daily run (title screen), else ""
+var _tour := false
+var _tour_seen: Array[String] = []
+var _tour_room_t := 0.0
+var _tour_trades: Array[String] = []  # "camp:vigor", "shrine:melt"... taken on the tour
+var _won := false
+var _pace := false  # --pace: end the autotest when the first room clears
+var _room_start_t := 0.0  # _autotest_t when this room began (clear time)
+var _split_shot_taken := false
+var _shatter_shot_taken := false
+var _splits := 0  # minions split off by the Splitting twist (autotest line)
+var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
+var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
+var shrine_menu: CanvasLayer
 var _reward_rerolls := 0  # rerolls bought for the reward currently open
 var _reward_level_ups_only := false
 var _alive := 0
@@ -168,6 +228,8 @@ var _max_combo := 0
 var _best_rank := "D"
 # Tall props that fade out when they sit between the camera and the hero.
 var _occluders: Array[Node3D] = []
+# The near-edge rubble row; fades the same way but never changes with layouts.
+var _edge_rubble: Array[Node3D] = []
 var _traps: Array[Node3D] = []
 var _layout := -1
 
@@ -179,7 +241,11 @@ var _charge_shot_taken := false
 var _hint_shot_taken := false
 var _necro_shot_taken := false
 var _spikes_shot_taken := false
+var _cage_shot_taken := false
 var _bomb_shot_taken := false
+var _breaker_shot_taken := false
+var _slam_shot_taken := false
+var _synergy_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -200,8 +266,22 @@ var _hits := 0
 func _ready() -> void:
 	Game.reset()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
+	# One seed drives the global RNG (arena dressing, combat effects) and
+	# run_rng (doors, twists, spawn order, reward offers), which nothing else
+	# draws from, so `--seed=N` repeats a run's rolls even though combat
+	# timing varies. The autotest prints the seed.
+	run_seed = randi()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--seed="):
+			run_seed = arg.get_slice("=", 1).to_int()
+		elif arg == "--daily":  # what the title's "Daily run" does
+			daily_date = Time.get_date_string_from_system()
+			run_seed = daily_seed(daily_date)
+	seed(run_seed)
+	run_rng.seed = run_seed
 	if _autotest:
 		RECORDS.enabled = false
+		ALTAR.enabled = false
 		Game.save_hints = false
 		Game._hints_seen.clear()  # show them all, without touching the saved ones
 	_build_environment()
@@ -219,6 +299,7 @@ func _ready() -> void:
 
 	hud = HUD.new()
 	add_child(hud)
+	_apply_altar()
 	hud.bind_player(player)
 
 	reward = REWARD.new()
@@ -230,6 +311,8 @@ func _ready() -> void:
 	add_child(path_menu)
 	camp_menu = CAMP_MENU.new()
 	add_child(camp_menu)
+	shrine_menu = SHRINE_MENU.new()
+	add_child(shrine_menu)
 	reward.reroll_pressed.connect(_reroll_reward)
 	Game.combo_changed.connect(_track_combo)
 
@@ -259,6 +342,15 @@ func _ready() -> void:
 			if c == 3 and Game.best_air == 3:
 				await get_tree().create_timer(0.1, true, false, true).timeout
 				_snap("user://autotest_air.png"))
+		# First synergy: one from --upgrades already fired; else wait for one.
+		if not player.synergies.is_empty():
+			get_tree().create_timer(0.25).timeout.connect(_snap.bind("user://autotest_synergy.png"))
+		else:
+			Game.announced.connect(func(t: String) -> void:
+				if t.ends_with("SYNERGY") and not _synergy_shot_taken:
+					_synergy_shot_taken = true
+					await get_tree().create_timer(0.25, true, false, true).timeout
+					_snap("user://autotest_synergy.png"))
 		Game.announced.connect(func(_t: String) -> void:
 			if Game.perfect_dodges == 1:
 				await get_tree().create_timer(0.15, true, false, true).timeout
@@ -271,9 +363,21 @@ func _ready() -> void:
 				room_kind = "boss"
 		elif arg.begins_with("--twist="):
 			room_kind = "elite"
-			room_twist = arg.get_slice("=", 1)
+			for id in arg.get_slice("=", 1).split(","):
+				room_twists.append(id)
 		elif arg == "--start-rest":
 			room_kind = "rest"
+			Game.add_bones(30)
+		elif arg.begins_with("--shrine-trade="):
+			_shrine_trade = arg.get_slice("=", 1)
+		elif arg == "--pace":
+			_pace = true
+		elif arg == "--reduce-flashing":  # the setting, without saving it
+			Game.reduce_flashing = true
+		elif arg == "--tour":
+			_tour = true
+		elif arg == "--start-shrine":
+			room_kind = "shrine"
 			Game.add_bones(30)
 	if not _autotest and not Game.skip_title:
 		var title := TITLE.new()
@@ -281,6 +385,15 @@ func _ready() -> void:
 		hud.visible = false
 		title.open()
 		await title.started
+		if title.daily:
+			daily_date = Time.get_date_string_from_system()
+			run_seed = daily_seed(daily_date)
+		elif not title.replay.is_empty():
+			daily_date = title.replay.daily
+			run_seed = title.replay.seed
+		if title.daily or not title.replay.is_empty():
+			run_rng.seed = run_seed
+			seed(run_seed)
 		title.queue_free()
 		hud.visible = true
 	Game.skip_title = false
@@ -292,14 +405,25 @@ func _ready() -> void:
 func _next_room() -> void:
 	room += 1
 	_between_rooms = false
+	_room_start_t = _autotest_t
+	if _tour:
+		_tour_seen.append(room_kind)
+		_tour_room_t = _autotest_t
 	_apply_layout(ROOM_LAYOUTS[room - 1])
 	_graves.clear()
-	hud.set_room(room, RUN_LENGTH, room_kind, ELITE_TWISTS[room_twist].name if room_twist != "" else "")
+	if _vow_twist != "" and room_kind in ["fight", "elite", "boss"]:
+		if _vow_twist not in room_twists:
+			room_twists.append(_vow_twist)
+		_vow_twist = ""
+	hud.set_room(room, RUN_LENGTH, room_kind, _twist_text(room_twists, "name", " + "))
 	if room_kind == "boss":
 		_spawn_boss()
 		return
 	if room_kind == "rest":
 		_rest()
+		return
+	if room_kind == "shrine":
+		_shrine()
 		return
 	var comp := wave_composition(room)
 	var kinds: Array[String] = []
@@ -307,7 +431,7 @@ func _next_room() -> void:
 		for i in comp[kind]:
 			kinds.append(kind)
 	var elites := elite_count(room) if room_kind == "elite" else 0
-	kinds.shuffle()
+	Upgrades.shuffle(kinds, run_rng)
 	_queue.clear()
 	for kind in kinds:
 		var make_elite := elites > 0 and kind not in ["mage", "necromancer", "bomber"]
@@ -332,14 +456,84 @@ func _rest() -> void:
 		_next_room()
 
 
+## Shrine room: no enemies; offer one SHRINE trade, then the next door.
+func _shrine() -> void:
+	_between_rooms = true
+	var prop := SHRINE_PROP.new()
+	add_child(prop)
+	# Up-screen of the hero (clear of the menu title), kept inside the walls.
+	var at := player.global_position + Vector3(0.0, 0.0, -5.0)
+	prop.global_position = Vector3(clampf(at.x, -ARENA_HALF + 3.0, ARENA_HALF - 3.0), 0.0,
+		clampf(at.z, -ARENA_HALF + 3.0, ARENA_HALF - 3.0))
+	prop.rise()
+	if _autotest:
+		get_tree().create_timer(2.2).timeout.connect(_snap.bind("user://autotest_shrine_room.png"))
+	await get_tree().create_timer(2.3).timeout  # let the room title fade first
+	var trades := SHRINE.duplicate()
+	var rot: String = _shrine_trade if _shrine_trade != "" else SHRINE_ROTATING.keys()[run_rng.randi() % SHRINE_ROTATING.size()]
+	var trade: Dictionary = SHRINE_ROTATING[rot].duplicate()
+	var melted := ""
+	match rot:
+		"vow":
+			trade.text = trade.text.format({"twist": ELITE_TWISTS[trade.twist].name})
+		"melt":
+			var owned: Array = player.upgrades.keys()
+			if owned.is_empty():
+				trade.text = "Melt down a power (you have none)"
+				trade.blocked = true
+			else:
+				melted = owned[run_rng.randi() % owned.size()]
+				var level: int = player.upgrades[melted]
+				trade.text = trade.text.format({"power": Upgrades.get_by_id(melted).name + Upgrades.level_tag(level),
+					"bones": trade.bones * level})
+	trades[rot] = trade
+	shrine_menu.open(trades, player.hp, player.max_hp, Game.bones)
+	if _autotest:
+		_autotest_shrine(rot)
+	var choice: String = await shrine_menu.chosen
+	if _tour:
+		_tour_trades.append("shrine:" + choice + ("" if choice == rot else "(wanted %s)" % rot))
+	match choice:
+		"vow":
+			_vow_twist = trade.twist
+			Game.sfx("spawn", -2.0, 0.0)
+			Game.shake(0.3)
+			await _offer_reward()
+		"melt":
+			Game.add_bones(trade.bones * player.upgrades[melted])
+			player.remove_upgrade(melted)
+			hud.set_upgrades(player.upgrades)
+			Fx.burst(self, player.global_position + Vector3.UP, Color(1.0, 0.6, 0.2), 24, 5.0)
+			Game.sfx("pickup", -2.0, 0.0)
+		"blood":
+			player.hp -= ceili(player.max_hp * SHRINE.blood.hp_frac)
+			player.health_changed.emit(player.hp, player.max_hp)
+			Fx.flash(player.model)
+			Game.sfx("player_hurt", -2.0, 0.0)
+			Game.shake(0.3)
+			await _offer_reward()
+		"mend":
+			Game.add_bones(-SHRINE.mend.cost)
+			player.heal(player.max_hp)
+			Game.sfx("wave_clear", -4.0, 0.0)
+	prop.sink()
+	if not player.is_dead():
+		await _choose_path()
+		_next_room()
+
+
 ## Spend bones at the camp until the player moves on.
 func _camp() -> void:
 	var bought := 0
 	while true:
+		if _tour and bought == 0:
+			Game.add_bones(maxi(CAMP.values()[0].cost - Game.bones, 0))  # so the tour can buy
 		camp_menu.open(CAMP, Game.bones, not Upgrades.roll(player.upgrades, 1, true).is_empty())
 		if _autotest:
 			_autotest_camp(bought)
 		var choice: String = await camp_menu.chosen
+		if _tour:
+			_tour_trades.append("camp:" + choice)
 		if choice == "leave":
 			return
 		Game.add_bones(-CAMP[choice].cost)
@@ -356,18 +550,30 @@ func _camp() -> void:
 
 ## Ask which door to take next (or go straight on when there's only one).
 func _choose_path() -> void:
-	var options := path_options(room + 1, room_kind)
-	room_twist = ""
+	var options := path_options(room + 1, room_kind, run_rng)
+	room_twists.clear()
+	if _tour and _tour_seen.size() < TOUR.size():
+		room_kind = TOUR[_tour_seen.size()]
+		if room_kind == "boss":
+			room = RUN_LENGTH - 1  # the boss is always the last room
+		return
 	if options.size() == 1:
 		room_kind = options[0]
 		return
-	var twist: String = ELITE_TWISTS.keys().pick_random()
-	path_menu.open(options, room + 1, ELITE_TWISTS[twist].name, ELITE_TWISTS[twist].desc)
+	var twists: Array = ELITE_TWISTS.keys()
+	Upgrades.shuffle(twists, run_rng)
+	twists = twists.slice(0, 2 if room + 1 >= DOUBLE_TWIST_ROOM else 1)
+	path_menu.open(options, room + 1, _twist_text(twists, "name", " + "), _twist_text(twists, "desc", ", "))
 	if _autotest:
 		_autotest_path()
 	room_kind = await path_menu.chosen
 	if room_kind == "elite":
-		room_twist = twist
+		room_twists.assign(twists)
+
+
+## Twist names or descs joined for the door / room title ("" for none).
+static func _twist_text(ids: Array, field: String, sep: String) -> String:
+	return sep.join(ids.map(func(id: String) -> String: return ELITE_TWISTS[id][field]))
 
 
 ## Spawns on a ring around the player unless `at` is given.
@@ -381,11 +587,11 @@ func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	e.elite = elite
 	e.set_meta("kind", kind)
 	e.set_meta("title", spec.get("title", kind))
-	if room_twist != "":
-		var twist: Dictionary = ELITE_TWISTS[room_twist]
+	for id in room_twists:
+		var twist: Dictionary = ELITE_TWISTS[id]
 		for key in twist.get("mult", {}):
 			e.set(key, e.get(key) * twist.mult[key])
-		e.volatile = twist.get("volatile", false)
+		e.volatile = e.volatile or twist.get("volatile", false)
 	if e.attack_kind == "raise":
 		e.can_raise = _can_raise
 		e.raise_requested.connect(_raise)
@@ -452,8 +658,16 @@ func _spawn_boss() -> void:
 	b.summon.connect(func(count: int) -> void:
 		for i in count:
 			_spawn("minion"))
+	# Urgent, so it skips the HINT_GAP queue in _check_hints.
+	b.cage.connect(func() -> void:
+		Game.hint("cage")
+		_hint_gap = HINT_GAP)
 	if _autotest:
 		b.spike_line.connect(_autotest_spikes)
+		b.cage.connect(_autotest_cage)
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--boss-attack="):
+				b.force_attack = arg.get_slice("=", 1)
 		if "--boss-enraged" in OS.get_cmdline_user_args():
 			b.hp = b.max_hp * 0.5
 			b.call_deferred("_enrage")
@@ -494,6 +708,7 @@ func _on_enemy_died(e: Node) -> void:
 		for m in get_tree().get_nodes_in_group("enemies"):
 			if m.has_meta("master") and m.get_meta("master") == e:
 				m.crumble()
+	_split(e)
 	_alive -= 1
 	_kills += 1
 	hud.set_remaining(_alive + _queue.size())
@@ -503,6 +718,12 @@ func _on_enemy_died(e: Node) -> void:
 	if _alive <= 0 and not _between_rooms and not player.is_dead():
 		_between_rooms = true
 		hud.flash_message("CLEARED", 1.0)
+		if _autotest:
+			print("[autotest] cleared room=%d kind=%s time=%.1fs hp=%.0f" % [room,
+				"+".join([room_kind] + Array(room_twists)), _autotest_t - _room_start_t, player.hp])
+			if _pace:
+				_autotest_finish()
+				return
 		Game.sfx("wave_clear", -2.0, 0.0)
 		await get_tree().create_timer(1.2).timeout
 		if player.is_dead():
@@ -520,8 +741,32 @@ func _on_enemy_died(e: Node) -> void:
 		_next_room()
 
 
+## Splitting twist: a slain foe (not itself a split) breaks into small minions.
+func _split(e: Node) -> void:
+	var count := 0
+	for id in room_twists:
+		count = maxi(count, ELITE_TWISTS[id].get("split", 0))
+	if count == 0 or e.has_meta("split") or e.has_meta("master"):
+		return
+	Fx.burst(self, e.global_position + Vector3.UP * 0.6, Color(0.92, 0.88, 0.78), 14, 5.0)
+	for i in count:
+		var ang := TAU * i / count + randf() * 0.5
+		var m := _spawn("minion", false, e.global_position + Vector3(cos(ang), 0.0, sin(ang)) * 0.9)
+		m.set_meta("split", true)
+		m.bones = 0
+		m.max_hp *= SPLIT_HP
+		m.hp = m.max_hp
+		m.model_scale *= SPLIT_SCALE  # (squash tweens restore model.scale from it)
+		m.model.scale = Vector3.ONE * m.model_scale
+		m.set_glow(SPLIT_GLOW)
+		_splits += 1
+	if _autotest and not _split_shot_taken:
+		_split_shot_taken = true
+		get_tree().create_timer(1.3).timeout.connect(_snap.bind("user://autotest_split.png"))
+
+
 func _offer_reward(level_ups_only := false) -> void:
-	var choices := Upgrades.roll(player.upgrades, 3, level_ups_only)
+	var choices := Upgrades.roll(player.upgrades, 3, level_ups_only, run_rng)
 	if choices.is_empty():
 		return
 	_reward_rerolls = 0
@@ -545,7 +790,7 @@ func _reroll_reward() -> void:
 	Game.add_bones(-_reroll_cost())
 	_reward_rerolls += 1
 	Game.sfx("pickup", -6.0, 0.1)
-	reward.open(Upgrades.roll(player.upgrades, 3, _reward_level_ups_only), _reroll_cost())
+	reward.open(Upgrades.roll(player.upgrades, 3, _reward_level_ups_only, run_rng), _reroll_cost())
 
 
 func _on_player_died() -> void:
@@ -560,7 +805,21 @@ func _track_combo(count: int, rank: String) -> void:
 		_best_rank = rank
 
 
+## Bone altar boons bought between runs (altar.gd BOONS).
+func _apply_altar() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--altar="):
+			for pair in arg.get_slice("=", 1).split(","):
+				ALTAR.override[pair.get_slice(":", 0)] = pair.get_slice(":", 1).to_int()
+	player.max_hp += ALTAR.bonus("hardened")
+	player.hp = player.max_hp
+	Game.bones += ALTAR.bonus("scavenger")
+	Game.bones_changed.emit(Game.bones)
+	Game.add_awakening(ALTAR.bonus("kindled"))
+
+
 func _end_run(victory: bool) -> void:
+	_won = _won or victory
 	if _run_over:
 		return
 	_run_over = true
@@ -577,13 +836,17 @@ func _end_run(victory: bool) -> void:
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
 		"Bones collected": Game.bones_total,
+		"Bones banked": Game.bones,
 	})
+	ALTAR.bank(Game.bones)
 	var bests := RECORDS.submit({"victory": victory, "rooms": cleared, "combo": _max_combo,
-		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time})
+		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time,
+		"room": room, "seed": run_seed, "daily": daily_date})
 	# Summary rows to flag as new personal bests.
 	var rows := {"best_room": "Rooms cleared", "best_combo": "Best combo", "best_rank": "Best style rank",
 		"best_juggle": "Best juggle", "fastest_win": "Time"}
-	summary.open(victory, stats, player.upgrades, bests.map(func(k: String) -> String: return rows[k]))
+	summary.open(victory, stats, player.upgrades, bests.map(func(k: String) -> String: return rows[k]),
+		player.synergies, run_seed, daily_date)
 	if _autotest:
 		_autotest_finish()
 
@@ -612,6 +875,9 @@ func _build_environment() -> void:
 	sun.light_color = Color(1.0, 0.95, 0.88)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 60.0
+	# The camera is fixed and looks down, so 2 cascades cover it (each cascade
+	# redraws every shadow caster).
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
 
 
@@ -620,7 +886,10 @@ func _build_arena() -> void:
 	for x in range(-HALF_TILES, HALF_TILES):
 		for z in range(-HALF_TILES, HALF_TILES):
 			var piece := "floor_tile_big_grate" if randf() < 0.08 else "floor_tile_large"
-			_place(piece, Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE))
+			var tile := _place(piece, Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE))
+			# Flat tiles only receive shadows; casting would redraw them per cascade.
+			for mi: MeshInstance3D in tile.find_children("*", "MeshInstance3D", true, false):
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_box_collider(Vector3(0.0, -0.5, 0.0), Vector3(ARENA_HALF * 2.0, 1.0, ARENA_HALF * 2.0))
 
 	# Walls on the back and sides; the near side stays open so the camera sees in.
@@ -639,7 +908,7 @@ func _build_arena() -> void:
 
 	# Low rubble line marks the open near edge.
 	for i in range(-HALF_TILES, HALF_TILES):
-		_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0)
+		_edge_rubble.append(_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0))
 
 	# Torches on the back wall, with real light.
 	for x in [-10.0, -2.0, 6.0]:
@@ -739,9 +1008,9 @@ func _fade_occluders(delta: float) -> void:
 	if not is_instance_valid(player):
 		return
 	var hp := player.global_position
-	for o in _occluders:
+	for o: Node3D in _occluders + _edge_rubble:
 		var d := o.global_position - hp
-		var blocking := d.z > 0.0 and d.z < 7.0 and absf(d.x) < 1.8
+		var blocking := d.z > 0.0 and d.z < 7.0 and absf(d.x) < 1.8 + (TILE * 0.5 if o in _edge_rubble else 0.0)
 		var target := 0.7 if blocking else 0.0
 		for mi: MeshInstance3D in o.find_children("*", "MeshInstance3D", true, false):
 			mi.transparency = move_toward(mi.transparency, target, delta * 4.0)
@@ -763,6 +1032,18 @@ func _process(delta: float) -> void:
 	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
 		_snap("user://autotest_%d.png" % _shots_taken)
 		_shots_taken += 1
+	if player.ground_breakers > 0 and not _breaker_shot_taken:
+		_breaker_shot_taken = true
+		get_tree().create_timer(0.12).timeout.connect(_snap.bind("user://autotest_breaker.png"))
+		if player.has_upgrade("fault_line"):
+			var erupt: float = player.upg("fault_line", "delay") + 0.1
+			get_tree().create_timer(erupt).timeout.connect(_snap.bind("user://autotest_fault.png"))
+	if player.shatters > 0 and not _shatter_shot_taken:
+		_shatter_shot_taken = true
+		get_tree().create_timer(0.1).timeout.connect(_snap.bind("user://autotest_shatter.png"))
+	if player.charged_slams > 0 and not _slam_shot_taken:
+		_slam_shot_taken = true
+		get_tree().create_timer(0.12).timeout.connect(_snap.bind("user://autotest_slam.png"))
 	if ENEMY.blasts > 0 and not _bomb_shot_taken:
 		_bomb_shot_taken = true
 		_snap("user://autotest_bomb.png")
@@ -787,7 +1068,9 @@ func _process(delta: float) -> void:
 		_finisher_shot_taken = true
 		await get_tree().create_timer(0.35, true, false, true).timeout
 		_snap("user://autotest_finisher.png")
-	if _autotest_t >= 16.0:
+	if _tour:
+		_drive_tour()
+	elif _autotest_t >= (PACE_TIMEOUT if _pace else 16.0):
 		_autotest_finish()
 
 
@@ -812,6 +1095,8 @@ func _check_hints(delta: float) -> void:
 		id = "necro"
 	elif not Game.hint_seen("launch") and Game.combo_count >= 4:
 		id = "launch"
+	elif Game.hint_seen("launch") and not Game.hint_seen("breaker") and Game.best_air > 0 			and player.ground_breakers == 0:
+		id = "breaker"  # the next combo route, once launching has clicked
 	elif not Game.hint_seen("dash"):
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if e.state == e.State.WINDUP and e.global_position.distance_to(player.global_position) < e.attack_range + 2.0:
@@ -845,15 +1130,38 @@ func _sample_perf() -> void:
 	_perf_last_frame = frame
 
 
+## --tour: clear fights quickly (the bot still plays for TOUR_FIGHT_TIME s),
+## keep the hero alive, and give up after TOUR_TIMEOUT.
+func _drive_tour() -> void:
+	if _autotest_t >= TOUR_TIMEOUT:
+		_autotest_finish()
+		return
+	player.hp = maxf(player.hp, player.max_hp * 0.5)
+	if _between_rooms or _autotest_t - _tour_room_t < TOUR_FIGHT_TIME:
+		return
+	_queue.clear()
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.is_alive() and e.state != e.State.SPAWN:
+			e.take_hit(e.hp + 1.0, Vector3.ZERO, 0.0, true)
+
+
 func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d raises=%d blasts=%d music=%.2f upgrades=%s" % [
-		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, player.upgrades])
+	if not ALTAR.override.is_empty():
+		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
+		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
+	if _tour:
+		var bought := _tour_trades.any(func(t: String) -> bool: return t.begins_with("camp:") and t != "camp:leave")
+		var traded := _tour_trades.any(func(t: String) -> bool: return t in ["shrine:vow", "shrine:melt"])
+		var ok := ",".join(_tour_seen) == ",".join(TOUR) and _won and bought and traded
+		print("[tour] %s rooms=%s trades=%s time=%.1fs" % ["PASS" if ok else "FAIL", ",".join(_tour_seen),
+			",".join(_tour_trades), _autotest_t])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
 	await get_tree().create_timer(0.3, true, false, true).timeout
@@ -883,6 +1191,15 @@ func _autotest_spikes() -> void:
 	_snap("user://autotest_spikes.png")
 
 
+func _autotest_cage() -> void:
+	if _cage_shot_taken:
+		return
+	_cage_shot_taken = true
+	print("[autotest] warden bone cage")
+	await get_tree().create_timer(1.2).timeout
+	_snap("user://autotest_cage.png")
+
+
 ## Buy the first affordable thing once, then move on.
 func _autotest_camp(bought: int) -> void:
 	await get_tree().create_timer(0.5).timeout
@@ -891,6 +1208,17 @@ func _autotest_camp(bought: int) -> void:
 		camp_menu.pick(camp_menu.first_affordable())
 	else:
 		camp_menu.pick(CAMP.size())
+
+
+## Takes the forced --shrine-trade (or on --tour the rotating one) if it can,
+## else the first it can pay.
+func _autotest_shrine(rot: String) -> void:
+	await get_tree().create_timer(0.5).timeout
+	_snap("user://autotest_shrine.png")
+	var index: int = SHRINE.size() if _shrine_trade == rot or _tour else shrine_menu.first_affordable()
+	if shrine_menu.is_disabled(index):
+		index = shrine_menu.first_affordable()
+	shrine_menu.pick(index)
 
 
 func _autotest_path() -> void:
@@ -907,6 +1235,43 @@ func _snap(path: String) -> void:
 	print("[autotest] screenshot ", ProjectSettings.globalize_path(path))
 
 
+## True if something could interrupt a charge: an enemy close by winding up,
+## a bolt in flight nearby, or a lit fuse in range.
+func _bot_threatened() -> bool:
+	var at := player.global_position
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var d: float = e.global_position.distance_to(at)
+		if d < 6.0 and e.state == e.State.WINDUP:
+			return true
+		if e.fuse_left() >= 0.0 and d < e.blast_radius + 1.0:
+			return true
+	for p in get_tree().get_nodes_in_group("projectiles"):
+		if p.global_position.distance_to(at) < 6.0:
+			return true
+	return false
+
+
+## Inside a bone cage: run for the gap; if a wall is about to reach the hero
+## away from the gap, dash out through it on i-frames.
+func _bot_escape_cage() -> bool:
+	for cage in get_tree().get_nodes_in_group("bone_cage"):
+		if not cage.traps(player.global_position):
+			continue
+		var r: float = cage.ring_radius()
+		var gap_dir := Vector3(cos(cage.gap_angle), 0.0, sin(cage.gap_angle))
+		var out: Vector3 = cage.global_position + gap_dir * (r + 2.0) - player.global_position
+		out.y = 0.0
+		player.bot_move = out.normalized()
+		var from: Vector3 = player.global_position - cage.global_position
+		from.y = 0.0
+		var off_gap := absf(angle_difference(atan2(from.z, from.x), cage.gap_angle)) > deg_to_rad(cage.gap) * 0.5
+		if off_gap and r - from.length() < 1.3 and player.state == player.State.MOVE:
+			player.bot_move = from.normalized()
+			Input.action_press("dash")
+		return true
+	return false
+
+
 func _drive_bot() -> void:
 	var nearest: Node3D = null
 	var nd := INF
@@ -918,13 +1283,21 @@ func _drive_bot() -> void:
 	Input.action_release("attack_light")
 	if _bot_charge_t > 0.0:
 		_bot_charge_t -= get_process_delta_time()
+		if nearest != null:
+			player.bot_move = (nearest.global_position - player.global_position).normalized()
 		if player.state == player.State.CHARGE and player._charged and not _charge_shot_taken:
 			_charge_shot_taken = true
 			_snap("user://autotest_charge.png")
+		# Knocked out of the charge: let go and try again soon.
+		if player.state != player.State.CHARGE and _bot_charge_t < player.CHARGE_TIME:
+			_bot_charge_t = 0.0
+			_bot_next_charge = _autotest_t + 1.5
 		return  # keep holding heavy (and nothing else) until the charge releases
 	Input.action_release("attack_heavy")
 	Input.action_release("dash")
 	Input.action_release("awaken")
+	if _bot_escape_cage():
+		return
 	if nearest == null:
 		player.bot_move = Vector3.ZERO
 		return
@@ -946,17 +1319,18 @@ func _drive_bot() -> void:
 			player.bot_move = (player.global_position - e.global_position).normalized()
 			Input.action_press("dash")
 			return
-	# Now and then, from neutral, hold heavy for a charged slam.
-	if nd < 4.0 and player.state == player.State.MOVE and not player.awakened and _autotest_t >= _bot_next_charge:
+	# Now and then, from neutral, hold heavy for a charged slam: from just
+	# outside melee reach (the slam lunges in), when nothing is about to hit.
+	if nd > 2.8 and nd < 6.0 and player.state == player.State.MOVE and not player.awakened and _autotest_t >= _bot_next_charge 			and not _bot_threatened():
 		Input.action_press("attack_heavy")
 		_bot_charge_t = player.CHARGE_TIME + 0.15
-		_bot_next_charge = _autotest_t + 7.0
+		_bot_next_charge = _autotest_t + 5.0
 		return
 	if nd < 3.0:
-		# Cycle through routes: L L L, L H (launch) L L, H spin.
+		# Cycle through routes: L H (launch), L L H (ground breaker), L L L.
 		var step := (f / 9) % 8
 		# While Awakened: L L L H to land the Cataclysm finisher.
-		var heavy: bool = (player._move_id == "L3" and player.state == player.State.ATTACK) if player.awakened 			else (step in [1, 7])
+		var heavy: bool = (player._move_id == "L3" and player.state == player.State.ATTACK) if player.awakened 			else (step in [1, 4])
 		if f % 9 == 0:
 			Input.action_press("attack_heavy" if heavy else "attack_light")
 	elif nd < 7.0 and f % 40 == 0:

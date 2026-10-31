@@ -1,6 +1,7 @@
 class_name Upgrades
 ## Combo-slot upgrades: each one hooks a specific move in the hero's string
-## (L1/L2/L3 light chain, H spin, LH launcher, DL dash stab, Charged slam) or
+## (L1/L2/L3 light chain, H spin, LH launcher, LLH ground breaker, DL dash
+## stab, Charged slam, Heavy = any heavy move) or
 ## a mechanic (Dash, Air, Awaken, Perfect dodge, Death, Kill).
 ## Pure data here; the effects live in player.gd (search for the id).
 ##
@@ -56,13 +57,70 @@ const ALL := [
 	{"id": "reaper", "name": "Reaper", "slot": "Kill",
 		"desc": "Each kill heals {heal} HP and grants {awaken} Awakening.",
 		"lv": {"heal": [3, 5, 7], "awaken": [4, 6, 8]}},
+	{"id": "fault_line", "name": "Fault Line", "slot": "LLH",
+		"desc": "Your ground breaker leaves a fault line that erupts {delay}s later, launching everything on it ({damage} damage).",
+		"lv": {"damage": [14, 22, 32], "delay": [0.6, 0.5, 0.4]}},
 	{"id": "quake", "name": "Quake", "slot": "Charged",
 		"desc": "Your charged slam sends out a shockwave: {damage} damage and a launch to everyone within {radius}m.",
 		"lv": {"damage": [12, 18, 26], "radius": [5, 6, 7.5]}},
 	{"id": "bone_breaker", "name": "Bone Breaker", "slot": "Charged",
 		"desc": "Your charged slam deals +{bonus}% damage to shielded skeletons, elites and bosses.",
 		"lv": {"bonus": [80, 130, 200]}},
+	{"id": "shatter", "name": "Shatter", "slot": "Heavy",
+		"desc": "A heavy hit that kills a foe bursts it into bone shards: {damage} damage to everyone within {radius}m.",
+		"lv": {"damage": [10, 16, 24], "radius": [3, 3.5, 4]}},
 ]
+
+
+## Synergies: own SYNERGY_NEED of a tag's `ids` and every one of them gets
+## its `boost` (a multiplier on those lv keys, applied in player.upg()).
+## A power can carry more than one tag.
+const SYNERGY_NEED := 2
+const SYNERGIES := {
+	"storm": {"name": "Storm", "ids": ["static_step", "chain_spark"],
+		"desc": "lightning powers deal +35% damage", "boost": {"damage": 1.35}},
+	"tremor": {"name": "Tremor", "ids": ["skybreaker", "riposte", "fault_line", "quake"],
+		"desc": "shockwaves hit 25% harder and reach 15% further", "boost": {"damage": 1.25, "radius": 1.15}},
+	"ember": {"name": "Ember", "ids": ["ember_cleave", "phoenix_heart"],
+		"desc": "fire powers deal +30% damage and heal +30%", "boost": {"damage": 1.3, "heal": 1.3}},
+	"blood": {"name": "Blood", "ids": ["bloodthirst", "reaper", "second_wind", "phoenix_heart"],
+		"desc": "healing powers heal +30%", "boost": {"heal": 1.3, "hp": 1.2}},
+	"night": {"name": "Night", "ids": ["overflow", "long_night", "phoenix_heart"],
+		"desc": "Awakening powers are 25% stronger", "boost": {"bonus": 1.25}},
+	"bone": {"name": "Bone", "ids": ["shatter", "bone_breaker"],
+		"desc": "bone powers hit 30% harder and shatter 20% wider", "boost": {"damage": 1.3, "bonus": 1.3, "radius": 1.2}},
+}
+
+
+## Synergy ids active for `owned` (id -> level).
+static func active_synergies(owned: Dictionary) -> Array:
+	var active: Array = []
+	for tag: String in SYNERGIES:
+		var n := 0
+		for id: String in SYNERGIES[tag].ids:
+			if owned.has(id):
+				n += 1
+		if n >= SYNERGY_NEED:
+			active.append(tag)
+	return active
+
+
+## Multiplier on upgrade `id`'s lv `key` from the synergies `active`.
+static func boost(active: Array, id: String, key: String) -> float:
+	var mult := 1.0
+	for tag: String in active:
+		if id in SYNERGIES[tag].ids:
+			mult *= SYNERGIES[tag].boost.get(key, 1.0)
+	return mult
+
+
+## Synergy names upgrade `id` belongs to ("Storm", "Blood · Ember"...).
+static func tags(id: String) -> String:
+	var names: Array = []
+	for tag: String in SYNERGIES:
+		if id in SYNERGIES[tag].ids:
+			names.append(SYNERGIES[tag].name)
+	return " · ".join(names)
 
 
 static func get_by_id(id: String) -> Dictionary:
@@ -78,13 +136,28 @@ static func value(id: String, key: String, level: int) -> float:
 	return values[clampi(level, 1, values.size()) - 1]
 
 
-## Card text with the numbers for `level` filled in.
-static func describe(u: Dictionary, level: int) -> String:
+## Card text with the numbers for `level` filled in. With `active`
+## synergies, boosted numbers read "base → boosted".
+static func describe(u: Dictionary, level: int, active: Array = []) -> String:
 	var nums := {}
 	for key in u.lv:
 		var v := value(u.id, key, level)
-		nums[key] = int(v) if v == floorf(v) else v  # "10", not "10.0"
+		var b := v * boost(active, u.id, key)
+		nums[key] = _num(v) if is_equal_approx(b, v) else "%s → %s" % [_num(v), _num(b)]
 	return u.desc.format(nums)
+
+
+## "10", not "10.0"; one decimal otherwise.
+static func _num(v: float) -> String:
+	return str(int(v)) if is_equal_approx(v, roundf(v)) else "%.1f" % v
+
+
+## Synergy ids that taking upgrade `id` would newly switch on.
+static func would_activate(owned: Dictionary, id: String) -> Array:
+	var after := owned.duplicate()
+	after[id] = after.get(id, 0) + 1
+	var before := active_synergies(owned)
+	return active_synergies(after).filter(func(tag: String) -> bool: return tag not in before)
 
 
 ## " II", " III" after a name for levels above 1.
@@ -96,7 +169,7 @@ static func level_tag(level: int) -> String:
 ## level-ups of owned ones below MAX_LEVEL. `owned` maps id -> level.
 ## Each card is the upgrade's entry plus "level" (the level it grants).
 ## `level_ups_only` limits it to owned upgrades (the camp's "hone").
-static func roll(owned: Dictionary, count := 3, level_ups_only := false) -> Array:
+static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: RandomNumberGenerator = null) -> Array:
 	var pool: Array = []
 	for u in ALL:
 		var level: int = owned.get(u.id, 0)
@@ -104,5 +177,18 @@ static func roll(owned: Dictionary, count := 3, level_ups_only := false) -> Arra
 			var card: Dictionary = u.duplicate()
 			card.level = level + 1
 			pool.append(card)
-	pool.shuffle()
+	shuffle(pool, rng)
 	return pool.slice(0, count)
+
+
+## Shuffle `arr` in place with `rng` (main.run_rng, so seeded runs repeat
+## their rolls), or the global RNG when it's null.
+static func shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
+	if rng == null:
+		arr.shuffle()
+		return
+	for i in range(arr.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t: Variant = arr[i]
+		arr[i] = arr[j]
+		arr[j] = t
