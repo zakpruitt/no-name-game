@@ -18,7 +18,7 @@ characters only (no licensed IP in the repo).
 - `scripts/player.gd` — hero state machine; moves live in the `MOVES` table (timings are fractions of anim length)
 - `scripts/enemy.gd` — skeleton AI: spawn → chase → telegraphed windup → strike; poise, launch/juggle
 - `scripts/main.gd` — builds arena from KayKit pieces, run of rooms (`RUN_LENGTH`, `path_options()`, `ENEMY_TYPES`, `wave_composition()` are the tuning data), autotest bot
-- `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`); effects are implemented in `player.gd` by id. `reward_screen.gd` offers 3 between rooms; `run_summary.gd` ends the run
+- `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`, per-level numbers in each `lv`); effects are implemented in `player.gd` by id. `reward_screen.gd` offers 3 between rooms; `run_summary.gd` ends the run
 - `scripts/boss.gd` — Bone Warden boss (extends enemy.gd); attack tuning in its `ATTACKS` table, fought in the last room (`main.RUN_LENGTH`)
 - `scripts/spike_trap.gd` — floor spike hazard used by `main.LAYOUTS`
 - `scripts/projectile.gd` — enemy bolts; i-frames pass through, perfect dodge still triggers
@@ -34,6 +34,6 @@ characters only (no licensed IP in the repo).
 - Menu check (title + pause screenshots to `user://menu_*.png`): `godot --path . -s tests/menu_check.gd`
 - Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
 - After adding assets **or a new `class_name`**: `godot --headless --import --path .` (registers global classes)
-- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects; `--start-room=N` skips ahead (8 = boss), `--start-awakened` starts with a full meter (bot lands Cataclysm → `autotest_finisher.png`). Autotest also saves `autotest_summary.png`
+- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects (`--max-upgrades`: all at max level); `--start-room=N` skips ahead (8 = boss), `--start-awakened` starts with a full meter (bot lands Cataclysm → `autotest_finisher.png`). Autotest also saves `autotest_summary.png`
 - Scenes are mostly built in code; keep `.tscn` files minimal unless the user wants editor-authored scenes.
 - KayKit models face +Z; facing yaw = `atan2(dir.x, dir.z)`. Characters share one rig, so any KayKit animation works on any character.

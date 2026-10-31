@@ -109,11 +109,12 @@ func _process(_delta: float) -> void:
 	boss_name.add_theme_color_override("font_color", Color(1.0, 0.35, 0.25) if _boss.is_enraged else Color(1.0, 0.85, 0.7))
 
 
-func set_upgrades(ids: Array) -> void:
+## `owned` maps upgrade id -> level.
+func set_upgrades(owned: Dictionary) -> void:
 	var lines: Array[String] = []
-	for id in ids:
+	for id in owned:
 		var u := Upgrades.get_by_id(id)
-		lines.append("%s  [%s]" % [u.name, u.slot])
+		lines.append("%s%s  [%s]" % [u.name, Upgrades.level_tag(owned[id]), u.slot])
 	upgrades_label.text = "\n".join(lines)
 
 

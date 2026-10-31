@@ -103,8 +103,9 @@ var _perfect_this_dash := false
 # Lets the autotest drive the hero without real input.
 var bot_move := Vector3.ZERO
 
-## Owned combo-slot upgrade ids (see upgrades.gd).
-var upgrades: Array[String] = []
+## Owned combo-slot upgrades: id -> level (see upgrades.gd).
+var upgrades := {}
+var _awaken_base := -1.0
 var bot_enabled := false
 
 
@@ -405,22 +406,24 @@ func _do_hit() -> void:
 		if was_airborne and has_upgrade("chain_spark"):
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
-			heal(2.0, false)
+			heal(upg("bloodthirst", "heal"), false)
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
 		if _move_id == "L3" and has_upgrade("ember_cleave"):
 			var w := FIRE_WAVE.new()
 			w.direction = fwd
+			w.damage = upg("ember_cleave", "damage")
 			get_parent().add_child(w)
 			w.global_position = global_position + fwd * 1.0
 		if _move_id == "AF":
 			_cataclysm()
 		if _move_id == "LH" and has_upgrade("skybreaker"):
-			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), 4.0, 0.3)
+			var r := upg("skybreaker", "radius")
+			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), r, 0.3)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				var to: Vector3 = e.global_position - global_position
 				to.y = 0.0
-				if e.is_alive() and not e.is_airborne() and to.length() < 4.0:
+				if e.is_alive() and not e.is_airborne() and to.length() < r:
 					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
 					Game.register_hit("skybreaker")
 	if hit_any:
@@ -435,32 +438,42 @@ func has_upgrade(id: String) -> bool:
 	return upgrades.has(id)
 
 
+## Current level's tuning number `key` for owned upgrade `id` (upgrades.gd lv).
+func upg(id: String, key: String) -> float:
+	return Upgrades.value(id, key, upgrades.get(id, 1))
+
+
+## Gain an upgrade, or level it up if it's already owned (up to MAX_LEVEL).
 func add_upgrade(id: String) -> void:
-	if upgrades.has(id):
-		return
-	upgrades.append(id)
+	upgrades[id] = mini(upgrades.get(id, 0) + 1, Upgrades.MAX_LEVEL)
 	if id == "overflow":
-		Game.awakening_gain_mult = 1.35
+		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
 	if id == "long_night":
-		awaken_duration *= 1.5
+		if _awaken_base < 0.0:
+			_awaken_base = awaken_duration
+		awaken_duration = _awaken_base * (1.0 + upg(id, "bonus") / 100.0)
 
 
 func _on_enemy_killed(_e: Node) -> void:
 	if has_upgrade("reaper") and state != State.DEAD:
-		heal(3.0, false)
-		Game.add_awakening(4.0)
+		heal(upg("reaper", "heal"), false)
+		Game.add_awakening(upg("reaper", "awaken"))
 
 
 ## MOVES entry with owned upgrades applied (never mutates MOVES itself).
 func _effective_move(id: String) -> Dictionary:
 	var m: Dictionary = MOVES[id].duplicate(true)
 	if id == "H" and has_upgrade("whirlwind"):
-		m.hits = [0.22, 0.34, 0.46, 0.58, 0.7]
-		m.range += 1.0
+		# Spread the extra hits evenly across the spin.
+		var n := int(upg("whirlwind", "hits"))
+		m.hits = []
+		for i in n:
+			m.hits.append(lerpf(0.22, 0.7, float(i) / (n - 1)))
+		m.range += upg("whirlwind", "reach")
 	if id == "L2" and has_upgrade("rising_edge"):
-		m.launch = 6.0
+		m.launch = upg("rising_edge", "launch")
 	if id == "DL" and has_upgrade("momentum"):
-		m.damage *= 1.6
+		m.damage *= 1.0 + upg("momentum", "bonus") / 100.0
 		m.range += 1.5
 		m.lunge *= 1.3
 	return m
@@ -471,10 +484,10 @@ func _chain_spark(from: Node3D) -> void:
 		return e != from and e.is_alive() and e.global_position.distance_to(from.global_position) < 6.0)
 	targets.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		return a.global_position.distance_to(from.global_position) < b.global_position.distance_to(from.global_position))
-	for e in targets.slice(0, 2):
+	for e in targets.slice(0, int(upg("chain_spark", "targets"))):
 		var mid: Vector3 = (from.global_position + e.global_position) * 0.5
 		Fx.burst(get_parent(), mid + Vector3.UP, Color(0.5, 0.85, 1.0), 10, 6.0, 0.15, 0.2)
-		e.take_hit(6.0, Vector3.ZERO, 0.0, false)
+		e.take_hit(upg("chain_spark", "damage"), Vector3.ZERO, 0.0, false)
 		Game.register_hit("chain_spark")
 
 
@@ -488,7 +501,7 @@ func _static_trap(pos: Vector3) -> void:
 	Game.sfx("hit_big", -4.0)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.is_alive() and e.global_position.distance_to(pos) < 3.0:
-			e.take_hit(12.0, (e.global_position - pos).normalized() * 4.0, 0.0, true)
+			e.take_hit(upg("static_step", "damage"), (e.global_position - pos).normalized() * 4.0, 0.0, true)
 			Game.register_hit("static_step")
 
 
@@ -506,7 +519,7 @@ func try_awaken() -> void:
 	_set_awakened(true)
 	Game.sfx("awaken", 0.0, 0.0)
 	if has_upgrade("phoenix_heart"):
-		heal(25.0)
+		heal(upg("phoenix_heart", "heal"))
 	# Activation burst: big freeze, shockwave that blows enemies back.
 	Game.hitstop(0.25, 0.05)
 	Game.shake(0.6)
@@ -567,13 +580,14 @@ func _cataclysm() -> void:
 
 
 func _riposte() -> void:
-	Fx.ring(get_parent(), global_position, Color(0.7, 0.9, 1.0, 0.9), 3.5, 0.3)
+	var r := upg("riposte", "radius")
+	Fx.ring(get_parent(), global_position, Color(0.7, 0.9, 1.0, 0.9), r, 0.3)
 	Fx.burst(get_parent(), global_position + Vector3.UP * 0.5, Color(0.7, 0.9, 1.0), 24, 9.0, 0.15, 0.3, Vector3.UP, 120.0)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
-		if e.is_alive() and to.length() < 3.5:
-			e.take_hit(20.0, to.normalized() * 3.0, 7.0, true)
+		if e.is_alive() and to.length() < r:
+			e.take_hit(upg("riposte", "damage"), to.normalized() * 3.0, 7.0, true)
 			Game.register_hit("riposte")
 
 
@@ -608,7 +622,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 	velocity.z = knockback.z
 	if hp <= 0.0 and has_upgrade("second_wind") and not _second_wind_used:
 		_second_wind_used = true
-		hp = max_hp * 0.3
+		hp = max_hp * upg("second_wind", "hp") / 100.0
 		health_changed.emit(hp, max_hp)
 		Game.announced.emit("SECOND WIND")
 		Fx.heal(get_parent(), global_position, hp)

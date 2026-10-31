@@ -5,7 +5,8 @@ extends Node3D
 ##
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
-## Add `--all-upgrades` to start with every upgrade (exercises all effects)
+## Add `--all-upgrades` to start with every upgrade (exercises all effects;
+## `--max-upgrades` gives them all at MAX_LEVEL),
 ## `--start-room=N` to begin at a later room, and `--start-awakened` to begin
 ## with a full Awakening meter.
 
@@ -155,9 +156,11 @@ func _ready() -> void:
 
 	if "--start-awakened" in OS.get_cmdline_user_args():
 		Game.add_awakening(Game.AWAKEN_MAX)
-	if "--all-upgrades" in OS.get_cmdline_user_args():
+	var max_upgrades := "--max-upgrades" in OS.get_cmdline_user_args()
+	if max_upgrades or "--all-upgrades" in OS.get_cmdline_user_args():
 		for u in Upgrades.ALL:
-			player.add_upgrade(u.id)
+			for i in Upgrades.MAX_LEVEL if max_upgrades else 1:
+				player.add_upgrade(u.id)
 		hud.set_upgrades(player.upgrades)
 
 	if _autotest:
@@ -321,7 +324,7 @@ func _offer_reward() -> void:
 	var id: String = await reward.picked
 	player.add_upgrade(id)
 	hud.set_upgrades(player.upgrades)
-	hud.flash_message(Upgrades.get_by_id(id).name.to_upper(), 1.0)
+	hud.flash_message((Upgrades.get_by_id(id).name + Upgrades.level_tag(player.upgrades[id])).to_upper(), 1.0)
 	Game.sfx("perfect", -4.0, 0.0)
 	await get_tree().create_timer(0.5).timeout
 

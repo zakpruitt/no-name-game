@@ -12,8 +12,8 @@ func _ready() -> void:
 
 
 ## `stats` is an ordered Dictionary of label -> value text.
-func open(victory: bool, stats: Dictionary, upgrade_ids: Array) -> void:
-	_build(victory, stats, upgrade_ids)
+func open(victory: bool, stats: Dictionary, upgrades: Dictionary) -> void:
+	_build(victory, stats, upgrades)
 	visible = true
 	get_tree().paused = true
 
@@ -30,7 +30,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		new_run()
 
 
-func _build(victory: bool, stats: Dictionary, upgrade_ids: Array) -> void:
+func _build(victory: bool, stats: Dictionary, upgrades: Dictionary) -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
@@ -59,8 +59,8 @@ func _build(victory: bool, stats: Dictionary, upgrade_ids: Array) -> void:
 		_label(grid, str(stats[key]), 26, Color.WHITE).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	var names: Array[String] = []
-	for id in upgrade_ids:
-		names.append(Upgrades.get_by_id(id).name)
+	for id in upgrades:
+		names.append(Upgrades.get_by_id(id).name + Upgrades.level_tag(upgrades[id]))
 	var ups := _label(col, "Powers: " + (", ".join(names) if not names.is_empty() else "none"), 20, Color(1.0, 0.8, 0.5))
 	ups.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ups.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

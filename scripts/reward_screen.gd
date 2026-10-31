@@ -29,7 +29,7 @@ func pick(index: int) -> void:
 		return
 	visible = false
 	get_tree().paused = false
-	var id: String = _choices[index].id
+	var id: String = _choices[index].id  # a new upgrade or a level-up
 	_root.queue_free()
 	picked.emit(id)
 
@@ -79,7 +79,11 @@ func _build() -> void:
 		var u: Dictionary = _choices[i]
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(300, 220)
-		b.text = "%d   [%s]\n\n%s\n\n%s" % [i + 1, u.slot, u.name, u.desc]
+		var level: int = u.get("level", 1)
+		var head := "%s%s" % [u.name, Upgrades.level_tag(level)]
+		if level > 1:
+			head += "\nLEVEL UP"
+		b.text = "%d   [%s]\n\n%s\n\n%s" % [i + 1, u.slot, head, Upgrades.describe(u, level)]
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", 20)
 		b.add_theme_stylebox_override("normal", _card_style(Color(0.12, 0.1, 0.18), Color(0.4, 0.35, 0.55)))

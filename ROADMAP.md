@@ -42,6 +42,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 ## Round 3
 - [x] Branching path: after each reward, choose the next room from 2 doors (fight / elite for a rarer reward / rest to heal) — `path_options()` + `path_choice.gd`; elites give 2 powers, rest heals 40%
 - [x] Skeleton archer: crossbow skeleton (KayKit `Skeleton_Crossbow`) with a fast, telegraphed line shot — `ENEMY_TYPES.archer` (attack_kind "line", from room 3); orange ground line tracks you, locks red at `AIM_LOCK` 70%, then a 30 m/s bolt; `autotest_archer.png`
-- [ ] Upgrade levels: re-offering an owned upgrade levels it up (stronger numbers) once the pool runs thin
+- [x] Upgrade levels: re-offering an owned upgrade levels it up (stronger numbers) once the pool runs thin — level-ups mix into every roll (up to `Upgrades.MAX_LEVEL` 3); numbers live in each entry's `lv` table and fill the card text; HUD/summary show "II"/"III"; `--max-upgrades` flag
 - [ ] Music: synthesized ambient loop with a combat layer that swells with style rank
 - [ ] Performance check: frame time with 12+ enemies, outlines, particles; fix hot spots
