@@ -92,3 +92,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Enemy variety pass: a second elite-only twist trait per late room (rooms 6–7 roll two twists) for late-run spice — `main.DOUBLE_TWIST_ROOM` 6: elite doors from room 6 roll two different twists ("Volatile + Hasted"), stacking their mults; `room_twists` array, `--twist=a,b`; doors widened to 580 so the longest text fits (`menu_path.png` now shows a double twist)
 - [x] Power synergy tags: upgrades with a shared tag (fire, bone, quake) offer a small bonus when you own two, shown in the pause build view — `Upgrades.SYNERGIES` (Storm, Tremor, Ember, Blood, Night): own 2 of a tag and its `boost` multiplies those powers' lv keys inside `player.upg()`; "X SYNERGY" announce, tags on reward cards and the build panel, active synergies listed under YOUR BUILD
 - [x] Autotest coverage: `--start-room=N --start-shrine`-style coverage for every room kind in one scripted run (fight → rest → shrine → elite → boss) printing a pass/fail line — `--tour` (`main.TOUR`): forced doors, fights wiped after `TOUR_FIGHT_TIME`, hero kept above half HP, `[tour] PASS rooms=fight,rest,shrine,elite,boss time=15.8s`; FAIL after `TOUR_TIMEOUT` 120s
+
+## Round 10
+- [ ] Synergy numbers: reward cards and the build panel show the boosted values (e.g. "12 → 15 damage") when a synergy applies
+- [ ] Bottom HUD clearance: keep enemy health bars and the hint panel from covering the controls line at the bottom
+- [ ] Seeded runs: `--seed=N` makes layouts, doors, rewards and twists reproducible for comparing autotest runs
+- [ ] Shrine variety: a third trade that rotates per shrine (e.g. lose a power level for 30 bones, or take a curse for an extra power)
+- [ ] Synergy sound + flash: a distinct chime and a ring burst on the hero when a synergy activates (gen_sfx)
