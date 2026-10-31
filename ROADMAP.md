@@ -77,3 +77,11 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Death recap: when you fall, the run summary says what killed you (enemy type / hazard) — `player.last_hit_by` (set on every hit from the attacker: "an elite skeleton archer", "the Bone Warden", "a spike trap"); "Slain by" heads the summary on a loss. New `"title"` per `ENEMY_TYPES` entry
 - [x] New combo route: L L H finisher (a forward ground-breaker that knocks down everything in a line), with a matching upgrade slot — `MOVES.LLH` Ground Breaker (lunging thrust, strip hitbox via new `"width"` key, knockdown + guard break); L H stays the launcher; `fault_line` [LLH] upgrade re-erupts the strip; bot route now L H / L L H / L L L, `autotest_breaker.png`
 - [x] Bone altar: between runs, spend saved bones on small permanent boosts (start HP, starting bones), saved in user:// and off in the autotest — `altar.gd` (`BOONS`: Hardened +HP, Scavenger +bones, Kindled +Awakening; `user://altar.cfg`), "Bone altar" on the title (`altar_menu.gd`); leftover bones bank at run end ("Bones banked" row); `menu_check` saves `menu_altar.png`
+
+## Round 8
+- [ ] Altar in the autotest: `--altar=hardened:3,scavenger:1` applies boons without saving, so the start-of-run effects get checked
+- [ ] Verification pass: screenshot what hasn't been seen yet (Fault Line eruption, Quake ring, health bars at their final height, "Slain by" wording) and fix what looks off
+- [ ] Bot charge reliability: only start a charge when nothing nearby is winding up, so charged-slam powers get exercised
+- [ ] Combo-routes hint: after the first launcher, teach L L H (ground breaker)
+- [ ] Perf: cut outline draw calls (~1.3k) and re-measure with the `[perf]` line
+- [ ] Shrine room: a new door type with a trade (lose HP for a power, or bones for a full heal) for more route choices
