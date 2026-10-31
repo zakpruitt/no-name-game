@@ -56,6 +56,10 @@ const ENEMY_TYPES := {
 const RUN_LENGTH := 8
 const REST_HEAL := 0.4
 const ELITE_REWARDS := 2
+# Reroll on the reward screen: first costs REROLL_COST bones, each further
+# reroll of the same offer REROLL_COST_STEP more.
+const REROLL_COST := 8
+const REROLL_COST_STEP := 4
 # Camp (rest rooms): what bones buy. Shown in this order; "Move on" leaves.
 const CAMP := {
 	"vigor": {"text": "Vigor: +15 max HP", "cost": 15, "max_hp": 15.0},
@@ -120,6 +124,8 @@ var room := 0
 var room_kind := "fight"
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
+var _reward_rerolls := 0  # rerolls bought for the reward currently open
+var _reward_level_ups_only := false
 var _alive := 0
 var _queue: Array = []  # [kind, elite] pairs waiting to spawn this room (MAX_ALIVE)
 var _between_rooms := false
@@ -192,6 +198,7 @@ func _ready() -> void:
 	add_child(path_menu)
 	camp_menu = CAMP_MENU.new()
 	add_child(camp_menu)
+	reward.reroll_pressed.connect(_reroll_reward)
 	Game.combo_changed.connect(_track_combo)
 
 	if "--start-awakened" in OS.get_cmdline_user_args():
@@ -412,7 +419,9 @@ func _offer_reward(level_ups_only := false) -> void:
 	var choices := Upgrades.roll(player.upgrades, 3, level_ups_only)
 	if choices.is_empty():
 		return
-	reward.open(choices)
+	_reward_rerolls = 0
+	_reward_level_ups_only = level_ups_only
+	reward.open(choices, _reroll_cost())
 	if _autotest:
 		_autotest_pick()
 	var id: String = await reward.picked
@@ -421,6 +430,17 @@ func _offer_reward(level_ups_only := false) -> void:
 	hud.flash_message((Upgrades.get_by_id(id).name + Upgrades.level_tag(player.upgrades[id])).to_upper(), 1.0)
 	Game.sfx("perfect", -4.0, 0.0)
 	await get_tree().create_timer(0.5).timeout
+
+
+func _reroll_cost() -> int:
+	return REROLL_COST + REROLL_COST_STEP * _reward_rerolls
+
+
+func _reroll_reward() -> void:
+	Game.add_bones(-_reroll_cost())
+	_reward_rerolls += 1
+	Game.sfx("pickup", -6.0, 0.1)
+	reward.open(Upgrades.roll(player.upgrades, 3, _reward_level_ups_only), _reroll_cost())
 
 
 func _on_player_died() -> void:
@@ -731,6 +751,10 @@ func _autotest_finish() -> void:
 
 func _autotest_pick() -> void:
 	await get_tree().create_timer(0.5).timeout
+	if reward.can_reroll():
+		reward.reroll()
+		print("[autotest] rerolled reward, bones left=", Game.bones)
+		await get_tree().create_timer(0.4).timeout
 	_snap("user://autotest_reward.png")
 	reward.pick(0)
 
