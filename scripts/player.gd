@@ -117,6 +117,10 @@ var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
+var shatters := 0  # Shatter bursts (autotest)
+## Moves that count as heavy for Shatter.
+const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF"]
+const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
@@ -481,6 +485,8 @@ func _do_hit() -> void:
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
+		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
+			_shatter(e)
 		if was_airborne and has_upgrade("chain_spark"):
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
@@ -582,6 +588,26 @@ static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: floa
 
 
 ## Dust bursts along the Ground Breaker's strip.
+## Shatter: the slain foe bursts into bone shards that hit everyone close by
+## (shard kills don't shatter again).
+func _shatter(dead: Node3D) -> void:
+	shatters += 1
+	var at := dead.global_position
+	var r: float = upg("shatter", "radius")
+	Fx.burst(get_parent(), at + Vector3.UP * 0.7, SHATTER_COLOR, 26, 9.0, 0.12, 0.35, Vector3.UP, 160.0)
+	Fx.ring(get_parent(), at, Color(SHATTER_COLOR, 0.8), r, 0.3)
+	Game.sfx("enemy_death", 0.0, 0.15)
+	Game.shake(0.25)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == dead or not e.is_alive():
+			continue
+		var to: Vector3 = e.global_position - at
+		to.y = 0.0
+		if to.length() <= r + e.radius:
+			e.take_hit(upg("shatter", "damage"), to.normalized() * 6.0, 3.0, false)
+			Game.register_hit("shatter")
+
+
 func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
 	var start := global_position if from == Vector3.INF else from
 	var length: float = MOVES.LLH.range

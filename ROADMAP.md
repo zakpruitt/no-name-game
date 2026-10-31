@@ -122,6 +122,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 14
 - [x] Recent runs focus: keyboard/gamepad can move from the title buttons into the RECENT RUNS lines (explicit focus neighbours), checked by a menu_check step — title buttons' `focus_neighbor_right` → first recent line, lines' left → Start run; menu_check builds a sample line and prints `recent focus=true` after ui_right (left not separately checked)
-- [ ] New power "Shatter" [H finisher]: a heavy that kills a foe bursts it into bone shards that hit nearby enemies (per-level damage/radius in `Upgrades.ALL`, Tremor-free so it opens a new build)
+- [x] New power "Shatter" [H finisher]: a heavy that kills a foe bursts it into bone shards that hit nearby enemies (per-level damage/radius in `Upgrades.ALL`, Tremor-free so it opens a new build) — `Upgrades.ALL` shatter (slot Heavy: H/LH/LLH/CH/AF kills, not the boss), damage 10/16/24, radius 3/3.5/4; `player._shatter()`; autotest `shatters=` + `autotest_shatter.png`; 1–5 per bot run
 - [ ] Reduce flashing setting: a Settings toggle that tones down full-screen flashes and hit flashes (saved like the other settings)
 - [ ] Elite pacing check: autotest prints room clear time; compare Splitting/Volatile/Armored rooms against a plain fight over a few seeds and note the numbers in ROADMAP

@@ -1,7 +1,7 @@
 class_name Upgrades
 ## Combo-slot upgrades: each one hooks a specific move in the hero's string
 ## (L1/L2/L3 light chain, H spin, LH launcher, LLH ground breaker, DL dash
-## stab, Charged slam) or
+## stab, Charged slam, Heavy = any heavy move) or
 ## a mechanic (Dash, Air, Awaken, Perfect dodge, Death, Kill).
 ## Pure data here; the effects live in player.gd (search for the id).
 ##
@@ -66,6 +66,9 @@ const ALL := [
 	{"id": "bone_breaker", "name": "Bone Breaker", "slot": "Charged",
 		"desc": "Your charged slam deals +{bonus}% damage to shielded skeletons, elites and bosses.",
 		"lv": {"bonus": [80, 130, 200]}},
+	{"id": "shatter", "name": "Shatter", "slot": "Heavy",
+		"desc": "A heavy hit that kills a foe bursts it into bone shards: {damage} damage to everyone within {radius}m.",
+		"lv": {"damage": [10, 16, 24], "radius": [3, 3.5, 4]}},
 ]
 
 

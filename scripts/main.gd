@@ -198,6 +198,7 @@ var _tour_room_t := 0.0
 var _tour_trades: Array[String] = []  # "camp:vigor", "shrine:melt"... taken on the tour
 var _won := false
 var _split_shot_taken := false
+var _shatter_shot_taken := false
 var _splits := 0  # minions split off by the Splitting twist (autotest line)
 var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
 var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
@@ -1019,6 +1020,9 @@ func _process(delta: float) -> void:
 		if player.has_upgrade("fault_line"):
 			var erupt: float = player.upg("fault_line", "delay") + 0.1
 			get_tree().create_timer(erupt).timeout.connect(_snap.bind("user://autotest_fault.png"))
+	if player.shatters > 0 and not _shatter_shot_taken:
+		_shatter_shot_taken = true
+		get_tree().create_timer(0.1).timeout.connect(_snap.bind("user://autotest_shatter.png"))
 	if player.charged_slams > 0 and not _slam_shot_taken:
 		_slam_shot_taken = true
 		get_tree().create_timer(0.12).timeout.connect(_snap.bind("user://autotest_slam.png"))
@@ -1129,9 +1133,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s" % [
 		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:
