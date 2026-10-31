@@ -87,6 +87,7 @@ var _facing_yaw := 0.0
 var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
+var _second_wind_used := false
 var _awaken_light: OmniLight3D
 var _trails: Array = []
 var _ghost_t := 0.0
@@ -103,6 +104,7 @@ var bot_enabled := false
 
 func _ready() -> void:
 	hp = max_hp
+	Game.enemy_killed.connect(_on_enemy_killed)
 	add_to_group("player")
 	collision_layer = 2
 	collision_mask = 1
@@ -424,10 +426,19 @@ func has_upgrade(id: String) -> bool:
 
 
 func add_upgrade(id: String) -> void:
-	if not upgrades.has(id):
-		upgrades.append(id)
+	if upgrades.has(id):
+		return
+	upgrades.append(id)
 	if id == "overflow":
 		Game.awakening_gain_mult = 1.35
+	if id == "long_night":
+		awaken_duration *= 1.5
+
+
+func _on_enemy_killed(_e: Node) -> void:
+	if has_upgrade("reaper") and state != State.DEAD:
+		heal(3.0, false)
+		Game.add_awakening(4.0)
 
 
 ## MOVES entry with owned upgrades applied (never mutates MOVES itself).
@@ -436,6 +447,8 @@ func _effective_move(id: String) -> Dictionary:
 	if id == "H" and has_upgrade("whirlwind"):
 		m.hits = [0.22, 0.34, 0.46, 0.58, 0.7]
 		m.range += 1.0
+	if id == "L2" and has_upgrade("rising_edge"):
+		m.launch = 6.0
 	if id == "DL" and has_upgrade("momentum"):
 		m.damage *= 1.6
 		m.range += 1.5
@@ -482,6 +495,8 @@ func try_awaken() -> void:
 		return
 	_set_awakened(true)
 	Game.sfx("awaken", 0.0, 0.0)
+	if has_upgrade("phoenix_heart"):
+		heal(25.0)
 	# Activation burst: big freeze, shockwave that blows enemies back.
 	Game.hitstop(0.25, 0.05)
 	Game.shake(0.6)
@@ -520,6 +535,19 @@ func _perfect_dodge(attacker: Node) -> void:
 	Fx.afterimage(get_parent(), model, Color(0.8, 0.95, 1.0, 0.6), 0.5)
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
+	if has_upgrade("riposte"):
+		_riposte()
+
+
+func _riposte() -> void:
+	Fx.ring(get_parent(), global_position, Color(0.7, 0.9, 1.0, 0.9), 3.5, 0.3)
+	Fx.burst(get_parent(), global_position + Vector3.UP * 0.5, Color(0.7, 0.9, 1.0), 24, 9.0, 0.15, 0.3, Vector3.UP, 120.0)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		if e.is_alive() and to.length() < 3.5:
+			e.take_hit(20.0, to.normalized() * 3.0, 7.0, true)
+			Game.register_hit("riposte")
 
 
 ## Restore HP (capped at max). `show` pops a green number and sparkle.
@@ -551,6 +579,14 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 	_invuln_t = 0.5
 	velocity.x = knockback.x
 	velocity.z = knockback.z
+	if hp <= 0.0 and has_upgrade("second_wind") and not _second_wind_used:
+		_second_wind_used = true
+		hp = max_hp * 0.3
+		health_changed.emit(hp, max_hp)
+		Game.announced.emit("SECOND WIND")
+		Fx.heal(get_parent(), global_position, hp)
+		Game.hitstop(0.3, 0.1)
+		_invuln_t = 1.2
 	if hp <= 0.0:
 		_set_state(State.DEAD)
 		if awakened:

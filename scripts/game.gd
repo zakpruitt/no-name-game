@@ -8,6 +8,8 @@ signal awakening_changed(value: float)
 signal announced(text: String)
 ## Consecutive hits on airborne enemies (0 when the juggle drops).
 signal air_combo_changed(count: int)
+## Any enemy died (for on-kill upgrades).
+signal enemy_killed(enemy: Node)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting

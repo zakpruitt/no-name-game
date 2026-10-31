@@ -355,6 +355,7 @@ func _die(knockback: Vector3) -> void:
 	Game.add_awakening(4.0 + (ELITE_AWAKEN_BONUS if elite else 0.0))
 	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
+	Game.enemy_killed.emit(self)
 	var tw := create_tween()
 	tw.tween_interval(1.4)
 	tw.tween_property(model, "position:y", -1.5, 0.6)

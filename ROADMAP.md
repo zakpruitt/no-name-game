@@ -33,7 +33,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 2 (added once the first list was done; same rules)
 - [x] Healing between rooms: `main.ROOM_CLEAR_HEAL` (25% max HP) on each room clear; `player.heal()` + `Fx.heal` green "+N" and ring (Bloodthirst uses it silently)
-- [ ] More upgrades: 7 reward picks vs 8 upgrades means late picks aren't choices; add ~6 more (incl. Awakening/perfect-dodge hooks)
+- [x] More upgrades (8 → 14): Rising Edge [L2], Riposte [Perfect], Long Night + Phoenix Heart [Awaken], Second Wind [Death], Reaper [Kill] (`Game.enemy_killed` signal)
 - [ ] Awakened moveset: a unique heavy finisher while Awakened (pillar 2 says the form changes the moveset)
 - [ ] Shield skeleton: blocks frontal hits, guard broken by heavies/launchers or hitting from behind
 - [ ] Room variety: a few arena layouts (pillar placement) and a hazard (spike traps) for later rooms
