@@ -170,6 +170,8 @@ var _max_combo := 0
 var _best_rank := "D"
 # Tall props that fade out when they sit between the camera and the hero.
 var _occluders: Array[Node3D] = []
+# The near-edge rubble row; fades the same way but never changes with layouts.
+var _edge_rubble: Array[Node3D] = []
 var _traps: Array[Node3D] = []
 var _layout := -1
 
@@ -183,6 +185,7 @@ var _necro_shot_taken := false
 var _spikes_shot_taken := false
 var _bomb_shot_taken := false
 var _breaker_shot_taken := false
+var _slam_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -659,7 +662,7 @@ func _build_arena() -> void:
 
 	# Low rubble line marks the open near edge.
 	for i in range(-HALF_TILES, HALF_TILES):
-		_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0)
+		_edge_rubble.append(_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0))
 
 	# Torches on the back wall, with real light.
 	for x in [-10.0, -2.0, 6.0]:
@@ -759,9 +762,9 @@ func _fade_occluders(delta: float) -> void:
 	if not is_instance_valid(player):
 		return
 	var hp := player.global_position
-	for o in _occluders:
+	for o: Node3D in _occluders + _edge_rubble:
 		var d := o.global_position - hp
-		var blocking := d.z > 0.0 and d.z < 7.0 and absf(d.x) < 1.8
+		var blocking := d.z > 0.0 and d.z < 7.0 and absf(d.x) < 1.8 + (TILE * 0.5 if o in _edge_rubble else 0.0)
 		var target := 0.7 if blocking else 0.0
 		for mi: MeshInstance3D in o.find_children("*", "MeshInstance3D", true, false):
 			mi.transparency = move_toward(mi.transparency, target, delta * 4.0)
@@ -786,6 +789,12 @@ func _process(delta: float) -> void:
 	if player.ground_breakers > 0 and not _breaker_shot_taken:
 		_breaker_shot_taken = true
 		get_tree().create_timer(0.12).timeout.connect(_snap.bind("user://autotest_breaker.png"))
+		if player.has_upgrade("fault_line"):
+			var erupt: float = player.upg("fault_line", "delay") + 0.1
+			get_tree().create_timer(erupt).timeout.connect(_snap.bind("user://autotest_fault.png"))
+	if player.charged_slams > 0 and not _slam_shot_taken:
+		_slam_shot_taken = true
+		get_tree().create_timer(0.12).timeout.connect(_snap.bind("user://autotest_slam.png"))
 	if ENEMY.blasts > 0 and not _bomb_shot_taken:
 		_bomb_shot_taken = true
 		_snap("user://autotest_bomb.png")

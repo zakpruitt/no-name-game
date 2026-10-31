@@ -570,7 +570,15 @@ func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
 
 ## Fault Line: the strip erupts again a moment later, launching what's on it.
 func _fault_line(origin: Vector3, fwd: Vector3) -> void:
-	await get_tree().create_timer(upg("fault_line", "delay"), false).timeout
+	var delay: float = upg("fault_line", "delay")
+	var glow := _fault_glow(origin, fwd)
+	glow.create_tween().tween_property(glow.mesh.material, "albedo_color:a", 0.75, delay)
+	await get_tree().create_timer(delay, false).timeout
+	var mat: StandardMaterial3D = glow.mesh.material
+	mat.albedo_color.a = 0.95
+	var tw := glow.create_tween()
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.35).set_ease(Tween.EASE_IN)
+	tw.tween_callback(glow.queue_free)
 	_crack_line(fwd, Color(1.0, 0.55, 0.2), origin)
 	Game.shake(0.3)
 	Game.sfx("hit_big", -6.0, 0.1)
@@ -580,6 +588,26 @@ func _fault_line(origin: Vector3, fwd: Vector3) -> void:
 		if e.is_alive() and _in_strip(to, fwd, MOVES.LLH.range, MOVES.LLH.width, e.radius):
 			e.take_hit(upg("fault_line", "damage"), fwd * 3.0, 7.0, true)
 			Game.register_hit("fault_line")
+
+
+## Glowing crack along the Ground Breaker's strip; it brightens until the
+## Fault Line erupts, so the eruption reads as a telegraph.
+func _fault_glow(origin: Vector3, fwd: Vector3) -> MeshInstance3D:
+	var length: float = MOVES.LLH.range
+	var m := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(MOVES.LLH.width * 1.2, 0.02, length)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.45, 0.1, 0.35)
+	mesh.material = mat
+	m.mesh = mesh
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_parent().add_child(m)
+	m.global_position = origin + fwd * (length * 0.5 + 0.5) + Vector3.UP * 0.06
+	m.rotation.y = atan2(fwd.x, fwd.z)
+	return m
 
 
 ## Quake: a shockwave out from the charged slam's impact.

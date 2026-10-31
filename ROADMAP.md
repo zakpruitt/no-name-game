@@ -80,7 +80,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 8
 - [x] Altar in the autotest: `--altar=hardened:3,scavenger:1` applies boons without saving, so the start-of-run effects get checked — `Altar.override` (levels from the flag, never saved); autotest prints `altar=... max_hp=`; checked: hardened 3 gives 130 max HP
-- [ ] Verification pass: screenshot what hasn't been seen yet (Fault Line eruption, Quake ring, health bars at their final height, "Slain by" wording) and fix what looks off
+- [x] Verification pass: screenshot what hasn't been seen yet (Fault Line eruption, Quake ring, health bars at their final height, "Slain by" wording) and fix what looks off — Fault Line got a glowing strip that brightens until it erupts (it was lost in the dust); the near-edge rubble row now fades like pillars (it buried the hero); new `autotest_fault.png` / `autotest_slam.png`
 - [ ] Bot charge reliability: only start a charge when nothing nearby is winding up, so charged-slam powers get exercised
 - [ ] Combo-routes hint: after the first launcher, teach L L H (ground breaker)
 - [ ] Perf: cut outline draw calls (~1.3k) and re-measure with the `[perf]` line
