@@ -30,3 +30,11 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Toon outline shader pass: `shaders/outline.gdshader` inverted hull in screen space (`width_px`), added to characters via `Fx.outline()` as a material next_pass
 - [x] Juggle counter / air-combo bonus feedback in HUD: "AIR xN" under the rank; `Game.AIR_MILESTONES` (3/6/10 hits) announce + pay style/Awakening; best juggle on the run summary
 - [x] Settings for screen shake intensity: title + pause menu toggle cycles 100/50/0/150% (`Game.SHAKE_LEVELS`), saved to `user://settings.cfg`
+
+## Round 2 (added once the first list was done; same rules)
+- [ ] Healing between rooms: runs have no healing besides Bloodthirst; restore some HP on room clear
+- [ ] More upgrades: 7 reward picks vs 8 upgrades means late picks aren't choices; add ~6 more (incl. Awakening/perfect-dodge hooks)
+- [ ] Awakened moveset: a unique heavy finisher while Awakened (pillar 2 says the form changes the moveset)
+- [ ] Shield skeleton: blocks frontal hits, guard broken by heavies/launchers or hitting from behind
+- [ ] Room variety: a few arena layouts (pillar placement) and a hazard (spike traps) for later rooms
+- [ ] Off-screen threat indicators for windups/bolts outside the camera view
