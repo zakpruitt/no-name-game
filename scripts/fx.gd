@@ -130,6 +130,27 @@ static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time :
 	tw.chain().tween_callback(m.queue_free)
 
 
+## Green "+N" and rising sparkles for healing.
+static func heal(parent: Node, pos: Vector3, amount: float) -> void:
+	var l := Label3D.new()
+	l.text = "+%d" % roundi(amount)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.font_size = 88
+	l.outline_size = 18
+	l.pixel_size = 0.006
+	l.modulate = Color(0.45, 1.0, 0.5)
+	l.outline_modulate = Color(0.02, 0.12, 0.05)
+	parent.add_child(l)
+	l.global_position = pos + Vector3.UP * 2.4
+	var tw := l.create_tween().set_parallel()
+	tw.tween_property(l, "global_position:y", l.global_position.y + 1.2, 1.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(l, "modulate:a", 0.0, 0.4).set_delay(0.7)
+	tw.chain().tween_callback(l.queue_free)
+	burst(parent, pos + Vector3.UP * 0.2, Color(0.4, 1.0, 0.5), 24, 3.0, 0.12, 0.9, Vector3.UP, 30.0, 2.0, 0.8)
+	ring(parent, pos, Color(0.4, 1.0, 0.5, 0.7), 2.0, 0.4)
+
+
 ## Frozen translucent copy of a (skinned) model in its current pose.
 static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) -> void:
 	if DisplayServer.get_name() == "headless":

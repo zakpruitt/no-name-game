@@ -32,7 +32,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Settings for screen shake intensity: title + pause menu toggle cycles 100/50/0/150% (`Game.SHAKE_LEVELS`), saved to `user://settings.cfg`
 
 ## Round 2 (added once the first list was done; same rules)
-- [ ] Healing between rooms: runs have no healing besides Bloodthirst; restore some HP on room clear
+- [x] Healing between rooms: `main.ROOM_CLEAR_HEAL` (25% max HP) on each room clear; `player.heal()` + `Fx.heal` green "+N" and ring (Bloodthirst uses it silently)
 - [ ] More upgrades: 7 reward picks vs 8 upgrades means late picks aren't choices; add ~6 more (incl. Awakening/perfect-dodge hooks)
 - [ ] Awakened moveset: a unique heavy finisher while Awakened (pillar 2 says the form changes the moveset)
 - [ ] Shield skeleton: blocks frontal hits, guard broken by heavies/launchers or hitting from behind

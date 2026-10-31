@@ -395,8 +395,7 @@ func _do_hit() -> void:
 		if was_airborne and has_upgrade("chain_spark"):
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
-			hp = minf(hp + 2.0, max_hp)
-			health_changed.emit(hp, max_hp)
+			heal(2.0, false)
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
 		if _move_id == "L3" and has_upgrade("ember_cleave"):
@@ -521,6 +520,17 @@ func _perfect_dodge(attacker: Node) -> void:
 	Fx.afterimage(get_parent(), model, Color(0.8, 0.95, 1.0, 0.6), 0.5)
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
+
+
+## Restore HP (capped at max). `show` pops a green number and sparkle.
+func heal(amount: float, show := true) -> void:
+	if state == State.DEAD or amount <= 0.0:
+		return
+	var before := hp
+	hp = minf(hp + amount, max_hp)
+	health_changed.emit(hp, max_hp)
+	if show and hp > before:
+		Fx.heal(get_parent(), global_position, hp - before)
 
 
 func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:

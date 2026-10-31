@@ -34,6 +34,8 @@ const ENEMY_TYPES := {
 #   fight  regular enemy mix (wave_composition)
 #   elite  the same mix with several elites (elite_count)
 #   boss   the Bone Warden and a small escort; beating it wins the run
+# Fraction of max HP restored when a room (other than the boss) is cleared.
+const ROOM_CLEAR_HEAL := 0.25
 const RUN_PLAN := ["fight", "fight", "fight", "elite", "fight", "fight", "elite", "boss"]
 # Boss stats (attack timings live in boss.gd's ATTACKS table).
 const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
@@ -221,6 +223,7 @@ func _on_enemy_died(_e: Node) -> void:
 		if room >= RUN_PLAN.size():
 			_end_run(true)
 			return
+		player.heal(player.max_hp * ROOM_CLEAR_HEAL)
 		var choices := Upgrades.roll(player.upgrades)
 		if not choices.is_empty():
 			reward.open(choices)
