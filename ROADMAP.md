@@ -116,6 +116,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 13
 - [x] Bot cage escape: the autotest bot heads for the bone cage's gap (or dashes a wall) so `--boss-attack=cage` runs survive and exercise the escape path; print `cage_escapes=` — `main._bot_escape_cage()` runs for the gap and dashes a wall when it is about to reach the hero away from the gap; `bone_cage.raised`/`escapes` counters; three forced-cage runs: 5/7, 8/9, 7/8 escaped, hero survived all (was dying)
-- [ ] Replay a recent run: picking a line in the title's RECENT RUNS starts a new run on that seed
+- [x] Replay a recent run: picking a line in the title's RECENT RUNS starts a new run on that seed — each RECENT RUNS line is a flat button ("Pick a run to replay its seed"); `title.replay` → main sets `run_seed`/`run_rng` (and `daily_date` for a daily); checked: picking a line started seed 404135889
 - [ ] New elite twist "Splitting": slain foes split into two minions (once), shown on the door like the other twists
 - [ ] Death recap for hazards: "Slain by" names the bone cage / spike line / volatile burst instead of the Warden or a generic foe

@@ -10,6 +10,7 @@ const ALTAR_MENU := preload("res://scripts/altar_menu.gd")
 const RECORDS := preload("res://scripts/records.gd")
 
 var daily := false  # "Daily run" picked: main seeds the run from today's date
+var replay := {}  # a RECENT RUNS entry picked: main replays its seed
 
 
 func open(focus := 0) -> void:
@@ -36,7 +37,8 @@ func _footer() -> String:
 	return (records + "\n\n" + CONTROLS) if records != "" else CONTROLS
 
 
-## "RECENT RUNS" panel on the right (records.gd keeps the last few).
+## "RECENT RUNS" panel on the right (records.gd keeps the last few). Each
+## line is a button that starts a new run on that run's seed.
 func build_recent(runs: Array) -> void:
 	if runs.is_empty() or _root == null:
 		return
@@ -50,9 +52,22 @@ func build_recent(runs: Array) -> void:
 	panel.add_child(list)
 	_label(list, "RECENT RUNS", 26, Color(1.0, 0.7, 0.25))
 	for run: Dictionary in runs:
-		var line := _label(list, RECORDS.recent_line(run), 18,
-			Color(1.0, 0.85, 0.45) if run.victory else Color(0.85, 0.8, 0.95))
-		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var b := Button.new()
+		b.text = RECORDS.recent_line(run)
+		b.flat = true
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.tooltip_text = "Replay this seed"
+		b.add_theme_font_size_override("font_size", 18)
+		var color := Color(1.0, 0.85, 0.45) if run.victory else Color(0.85, 0.8, 0.95)
+		b.add_theme_color_override("font_color", color)
+		b.add_theme_color_override("font_hover_color", Color(1.0, 0.7, 0.3))
+		b.add_theme_color_override("font_focus_color", Color(1.0, 0.7, 0.3))
+		b.add_theme_stylebox_override("focus", _style(Color(0.2, 0.15, 0.28), Color(1.0, 0.7, 0.3)))
+		b.disabled = run.seed < 0
+		b.pressed.connect(_replay.bind(run))
+		list.add_child(b)
+	var hint := _label(list, "Pick a run to replay its seed", 14, Color(1, 1, 1, 0.45))
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func _start() -> void:
@@ -63,6 +78,11 @@ func _start() -> void:
 ## Same doors, twists and rewards for everyone today (main.daily_seed()).
 func _start_daily() -> void:
 	daily = true
+	_start()
+
+
+func _replay(run: Dictionary) -> void:
+	replay = run
 	_start()
 
 

@@ -371,6 +371,10 @@ func _ready() -> void:
 		if title.daily:
 			daily_date = Time.get_date_string_from_system()
 			run_seed = daily_seed(daily_date)
+		elif not title.replay.is_empty():
+			daily_date = title.replay.daily
+			run_seed = title.replay.seed
+		if title.daily or not title.replay.is_empty():
 			run_rng.seed = run_seed
 			seed(run_seed)
 		title.queue_free()
