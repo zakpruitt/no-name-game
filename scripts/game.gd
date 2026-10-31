@@ -53,6 +53,7 @@ const HINTS := {
 	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
 	"bomber": "Bombers explode when their fuse runs out, hurting skeletons too.\nKnock them into a crowd, or dash clear.",
 	"necro": "Necromancers raise fallen skeletons.\nKill them first and their risen crumble.",
+	"cage": "The bone cage is closing! Run out through the gap,\nor dash through a wall.",
 }
 # Gamepad rumble per event: [weak motor, strong motor, seconds]. Toggle in menus.
 const RUMBLE := {

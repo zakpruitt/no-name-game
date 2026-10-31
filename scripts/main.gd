@@ -635,6 +635,10 @@ func _spawn_boss() -> void:
 	b.summon.connect(func(count: int) -> void:
 		for i in count:
 			_spawn("minion"))
+	# Urgent, so it skips the HINT_GAP queue in _check_hints.
+	b.cage.connect(func() -> void:
+		Game.hint("cage")
+		_hint_gap = HINT_GAP)
 	if _autotest:
 		b.spike_line.connect(_autotest_spikes)
 		b.cage.connect(_autotest_cage)
