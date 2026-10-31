@@ -40,7 +40,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Off-screen threat indicators: `threat_arrows.gd` draws notched edge arrows for off-screen windups (red melee / purple ranged, grow as the hit nears) and bolts
 
 ## Round 3
-- [ ] Branching path: after each reward, choose the next room from 2 doors (fight / elite for a rarer reward / rest to heal)
+- [x] Branching path: after each reward, choose the next room from 2 doors (fight / elite for a rarer reward / rest to heal) — `path_options()` + `path_choice.gd`; elites give 2 powers, rest heals 40%
 - [ ] Skeleton archer: crossbow skeleton (KayKit `Skeleton_Crossbow`) with a fast, telegraphed line shot
 - [ ] Upgrade levels: re-offering an owned upgrade levels it up (stronger numbers) once the pool runs thin
 - [ ] Music: synthesized ambient loop with a combat layer that swells with style rank

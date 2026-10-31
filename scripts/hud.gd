@@ -59,8 +59,8 @@ func _ready() -> void:
 	_label(root, "WASD move   J/LMB light   K/RMB heavy   Space dash   Q awaken   Esc pause", 16, Color(1, 1, 1, 0.5)) \
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
 
-	upgrades_label = _label(root, "", 18, Color(1.0, 0.8, 0.5))
-	_anchor(upgrades_label, 1.0, 1.0, Rect2(-420, -300, 396, 276))
+	upgrades_label = _label(root, "", 16, Color(1.0, 0.8, 0.5))
+	_anchor(upgrades_label, 1.0, 1.0, Rect2(-420, -440, 396, 416))
 	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 
@@ -121,6 +121,8 @@ func set_room(n: int, total: int, kind: String) -> void:
 	wave_label.text = "ROOM %d / %d" % [n, total]
 	if kind == "elite":
 		flash_message("ROOM %d\nELITES" % n, 1.4)
+	elif kind == "rest":
+		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
 

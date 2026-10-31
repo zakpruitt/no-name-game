@@ -1,6 +1,7 @@
 extends Node3D
 ## Builds the arena, spawns the hero, camera and HUD, and runs a roguelike
-## run: a fixed sequence of rooms (RUN_PLAN) ending in a boss, then a summary.
+## run: RUN_LENGTH rooms picked door by door (path_options), ending in a boss,
+## then a summary.
 ##
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
@@ -18,6 +19,7 @@ const SUMMARY := preload("res://scripts/run_summary.gd")
 const TITLE := preload("res://scripts/title_screen.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
+const PATH := preload("res://scripts/path_choice.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -33,16 +35,20 @@ const ENEMY_TYPES := {
 	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
 }
-# A run is a fixed sequence of rooms; clearing one (except the boss) offers
-# an upgrade. Room n's difficulty is its position in the run.
-#   fight  regular enemy mix (wave_composition)
-#   elite  the same mix with several elites (elite_count)
+# A run is RUN_LENGTH rooms; the last is always the boss and room 1 a fight.
+# After each room you pick the next from two doors (path_options). Room n's
+# difficulty is its position in the run.
+#   fight  regular enemy mix (wave_composition), 1 power
+#   elite  the same mix with several elites (elite_count), 2 powers
+#   rest   no enemies, heals REST_HEAL of max HP
 #   boss   the Bone Warden and a small escort; beating it wins the run
+const RUN_LENGTH := 8
+const REST_HEAL := 0.4
+const ELITE_REWARDS := 2
 # Fraction of max HP restored when a room (other than the boss) is cleared.
 const ROOM_CLEAR_HEAL := 0.25
-const RUN_PLAN := ["fight", "fight", "fight", "elite", "fight", "fight", "elite", "boss"]
 # Arena layouts: pillar spots and spike-trap tiles (spikes must sit on tile
-# centres: ±2, ±6, ±10, ±14). ROOM_LAYOUTS picks one per room of RUN_PLAN;
+# centres: ±2, ±6, ±10, ±14). ROOM_LAYOUTS picks one per room number;
 # pillars sink/rise when the layout changes between rooms.
 const LAYOUTS := [
 	{"name": "hall", "pillars": [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)],
@@ -57,6 +63,20 @@ const ROOM_LAYOUTS := [0, 0, 0, 1, 2, 1, 2, 0]
 const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
 	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons"}
 const BOSS_ESCORT := {"minion": 2, "mage": 1}
+
+## The (up to) two doors offered for room n, given the previous room's kind.
+## Elites and rests unlock from room 3; never two rests in a row.
+static func path_options(n: int, prev: String) -> Array:
+	if n >= RUN_LENGTH:
+		return ["boss"]
+	var pool := ["fight", "elite", "rest"]
+	if n < 3:
+		return ["fight"]
+	if prev == "rest":
+		pool.erase("rest")
+	pool.shuffle()
+	return pool.slice(0, 2)
+
 
 ## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
@@ -76,6 +96,8 @@ var hud: CanvasLayer
 var reward: CanvasLayer
 var summary: CanvasLayer
 var room := 0
+var room_kind := "fight"
+var path_menu: CanvasLayer
 var _alive := 0
 var _between_rooms := false
 var _run_over := false
@@ -123,6 +145,8 @@ func _ready() -> void:
 	summary = SUMMARY.new()
 	add_child(summary)
 	add_child(PAUSE.new())
+	path_menu = PATH.new()
+	add_child(path_menu)
 	Game.combo_changed.connect(_track_combo)
 
 	if "--start-awakened" in OS.get_cmdline_user_args():
@@ -147,7 +171,9 @@ func _ready() -> void:
 
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--start-room="):
-			room = clampi(arg.get_slice("=", 1).to_int() - 1, 0, RUN_PLAN.size() - 1)
+			room = clampi(arg.get_slice("=", 1).to_int() - 1, 0, RUN_LENGTH - 1)
+			if room + 1 >= RUN_LENGTH:
+				room_kind = "boss"
 	if not _autotest and not Game.skip_title:
 		var title := TITLE.new()
 		add_child(title)
@@ -165,11 +191,13 @@ func _ready() -> void:
 func _next_room() -> void:
 	room += 1
 	_between_rooms = false
-	var room_kind: String = RUN_PLAN[room - 1]
 	_apply_layout(ROOM_LAYOUTS[room - 1])
-	hud.set_room(room, RUN_PLAN.size(), room_kind)
+	hud.set_room(room, RUN_LENGTH, room_kind)
 	if room_kind == "boss":
 		_spawn_boss()
+		return
+	if room_kind == "rest":
+		_rest()
 		return
 	var comp := wave_composition(room)
 	var kinds: Array[String] = []
@@ -183,6 +211,30 @@ func _next_room() -> void:
 		if make_elite:
 			elites -= 1
 		_spawn(kind, make_elite)
+
+
+## Rest room: no enemies, a heal, then straight on to the next door.
+func _rest() -> void:
+	_between_rooms = true
+	await get_tree().create_timer(0.8).timeout
+	player.heal(player.max_hp * REST_HEAL)
+	Game.sfx("wave_clear", -4.0, 0.0)
+	await get_tree().create_timer(1.4).timeout
+	if not player.is_dead():
+		await _choose_path()
+		_next_room()
+
+
+## Ask which door to take next (or go straight on when there's only one).
+func _choose_path() -> void:
+	var options := path_options(room + 1, room_kind)
+	if options.size() == 1:
+		room_kind = options[0]
+		return
+	path_menu.open(options, room + 1)
+	if _autotest:
+		_autotest_path()
+	room_kind = await path_menu.chosen
 
 
 func _spawn(kind: String, elite := false) -> void:
@@ -242,23 +294,32 @@ func _on_enemy_died(_e: Node) -> void:
 		await get_tree().create_timer(1.2).timeout
 		if player.is_dead():
 			return
-		if room >= RUN_PLAN.size():
+		if room >= RUN_LENGTH:
 			_end_run(true)
 			return
 		player.heal(player.max_hp * ROOM_CLEAR_HEAL)
-		var choices := Upgrades.roll(player.upgrades)
-		if not choices.is_empty():
-			reward.open(choices)
-			if _autotest:
-				_autotest_pick()
-			var id: String = await reward.picked
-			player.add_upgrade(id)
-			hud.set_upgrades(player.upgrades)
-			hud.flash_message(Upgrades.get_by_id(id).name.to_upper(), 1.0)
-			Game.sfx("perfect", -4.0, 0.0)
-		await get_tree().create_timer(1.0).timeout
-		if not player.is_dead():
-			_next_room()
+		for i in ELITE_REWARDS if room_kind == "elite" else 1:
+			await _offer_reward()
+		await get_tree().create_timer(0.6).timeout
+		if player.is_dead():
+			return
+		await _choose_path()
+		_next_room()
+
+
+func _offer_reward() -> void:
+	var choices := Upgrades.roll(player.upgrades)
+	if choices.is_empty():
+		return
+	reward.open(choices)
+	if _autotest:
+		_autotest_pick()
+	var id: String = await reward.picked
+	player.add_upgrade(id)
+	hud.set_upgrades(player.upgrades)
+	hud.flash_message(Upgrades.get_by_id(id).name.to_upper(), 1.0)
+	Game.sfx("perfect", -4.0, 0.0)
+	await get_tree().create_timer(0.5).timeout
 
 
 func _on_player_died() -> void:
@@ -287,7 +348,7 @@ func _end_run(victory: bool) -> void:
 	_run_over = true
 	var cleared := room if victory else room - 1
 	var stats := {
-		"Rooms cleared": "%d / %d" % [cleared, RUN_PLAN.size()],
+		"Rooms cleared": "%d / %d" % [cleared, RUN_LENGTH],
 		"Time": "%d:%02d" % [int(_run_time) / 60, int(_run_time) % 60],
 		"Enemies slain": _kills,
 		"Best combo": _max_combo,
@@ -497,8 +558,8 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d upgrades=%s" % [
-		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d upgrades=%s" % [
+		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.upgrades])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
@@ -514,6 +575,12 @@ func _autotest_pick() -> void:
 	await get_tree().create_timer(0.5).timeout
 	_snap("user://autotest_reward.png")
 	reward.pick(0)
+
+
+func _autotest_path() -> void:
+	await get_tree().create_timer(0.5).timeout
+	_snap("user://autotest_path.png")
+	path_menu.pick(0)
 
 
 func _snap(path: String) -> void:
