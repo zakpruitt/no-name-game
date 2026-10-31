@@ -22,24 +22,27 @@ const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
 const PATH := preload("res://scripts/path_choice.gd")
 const RECORDS := preload("res://scripts/records.gd")
+const BONE := preload("res://scripts/bone_pickup.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
 const ENEMY_TYPES := {
-	"minion": {"model": "Skeleton_Minion"},
+	"minion": {"model": "Skeleton_Minion", "bones": 1},
 	"warrior": {"model": "Skeleton_Warrior", "max_hp": 75.0, "move_speed": 2.8, "attack_damage": 16.0,
-		"attack_windup": 0.8, "poise": 8.0, "model_scale": 1.15},
+		"attack_windup": 0.8, "poise": 8.0, "model_scale": 1.15, "bones": 3},
 	"mage": {"model": "Skeleton_Mage", "max_hp": 24.0, "move_speed": 3.0, "attack_kind": "ranged",
 		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
-		"attack_recover": 0.5, "projectile_speed": 9.0},
+		"attack_recover": 0.5, "projectile_speed": 9.0, "bones": 2},
 	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
-		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
+		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C",
+		"bones": 2},
 	"archer": {"model": "Skeleton_Rogue", "max_hp": 22.0, "move_speed": 3.2, "attack_kind": "line",
 		"attack_range": 13.0, "preferred_range": 10.0, "attack_damage": 14.0, "attack_windup": 1.1,
 		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A",
-		"cloth_color": Color(0.22, 0.42, 0.3)},
+		"cloth_color": Color(0.22, 0.42, 0.3), "bones": 2},
 	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
-		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
+		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons",
+		"bones": 2},
 }
 # A run is RUN_LENGTH rooms; the last is always the boss and room 1 a fight.
 # After each room you pick the next from two doors (path_options). Room n's
@@ -71,7 +74,7 @@ const LAYOUTS := [
 const ROOM_LAYOUTS := [0, 0, 0, 1, 2, 1, 2, 0]
 # Boss stats (attack timings live in boss.gd's ATTACKS table).
 const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
-	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons"}
+	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons", "bones": 0}
 const BOSS_ESCORT := {"minion": 2, "mage": 1}
 
 ## The (up to) two doors offered for room n, given the previous room's kind.
@@ -337,7 +340,11 @@ func _reinforce() -> void:
 	_spawn(next[0], next[1])
 
 
-func _on_enemy_died(_e: Node) -> void:
+func _on_enemy_died(e: Node) -> void:
+	for i in e.bones:
+		var b := BONE.new()
+		add_child(b)
+		b.global_position = e.global_position + Vector3.UP * 0.8
 	_alive -= 1
 	_kills += 1
 	hud.set_remaining(_alive + _queue.size())
@@ -404,6 +411,7 @@ func _end_run(victory: bool) -> void:
 		"Best style rank": _best_rank,
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
+		"Bones collected": Game.bones_total,
 	}
 	var bests := RECORDS.submit({"victory": victory, "rooms": cleared, "combo": _max_combo,
 		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time})
@@ -669,9 +677,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d music=%.2f upgrades=%s" % [
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game._combat_level, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, Game._combat_level, player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	# Exercise the summary screen too.

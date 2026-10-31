@@ -15,6 +15,7 @@ var center_label: Label
 var upgrades_label: Label
 var _room_text := ""
 var hint_label: Label
+var bones_label: Label
 var hint_panel: PanelContainer
 var _hint_tween: Tween
 var boss_root: Control
@@ -34,6 +35,9 @@ func _ready() -> void:
 	hp_bar = _bar(root, Vector2(32, 28), Vector2(360, 22), Color(0.9, 0.25, 0.25))
 	awaken_bar = _bar(root, Vector2(32, 58), Vector2(360, 14), Color(1.0, 0.6, 0.15))
 	awaken_bar.max_value = Game.AWAKEN_MAX
+	bones_label = _label(root, "BONES  0", 22, Color(0.95, 0.9, 0.75))
+	bones_label.position = Vector2(408, 24)
+	Game.bones_changed.connect(func(n: int) -> void: bones_label.text = "BONES  %d" % n)
 	awaken_hint = _label(root, "AWAKEN READY  [Q]", 20, Color(1.0, 0.7, 0.2))
 	awaken_hint.position = Vector2(32, 76)
 	awaken_hint.visible = false

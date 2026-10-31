@@ -56,7 +56,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 5
 - [x] Settings submenu: move shake / music / rumble / reset hints into one Settings screen shared by title and pause (menus are getting long); give hints a soft backdrop for readability — `menu_screen.open_settings()`; Esc backs out to pause; hint sits on a dark rounded panel; `menu_check` also saves `menu_settings.png`
-- [ ] Bones: enemies drop bones (auto-collected, more from elites); HUD counter; kept per run and listed on the summary
+- [x] Bones: enemies drop bones (auto-collected, more from elites); HUD counter; kept per run and listed on the summary — `bone_pickup.gd` shards pop out and home in; `"bones"` per `ENEMY_TYPES` entry (×3 elites), `Game.bones`/`bones_total`; "BONES n" by the HP bar; "Bones collected" on the summary; `pickup` sfx
 - [ ] Camp: rest rooms let you spend bones (max HP up, reroll a power, upgrade a power) besides the free heal
 - [ ] Reward reroll: spend bones to reroll the 3 power cards
 - [ ] Necromancer skeleton: hangs back and raises fallen minions until it's killed (priority target)

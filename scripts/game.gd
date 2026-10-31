@@ -11,6 +11,7 @@ signal air_combo_changed(count: int)
 ## Any enemy died (for on-kill upgrades).
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
+signal bones_changed(count: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
@@ -64,6 +65,8 @@ var combo_count := 0
 var style := 0.0
 var awakening := 0.0
 var perfect_dodges := 0
+var bones := 0  # run currency, dropped by slain skeletons (bone_pickup.gd)
+var bones_total := 0  # collected this run (bones may be spent)
 var air_hits := 0
 var best_air := 0
 ## Survives scene reloads: start the next run without the title screen.
@@ -138,6 +141,8 @@ func reset() -> void:
 	style = 0.0
 	awakening = 0.0
 	perfect_dodges = 0
+	bones = 0
+	bones_total = 0
 	air_hits = 0
 	best_air = 0
 	awakening_gain_mult = 1.0
@@ -145,6 +150,13 @@ func reset() -> void:
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
+
+
+func add_bones(count: int) -> void:
+	bones += count
+	if count > 0:
+		bones_total += count
+	bones_changed.emit(bones)
 
 
 ## Freeze the game briefly on impact. Overlapping calls extend, never shorten.

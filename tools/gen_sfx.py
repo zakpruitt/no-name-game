@@ -124,6 +124,7 @@ def main():
                        gain(chime(0.9, [440, 660, 880], 0.35, 0.06), 0.4)))
     save("spawn", mix(gain(crack(0.5, 10, 0.2, 0.05), 0.8), rattle(0.5, 11, 6)), 0.5)
     save("wave_clear", chime(0.8, [660, 990], 0.3, 0.12), 0.5)
+    save("pickup", chime(0.18, [1320, 1980], 0.05, 0.03), 0.4)
     print("wrote", sorted(os.listdir(OUT)))
 
 

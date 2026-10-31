@@ -41,6 +41,9 @@ const PROJECTILE := preload("res://scripts/projectile.gd")
 @export var dodge_cooldown := 1.6
 ## Elite: tougher, bigger, gold aura, and pays out extra Awakening on death.
 @export var elite := false
+## Bone shards dropped on death (elites drop ELITE_BONES_MULT times as many).
+@export var bones := 1
+const ELITE_BONES_MULT := 3
 const ELITE_HP_MULT := 2.5
 const ELITE_DAMAGE_MULT := 1.4
 const ELITE_SCALE_MULT := 1.3
@@ -90,6 +93,7 @@ var _aim_line: Node3D
 
 func _ready() -> void:
 	if elite:
+		bones *= ELITE_BONES_MULT
 		max_hp *= ELITE_HP_MULT
 		attack_damage *= ELITE_DAMAGE_MULT
 		model_scale *= ELITE_SCALE_MULT
