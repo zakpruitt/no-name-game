@@ -42,5 +42,6 @@ characters only (no licensed IP in the repo).
 - `--seed=N` repeats a run's doors, twists, spawn order and reward offers (`main.run_rng`; combat itself still varies with timing); the autotest line prints `seed=`; `--daily` seeds from today's date like the title's "Daily run" (`main.daily_seed()`)
 - Room pacing (`-- --autotest --pace`, with `--start-room=N` / `--twist=X` / `--seed=N`): ends at the first room clear and prints `[autotest] cleared room=N kind=... time=`
 - Room tour (`-- --autotest --tour`): forced doors fight → rest → shrine → elite → boss, fights wiped after 1.5s; camp buys its first offer and the shrine takes its rotating trade; prints `[tour] PASS/FAIL rooms=... trades=...` (~16s, works headless)
+- Wiki (`docs/wiki/index.html`, open from disk): `python tools/wiki.py` regenerates `data.js` from the tuning tables (`tools/wiki_data.gd`) and flags ids missing from the hand-written `notes.js`; `--shots` re-captures `img/` (~4 min). Skills in `.claude/skills/`: `update-wiki` (refresh it), `roadmap-item` (one change end to end: build, verify, ROADMAP, commit)
 - Scenes are mostly built in code; keep `.tscn` files minimal unless the user wants editor-authored scenes.
 - KayKit models face +Z; facing yaw = `atan2(dir.x, dir.z)`. Characters share one rig, so any KayKit animation works on any character.
