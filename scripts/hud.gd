@@ -165,6 +165,15 @@ func set_room(n: int, total: int, kind: String) -> void:
 
 
 ## Tutorial tip above the controls line: fades in, holds, fades out.
+## Menus pause the tree: hide the hint behind them (its tween is paused too,
+## so it picks up where it left off once play resumes).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PAUSED and hint_panel:
+		hint_panel.visible = false
+	elif what == NOTIFICATION_UNPAUSED and hint_panel:
+		hint_panel.visible = true
+
+
 func show_hint(text: String, hold := 5.0) -> void:
 	hint_label.text = text
 	if _hint_tween:

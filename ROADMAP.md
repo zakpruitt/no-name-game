@@ -63,7 +63,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Bone Warden phase 2: a new enraged attack (line of ground spikes chasing the hero) — `"spikes"` in `boss.ATTACKS` (enraged only): ground chop, then 12 bone spikes (`bone_spike.gd`) run at the hero, steering ≤22° per step, each red-flagged 0.4s before it stabs; `--boss-enraged` autotest flag → `autotest_spikes.png`
 
 ## Round 6
-- [ ] Hints wait for menus: never show a hint behind the reward / camp / path screens (hold it until play resumes)
+- [x] Hints wait for menus: never show a hint behind the reward / camp / path screens (hold it until play resumes) — `hud._notification` hides the hint panel on NOTIFICATION_PAUSED and restores it on UNPAUSED; its fade tween pauses with the tree
 - [ ] Build view: the pause menu lists your powers with their levels and current descriptions
 - [ ] Charged-slam powers: 2 new [Charged] upgrades (Quake: the slam sends out a shockwave ring; Bone Breaker: bonus damage to shields and elites)
 - [ ] Low-HP feedback: red edge vignette and a heartbeat below 25% HP
