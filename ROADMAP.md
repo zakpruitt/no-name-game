@@ -4,7 +4,7 @@ Autonomous enhancement backlog. Work top-down; one item per commit. Check items
 off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Combat feel
-- [x] Weapon slash trails — `weapon_trail.gd` ribbon on both axes; turns orange while Awakened
+- [x] Weapon slash trails: `weapon_trail.gd` ribbon on both axes; turns orange while Awakened
 - [ ] Hit sparks â†’ proper GPUParticles3D bursts; dust puff on dash and landing
 - [ ] Brief enemy freeze (per-enemy hitstop) + squash/stretch on hit
 - [ ] Dash afterimages
