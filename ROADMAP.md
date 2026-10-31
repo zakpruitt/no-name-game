@@ -8,7 +8,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Hit sparks → particle bursts; dust puff on dash and landing: `Fx.burst/impact/dust` (CPUParticles3D; GPU version misplaced first burst + compile hitch)
 - [x] Brief enemy freeze (per-enemy hitstop) + squash/stretch on hit: `hit_freeze`/`hit_freeze_big` exports; enemies shudder in place, then knockback; launched enemies stretch up
 - [x] Dash afterimages: `Fx.afterimage` bakes the current skinned pose into fading ghosts (blue, orange when Awakened); skipped headless
-- [ ] Perfect-dodge: dashing through an attack in its last 0.15s slows time + refunds Awakening
+- [x] Perfect-dodge: dash ≤0.15s before a hit lands → slow-mo, +20 Awakening, +style, attacker stunned 1.2s, free re-dash (`perfect_dodge_*` exports)
 - [ ] Sound: procedural/CC0 SFX for swings, hits, dash, death (check Kenney audio packs on GitHub)
 
 ## Enemies

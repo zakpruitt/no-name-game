@@ -58,6 +58,10 @@ func _ready() -> void:
 		Game.combo_changed.connect(func(c: int, _r: String) -> void:
 			_max_combo = maxi(_max_combo, c)
 			if c > 0: _hits += 1)
+		Game.announced.connect(func(_t: String) -> void:
+			if Game.perfect_dodges == 1:
+				await get_tree().create_timer(0.15, true, false, true).timeout
+				_snap("user://autotest_perfect.png"))
 
 	_next_wave()
 
@@ -264,8 +268,8 @@ func _process(delta: float) -> void:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
 	if _autotest_t >= 12.0:
-		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s" % [
-			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank()])
+		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d" % [
+			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges])
 		get_tree().quit()
 
 
@@ -295,6 +299,11 @@ func _drive_bot() -> void:
 	to.y = 0.0
 	player.bot_move = to.normalized() if nd > 2.0 else Vector3.ZERO
 	var f := Engine.get_physics_frames()
+	# Try to perfect-dodge any attack that's about to land.
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.state == e.State.WINDUP and e._state_t >= e.attack_windup - 0.08 				and e.global_position.distance_to(player.global_position) < e.attack_range + 1.0:
+			Input.action_press("dash")
+			return
 	if nd < 3.0:
 		# Cycle through routes: L L L, L H (launch) L L, H spin.
 		var step := (f / 9) % 8

@@ -163,7 +163,18 @@ func _strike() -> void:
 	to.y = 0.0
 	var fwd := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
 	if to.length() <= attack_range + 0.6 and fwd.angle_to(to.normalized()) < deg_to_rad(70.0):
-		_player.take_hit(attack_damage, to.normalized() * 8.0)
+		_player.take_hit(attack_damage, to.normalized() * 8.0, self)
+
+
+## Stunned and open (e.g. after the player perfect-dodges this enemy's attack).
+func stagger(time: float) -> void:
+	if state == State.DEAD or state == State.SPAWN:
+		return
+	_telegraph.visible = false
+	_set_state(State.HURT)
+	_state_t = 0.4 - time
+	Fx.flash(model)
+	_play("Hit_B", 0.05, 0.8, true)
 
 
 func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> void:

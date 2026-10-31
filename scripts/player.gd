@@ -26,6 +26,10 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 @export var aim_assist_angle := 70.0
 @export var awaken_duration := 12.0
 @export var afterimage_interval := 0.035
+## Dash this soon before an enemy hit lands for a perfect dodge.
+@export var perfect_dodge_window := 0.15
+@export var perfect_dodge_refund := 20.0
+@export var perfect_dodge_stun := 1.2
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -83,6 +87,8 @@ var _dmg_mult := 1.0
 var _awaken_light: OmniLight3D
 var _trails: Array = []
 var _ghost_t := 0.0
+var _since_dash := 99.0
+var _perfect_this_dash := false
 
 # Lets the autotest drive the hero without real input.
 var bot_move := Vector3.ZERO
@@ -155,6 +161,7 @@ func _physics_process(delta: float) -> void:
 
 func _tick_timers(delta: float) -> void:
 	_state_t += delta
+	_since_dash += delta
 	_buffer_t -= delta
 	_dash_buffer_t -= delta
 	_dash_cd -= delta
@@ -313,6 +320,8 @@ func _start_dash() -> void:
 	_dash_dir = dir.normalized() if dir.length() > 0.1 else _facing()
 	_face(_dash_dir)
 	_invuln_t = dash_time + 0.08
+	_since_dash = 0.0
+	_perfect_this_dash = false
 	_set_state(State.DASH)
 	_ghost_t = 0.0
 	_play("Dodge_Forward", 0.04, true)
@@ -408,8 +417,24 @@ func _set_awakened(on: bool) -> void:
 	awakened_changed.emit(on)
 
 
-func take_hit(damage: float, knockback: Vector3) -> void:
-	if state == State.DEAD or _invuln_t > 0.0:
+## Slow time, refund Awakening, stun the attacker, and allow an instant re-dash.
+func _perfect_dodge(attacker: Node) -> void:
+	_perfect_this_dash = true
+	_dash_cd = 0.0
+	Game.perfect_dodge(perfect_dodge_refund)
+	Game.hitstop(0.5, 0.25)
+	Fx.ring(get_parent(), global_position, Color(0.5, 0.85, 1.0, 0.9), 4.0, 0.4)
+	Fx.afterimage(get_parent(), model, Color(0.8, 0.95, 1.0, 0.6), 0.5)
+	if attacker and attacker.has_method("stagger"):
+		attacker.stagger(perfect_dodge_stun)
+
+
+func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
+	if state == State.DEAD:
+		return
+	if _invuln_t > 0.0:
+		if _since_dash <= perfect_dodge_window and not _perfect_this_dash:
+			_perfect_dodge(attacker)
 		return
 	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
 	health_changed.emit(hp, max_hp)

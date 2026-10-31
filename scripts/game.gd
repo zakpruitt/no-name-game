@@ -4,6 +4,8 @@ extends Node
 
 signal combo_changed(count: int, rank: String)
 signal awakening_changed(value: float)
+## Short callouts for the HUD ("PERFECT", ...).
+signal announced(text: String)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
@@ -16,6 +18,7 @@ var camera_rig: Node = null
 var combo_count := 0
 var style := 0.0
 var awakening := 0.0
+var perfect_dodges := 0
 var _combo_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
@@ -43,6 +46,7 @@ func reset() -> void:
 	combo_count = 0
 	style = 0.0
 	awakening = 0.0
+	perfect_dodges = 0
 	_recent_moves.clear()
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
@@ -72,6 +76,15 @@ func register_hit(move_id: String) -> void:
 		_recent_moves.pop_front()
 	style += 1.0 + variety
 	add_awakening(1.5 * RANK_AWAKEN_MULT[rank()])
+	combo_changed.emit(combo_count, rank())
+
+
+func perfect_dodge(awaken_refund: float) -> void:
+	perfect_dodges += 1
+	style += 12.0
+	_combo_timer = COMBO_TIMEOUT
+	add_awakening(awaken_refund)
+	announced.emit("PERFECT")
 	combo_changed.emit(combo_count, rank())
 
 

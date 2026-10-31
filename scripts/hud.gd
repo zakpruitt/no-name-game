@@ -47,6 +47,7 @@ func _ready() -> void:
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
 
 	Game.combo_changed.connect(_on_combo)
+	Game.announced.connect(func(text: String) -> void: flash_message(text, 0.5))
 	Game.awakening_changed.connect(_on_awakening)
 
 
