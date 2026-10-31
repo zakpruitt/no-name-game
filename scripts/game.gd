@@ -144,6 +144,7 @@ func _process(delta: float) -> void:
 func _exit_tree() -> void:
 	stop_all_sfx()
 	Fx.release()
+	preload("res://scripts/hero_look.gd").release()
 	_sfx_streams.clear()
 
 

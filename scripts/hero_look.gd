@@ -25,8 +25,10 @@ const NECKLACE_BEADS := 9
 static var _retextured := {}  # source material -> copy with the shaman texture
 
 
-## Dress `model` (a Barbarian.glb instance). Call before Fx.outline.
+## Retexture `model` (a Barbarian.glb instance) and add the axe runes. Call before Fx.outline.
 static func dress(model: Node3D) -> void:
+	if DisplayServer.get_name() == "headless":
+		return  # like Fx.outline: the dummy renderer errors on shared override materials at exit
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
 			continue
@@ -44,6 +46,11 @@ static func dress(model: Node3D) -> void:
 			rune.set_shader_parameter("intensity", RUNE_INTENSITY)
 			mi.set_meta("rest_overlay", rune)
 			mi.material_overlay = rune
+
+
+## Feathers and necklace. Call after Fx.outline (outlining them leaks their
+## one-off materials at exit, and they're too small to need it).
+static func add_kit(model: Node3D) -> void:
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	for f: Array in FEATHERS:
 		_attach(skel, f[0], _feather(), f[1], f[2])
@@ -61,6 +68,11 @@ static func dress(model: Node3D) -> void:
 		b.position = Vector3(sin(ang) * NECKLACE_RADIUS, -absf(sin(ang)) * 0.06 - (0.06 if fang else 0.0), cos(ang) * NECKLACE_RADIUS * 0.6)
 		beads.add_child(b)
 	_attach(skel, NECKLACE_BONE, beads, NECKLACE_CENTER, Vector3.ZERO)
+
+
+## Drop cached materials so nothing is left alive at exit (Game._exit_tree).
+static func release() -> void:
+	_retextured.clear()
 
 
 static func _feather() -> Node3D:

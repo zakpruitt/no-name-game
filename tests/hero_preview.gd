@@ -18,7 +18,7 @@ func _initialize() -> void:
 	var cam := Camera3D.new()
 	root3d.add_child(cam)
 	cam.fov = 32.0
-	cam.look_at_from_position(Vector3(0, 3.2, 9.5), Vector3(0, 1.0, 0), Vector3.UP)
+	cam.look_at_from_position(Vector3(0, 3.4, 12.5), Vector3(0, 1.0, 0), Vector3.UP)
 	var light := DirectionalLight3D.new()
 	root3d.add_child(light)
 	light.rotation_degrees = Vector3(-40, 25, 0)

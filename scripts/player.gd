@@ -188,6 +188,7 @@ func _ready() -> void:
 	add_child(model)
 	HERO_LOOK.dress(model)
 	Fx.outline(model)
+	HERO_LOOK.add_kit(model)
 	_meshes = model.find_children("*", "MeshInstance3D", true, false)
 	_awaken_rim = Fx.rim_material().duplicate()
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
