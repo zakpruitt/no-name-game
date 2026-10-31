@@ -10,6 +10,13 @@ func _initialize() -> void:
 	get_root().add_child(main)
 	await create_timer(0.6).timeout
 	_save("user://menu_title.png")
+	# The bone altar (read-only here: nothing is bought).
+	var title_menu: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
+	title_menu.open_altar()
+	await create_timer(0.3).timeout
+	_save("user://menu_altar.png")
+	title_menu.open()
+	await create_timer(0.2).timeout
 	var title: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
 	title._start()
 	await create_timer(1.5).timeout

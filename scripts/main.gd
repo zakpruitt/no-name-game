@@ -24,6 +24,7 @@ const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
 const PATH := preload("res://scripts/path_choice.gd")
 const RECORDS := preload("res://scripts/records.gd")
+const ALTAR := preload("res://scripts/altar.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
 const CAMP_MENU := preload("res://scripts/camp.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
@@ -203,6 +204,7 @@ func _ready() -> void:
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	if _autotest:
 		RECORDS.enabled = false
+		ALTAR.enabled = false
 		Game.save_hints = false
 		Game._hints_seen.clear()  # show them all, without touching the saved ones
 	_build_environment()
@@ -220,6 +222,7 @@ func _ready() -> void:
 
 	hud = HUD.new()
 	add_child(hud)
+	_apply_altar()
 	hud.bind_player(player)
 
 	reward = REWARD.new()
@@ -561,6 +564,15 @@ func _track_combo(count: int, rank: String) -> void:
 		_best_rank = rank
 
 
+## Bone altar boons bought between runs (altar.gd BOONS).
+func _apply_altar() -> void:
+	player.max_hp += ALTAR.bonus("hardened")
+	player.hp = player.max_hp
+	Game.bones += ALTAR.bonus("scavenger")
+	Game.bones_changed.emit(Game.bones)
+	Game.add_awakening(ALTAR.bonus("kindled"))
+
+
 func _end_run(victory: bool) -> void:
 	if _run_over:
 		return
@@ -578,7 +590,9 @@ func _end_run(victory: bool) -> void:
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
 		"Bones collected": Game.bones_total,
+		"Bones banked": Game.bones,
 	})
+	ALTAR.bank(Game.bones)
 	var bests := RECORDS.submit({"victory": victory, "rooms": cleared, "combo": _max_combo,
 		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time})
 	# Summary rows to flag as new personal bests.
