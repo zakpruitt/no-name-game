@@ -12,7 +12,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Sound: synthesized placeholder SFX (`tools/gen_sfx.py` → `assets/sfx/`), played via `Game.sfx()`; kenney.nl blocks scripted downloads, swap in real CC0 sounds later by keeping file names
 
 ## Enemies
-- [ ] Skeleton mage: ranged, telegraphed projectiles, keeps distance
+- [x] Skeleton mage: keeps ~7m away, purple-ring windup, slow bolts (`projectile.gd`) you can dash through/perfect-dodge; enemy types now data in `main.ENEMY_TYPES`
 - [ ] Skeleton rogue: fast flanker that dodges
 - [ ] Enemy separation/steering so groups surround instead of stacking
 - [ ] Elite modifier (bigger, tinted, more poise)

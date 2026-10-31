@@ -17,7 +17,8 @@ characters only (no licensed IP in the repo).
 - `scripts/game.gd` — autoload `Game`: hitstop, shake, combo/style rank, Awakening meter, input map (bound in code)
 - `scripts/player.gd` — hero state machine; moves live in the `MOVES` table (timings are fractions of anim length)
 - `scripts/enemy.gd` — skeleton AI: spawn → chase → telegraphed windup → strike; poise, launch/juggle
-- `scripts/main.gd` — builds arena from KayKit pieces, wave spawner, autotest bot
+- `scripts/main.gd` — builds arena from KayKit pieces, wave spawner (`ENEMY_TYPES` + `wave_composition()` are the tuning data), autotest bot
+- `scripts/projectile.gd` — enemy bolts; i-frames pass through, perfect dodge still triggers
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`
 - `scripts/hud.gd`, `scripts/camera_rig.gd`, `scripts/fx.gd` (damage numbers, sparks, rings, flash)
 - `assets/kaykit/` — CC0 models (see CREDITS.md). `vendor_src/` holds the full packs; it's gitignored and `.gdignore`d — copy pieces into `assets/` to use them.

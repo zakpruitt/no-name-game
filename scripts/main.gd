@@ -10,8 +10,18 @@ const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
-const MINION := preload("res://assets/kaykit/characters/Skeleton_Minion.glb")
-const WARRIOR := preload("res://assets/kaykit/characters/Skeleton_Warrior.glb")
+# Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
+const ENEMY_TYPES := {
+	"minion": {"model": "Skeleton_Minion"},
+	"warrior": {"model": "Skeleton_Warrior", "max_hp": 75.0, "move_speed": 2.8, "attack_damage": 16.0,
+		"attack_windup": 0.8, "poise": 8.0, "model_scale": 1.15},
+	"mage": {"model": "Skeleton_Mage", "max_hp": 24.0, "move_speed": 3.0, "attack_kind": "ranged",
+		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
+		"attack_recover": 0.5, "projectile_speed": 9.0},
+}
+## How many of each type wave n spawns.
+static func wave_composition(n: int) -> Dictionary:
+	return {"minion": 3 + n, "warrior": n / 2, "mage": (n + 1) / 2}
 
 const TILE := 4.0
 const HALF_TILES := 4  # arena is (2 * HALF_TILES) tiles across
@@ -78,24 +88,19 @@ func _next_wave() -> void:
 	wave += 1
 	_between_waves = false
 	hud.set_wave(wave)
-	var minions := 3 + wave
-	var warriors := wave / 2
-	for i in minions:
-		_spawn(MINION, false)
-	for i in warriors:
-		_spawn(WARRIOR, true)
+	var comp := wave_composition(wave)
+	for kind in comp:
+		for i in comp[kind]:
+			_spawn(kind)
 
 
-func _spawn(scene: PackedScene, heavy: bool) -> void:
+func _spawn(kind: String) -> void:
 	var e := ENEMY.new()
-	e.model_scene = scene
-	if heavy:
-		e.max_hp = 75.0
-		e.move_speed = 2.8
-		e.attack_damage = 16.0
-		e.attack_windup = 0.8
-		e.poise = 8.0
-		e.model_scale = 1.15
+	var spec: Dictionary = ENEMY_TYPES[kind]
+	e.model_scene = load("res://assets/kaykit/characters/%s.glb" % spec.model)
+	for key in spec:
+		if key != "model":
+			e.set(key, spec[key])
 	add_child(e)
 	# Ring around the player, clamped inside the walls.
 	var ang := randf() * TAU
@@ -271,8 +276,9 @@ func _process(delta: float) -> void:
 		_snap("user://autotest_dash.png")
 	if _autotest_t >= 12.0 and not _quitting:
 		_quitting = true
-		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d" % [
-			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges])
+		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d" % [
+			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges,
+			preload("res://scripts/projectile.gd").fired])
 		Game.stop_all_sfx()
 		# Give the audio thread a moment to release playbacks, or they leak at exit.
 		await get_tree().create_timer(0.2, true, false, true).timeout
@@ -307,7 +313,11 @@ func _drive_bot() -> void:
 	var f := Engine.get_physics_frames()
 	# Try to perfect-dodge any attack that's about to land.
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if e.state == e.State.WINDUP and e._state_t >= e.attack_windup - 0.08 				and e.global_position.distance_to(player.global_position) < e.attack_range + 1.0:
+		if e.attack_kind == "melee" and e.state == e.State.WINDUP and e._state_t >= e.attack_windup - 0.08 				and e.global_position.distance_to(player.global_position) < e.attack_range + 1.0:
+			Input.action_press("dash")
+			return
+	for p in get_tree().get_nodes_in_group("projectiles"):
+		if p.global_position.distance_to(player.global_position + Vector3.UP) < 1.6:
 			Input.action_press("dash")
 			return
 	if nd < 3.0:

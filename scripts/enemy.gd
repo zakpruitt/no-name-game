@@ -1,12 +1,14 @@
 extends CharacterBody3D
-## Melee skeleton: spawns from the ground, chases, telegraphs an attack,
-## staggers when hit (unless its poise holds), and can be launched/juggled.
+## Skeleton enemy: spawns from the ground, chases (melee) or keeps its
+## distance and fires bolts (ranged), telegraphs every attack, staggers when
+## hit (unless its poise holds), and can be launched/juggled.
 
 signal died(enemy: Node)
 
 enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DEAD }
 
-const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"]
+const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C", "Spellcasting"]
+const PROJECTILE := preload("res://scripts/projectile.gd")
 
 @export var model_scene: PackedScene
 @export var max_hp := 30.0
@@ -19,6 +21,10 @@ const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"
 @export var poise := 0.0
 @export var model_scale := 1.0
 @export var run_anim := "Running_A"
+## "melee" or "ranged". Ranged enemies hold `preferred_range` and shoot.
+@export var attack_kind := "melee"
+@export var preferred_range := 7.0
+@export var projectile_speed := 9.0
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -136,9 +142,20 @@ func _state_chase(delta: float) -> void:
 	_face(to)
 	if d <= attack_range and _attack_cd <= 0.0:
 		_set_state(State.WINDUP)
-		_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
+		if attack_kind == "ranged":
+			_play("Spellcasting", 0.1, 1.2)
+		else:
+			_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
 		return
-	var dir := to / maxf(d, 0.001) if d > attack_range * 0.8 else Vector3.ZERO
+	var dir := Vector3.ZERO
+	if attack_kind == "ranged":
+		# Back off when crowded, close in when too far, otherwise hold.
+		if d < preferred_range - 1.5:
+			dir = -to / maxf(d, 0.001)
+		elif d > attack_range * 0.9:
+			dir = to / maxf(d, 0.001)
+	elif d > attack_range * 0.8:
+		dir = to / maxf(d, 0.001)
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 25.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 25.0 * delta)
 	_play(run_anim if dir != Vector3.ZERO else "Idle_Combat")
@@ -152,8 +169,12 @@ func _state_windup(delta: float) -> void:
 	_telegraph_mat.albedo_color.a = lerpf(0.15, 0.55, k)
 	if _state_t >= attack_windup:
 		_telegraph.visible = false
-		_strike()
-		_attack_cd = randf_range(0.8, 1.6)
+		if attack_kind == "ranged":
+			_shoot()
+			_attack_cd = randf_range(1.6, 2.6)
+		else:
+			_strike()
+			_attack_cd = randf_range(0.8, 1.6)
 		_set_state(State.RECOVER)
 
 
@@ -165,6 +186,22 @@ func _strike() -> void:
 	var fwd := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
 	if to.length() <= attack_range + 0.6 and fwd.angle_to(to.normalized()) < deg_to_rad(70.0):
 		_player.take_hit(attack_damage, to.normalized() * 8.0, self)
+
+
+func _shoot() -> void:
+	if not is_instance_valid(_player):
+		return
+	_play("Spellcast_Shoot", 0.05, 1.5, true)
+	var origin := global_position + Vector3.UP * 1.0
+	var aim := _player.global_position + Vector3.UP * 1.0 - origin
+	aim.y = 0.0
+	var p := PROJECTILE.new()
+	p.direction = aim.normalized()
+	p.speed = projectile_speed
+	p.damage = attack_damage
+	p.source = self
+	get_parent().add_child(p)
+	p.global_position = origin + p.direction * 0.8
 
 
 ## Stunned and open (e.g. after the player perfect-dodges this enemy's attack).
@@ -264,13 +301,15 @@ func _squash(amount: Vector3) -> void:
 func _build_telegraph() -> void:
 	_telegraph = MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	mesh.top_radius = attack_range + 0.3
-	mesh.bottom_radius = attack_range + 0.3
+	# Melee rings show the reach; casters get a small ring at their feet.
+	var r := 1.1 if attack_kind == "ranged" else attack_range + 0.3
+	mesh.top_radius = r
+	mesh.bottom_radius = r
 	mesh.height = 0.02
 	_telegraph_mat = StandardMaterial3D.new()
 	_telegraph_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_telegraph_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_telegraph_mat.albedo_color = Color(1.0, 0.15, 0.1, 0.3)
+	_telegraph_mat.albedo_color = Color(0.7, 0.3, 1.0, 0.3) if attack_kind == "ranged" else Color(1.0, 0.15, 0.1, 0.3)
 	mesh.material = _telegraph_mat
 	_telegraph.mesh = mesh
 	_telegraph.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

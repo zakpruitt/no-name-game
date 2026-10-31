@@ -384,6 +384,10 @@ func _do_hit() -> void:
 		Game.shake(_move.shake)
 
 
+func is_invulnerable() -> bool:
+	return _invuln_t > 0.0
+
+
 func is_dead() -> bool:
 	return state == State.DEAD
 
