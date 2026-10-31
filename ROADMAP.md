@@ -121,7 +121,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Death recap for hazards: "Slain by" names the bone cage / spike line / volatile burst instead of the Warden or a generic foe — `player.take_hit(..., cause)`; reads "the Bone Warden's cage", "the Bone Warden's bone spikes", "a skeleton warrior's dying burst" (volatile), "a bomber's blast"; spike traps already said "a spike trap"
 
 ## Round 14
-- [ ] Recent runs focus: keyboard/gamepad can move from the title buttons into the RECENT RUNS lines (explicit focus neighbours), checked by a menu_check step
+- [x] Recent runs focus: keyboard/gamepad can move from the title buttons into the RECENT RUNS lines (explicit focus neighbours), checked by a menu_check step — title buttons' `focus_neighbor_right` → first recent line, lines' left → Start run; menu_check builds a sample line and prints `recent focus=true` after ui_right (left not separately checked)
 - [ ] New power "Shatter" [H finisher]: a heavy that kills a foe bursts it into bone shards that hit nearby enemies (per-level damage/radius in `Upgrades.ALL`, Tremor-free so it opens a new build)
 - [ ] Reduce flashing setting: a Settings toggle that tones down full-screen flashes and hit flashes (saved like the other settings)
 - [ ] Elite pacing check: autotest prints room clear time; compare Splitting/Volatile/Armored rooms against a plain fight over a few seeds and note the numbers in ROADMAP

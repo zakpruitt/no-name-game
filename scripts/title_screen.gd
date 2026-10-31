@@ -66,6 +66,13 @@ func build_recent(runs: Array) -> void:
 		b.disabled = run.seed < 0
 		b.pressed.connect(_replay.bind(run))
 		list.add_child(b)
+	# Right from any menu button jumps into the list; left comes back.
+	var lines := list.get_children().filter(func(n: Node) -> bool: return n is Button and not n.disabled)
+	if not lines.is_empty():
+		for menu_b in _buttons:
+			menu_b.focus_neighbor_right = lines[0].get_path()
+		for line: Button in lines:
+			line.focus_neighbor_left = _buttons[0].get_path()
 	var hint := _label(list, "Pick a run to replay its seed", 14, Color(1, 1, 1, 0.45))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 

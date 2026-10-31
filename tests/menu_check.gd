@@ -16,6 +16,17 @@ func _initialize() -> void:
 	await create_timer(0.3).timeout
 	_save("user://menu_altar.png")
 	title_menu.open()
+	# RECENT RUNS (sample lines, nothing saved): right arrow moves focus into it.
+	title_menu.build_recent([{"victory": false, "room": 4, "rank": "B", "seed": 7, "daily": ""}])
+	await create_timer(0.2).timeout
+	var right := InputEventAction.new()
+	right.action = "ui_right"
+	right.pressed = true
+	Input.parse_input_event(right)
+	await create_timer(0.1).timeout
+	var focused := get_root().gui_get_focus_owner()
+	print("recent focus=", focused is Button and focused.flat)
+	title_menu.open()
 	await create_timer(0.2).timeout
 	var title: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
 	title._start()
