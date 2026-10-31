@@ -7,7 +7,7 @@ extends Node3D
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
 ## `--max-upgrades` gives them all at MAX_LEVEL), `--upgrades=id,id` for just
-## those, `--start-room=N` to begin at a later room, `--boss-enraged` to start
+## those, `--low-hp` to start at 15% HP (low-HP vignette → autotest_lowhp.png), `--start-room=N` to begin at a later room, `--boss-enraged` to start
 ## the boss at half HP (enraged; it uses the spike line), `--start-rest` to
 ## make it a rest (camp) room with some bones, and `--start-awakened` to begin
 ## with a full Awakening meter.
@@ -226,6 +226,10 @@ func _ready() -> void:
 			for i in Upgrades.MAX_LEVEL if max_upgrades else 1:
 				player.add_upgrade(u.id)
 		hud.set_upgrades(player.upgrades)
+	if "--low-hp" in OS.get_cmdline_user_args():
+		player.hp = player.max_hp * 0.15
+		player.health_changed.emit(player.hp, player.max_hp)
+		get_tree().create_timer(2.5).timeout.connect(_snap.bind("user://autotest_lowhp.png"))
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--upgrades="):
 			for id in arg.get_slice("=", 1).split(","):

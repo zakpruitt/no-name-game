@@ -125,6 +125,9 @@ def main():
     save("spawn", mix(gain(crack(0.5, 10, 0.2, 0.05), 0.8), rattle(0.5, 11, 6)), 0.5)
     save("wave_clear", chime(0.8, [660, 990], 0.3, 0.12), 0.5)
     save("pickup", chime(0.18, [1320, 1980], 0.05, 0.03), 0.4)
+    # Low-HP heartbeat: "lub" then a softer "dub".
+    save("heartbeat", mix(thump(0.22, 70, 45, 0.06),
+                          [0.0] * int(0.17 * RATE) + gain(thump(0.2, 60, 40, 0.05), 0.7)), 0.7)
     print("wrote", sorted(os.listdir(OUT)))
 
 

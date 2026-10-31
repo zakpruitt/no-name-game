@@ -1,8 +1,19 @@
 extends CanvasLayer
-## Health, Awakening meter, combo counter with style rank, room banner, boss bar.
+## Health, Awakening meter, combo counter with style rank, room banner, boss bar,
+## and a red edge vignette + heartbeat when HP runs low.
 
 const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B": Color(0.4, 1.0, 0.5),
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
+const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
+const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
+const VIGNETTE_SHADER := """
+shader_type canvas_item;
+uniform float strength = 0.0;
+void fragment() {
+	float d = length((UV - 0.5) * vec2(1.5, 1.0));
+	COLOR = vec4(0.7, 0.0, 0.04, smoothstep(0.5, 1.0, d) * strength);
+}
+"""
 
 var hp_bar: ProgressBar
 var awaken_bar: ProgressBar
@@ -23,6 +34,11 @@ var boss_bar: ProgressBar
 var boss_break_bar: ProgressBar
 var boss_name: Label
 var _boss: Node
+var _vignette_mat: ShaderMaterial
+var _hp_ratio := 1.0
+var _beat_t := 0.0
+var _pulse := 0.0
+var _vignette := 0.0
 
 
 func _ready() -> void:
@@ -30,6 +46,15 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	var vignette := ColorRect.new()
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shader := Shader.new()
+	shader.code = VIGNETTE_SHADER
+	_vignette_mat = ShaderMaterial.new()
+	_vignette_mat.shader = shader
+	vignette.material = _vignette_mat
+	root.add_child(vignette)
 	root.add_child(preload("res://scripts/threat_arrows.gd").new())
 
 	hp_bar = _bar(root, Vector2(32, 28), Vector2(360, 22), Color(0.9, 0.25, 0.25))
@@ -115,7 +140,8 @@ func _ready() -> void:
 func bind_player(p: Node) -> void:
 	p.health_changed.connect(func(hp: float, mx: float) -> void:
 		hp_bar.max_value = mx
-		hp_bar.value = hp)
+		hp_bar.value = hp
+		_hp_ratio = hp / mx)
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
 
@@ -128,7 +154,8 @@ func show_boss(boss: Node) -> void:
 	boss_root.visible = true
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_update_low_hp(delta)
 	if not boss_root.visible:
 		return
 	if not is_instance_valid(_boss) or _boss.hp <= 0.0:
@@ -139,12 +166,12 @@ func _process(_delta: float) -> void:
 	boss_name.add_theme_color_override("font_color", Color(1.0, 0.35, 0.25) if _boss.is_enraged else Color(1.0, 0.85, 0.7))
 
 
-## `owned` maps upgrade id -> level.
 ## Enemies still to beat this room (alive + waiting to spawn); 0 hides it.
 func set_remaining(count: int) -> void:
 	wave_label.text = _room_text + ("   ·   %d LEFT" % count if count > 0 else "")
 
 
+## `owned` maps upgrade id -> level.
 func set_upgrades(owned: Dictionary) -> void:
 	var lines: Array[String] = []
 	for id in owned:
@@ -162,6 +189,23 @@ func set_room(n: int, total: int, kind: String) -> void:
 		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
+
+
+## Below LOW_HP: the vignette fades in and throbs with a heartbeat that
+## quickens as HP drops; it fades back out once healed.
+func _update_low_hp(delta: float) -> void:
+	var low := _hp_ratio > 0.0 and _hp_ratio < LOW_HP
+	if low:
+		_beat_t -= delta
+		if _beat_t <= 0.0:
+			_beat_t = HEARTBEAT * lerpf(0.6, 1.0, _hp_ratio / LOW_HP)
+			_pulse = 1.0
+			Game.sfx("heartbeat", -3.0, 0.0)
+	else:
+		_beat_t = 0.0
+	_pulse = move_toward(_pulse, 0.0, delta * 2.5)
+	_vignette = move_toward(_vignette, 0.5 if low else 0.0, delta * 1.5)
+	_vignette_mat.set_shader_parameter("strength", _vignette * (1.0 + 0.7 * _pulse))
 
 
 ## Tutorial tip above the controls line: fades in, holds, fades out.
