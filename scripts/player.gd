@@ -37,6 +37,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 # anim_speed keeps everything in sync.
 #   hits: when damage is dealt   cancel: when the next input is accepted
 #   end: when control returns    lunge: forward burst speed at start
+#   width: (optional) hits a straight strip `range` long and 2x`width` wide
+#          instead of the `arc` cone
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -55,6 +57,11 @@ const MOVES := {
 	"LH": {"anim": "2H_Melee_Attack_Chop", "damage": 14.0, "range": 2.6, "arc": 120.0,
 		"hits": [0.4], "cancel": 0.55, "end": 0.8, "lunge": 6.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true},
+	# Heavy right after L2 (L L H): Ground Breaker, a lunging thrust that
+	# knocks down everything in a strip ahead (launch > 0 also breaks guards).
+	"LLH": {"anim": "2H_Melee_Attack_Stab", "damage": 18.0, "range": 5.0, "width": 1.1, "arc": 360.0,
+		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 8.0, "knockback": 12.0, "launch": 4.0,
+		"stop": 0.1, "shake": 0.4, "big": true},
 	# Charged heavy: hold heavy from neutral for CHARGE_TIME, then release.
 	# Big launching slam; breaks shield guards (launch > 0).
 	"CH": {"anim": "2H_Melee_Attack_Chop", "damage": 30.0, "range": 3.4, "arc": 160.0,
@@ -108,6 +115,7 @@ var _charged := false
 var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
+var ground_breakers := 0  # reported by the autotest
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
 var _awaken_light: OmniLight3D
@@ -373,6 +381,8 @@ func _next_move(kind: String) -> String:
 	# Heavy: Awakened finisher off L3, launcher if mid-string, spin from neutral.
 	if awakened and state == State.ATTACK and _move_id == "L3":
 		return "AF"
+	if (state == State.ATTACK and _move_id == "L2") or (state != State.ATTACK and _chain_i == 2):
+		return "LLH"
 	if (state == State.ATTACK and _move_id != "H") or _chain_i > 0:
 		return "LH"
 	return "H"
@@ -394,7 +404,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "AF", "CH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 
 
@@ -452,7 +462,10 @@ func _do_hit() -> void:
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		var d := to.length()
-		if d > _move.range + e.radius:
+		if _move.has("width"):
+			if not _in_strip(to, fwd, _move.range, _move.width, e.radius):
+				continue
+		elif d > _move.range + e.radius:
 			continue
 		if _move.arc < 360.0 and d > 0.4 and rad_to_deg(fwd.angle_to(to / d)) > _move.arc * 0.5:
 			continue
@@ -480,6 +493,11 @@ func _do_hit() -> void:
 			w.global_position = global_position + fwd * 1.0
 		if _move_id == "AF":
 			_cataclysm()
+		if _move_id == "LLH":
+			ground_breakers += 1
+			_crack_line(fwd, Color(0.85, 0.75, 0.6))
+			if has_upgrade("fault_line"):
+				_fault_line(global_position, fwd)
 		if _move_id == "CH":
 			charged_slams += 1
 			var at := global_position + fwd * 1.6
@@ -531,6 +549,37 @@ func _on_enemy_killed(_e: Node) -> void:
 	if has_upgrade("reaper") and state != State.DEAD:
 		heal(upg("reaper", "heal"), false)
 		Game.add_awakening(upg("reaper", "awaken"))
+
+
+## True if offset `to` (flat) lies in the strip `length` ahead along `fwd`.
+static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: float, pad: float) -> bool:
+	var ahead := to.dot(fwd)
+	var side := (to - fwd * ahead).length()
+	return ahead > -0.5 and ahead <= length + pad and side <= half_width + pad
+
+
+## Dust bursts along the Ground Breaker's strip.
+func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
+	var start := global_position if from == Vector3.INF else from
+	var length: float = MOVES.LLH.range
+	for i in 5:
+		var at := start + fwd * (1.0 + i * (length - 1.0) / 4.0)
+		Fx.dust(get_parent(), at, 6, 0.7)
+		Fx.burst(get_parent(), at + Vector3.UP * 0.1, color, 5, 4.0, 0.08, 0.25, Vector3.UP, 40.0)
+
+
+## Fault Line: the strip erupts again a moment later, launching what's on it.
+func _fault_line(origin: Vector3, fwd: Vector3) -> void:
+	await get_tree().create_timer(upg("fault_line", "delay"), false).timeout
+	_crack_line(fwd, Color(1.0, 0.55, 0.2), origin)
+	Game.shake(0.3)
+	Game.sfx("hit_big", -6.0, 0.1)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - origin
+		to.y = 0.0
+		if e.is_alive() and _in_strip(to, fwd, MOVES.LLH.range, MOVES.LLH.width, e.radius):
+			e.take_hit(upg("fault_line", "damage"), fwd * 3.0, 7.0, true)
+			Game.register_hit("fault_line")
 
 
 ## Quake: a shockwave out from the charged slam's impact.

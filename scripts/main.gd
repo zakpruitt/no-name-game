@@ -180,6 +180,7 @@ var _hint_shot_taken := false
 var _necro_shot_taken := false
 var _spikes_shot_taken := false
 var _bomb_shot_taken := false
+var _breaker_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -763,6 +764,9 @@ func _process(delta: float) -> void:
 	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
 		_snap("user://autotest_%d.png" % _shots_taken)
 		_shots_taken += 1
+	if player.ground_breakers > 0 and not _breaker_shot_taken:
+		_breaker_shot_taken = true
+		get_tree().create_timer(0.12).timeout.connect(_snap.bind("user://autotest_breaker.png"))
 	if ENEMY.blasts > 0 and not _bomb_shot_taken:
 		_bomb_shot_taken = true
 		_snap("user://autotest_bomb.png")
@@ -849,9 +853,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d raises=%d blasts=%d music=%.2f upgrades=%s" % [
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	# Exercise the summary screen too.
@@ -953,10 +957,10 @@ func _drive_bot() -> void:
 		_bot_next_charge = _autotest_t + 7.0
 		return
 	if nd < 3.0:
-		# Cycle through routes: L L L, L H (launch) L L, H spin.
+		# Cycle through routes: L H (launch), L L H (ground breaker), L L L.
 		var step := (f / 9) % 8
 		# While Awakened: L L L H to land the Cataclysm finisher.
-		var heavy: bool = (player._move_id == "L3" and player.state == player.State.ATTACK) if player.awakened 			else (step in [1, 7])
+		var heavy: bool = (player._move_id == "L3" and player.state == player.State.ATTACK) if player.awakened 			else (step in [1, 4])
 		if f % 9 == 0:
 			Input.action_press("attack_heavy" if heavy else "attack_light")
 	elif nd < 7.0 and f % 40 == 0:

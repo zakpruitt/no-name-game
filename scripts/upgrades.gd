@@ -1,6 +1,7 @@
 class_name Upgrades
 ## Combo-slot upgrades: each one hooks a specific move in the hero's string
-## (L1/L2/L3 light chain, H spin, LH launcher, DL dash stab, Charged slam) or
+## (L1/L2/L3 light chain, H spin, LH launcher, LLH ground breaker, DL dash
+## stab, Charged slam) or
 ## a mechanic (Dash, Air, Awaken, Perfect dodge, Death, Kill).
 ## Pure data here; the effects live in player.gd (search for the id).
 ##
@@ -56,6 +57,9 @@ const ALL := [
 	{"id": "reaper", "name": "Reaper", "slot": "Kill",
 		"desc": "Each kill heals {heal} HP and grants {awaken} Awakening.",
 		"lv": {"heal": [3, 5, 7], "awaken": [4, 6, 8]}},
+	{"id": "fault_line", "name": "Fault Line", "slot": "LLH",
+		"desc": "Your ground breaker leaves a fault line that erupts {delay}s later, launching everything on it ({damage} damage).",
+		"lv": {"damage": [14, 22, 32], "delay": [0.6, 0.5, 0.4]}},
 	{"id": "quake", "name": "Quake", "slot": "Charged",
 		"desc": "Your charged slam sends out a shockwave: {damage} damage and a launch to everyone within {radius}m.",
 		"lv": {"damage": [12, 18, 26], "radius": [5, 6, 7.5]}},
