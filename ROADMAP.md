@@ -64,7 +64,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 6
 - [x] Hints wait for menus: never show a hint behind the reward / camp / path screens (hold it until play resumes) — `hud._notification` hides the hint panel on NOTIFICATION_PAUSED and restores it on UNPAUSED; its fade tween pauses with the tree
-- [ ] Build view: the pause menu lists your powers with their levels and current descriptions
+- [x] Build view: the pause menu lists your powers with their levels and current descriptions — "YOUR BUILD" panel left of the pause buttons (`pause_menu._build_powers`); `menu_check` grants two powers so `menu_pause.png` shows it
 - [ ] Charged-slam powers: 2 new [Charged] upgrades (Quake: the slam sends out a shockwave ring; Bone Breaker: bonus damage to shields and elites)
 - [ ] Low-HP feedback: red edge vignette and a heartbeat below 25% HP
 - [ ] Bomber skeleton: walks up, lights a fuse (telegraph ring) and explodes — it hurts skeletons too, so lure it into crowds
