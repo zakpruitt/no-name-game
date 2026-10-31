@@ -113,3 +113,9 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Cage sound: a distinct grinding-bone sfx (gen_sfx) as the cage rises and closes, instead of reusing `hit_big` — `cage_rise` (bone rattle + low grind, 0.8s) when the walls burst up, `cage_shut` (clack + crunch) when it closes; gen_sfx output for existing sounds unchanged; not listened to yet
 - [x] Pause menu run info: show the run seed (and "daily run DATE") in the pause panel, so a run can be noted mid-way — footer reads "Room 1 / 8 · seed N" (plus "daily run DATE" on a daily run), `pause_menu._run_info()`
 - [x] Recent runs: the title screen lists the last 5 runs (room reached, result, seed) from `records.cfg` (disabled in tests) — "RECENT RUNS" panel right of the title menu (`records.recent_runs()`, `RECENT` = 5, saved under `[recent]` in records.cfg); lines read "Fell in room 6   rank A   seed N" or "Victory   rank S   daily DATE"; save/cap checked with a temp records.cfg, then deleted
+
+## Round 13
+- [ ] Bot cage escape: the autotest bot heads for the bone cage's gap (or dashes a wall) so `--boss-attack=cage` runs survive and exercise the escape path; print `cage_escapes=`
+- [ ] Replay a recent run: picking a line in the title's RECENT RUNS starts a new run on that seed
+- [ ] New elite twist "Splitting": slain foes split into two minions (once), shown on the door like the other twists
+- [ ] Death recap for hazards: "Slain by" names the bone cage / spike line / volatile burst instead of the Warden or a generic foe
