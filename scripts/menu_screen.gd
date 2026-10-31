@@ -7,6 +7,7 @@ var _root: Control
 var _buttons: Array[Button] = []
 ## Title font size; 0 picks 96 (with a subtitle, e.g. the game title) or 64.
 var title_size := 0
+var button_width := 340
 var _settings_back := Callable()  # reopens the caller's menu while Settings shows
 
 
@@ -97,7 +98,7 @@ func _build(title: String, subtitle: String, items: Array, footer: String, dim: 
 	for item in items:
 		var b := Button.new()
 		b.text = item[0]
-		b.custom_minimum_size = Vector2(340, 58)
+		b.custom_minimum_size = Vector2(button_width, 58)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		b.add_theme_font_size_override("font_size", 26)
 		b.add_theme_stylebox_override("normal", _style(Color(0.12, 0.1, 0.18), Color(0.4, 0.35, 0.55)))

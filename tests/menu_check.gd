@@ -1,6 +1,7 @@
 extends SceneTree
 ## Boots to the title screen, starts a run, opens the pause menu and its
-## Settings screen, and saves a frame of each. Run: godot --path . -s tests/menu_check.gd
+## Settings screen, then the door choice with an elite twist, and saves a
+## frame of each. Run: godot --path . -s tests/menu_check.gd
 
 func _initialize() -> void:
 	await process_frame
@@ -31,6 +32,13 @@ func _initialize() -> void:
 	Input.parse_input_event(ev)
 	await create_timer(0.3).timeout
 	print("back in pause menu=", pause.is_open() and not pause.in_settings())
+	# Door choice with an elite twist (the longest door text).
+	pause.close_menu()
+	var twist: Dictionary = main.ELITE_TWISTS.volatile
+	main.path_menu.open(["fight", "elite"], 4, twist.name, twist.desc)
+	await create_timer(0.3).timeout
+	_save("user://menu_path.png")
+	main.path_menu.close_menu()
 	get_root().get_node("Game").stop_all_sfx()
 	await create_timer(0.2).timeout
 	quit()

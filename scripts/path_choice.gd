@@ -14,15 +14,16 @@ const DOORS := {
 func _ready() -> void:
 	super()
 	title_size = 56
+	button_width = 440  # doors share a width, even with an elite twist line
 
 
-## `elite_note` (the rolled twist) replaces the elite door's first line.
-func open(kinds: Array, next_room: int, elite_note := "") -> void:
+## The rolled elite twist (`twist_name`, `twist_desc`) is shown on the elite door.
+func open(kinds: Array, next_room: int, twist_name := "", twist_desc := "") -> void:
 	var items: Array = []
 	for k in kinds:
 		var text: String = DOORS[k]
-		if k == "elite" and elite_note != "":
-			text = "Elite  ·  %s\n%s" % [elite_note, text.get_slice("\n", 1)]
+		if k == "elite" and twist_name != "":
+			text = "Elite  ·  %s\n%s, 2 powers" % [twist_name, twist_desc]
 		items.append([text, _pick.bind(k)])
 	show_menu("CHOOSE YOUR PATH", "room %d" % next_room, items, "", 0.6)
 

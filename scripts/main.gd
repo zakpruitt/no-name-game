@@ -362,7 +362,7 @@ func _choose_path() -> void:
 		room_kind = options[0]
 		return
 	var twist: String = ELITE_TWISTS.keys().pick_random()
-	path_menu.open(options, room + 1, "%s: %s" % [ELITE_TWISTS[twist].name, ELITE_TWISTS[twist].desc])
+	path_menu.open(options, room + 1, ELITE_TWISTS[twist].name, ELITE_TWISTS[twist].desc)
 	if _autotest:
 		_autotest_path()
 	room_kind = await path_menu.chosen
