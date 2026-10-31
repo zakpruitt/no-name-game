@@ -385,6 +385,7 @@ func _set_telegraph(r: float, color: Color) -> void:
 	var mesh := _telegraph.mesh as CylinderMesh
 	mesh.top_radius = r
 	mesh.bottom_radius = r
+	fit_edge(r)
 	_telegraph_mat.albedo_color = color
 
 

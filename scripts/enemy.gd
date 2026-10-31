@@ -107,6 +107,9 @@ var _state_t := 0.0
 var _player: Node3D
 var _telegraph: MeshInstance3D
 var _telegraph_mat: StandardMaterial3D
+var _edge: MeshInstance3D  # bright pulsing rim + dark outline on the telegraph ring
+var _edge_mat: StandardMaterial3D
+var _edge_t := 0.0
 var _attack_cd := 0.0
 var _freeze_t := 0.0
 var _frozen_speed := -1.0
@@ -190,6 +193,8 @@ func is_airborne() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if _telegraph.visible:
+		_pulse_edge(delta)
 	# Hit freeze: hold the pose and shudder; knockback starts once it ends.
 	if _freeze_t > 0.0:
 		_freeze_t -= delta
@@ -716,6 +721,60 @@ func _build_elite_aura() -> void:
 	add_child(light)
 
 
+## Telegraph rims: a dark outline and a light, pulsing edge on every attack
+## ring, so the reach reads on bright tiles and doesn't rely on colour alone.
+## The pulse quickens as the windup runs out. Tune EDGE_*.
+const EDGE_WIDTH := 0.16  # m, light rim inside the ring's edge
+const EDGE_OUTLINE := 0.07  # m, dark outline just outside it
+const EDGE_PULSE_HZ := Vector2(3.0, 9.0)  # pulses/s at windup start, end
+
+
+func _build_edge(r: float) -> void:
+	_edge = MeshInstance3D.new()
+	var rim := TorusMesh.new()
+	rim.rings = 48
+	rim.ring_segments = 4
+	_edge_mat = StandardMaterial3D.new()
+	_edge_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_edge_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rim.material = _edge_mat
+	_edge.mesh = rim
+	var outline := MeshInstance3D.new()
+	var dark := TorusMesh.new()
+	dark.rings = 48
+	dark.ring_segments = 4
+	var dark_mat := StandardMaterial3D.new()
+	dark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dark_mat.albedo_color = Color(0.05, 0.02, 0.05, 0.8)
+	dark.material = dark_mat
+	outline.mesh = dark
+	_edge.add_child(outline)
+	for mi: MeshInstance3D in [_edge, outline]:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_telegraph.add_child(_edge)
+	fit_edge(r)
+
+
+## Match the rim to a ring of radius r (boss.gd resizes its telegraph).
+func fit_edge(r: float) -> void:
+	var rim := _edge.mesh as TorusMesh
+	rim.inner_radius = r - EDGE_WIDTH
+	rim.outer_radius = r
+	var dark := (_edge.get_child(0) as MeshInstance3D).mesh as TorusMesh
+	dark.inner_radius = r
+	dark.outer_radius = r + EDGE_OUTLINE
+	_edge.scale = Vector3(1.0, 0.3, 1.0)
+
+
+func _pulse_edge(delta: float) -> void:
+	var k := clampf(_state_t / maxf(attack_windup, 0.01), 0.0, 1.0) if state == State.WINDUP else 1.0
+	_edge_t += delta * lerpf(EDGE_PULSE_HZ.x, EDGE_PULSE_HZ.y, k)
+	var pulse := 0.5 + 0.5 * sin(_edge_t * TAU)
+	var c := _telegraph_mat.albedo_color
+	_edge_mat.albedo_color = Color(c.lerp(Color.WHITE, 0.7), lerpf(0.4, 1.0, pulse) * minf(c.a * 2.2, 1.0))
+
+
 func _build_telegraph() -> void:
 	_telegraph = MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
@@ -738,6 +797,7 @@ func _build_telegraph() -> void:
 	_telegraph.position.y = 0.08
 	_telegraph.visible = false
 	add_child(_telegraph)
+	_build_edge(r)
 	if attack_kind == "line":
 		_telegraph_mat.albedo_color = Color(LINE_COLOR, 0.3)
 		# Long strip along the shot (pivot at the archer; rotated in _track_aim).
