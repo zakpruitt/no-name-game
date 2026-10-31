@@ -85,3 +85,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Combo-routes hint: after the first launcher, teach L L H (ground breaker) — `breaker` hint once a launch has juggled and no Ground Breaker has been used yet; the autotest line now lists `hints=` shown
 - [x] Perf: cut outline draw calls (~1.3k) and re-measure with the `[perf]` line — the shadow pass was the bigger cost: 2 cascades instead of 4 and no shadow casting from floor tiles took room 6 from ~916 to ~525 draw calls (room 1: ~630 → 437); frame time was already ~5.5ms avg with no spikes, so outlines stay as they are
 - [x] Shrine room: a new door type with a trade (lose HP for a power, or bones for a full heal) for more route choices — `shrine` door from room 3 (never right after a rest or shrine); trades live in `main.SHRINE`, menu in `shrine.gd`; `--start-shrine` → `autotest_shrine.png`
+
+## Round 9
+- [ ] Shrine in the world: a glowing shrine prop in the shrine room (KayKit piece + light) so it isn't just a menu over an empty arena
+- [ ] Health bars vs top HUD: keep enemy bars clear of the HP/room bars when juggled elites fly high (clamp below the HUD band)
+- [ ] Enemy variety pass: a second elite-only twist trait per late room (rooms 6–7 roll two twists) for late-run spice
+- [ ] Power synergy tags: upgrades with a shared tag (fire, bone, quake) offer a small bonus when you own two, shown in the pause build view
+- [ ] Autotest coverage: `--start-room=N --start-shrine`-style coverage for every room kind in one scripted run (fight → rest → shrine → elite → boss) printing a pass/fail line
