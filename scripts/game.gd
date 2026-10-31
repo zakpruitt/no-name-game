@@ -10,6 +10,7 @@ signal announced(text: String)
 signal air_combo_changed(count: int)
 ## Any enemy died (for on-kill upgrades).
 signal enemy_killed(enemy: Node)
+signal hint_shown(text: String)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
@@ -40,6 +41,15 @@ const MUSIC_LEVELS := [1.0, 0.5, 0.0]
 const MUSIC_RANK_LEVEL := {"D": 0.0, "C": 0.45, "B": 0.6, "A": 0.75, "S": 0.85, "SS": 0.95, "SSS": 1.0}
 const MUSIC_FADE_IN := 1.2  # combat layer level change per second
 const MUSIC_FADE_OUT := 0.25
+# First-run hints: main.gd decides when each applies; each shows once, then
+# is saved as seen (Reset hints in the pause menu brings them back).
+const HINTS := {
+	"attack": "Light [J / LMB] and heavy [K / RMB] chain into combos.\nMixing different moves raises your style rank.",
+	"dash": "Dash [Space] through attacks.\nDash just before a hit lands for a PERFECT dodge.",
+	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
+	"shield": "Shields block hits from the front.\nHit from behind, or hold heavy to charge a guard-breaking slam.",
+	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
+}
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
@@ -54,6 +64,8 @@ var skip_title := false
 ## Multiplier on all screen shake (accessibility / taste).
 var shake_scale := 1.0
 var music_scale := 1.0
+var save_hints := true  # off in the autotest so it doesn't use up real hints
+var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
 var _combo_timer := 0.0
@@ -199,6 +211,25 @@ func music_label() -> String:
 	return "Music: %d%%" % roundi(music_scale * 100.0)
 
 
+func hint_seen(id: String) -> bool:
+	return id in _hints_seen
+
+
+## Show hint `id` (see HINTS) unless it has been seen before.
+func hint(id: String) -> void:
+	if hint_seen(id):
+		return
+	_hints_seen.append(id)
+	if save_hints:
+		_save_settings()
+	hint_shown.emit(HINTS[id])
+
+
+func reset_hints() -> void:
+	_hints_seen.clear()
+	_save_settings()
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -215,12 +246,14 @@ func _load_settings() -> void:
 	if cfg.load(SETTINGS_PATH) == OK:
 		shake_scale = cfg.get_value("video", "shake_scale", 1.0)
 		music_scale = cfg.get_value("audio", "music_scale", 1.0)
+		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
 func _save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("video", "shake_scale", shake_scale)
 	cfg.set_value("audio", "music_scale", music_scale)
+	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 
 

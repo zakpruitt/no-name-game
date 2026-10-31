@@ -113,6 +113,8 @@ var _between_rooms := false
 var _run_over := false
 # Run stats for the summary screen.
 var _run_time := 0.0
+var _hint_gap := 0.0  # seconds before another hint may show
+const HINT_GAP := 7.0
 var _kills := 0
 var _max_combo := 0
 var _best_rank := "D"
@@ -126,6 +128,7 @@ var _autotest_t := 0.0
 var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
 var _bot_next_charge := 3.0
 var _charge_shot_taken := false
+var _hint_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -146,6 +149,9 @@ var _hits := 0
 func _ready() -> void:
 	Game.reset()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
+	if _autotest:
+		Game.save_hints = false
+		Game._hints_seen.clear()  # show them all, without touching the saved ones
 	_build_environment()
 	_build_arena()
 	for spec in ENEMY_TYPES.values() + [BOSS_SPEC]:
@@ -575,6 +581,7 @@ func _process(delta: float) -> void:
 	_fade_occluders(delta)
 	if not _run_over and not player.is_dead():
 		_run_time += delta
+		_check_hints(delta)
 	if not _autotest:
 		return
 	_autotest_t += delta
@@ -611,6 +618,35 @@ func _process(delta: float) -> void:
 
 ## Print stats, show the summary screen, screenshot it and quit. Also runs
 ## when the run ends on its own (the summary pauses _process).
+## First-run hints (Game.HINTS), each when it first becomes relevant.
+func _check_hints(delta: float) -> void:
+	_hint_gap -= delta
+	if _hint_gap > 0.0 or _between_rooms:
+		return
+	var id := ""
+	if not Game.hint_seen("attack"):
+		if _run_time > 1.5:
+			id = "attack"  # always first
+	elif not Game.hint_seen("awaken") and Game.awakening >= Game.AWAKEN_MAX and not player.awakened:
+		id = "awaken"
+	elif not Game.hint_seen("shield") and ENEMY.blocks > 0:
+		id = "shield"
+	elif not Game.hint_seen("launch") and Game.combo_count >= 4:
+		id = "launch"
+	elif not Game.hint_seen("dash"):
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.state == e.State.WINDUP and e.global_position.distance_to(player.global_position) < e.attack_range + 2.0:
+				id = "dash"
+				break
+	if id != "":
+		Game.hint(id)
+		_hint_gap = HINT_GAP
+		if _autotest and not _hint_shot_taken:
+			_hint_shot_taken = true
+			await get_tree().create_timer(0.5).timeout
+			_snap("user://autotest_hint.png")
+
+
 func _sample_perf() -> void:
 	var now := Time.get_ticks_usec()
 	var frame := Engine.get_process_frames()

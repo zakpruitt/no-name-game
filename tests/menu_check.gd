@@ -4,6 +4,7 @@ extends SceneTree
 
 func _initialize() -> void:
 	await process_frame
+	get_root().get_node("Game").save_hints = false  # don't use up the player's first-run hints
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.6).timeout

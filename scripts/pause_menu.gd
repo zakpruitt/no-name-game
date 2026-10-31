@@ -20,6 +20,7 @@ func _open(focus := 0) -> void:
 		["Resume", close_menu],
 		[Game.shake_label(), _cycle_shake],
 		[Game.music_label(), _cycle_music],
+		["Reset hints", _reset_hints],
 		["Restart run", _restart.bind(true)],
 		["Quit to title", _restart.bind(false)],
 		["Quit game", _quit],
@@ -34,6 +35,11 @@ func _cycle_shake() -> void:
 func _cycle_music() -> void:
 	Game.cycle_music()
 	_open(2)
+
+
+func _reset_hints() -> void:
+	Game.reset_hints()
+	_open(3)
 
 
 func _restart(skip_title: bool) -> void:

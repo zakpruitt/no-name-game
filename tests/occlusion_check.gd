@@ -3,6 +3,7 @@ extends SceneTree
 ## pillar fades. Run: godot --path . -s tests/occlusion_check.gd
 
 func _initialize() -> void:
+	get_root().get_node("Game").save_hints = false  # don't use up the player's first-run hints
 	await process_frame
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)

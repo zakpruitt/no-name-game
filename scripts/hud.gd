@@ -14,6 +14,8 @@ var wave_label: Label
 var center_label: Label
 var upgrades_label: Label
 var _room_text := ""
+var hint_label: Label
+var _hint_tween: Tween
 var boss_root: Control
 var boss_bar: ProgressBar
 var boss_break_bar: ProgressBar
@@ -64,6 +66,13 @@ func _ready() -> void:
 	_anchor(upgrades_label, 1.0, 1.0, Rect2(-420, -440, 396, 416))
 	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+
+	hint_label = _label(root, "", 22, Color(1.0, 0.92, 0.75))
+	_anchor(hint_label, 0.5, 1.0, Rect2(-480, -190, 960, 80))
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	hint_label.modulate.a = 0.0
+	Game.hint_shown.connect(show_hint)
 
 	# Boss bar: top center, hidden until a boss spawns.
 	boss_root = Control.new()
@@ -133,6 +142,17 @@ func set_room(n: int, total: int, kind: String) -> void:
 		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
+
+
+## Tutorial tip above the controls line: fades in, holds, fades out.
+func show_hint(text: String, hold := 5.0) -> void:
+	hint_label.text = text
+	if _hint_tween:
+		_hint_tween.kill()
+	_hint_tween = create_tween()
+	_hint_tween.tween_property(hint_label, "modulate:a", 1.0, 0.25)
+	_hint_tween.tween_interval(hold)
+	_hint_tween.tween_property(hint_label, "modulate:a", 0.0, 0.6)
 
 
 func flash_message(text: String, duration := 0.0) -> void:
