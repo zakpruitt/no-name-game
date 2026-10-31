@@ -6,6 +6,7 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
+const POWER_LINES := 14  # powers listed at full size before the list shrinks
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
 uniform float strength = 0.0;
@@ -179,6 +180,8 @@ func set_upgrades(owned: Dictionary) -> void:
 		var u := Upgrades.get_by_id(id)
 		lines.append("%s%s  [%s]" % [u.name, Upgrades.level_tag(owned[id]), u.slot])
 	upgrades_label.text = "\n".join(lines)
+	# Long builds shrink so the list stays inside its box above the screen edge.
+	upgrades_label.add_theme_font_size_override("font_size", 16 if lines.size() <= POWER_LINES else 13)
 
 
 ## `twist`: the elite room's twist name ("" for none).

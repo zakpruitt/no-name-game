@@ -15,6 +15,8 @@ const BACK_COLOR := Color(0.05, 0.03, 0.08, 0.8)
 ## Bars never go above this (the HP / room band at the top of the HUD), so
 ## enemies juggled off the top of the screen pin their bar just below it.
 const TOP_MARGIN := 96.0
+## Likewise kept above the controls line along the bottom edge.
+const BOTTOM_MARGIN := 48.0
 
 var _trail := {}  # enemy instance id -> trailing hp fraction
 
@@ -52,7 +54,7 @@ func _draw() -> void:
 			continue
 		var at := cam.unproject_position(head) - Vector2(SIZE.x * 0.5, 0.0)
 		at.x = clampf(at.x, 4.0, screen.x - SIZE.x - 4.0)
-		at.y = clampf(at.y, TOP_MARGIN, screen.y - SIZE.y - 4.0)
+		at.y = clampf(at.y, TOP_MARGIN, screen.y - BOTTOM_MARGIN - SIZE.y)
 		var ratio: float = clampf(e.hp / e.max_hp, 0.0, 1.0)
 		var trail: float = maxf(_trail.get(e.get_instance_id(), ratio), ratio)
 		draw_rect(Rect2(at - Vector2.ONE, SIZE + Vector2.ONE * 2.0), Color(BACK_COLOR, BACK_COLOR.a * alpha))
