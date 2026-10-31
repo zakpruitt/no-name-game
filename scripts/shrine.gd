@@ -25,6 +25,7 @@ func open(shrine: Dictionary, hp: float, max_hp: float, bones: int) -> void:
 		if s.has("cost"):
 			text += "   (%d bones)" % s.cost
 			blocked = blocked or bones < s.cost or (id == "mend" and hp >= max_hp)
+		blocked = blocked or s.get("blocked", false)
 		items.append([text, _pick.bind(id), blocked])
 	items.append(["Walk on", _pick.bind("leave")])
 	show_menu("SHRINE", "it asks for a price   ·   %d / %d HP   ·   %d bones" % [ceili(hp), ceili(max_hp), bones],
@@ -35,6 +36,10 @@ func open(shrine: Dictionary, hp: float, max_hp: float, bones: int) -> void:
 func pick(index: int) -> void:
 	if is_open() and index >= 0 and index < _buttons.size() and not _buttons[index].disabled:
 		_buttons[index].pressed.emit()
+
+
+func is_disabled(index: int) -> bool:
+	return index < 0 or index >= _buttons.size() or _buttons[index].disabled
 
 
 func first_affordable() -> int:

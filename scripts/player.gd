@@ -536,6 +536,12 @@ func upg(id: String, key: String) -> float:
 	return Upgrades.value(id, key, upgrades.get(id, 1)) * Upgrades.boost(synergies, id, key)
 
 
+## Lose upgrade `id` entirely (shrine melt).
+func remove_upgrade(id: String) -> void:
+	upgrades.erase(id)
+	synergies = Upgrades.active_synergies(upgrades)
+
+
 ## Gain an upgrade, or level it up if it's already owned (up to MAX_LEVEL).
 func add_upgrade(id: String) -> void:
 	upgrades[id] = mini(upgrades.get(id, 0) + 1, Upgrades.MAX_LEVEL)

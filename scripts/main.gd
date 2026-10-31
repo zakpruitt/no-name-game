@@ -104,6 +104,13 @@ const SHRINE := {
 	"blood": {"text": "Blood pact: lose {hp} HP, gain a new power", "hp_frac": 0.3},
 	"mend": {"text": "Bone offering: heal to full", "cost": 15},
 }
+# Each shrine also offers one of these, picked per shrine.
+#   vow   the next room gets the `twist` (ELITE_TWISTS key); gain a new power
+#   melt  destroy one owned power (picked per shrine) for `bones` per level
+const SHRINE_ROTATING := {
+	"vow": {"text": "Dark vow: next room's foes are {twist}, gain a new power", "twist": "armored"},
+	"melt": {"text": "Melt down {power}: lose it, gain {bones} bones", "bones": 20},
+}
 const CAMP := {
 	"vigor": {"text": "Vigor: +15 max HP", "cost": 15, "max_hp": 15.0},
 	"power": {"text": "Seek a new power", "cost": 20},
@@ -176,6 +183,8 @@ var _tour := false
 var _tour_seen: Array[String] = []
 var _tour_room_t := 0.0
 var _won := false
+var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
+var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
 var shrine_menu: CanvasLayer
@@ -322,6 +331,8 @@ func _ready() -> void:
 		elif arg == "--start-rest":
 			room_kind = "rest"
 			Game.add_bones(30)
+		elif arg.begins_with("--shrine-trade="):
+			_shrine_trade = arg.get_slice("=", 1)
 		elif arg == "--tour":
 			_tour = true
 		elif arg == "--start-shrine":
@@ -349,6 +360,10 @@ func _next_room() -> void:
 		_tour_room_t = _autotest_t
 	_apply_layout(ROOM_LAYOUTS[room - 1])
 	_graves.clear()
+	if _vow_twist != "" and room_kind in ["fight", "elite", "boss"]:
+		if _vow_twist not in room_twists:
+			room_twists.append(_vow_twist)
+		_vow_twist = ""
 	hud.set_room(room, RUN_LENGTH, room_kind, _twist_text(room_twists, "name", " + "))
 	if room_kind == "boss":
 		_spawn_boss()
@@ -403,11 +418,40 @@ func _shrine() -> void:
 	if _autotest:
 		get_tree().create_timer(2.2).timeout.connect(_snap.bind("user://autotest_shrine_room.png"))
 	await get_tree().create_timer(2.3).timeout  # let the room title fade first
-	shrine_menu.open(SHRINE, player.hp, player.max_hp, Game.bones)
+	var trades := SHRINE.duplicate()
+	var rot: String = _shrine_trade if _shrine_trade != "" else SHRINE_ROTATING.keys()[run_rng.randi() % SHRINE_ROTATING.size()]
+	var trade: Dictionary = SHRINE_ROTATING[rot].duplicate()
+	var melted := ""
+	match rot:
+		"vow":
+			trade.text = trade.text.format({"twist": ELITE_TWISTS[trade.twist].name})
+		"melt":
+			var owned: Array = player.upgrades.keys()
+			if owned.is_empty():
+				trade.text = "Melt down a power (you have none)"
+				trade.blocked = true
+			else:
+				melted = owned[run_rng.randi() % owned.size()]
+				var level: int = player.upgrades[melted]
+				trade.text = trade.text.format({"power": Upgrades.get_by_id(melted).name + Upgrades.level_tag(level),
+					"bones": trade.bones * level})
+	trades[rot] = trade
+	shrine_menu.open(trades, player.hp, player.max_hp, Game.bones)
 	if _autotest:
-		_autotest_shrine()
+		_autotest_shrine(rot)
 	var choice: String = await shrine_menu.chosen
 	match choice:
+		"vow":
+			_vow_twist = trade.twist
+			Game.sfx("spawn", -2.0, 0.0)
+			Game.shake(0.3)
+			await _offer_reward()
+		"melt":
+			Game.add_bones(trade.bones * player.upgrades[melted])
+			player.remove_upgrade(melted)
+			hud.set_upgrades(player.upgrades)
+			Fx.burst(self, player.global_position + Vector3.UP, Color(1.0, 0.6, 0.2), 24, 5.0)
+			Game.sfx("pickup", -2.0, 0.0)
 		"blood":
 			player.hp -= ceili(player.max_hp * SHRINE.blood.hp_frac)
 			player.health_changed.emit(player.hp, player.max_hp)
@@ -1007,7 +1051,7 @@ func _autotest_finish() -> void:
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
 	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d bones=%d raises=%d blasts=%d music=%.2f hints=%s upgrades=%s" % [
-		run_seed, room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
+		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
@@ -1053,10 +1097,14 @@ func _autotest_camp(bought: int) -> void:
 		camp_menu.pick(CAMP.size())
 
 
-func _autotest_shrine() -> void:
+## Takes the forced --shrine-trade if there is one, else the first it can pay.
+func _autotest_shrine(rot: String) -> void:
 	await get_tree().create_timer(0.5).timeout
 	_snap("user://autotest_shrine.png")
-	shrine_menu.pick(shrine_menu.first_affordable())
+	var index: int = SHRINE.size() if _shrine_trade == rot else shrine_menu.first_affordable()
+	if shrine_menu.is_disabled(index):
+		index = shrine_menu.first_affordable()
+	shrine_menu.pick(index)
 
 
 func _autotest_path() -> void:
