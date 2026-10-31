@@ -1,10 +1,11 @@
 extends Node3D
-## Builds the arena, spawns the hero, camera and HUD, and runs enemy waves.
+## Builds the arena, spawns the hero, camera and HUD, and runs a roguelike
+## run: a fixed sequence of rooms (RUN_PLAN) ending in a boss, then a summary.
 ##
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects)
-## and `--start-wave=N` to begin at a later wave.
+## and `--start-room=N` to begin at a later room.
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
@@ -12,6 +13,7 @@ const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
 const REWARD := preload("res://scripts/reward_screen.gd")
 const BOSS := preload("res://scripts/boss.gd")
+const SUMMARY := preload("res://scripts/run_summary.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -25,21 +27,25 @@ const ENEMY_TYPES := {
 	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
 		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
 }
-# Boss: every BOSS_EVERY-th wave is the Bone Warden plus a small escort.
-# Attack timings live in boss.gd's ATTACKS table.
-const BOSS_EVERY := 5
+# A run is a fixed sequence of rooms; clearing one (except the boss) offers
+# an upgrade. Room n's difficulty is its position in the run.
+#   fight  regular enemy mix (wave_composition)
+#   elite  the same mix with several elites (elite_count)
+#   boss   the Bone Warden and a small escort; beating it wins the run
+const RUN_PLAN := ["fight", "fight", "fight", "elite", "fight", "fight", "elite", "boss"]
+# Boss stats (attack timings live in boss.gd's ATTACKS table).
 const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
 	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons"}
 const BOSS_ESCORT := {"minion": 2, "mage": 1}
 
-## How many of each type wave n spawns.
+## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
-	return {"minion": 3 + n, "warrior": n / 2, "mage": (n + 1) / 2, "rogue": n - 1}
+	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3}
 
 
-## How many of wave n's enemies are promoted to elites (never mages).
+## How many of an elite room's enemies are promoted to elites (never mages).
 static func elite_count(n: int) -> int:
-	return n / 2
+	return 2 + n / 4
 
 const TILE := 4.0
 const HALF_TILES := 4  # arena is (2 * HALF_TILES) tiles across
@@ -48,9 +54,16 @@ const ARENA_HALF := TILE * HALF_TILES
 var player: CharacterBody3D
 var hud: CanvasLayer
 var reward: CanvasLayer
-var wave := 0
+var summary: CanvasLayer
+var room := 0
 var _alive := 0
-var _between_waves := false
+var _between_rooms := false
+var _run_over := false
+# Run stats for the summary screen.
+var _run_time := 0.0
+var _kills := 0
+var _max_combo := 0
+var _best_rank := "D"
 # Tall props that fade out when they sit between the camera and the hero.
 var _occluders: Array[Node3D] = []
 
@@ -61,7 +74,6 @@ var _hit_shot_taken := false
 var _dash_shot_taken := false
 var _dash_shot_at := 0
 var _quitting := false
-var _max_combo := 0
 var _hits := 0
 
 
@@ -85,6 +97,9 @@ func _ready() -> void:
 
 	reward = REWARD.new()
 	add_child(reward)
+	summary = SUMMARY.new()
+	add_child(summary)
+	Game.combo_changed.connect(_track_combo)
 
 	if "--all-upgrades" in OS.get_cmdline_user_args():
 		for u in Upgrades.ALL:
@@ -94,7 +109,6 @@ func _ready() -> void:
 	if _autotest:
 		player.bot_enabled = true
 		Game.combo_changed.connect(func(c: int, _r: String) -> void:
-			_max_combo = maxi(_max_combo, c)
 			if c > 0: _hits += 1)
 		Game.announced.connect(func(_t: String) -> void:
 			if Game.perfect_dodges == 1:
@@ -102,31 +116,27 @@ func _ready() -> void:
 				_snap("user://autotest_perfect.png"))
 
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--start-wave="):
-			wave = maxi(arg.get_slice("=", 1).to_int() - 1, 0)
-	_next_wave()
+		if arg.begins_with("--start-room="):
+			room = clampi(arg.get_slice("=", 1).to_int() - 1, 0, RUN_PLAN.size() - 1)
+	_next_room()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("restart") and player.is_dead():
-		get_tree().reload_current_scene()
+# --- Rooms ------------------------------------------------------------------
 
-
-# --- Waves ------------------------------------------------------------------
-
-func _next_wave() -> void:
-	wave += 1
-	_between_waves = false
-	hud.set_wave(wave)
-	if is_boss_wave(wave):
+func _next_room() -> void:
+	room += 1
+	_between_rooms = false
+	var room_kind: String = RUN_PLAN[room - 1]
+	hud.set_room(room, RUN_PLAN.size(), room_kind)
+	if room_kind == "boss":
 		_spawn_boss()
 		return
-	var comp := wave_composition(wave)
+	var comp := wave_composition(room)
 	var kinds: Array[String] = []
 	for kind in comp:
 		for i in comp[kind]:
 			kinds.append(kind)
-	var elites := elite_count(wave)
+	var elites := elite_count(room) if room_kind == "elite" else 0
 	kinds.shuffle()
 	for kind in kinds:
 		var make_elite := elites > 0 and kind != "mage"
@@ -152,10 +162,6 @@ func _spawn(kind: String, elite := false) -> void:
 	e.global_position = Vector3(clampf(p.x, -lim, lim), 0.0, clampf(p.z, -lim, lim))
 	e.died.connect(_on_enemy_died)
 	_alive += 1
-
-
-static func is_boss_wave(n: int) -> bool:
-	return n % BOSS_EVERY == 0
 
 
 func _spawn_boss() -> void:
@@ -188,12 +194,16 @@ func _on_boss_died(_b: Node) -> void:
 
 func _on_enemy_died(_e: Node) -> void:
 	_alive -= 1
-	if _alive <= 0 and not _between_waves and not player.is_dead():
-		_between_waves = true
+	_kills += 1
+	if _alive <= 0 and not _between_rooms and not player.is_dead():
+		_between_rooms = true
 		hud.flash_message("CLEARED", 1.0)
 		Game.sfx("wave_clear", -2.0, 0.0)
 		await get_tree().create_timer(1.2).timeout
 		if player.is_dead():
+			return
+		if room >= RUN_PLAN.size():
+			_end_run(true)
 			return
 		var choices := Upgrades.roll(player.upgrades)
 		if not choices.is_empty():
@@ -207,11 +217,45 @@ func _on_enemy_died(_e: Node) -> void:
 			Game.sfx("perfect", -4.0, 0.0)
 		await get_tree().create_timer(1.0).timeout
 		if not player.is_dead():
-			_next_wave()
+			_next_room()
 
 
 func _on_player_died() -> void:
-	hud.flash_message("YOU FELL — WAVE %d\npress Enter to retry" % wave)
+	hud.flash_message("YOU FELL", 1.4)
+	await get_tree().create_timer(1.8).timeout
+	_end_run(false)
+
+
+func _track_combo(count: int, rank: String) -> void:
+	_max_combo = maxi(_max_combo, count)
+	if _rank_index(rank) < _rank_index(_best_rank):
+		_best_rank = rank
+
+
+## Position in Game.RANKS (0 = best).
+static func _rank_index(rank: String) -> int:
+	for i in Game.RANKS.size():
+		if Game.RANKS[i][0] == rank:
+			return i
+	return Game.RANKS.size()
+
+
+func _end_run(victory: bool) -> void:
+	if _run_over:
+		return
+	_run_over = true
+	var cleared := room if victory else room - 1
+	var stats := {
+		"Rooms cleared": "%d / %d" % [cleared, RUN_PLAN.size()],
+		"Time": "%d:%02d" % [int(_run_time) / 60, int(_run_time) % 60],
+		"Enemies slain": _kills,
+		"Best combo": _max_combo,
+		"Best style rank": _best_rank,
+		"Perfect dodges": Game.perfect_dodges,
+	}
+	summary.open(victory, stats, player.upgrades)
+	if _autotest:
+		_autotest_finish()
 
 
 # --- World ------------------------------------------------------------------
@@ -343,6 +387,8 @@ func _fade_occluders(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_fade_occluders(delta)
+	if not _run_over and not player.is_dead():
+		_run_time += delta
 	if not _autotest:
 		return
 	_autotest_t += delta
@@ -361,15 +407,27 @@ func _process(delta: float) -> void:
 	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
-	if _autotest_t >= 16.0 and not _quitting:
-		_quitting = true
-		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d dodges=%d upgrades=%s" % [
-			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges,
-			preload("res://scripts/projectile.gd").fired, ENEMY.dodges, player.upgrades])
-		Game.stop_all_sfx()
-		# Give the audio thread a moment to release playbacks, or they leak at exit.
-		await get_tree().create_timer(0.2, true, false, true).timeout
-		get_tree().quit()
+	if _autotest_t >= 16.0:
+		_autotest_finish()
+
+
+## Print stats, show the summary screen, screenshot it and quit. Also runs
+## when the run ends on its own (the summary pauses _process).
+func _autotest_finish() -> void:
+	if _quitting:
+		return
+	_quitting = true
+	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d dodges=%d upgrades=%s" % [
+		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges,
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, player.upgrades])
+	# Exercise the summary screen too.
+	_end_run(player.hp > 0.0)
+	await get_tree().create_timer(0.3, true, false, true).timeout
+	_snap("user://autotest_summary.png")
+	Game.stop_all_sfx()
+	# Give the audio thread a moment to release playbacks, or they leak at exit.
+	await get_tree().create_timer(0.2, true, false, true).timeout
+	get_tree().quit()
 
 
 func _autotest_pick() -> void:

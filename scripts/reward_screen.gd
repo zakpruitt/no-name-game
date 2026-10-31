@@ -1,5 +1,5 @@
 extends CanvasLayer
-## Between-wave reward: pause the game and pick 1 of 3 upgrade cards.
+## Between-room reward: pause the game and pick 1 of 3 upgrade cards.
 ## Mouse, keys 1-3, or arrows/D-pad + confirm.
 
 signal picked(id: String)

@@ -1,5 +1,5 @@
 extends CanvasLayer
-## Health, Awakening meter, combo counter with style rank, wave banner.
+## Health, Awakening meter, combo counter with style rank, room banner, boss bar.
 
 const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B": Color(0.4, 1.0, 0.5),
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
@@ -109,9 +109,12 @@ func set_upgrades(ids: Array) -> void:
 	upgrades_label.text = "\n".join(lines)
 
 
-func set_wave(n: int) -> void:
-	wave_label.text = "WAVE %d" % n
-	flash_message("WAVE %d" % n, 1.2)
+func set_room(n: int, total: int, kind: String) -> void:
+	wave_label.text = "ROOM %d / %d" % [n, total]
+	if kind == "elite":
+		flash_message("ROOM %d\nELITES" % n, 1.4)
+	elif kind != "boss":  # the boss announces itself
+		flash_message("ROOM %d" % n, 1.2)
 
 
 func flash_message(text: String, duration := 0.0) -> void:
