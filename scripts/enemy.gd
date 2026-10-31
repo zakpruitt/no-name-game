@@ -88,6 +88,7 @@ func _ready() -> void:
 	model.scale = Vector3.ONE * model_scale
 	radius *= model_scale
 	add_child(model)
+	Fx.outline(model)
 	anim = model.find_child("AnimationPlayer", true, false)
 	for a in LOOPING:
 		if anim.has_animation(a):

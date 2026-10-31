@@ -116,6 +116,7 @@ func _ready() -> void:
 
 	model = MODEL.instantiate()
 	add_child(model)
+	Fx.outline(model)
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		if mi.name in HIDDEN_MESHES:
 			mi.visible = false

@@ -3,6 +3,9 @@ class_name Fx
 
 static var _flash_mat: StandardMaterial3D
 static var _rim_mat: ShaderMaterial
+static var _outline_mat: ShaderMaterial
+# Source material -> copy with the outline pass, shared by every character using it.
+static var _outlined := {}
 ## Tick time of the last big impact (read by the autotest to snap a frame).
 static var last_big_hit_ms := 0
 static var last_afterimage_ms := 0
@@ -173,6 +176,27 @@ static func flash(root: Node, duration := 0.08) -> void:
 static func release() -> void:
 	_flash_mat = null
 	_rim_mat = null
+	_outline_mat = null
+	_outlined.clear()
+
+
+## Give every mesh under `root` a dark toon outline (inverted hull pass).
+static func outline(root: Node) -> void:
+	if _outline_mat == null:
+		_outline_mat = ShaderMaterial.new()
+		_outline_mat.shader = load("res://shaders/outline.gdshader")
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var src := mi.get_active_material(i)
+			if src == null:
+				continue
+			if not _outlined.has(src):
+				var copy: Material = src.duplicate()
+				copy.next_pass = _outline_mat
+				_outlined[src] = copy
+			mi.set_surface_override_material(i, _outlined[src])
 
 
 static func rim_material() -> ShaderMaterial:
