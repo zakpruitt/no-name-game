@@ -3,7 +3,8 @@ extends Node3D
 ##
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
-## Add `--all-upgrades` to start with every upgrade (exercises all effects).
+## Add `--all-upgrades` to start with every upgrade (exercises all effects)
+## and `--start-wave=N` to begin at a later wave.
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
@@ -20,10 +21,12 @@ const ENEMY_TYPES := {
 	"mage": {"model": "Skeleton_Mage", "max_hp": 24.0, "move_speed": 3.0, "attack_kind": "ranged",
 		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
 		"attack_recover": 0.5, "projectile_speed": 9.0},
+	"rogue": {"model": "Skeleton_Rogue", "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
+		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
 }
 ## How many of each type wave n spawns.
 static func wave_composition(n: int) -> Dictionary:
-	return {"minion": 3 + n, "warrior": n / 2, "mage": (n + 1) / 2}
+	return {"minion": 3 + n, "warrior": n / 2, "mage": (n + 1) / 2, "rogue": n - 1}
 
 const TILE := 4.0
 const HALF_TILES := 4  # arena is (2 * HALF_TILES) tiles across
@@ -85,6 +88,9 @@ func _ready() -> void:
 				await get_tree().create_timer(0.15, true, false, true).timeout
 				_snap("user://autotest_perfect.png"))
 
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--start-wave="):
+			wave = maxi(arg.get_slice("=", 1).to_int() - 1, 0)
 	_next_wave()
 
 
@@ -300,9 +306,9 @@ func _process(delta: float) -> void:
 		_snap("user://autotest_dash.png")
 	if _autotest_t >= 16.0 and not _quitting:
 		_quitting = true
-		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d upgrades=%s" % [
+		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d dodges=%d upgrades=%s" % [
 			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges,
-			preload("res://scripts/projectile.gd").fired, player.upgrades])
+			preload("res://scripts/projectile.gd").fired, ENEMY.dodges, player.upgrades])
 		Game.stop_all_sfx()
 		# Give the audio thread a moment to release playbacks, or they leak at exit.
 		await get_tree().create_timer(0.2, true, false, true).timeout

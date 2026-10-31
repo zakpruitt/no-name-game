@@ -31,6 +31,6 @@ characters only (no licensed IP in the repo).
 - Autotest also saves `autotest_hit.png` ~0.2s after the first big hit, for checking impact VFX
 - Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
 - After adding assets **or a new `class_name`**: `godot --headless --import --path .` (registers global classes)
-- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects
+- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects; `--start-wave=N` skips ahead
 - Scenes are mostly built in code; keep `.tscn` files minimal unless the user wants editor-authored scenes.
 - KayKit models face +Z; facing yaw = `atan2(dir.x, dir.z)`. Characters share one rig, so any KayKit animation works on any character.

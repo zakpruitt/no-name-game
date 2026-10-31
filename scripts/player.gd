@@ -5,6 +5,8 @@ extends CharacterBody3D
 signal health_changed(hp: float, max_hp: float)
 signal awakened_changed(active: bool)
 signal died
+## Fired when any attack begins (enemies that dodge listen for this).
+signal attack_started(move_id: String)
 
 enum State { MOVE, ATTACK, DASH, HURT, DEAD }
 
@@ -205,6 +207,10 @@ func _input_dir() -> Vector3:
 	return Vector3(v.x, 0.0, v.y)
 
 
+func facing_dir() -> Vector3:
+	return _facing()
+
+
 func _facing() -> Vector3:
 	return Vector3(sin(_facing_yaw), 0.0, cos(_facing_yaw))
 
@@ -316,6 +322,7 @@ func _start_attack(id: String) -> void:
 	_post_dash_t = 0.0
 	_aim()
 	_set_state(State.ATTACK)
+	attack_started.emit(id)
 	Game.sfx("swing_heavy" if id in ["H", "LH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 

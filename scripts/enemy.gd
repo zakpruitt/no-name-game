@@ -5,7 +5,7 @@ extends CharacterBody3D
 
 signal died(enemy: Node)
 
-enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DEAD }
+enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 
 const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C", "Spellcasting"]
 const PROJECTILE := preload("res://scripts/projectile.gd")
@@ -29,9 +29,17 @@ const PROJECTILE := preload("res://scripts/projectile.gd")
 ## enemies may wind up at the same time (the rest circle and wait).
 @export var separation_radius := 1.8
 @export var max_melee_attackers := 2
+## Flankers circle to the hero's back before closing in.
+@export var flank := false
+## Chance to hop away when the hero starts an attack nearby (only from
+## neutral; once hit, combos land normally).
+@export var dodge_chance := 0.0
+@export var dodge_cooldown := 1.6
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
+
+static var dodges := 0  # running count, reported by the autotest
 
 var radius := 0.55
 var hp := 0.0
@@ -48,6 +56,7 @@ var _freeze_t := 0.0
 var _frozen_speed := -1.0
 var _squash_tween: Tween
 var _orbit_side := 1.0
+var _dodge_cd := 0.0
 
 
 func _ready() -> void:
@@ -74,14 +83,17 @@ func _ready() -> void:
 
 	_build_telegraph()
 	_player = get_tree().get_first_node_in_group("player")
+	if dodge_chance > 0.0 and _player:
+		_player.attack_started.connect(_on_player_attack)
 	_attack_cd = randf_range(0.2, 1.0)
 	_orbit_side = 1.0 if randf() < 0.5 else -1.0
 	_play("Spawn_Ground_Skeletons", 0.0, 1.6)
 	Game.sfx("spawn", -10.0, 0.2)
 
 
+## Targetable: spawned, not dead, and not mid-dodge.
 func is_alive() -> bool:
-	return state != State.DEAD and state != State.SPAWN
+	return state != State.DEAD and state != State.SPAWN and state != State.DODGE
 
 
 func is_airborne() -> bool:
@@ -103,6 +115,7 @@ func _physics_process(delta: float) -> void:
 		model.position = Vector3.ZERO
 	_state_t += delta
 	_attack_cd -= delta
+	_dodge_cd -= delta
 	velocity.y -= (14.0 if state == State.AIRBORNE else 30.0) * delta
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
@@ -131,6 +144,10 @@ func _physics_process(delta: float) -> void:
 				Game.shake(0.1)
 				_set_state(State.HURT)
 				_state_t = -0.35  # lying on the ground a bit longer
+		State.DODGE:
+			_friction(delta, 26.0)
+			if _state_t >= 0.35:
+				_set_state(State.CHASE)
 		State.DEAD:
 			_friction(delta, 20.0)
 
@@ -154,7 +171,11 @@ func _state_chase(delta: float) -> void:
 			_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
 		return
 	var dir := Vector3.ZERO
-	if attack_kind == "ranged":
+	var behind: Vector3 = _player.global_position - _player.facing_dir() * 2.5 - global_position
+	behind.y = 0.0
+	if flank and d > attack_range + 1.5 and behind.length() > 1.0:
+		dir = behind.normalized()
+	elif attack_kind == "ranged":
 		# Back off when crowded, close in when too far, otherwise hold.
 		if d < preferred_range - 1.5:
 			dir = -to / maxf(d, 0.001)
@@ -251,8 +272,29 @@ func stagger(time: float) -> void:
 	_play("Hit_B", 0.05, 0.8, true)
 
 
+func _on_player_attack(_move_id: String) -> void:
+	if state != State.CHASE and state != State.RECOVER:
+		return
+	if _dodge_cd > 0.0 or randf() >= dodge_chance or not is_instance_valid(_player):
+		return
+	var away := global_position - _player.global_position
+	away.y = 0.0
+	if away.length() > 3.5:
+		return
+	_dodge_cd = dodge_cooldown
+	dodges += 1
+	# Hop back and to the side, out of the swing.
+	var side := Vector3(-away.z, 0.0, away.x).normalized() * _orbit_side
+	var dir := (away.normalized() + side * 0.6).normalized()
+	velocity.x = dir.x * 11.0
+	velocity.z = dir.z * 11.0
+	_set_state(State.DODGE)
+	_play("Dodge_Backward", 0.05, 1.8, true)
+	Fx.dust(get_parent(), global_position, 6)
+
+
 func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> void:
-	if state == State.DEAD or state == State.SPAWN:
+	if state == State.DEAD or state == State.SPAWN or state == State.DODGE:
 		return
 	hp -= damage
 	Fx.damage_number(get_parent(), global_position, damage, big)
