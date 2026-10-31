@@ -9,6 +9,8 @@ signal died
 enum State { MOVE, ATTACK, DASH, HURT, DEAD }
 
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
+const TRAIL := preload("res://scripts/weapon_trail.gd")
+const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
 const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug"]
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 
@@ -78,6 +80,7 @@ var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
 var _awaken_light: OmniLight3D
+var _trails: Array = []
 
 # Lets the autotest drive the hero without real input.
 var bot_move := Vector3.ZERO
@@ -102,6 +105,11 @@ func _ready() -> void:
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		if mi.name in HIDDEN_MESHES:
 			mi.visible = false
+		elif mi.name in TRAIL_MESHES:
+			var trail := TRAIL.new()
+			add_child(trail)
+			trail.setup(mi)
+			_trails.append(trail)
 	anim = model.find_child("AnimationPlayer", true, false)
 	for a in LOOPING:
 		if anim.has_animation(a):
@@ -137,6 +145,9 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
 
 	move_and_slide()
+	var swinging: bool = state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel
+	for trail in _trails:
+		trail.emitting = swinging
 	model.rotation.y = lerp_angle(model.rotation.y, _facing_yaw, 1.0 - exp(-25.0 * delta))
 
 
@@ -383,6 +394,8 @@ func _set_awakened(on: bool) -> void:
 	tw.tween_property(_awaken_light, "light_energy", 3.0 if on else 0.0, 0.2)
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		mi.material_overlay = Fx.rim_material() if on else null
+	for trail in _trails:
+		trail.color = Color(1.0, 0.55, 0.15, 0.9) if on else Color(1.0, 0.95, 0.8, 0.8)
 	awakened_changed.emit(on)
 
 
