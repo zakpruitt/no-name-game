@@ -65,6 +65,7 @@ func _ready() -> void:
 	_player = get_tree().get_first_node_in_group("player")
 	_attack_cd = randf_range(0.2, 1.0)
 	_play("Spawn_Ground_Skeletons", 0.0, 1.6)
+	Game.sfx("spawn", -10.0, 0.2)
 
 
 func is_alive() -> bool:
@@ -216,6 +217,7 @@ func _die(knockback: Vector3) -> void:
 	velocity = Vector3(knockback.x * 1.3, 4.0, knockback.z * 1.3)
 	_play("Death_A", 0.05, 1.4, true)
 	Game.add_awakening(4.0)
+	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
 	var tw := create_tween()
 	tw.tween_interval(1.4)

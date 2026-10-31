@@ -4,3 +4,5 @@
 - KayKit Adventurers Character Pack 1.0
 - KayKit Skeletons Character Pack 1.0
 - KayKit Dungeon Remastered 1.0
+
+Sound effects: synthesized by `tools/gen_sfx.py` (placeholder, project-owned).

@@ -169,6 +169,12 @@ static func flash(root: Node, duration := 0.08) -> void:
 			mi.material_overlay = null
 
 
+## Drop cached materials so nothing is left alive at exit.
+static func release() -> void:
+	_flash_mat = null
+	_rim_mat = null
+
+
 static func rim_material() -> ShaderMaterial:
 	if _rim_mat == null:
 		_rim_mat = ShaderMaterial.new()

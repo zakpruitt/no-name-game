@@ -1,6 +1,6 @@
 extends Node
 ## Autoload "Game": global combat feel (hitstop, screen shake), combo/style
-## tracking, the Awakening meter, and the input map.
+## tracking, the Awakening meter, sound effects, and the input map.
 
 signal combo_changed(count: int, rank: String)
 signal awakening_changed(value: float)
@@ -12,6 +12,9 @@ const STYLE_DECAY := 6.0  # style points lost per second while not hitting
 const AWAKEN_MAX := 100.0
 # Style rank thresholds. Varied moves earn more style than repeating one.
 const RANKS := [["SSS", 160.0], ["SS", 110.0], ["S", 70.0], ["A", 40.0], ["B", 20.0], ["C", 8.0], ["D", 0.0]]
+const SFX_PATH := "res://assets/sfx/%s.wav"
+const SFX_VOICES := 16
+const SFX_MIN_GAP_MS := 35  # same sound can't restart faster than this
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
@@ -22,11 +25,20 @@ var perfect_dodges := 0
 var _combo_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
+var _sfx_streams := {}
+var _sfx_last_ms := {}
+var _sfx_players: Array[AudioStreamPlayer] = []
+var _sfx_next := 0
+var _sfx_muted := false
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_setup_input()
+	for i in SFX_VOICES:
+		var p := AudioStreamPlayer.new()
+		add_child(p)
+		_sfx_players.append(p)
 
 
 func _process(delta: float) -> void:
@@ -40,6 +52,21 @@ func _process(delta: float) -> void:
 			combo_changed.emit(0, rank())
 	if style > 0.0 and _combo_timer < COMBO_TIMEOUT - 0.6:
 		style = maxf(style - STYLE_DECAY * delta, 0.0)
+
+
+func _exit_tree() -> void:
+	stop_all_sfx()
+	Fx.release()
+	_sfx_streams.clear()
+
+
+## Stop every voice and drop its stream (sounds still playing at quit leak).
+## Also blocks new sounds; call before quitting.
+func stop_all_sfx() -> void:
+	_sfx_muted = true
+	for p in _sfx_players:
+		p.stop()
+		p.stream = null
 
 
 func reset() -> void:
@@ -59,6 +86,24 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 		return
 	_hitstop_end_ms = maxi(_hitstop_end_ms, Time.get_ticks_msec() + int(duration * 1000.0))
 	Engine.time_scale = minf(Engine.time_scale, time_scale)
+
+
+## Fire-and-forget sound from assets/sfx/<sound_name>.wav, slightly pitch-varied.
+func sfx(sound_name: String, volume_db := 0.0, pitch_jitter := 0.08) -> void:
+	if _sfx_muted:
+		return
+	var now := Time.get_ticks_msec()
+	if now - int(_sfx_last_ms.get(sound_name, -1000)) < SFX_MIN_GAP_MS:
+		return
+	_sfx_last_ms[sound_name] = now
+	if not _sfx_streams.has(sound_name):
+		_sfx_streams[sound_name] = load(SFX_PATH % sound_name)
+	var p := _sfx_players[_sfx_next]
+	_sfx_next = (_sfx_next + 1) % SFX_VOICES
+	p.stream = _sfx_streams[sound_name]
+	p.volume_db = volume_db
+	p.pitch_scale = randf_range(1.0 - pitch_jitter, 1.0 + pitch_jitter)
+	p.play()
 
 
 func shake(amount: float) -> void:
@@ -84,6 +129,7 @@ func perfect_dodge(awaken_refund: float) -> void:
 	style += 12.0
 	_combo_timer = COMBO_TIMEOUT
 	add_awakening(awaken_refund)
+	sfx("perfect", 0.0, 0.0)
 	announced.emit("PERFECT")
 	combo_changed.emit(combo_count, rank())
 

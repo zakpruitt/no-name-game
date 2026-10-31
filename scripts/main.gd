@@ -31,6 +31,7 @@ var _shots_taken := 0
 var _hit_shot_taken := false
 var _dash_shot_taken := false
 var _dash_shot_at := 0
+var _quitting := false
 var _max_combo := 0
 var _hits := 0
 
@@ -111,6 +112,7 @@ func _on_enemy_died(_e: Node) -> void:
 	if _alive <= 0 and not _between_waves and not player.is_dead():
 		_between_waves = true
 		hud.flash_message("CLEARED", 1.0)
+		Game.sfx("wave_clear", -2.0, 0.0)
 		await get_tree().create_timer(2.0).timeout
 		if not player.is_dead():
 			_next_wave()
@@ -267,9 +269,13 @@ func _process(delta: float) -> void:
 	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
-	if _autotest_t >= 12.0:
+	if _autotest_t >= 12.0 and not _quitting:
+		_quitting = true
 		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d" % [
 			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges])
+		Game.stop_all_sfx()
+		# Give the audio thread a moment to release playbacks, or they leak at exit.
+		await get_tree().create_timer(0.2, true, false, true).timeout
 		get_tree().quit()
 
 

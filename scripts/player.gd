@@ -310,6 +310,7 @@ func _start_attack(id: String) -> void:
 	_post_dash_t = 0.0
 	_aim()
 	_set_state(State.ATTACK)
+	Game.sfx("swing_heavy" if id in ["H", "LH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 
 
@@ -326,6 +327,7 @@ func _start_dash() -> void:
 	_ghost_t = 0.0
 	_play("Dodge_Forward", 0.04, true)
 	Fx.dust(get_parent(), global_position, 8)
+	Game.sfx("dash", -4.0)
 
 
 ## Soft lock-on: rotate toward the best enemy roughly in front of us.
@@ -377,6 +379,7 @@ func _do_hit() -> void:
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 	if hit_any:
+		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0))
 		Game.shake(_move.shake)
 
@@ -389,6 +392,7 @@ func try_awaken() -> void:
 	if awakened or state == State.DEAD or Game.awakening < Game.AWAKEN_MAX:
 		return
 	_set_awakened(true)
+	Game.sfx("awaken", 0.0, 0.0)
 	# Activation burst: big freeze, shockwave that blows enemies back.
 	Game.hitstop(0.25, 0.05)
 	Game.shake(0.6)
@@ -439,6 +443,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()
+	Game.sfx("player_hurt")
 	Game.shake(0.4)
 	Game.hitstop(0.06)
 	Fx.flash(model)
