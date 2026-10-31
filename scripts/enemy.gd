@@ -98,6 +98,7 @@ static var blasts := 0
 
 var radius := 0.55
 var hp := 0.0
+var last_hit_ms := -100000  # when damage last landed (health bar, enemy_bars.gd)
 var state := State.SPAWN
 var model: Node3D
 var anim: AnimationPlayer
@@ -443,6 +444,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	if _shield_blocks(knockback, launch, big):
 		return
 	hp -= damage
+	last_hit_ms = Time.get_ticks_msec()
 	Fx.damage_number(get_parent(), global_position, damage, big)
 	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
 	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)

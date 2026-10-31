@@ -73,7 +73,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 ## Round 7
 - [x] Bomber look: give bombers their own colour and silhouette so they read apart from minions at a glance — new `body_tint` stat (scorched orange bones), bigger bomb with a smouldering fuse; `tests/enemy_lineup.gd` shows every type side by side
 - [x] Elite door check: autotest snaps a path screen that includes an elite door, and the twist text fits the button (`menu_check` saves `menu_path.png` with a Volatile elite door). Elite door now reads "Elite · Volatile / foes burst when slain, 2 powers"; door buttons share `button_width` 440
-- [ ] Enemy health bars: a thin bar over enemies once they've taken damage (elites always), fading when untouched
+- [x] Enemy health bars: a thin bar over enemies once they've taken damage (elites always), fading when untouched — `enemy_bars.gd` HUD overlay: red bar (gold for elites) with a pale trail for the chunk just lost, shown `SHOW_TIME` 3s after a hit then fades; boss skipped. Juggled big elites can push it near the top HUD
 - [ ] Death recap: when you fall, the run summary says what killed you (enemy type / hazard)
 - [ ] New combo route: L L H finisher (a forward ground-breaker that knocks down everything in a line), with a matching upgrade slot
 - [ ] Bone altar: between runs, spend saved bones on small permanent boosts (start HP, starting bones), saved in user:// and off in the autotest

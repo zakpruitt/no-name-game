@@ -55,6 +55,7 @@ func _ready() -> void:
 	_vignette_mat.shader = shader
 	vignette.material = _vignette_mat
 	root.add_child(vignette)
+	root.add_child(preload("res://scripts/enemy_bars.gd").new())
 	root.add_child(preload("res://scripts/threat_arrows.gd").new())
 
 	hp_bar = _bar(root, Vector2(32, 28), Vector2(360, 22), Color(0.9, 0.25, 0.25))
