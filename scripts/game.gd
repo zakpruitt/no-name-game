@@ -50,6 +50,7 @@ const HINTS := {
 	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
 	"shield": "Shields block hits from the front.\nHit from behind, or hold heavy to charge a guard-breaking slam.",
 	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
+	"necro": "Necromancers raise fallen skeletons.\nKill them first and their risen crumble.",
 }
 # Gamepad rumble per event: [weak motor, strong motor, seconds]. Toggle in menus.
 const RUMBLE := {

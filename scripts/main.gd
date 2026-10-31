@@ -45,7 +45,17 @@ const ENEMY_TYPES := {
 	"shield": {"model": "Skeleton_Minion", "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons",
 		"bones": 2},
+	"necromancer": {"model": "Skeleton_Mage", "max_hp": 34.0, "move_speed": 2.8, "attack_kind": "raise",
+		"attack_range": 14.0, "preferred_range": 11.0, "attack_damage": 8.0, "attack_windup": 1.2,
+		"attack_recover": 0.6, "projectile_speed": 8.0, "cloth_color": Color(0.1, 0.13, 0.1),
+		"raise_count": 2, "raise_cooldown": 5.0, "bones": 4},
 }
+# Necromancers raise slain minions from their graves (within RAISE_RANGE of
+# the necromancer; the newest MAX_GRAVES are kept per room). Risen drop no
+# bones and crumble when their necromancer dies.
+const RAISE_RANGE := 12.0
+const MAX_GRAVES := 8
+const RAISE_FX_COLOR := Color(0.45, 1.0, 0.4)
 # A run is RUN_LENGTH rooms; the last is always the boss and room 1 a fight.
 # After each room you pick the next from two doors (path_options). Room n's
 # difficulty is its position in the run.
@@ -105,10 +115,12 @@ static func path_options(n: int, prev: String) -> Array:
 
 ## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
-	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2, "archer": n / 3}
+	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2, "archer": n / 3,
+		"necromancer": (n - 2) / 3}
 
 
-## How many of an elite room's enemies are promoted to elites (never mages).
+## How many of an elite room's enemies are promoted to elites (never mages
+## or necromancers).
 static func elite_count(n: int) -> int:
 	return 2 + n / 4
 
@@ -127,6 +139,8 @@ var camp_menu: CanvasLayer
 var _reward_rerolls := 0  # rerolls bought for the reward currently open
 var _reward_level_ups_only := false
 var _alive := 0
+var _graves: Array[Vector3] = []  # where minions fell this room (necromancers raise them)
+var _raises := 0
 var _queue: Array = []  # [kind, elite] pairs waiting to spawn this room (MAX_ALIVE)
 var _between_rooms := false
 var _run_over := false
@@ -148,6 +162,7 @@ var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
 var _bot_next_charge := 3.0
 var _charge_shot_taken := false
 var _hint_shot_taken := false
+var _necro_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -249,6 +264,7 @@ func _next_room() -> void:
 	room += 1
 	_between_rooms = false
 	_apply_layout(ROOM_LAYOUTS[room - 1])
+	_graves.clear()
 	hud.set_room(room, RUN_LENGTH, room_kind)
 	if room_kind == "boss":
 		_spawn_boss()
@@ -265,7 +281,7 @@ func _next_room() -> void:
 	kinds.shuffle()
 	_queue.clear()
 	for kind in kinds:
-		var make_elite := elites > 0 and kind != "mage"
+		var make_elite := elites > 0 and kind not in ["mage", "necromancer"]
 		if make_elite:
 			elites -= 1
 		_queue.append([kind, make_elite])
@@ -321,7 +337,8 @@ func _choose_path() -> void:
 	room_kind = await path_menu.chosen
 
 
-func _spawn(kind: String, elite := false) -> void:
+## Spawns on a ring around the player unless `at` is given.
+func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	var e := ENEMY.new()
 	var spec: Dictionary = ENEMY_TYPES[kind]
 	e.model_scene = _model(spec.model)
@@ -329,16 +346,48 @@ func _spawn(kind: String, elite := false) -> void:
 		if key != "model":
 			e.set(key, spec[key])
 	e.elite = elite
+	e.set_meta("kind", kind)
+	if e.attack_kind == "raise":
+		e.can_raise = _can_raise
+		e.raise_requested.connect(_raise)
 	add_child(e)
-	# Ring around the player, clamped inside the walls.
-	var ang := randf() * TAU
-	var dist := randf_range(6.0, 10.0)
-	var p := player.global_position + Vector3(cos(ang), 0.0, sin(ang)) * dist
-	var lim := ARENA_HALF - 2.0
-	e.global_position = Vector3(clampf(p.x, -lim, lim), 0.0, clampf(p.z, -lim, lim))
+	if at != Vector3.INF:
+		e.global_position = at
+	else:
+		# Ring around the player, clamped inside the walls.
+		var ang := randf() * TAU
+		var dist := randf_range(6.0, 10.0)
+		var p := player.global_position + Vector3(cos(ang), 0.0, sin(ang)) * dist
+		var lim := ARENA_HALF - 2.0
+		e.global_position = Vector3(clampf(p.x, -lim, lim), 0.0, clampf(p.z, -lim, lim))
 	e.died.connect(_on_enemy_died)
 	_alive += 1
 	hud.set_remaining(_alive + _queue.size())
+	return e
+
+
+func _can_raise(necro: Node3D) -> bool:
+	return _graves.any(func(g: Vector3) -> bool: return g.distance_to(necro.global_position) <= RAISE_RANGE)
+
+
+## Raise the necromancer's raise_count nearest graves as minions.
+func _raise(necro: Node3D) -> void:
+	var near := _graves.filter(func(g: Vector3) -> bool: return g.distance_to(necro.global_position) <= RAISE_RANGE)
+	near.sort_custom(func(a: Vector3, b: Vector3) -> bool:
+		return a.distance_to(necro.global_position) < b.distance_to(necro.global_position))
+	for g: Vector3 in near.slice(0, necro.raise_count):
+		_graves.erase(g)
+		Fx.ring(self, g, RAISE_FX_COLOR, 1.6, 0.5)
+		Fx.burst(self, g + Vector3.UP * 0.3, RAISE_FX_COLOR, 12, 4.0)
+		var m := _spawn("minion", false, g)
+		m.bones = 0
+		m.set_meta("master", necro)
+		_raises += 1
+	Game.sfx("spawn", -4.0, 0.1)
+	if _autotest and not _necro_shot_taken:
+		_necro_shot_taken = true
+		await get_tree().create_timer(0.4).timeout
+		_snap("user://autotest_necro.png")
 
 
 func _model(model_name: String) -> PackedScene:
@@ -389,6 +438,14 @@ func _on_enemy_died(e: Node) -> void:
 		var b := BONE.new()
 		add_child(b)
 		b.global_position = e.global_position + Vector3.UP * 0.8
+	if e.get_meta("kind", "") == "minion":
+		_graves.append(Vector3(e.global_position.x, 0.0, e.global_position.z))
+		if _graves.size() > MAX_GRAVES:
+			_graves.pop_front()
+	if e.attack_kind == "raise":
+		for m in get_tree().get_nodes_in_group("enemies"):
+			if m.has_meta("master") and m.get_meta("master") == e:
+				m.crumble()
 	_alive -= 1
 	_kills += 1
 	hud.set_remaining(_alive + _queue.size())
@@ -695,6 +752,8 @@ func _check_hints(delta: float) -> void:
 		id = "awaken"
 	elif not Game.hint_seen("shield") and ENEMY.blocks > 0:
 		id = "shield"
+	elif not Game.hint_seen("necro") and _raises > 0:
+		id = "necro"
 	elif not Game.hint_seen("launch") and Game.combo_count >= 4:
 		id = "launch"
 	elif not Game.hint_seen("dash"):
@@ -734,9 +793,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d music=%.2f upgrades=%s" % [
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d raises=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, Game._combat_level, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, _raises, Game._combat_level, player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	# Exercise the summary screen too.

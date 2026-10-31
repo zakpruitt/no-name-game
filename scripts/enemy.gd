@@ -5,6 +5,7 @@ extends CharacterBody3D
 ## launched/juggled.
 
 signal died(enemy: Node)
+signal raise_requested(enemy: Node)
 
 enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 
@@ -62,7 +63,15 @@ const LINE_COLOR := Color(1.0, 0.55, 0.15)
 ## Flat colour for the model's hood/cape/cloak meshes (alpha 0 = keep the
 ## texture). Lets types that share a model read differently (archer vs rogue).
 @export var cloth_color := Color(0, 0, 0, 0)
-const CLOTH_MESHES := ["Hood", "Cape", "Cloak"]
+const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
+## Necromancer (attack_kind "raise"): hangs back and raises up to raise_count
+## fallen minions (main.gd keeps the graves; `can_raise` asks it whether any
+## are near). With none to raise it shoots a bolt like a mage.
+@export var raise_count := 2
+@export var raise_cooldown := 5.0
+const RAISE_COLOR := Color(0.45, 1.0, 0.4)
+var can_raise: Callable
+var _raising := false
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -221,10 +230,16 @@ func _state_chase(delta: float) -> void:
 	if d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()):
 		_set_state(State.WINDUP)
 		_aim_dir = to / maxf(d, 0.001)
+		_raising = attack_kind == "raise" and can_raise.is_valid() and can_raise.call(self)
+		if attack_kind == "raise":
+			var c := RAISE_COLOR if _raising else Color(0.7, 0.3, 1.0)
+			_telegraph_mat.albedo_color = Color(c, _telegraph_mat.albedo_color.a)
 		if attack_kind == "line":
 			_play("2H_Ranged_Aiming", 0.1)
 			Game.sfx("swing", -12.0, 0.15)
-		elif attack_kind == "ranged":
+		elif _raising:
+			_play("Spellcasting", 0.1, 0.8)
+		elif is_ranged():
 			_play("Spellcasting", 0.1, 1.2)
 		else:
 			_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
@@ -291,7 +306,11 @@ func _state_windup(delta: float) -> void:
 		if attack_kind == "line":
 			_shoot_line()
 			_attack_cd = randf_range(1.8, 2.8)
-		elif attack_kind == "ranged":
+		elif _raising:
+			_play("Spellcast_Summon", 0.05, 1.2, true)
+			raise_requested.emit(self)
+			_attack_cd = raise_cooldown
+		elif is_ranged():
 			_shoot()
 			_attack_cd = randf_range(1.6, 2.6)
 		else:
@@ -570,7 +589,7 @@ func _build_telegraph() -> void:
 	_telegraph_mat = StandardMaterial3D.new()
 	_telegraph_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_telegraph_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_telegraph_mat.albedo_color = Color(0.7, 0.3, 1.0, 0.3) if attack_kind == "ranged" else Color(1.0, 0.15, 0.1, 0.3)
+	_telegraph_mat.albedo_color = Color(0.7, 0.3, 1.0, 0.3) if attack_kind in ["ranged", "raise"] else Color(1.0, 0.15, 0.1, 0.3)
 	mesh.material = _telegraph_mat
 	_telegraph.mesh = mesh
 	_telegraph.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
