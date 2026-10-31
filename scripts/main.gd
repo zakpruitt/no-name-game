@@ -221,6 +221,7 @@ var _spikes_shot_taken := false
 var _bomb_shot_taken := false
 var _breaker_shot_taken := false
 var _slam_shot_taken := false
+var _synergy_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -314,6 +315,15 @@ func _ready() -> void:
 			if c == 3 and Game.best_air == 3:
 				await get_tree().create_timer(0.1, true, false, true).timeout
 				_snap("user://autotest_air.png"))
+		# First synergy: one from --upgrades already fired; else wait for one.
+		if not player.synergies.is_empty():
+			get_tree().create_timer(0.25).timeout.connect(_snap.bind("user://autotest_synergy.png"))
+		else:
+			Game.announced.connect(func(t: String) -> void:
+				if t.ends_with("SYNERGY") and not _synergy_shot_taken:
+					_synergy_shot_taken = true
+					await get_tree().create_timer(0.25, true, false, true).timeout
+					_snap("user://autotest_synergy.png"))
 		Game.announced.connect(func(_t: String) -> void:
 			if Game.perfect_dodges == 1:
 				await get_tree().create_timer(0.15, true, false, true).timeout

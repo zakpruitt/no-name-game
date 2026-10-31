@@ -83,6 +83,7 @@ const LIGHT_CHAIN := ["L1", "L2", "L3"]
 const CHARGE_TIME := 0.8
 const CHARGE_MOVE_MULT := 0.35
 const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
+const SYNERGY_COLOR := Color(0.45, 1.0, 0.85)
 const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
 const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
@@ -536,6 +537,14 @@ func upg(id: String, key: String) -> float:
 	return Upgrades.value(id, key, upgrades.get(id, 1)) * Upgrades.boost(synergies, id, key)
 
 
+## A synergy switched on: chime, a teal ring and sparks around the hero.
+func _synergy_burst() -> void:
+	Game.sfx("synergy", -2.0, 0.0)
+	Fx.flash(model)
+	Fx.ring(get_parent(), global_position, Color(SYNERGY_COLOR, 0.9), 3.0, 0.5)
+	Fx.burst(get_parent(), global_position + Vector3.UP, SYNERGY_COLOR, 24, 5.0, 0.12, 0.6, Vector3.UP, 60.0, -4.0)
+
+
 ## Lose upgrade `id` entirely (shrine melt).
 func remove_upgrade(id: String) -> void:
 	upgrades.erase(id)
@@ -550,6 +559,7 @@ func add_upgrade(id: String) -> void:
 	for tag: String in synergies:
 		if tag not in before:
 			Game.announced.emit("%s SYNERGY" % Upgrades.SYNERGIES[tag].name.to_upper())
+			_synergy_burst()
 	if id == "overflow":
 		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
 	if id == "long_night":
