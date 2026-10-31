@@ -458,7 +458,11 @@ func _do_hit() -> void:
 		var kb_dir := to / d if d > 0.01 else fwd
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
-		e.take_hit(_move.damage * _dmg_mult, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
+		var dmg: float = _move.damage * _dmg_mult
+		if _move_id == "CH" and has_upgrade("bone_breaker") and (e.shield or e.elite or e.has_method("is_boss")):
+			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
+			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)
+		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 		if was_airborne and has_upgrade("chain_spark"):
@@ -481,6 +485,8 @@ func _do_hit() -> void:
 			Fx.ring(get_parent(), at, Color(CHARGE_COLOR, 0.9), _move.range, 0.3)
 			Fx.burst(get_parent(), at + Vector3.UP * 0.2, CHARGE_COLOR, 24, 9.0, 0.14, 0.35, Vector3.UP, 80.0)
 			Fx.dust(get_parent(), at, 16, 1.0)
+			if has_upgrade("quake"):
+				_quake(at)
 		if _move_id == "LH" and has_upgrade("skybreaker"):
 			var r := upg("skybreaker", "radius")
 			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), r, 0.3)
@@ -524,6 +530,19 @@ func _on_enemy_killed(_e: Node) -> void:
 	if has_upgrade("reaper") and state != State.DEAD:
 		heal(upg("reaper", "heal"), false)
 		Game.add_awakening(upg("reaper", "awaken"))
+
+
+## Quake: a shockwave out from the charged slam's impact.
+func _quake(at: Vector3) -> void:
+	var r := upg("quake", "radius")
+	Fx.ring(get_parent(), at, Color(1.0, 0.75, 0.35, 0.9), r, 0.45)
+	Game.shake(0.3)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - at
+		to.y = 0.0
+		if e.is_alive() and to.length() < r:
+			e.take_hit(upg("quake", "damage"), to.normalized() * 5.0, 6.0, true)
+			Game.register_hit("quake")
 
 
 ## MOVES entry with owned upgrades applied (never mutates MOVES itself).

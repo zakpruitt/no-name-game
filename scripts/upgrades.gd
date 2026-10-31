@@ -1,7 +1,7 @@
 class_name Upgrades
 ## Combo-slot upgrades: each one hooks a specific move in the hero's string
-## (L1/L2/L3 light chain, H spin, LH launcher, DL dash stab) or a mechanic
-## (Dash, Air, Awaken, Perfect dodge, Death, Kill).
+## (L1/L2/L3 light chain, H spin, LH launcher, DL dash stab, Charged slam) or
+## a mechanic (Dash, Air, Awaken, Perfect dodge, Death, Kill).
 ## Pure data here; the effects live in player.gd (search for the id).
 ##
 ##   id      key used in code          slot  which move/mechanic it modifies
@@ -56,6 +56,12 @@ const ALL := [
 	{"id": "reaper", "name": "Reaper", "slot": "Kill",
 		"desc": "Each kill heals {heal} HP and grants {awaken} Awakening.",
 		"lv": {"heal": [3, 5, 7], "awaken": [4, 6, 8]}},
+	{"id": "quake", "name": "Quake", "slot": "Charged",
+		"desc": "Your charged slam sends out a shockwave: {damage} damage and a launch to everyone within {radius}m.",
+		"lv": {"damage": [12, 18, 26], "radius": [5, 6, 7.5]}},
+	{"id": "bone_breaker", "name": "Bone Breaker", "slot": "Charged",
+		"desc": "Your charged slam deals +{bonus}% damage to shielded skeletons, elites and bosses.",
+		"lv": {"bonus": [80, 130, 200]}},
 ]
 
 

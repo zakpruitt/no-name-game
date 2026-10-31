@@ -65,7 +65,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 ## Round 6
 - [x] Hints wait for menus: never show a hint behind the reward / camp / path screens (hold it until play resumes) — `hud._notification` hides the hint panel on NOTIFICATION_PAUSED and restores it on UNPAUSED; its fade tween pauses with the tree
 - [x] Build view: the pause menu lists your powers with their levels and current descriptions — "YOUR BUILD" panel left of the pause buttons (`pause_menu._build_powers`); `menu_check` grants two powers so `menu_pause.png` shows it
-- [ ] Charged-slam powers: 2 new [Charged] upgrades (Quake: the slam sends out a shockwave ring; Bone Breaker: bonus damage to shields and elites)
+- [x] Charged-slam powers: 2 new [Charged] upgrades (Quake: the slam sends out a shockwave ring; Bone Breaker: bonus damage to shields and elites) — `quake` (shockwave from the impact: damage + launch in `radius`) and `bone_breaker` (+`bonus`% vs shield/elite/boss) in `Upgrades.ALL`; new `--upgrades=id,id` autotest flag. Bot rarely lands charges, so lightly exercised
 - [ ] Low-HP feedback: red edge vignette and a heartbeat below 25% HP
 - [ ] Bomber skeleton: walks up, lights a fuse (telegraph ring) and explodes — it hurts skeletons too, so lure it into crowds
 - [ ] Elite room twists: each elite room rolls one modifier (Hasted, Armored, Volatile = explode on death), shown on the door and the room title

@@ -6,11 +6,11 @@ extends Node3D
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
-## `--max-upgrades` gives them all at MAX_LEVEL),
-## `--start-room=N` to begin at a later room, `--boss-enraged` to start the boss at half HP (enraged; it uses the spike
-## line), `--start-rest` to make it a rest
-## (camp) room with some bones, and `--start-awakened` to begin with a full
-## Awakening meter.
+## `--max-upgrades` gives them all at MAX_LEVEL), `--upgrades=id,id` for just
+## those, `--start-room=N` to begin at a later room, `--boss-enraged` to start
+## the boss at half HP (enraged; it uses the spike line), `--start-rest` to
+## make it a rest (camp) room with some bones, and `--start-awakened` to begin
+## with a full Awakening meter.
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
@@ -226,6 +226,11 @@ func _ready() -> void:
 			for i in Upgrades.MAX_LEVEL if max_upgrades else 1:
 				player.add_upgrade(u.id)
 		hud.set_upgrades(player.upgrades)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--upgrades="):
+			for id in arg.get_slice("=", 1).split(","):
+				player.add_upgrade(id)
+			hud.set_upgrades(player.upgrades)
 
 	if _autotest:
 		player.bot_enabled = true
