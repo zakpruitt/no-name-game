@@ -84,6 +84,8 @@ const DOUBLE_TWIST_ROOM := 6
 # `--tour` autotest: take these doors in order (room 1 is always a fight),
 # wipe each fight after TOUR_FIGHT_TIME s, and print PASS if the run reaches
 # and beats the boss having seen every kind (FAIL after TOUR_TIMEOUT s).
+# The camp is topped up to afford its first offer and buys it; the shrine
+# takes its rotating trade (vow or melt). Both must happen to PASS.
 const TOUR := ["fight", "rest", "shrine", "elite", "boss"]
 const TOUR_FIGHT_TIME := 1.5
 const TOUR_TIMEOUT := 120.0
@@ -188,6 +190,7 @@ var daily_date := ""  # "2026-10-31" on a daily run (title screen), else ""
 var _tour := false
 var _tour_seen: Array[String] = []
 var _tour_room_t := 0.0
+var _tour_trades: Array[String] = []  # "camp:vigor", "shrine:melt"... taken on the tour
 var _won := false
 var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
 var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
@@ -465,6 +468,8 @@ func _shrine() -> void:
 	if _autotest:
 		_autotest_shrine(rot)
 	var choice: String = await shrine_menu.chosen
+	if _tour:
+		_tour_trades.append("shrine:" + choice + ("" if choice == rot else "(wanted %s)" % rot))
 	match choice:
 		"vow":
 			_vow_twist = trade.twist
@@ -498,10 +503,14 @@ func _shrine() -> void:
 func _camp() -> void:
 	var bought := 0
 	while true:
+		if _tour and bought == 0:
+			Game.add_bones(maxi(CAMP.values()[0].cost - Game.bones, 0))  # so the tour can buy
 		camp_menu.open(CAMP, Game.bones, not Upgrades.roll(player.upgrades, 1, true).is_empty())
 		if _autotest:
 			_autotest_camp(bought)
 		var choice: String = await camp_menu.chosen
+		if _tour:
+			_tour_trades.append("camp:" + choice)
 		if choice == "leave":
 			return
 		Game.add_bones(-CAMP[choice].cost)
@@ -1086,8 +1095,11 @@ func _autotest_finish() -> void:
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:
-		var ok := ",".join(_tour_seen) == ",".join(TOUR) and _won
-		print("[tour] %s rooms=%s time=%.1fs" % ["PASS" if ok else "FAIL", ",".join(_tour_seen), _autotest_t])
+		var bought := _tour_trades.any(func(t: String) -> bool: return t.begins_with("camp:") and t != "camp:leave")
+		var traded := _tour_trades.any(func(t: String) -> bool: return t in ["shrine:vow", "shrine:melt"])
+		var ok := ",".join(_tour_seen) == ",".join(TOUR) and _won and bought and traded
+		print("[tour] %s rooms=%s trades=%s time=%.1fs" % ["PASS" if ok else "FAIL", ",".join(_tour_seen),
+			",".join(_tour_trades), _autotest_t])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
 	await get_tree().create_timer(0.3, true, false, true).timeout
@@ -1136,11 +1148,12 @@ func _autotest_camp(bought: int) -> void:
 		camp_menu.pick(CAMP.size())
 
 
-## Takes the forced --shrine-trade if there is one, else the first it can pay.
+## Takes the forced --shrine-trade (or on --tour the rotating one) if it can,
+## else the first it can pay.
 func _autotest_shrine(rot: String) -> void:
 	await get_tree().create_timer(0.5).timeout
 	_snap("user://autotest_shrine.png")
-	var index: int = SHRINE.size() if _shrine_trade == rot else shrine_menu.first_affordable()
+	var index: int = SHRINE.size() if _shrine_trade == rot or _tour else shrine_menu.first_affordable()
 	if shrine_menu.is_disabled(index):
 		index = shrine_menu.first_affordable()
 	shrine_menu.pick(index)
