@@ -25,6 +25,10 @@ const PROJECTILE := preload("res://scripts/projectile.gd")
 @export var attack_kind := "melee"
 @export var preferred_range := 7.0
 @export var projectile_speed := 9.0
+## Crowd behaviour: personal space from other enemies, and how many melee
+## enemies may wind up at the same time (the rest circle and wait).
+@export var separation_radius := 1.8
+@export var max_melee_attackers := 2
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -43,6 +47,7 @@ var _attack_cd := 0.0
 var _freeze_t := 0.0
 var _frozen_speed := -1.0
 var _squash_tween: Tween
+var _orbit_side := 1.0
 
 
 func _ready() -> void:
@@ -70,6 +75,7 @@ func _ready() -> void:
 	_build_telegraph()
 	_player = get_tree().get_first_node_in_group("player")
 	_attack_cd = randf_range(0.2, 1.0)
+	_orbit_side = 1.0 if randf() < 0.5 else -1.0
 	_play("Spawn_Ground_Skeletons", 0.0, 1.6)
 	Game.sfx("spawn", -10.0, 0.2)
 
@@ -140,7 +146,7 @@ func _state_chase(delta: float) -> void:
 	to.y = 0.0
 	var d := to.length()
 	_face(to)
-	if d <= attack_range and _attack_cd <= 0.0:
+	if d <= attack_range and _attack_cd <= 0.0 and (attack_kind == "ranged" or _melee_slot_free()):
 		_set_state(State.WINDUP)
 		if attack_kind == "ranged":
 			_play("Spellcasting", 0.1, 1.2)
@@ -156,9 +162,39 @@ func _state_chase(delta: float) -> void:
 			dir = to / maxf(d, 0.001)
 	elif d > attack_range * 0.8:
 		dir = to / maxf(d, 0.001)
+	else:
+		# In range but waiting for a turn: circle slowly around the player.
+		dir = Vector3(-to.z, 0.0, to.x) / maxf(d, 0.001) * _orbit_side * 0.4
+	var push := _separation()
+	var moving := dir != Vector3.ZERO or push.length() > 0.05
+	dir += push
+	if dir.length() > 1.0:
+		dir = dir.normalized()
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 25.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 25.0 * delta)
-	_play(run_anim if dir != Vector3.ZERO else "Idle_Combat")
+	_play(run_anim if moving else "Idle_Combat")
+
+
+## Push away from nearby enemies so groups spread out and surround.
+func _separation() -> Vector3:
+	var push := Vector3.ZERO
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == self:
+			continue
+		var away: Vector3 = global_position - e.global_position
+		away.y = 0.0
+		var d := away.length()
+		if d < separation_radius and d > 0.001:
+			push += away / d * (1.0 - d / separation_radius)
+	return push * 1.5
+
+
+func _melee_slot_free() -> bool:
+	var busy := 0
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e != self and e.attack_kind == "melee" and e.state == State.WINDUP:
+			busy += 1
+	return busy < max_melee_attackers
 
 
 func _state_windup(delta: float) -> void:

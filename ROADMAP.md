@@ -14,7 +14,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 ## Enemies
 - [x] Skeleton mage: keeps ~7m away, purple-ring windup, slow bolts (`projectile.gd`) you can dash through/perfect-dodge; enemy types now data in `main.ENEMY_TYPES`
 - [ ] Skeleton rogue: fast flanker that dodges
-- [ ] Enemy separation/steering so groups surround instead of stacking
+- [x] Enemy separation/steering: personal-space push, in-range enemies circle while waiting, max 2 melee windups at once (`separation_radius`, `max_melee_attackers`)
 - [ ] Elite modifier (bigger, tinted, more poise)
 - [ ] First boss
 
