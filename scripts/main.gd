@@ -28,6 +28,11 @@ const ENEMY_TYPES := {
 static func wave_composition(n: int) -> Dictionary:
 	return {"minion": 3 + n, "warrior": n / 2, "mage": (n + 1) / 2, "rogue": n - 1}
 
+
+## How many of wave n's enemies are promoted to elites (never mages).
+static func elite_count(n: int) -> int:
+	return n / 2
+
 const TILE := 4.0
 const HALF_TILES := 4  # arena is (2 * HALF_TILES) tiles across
 const ARENA_HALF := TILE * HALF_TILES
@@ -106,18 +111,27 @@ func _next_wave() -> void:
 	_between_waves = false
 	hud.set_wave(wave)
 	var comp := wave_composition(wave)
+	var kinds: Array[String] = []
 	for kind in comp:
 		for i in comp[kind]:
-			_spawn(kind)
+			kinds.append(kind)
+	var elites := elite_count(wave)
+	kinds.shuffle()
+	for kind in kinds:
+		var make_elite := elites > 0 and kind != "mage"
+		if make_elite:
+			elites -= 1
+		_spawn(kind, make_elite)
 
 
-func _spawn(kind: String) -> void:
+func _spawn(kind: String, elite := false) -> void:
 	var e := ENEMY.new()
 	var spec: Dictionary = ENEMY_TYPES[kind]
 	e.model_scene = load("res://assets/kaykit/characters/%s.glb" % spec.model)
 	for key in spec:
 		if key != "model":
 			e.set(key, spec[key])
+	e.elite = elite
 	add_child(e)
 	# Ring around the player, clamped inside the walls.
 	var ang := randf() * TAU

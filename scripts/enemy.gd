@@ -35,6 +35,13 @@ const PROJECTILE := preload("res://scripts/projectile.gd")
 ## neutral; once hit, combos land normally).
 @export var dodge_chance := 0.0
 @export var dodge_cooldown := 1.6
+## Elite: tougher, bigger, gold aura, and pays out extra Awakening on death.
+@export var elite := false
+const ELITE_HP_MULT := 2.5
+const ELITE_DAMAGE_MULT := 1.4
+const ELITE_SCALE_MULT := 1.3
+const ELITE_POISE_BONUS := 6.0
+const ELITE_AWAKEN_BONUS := 15.0
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -60,6 +67,11 @@ var _dodge_cd := 0.0
 
 
 func _ready() -> void:
+	if elite:
+		max_hp *= ELITE_HP_MULT
+		attack_damage *= ELITE_DAMAGE_MULT
+		model_scale *= ELITE_SCALE_MULT
+		poise += ELITE_POISE_BONUS
 	hp = max_hp
 	add_to_group("enemies")
 	collision_layer = 4
@@ -82,6 +94,8 @@ func _ready() -> void:
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 
 	_build_telegraph()
+	if elite:
+		_build_elite_aura()
 	_player = get_tree().get_first_node_in_group("player")
 	if dodge_chance > 0.0 and _player:
 		_player.attack_started.connect(_on_player_attack)
@@ -331,7 +345,7 @@ func _die(knockback: Vector3) -> void:
 	collision_mask = 1
 	velocity = Vector3(knockback.x * 1.3, 4.0, knockback.z * 1.3)
 	_play("Death_A", 0.05, 1.4, true)
-	Game.add_awakening(4.0)
+	Game.add_awakening(4.0 + (ELITE_AWAKEN_BONUS if elite else 0.0))
 	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
 	var tw := create_tween()
@@ -374,6 +388,32 @@ func _squash(amount: Vector3) -> void:
 	model.scale = amount * model_scale
 	_squash_tween = create_tween()
 	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, 0.3) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+func _build_elite_aura() -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = 0.75
+	mesh.outer_radius = 0.95
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.8, 0.2, 0.8)
+	mesh.material = mat
+	ring.mesh = mesh
+	ring.scale = Vector3(1.0, 0.05, 1.0) * model_scale
+	ring.position.y = 0.06
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
+	var pulse := ring.create_tween().set_loops()
+	pulse.tween_property(mat, "albedo_color:a", 0.35, 0.6).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(mat, "albedo_color:a", 0.85, 0.6).set_trans(Tween.TRANS_SINE)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.75, 0.3)
+	light.light_energy = 1.2
+	light.omni_range = 3.5
+	light.position.y = 1.4
+	add_child(light)
 
 
 func _build_telegraph() -> void:
