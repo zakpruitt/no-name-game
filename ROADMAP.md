@@ -38,3 +38,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Shield skeleton: `ENEMY_TYPES.shield` (from room 3), blocks frontal hits while walking/recovering; big hits/launchers break guard 2s; sides/back always land. Shield model in `assets/kaykit/props/`
 - [x] Room variety: `main.LAYOUTS` (hall / crossroads / gauntlet) chosen per room by `ROOM_LAYOUTS`, pillars sink/rise between rooms; `spike_trap.gd` tiles from room 4 (warn → stab; hurts hero, launches skeletons)
 - [x] Off-screen threat indicators: `threat_arrows.gd` draws notched edge arrows for off-screen windups (red melee / purple ranged, grow as the hit nears) and bolts
+
+## Round 3
+- [ ] Branching path: after each reward, choose the next room from 2 doors (fight / elite for a rarer reward / rest to heal)
+- [ ] Skeleton archer: crossbow skeleton (KayKit `Skeleton_Crossbow`) with a fast, telegraphed line shot
+- [ ] Upgrade levels: re-offering an owned upgrade levels it up (stronger numbers) once the pool runs thin
+- [ ] Music: synthesized ambient loop with a combat layer that swells with style rank
+- [ ] Performance check: frame time with 12+ enemies, outlines, particles; fix hot spots
