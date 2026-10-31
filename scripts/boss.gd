@@ -5,15 +5,19 @@ extends "res://scripts/enemy.gd"
 ##   nova    ring of slow bolts (purple ring); dash through the gaps
 ##   spikes  (enraged only) smashes the floor; a line of bone spikes runs at
 ##           the hero, turning to follow, each flagged red just before it stabs
+##   cage    (enraged only) a ring of bone walls bursts up around the hero and
+##           closes in, turning; get out through the gap or dash a wall
 ## Normal hits never stagger it; dealing `break_damage` within a few seconds
 ## breaks its guard for a long opening. Below half HP it enrages: faster
 ## windups, denser novas, the spike line, and it summons minions.
 
 const BONE_SPIKE := preload("res://scripts/bone_spike.gd")
+const BONE_CAGE := preload("res://scripts/bone_cage.gd")
 
 signal summon(count: int)
 signal enraged
 signal spike_line
+signal cage
 
 ## Per-attack tuning: windup (s), recover (s), damage, plus attack specifics.
 const ATTACKS := {
@@ -24,6 +28,10 @@ const ATTACKS := {
 	# `turn` degrees toward the hero and warns for `warn` s before stabbing.
 	"spikes": {"windup": 0.9, "recover": 1.0, "damage": 18.0, "count": 12, "step": 1.6,
 		"interval": 0.11, "turn": 22.0, "warn": 0.4, "radius": 1.0},
+	# ring of `walls` pieces from `radius` m closing to `end_radius` over
+	# `close` s (after `rise` s), turning `spin` deg/s, with a `gap` deg opening.
+	"cage": {"windup": 1.0, "recover": 1.2, "damage": 20.0, "radius": 7.0, "end_radius": 1.0,
+		"rise": 0.5, "close": 2.6, "gap": 50.0, "spin": 25.0, "walls": 22},
 }
 ## Damage that breaks its guard if dealt within `break_window` seconds.
 @export var break_damage := 90.0
@@ -36,6 +44,7 @@ const ATTACKS := {
 @export var dodge_stun_mult := 0.5
 
 var display_name := "THE BONE WARDEN"
+var force_attack := ""  # ATTACKS key it always picks (autotest --boss-attack=)
 var is_enraged := false
 var _attack := ""
 var _leaping := false
@@ -99,8 +108,10 @@ func _state_chase(delta: float) -> void:
 ## Close: mostly cleave. Far: slam or nova. Avoid repeating the same attack.
 func _pick_attack(d: float) -> String:
 	var options: Array = ["cleave", "cleave", "slam"] if d < 4.5 else ["slam", "nova", "nova"]
+	if force_attack != "":
+		return force_attack
 	if is_enraged:
-		options += ["spikes"] if d < 4.5 else ["spikes", "spikes"]
+		options += ["spikes", "cage"] if d < 4.5 else ["spikes", "spikes", "cage"]
 	while options.has(_last_attack):
 		options.erase(_last_attack)
 	if options.is_empty():
@@ -131,6 +142,9 @@ func _start_attack(kind: String) -> void:
 		"spikes":
 			_set_telegraph(2.2, Color(1.0, 0.15, 0.1, 0.3))
 			_play("2H_Melee_Attack_Chop", 0.1, anim.get_animation("2H_Melee_Attack_Chop").length * 0.45 / attack_windup)
+		"cage":
+			_set_telegraph(2.6, Color(0.95, 0.85, 0.6, 0.3))
+			_play("Spellcast_Raise", 0.1, anim.get_animation("Spellcast_Raise").length / attack_windup)
 	Game.sfx("spawn", -6.0, 0.1)
 
 
@@ -159,6 +173,7 @@ func _state_windup(delta: float) -> void:
 			"slam": _leap()
 			"nova": _nova()
 			"spikes": _spike_line()
+			"cage": _cage()
 		_attack_cd = randf_range(0.6, 1.2) * (enrage_speed if is_enraged else 1.0)
 		_set_state(State.RECOVER)
 
@@ -257,6 +272,30 @@ func _spike_line() -> void:
 		get_parent().add_child(s)
 		s.global_position = Vector3(pos.x, 0.0, pos.z)
 		await get_tree().create_timer(spec.interval, false).timeout
+
+
+## Raise a closing ring of bone walls centred on the hero.
+func _cage() -> void:
+	if not is_instance_valid(_player):
+		return
+	var spec: Dictionary = ATTACKS.cage
+	_play("Spellcast_Shoot", 0.05, 1.2, true)
+	Game.shake(0.5)
+	Game.sfx("hit_big", -2.0, 0.05)
+	cage.emit()
+	var c := BONE_CAGE.new()
+	c.radius = spec.radius
+	c.end_radius = spec.end_radius
+	c.rise_time = spec.rise
+	c.close_time = spec.close
+	c.gap = spec.gap
+	c.spin = spec.spin * (1.0 if randf() < 0.5 else -1.0)
+	c.walls = spec.walls
+	c.damage = spec.damage
+	c.gap_angle = randf() * TAU
+	c.source = self
+	get_parent().add_child(c)
+	c.global_position = Vector3(_player.global_position.x, 0.0, _player.global_position.z)
 
 
 func stagger(time: float) -> void:

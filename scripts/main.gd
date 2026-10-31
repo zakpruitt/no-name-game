@@ -224,6 +224,7 @@ var _charge_shot_taken := false
 var _hint_shot_taken := false
 var _necro_shot_taken := false
 var _spikes_shot_taken := false
+var _cage_shot_taken := false
 var _bomb_shot_taken := false
 var _breaker_shot_taken := false
 var _slam_shot_taken := false
@@ -627,6 +628,10 @@ func _spawn_boss() -> void:
 			_spawn("minion"))
 	if _autotest:
 		b.spike_line.connect(_autotest_spikes)
+		b.cage.connect(_autotest_cage)
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--boss-attack="):
+				b.force_attack = arg.get_slice("=", 1)
 		if "--boss-enraged" in OS.get_cmdline_user_args():
 			b.hp = b.max_hp * 0.5
 			b.call_deferred("_enrage")
@@ -1110,6 +1115,15 @@ func _autotest_spikes() -> void:
 	print("[autotest] warden spike line")
 	await get_tree().create_timer(0.75).timeout
 	_snap("user://autotest_spikes.png")
+
+
+func _autotest_cage() -> void:
+	if _cage_shot_taken:
+		return
+	_cage_shot_taken = true
+	print("[autotest] warden bone cage")
+	await get_tree().create_timer(1.2).timeout
+	_snap("user://autotest_cage.png")
 
 
 ## Buy the first affordable thing once, then move on.

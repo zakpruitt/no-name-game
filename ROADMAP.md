@@ -103,6 +103,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 ## Round 11
 - [x] Run summary: show the run's seed and active synergies, so a good run can be replayed and its build read at a glance — teal "Synergies: Storm, Tremor" line under the powers and a faint "seed N" under the New run button (replay with `--seed=N`)
 - [x] Daily run: a title-screen option that starts a run from today's date as the seed (same doors/rewards for everyone that day) — "Daily run" on the title; `main.daily_seed(date)` hashes the date into `run_seed`/`run_rng`; summary reads "daily run 2026-10-31 · seed N"; `--daily` flag; two `--tour --daily` runs got identical powers
-- [ ] Boss variety: a new Bone Warden attack for phase 2 (e.g. a ring of bone walls that closes in, with a gap to dash through)
+- [x] Boss variety: a new Bone Warden attack for phase 2 (e.g. a ring of bone walls that closes in, with a gap to dash through) — enraged "cage" (`bone_cage.gd`, `ATTACKS.cage`): 7m ring of bone walls around the hero closes to 1m over 2.6s, turning, with a 50° gap; dash i-frames pass walls; `--boss-attack=cage` forces it → `autotest_cage.png`
 - [ ] Tour coverage: the `--tour` shrine takes the rotating trade and the rest camp buys something, so those paths run every tour
 - [ ] Telegraph readability: enemy attack rings get a pulsing edge so they read on bright floor tiles and for colour-blind players
