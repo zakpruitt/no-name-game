@@ -39,10 +39,10 @@ func _initialize() -> void:
 	Input.parse_input_event(ev)
 	await create_timer(0.3).timeout
 	print("back in pause menu=", pause.is_open() and not pause.in_settings())
-	# Door choice with an elite twist (the longest door text).
+	# Door choice with a late elite's two twists (the longest door text).
 	pause.close_menu()
-	var twist: Dictionary = main.ELITE_TWISTS.volatile
-	main.path_menu.open(["fight", "elite"], 4, twist.name, twist.desc)
+	var twists := ["volatile", "hasted"]
+	main.path_menu.open(["fight", "elite"], 6, main._twist_text(twists, "name", " + "), main._twist_text(twists, "desc", ", "))
 	await create_timer(0.3).timeout
 	_save("user://menu_path.png")
 	main.path_menu.close_menu()
