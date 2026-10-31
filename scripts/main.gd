@@ -758,7 +758,8 @@ func _end_run(victory: bool) -> void:
 	# Summary rows to flag as new personal bests.
 	var rows := {"best_room": "Rooms cleared", "best_combo": "Best combo", "best_rank": "Best style rank",
 		"best_juggle": "Best juggle", "fastest_win": "Time"}
-	summary.open(victory, stats, player.upgrades, bests.map(func(k: String) -> String: return rows[k]))
+	summary.open(victory, stats, player.upgrades, bests.map(func(k: String) -> String: return rows[k]),
+		player.synergies, run_seed)
 	if _autotest:
 		_autotest_finish()
 

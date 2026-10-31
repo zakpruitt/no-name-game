@@ -101,7 +101,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Synergy sound + flash: a distinct chime and a ring burst on the hero when a synergy activates (gen_sfx) — `synergy.wav` (rising C-E-G-C arpeggio + whoosh), teal ring, flash and sparks from `player._synergy_burst()`; autotest snaps `autotest_synergy.png` on the first one (`--upgrades=skybreaker,quake` triggers it at once)
 
 ## Round 11
-- [ ] Run summary: show the run's seed and active synergies, so a good run can be replayed and its build read at a glance
+- [x] Run summary: show the run's seed and active synergies, so a good run can be replayed and its build read at a glance — teal "Synergies: Storm, Tremor" line under the powers and a faint "seed N" under the New run button (replay with `--seed=N`)
 - [ ] Daily run: a title-screen option that starts a run from today's date as the seed (same doors/rewards for everyone that day)
 - [ ] Boss variety: a new Bone Warden attack for phase 2 (e.g. a ring of bone walls that closes in, with a gap to dash through)
 - [ ] Tour coverage: the `--tour` shrine takes the rotating trade and the rest camp buys something, so those paths run every tour
