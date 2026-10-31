@@ -18,7 +18,7 @@ const PATHS := {
 		"desc": "Faster, quicker dashes, lightning every 3rd hit",
 		"speed": 1.25, "dash_cd": 0.5, "strike_every": 3, "strike_damage": 10.0, "strike_radius": 1.8,
 		"tempest_time": 2.2, "tempest_radius": 6.5, "tempest_pull": 7.0, "tempest_strikes": 8, "tempest_damage": 10.0},
-	"earth": {"name": "Earth", "title": "MAGMA ASCENDANT", "color": Color(1.0, 0.42, 0.12), "finisher": "Eruption",
+	"earth": {"name": "Earth", "title": "MAGMA ASCENDANT", "color": Color(1.0, 0.3, 0.08), "finisher": "Eruption",
 		"desc": "Tougher, heavy moves leave burning magma",
 		"armor": 0.45, "magma_damage": 5.0, "magma_tick": 0.4, "magma_time": 3.0, "magma_radius": 1.5,
 		"volcano_time": 2.6, "volcano_bombs": 12, "volcano_range": 8.0, "bomb_damage": 14.0, "bomb_radius": 2.2},
@@ -27,8 +27,8 @@ const PATHS := {
 		"chill_time": 2.0, "chill_slow": 0.55, "freeze_hits": 4, "freeze_time": 1.6, "shatter_mult": 1.5,
 		"glacier_radius": 6.5, "glacier_damage": 16.0, "glacier_freeze": 2.5, "glacier_spikes": 18},
 }
-## Awakening colour before an Ascendancy is chosen.
-const BASE_COLOR := Color(1.0, 0.55, 0.15)
+## Awakening colour before an Ascendancy is chosen (ancestral gold).
+const BASE_COLOR := Color(1.0, 0.78, 0.3)
 ## Moves that count as heavy for Earth's magma pools.
 const HEAVY_MOVES := ["H", "LH", "LLH", "CH", "AF"]
 

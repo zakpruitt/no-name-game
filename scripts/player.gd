@@ -12,6 +12,7 @@ enum State { MOVE, ATTACK, DASH, HURT, CHARGE, DEAD }
 
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
+const HERO_LOOK := preload("res://scripts/hero_look.gd")
 const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
 const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug"]
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
@@ -153,6 +154,8 @@ var ascendancy := ""
 var element_procs := 0  # lightning strikes, magma pools, freezes (autotest)
 var _wind_hits := 0
 var _aura: CPUParticles3D
+var _meshes: Array[Node] = []
+var _awaken_rim: ShaderMaterial
 var _trails: Array = []
 var _ghost_t := 0.0
 var _since_dash := 99.0
@@ -183,7 +186,10 @@ func _ready() -> void:
 
 	model = MODEL.instantiate()
 	add_child(model)
+	HERO_LOOK.dress(model)
 	Fx.outline(model)
+	_meshes = model.find_children("*", "MeshInstance3D", true, false)
+	_awaken_rim = Fx.rim_material().duplicate()
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		if mi.name in HIDDEN_MESHES:
 			mi.visible = false
@@ -219,7 +225,9 @@ func _ready() -> void:
 	dot.radius = 0.06
 	dot.height = 0.12
 	_aura.mesh = dot
-	_aura.material_override = Ascendancy.glow_mat(Color.WHITE)
+	var aura_mat := Ascendancy.glow_mat(Color.WHITE)
+	aura_mat.vertex_color_use_as_albedo = true
+	_aura.material_override = aura_mat
 	_aura.position.y = 1.0
 	add_child(_aura)
 	add_child(_awaken_light)
@@ -245,6 +253,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
+	# Fx.flash clears overlays on hit; put the Awakening rim or axe runes back.
+	for mi: MeshInstance3D in _meshes:
+		if mi.material_overlay == null and (awakened or mi.has_meta("rest_overlay")):
+			mi.material_overlay = _awaken_rim if awakened else _rest_overlay(mi)
 	_read_input()
 
 	if not is_on_floor():
@@ -844,6 +856,11 @@ func try_awaken() -> void:
 			e.take_hit(10.0, to.normalized() * 12.0, 5.0, true)
 
 
+## The overlay a mesh wears when not Awakened (HERO_LOOK's axe runes), or null.
+func _rest_overlay(mi: MeshInstance3D) -> Material:
+	return mi.get_meta("rest_overlay") if mi.has_meta("rest_overlay") else null
+
+
 ## A tuning number of the chosen Ascendancy path, or `fallback` without one.
 func _path(key: String, fallback: float) -> float:
 	return Ascendancy.PATHS[ascendancy].get(key, fallback) if ascendancy != "" else fallback
@@ -920,12 +937,9 @@ func _set_awakened(on: bool) -> void:
 	tw.tween_property(_awaken_light, "light_energy", 3.0 if on else 0.0, 0.2)
 	var c := Ascendancy.color(ascendancy)
 	_awaken_light.light_color = c
-	var rim: ShaderMaterial = Fx.rim_material()
-	if ascendancy != "":
-		rim = rim.duplicate()
-		rim.set_shader_parameter("glow_color", c)
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		mi.material_overlay = rim if on else null
+	_awaken_rim.set_shader_parameter("glow_color", c)
+	for mi: MeshInstance3D in _meshes:
+		mi.material_overlay = _awaken_rim if on else _rest_overlay(mi)
 	for trail in _trails:
 		trail.color = Color(c, 0.9) if on else Color(1.0, 0.95, 0.8, 0.8)
 	_aura.color = c
