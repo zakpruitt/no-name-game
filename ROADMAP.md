@@ -133,7 +133,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
   - Splitting ≈ Armored (~45% longer than a plain fight); Volatile clears faster than plain and may want a nerf (smaller VOLATILE_RADIUS or less blast_enemy_damage). Bot-only numbers; a human will differ
 
 ## Round 15
-- [ ] Volatile tune: the pacing check found Volatile rooms clear faster than plain fights; trim the burst's damage to other skeletons so it stays a threat rather than a free wipe, then re-run `--pace` and note the new numbers
+- [x] Volatile tune: the pacing check found Volatile rooms clear faster than plain fights; trim the burst's damage to other skeletons so it stays a threat rather than a free wipe, then re-run `--pace` and note the new numbers — `enemy.VOLATILE_ENEMY_DAMAGE` 12 (was the bomber's 40) only moved the avg 12.6→12.8s; the real cause was the burst launching crowds (`blast_enemy_launch`, `VOLATILE_ENEMY_LAUNCH` 0). Now seeds 1–3: 17.8, 18.5, 11.8 → avg 16.0s (= plain fight), hero HP 72–87 (was 72–100)
 - [ ] "Bone" synergy: Shatter + Bone Breaker share a tag that boosts both (shard damage and the slam bonus), so the new power has a build to grow into
 - [ ] Split minions read apart: tint the Splitting twist's minions (pale bone glow) so they're distinguishable from regular minions
 - [ ] Boss pacing baseline: `--pace` also covers the boss room (time to kill the Warden, hero HP left) over a few seeds, numbers noted in ROADMAP

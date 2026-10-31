@@ -72,13 +72,16 @@ const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
 ## alike. Killed while lit, it blows up on the spot (chains into other bombs).
 @export var blast_radius := 3.2
 @export var blast_enemy_damage := 40.0
+@export var blast_enemy_launch := 7.0
 const BOMB_COLOR := Color(1.0, 0.5, 0.1)
 var _fuse := -1.0  # seconds left once lit; < 0 = not lit
 ## Volatile (elite room twist): bursts VOLATILE_DELAY s after dying, with a
-## smaller blast_radius; the ring warns where.
+## smaller blast_radius and much less damage to other skeletons; the ring warns where.
 var volatile := false
 const VOLATILE_DELAY := 0.7
 const VOLATILE_RADIUS := 2.4
+const VOLATILE_ENEMY_DAMAGE := 12.0  # to other skeletons (bombers do blast_enemy_damage)
+const VOLATILE_ENEMY_LAUNCH := 0.0  # stagger only; a launch left crowds helpless
 var _spark: MeshInstance3D
 ## Necromancer (attack_kind "raise"): hangs back and raises up to raise_count
 ## fallen minions (main.gd keeps the graves; `can_raise` asks it whether any
@@ -590,6 +593,8 @@ func _burn_fuse(delta: float) -> void:
 
 func _volatile_pop() -> void:
 	blast_radius = VOLATILE_RADIUS
+	blast_enemy_damage = VOLATILE_ENEMY_DAMAGE
+	blast_enemy_launch = VOLATILE_ENEMY_LAUNCH
 	var warn := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = blast_radius
@@ -633,7 +638,7 @@ func _blast() -> void:
 		var to: Vector3 = e.global_position - at
 		to.y = 0.0
 		if e != self and e.is_alive() and to.length() <= blast_radius:
-			e.take_hit(blast_enemy_damage, to.normalized() * 6.0, 7.0, true)
+			e.take_hit(blast_enemy_damage, to.normalized() * 6.0, blast_enemy_launch, true)
 			Game.register_hit("bomb")
 
 
