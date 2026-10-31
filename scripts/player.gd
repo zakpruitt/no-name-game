@@ -26,7 +26,9 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 @export var input_buffer := 0.25
 @export var aim_assist_range := 5.5
 @export var aim_assist_angle := 70.0
-@export var awaken_duration := 12.0
+## Fixed length of Awakening; nothing extends it, and the meter can't refill
+## while it lasts (Game.awaken_locked), so it ends empty.
+@export var awaken_duration := 8.0
 @export var afterimage_interval := 0.035
 ## Dash this soon before an enemy hit lands for a perfect dodge.
 @export var perfect_dodge_window := 0.15
@@ -154,7 +156,6 @@ var bot_move := Vector3.ZERO
 
 ## Owned combo-slot upgrades: id -> level (see upgrades.gd).
 var upgrades := {}
-var _awaken_base := -1.0
 var bot_enabled := false
 
 
@@ -625,10 +626,6 @@ func add_upgrade(id: String) -> void:
 			_synergy_burst()
 	if id == "overflow":
 		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
-	if id == "long_night":
-		if _awaken_base < 0.0:
-			_awaken_base = awaken_duration
-		awaken_duration = _awaken_base * (1.0 + upg(id, "bonus") / 100.0)
 
 
 func _on_enemy_killed(_e: Node) -> void:
@@ -805,6 +802,9 @@ func try_awaken() -> void:
 
 func _set_awakened(on: bool) -> void:
 	awakened = on
+	Game.awaken_locked = on
+	if not on:
+		Game.add_awakening(-Game.AWAKEN_MAX)  # always starts over from empty
 	_awaken_t = awaken_duration
 	_anim_mult = 1.3 if on else 1.0
 	_dmg_mult = 1.6 if on else 1.0

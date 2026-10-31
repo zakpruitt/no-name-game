@@ -86,6 +86,8 @@ var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
+## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
+var awaken_locked := false
 var _combo_timer := 0.0
 var _air_timer := 0.0
 var _recent_moves: Array[String] = []
@@ -153,6 +155,7 @@ func reset() -> void:
 	air_hits = 0
 	best_air = 0
 	awakening_gain_mult = 1.0
+	awaken_locked = false
 	_recent_moves.clear()
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
@@ -372,6 +375,8 @@ func player_damaged() -> void:
 
 func add_awakening(amount: float) -> void:
 	if amount > 0.0:
+		if awaken_locked:
+			return
 		amount *= awakening_gain_mult
 	awakening = clampf(awakening + amount, 0.0, AWAKEN_MAX)
 	awakening_changed.emit(awakening)

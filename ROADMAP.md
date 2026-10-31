@@ -140,3 +140,9 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 16 (feedback)
 - [x] Combo callouts: landing a named combo (`player.COMBOS`: Triple Chop, Dash Stab, Launcher, Ground Breaker, Charged Slam, Cataclysm) plays a quiet tier sound (`combo_1..3`) and shows its name above the hero; pause menu gets a fixed MOVES list. Autotest prints `callouts=` and saves `autotest_callout.png`
+
+## Round 17 (shaman rework)
+- [x] Short Awakening: 8s flat (`player.awaken_duration`), no meter gain while Awakened (`Game.awaken_locked`), meter empties when it ends; Long Night removed (Night synergy is now Overflow + Phoenix Heart)
+- [ ] Hero levels: XP from kills, level-ups during the run, level shown on the HUD
+- [ ] Ascendancy at level 6: pick Wind (storm, light green), Earth (magma, volcanoes) or Water (ice); the path reshapes Awakening (colours, passive, finisher)
+- [ ] Shaman look: recolour the Barbarian, rune-glowing dual axes, charms/feathers from primitives; ascended forms glow in their element
