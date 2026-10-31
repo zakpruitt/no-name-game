@@ -3,18 +3,27 @@ extends "res://scripts/enemy.gd"
 ##   cleave  spin sweep around itself (red ring shows the reach)
 ##   slam    leaps onto the hero's spot (red ring at the landing point)
 ##   nova    ring of slow bolts (purple ring); dash through the gaps
+##   spikes  (enraged only) smashes the floor; a line of bone spikes runs at
+##           the hero, turning to follow, each flagged red just before it stabs
 ## Normal hits never stagger it; dealing `break_damage` within a few seconds
 ## breaks its guard for a long opening. Below half HP it enrages: faster
-## windups, denser novas, and it summons minions.
+## windups, denser novas, the spike line, and it summons minions.
+
+const BONE_SPIKE := preload("res://scripts/bone_spike.gd")
 
 signal summon(count: int)
 signal enraged
+signal spike_line
 
 ## Per-attack tuning: windup (s), recover (s), damage, plus attack specifics.
 const ATTACKS := {
 	"cleave": {"windup": 0.85, "recover": 0.9, "damage": 22.0, "range": 4.2},
 	"slam": {"windup": 1.0, "recover": 1.1, "damage": 26.0, "radius": 3.6, "air_time": 0.55},
 	"nova": {"windup": 1.1, "recover": 0.8, "damage": 12.0, "bolts": 10, "bolts_enraged": 14},
+	# count spikes, `step` m apart, one every `interval` s; each turns at most
+	# `turn` degrees toward the hero and warns for `warn` s before stabbing.
+	"spikes": {"windup": 0.9, "recover": 1.0, "damage": 18.0, "count": 12, "step": 1.6,
+		"interval": 0.11, "turn": 22.0, "warn": 0.4, "radius": 1.0},
 }
 ## Damage that breaks its guard if dealt within `break_window` seconds.
 @export var break_damage := 90.0
@@ -90,6 +99,8 @@ func _state_chase(delta: float) -> void:
 ## Close: mostly cleave. Far: slam or nova. Avoid repeating the same attack.
 func _pick_attack(d: float) -> String:
 	var options: Array = ["cleave", "cleave", "slam"] if d < 4.5 else ["slam", "nova", "nova"]
+	if is_enraged:
+		options += ["spikes"] if d < 4.5 else ["spikes", "spikes"]
 	while options.has(_last_attack):
 		options.erase(_last_attack)
 	if options.is_empty():
@@ -117,6 +128,9 @@ func _start_attack(kind: String) -> void:
 		"nova":
 			_set_telegraph(1.8, Color(0.7, 0.3, 1.0, 0.3))
 			_play("Spellcast_Raise", 0.1, anim.get_animation("Spellcast_Raise").length / attack_windup)
+		"spikes":
+			_set_telegraph(2.2, Color(1.0, 0.15, 0.1, 0.3))
+			_play("2H_Melee_Attack_Chop", 0.1, anim.get_animation("2H_Melee_Attack_Chop").length * 0.45 / attack_windup)
 	Game.sfx("spawn", -6.0, 0.1)
 
 
@@ -144,6 +158,7 @@ func _state_windup(delta: float) -> void:
 			"cleave": _cleave()
 			"slam": _leap()
 			"nova": _nova()
+			"spikes": _spike_line()
 		_attack_cd = randf_range(0.6, 1.2) * (enrage_speed if is_enraged else 1.0)
 		_set_state(State.RECOVER)
 
@@ -209,6 +224,39 @@ func _nova() -> void:
 		p.source = self
 		get_parent().add_child(p)
 		p.global_position = global_position + Vector3.UP * 1.0 + p.direction * 1.4
+
+
+## Lay spikes one by one from the boss toward the hero, steering a little
+## each step (so dashing sideways outruns it).
+func _spike_line() -> void:
+	var spec: Dictionary = ATTACKS.spikes
+	Game.shake(0.45)
+	Game.sfx("hit_big", -2.0, 0.05)
+	Fx.dust(get_parent(), global_position, 20, 1.2)
+	spike_line.emit()
+	var dir := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
+	var pos := global_position + dir * 1.5
+	var turn := deg_to_rad(spec.turn)
+	for i in spec.count:
+		if state == State.DEAD or not is_inside_tree():
+			return
+		if is_instance_valid(_player):
+			var want := _player.global_position - pos
+			want.y = 0.0
+			if want.length() > 0.5:
+				var ang := clampf(dir.signed_angle_to(want.normalized(), Vector3.UP), -turn, turn)
+				dir = dir.rotated(Vector3.UP, ang)
+		pos += dir * spec.step
+		if absf(pos.x) > 15.0 or absf(pos.z) > 15.0:
+			return  # hit the wall
+		var s := BONE_SPIKE.new()
+		s.damage = spec.damage
+		s.warn_time = spec.warn
+		s.radius = spec.radius
+		s.source = self
+		get_parent().add_child(s)
+		s.global_position = Vector3(pos.x, 0.0, pos.z)
+		await get_tree().create_timer(spec.interval, false).timeout
 
 
 func stagger(time: float) -> void:

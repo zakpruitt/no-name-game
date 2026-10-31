@@ -7,7 +7,8 @@ extends Node3D
 ## seconds, print combat stats, save screenshots to user://, and quit.
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
 ## `--max-upgrades` gives them all at MAX_LEVEL),
-## `--start-room=N` to begin at a later room, `--start-rest` to make it a rest
+## `--start-room=N` to begin at a later room, `--boss-enraged` to start the boss at half HP (enraged; it uses the spike
+## line), `--start-rest` to make it a rest
 ## (camp) room with some bones, and `--start-awakened` to begin with a full
 ## Awakening meter.
 
@@ -163,6 +164,7 @@ var _bot_next_charge := 3.0
 var _charge_shot_taken := false
 var _hint_shot_taken := false
 var _necro_shot_taken := false
+var _spikes_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -409,6 +411,11 @@ func _spawn_boss() -> void:
 	b.summon.connect(func(count: int) -> void:
 		for i in count:
 			_spawn("minion"))
+	if _autotest:
+		b.spike_line.connect(_autotest_spikes)
+		if "--boss-enraged" in OS.get_cmdline_user_args():
+			b.hp = b.max_hp * 0.5
+			b.call_deferred("_enrage")
 	_alive += 1
 	hud.show_boss(b)
 	for kind in BOSS_ESCORT:
@@ -816,6 +823,15 @@ func _autotest_pick() -> void:
 		await get_tree().create_timer(0.4).timeout
 	_snap("user://autotest_reward.png")
 	reward.pick(0)
+
+
+func _autotest_spikes() -> void:
+	if _spikes_shot_taken:
+		return
+	_spikes_shot_taken = true
+	print("[autotest] warden spike line")
+	await get_tree().create_timer(0.75).timeout
+	_snap("user://autotest_spikes.png")
 
 
 ## Buy the first affordable thing once, then move on.
