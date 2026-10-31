@@ -941,6 +941,22 @@ func _snap(path: String) -> void:
 	print("[autotest] screenshot ", ProjectSettings.globalize_path(path))
 
 
+## True if something could interrupt a charge: an enemy close by winding up,
+## a bolt in flight nearby, or a lit fuse in range.
+func _bot_threatened() -> bool:
+	var at := player.global_position
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var d: float = e.global_position.distance_to(at)
+		if d < 6.0 and e.state == e.State.WINDUP:
+			return true
+		if e.fuse_left() >= 0.0 and d < e.blast_radius + 1.0:
+			return true
+	for p in get_tree().get_nodes_in_group("projectiles"):
+		if p.global_position.distance_to(at) < 6.0:
+			return true
+	return false
+
+
 func _drive_bot() -> void:
 	var nearest: Node3D = null
 	var nd := INF
@@ -952,9 +968,15 @@ func _drive_bot() -> void:
 	Input.action_release("attack_light")
 	if _bot_charge_t > 0.0:
 		_bot_charge_t -= get_process_delta_time()
+		if nearest != null:
+			player.bot_move = (nearest.global_position - player.global_position).normalized()
 		if player.state == player.State.CHARGE and player._charged and not _charge_shot_taken:
 			_charge_shot_taken = true
 			_snap("user://autotest_charge.png")
+		# Knocked out of the charge: let go and try again soon.
+		if player.state != player.State.CHARGE and _bot_charge_t < player.CHARGE_TIME:
+			_bot_charge_t = 0.0
+			_bot_next_charge = _autotest_t + 1.5
 		return  # keep holding heavy (and nothing else) until the charge releases
 	Input.action_release("attack_heavy")
 	Input.action_release("dash")
@@ -980,11 +1002,12 @@ func _drive_bot() -> void:
 			player.bot_move = (player.global_position - e.global_position).normalized()
 			Input.action_press("dash")
 			return
-	# Now and then, from neutral, hold heavy for a charged slam.
-	if nd < 4.0 and player.state == player.State.MOVE and not player.awakened and _autotest_t >= _bot_next_charge:
+	# Now and then, from neutral, hold heavy for a charged slam: from just
+	# outside melee reach (the slam lunges in), when nothing is about to hit.
+	if nd > 2.8 and nd < 6.0 and player.state == player.State.MOVE and not player.awakened and _autotest_t >= _bot_next_charge 			and not _bot_threatened():
 		Input.action_press("attack_heavy")
 		_bot_charge_t = player.CHARGE_TIME + 0.15
-		_bot_next_charge = _autotest_t + 7.0
+		_bot_next_charge = _autotest_t + 5.0
 		return
 	if nd < 3.0:
 		# Cycle through routes: L H (launch), L L H (ground breaker), L L L.
