@@ -139,6 +139,11 @@ const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 
 	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons", "bones": 0}
 const BOSS_ESCORT := {"minion": 2, "mage": 1}
 
+## Seed for the daily run on `date` ("YYYY-MM-DD"): the same all day, for everyone.
+static func daily_seed(date: String) -> int:
+	return hash("awaken-daily-" + date) & 0x7fffffff
+
+
 ## The (up to) two doors offered for room n, given the previous room's kind.
 ## Elites, rests and shrines unlock from room 3; never two fightless rooms
 ## (rest, shrine) in a row.
@@ -179,6 +184,7 @@ var room_kind := "fight"
 var room_twists: Array[String] = []  # ELITE_TWISTS keys for this (elite) room
 var run_seed := 0
 var run_rng := RandomNumberGenerator.new()
+var daily_date := ""  # "2026-10-31" on a daily run (title screen), else ""
 var _tour := false
 var _tour_seen: Array[String] = []
 var _tour_room_t := 0.0
@@ -250,6 +256,9 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--seed="):
 			run_seed = arg.get_slice("=", 1).to_int()
+		elif arg == "--daily":  # what the title's "Daily run" does
+			daily_date = Time.get_date_string_from_system()
+			run_seed = daily_seed(daily_date)
 	seed(run_seed)
 	run_rng.seed = run_seed
 	if _autotest:
@@ -354,6 +363,11 @@ func _ready() -> void:
 		hud.visible = false
 		title.open()
 		await title.started
+		if title.daily:
+			daily_date = Time.get_date_string_from_system()
+			run_seed = daily_seed(daily_date)
+			run_rng.seed = run_seed
+			seed(run_seed)
 		title.queue_free()
 		hud.visible = true
 	Game.skip_title = false
@@ -759,7 +773,7 @@ func _end_run(victory: bool) -> void:
 	var rows := {"best_room": "Rooms cleared", "best_combo": "Best combo", "best_rank": "Best style rank",
 		"best_juggle": "Best juggle", "fastest_win": "Time"}
 	summary.open(victory, stats, player.upgrades, bests.map(func(k: String) -> String: return rows[k]),
-		player.synergies, run_seed)
+		player.synergies, run_seed, daily_date)
 	if _autotest:
 		_autotest_finish()
 

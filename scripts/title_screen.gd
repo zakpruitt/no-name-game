@@ -8,13 +8,16 @@ const CONTROLS := "WASD / left stick move    J / LMB / X light    K / RMB / Y he
 
 const ALTAR_MENU := preload("res://scripts/altar_menu.gd")
 
+var daily := false  # "Daily run" picked: main seeds the run from today's date
+
 
 func open(focus := 0) -> void:
 	button_width = 340
 	show_menu("AWAKEN", "a combo roguelike", [
 		["Start run", _start],
+		["Daily run", _start_daily],
 		["Bone altar", open_altar],
-		["Settings", open_settings.bind(open.bind(2), 0.85)],
+		["Settings", open_settings.bind(open.bind(3), 0.85)],
 		["Quit", _quit],
 	], _footer(), 0.85, focus)
 
@@ -22,7 +25,7 @@ func open(focus := 0) -> void:
 ## Spend banked bones on permanent boons (altar.gd).
 func open_altar(focus := 0) -> void:
 	button_width = 720
-	var items := ALTAR_MENU.items(func() -> void: open_altar(focus), open.bind(1))
+	var items := ALTAR_MENU.items(func() -> void: open_altar(focus), open.bind(2))
 	show_menu("BONE ALTAR", ALTAR_MENU.subtitle(), items, "", 0.85, focus)
 
 
@@ -34,6 +37,12 @@ func _footer() -> String:
 func _start() -> void:
 	close_menu()
 	started.emit()
+
+
+## Same doors, twists and rewards for everyone today (main.daily_seed()).
+func _start_daily() -> void:
+	daily = true
+	_start()
 
 
 func _quit() -> void:

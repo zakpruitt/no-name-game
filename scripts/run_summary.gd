@@ -16,8 +16,8 @@ func _ready() -> void:
 ## `synergies`: active Upgrades.SYNERGIES ids; `run_seed` (if >= 0) is shown
 ## small under the button so a run can be replayed with `--seed`.
 func open(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array = [], synergies: Array = [],
-		run_seed := -1) -> void:
-	_build(victory, stats, upgrades, new_bests, synergies, run_seed)
+		run_seed := -1, daily_date := "") -> void:
+	_build(victory, stats, upgrades, new_bests, synergies, run_seed, daily_date)
 	visible = true
 	get_tree().paused = true
 
@@ -35,7 +35,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array, synergies: Array,
-		run_seed: int) -> void:
+		run_seed: int, daily_date: String) -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
@@ -87,7 +87,8 @@ func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: A
 	col.add_child(b)
 	b.grab_focus()
 	if run_seed >= 0:
-		_label(col, "seed %d" % run_seed, 16, Color(1, 1, 1, 0.4)).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var seed_text := ("daily run %s   ·   " % daily_date if daily_date != "" else "") + "seed %d" % run_seed
+		_label(col, seed_text, 16, Color(1, 1, 1, 0.4)).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# Center the column once its size is known.
 	await get_tree().process_frame
