@@ -131,3 +131,9 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
   - elite+hasted: 16.5, 19.3, 14.1 → avg 16.6 (HP 82–100)
   - elite+volatile: 8.5, 17.3, 12.1 → avg 12.6 (HP 72–100) — bursts chain-kill the crowd, so it's the fastest room
   - Splitting ≈ Armored (~45% longer than a plain fight); Volatile clears faster than plain and may want a nerf (smaller VOLATILE_RADIUS or less blast_enemy_damage). Bot-only numbers; a human will differ
+
+## Round 15
+- [ ] Volatile tune: the pacing check found Volatile rooms clear faster than plain fights; trim the burst's damage to other skeletons so it stays a threat rather than a free wipe, then re-run `--pace` and note the new numbers
+- [ ] "Bone" synergy: Shatter + Bone Breaker share a tag that boosts both (shard damage and the slam bonus), so the new power has a build to grow into
+- [ ] Split minions read apart: tint the Splitting twist's minions (pale bone glow) so they're distinguishable from regular minions
+- [ ] Boss pacing baseline: `--pace` also covers the boss room (time to kill the Warden, hero HP left) over a few seeds, numbers noted in ROADMAP
