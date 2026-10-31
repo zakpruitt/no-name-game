@@ -19,6 +19,9 @@ const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"
 @export var poise := 0.0
 @export var model_scale := 1.0
 @export var run_anim := "Running_A"
+## Seconds this enemy alone freezes on hit (on top of global hitstop).
+@export var hit_freeze := 0.06
+@export var hit_freeze_big := 0.11
 
 var radius := 0.55
 var hp := 0.0
@@ -31,6 +34,9 @@ var _player: Node3D
 var _telegraph: MeshInstance3D
 var _telegraph_mat: StandardMaterial3D
 var _attack_cd := 0.0
+var _freeze_t := 0.0
+var _frozen_speed := -1.0
+var _squash_tween: Tween
 
 
 func _ready() -> void:
@@ -70,6 +76,18 @@ func is_airborne() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	# Hit freeze: hold the pose and shudder; knockback starts once it ends.
+	if _freeze_t > 0.0:
+		_freeze_t -= delta
+		if _frozen_speed < 0.0:
+			_frozen_speed = anim.speed_scale
+		anim.speed_scale = 0.0
+		model.position = Vector3(randf_range(-0.07, 0.07), 0.0, randf_range(-0.07, 0.07))
+		return
+	if _frozen_speed >= 0.0:
+		anim.speed_scale = _frozen_speed
+		_frozen_speed = -1.0
+		model.position = Vector3.ZERO
 	_state_t += delta
 	_attack_cd -= delta
 	velocity.y -= (14.0 if state == State.AIRBORNE else 30.0) * delta
@@ -157,6 +175,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
 	Fx.flash(model)
 	_telegraph.visible = false
+	_freeze_t = hit_freeze_big if big else hit_freeze
 	if hp <= 0.0:
 		_die(knockback)
 		return
@@ -167,6 +186,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		velocity = Vector3(knockback.x * 0.4, maxf(launch, 4.5), knockback.z * 0.4)
 		_set_state(State.AIRBORNE)
 		_play("Hit_B", 0.05, 1.5, true)
+		_squash(Vector3(0.8, 1.3, 0.8))  # stretch upward when launched
 		return
 	if knockback.length() < poise and state == State.WINDUP:
 		return  # poise held: flinch-free, the attack still lands
@@ -174,6 +194,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	velocity.z = knockback.z
 	_set_state(State.HURT)
 	_play("Hit_A" if randf() < 0.5 else "Hit_B", 0.05, 1.6, true)
+	_squash(Vector3(1.25, 0.78, 1.25) if big else Vector3(1.15, 0.87, 1.15))
 
 
 func _die(knockback: Vector3) -> void:
@@ -212,7 +233,19 @@ func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> 
 	anim.play(anim_name, blend, 1.0)
 	if restart:
 		anim.seek(0.0, true)
-	anim.speed_scale = speed
+	if _frozen_speed >= 0.0:
+		_frozen_speed = speed  # applied when the hit freeze ends
+	else:
+		anim.speed_scale = speed
+
+
+## Snap the model to `amount` (per-axis scale) and spring back.
+func _squash(amount: Vector3) -> void:
+	if _squash_tween:
+		_squash_tween.kill()
+	model.scale = amount * model_scale
+	_squash_tween = create_tween()
+	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, 0.3) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 func _build_telegraph() -> void:
