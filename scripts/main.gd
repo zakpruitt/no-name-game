@@ -51,6 +51,10 @@ const REST_HEAL := 0.4
 const ELITE_REWARDS := 2
 # Fraction of max HP restored when a room (other than the boss) is cleared.
 const ROOM_CLEAR_HEAL := 0.25
+# Spawn pacing: at most MAX_ALIVE enemies are up at once; the rest of the
+# room waits in a queue and one steps in REINFORCE_DELAY after each kill.
+const MAX_ALIVE := 8
+const REINFORCE_DELAY := 0.7
 # Arena layouts: pillar spots and spike-trap tiles (spikes must sit on tile
 # centres: ±2, ±6, ±10, ±14). ROOM_LAYOUTS picks one per room number;
 # pillars sink/rise when the layout changes between rooms.
@@ -103,6 +107,7 @@ var room := 0
 var room_kind := "fight"
 var path_menu: CanvasLayer
 var _alive := 0
+var _queue: Array = []  # [kind, elite] pairs waiting to spawn this room (MAX_ALIVE)
 var _between_rooms := false
 var _run_over := false
 # Run stats for the summary screen.
@@ -222,11 +227,15 @@ func _next_room() -> void:
 			kinds.append(kind)
 	var elites := elite_count(room) if room_kind == "elite" else 0
 	kinds.shuffle()
+	_queue.clear()
 	for kind in kinds:
 		var make_elite := elites > 0 and kind != "mage"
 		if make_elite:
 			elites -= 1
-		_spawn(kind, make_elite)
+		_queue.append([kind, make_elite])
+	while _alive < MAX_ALIVE and not _queue.is_empty():
+		var next: Array = _queue.pop_front()
+		_spawn(next[0], next[1])
 
 
 ## Rest room: no enemies, a heal, then straight on to the next door.
@@ -270,6 +279,7 @@ func _spawn(kind: String, elite := false) -> void:
 	e.global_position = Vector3(clampf(p.x, -lim, lim), 0.0, clampf(p.z, -lim, lim))
 	e.died.connect(_on_enemy_died)
 	_alive += 1
+	hud.set_remaining(_alive + _queue.size())
 
 
 func _model(model_name: String) -> PackedScene:
@@ -306,9 +316,22 @@ func _on_boss_died(_b: Node) -> void:
 	_on_enemy_died(_b)
 
 
+## Bring in the next queued enemy a moment after a kill.
+func _reinforce() -> void:
+	await get_tree().create_timer(REINFORCE_DELAY).timeout
+	if _queue.is_empty() or _between_rooms or player.is_dead():
+		return
+	var next: Array = _queue.pop_front()
+	_spawn(next[0], next[1])
+
+
 func _on_enemy_died(_e: Node) -> void:
 	_alive -= 1
 	_kills += 1
+	hud.set_remaining(_alive + _queue.size())
+	if not _queue.is_empty():
+		_reinforce()
+		return
 	if _alive <= 0 and not _between_rooms and not player.is_dead():
 		_between_rooms = true
 		hud.flash_message("CLEARED", 1.0)

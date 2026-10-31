@@ -13,6 +13,7 @@ var air_label: Label
 var wave_label: Label
 var center_label: Label
 var upgrades_label: Label
+var _room_text := ""
 var boss_root: Control
 var boss_bar: ProgressBar
 var boss_break_bar: ProgressBar
@@ -48,7 +49,7 @@ func _ready() -> void:
 	air_label.pivot_offset = Vector2(300, 25)
 
 	wave_label = _label(root, "", 26, Color(0.85, 0.85, 0.95))
-	_anchor(wave_label, 0.5, 0.0, Rect2(-150, 24, 300, 40))
+	_anchor(wave_label, 0.5, 0.0, Rect2(-260, 24, 520, 40))
 	wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	center_label = _label(root, "", 64, Color.WHITE)
@@ -110,6 +111,11 @@ func _process(_delta: float) -> void:
 
 
 ## `owned` maps upgrade id -> level.
+## Enemies still to beat this room (alive + waiting to spawn); 0 hides it.
+func set_remaining(count: int) -> void:
+	wave_label.text = _room_text + ("   ·   %d LEFT" % count if count > 0 else "")
+
+
 func set_upgrades(owned: Dictionary) -> void:
 	var lines: Array[String] = []
 	for id in owned:
@@ -119,7 +125,8 @@ func set_upgrades(owned: Dictionary) -> void:
 
 
 func set_room(n: int, total: int, kind: String) -> void:
-	wave_label.text = "ROOM %d / %d" % [n, total]
+	_room_text = "ROOM %d / %d" % [n, total]
+	wave_label.text = _room_text
 	if kind == "elite":
 		flash_message("ROOM %d\nELITES" % n, 1.4)
 	elif kind == "rest":
