@@ -222,6 +222,49 @@ static func outline(root: Node) -> void:
 			mi.set_surface_override_material(i, _outlined[src])
 
 
+## Telegraph rim: a light ring just inside radius r with a dark outline just
+## outside it, so attack areas read on bright tiles without relying on colour.
+## Add it under the telegraph mesh; colour it each frame with pulse_edge().
+const EDGE_WIDTH := 0.16  # m, light rim
+const EDGE_OUTLINE := 0.07  # m, dark outline
+
+
+static func edge_ring(r: float) -> MeshInstance3D:
+	var edge := MeshInstance3D.new()
+	var outline := MeshInstance3D.new()
+	edge.add_child(outline)
+	for mi: MeshInstance3D in [edge, outline]:
+		var torus := TorusMesh.new()
+		torus.rings = 48
+		torus.ring_segments = 4
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		torus.material = mat
+		mi.mesh = torus
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	(outline.mesh.material as StandardMaterial3D).albedo_color = Color(0.05, 0.02, 0.05, 0.8)
+	edge.scale = Vector3(1.0, 0.3, 1.0)
+	fit_edge(edge, r)
+	return edge
+
+
+static func fit_edge(edge: MeshInstance3D, r: float) -> void:
+	var rim := edge.mesh as TorusMesh
+	rim.inner_radius = maxf(r - EDGE_WIDTH, 0.01)
+	rim.outer_radius = r
+	var dark := (edge.get_child(0) as MeshInstance3D).mesh as TorusMesh
+	dark.inner_radius = r
+	dark.outer_radius = r + EDGE_OUTLINE
+
+
+## Light rim in `color`'s hue, pulsing with `t` (cycles), fading with color.a.
+static func pulse_edge(edge: MeshInstance3D, color: Color, t: float) -> void:
+	var pulse := 0.5 + 0.5 * sin(t * TAU)
+	var mat := (edge.mesh as TorusMesh).material as StandardMaterial3D
+	mat.albedo_color = Color(color.lerp(Color.WHITE, 0.7), lerpf(0.4, 1.0, pulse) * minf(color.a * 2.2, 1.0))
+
+
 static func rim_material() -> ShaderMaterial:
 	if _rim_mat == null:
 		_rim_mat = ShaderMaterial.new()

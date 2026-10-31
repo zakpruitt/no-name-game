@@ -26,6 +26,7 @@ var _pieces: Array[Node3D] = []
 var _angles: Array[float] = []
 var _floor_ring: MeshInstance3D
 var _floor_mat: StandardMaterial3D
+var _floor_edge: MeshInstance3D  # light rim + dark outline at the band's outer edge
 var _done := false
 
 
@@ -71,6 +72,9 @@ func _ready() -> void:
 	_floor_ring.position.y = 0.08
 	_floor_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_floor_ring)
+	_floor_edge = Fx.edge_ring(radius)
+	_floor_edge.position.y = 0.09
+	add_child(_floor_edge)
 
 	_place()
 	var tw := create_tween().set_parallel()
@@ -84,6 +88,7 @@ func _physics_process(delta: float) -> void:
 	if _done:
 		return
 	_t += delta
+	Fx.pulse_edge(_floor_edge, _floor_mat.albedo_color, _t * lerpf(3.0, 9.0, clampf(_t / (rise_time + close_time), 0.0, 1.0)))
 	if _t < rise_time:
 		return
 	var k := clampf((_t - rise_time) / close_time, 0.0, 1.0)
@@ -103,6 +108,7 @@ func _place() -> void:
 		_pieces[i].position = dir * _r
 		_pieces[i].rotation.y = atan2(dir.x, dir.z)
 	_floor_ring.scale = Vector3(_r, 0.02, _r)
+	Fx.fit_edge(_floor_edge, _r + 0.15)
 
 
 func _player() -> Node3D:
@@ -147,4 +153,5 @@ func _shut() -> void:
 	for piece in _pieces:
 		tw.tween_property(piece, "position:y", -2.0, 0.45).set_delay(0.25)
 	tw.tween_property(_floor_mat, "albedo_color:a", 0.0, 0.4)
+	_floor_edge.visible = false
 	tw.chain().tween_callback(queue_free)

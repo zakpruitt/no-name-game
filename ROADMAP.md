@@ -108,7 +108,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Telegraph readability: enemy attack rings get a pulsing edge so they read on bright floor tiles and for colour-blind players — every enemy/boss attack ring gets a pale rim (pulses 3→9 Hz as the windup runs out) plus a dark outline (`enemy.EDGE_*`, `fit_edge()`)
 
 ## Round 12
-- [ ] Boss slam readability: the Warden's slam landing ring and the bone cage's floor band get the same pale rim + dark outline as enemy telegraphs
+- [x] Boss slam readability: the Warden's slam landing ring and the bone cage's floor band get the same pale rim + dark outline as enemy telegraphs — rim code moved to `Fx.edge_ring()` / `fit_edge()` / `pulse_edge()` (`Fx.EDGE_*`); slam ring pulses with its windup, cage band rim follows the closing walls
 - [ ] Cage hint: the first bone cage shows a one-time hint ("Find the gap, or dash through a wall") through `Game.HINTS`
 - [ ] Cage sound: a distinct grinding-bone sfx (gen_sfx) as the cage rises and closes, instead of reusing `hit_big`
 - [ ] Pause menu run info: show the run seed (and "daily run DATE") in the pause panel, so a run can be noted mid-way

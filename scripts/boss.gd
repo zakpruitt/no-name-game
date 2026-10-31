@@ -51,6 +51,7 @@ var _leaping := false
 var _slam_target := Vector3.ZERO
 var _target_ring: MeshInstance3D
 var _target_mat: StandardMaterial3D
+var _target_edge: MeshInstance3D
 var _break_meter := 0.0
 var _break_decay_t := 0.0
 var _last_attack := ""
@@ -160,6 +161,8 @@ func _state_windup(delta: float) -> void:
 		_target_ring.global_position = _slam_target + Vector3.UP * 0.08
 		_target_ring.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
 		_target_mat.albedo_color.a = lerpf(0.15, 0.6, k)
+		_edge_t += delta * lerpf(EDGE_PULSE_HZ.x, EDGE_PULSE_HZ.y, k)
+		Fx.pulse_edge(_target_edge, _target_mat.albedo_color, _edge_t)
 	else:
 		if is_instance_valid(_player):
 			_face(_player.global_position - global_position)
@@ -406,3 +409,5 @@ func _build_target_ring() -> void:
 	_target_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_target_ring.visible = false
 	add_child(_target_ring)
+	_target_edge = Fx.edge_ring(r)
+	_target_ring.add_child(_target_edge)
