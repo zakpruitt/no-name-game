@@ -106,3 +106,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Boss variety: a new Bone Warden attack for phase 2 (e.g. a ring of bone walls that closes in, with a gap to dash through) — enraged "cage" (`bone_cage.gd`, `ATTACKS.cage`): 7m ring of bone walls around the hero closes to 1m over 2.6s, turning, with a 50° gap; dash i-frames pass walls; `--boss-attack=cage` forces it → `autotest_cage.png`
 - [x] Tour coverage: the `--tour` shrine takes the rotating trade and the rest camp buys something, so those paths run every tour — camp is topped up to its first offer and buys it, shrine takes vow/melt; PASS needs both; `[tour]` line prints `trades=camp:vigor,camp:leave,shrine:melt` (seeds 1–3 cover melt and vow)
 - [x] Telegraph readability: enemy attack rings get a pulsing edge so they read on bright floor tiles and for colour-blind players — every enemy/boss attack ring gets a pale rim (pulses 3→9 Hz as the windup runs out) plus a dark outline (`enemy.EDGE_*`, `fit_edge()`)
+
+## Round 12
+- [ ] Boss slam readability: the Warden's slam landing ring and the bone cage's floor band get the same pale rim + dark outline as enemy telegraphs
+- [ ] Cage hint: the first bone cage shows a one-time hint ("Find the gap, or dash through a wall") through `Game.HINTS`
+- [ ] Cage sound: a distinct grinding-bone sfx (gen_sfx) as the cage rises and closes, instead of reusing `hit_big`
+- [ ] Pause menu run info: show the run seed (and "daily run DATE") in the pause panel, so a run can be noted mid-way
+- [ ] Recent runs: the title screen lists the last 5 runs (room reached, result, seed) from `records.cfg` (disabled in tests)
