@@ -12,8 +12,9 @@ func _ready() -> void:
 
 
 ## `stats` is an ordered Dictionary of label -> value text.
-func open(victory: bool, stats: Dictionary, upgrades: Dictionary) -> void:
-	_build(victory, stats, upgrades)
+## `new_bests` lists the stats keys to flag as new personal records.
+func open(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array = []) -> void:
+	_build(victory, stats, upgrades, new_bests)
 	visible = true
 	get_tree().paused = true
 
@@ -30,7 +31,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		new_run()
 
 
-func _build(victory: bool, stats: Dictionary, upgrades: Dictionary) -> void:
+func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: Array) -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
@@ -55,8 +56,11 @@ func _build(victory: bool, stats: Dictionary, upgrades: Dictionary) -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	col.add_child(grid)
 	for key in stats:
+		var best: bool = key in new_bests
 		_label(grid, key, 26, Color(0.75, 0.75, 0.85))
-		_label(grid, str(stats[key]), 26, Color.WHITE).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		var value := _label(grid, str(stats[key]) + ("   NEW BEST" if best else ""), 26,
+			Color(1.0, 0.8, 0.3) if best else Color.WHITE)
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	var names: Array[String] = []
 	for id in upgrades:

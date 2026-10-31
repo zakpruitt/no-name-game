@@ -20,6 +20,7 @@ characters only (no licensed IP in the repo).
 - `scripts/main.gd` — builds arena from KayKit pieces, run of rooms (`RUN_LENGTH`, `path_options()`, `ENEMY_TYPES`, `wave_composition()` are the tuning data), autotest bot
 - `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`, per-level numbers in each `lv`); effects are implemented in `player.gd` by id. `reward_screen.gd` offers 3 between rooms; `run_summary.gd` ends the run
 - `scripts/boss.gd` — Bone Warden boss (extends enemy.gd); attack tuning in its `ATTACKS` table, fought in the last room (`main.RUN_LENGTH`)
+- `scripts/records.gd` — saved run records (`user://records.cfg`), shown on the title screen and flagged on the run summary
 - `scripts/spike_trap.gd` — floor spike hazard used by `main.LAYOUTS`
 - `scripts/projectile.gd` — enemy bolts; i-frames pass through, perfect dodge still triggers
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`

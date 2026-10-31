@@ -12,7 +12,14 @@ func open(focus := 0) -> void:
 		[Game.shake_label(), _cycle_shake],
 		[Game.music_label(), _cycle_music],
 		["Quit", _quit],
-	], CONTROLS, 0.85, focus)
+	], _footer(), 0.85, focus)
+
+
+func _footer() -> String:
+	var records: String = preload("res://scripts/records.gd").summary_line()
+	return (records + "
+
+" + CONTROLS) if records != "" else CONTROLS
 
 
 func _cycle_shake() -> void:

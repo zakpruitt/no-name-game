@@ -21,6 +21,7 @@ const TITLE := preload("res://scripts/title_screen.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
 const PATH := preload("res://scripts/path_choice.gd")
+const RECORDS := preload("res://scripts/records.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -150,6 +151,7 @@ func _ready() -> void:
 	Game.reset()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	if _autotest:
+		RECORDS.enabled = false
 		Game.save_hints = false
 		Game._hints_seen.clear()  # show them all, without touching the saved ones
 	_build_environment()
@@ -385,16 +387,8 @@ func _on_player_died() -> void:
 
 func _track_combo(count: int, rank: String) -> void:
 	_max_combo = maxi(_max_combo, count)
-	if _rank_index(rank) < _rank_index(_best_rank):
+	if RECORDS.rank_index(rank) < RECORDS.rank_index(_best_rank):
 		_best_rank = rank
-
-
-## Position in Game.RANKS (0 = best).
-static func _rank_index(rank: String) -> int:
-	for i in Game.RANKS.size():
-		if Game.RANKS[i][0] == rank:
-			return i
-	return Game.RANKS.size()
 
 
 func _end_run(victory: bool) -> void:
@@ -404,14 +398,19 @@ func _end_run(victory: bool) -> void:
 	var cleared := room if victory else room - 1
 	var stats := {
 		"Rooms cleared": "%d / %d" % [cleared, RUN_LENGTH],
-		"Time": "%d:%02d" % [int(_run_time) / 60, int(_run_time) % 60],
+		"Time": RECORDS.time_text(_run_time),
 		"Enemies slain": _kills,
 		"Best combo": _max_combo,
 		"Best style rank": _best_rank,
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
 	}
-	summary.open(victory, stats, player.upgrades)
+	var bests := RECORDS.submit({"victory": victory, "rooms": cleared, "combo": _max_combo,
+		"rank": _best_rank if _max_combo >= 2 else "", "juggle": Game.best_air, "time": _run_time})
+	# Summary rows to flag as new personal bests.
+	var rows := {"best_room": "Rooms cleared", "best_combo": "Best combo", "best_rank": "Best style rank",
+		"best_juggle": "Best juggle", "fastest_win": "Time"}
+	summary.open(victory, stats, player.upgrades, bests.map(func(k: String) -> String: return rows[k]))
 	if _autotest:
 		_autotest_finish()
 
