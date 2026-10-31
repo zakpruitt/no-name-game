@@ -71,7 +71,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Elite room twists: each elite room rolls one modifier (Hasted, Armored, Volatile = explode on death), shown on the door and the room title — `main.ELITE_TWISTS` (stat `mult`s or `volatile`), rolled per door offer; elite door reads "Elite · Hasted: faster foes"; HUD room line + banner show it; volatile corpses flash an orange ring then burst 0.7s later; `--twist=<id>` autotest flag
 
 ## Round 7
-- [ ] Bomber look: give bombers their own colour and silhouette so they read apart from minions at a glance
+- [x] Bomber look: give bombers their own colour and silhouette so they read apart from minions at a glance — new `body_tint` stat (scorched orange bones), bigger bomb with a smouldering fuse; `tests/enemy_lineup.gd` shows every type side by side
 - [ ] Elite door check: autotest snaps a path screen that includes an elite door, and the twist text fits the button
 - [ ] Enemy health bars: a thin bar over enemies once they've taken damage (elites always), fading when untouched
 - [ ] Death recap: when you fall, the run summary says what killed you (enemy type / hazard)

@@ -34,6 +34,7 @@ characters only (no licensed IP in the repo).
 - Effect preview (isolated, screenshot to `user://fx_preview.png`): `godot --path . -s tests/fx_preview.gd`
 - Autotest also saves `autotest_hit.png` ~0.2s after the first big hit, for checking impact VFX, and prints a `[perf]` line (avg/worst frame ms, spikes >25ms with timestamps, max enemies/draw calls); measure perf windowed, not headless
 - Menu check (title + pause + settings screenshots to `user://menu_*.png`): `godot --path . -s tests/menu_check.gd`
+- Enemy lineup (one of each `ENEMY_TYPES` in a row, `user://enemy_lineup.png`): `godot --path . -s tests/enemy_lineup.gd`
 - Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
 - After adding assets **or a new `class_name`**: `godot --headless --import --path .` (registers global classes)
 - `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects (`--max-upgrades`: all at max level; `--upgrades=quake,bone_breaker` for specific ones); `--start-room=N` skips ahead (8 = boss; add `--boss-enraged` for phase 2 → `autotest_spikes.png`), `--twist=volatile` makes it an elite room with that twist, `--low-hp` starts at 15% HP (`autotest_lowhp.png`), `--start-rest` opens on a camp with 30 bones (`autotest_camp.png`), `--start-awakened` starts with a full meter (bot lands Cataclysm → `autotest_finisher.png`). Autotest also saves `autotest_summary.png`

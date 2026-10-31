@@ -63,6 +63,8 @@ const LINE_COLOR := Color(1.0, 0.55, 0.15)
 ## Flat colour for the model's hood/cape/cloak meshes (alpha 0 = keep the
 ## texture). Lets types that share a model read differently (archer vs rogue).
 @export var cloth_color := Color(0, 0, 0, 0)
+## Multiplies every surface's colour (white = untouched); bombers are scorched.
+@export var body_tint := Color.WHITE
 const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
 ## Bomber (attack_kind "bomb"): walks up and lights a fuse (attack_windup s,
 ## orange ring = blast_radius). The fuse keeps burning through hits and
@@ -140,6 +142,8 @@ func _ready() -> void:
 	add_child(model)
 	if shield:
 		_attach_shield()
+	if body_tint != Color.WHITE:
+		_tint_body()
 	if cloth_color.a > 0.0:
 		_tint_cloth()
 	if attack_kind == "bomb":
@@ -505,6 +509,15 @@ func _attach_shield() -> void:
 	_attach_to_hand("handslot.l", s)
 
 
+func _tint_body() -> void:
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(i).duplicate() as StandardMaterial3D
+			if mat:
+				mat.albedo_color *= body_tint
+				mi.set_surface_override_material(i, mat)
+
+
 func _tint_cloth() -> void:
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		if not CLOTH_MESHES.any(func(part: String) -> bool: return part in mi.name):
@@ -528,8 +541,8 @@ func _attach_to_hand(bone: String, item: Node3D) -> void:
 func _attach_bomb() -> void:
 	var bomb := MeshInstance3D.new()
 	var ball := SphereMesh.new()
-	ball.radius = 0.26
-	ball.height = 0.52
+	ball.radius = 0.36
+	ball.height = 0.72
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.12, 0.1, 0.12)
 	mat.roughness = 0.4
@@ -544,8 +557,8 @@ func _attach_bomb() -> void:
 	glow.albedo_color = BOMB_COLOR
 	tip.material = glow
 	_spark.mesh = tip
-	_spark.position.y = 0.3
-	_spark.visible = false
+	_spark.position.y = 0.4
+	_spark.scale = Vector3.ONE * 0.6  # a smoulder until lit
 	bomb.add_child(_spark)
 	_attach_to_hand("handslot.r", bomb)
 

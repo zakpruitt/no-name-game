@@ -52,7 +52,8 @@ const ENEMY_TYPES := {
 		"raise_count": 2, "raise_cooldown": 5.0, "bones": 4},
 	"bomber": {"model": "Skeleton_Minion", "max_hp": 26.0, "move_speed": 4.2, "attack_kind": "bomb",
 		"attack_range": 2.6, "attack_damage": 22.0, "attack_windup": 1.5, "blast_radius": 3.2,
-		"blast_enemy_damage": 40.0, "model_scale": 0.95, "run_anim": "Running_C", "bones": 2},
+		"blast_enemy_damage": 40.0, "model_scale": 0.9, "run_anim": "Running_C",
+		"body_tint": Color(1.0, 0.62, 0.42), "bones": 2},
 }
 # Necromancers raise slain minions from their graves (within RAISE_RANGE of
 # the necromancer; the newest MAX_GRAVES are kept per room). Risen drop no
