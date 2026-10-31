@@ -8,6 +8,7 @@ const DOORS := {
 	"fight": "Fight\nskeletons, 1 power",
 	"elite": "Elite\ntougher foes, 2 powers",
 	"rest": "Rest\nheal 40%, no fight",
+	"shrine": "Shrine\na trade, no fight",
 }
 
 

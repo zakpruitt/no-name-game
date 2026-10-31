@@ -28,6 +28,7 @@ const RECORDS := preload("res://scripts/records.gd")
 const ALTAR := preload("res://scripts/altar.gd")
 const BONE := preload("res://scripts/bone_pickup.gd")
 const CAMP_MENU := preload("res://scripts/camp.gd")
+const SHRINE_MENU := preload("res://scripts/shrine.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -69,6 +70,7 @@ const RAISE_FX_COLOR := Color(0.45, 1.0, 0.4)
 #   fight  regular enemy mix (wave_composition), 1 power
 #   elite  the same mix with several elites (elite_count), 2 powers
 #   rest   no enemies, heals REST_HEAL of max HP
+#   shrine no enemies, one trade from SHRINE (or walk on)
 #   boss   the Bone Warden and a small escort; beating it wins the run
 const RUN_LENGTH := 8
 const REST_HEAL := 0.4
@@ -87,6 +89,12 @@ const ELITE_TWISTS := {
 const REROLL_COST := 8
 const REROLL_COST_STEP := 4
 # Camp (rest rooms): what bones buy. Shown in this order; "Move on" leaves.
+# Shrine trades (pick one). "hp_frac": HP paid as a fraction of max HP
+# ({hp} in the text); "cost": bones paid.
+const SHRINE := {
+	"blood": {"text": "Blood pact: lose {hp} HP, gain a new power", "hp_frac": 0.3},
+	"mend": {"text": "Bone offering: heal to full", "cost": 15},
+}
 const CAMP := {
 	"vigor": {"text": "Vigor: +15 max HP", "cost": 15, "max_hp": 15.0},
 	"power": {"text": "Seek a new power", "cost": 20},
@@ -116,15 +124,17 @@ const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 
 const BOSS_ESCORT := {"minion": 2, "mage": 1}
 
 ## The (up to) two doors offered for room n, given the previous room's kind.
-## Elites and rests unlock from room 3; never two rests in a row.
+## Elites, rests and shrines unlock from room 3; never two fightless rooms
+## (rest, shrine) in a row.
 static func path_options(n: int, prev: String) -> Array:
 	if n >= RUN_LENGTH:
 		return ["boss"]
-	var pool := ["fight", "elite", "rest"]
+	var pool := ["fight", "elite", "rest", "shrine"]
 	if n < 3:
 		return ["fight"]
-	if prev == "rest":
+	if prev in ["rest", "shrine"]:
 		pool.erase("rest")
+		pool.erase("shrine")
 	pool.shuffle()
 	return pool.slice(0, 2)
 
@@ -153,6 +163,7 @@ var room_kind := "fight"
 var room_twist := ""  # ELITE_TWISTS key for this (elite) room, else ""
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
+var shrine_menu: CanvasLayer
 var _reward_rerolls := 0  # rerolls bought for the reward currently open
 var _reward_level_ups_only := false
 var _alive := 0
@@ -238,6 +249,8 @@ func _ready() -> void:
 	add_child(path_menu)
 	camp_menu = CAMP_MENU.new()
 	add_child(camp_menu)
+	shrine_menu = SHRINE_MENU.new()
+	add_child(shrine_menu)
 	reward.reroll_pressed.connect(_reroll_reward)
 	Game.combo_changed.connect(_track_combo)
 
@@ -283,6 +296,9 @@ func _ready() -> void:
 		elif arg == "--start-rest":
 			room_kind = "rest"
 			Game.add_bones(30)
+		elif arg == "--start-shrine":
+			room_kind = "shrine"
+			Game.add_bones(30)
 	if not _autotest and not Game.skip_title:
 		var title := TITLE.new()
 		add_child(title)
@@ -308,6 +324,9 @@ func _next_room() -> void:
 		return
 	if room_kind == "rest":
 		_rest()
+		return
+	if room_kind == "shrine":
+		_shrine()
 		return
 	var comp := wave_composition(room)
 	var kinds: Array[String] = []
@@ -336,6 +355,31 @@ func _rest() -> void:
 	await get_tree().create_timer(1.4).timeout
 	if not player.is_dead():
 		await _camp()
+		await _choose_path()
+		_next_room()
+
+
+## Shrine room: no enemies; offer one SHRINE trade, then the next door.
+func _shrine() -> void:
+	_between_rooms = true
+	await get_tree().create_timer(2.3).timeout  # let the room title fade first
+	shrine_menu.open(SHRINE, player.hp, player.max_hp, Game.bones)
+	if _autotest:
+		_autotest_shrine()
+	var choice: String = await shrine_menu.chosen
+	match choice:
+		"blood":
+			player.hp -= ceili(player.max_hp * SHRINE.blood.hp_frac)
+			player.health_changed.emit(player.hp, player.max_hp)
+			Fx.flash(player.model)
+			Game.sfx("player_hurt", -2.0, 0.0)
+			Game.shake(0.3)
+			await _offer_reward()
+		"mend":
+			Game.add_bones(-SHRINE.mend.cost)
+			player.heal(player.max_hp)
+			Game.sfx("wave_clear", -4.0, 0.0)
+	if not player.is_dead():
 		await _choose_path()
 		_next_room()
 
@@ -933,6 +977,12 @@ func _autotest_camp(bought: int) -> void:
 		camp_menu.pick(camp_menu.first_affordable())
 	else:
 		camp_menu.pick(CAMP.size())
+
+
+func _autotest_shrine() -> void:
+	await get_tree().create_timer(0.5).timeout
+	_snap("user://autotest_shrine.png")
+	shrine_menu.pick(shrine_menu.first_affordable())
 
 
 func _autotest_path() -> void:

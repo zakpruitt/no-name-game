@@ -191,6 +191,8 @@ func set_room(n: int, total: int, kind: String, twist := "") -> void:
 		flash_message("ROOM %d\nELITES%s" % [n, ("  ·  " + twist.to_upper()) if twist != "" else ""], 1.4)
 	elif kind == "rest":
 		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
+	elif kind == "shrine":
+		flash_message("ROOM %d\nA QUIET SHRINE" % n, 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
 
