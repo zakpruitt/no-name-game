@@ -17,6 +17,7 @@ const BOSS := preload("res://scripts/boss.gd")
 const SUMMARY := preload("res://scripts/run_summary.gd")
 const TITLE := preload("res://scripts/title_screen.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
+const SPIKES := preload("res://scripts/spike_trap.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -40,6 +41,18 @@ const ENEMY_TYPES := {
 # Fraction of max HP restored when a room (other than the boss) is cleared.
 const ROOM_CLEAR_HEAL := 0.25
 const RUN_PLAN := ["fight", "fight", "fight", "elite", "fight", "fight", "elite", "boss"]
+# Arena layouts: pillar spots and spike-trap tiles (spikes must sit on tile
+# centres: ±2, ±6, ±10, ±14). ROOM_LAYOUTS picks one per room of RUN_PLAN;
+# pillars sink/rise when the layout changes between rooms.
+const LAYOUTS := [
+	{"name": "hall", "pillars": [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)],
+		"spikes": []},
+	{"name": "crossroads", "pillars": [Vector3(-6, 0, -6), Vector3(6, 0, -6), Vector3(-6, 0, 6), Vector3(6, 0, 6)],
+		"spikes": [Vector3(-2, 0, -2), Vector3(2, 0, 2)]},
+	{"name": "gauntlet", "pillars": [Vector3(0, 0, -9), Vector3(-11, 0, -1), Vector3(11, 0, -1)],
+		"spikes": [Vector3(-6, 0, 2), Vector3(6, 0, -2), Vector3(2, 0, 10)]},
+]
+const ROOM_LAYOUTS := [0, 0, 0, 1, 2, 1, 2, 0]
 # Boss stats (attack timings live in boss.gd's ATTACKS table).
 const BOSS_SPEC := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
 	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons"}
@@ -73,6 +86,8 @@ var _max_combo := 0
 var _best_rank := "D"
 # Tall props that fade out when they sit between the camera and the hero.
 var _occluders: Array[Node3D] = []
+var _traps: Array[Node3D] = []
+var _layout := -1
 
 var _autotest := false
 var _autotest_t := 0.0
@@ -151,6 +166,7 @@ func _next_room() -> void:
 	room += 1
 	_between_rooms = false
 	var room_kind: String = RUN_PLAN[room - 1]
+	_apply_layout(ROOM_LAYOUTS[room - 1])
 	hud.set_room(room, RUN_PLAN.size(), room_kind)
 	if room_kind == "boss":
 		_spawn_boss()
@@ -337,11 +353,6 @@ func _build_arena() -> void:
 	for i in range(-HALF_TILES, HALF_TILES):
 		_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0)
 
-	# Pillars to fight around.
-	for p in [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)]:
-		_occluders.append(_place("pillar_decorated", p))
-		_cyl_collider(p, 0.75, 4.0)
-
 	# Torches on the back wall, with real light.
 	for x in [-10.0, -2.0, 6.0]:
 		_place("torch_mounted", Vector3(x, 2.4, -ARENA_HALF + 0.5))
@@ -382,7 +393,8 @@ func _box_collider(pos: Vector3, size: Vector3) -> void:
 	add_child(body)
 
 
-func _cyl_collider(pos: Vector3, radius: float, height: float) -> void:
+## Cylinder collider as a child of `owner_node`, so it moves with it.
+func _cyl_collider(owner_node: Node3D, radius: float, height: float) -> void:
 	var body := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var cyl := CylinderShape3D.new()
@@ -391,8 +403,46 @@ func _cyl_collider(pos: Vector3, radius: float, height: float) -> void:
 	shape.shape = cyl
 	shape.position.y = height * 0.5
 	body.add_child(shape)
-	body.position = pos
-	add_child(body)
+	owner_node.add_child(body)
+
+
+## Swap pillars and spike traps to LAYOUTS[index]. The first layout appears
+## instantly; later ones sink the old pillars and raise the new ones.
+func _apply_layout(index: int) -> void:
+	if index == _layout:
+		return
+	var first := _layout < 0
+	_layout = index
+	var layout: Dictionary = LAYOUTS[index]
+	for o in _occluders:
+		var tw := o.create_tween()
+		tw.tween_property(o, "position:y", -4.5, 0.6).set_ease(Tween.EASE_IN)
+		tw.tween_callback(o.queue_free)
+	_occluders.clear()
+	for t in _traps:
+		t.queue_free()
+	_traps.clear()
+	for p: Vector3 in layout.pillars:
+		var pillar := _place("pillar_decorated", p)
+		_cyl_collider(pillar, 0.75, 4.0)
+		_occluders.append(pillar)
+		if first:
+			continue
+		# Don't raise a pillar through the hero.
+		var away := player.global_position - p
+		away.y = 0.0
+		if away.length() < 1.6:
+			player.global_position = p + (away.normalized() if away.length() > 0.01 else Vector3.BACK) * 1.8
+		pillar.position.y = -4.5
+		pillar.create_tween().tween_property(pillar, "position:y", 0.0, 0.7).set_delay(0.3) 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for s: Vector3 in layout.spikes:
+		var trap := SPIKES.new()
+		trap.position = s
+		add_child(trap)
+		_traps.append(trap)
+	if not first:
+		Game.shake(0.35)
+		Game.sfx("spawn", -2.0, 0.0)
 
 
 ## The camera looks down from +Z, so a prop hides the hero when it's a little
