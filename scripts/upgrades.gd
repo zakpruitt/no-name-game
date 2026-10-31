@@ -131,13 +131,28 @@ static func value(id: String, key: String, level: int) -> float:
 	return values[clampi(level, 1, values.size()) - 1]
 
 
-## Card text with the numbers for `level` filled in.
-static func describe(u: Dictionary, level: int) -> String:
+## Card text with the numbers for `level` filled in. With `active`
+## synergies, boosted numbers read "base → boosted".
+static func describe(u: Dictionary, level: int, active: Array = []) -> String:
 	var nums := {}
 	for key in u.lv:
 		var v := value(u.id, key, level)
-		nums[key] = int(v) if v == floorf(v) else v  # "10", not "10.0"
+		var b := v * boost(active, u.id, key)
+		nums[key] = _num(v) if is_equal_approx(b, v) else "%s → %s" % [_num(v), _num(b)]
 	return u.desc.format(nums)
+
+
+## "10", not "10.0"; one decimal otherwise.
+static func _num(v: float) -> String:
+	return str(int(v)) if is_equal_approx(v, roundf(v)) else "%.1f" % v
+
+
+## Synergy ids that taking upgrade `id` would newly switch on.
+static func would_activate(owned: Dictionary, id: String) -> Array:
+	var after := owned.duplicate()
+	after[id] = after.get(id, 0) + 1
+	var before := active_synergies(owned)
+	return active_synergies(after).filter(func(tag: String) -> bool: return tag not in before)
 
 
 ## " II", " III" after a name for levels above 1.

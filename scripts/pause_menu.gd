@@ -52,7 +52,7 @@ func _build_powers() -> void:
 		var head := _label(list, "%s%s   [%s]%s" % [u.name, Upgrades.level_tag(level), u.slot,
 			("   " + tags) if tags != "" else ""], 21, Color(1.0, 0.85, 0.55))
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		var desc := _label(list, Upgrades.describe(u, level), 17, Color(0.85, 0.8, 0.95))
+		var desc := _label(list, Upgrades.describe(u, level, player.synergies), 17, Color(0.85, 0.8, 0.95))
 		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc.custom_minimum_size = Vector2(400, 0)

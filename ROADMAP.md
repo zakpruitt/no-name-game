@@ -94,7 +94,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Autotest coverage: `--start-room=N --start-shrine`-style coverage for every room kind in one scripted run (fight → rest → shrine → elite → boss) printing a pass/fail line — `--tour` (`main.TOUR`): forced doors, fights wiped after `TOUR_FIGHT_TIME`, hero kept above half HP, `[tour] PASS rooms=fight,rest,shrine,elite,boss time=15.8s`; FAIL after `TOUR_TIMEOUT` 120s
 
 ## Round 10
-- [ ] Synergy numbers: reward cards and the build panel show the boosted values (e.g. "12 → 15 damage") when a synergy applies
+- [x] Synergy numbers: reward cards and the build panel show the boosted values (e.g. "12 → 15 damage") when a synergy applies — `Upgrades.describe(u, level, active)` renders boosted keys as "base → boosted"; reward cards count the synergy the card itself would complete and add "Completes X synergy!"
 - [ ] Bottom HUD clearance: keep enemy health bars and the hint panel from covering the controls line at the bottom
 - [ ] Seeded runs: `--seed=N` makes layouts, doors, rewards and twists reproducible for comparing autotest runs
 - [ ] Shrine variety: a third trade that rotates per shrine (e.g. lose a power level for 30 bones, or take a curse for an extra power)
