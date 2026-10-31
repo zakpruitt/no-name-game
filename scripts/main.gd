@@ -635,6 +635,9 @@ func _build_environment() -> void:
 	sun.light_color = Color(1.0, 0.95, 0.88)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 60.0
+	# The camera is fixed and looks down, so 2 cascades cover it (each cascade
+	# redraws every shadow caster).
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
 
 
@@ -643,7 +646,10 @@ func _build_arena() -> void:
 	for x in range(-HALF_TILES, HALF_TILES):
 		for z in range(-HALF_TILES, HALF_TILES):
 			var piece := "floor_tile_big_grate" if randf() < 0.08 else "floor_tile_large"
-			_place(piece, Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE))
+			var tile := _place(piece, Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE))
+			# Flat tiles only receive shadows; casting would redraw them per cascade.
+			for mi: MeshInstance3D in tile.find_children("*", "MeshInstance3D", true, false):
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_box_collider(Vector3(0.0, -0.5, 0.0), Vector3(ARENA_HALF * 2.0, 1.0, ARENA_HALF * 2.0))
 
 	# Walls on the back and sides; the near side stays open so the camera sees in.
