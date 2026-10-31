@@ -11,6 +11,7 @@ var combo_label: Label
 var rank_label: Label
 var wave_label: Label
 var center_label: Label
+var upgrades_label: Label
 
 
 func _ready() -> void:
@@ -46,6 +47,11 @@ func _ready() -> void:
 	_label(root, "WASD move   J/LMB light   K/RMB heavy   Space dash   Q awaken", 16, Color(1, 1, 1, 0.5)) \
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
 
+	upgrades_label = _label(root, "", 18, Color(1.0, 0.8, 0.5))
+	_anchor(upgrades_label, 1.0, 1.0, Rect2(-420, -300, 396, 276))
+	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+
 	Game.combo_changed.connect(_on_combo)
 	Game.announced.connect(func(text: String) -> void: flash_message(text, 0.5))
 	Game.awakening_changed.connect(_on_awakening)
@@ -57,6 +63,15 @@ func bind_player(p: Node) -> void:
 		hp_bar.value = hp)
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
+
+
+func set_upgrades(ids: Array) -> void:
+	var lines: Array[String] = []
+	for id in ids:
+		var u := Upgrades.get_by_id(id)
+		lines.append("%s  [%s]" % [u.name, u.slot])
+	upgrades_label.text = "
+".join(lines)
 
 
 func set_wave(n: int) -> void:

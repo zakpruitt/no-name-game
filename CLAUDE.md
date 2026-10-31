@@ -18,6 +18,7 @@ characters only (no licensed IP in the repo).
 - `scripts/player.gd` — hero state machine; moves live in the `MOVES` table (timings are fractions of anim length)
 - `scripts/enemy.gd` — skeleton AI: spawn → chase → telegraphed windup → strike; poise, launch/juggle
 - `scripts/main.gd` — builds arena from KayKit pieces, wave spawner (`ENEMY_TYPES` + `wave_composition()` are the tuning data), autotest bot
+- `scripts/upgrades.gd` — combo-slot upgrade data (`Upgrades.ALL`); effects are implemented in `player.gd` by id. `reward_screen.gd` offers 3 between waves
 - `scripts/projectile.gd` — enemy bolts; i-frames pass through, perfect dodge still triggers
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`
 - `scripts/hud.gd`, `scripts/camera_rig.gd`, `scripts/fx.gd` (damage numbers, sparks, rings, flash)
@@ -29,6 +30,7 @@ characters only (no licensed IP in the repo).
 - Effect preview (isolated, screenshot to `user://fx_preview.png`): `godot --path . -s tests/fx_preview.gd`
 - Autotest also saves `autotest_hit.png` ~0.2s after the first big hit, for checking impact VFX
 - Occlusion check (hero parked behind a pillar, `user://occlusion_check.png`): `godot --path . -s tests/occlusion_check.gd`
-- After adding assets: `godot --headless --import --path .`
+- After adding assets **or a new `class_name`**: `godot --headless --import --path .` (registers global classes)
+- `-- --autotest --all-upgrades` starts with every upgrade to exercise all effects
 - Scenes are mostly built in code; keep `.tscn` files minimal unless the user wants editor-authored scenes.
 - KayKit models face +Z; facing yaw = `atan2(dir.x, dir.z)`. Characters share one rig, so any KayKit animation works on any character.

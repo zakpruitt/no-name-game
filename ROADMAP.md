@@ -19,9 +19,9 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] First boss
 
 ## Roguelike
-- [ ] Combo-slot upgrade system: data-driven upgrades attached to move IDs (L1/L2/L3/H/LH/DL)
-- [ ] Reward choice screen after each wave (pick 1 of 3)
-- [ ] 6–8 starter upgrades (fire wave on L3, lightning trap on dash-cancel, chain on air hits, ...)
+- [x] Combo-slot upgrade system: data in `upgrades.gd`, effects in `player.gd` (`_effective_move`, `_do_hit` hooks)
+- [x] Reward choice screen after each wave (pick 1 of 3): `reward_screen.gd`, pauses the game, mouse/1-3/gamepad
+- [x] 8 starter upgrades: Ember Cleave, Static Step, Chain Spark, Whirlwind, Skybreaker, Bloodthirst, Momentum, Overflow
 - [ ] Run structure: rooms → elite → boss, run summary screen
 - [ ] Simple title screen + pause menu
 

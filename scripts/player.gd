@@ -59,6 +59,7 @@ const MOVES := {
 		"stop": 0.07, "shake": 0.22},
 }
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
+const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
 
 var hp := max_hp
 var state := State.MOVE
@@ -92,6 +93,9 @@ var _perfect_this_dash := false
 
 # Lets the autotest drive the hero without real input.
 var bot_move := Vector3.ZERO
+
+## Owned combo-slot upgrade ids (see upgrades.gd).
+var upgrades: Array[String] = []
 var bot_enabled := false
 
 
@@ -242,6 +246,8 @@ func _state_attack(delta: float) -> void:
 
 	# Dash cancels anything once the first hit has come out (or early on whiff).
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2):
+		if _hits_done > 0 and has_upgrade("static_step"):
+			_static_trap(global_position)
 		_start_dash()
 		return
 	if t >= _move.cancel and _buffered != "":
@@ -298,7 +304,7 @@ func _next_move(kind: String) -> String:
 func _start_attack(id: String) -> void:
 	_buffered = ""
 	_move_id = id
-	_move = MOVES[id]
+	_move = _effective_move(id)
 	_move_len = anim.get_animation(_move.anim).length
 	_hits_done = 0
 	if id in LIGHT_CHAIN:
@@ -378,10 +384,82 @@ func _do_hit() -> void:
 		e.take_hit(_move.damage * _dmg_mult, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
+		if was_airborne and has_upgrade("chain_spark"):
+			_chain_spark(e)
+		if _move_id == "L1" and has_upgrade("bloodthirst"):
+			hp = minf(hp + 2.0, max_hp)
+			health_changed.emit(hp, max_hp)
+	# Slot effects that fire on the move's first active frame, hit or miss.
+	if _hits_done == 1:
+		if _move_id == "L3" and has_upgrade("ember_cleave"):
+			var w := FIRE_WAVE.new()
+			w.direction = fwd
+			get_parent().add_child(w)
+			w.global_position = global_position + fwd * 1.0
+		if _move_id == "LH" and has_upgrade("skybreaker"):
+			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), 4.0, 0.3)
+			for e in get_tree().get_nodes_in_group("enemies"):
+				var to: Vector3 = e.global_position - global_position
+				to.y = 0.0
+				if e.is_alive() and not e.is_airborne() and to.length() < 4.0:
+					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
+					Game.register_hit("skybreaker")
 	if hit_any:
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0))
 		Game.shake(_move.shake)
+
+
+# --- Upgrades ---------------------------------------------------------------
+
+func has_upgrade(id: String) -> bool:
+	return upgrades.has(id)
+
+
+func add_upgrade(id: String) -> void:
+	if not upgrades.has(id):
+		upgrades.append(id)
+	if id == "overflow":
+		Game.awakening_gain_mult = 1.35
+
+
+## MOVES entry with owned upgrades applied (never mutates MOVES itself).
+func _effective_move(id: String) -> Dictionary:
+	var m: Dictionary = MOVES[id].duplicate(true)
+	if id == "H" and has_upgrade("whirlwind"):
+		m.hits = [0.22, 0.34, 0.46, 0.58, 0.7]
+		m.range += 1.0
+	if id == "DL" and has_upgrade("momentum"):
+		m.damage *= 1.6
+		m.range += 1.5
+		m.lunge *= 1.3
+	return m
+
+
+func _chain_spark(from: Node3D) -> void:
+	var targets := get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+		return e != from and e.is_alive() and e.global_position.distance_to(from.global_position) < 6.0)
+	targets.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return a.global_position.distance_to(from.global_position) < b.global_position.distance_to(from.global_position))
+	for e in targets.slice(0, 2):
+		var mid: Vector3 = (from.global_position + e.global_position) * 0.5
+		Fx.burst(get_parent(), mid + Vector3.UP, Color(0.5, 0.85, 1.0), 10, 6.0, 0.15, 0.2)
+		e.take_hit(6.0, Vector3.ZERO, 0.0, false)
+		Game.register_hit("chain_spark")
+
+
+func _static_trap(pos: Vector3) -> void:
+	Fx.ring(get_parent(), pos, Color(0.5, 0.85, 1.0, 0.6), 1.2, 0.4)
+	await get_tree().create_timer(0.4).timeout
+	if not is_inside_tree():
+		return
+	Fx.ring(get_parent(), pos, Color(0.6, 0.9, 1.0, 0.9), 3.0, 0.3)
+	Fx.burst(get_parent(), pos + Vector3.UP * 0.5, Color(0.6, 0.9, 1.0), 20, 9.0, 0.18, 0.3, Vector3.UP, 90.0)
+	Game.sfx("hit_big", -4.0)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.is_alive() and e.global_position.distance_to(pos) < 3.0:
+			e.take_hit(12.0, (e.global_position - pos).normalized() * 4.0, 0.0, true)
+			Game.register_hit("static_step")
 
 
 func is_invulnerable() -> bool:

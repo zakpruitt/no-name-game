@@ -22,6 +22,8 @@ var combo_count := 0
 var style := 0.0
 var awakening := 0.0
 var perfect_dodges := 0
+## Multiplier on Awakening gained (Overflow upgrade).
+var awakening_gain_mult := 1.0
 var _combo_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
@@ -74,6 +76,7 @@ func reset() -> void:
 	style = 0.0
 	awakening = 0.0
 	perfect_dodges = 0
+	awakening_gain_mult = 1.0
 	_recent_moves.clear()
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
@@ -142,6 +145,8 @@ func player_damaged() -> void:
 
 
 func add_awakening(amount: float) -> void:
+	if amount > 0.0:
+		amount *= awakening_gain_mult
 	awakening = clampf(awakening + amount, 0.0, AWAKEN_MAX)
 	awakening_changed.emit(awakening)
 

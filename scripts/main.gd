@@ -3,11 +3,13 @@ extends Node3D
 ##
 ## Pass `-- --autotest` on the command line to let a bot play for a few
 ## seconds, print combat stats, save screenshots to user://, and quit.
+## Add `--all-upgrades` to start with every upgrade (exercises all effects).
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
 const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
+const REWARD := preload("res://scripts/reward_screen.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -29,6 +31,7 @@ const ARENA_HALF := TILE * HALF_TILES
 
 var player: CharacterBody3D
 var hud: CanvasLayer
+var reward: CanvasLayer
 var wave := 0
 var _alive := 0
 var _between_waves := false
@@ -63,6 +66,14 @@ func _ready() -> void:
 	hud = HUD.new()
 	add_child(hud)
 	hud.bind_player(player)
+
+	reward = REWARD.new()
+	add_child(reward)
+
+	if "--all-upgrades" in OS.get_cmdline_user_args():
+		for u in Upgrades.ALL:
+			player.add_upgrade(u.id)
+		hud.set_upgrades(player.upgrades)
 
 	if _autotest:
 		player.bot_enabled = true
@@ -118,7 +129,20 @@ func _on_enemy_died(_e: Node) -> void:
 		_between_waves = true
 		hud.flash_message("CLEARED", 1.0)
 		Game.sfx("wave_clear", -2.0, 0.0)
-		await get_tree().create_timer(2.0).timeout
+		await get_tree().create_timer(1.2).timeout
+		if player.is_dead():
+			return
+		var choices := Upgrades.roll(player.upgrades)
+		if not choices.is_empty():
+			reward.open(choices)
+			if _autotest:
+				_autotest_pick()
+			var id: String = await reward.picked
+			player.add_upgrade(id)
+			hud.set_upgrades(player.upgrades)
+			hud.flash_message(Upgrades.get_by_id(id).name.to_upper(), 1.0)
+			Game.sfx("perfect", -4.0, 0.0)
+		await get_tree().create_timer(1.0).timeout
 		if not player.is_dead():
 			_next_wave()
 
@@ -274,15 +298,21 @@ func _process(delta: float) -> void:
 	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
-	if _autotest_t >= 12.0 and not _quitting:
+	if _autotest_t >= 16.0 and not _quitting:
 		_quitting = true
-		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d" % [
+		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d upgrades=%s" % [
 			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges,
-			preload("res://scripts/projectile.gd").fired])
+			preload("res://scripts/projectile.gd").fired, player.upgrades])
 		Game.stop_all_sfx()
 		# Give the audio thread a moment to release playbacks, or they leak at exit.
 		await get_tree().create_timer(0.2, true, false, true).timeout
 		get_tree().quit()
+
+
+func _autotest_pick() -> void:
+	await get_tree().create_timer(0.5).timeout
+	_snap("user://autotest_reward.png")
+	reward.pick(0)
 
 
 func _snap(path: String) -> void:
