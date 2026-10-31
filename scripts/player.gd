@@ -34,6 +34,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 @export var perfect_dodge_window := 0.15
 @export var perfect_dodge_refund := 20.0
 @export var perfect_dodge_stun := 1.2
+## Each level-up raises max HP by this much (and heals it).
+@export var level_hp := 5.0
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -162,6 +164,7 @@ var bot_enabled := false
 func _ready() -> void:
 	hp = max_hp
 	Game.enemy_killed.connect(_on_enemy_killed)
+	Game.leveled_up.connect(_on_level_up)
 	add_to_group("player")
 	collision_layer = 2
 	collision_mask = 1
@@ -626,6 +629,16 @@ func add_upgrade(id: String) -> void:
 			_synergy_burst()
 	if id == "overflow":
 		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
+
+
+func _on_level_up(level: int) -> void:
+	max_hp += level_hp
+	heal(level_hp, false)
+	health_changed.emit(hp, max_hp)
+	Game.announced.emit("LEVEL %d" % level)
+	Game.sfx("wave_clear", -6.0, 0.0)
+	Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.4, 0.9), 2.5, 0.4)
+	Fx.burst(get_parent(), global_position + Vector3.UP * 0.4, Color(1.0, 0.85, 0.4), 18, 5.0, 0.1, 0.5, Vector3.UP, 30.0)
 
 
 func _on_enemy_killed(_e: Node) -> void:

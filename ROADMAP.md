@@ -143,6 +143,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 17 (shaman rework)
 - [x] Short Awakening: 8s flat (`player.awaken_duration`), no meter gain while Awakened (`Game.awaken_locked`), meter empties when it ends; Long Night removed (Night synergy is now Overflow + Phoenix Heart)
-- [ ] Hero levels: XP from kills, level-ups during the run, level shown on the HUD
+- [x] Hero levels: XP from kills, level-ups during the run, level shown on the HUD — `Game.LEVEL_XP` [4, 12, 24, 40, 60] (XP = enemy bones, so risen/split give none), `LEVEL_MAX` 6; each level +5 max HP (`player.level_hp`) and heals it; HUD "LV n" + thin XP bar; `--level=N` starts there; autotest prints `level= xp=`
 - [ ] Ascendancy at level 6: pick Wind (storm, light green), Earth (magma, volcanoes) or Water (ice); the path reshapes Awakening (colours, passive, finisher)
 - [ ] Shaman look: recolour the Barbarian, rune-glowing dual axes, charms/feathers from primitives; ascended forms glow in their element

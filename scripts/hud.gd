@@ -19,6 +19,8 @@ void fragment() {
 var hp_bar: ProgressBar
 var awaken_bar: ProgressBar
 var awaken_hint: Label
+var xp_bar: ProgressBar
+var level_label: Label
 var combo_label: Label
 var rank_label: Label
 var air_label: Label
@@ -65,8 +67,12 @@ func _ready() -> void:
 	bones_label = _label(root, "BONES  0", 22, Color(0.95, 0.9, 0.75))
 	bones_label.position = Vector2(408, 24)
 	Game.bones_changed.connect(func(n: int) -> void: bones_label.text = "BONES  %d" % n)
+	xp_bar = _bar(root, Vector2(32, 78), Vector2(360, 5), Color(1.0, 0.85, 0.4))
+	level_label = _label(root, "LV 1", 22, Color(1.0, 0.85, 0.4))
+	level_label.position = Vector2(408, 52)
+	Game.level_changed.connect(_on_level)
 	awaken_hint = _label(root, "AWAKEN READY  [Q]", 20, Color(1.0, 0.7, 0.2))
-	awaken_hint.position = Vector2(32, 76)
+	awaken_hint.position = Vector2(32, 88)
 	awaken_hint.visible = false
 
 	combo_label = _label(root, "", 56, Color.WHITE)
@@ -273,6 +279,12 @@ func _on_air_combo(count: int) -> void:
 	air_label.modulate.a = 1.0
 	air_label.scale = Vector2.ONE * 1.35
 	create_tween().tween_property(air_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _on_level(level: int, into: int, needed: int) -> void:
+	level_label.text = "LV %d" % level if level < Game.LEVEL_MAX else "LV %d  MAX" % level
+	xp_bar.max_value = needed
+	xp_bar.value = into
 
 
 func _on_awakening(v: float) -> void:
