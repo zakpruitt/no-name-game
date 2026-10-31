@@ -24,6 +24,7 @@ NOISE = ("RID", "PagedAllocator", "Leaked instance", "instance_notify", "utiliti
 SHOTS = [
     (["--", "--autotest"], ["autotest_callout", "autotest_reward", "autotest_summary", "autotest_slam"]),
     (["--", "--autotest", "--start-awakened"], ["autotest_finisher"]),
+    (["--", "--autotest", "--start-awakened", "--ascend=earth"], ["autotest_trinity"]),
     (["--", "--autotest", "--upgrades=shatter,quake", "--start-room=3"], ["autotest_shatter"]),
     (["--", "--autotest", "--start-room=3", "--twist=splitting"], ["autotest_split"]),
     (["--", "--autotest", "--start-room=8", "--boss-enraged"], ["autotest_spikes"]),
@@ -34,6 +35,8 @@ SHOTS = [
     (["-s", "tests/enemy_lineup.gd"], ["enemy_lineup"]),
     (["--", "--autotest", "--level=6"], ["autotest_ascend"]),
     (["-s", "tests/hero_preview.gd"], ["hero_preview"]),
+    (["-s", "tests/element_preview.gd"], ["element_sheet", "element_ult_sheet"]),
+    (["--", "--autotest", "--start-awakened", "--ascend=wind"], ["autotest_ult", "autotest_cast"]),
 ]
 
 

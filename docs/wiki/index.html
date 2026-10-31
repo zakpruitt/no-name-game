@@ -108,6 +108,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     <a href="#shaman">The shaman</a>
     <a href="#awakening">Style &amp; Awakening</a>
     <a href="#ascend">Levels &amp; Ascendancy</a>
+    <a href="#elements">Elements &amp; ultimates</a>
     <a href="#run">The run</a>
     <a href="#bestiary">Bestiary</a>
     <a href="#warden">The Bone Warden</a>
@@ -175,7 +176,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
 
     <section id="combat">
       <h2>Moves &amp; combos</h2>
-      <p>The moveset is fixed: a light chain, a heavy that changes with what came before it, a charged heavy, a dash attack and the Awakened finisher. Landing a <b>named combo</b> plays a short sound for its tier and shows its name above the hero: <span class="t1">string</span>, <span class="t2">heavy route</span>, <span class="t3">finisher</span>. The pause menu lists the same moves.</p>
+      <p>The moveset is fixed: a light chain, a heavy that changes with what came before it, a charged heavy, a dash attack and the Awakened finisher. Every move also summons the shaman's element (see <a href="#elements">Elements &amp; ultimates</a>). Landing a <b>named combo</b> plays a short sound for its tier and shows its name above the hero: <span class="t1">string</span>, <span class="t2">heavy route</span>, <span class="t3">finisher</span>. The pause menu lists the same moves.</p>
       <div id="moves"></div>
       <h3>Dash and the perfect dodge</h3>
       <p id="dash-text"></p>
@@ -211,6 +212,23 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
       <figure>
         <img src="img/autotest_ascend.jpg" alt="The Ascendancy choice screen" loading="lazy">
         <figcaption><b>The choice</b> appears after the room in which you reach level <span class="lvmax"></span>. Every run ascends once.</figcaption>
+      </figure>
+    </section>
+
+    <section id="elements">
+      <h2>Elements &amp; ultimates</h2>
+      <p>The shaman fights with the elements as much as with the axes. Every attack summons the hero's element: <b>spirit</b> (teal and gold) before an Ascendancy, then wind, earth or water. Casts deal their own damage on top of the swing, and while Awakened they also trigger the path's passive (lightning, chill). Motes of the element circle the hero, more of them while Awakened.</p>
+      <div id="cast-table"></div>
+      <figure>
+        <img src="img/element_sheet.jpg" alt="Spirit, wind, earth and water casts: blades, pillars, novas, fissures and the spin vortex" loading="lazy">
+        <figcaption><b>Casts</b>, spirit · wind / earth · water: blades flying left, a pillar on the right, a nova behind, a fissure bottom left, the spin's vortex round the hero.</figcaption>
+      </figure>
+      <h3>Ultimates</h3>
+      <p id="ult-text"></p>
+      <div id="ult-table"></div>
+      <figure>
+        <img src="img/element_ult_sheet.jpg" alt="Ultimate impacts for each element" loading="lazy">
+        <figcaption><b>Ultimate impacts</b>, same order: the SKY landing (left), a RUSH wake (middle) and a Trinity strike (right).</figcaption>
       </figure>
     </section>
 
@@ -369,6 +387,32 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     return ['<b style="color:#' + a.color + '">' + esc(a.name) + "</b><br><span class=\"lede\">" + esc(a.title.toLowerCase()) + "</span>",
       nt ? esc(nt.passive) : miss(), "<b>" + esc(a.finisher) + "</b>: " + (nt ? esc(nt.finisher) : miss()), nums];
   }));
+  // Elements + ultimates
+  var EC = D.element_colors, ELS = Object.keys(EC), U = D.ultimates;
+  var castWhat = {bolt: "A blade that flies ahead and pierces: crescent (spirit, wind), ice shards (water), a run of stone spikes (earth).",
+    vortex: "Pieces of the element whirl round the spin.",
+    pillar: "A column under the nearest foe ahead that launches: spirit beam, tornado, stone pillar, geyser.",
+    fissure: "Spikes or small pillars march along the strip.",
+    nova: "A burst round the impact: spikes (earth, water) or blades flying outward (spirit, wind)."};
+  $("cast-table").innerHTML = table(["Move", "Cast", "Dmg", "Reach"], Object.keys(D.casts).map(function (id) {
+    var c = D.casts[id], cb = D.combos[id], name = cb ? cb.name : ((note("moves", id) || {}).name || id);
+    var reach = c.kind === "bolt" ? n(c.range) + "m" + (c.fan ? ", fan of " + c.fan : "") : c.radius ? n(c.radius) + "m radius" : c.length ? n(c.length) + "m line" : "";
+    return ['<span class="inp">' + esc(id) + "</span> " + esc(name), castWhat[c.kind] || c.kind, {num: c.damage ? n(c.damage) : "–"}, {num: reach}];
+  }));
+  $("ult-text").innerHTML = "While Awakened, three combos ending in heavy become <b>ultimates</b>: a cinematic move with slow motion, a camera push-in and its name across the screen, during which the hero can't be hurt. Each ultimate in the same Awakening adds " +
+    pct(D.ult_chain_bonus) + " damage to the next (<b>CHAIN x2</b>, <b>x3</b>), and landing all three in one Awakening calls the <b>Trinity</b>: the element strikes every foe within " +
+    n(D.trinity.radius) + "m for " + n(D.trinity.damage) + ". Damage here is before the Awakened multiplier.";
+  var uinfo = {
+    SKY: ["L H H", "Leap at a foe, gather the element overhead, smash down: everything within " + n(U.SKY.radius) + "m takes " + n(U.SKY.damage) + " and is launched. Earth brings a meteor down with you; water freezes what it hits."],
+    RUSH: ["Dash L H", "Charge up to " + n(U.RUSH.length) + "m through everything ahead (" + n(U.RUSH.damage) + "), then the whole line erupts (" + n(U.RUSH.wake_damage) + "). Stops short of walls."],
+    AF: ["L L L H", "The finisher: Cataclysm, or the Ascendancy's own (see above)."]};
+  var afNames = {spirit: D.combos.AF.name};
+  Object.keys(D.ascendancy).forEach(function (k) { afNames[k] = D.ascendancy[k].finisher; });
+  function elNames(map) { return ELS.map(function (el) { return '<b style="color:#' + EC[el].color + '">' + esc(map[el]) + "</b>"; }).join(" · "); }
+  $("ult-table").innerHTML = table(["Input", "Spirit · Wind · Earth · Water", "What it does"], ["SKY", "RUSH", "AF"].map(function (id) {
+    return ['<span class="inp">' + uinfo[id][0] + "</span>", elNames(id === "AF" ? afNames : U[id].names), uinfo[id][1]];
+  }).concat([['<span class="inp">all three</span>', elNames(D.trinity.names), "The Trinity storm."]]));
+
   $("air-text").innerHTML = "Juggle milestones pay out bonus style and Awakening: " + Object.keys(D.air_milestones).map(function (k) {
     var a = D.air_milestones[k]; return "<b>" + a.text + "</b> at " + k + " air hits (+" + n(a.awaken) + ")"; }).join(", ") + ".";
 
