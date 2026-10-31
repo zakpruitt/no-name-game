@@ -49,7 +49,7 @@ func _ready() -> void:
 	center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
-	_label(root, "WASD move   J/LMB light   K/RMB heavy   Space dash   Q awaken", 16, Color(1, 1, 1, 0.5)) \
+	_label(root, "WASD move   J/LMB light   K/RMB heavy   Space dash   Q awaken   Esc pause", 16, Color(1, 1, 1, 0.5)) \
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
 
 	upgrades_label = _label(root, "", 18, Color(1.0, 0.8, 0.5))

@@ -14,6 +14,8 @@ const HUD := preload("res://scripts/hud.gd")
 const REWARD := preload("res://scripts/reward_screen.gd")
 const BOSS := preload("res://scripts/boss.gd")
 const SUMMARY := preload("res://scripts/run_summary.gd")
+const TITLE := preload("res://scripts/title_screen.gd")
+const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -99,6 +101,7 @@ func _ready() -> void:
 	add_child(reward)
 	summary = SUMMARY.new()
 	add_child(summary)
+	add_child(PAUSE.new())
 	Game.combo_changed.connect(_track_combo)
 
 	if "--all-upgrades" in OS.get_cmdline_user_args():
@@ -118,6 +121,15 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--start-room="):
 			room = clampi(arg.get_slice("=", 1).to_int() - 1, 0, RUN_PLAN.size() - 1)
+	if not _autotest and not Game.skip_title:
+		var title := TITLE.new()
+		add_child(title)
+		hud.visible = false
+		title.open()
+		await title.started
+		title.queue_free()
+		hud.visible = true
+	Game.skip_title = false
 	_next_room()
 
 

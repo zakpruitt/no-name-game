@@ -22,6 +22,8 @@ var combo_count := 0
 var style := 0.0
 var awakening := 0.0
 var perfect_dodges := 0
+## Survives scene reloads: start the next run without the title screen.
+var skip_title := false
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
 var _combo_timer := 0.0
@@ -167,7 +169,8 @@ func _setup_input() -> void:
 	_bind("attack_heavy", [KEY_K], [MOUSE_BUTTON_RIGHT], [JOY_BUTTON_Y])
 	_bind("dash", [KEY_SPACE, KEY_SHIFT], [], [JOY_BUTTON_A])
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
-	_bind("restart", [KEY_ENTER], [], [JOY_BUTTON_START])
+	_bind("restart", [KEY_ENTER], [], [])
+	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
 
 
 func _bind(action: String, keys: Array, mouse: Array, joy: Array, axes: Array = []) -> void:

@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## End-of-run screen (victory or defeat): pauses the game, lists the run's
-## stats and upgrades. Restart (Enter / Start) or the button begins a new run.
+## stats and upgrades. Enter or the button (gamepad: A) begins a new run.
 
 var _root: Control
 
@@ -19,6 +19,7 @@ func open(victory: bool, stats: Dictionary, upgrade_ids: Array) -> void:
 
 
 func new_run() -> void:
+	Game.skip_title = true
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
