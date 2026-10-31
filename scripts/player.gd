@@ -308,6 +308,7 @@ func _start_dash() -> void:
 	_invuln_t = dash_time + 0.08
 	_set_state(State.DASH)
 	_play("Dodge_Forward", 0.04, true)
+	Fx.dust(get_parent(), global_position, 8)
 
 
 ## Soft lock-on: rotate toward the best enemy roughly in front of us.

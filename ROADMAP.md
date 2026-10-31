@@ -5,7 +5,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Combat feel
 - [x] Weapon slash trails: `weapon_trail.gd` ribbon on both axes; turns orange while Awakened
-- [ ] Hit sparks → proper GPUParticles3D bursts; dust puff on dash and landing
+- [x] Hit sparks → particle bursts; dust puff on dash and landing: `Fx.burst/impact/dust` (CPUParticles3D; GPU version misplaced first burst + compile hitch)
 - [ ] Brief enemy freeze (per-enemy hitstop) + squash/stretch on hit
 - [ ] Dash afterimages
 - [ ] Perfect-dodge: dashing through an attack in its last 0.15s slows time + refunds Awakening

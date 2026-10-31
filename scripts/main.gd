@@ -26,6 +26,7 @@ var _between_waves := false
 var _autotest := false
 var _autotest_t := 0.0
 var _shots_taken := 0
+var _hit_shot_taken := false
 var _max_combo := 0
 var _hits := 0
 
@@ -231,15 +232,24 @@ func _process(delta: float) -> void:
 	_drive_bot()
 	var shot_times := [2.5, 6.0, 9.5]
 	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
+		_snap("user://autotest_%d.png" % _shots_taken)
 		_shots_taken += 1
-		if DisplayServer.get_name() != "headless":
-			var path := "user://autotest_%d.png" % (_shots_taken - 1)
-			get_viewport().get_texture().get_image().save_png(path)
-			print("[autotest] screenshot ", ProjectSettings.globalize_path(path))
+	var since_big := Time.get_ticks_msec() - Fx.last_big_hit_ms
+	if not _hit_shot_taken and Fx.last_big_hit_ms > 0 and since_big >= 190 and _autotest_t > 3.0:
+		_hit_shot_taken = true
+		_snap("user://autotest_hit.png")
+		print("[autotest] at impact shot: particles=%d labels=%d since_big=%d time_scale=%.2f" % [find_children("*", "CPUParticles3D", true, false).size(), find_children("*", "Label3D", true, false).size(), since_big, Engine.time_scale])
 	if _autotest_t >= 12.0:
 		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s" % [
 			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank()])
 		get_tree().quit()
+
+
+func _snap(path: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[autotest] screenshot ", ProjectSettings.globalize_path(path))
 
 
 func _drive_bot() -> void:

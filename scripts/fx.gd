@@ -3,6 +3,8 @@ class_name Fx
 
 static var _flash_mat: StandardMaterial3D
 static var _rim_mat: ShaderMaterial
+## Tick time of the last big impact (read by the autotest to snap a frame).
+static var last_big_hit_ms := 0
 
 
 static func damage_number(parent: Node, pos: Vector3, amount: float, big := false) -> void:
@@ -45,6 +47,61 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 	tw.tween_property(m, "scale", Vector3.ONE * size, 0.12).set_ease(Tween.EASE_OUT)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.14).set_delay(0.04)
 	tw.chain().tween_callback(m.queue_free)
+
+
+## One-shot particle burst. `dir` biases the spray (e.g. knockback direction).
+static func burst(parent: Node, pos: Vector3, color: Color, amount := 14, speed := 7.0,
+		size := 0.12, lifetime := 0.3, dir := Vector3.UP, spread := 70.0, gravity := -12.0,
+		radius := 0.0) -> void:
+	# CPU particles: no shader compile hitch on first spawn, cheap at these counts.
+	var p := CPUParticles3D.new()
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.amount = amount
+	p.lifetime = lifetime
+	p.local_coords = true  # emitter never moves; world-space emission misplaces the first burst
+	p.direction = dir.normalized() if dir.length() > 0.01 else Vector3.UP
+	p.spread = spread
+	p.initial_velocity_min = speed * 0.5
+	p.initial_velocity_max = speed
+	p.gravity = Vector3(0.0, gravity, 0.0)
+	p.damping_min = speed * 0.6
+	p.damping_max = speed * 1.2
+	if radius > 0.0:
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+		p.emission_sphere_radius = radius
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.3
+	var fade := Gradient.new()
+	fade.set_color(0, color)
+	fade.set_color(1, Color(color.r, color.g, color.b, 0.0))
+	p.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * size
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	quad.material = mat
+	p.mesh = quad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.position = parent.to_local(pos) if parent is Node3D else pos
+	parent.add_child(p)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
+
+static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> void:
+	var at := pos + Vector3.UP * 1.1
+	burst(parent, at, Color(1.0, 0.6, 0.15), 24 if big else 14, 14.0 if big else 10.0, 0.22, 0.35, dir, 50.0)
+	burst(parent, at, Color(1.0, 0.97, 0.85), 8 if big else 4, 18.0, 0.18, 0.2, dir, 30.0, 0.0)
+	if big:
+		last_big_hit_ms = Time.get_ticks_msec()
+
+
+static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void:
+	burst(parent, pos + Vector3.UP * 0.2, Color(0.62, 0.57, 0.5, 0.6), amount, 4.0, size, 0.55, Vector3.UP, 80.0, 1.0, 0.45)
 
 
 ## Expanding flat ring on the ground (shockwaves, Awakening burst).

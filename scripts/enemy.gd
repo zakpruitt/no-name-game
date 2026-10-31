@@ -96,6 +96,8 @@ func _physics_process(delta: float) -> void:
 			_friction(delta, 4.0)
 			if is_on_floor() and _state_t > 0.15:
 				_play("Lie_StandUp", 0.1, 2.0)
+				Fx.dust(get_parent(), global_position, 14, 0.6)
+				Game.shake(0.1)
 				_set_state(State.HURT)
 				_state_t = -0.35  # lying on the ground a bit longer
 		State.DEAD:
@@ -152,6 +154,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	hp -= damage
 	Fx.damage_number(get_parent(), global_position, damage, big)
 	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
+	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
 	Fx.flash(model)
 	_telegraph.visible = false
 	if hp <= 0.0:
