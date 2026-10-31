@@ -141,7 +141,7 @@ func _hurt(p: Node3D, to: Vector3) -> void:
 func _shut() -> void:
 	_done = true
 	Game.shake(0.4)
-	Game.sfx("hit_big", -3.0, 0.05)
+	Game.sfx("cage_shut", 0.0, 0.05)
 	Fx.burst(get_parent(), global_position + Vector3.UP * 0.5, BONE_COLOR, 16, 6.0, 0.1, 0.3, Vector3.UP, 60.0)
 	var p := _player()
 	if p != null and not _hit_done:

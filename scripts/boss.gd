@@ -284,7 +284,7 @@ func _cage() -> void:
 	var spec: Dictionary = ATTACKS.cage
 	_play("Spellcast_Shoot", 0.05, 1.2, true)
 	Game.shake(0.5)
-	Game.sfx("hit_big", -2.0, 0.05)
+	Game.sfx("cage_rise", 0.0, 0.05)
 	cage.emit()
 	var c := BONE_CAGE.new()
 	c.radius = spec.radius
