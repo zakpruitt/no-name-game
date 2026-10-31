@@ -81,6 +81,12 @@ const ELITE_REWARDS := 2
 # for every enemy in the room; "volatile" makes them burst shortly after
 # dying (enemy.gd VOLATILE_*).
 const DOUBLE_TWIST_ROOM := 6
+# `--tour` autotest: take these doors in order (room 1 is always a fight),
+# wipe each fight after TOUR_FIGHT_TIME s, and print PASS if the run reaches
+# and beats the boss having seen every kind (FAIL after TOUR_TIMEOUT s).
+const TOUR := ["fight", "rest", "shrine", "elite", "boss"]
+const TOUR_FIGHT_TIME := 1.5
+const TOUR_TIMEOUT := 120.0
 const ELITE_TWISTS := {
 	"hasted": {"name": "Hasted", "desc": "faster foes", "mult": {"move_speed": 1.3, "attack_windup": 0.8,
 		"attack_recover": 0.8}},
@@ -164,6 +170,10 @@ var summary: CanvasLayer
 var room := 0
 var room_kind := "fight"
 var room_twists: Array[String] = []  # ELITE_TWISTS keys for this (elite) room
+var _tour := false
+var _tour_seen: Array[String] = []
+var _tour_room_t := 0.0
+var _won := false
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
 var shrine_menu: CanvasLayer
@@ -300,6 +310,8 @@ func _ready() -> void:
 		elif arg == "--start-rest":
 			room_kind = "rest"
 			Game.add_bones(30)
+		elif arg == "--tour":
+			_tour = true
 		elif arg == "--start-shrine":
 			room_kind = "shrine"
 			Game.add_bones(30)
@@ -320,6 +332,9 @@ func _ready() -> void:
 func _next_room() -> void:
 	room += 1
 	_between_rooms = false
+	if _tour:
+		_tour_seen.append(room_kind)
+		_tour_room_t = _autotest_t
 	_apply_layout(ROOM_LAYOUTS[room - 1])
 	_graves.clear()
 	hud.set_room(room, RUN_LENGTH, room_kind, _twist_text(room_twists, "name", " + "))
@@ -424,6 +439,11 @@ func _camp() -> void:
 func _choose_path() -> void:
 	var options := path_options(room + 1, room_kind)
 	room_twists.clear()
+	if _tour and _tour_seen.size() < TOUR.size():
+		room_kind = TOUR[_tour_seen.size()]
+		if room_kind == "boss":
+			room = RUN_LENGTH - 1  # the boss is always the last room
+		return
 	if options.size() == 1:
 		room_kind = options[0]
 		return
@@ -647,6 +667,7 @@ func _apply_altar() -> void:
 
 
 func _end_run(victory: bool) -> void:
+	_won = _won or victory
 	if _run_over:
 		return
 	_run_over = true
@@ -890,7 +911,9 @@ func _process(delta: float) -> void:
 		_finisher_shot_taken = true
 		await get_tree().create_timer(0.35, true, false, true).timeout
 		_snap("user://autotest_finisher.png")
-	if _autotest_t >= 16.0:
+	if _tour:
+		_drive_tour()
+	elif _autotest_t >= 16.0:
 		_autotest_finish()
 
 
@@ -950,6 +973,21 @@ func _sample_perf() -> void:
 	_perf_last_frame = frame
 
 
+## --tour: clear fights quickly (the bot still plays for TOUR_FIGHT_TIME s),
+## keep the hero alive, and give up after TOUR_TIMEOUT.
+func _drive_tour() -> void:
+	if _autotest_t >= TOUR_TIMEOUT:
+		_autotest_finish()
+		return
+	player.hp = maxf(player.hp, player.max_hp * 0.5)
+	if _between_rooms or _autotest_t - _tour_room_t < TOUR_FIGHT_TIME:
+		return
+	_queue.clear()
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.is_alive() and e.state != e.State.SPAWN:
+			e.take_hit(e.hp + 1.0, Vector3.ZERO, 0.0, true)
+
+
 func _autotest_finish() -> void:
 	if _quitting:
 		return
@@ -961,6 +999,9 @@ func _autotest_finish() -> void:
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, ",".join(Game._hints_seen), player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
+	if _tour:
+		var ok := ",".join(_tour_seen) == ",".join(TOUR) and _won
+		print("[tour] %s rooms=%s time=%.1fs" % ["PASS" if ok else "FAIL", ",".join(_tour_seen), _autotest_t])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
 	await get_tree().create_timer(0.3, true, false, true).timeout
