@@ -27,6 +27,8 @@ var _autotest := false
 var _autotest_t := 0.0
 var _shots_taken := 0
 var _hit_shot_taken := false
+var _dash_shot_taken := false
+var _dash_shot_at := 0
 var _max_combo := 0
 var _hits := 0
 
@@ -239,6 +241,11 @@ func _process(delta: float) -> void:
 		_hit_shot_taken = true
 		_snap("user://autotest_hit.png")
 		print("[autotest] at impact shot: particles=%d labels=%d since_big=%d time_scale=%.2f" % [find_children("*", "CPUParticles3D", true, false).size(), find_children("*", "Label3D", true, false).size(), since_big, Engine.time_scale])
+	if _dash_shot_at == 0 and Fx.last_afterimage_ms > 0 and _autotest_t > 3.0:
+		_dash_shot_at = Time.get_ticks_msec() + 110  # a few ghosts into the dash
+	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
+		_dash_shot_taken = true
+		_snap("user://autotest_dash.png")
 	if _autotest_t >= 12.0:
 		print("[autotest] wave=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s" % [
 			wave, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank()])

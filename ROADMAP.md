@@ -7,7 +7,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Weapon slash trails: `weapon_trail.gd` ribbon on both axes; turns orange while Awakened
 - [x] Hit sparks → particle bursts; dust puff on dash and landing: `Fx.burst/impact/dust` (CPUParticles3D; GPU version misplaced first burst + compile hitch)
 - [x] Brief enemy freeze (per-enemy hitstop) + squash/stretch on hit: `hit_freeze`/`hit_freeze_big` exports; enemies shudder in place, then knockback; launched enemies stretch up
-- [ ] Dash afterimages
+- [x] Dash afterimages: `Fx.afterimage` bakes the current skinned pose into fading ghosts (blue, orange when Awakened); skipped headless
 - [ ] Perfect-dodge: dashing through an attack in its last 0.15s slows time + refunds Awakening
 - [ ] Sound: procedural/CC0 SFX for swings, hits, dash, death (check Kenney audio packs on GitHub)
 
@@ -26,6 +26,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Simple title screen + pause menu
 
 ## Polish / tech
+- [ ] Fade pillars/walls that block the camera's view of the hero (found in autotest screenshots)
 - [ ] Toon outline shader pass
 - [ ] Juggle counter / air-combo bonus feedback in HUD
 - [ ] Settings for screen shake intensity

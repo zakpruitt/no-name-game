@@ -20,6 +20,18 @@ func _initialize() -> void:
 	Fx.impact(root3d, Vector3(-1.5, 0, 0), Vector3(1, 0.3, 0), true)
 	Fx.impact(root3d, Vector3(1.5, 0, 0), Vector3(-1, 0.3, 0), false)
 	Fx.dust(root3d, Vector3(0, 0, 1.5), 14, 0.6)
+	# Afterimages: pose a hero mid-dodge and leave ghosts along a line.
+	var hero: Node3D = load("res://assets/kaykit/characters/Barbarian.glb").instantiate()
+	root3d.add_child(hero)
+	var ap: AnimationPlayer = hero.find_child("AnimationPlayer", true, false)
+	ap.play("Dodge_Forward")
+	ap.seek(0.2, true)
+	hero.rotation.y = PI * 0.5
+	for i in 3:
+		hero.position = Vector3(-3.5 + i * 0.6, 0, -1.0)
+		await process_frame
+		Fx.afterimage(root3d, hero, Color(0.55, 0.8, 1.0, 0.4), 5.0)
+	hero.position = Vector3(-1.5, 0, -1.0)
 	await create_timer(0.12).timeout
 	await process_frame
 	get_root().get_texture().get_image().save_png("user://fx_preview.png")

@@ -25,6 +25,7 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 @export var aim_assist_range := 5.5
 @export var aim_assist_angle := 70.0
 @export var awaken_duration := 12.0
+@export var afterimage_interval := 0.035
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -81,6 +82,7 @@ var _anim_mult := 1.0
 var _dmg_mult := 1.0
 var _awaken_light: OmniLight3D
 var _trails: Array = []
+var _ghost_t := 0.0
 
 # Lets the autotest drive the hero without real input.
 var bot_move := Vector3.ZERO
@@ -243,7 +245,12 @@ func _state_attack(delta: float) -> void:
 		_set_state(State.MOVE)
 
 
-func _state_dash(_delta: float) -> void:
+func _state_dash(delta: float) -> void:
+	_ghost_t -= delta
+	if _ghost_t <= 0.0:
+		_ghost_t = afterimage_interval
+		var tint := Color(1.0, 0.55, 0.15, 0.45) if awakened else Color(0.55, 0.8, 1.0, 0.4)
+		Fx.afterimage(get_parent(), model, tint)
 	velocity.x = _dash_dir.x * dash_speed
 	velocity.z = _dash_dir.z * dash_speed
 	if _state_t >= dash_time:
@@ -307,6 +314,7 @@ func _start_dash() -> void:
 	_face(_dash_dir)
 	_invuln_t = dash_time + 0.08
 	_set_state(State.DASH)
+	_ghost_t = 0.0
 	_play("Dodge_Forward", 0.04, true)
 	Fx.dust(get_parent(), global_position, 8)
 

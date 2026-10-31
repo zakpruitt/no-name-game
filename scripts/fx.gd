@@ -5,6 +5,7 @@ static var _flash_mat: StandardMaterial3D
 static var _rim_mat: ShaderMaterial
 ## Tick time of the last big impact (read by the autotest to snap a frame).
 static var last_big_hit_ms := 0
+static var last_afterimage_ms := 0
 
 
 static func damage_number(parent: Node, pos: Vector3, amount: float, big := false) -> void:
@@ -124,6 +125,32 @@ static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time :
 	tw.tween_property(m, "scale", Vector3(radius, 0.05, radius), time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.6).set_delay(time * 0.4)
 	tw.chain().tween_callback(m.queue_free)
+
+
+## Frozen translucent copy of a (skinned) model in its current pose.
+static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) -> void:
+	if DisplayServer.get_name() == "headless":
+		return  # the dummy renderer has no skeletons to bake from
+	last_afterimage_ms = Time.get_ticks_msec()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = color
+	var ghost := Node3D.new()
+	parent.add_child(ghost)
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		var flashing := _flash_mat != null and mi.material_overlay == _flash_mat
+		if not mi.is_visible_in_tree() or mi.mesh == null or flashing:
+			continue
+		var copy := MeshInstance3D.new()
+		copy.mesh = mi.bake_mesh_from_current_skeleton_pose() if mi.skin else mi.mesh
+		copy.material_override = mat
+		copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ghost.add_child(copy)
+		copy.global_transform = mi.global_transform
+	var tw := ghost.create_tween()
+	tw.tween_property(mat, "albedo_color:a", 0.0, time)
+	tw.tween_callback(ghost.queue_free)
 
 
 ## Briefly paint every mesh under `root` white.
