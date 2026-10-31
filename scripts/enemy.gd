@@ -64,6 +64,15 @@ const LINE_COLOR := Color(1.0, 0.55, 0.15)
 ## texture). Lets types that share a model read differently (archer vs rogue).
 @export var cloth_color := Color(0, 0, 0, 0)
 const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
+## Bomber (attack_kind "bomb"): walks up and lights a fuse (attack_windup s,
+## orange ring = blast_radius). The fuse keeps burning through hits and
+## launches, so knock it into a crowd: the blast hurts the hero and skeletons
+## alike. Killed while lit, it blows up on the spot (chains into other bombs).
+@export var blast_radius := 3.2
+@export var blast_enemy_damage := 40.0
+const BOMB_COLOR := Color(1.0, 0.5, 0.1)
+var _fuse := -1.0  # seconds left once lit; < 0 = not lit
+var _spark: MeshInstance3D
 ## Necromancer (attack_kind "raise"): hangs back and raises up to raise_count
 ## fallen minions (main.gd keeps the graves; `can_raise` asks it whether any
 ## are near). With none to raise it shoots a bolt like a mage.
@@ -78,6 +87,7 @@ var _raising := false
 
 static var dodges := 0  # running count, reported by the autotest
 static var blocks := 0
+static var blasts := 0
 
 var radius := 0.55
 var hp := 0.0
@@ -127,6 +137,8 @@ func _ready() -> void:
 		_attach_shield()
 	if cloth_color.a > 0.0:
 		_tint_cloth()
+	if attack_kind == "bomb":
+		_attach_bomb()
 	if attack_kind == "line":
 		var bow: Node3D = CROSSBOW_SCENE.instantiate()
 		bow.rotation_degrees.y = 90.0  # point down the aim
@@ -151,7 +163,11 @@ func _ready() -> void:
 
 ## Shoots from a distance (doesn't need a melee slot).
 func is_ranged() -> bool:
-	return attack_kind != "melee"
+	return attack_kind in ["ranged", "line", "raise"]
+
+
+func fuse_left() -> float:
+	return _fuse
 
 
 ## Targetable: spawned, not dead, and not mid-dodge.
@@ -180,6 +196,8 @@ func _physics_process(delta: float) -> void:
 	_attack_cd -= delta
 	_dodge_cd -= delta
 	_guard_broken_t -= delta
+	if _fuse >= 0.0 and state != State.DEAD:
+		_burn_fuse(delta)
 	velocity.y -= (14.0 if state == State.AIRBORNE else 30.0) * delta
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
@@ -227,7 +245,10 @@ func _state_chase(delta: float) -> void:
 	to.y = 0.0
 	var d := to.length()
 	_face(to)
-	if d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()):
+	if attack_kind == "bomb":
+		if d <= attack_range and _fuse < 0.0:
+			_light_fuse()
+	elif d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()):
 		_set_state(State.WINDUP)
 		_aim_dir = to / maxf(d, 0.001)
 		_raising = attack_kind == "raise" and can_raise.is_valid() and can_raise.call(self)
@@ -499,7 +520,78 @@ func _attach_to_hand(bone: String, item: Node3D) -> void:
 	hand.add_child(item)
 
 
+func _attach_bomb() -> void:
+	var bomb := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 0.26
+	ball.height = 0.52
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.12, 0.1, 0.12)
+	mat.roughness = 0.4
+	ball.material = mat
+	bomb.mesh = ball
+	_spark = MeshInstance3D.new()
+	var tip := SphereMesh.new()
+	tip.radius = 0.08
+	tip.height = 0.16
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = BOMB_COLOR
+	tip.material = glow
+	_spark.mesh = tip
+	_spark.position.y = 0.3
+	_spark.visible = false
+	bomb.add_child(_spark)
+	_attach_to_hand("handslot.r", bomb)
+
+
+func _light_fuse() -> void:
+	_fuse = attack_windup
+	_spark.visible = true
+	_telegraph.visible = true
+	_telegraph.scale = Vector3.ONE
+	Game.sfx("swing", -10.0, 0.2)
+
+
+## Flash the ring (faster near the end) and keep chasing until it blows.
+func _burn_fuse(delta: float) -> void:
+	_fuse -= delta
+	var k := 1.0 - _fuse / attack_windup
+	_telegraph.visible = true
+	_telegraph_mat.albedo_color.a = 0.15 + 0.4 * absf(sin(k * k * 30.0))
+	_spark.scale = Vector3.ONE * randf_range(0.8, 1.6)
+	if _fuse <= 0.0:
+		_die(Vector3.ZERO)
+
+
+func _blast() -> void:
+	blasts += 1
+	_telegraph.visible = false
+	_spark.visible = false
+	var at := global_position
+	Game.shake(0.5)
+	Game.sfx("hit_big", 0.0, 0.1)
+	Fx.ring(get_parent(), at, Color(BOMB_COLOR, 0.9), blast_radius, 0.35)
+	Fx.burst(get_parent(), at + Vector3.UP * 0.5, BOMB_COLOR, 30, 10.0, 0.18, 0.4, Vector3.UP, 120.0)
+	Fx.dust(get_parent(), at, 20, 1.4)
+	if is_instance_valid(_player) and not _player.is_dead():
+		var to: Vector3 = _player.global_position - at
+		to.y = 0.0
+		if to.length() <= blast_radius:
+			_player.take_hit(attack_damage, to.normalized() * 10.0, self)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - at
+		to.y = 0.0
+		if e != self and e.is_alive() and to.length() <= blast_radius:
+			e.take_hit(blast_enemy_damage, to.normalized() * 6.0, 7.0, true)
+			Game.register_hit("bomb")
+
+
 func _die(knockback: Vector3) -> void:
+	if _fuse >= 0.0:
+		_fuse = -1.0
+		remove_from_group("enemies")  # so chained blasts don't hit it again
+		_blast()
 	_set_state(State.DEAD)
 	remove_from_group("enemies")
 	collision_layer = 0
@@ -583,6 +675,8 @@ func _build_telegraph() -> void:
 	var mesh := CylinderMesh.new()
 	# Melee rings show the reach; shooters get a small ring at their feet.
 	var r := 1.1 if is_ranged() else attack_range + 0.3
+	if attack_kind == "bomb":
+		r = blast_radius
 	mesh.top_radius = r
 	mesh.bottom_radius = r
 	mesh.height = 0.02
@@ -590,6 +684,8 @@ func _build_telegraph() -> void:
 	_telegraph_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_telegraph_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_telegraph_mat.albedo_color = Color(0.7, 0.3, 1.0, 0.3) if attack_kind in ["ranged", "raise"] else Color(1.0, 0.15, 0.1, 0.3)
+	if attack_kind == "bomb":
+		_telegraph_mat.albedo_color = Color(BOMB_COLOR, 0.3)
 	mesh.material = _telegraph_mat
 	_telegraph.mesh = mesh
 	_telegraph.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

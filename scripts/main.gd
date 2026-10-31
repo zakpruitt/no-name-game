@@ -50,6 +50,9 @@ const ENEMY_TYPES := {
 		"attack_range": 14.0, "preferred_range": 11.0, "attack_damage": 8.0, "attack_windup": 1.2,
 		"attack_recover": 0.6, "projectile_speed": 8.0, "cloth_color": Color(0.1, 0.13, 0.1),
 		"raise_count": 2, "raise_cooldown": 5.0, "bones": 4},
+	"bomber": {"model": "Skeleton_Minion", "max_hp": 26.0, "move_speed": 4.2, "attack_kind": "bomb",
+		"attack_range": 2.6, "attack_damage": 22.0, "attack_windup": 1.5, "blast_radius": 3.2,
+		"blast_enemy_damage": 40.0, "model_scale": 0.95, "run_anim": "Running_C", "bones": 2},
 }
 # Necromancers raise slain minions from their graves (within RAISE_RANGE of
 # the necromancer; the newest MAX_GRAVES are kept per room). Risen drop no
@@ -117,11 +120,11 @@ static func path_options(n: int, prev: String) -> Array:
 ## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
 	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2, "archer": n / 3,
-		"necromancer": (n - 2) / 3}
+		"necromancer": (n - 2) / 3, "bomber": (n - 1) / 3}
 
 
-## How many of an elite room's enemies are promoted to elites (never mages
-## or necromancers).
+## How many of an elite room's enemies are promoted to elites (never mages,
+## necromancers or bombers).
 static func elite_count(n: int) -> int:
 	return 2 + n / 4
 
@@ -165,6 +168,7 @@ var _charge_shot_taken := false
 var _hint_shot_taken := false
 var _necro_shot_taken := false
 var _spikes_shot_taken := false
+var _bomb_shot_taken := false
 # Character models by name, loaded once up front: loading a .glb mid-fight
 # (e.g. the boss room after its models were freed) hitched ~150ms.
 var _models := {}
@@ -292,7 +296,7 @@ func _next_room() -> void:
 	kinds.shuffle()
 	_queue.clear()
 	for kind in kinds:
-		var make_elite := elites > 0 and kind not in ["mage", "necromancer"]
+		var make_elite := elites > 0 and kind not in ["mage", "necromancer", "bomber"]
 		if make_elite:
 			elites -= 1
 		_queue.append([kind, make_elite])
@@ -375,6 +379,10 @@ func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	_alive += 1
 	hud.set_remaining(_alive + _queue.size())
 	return e
+
+
+func _any_fuse_lit() -> bool:
+	return get_tree().get_nodes_in_group("enemies").any(func(e: Node) -> bool: return e.fuse_left() >= 0.0)
 
 
 func _can_raise(necro: Node3D) -> bool:
@@ -728,6 +736,9 @@ func _process(delta: float) -> void:
 	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
 		_snap("user://autotest_%d.png" % _shots_taken)
 		_shots_taken += 1
+	if ENEMY.blasts > 0 and not _bomb_shot_taken:
+		_bomb_shot_taken = true
+		_snap("user://autotest_bomb.png")
 	var since_big := Time.get_ticks_msec() - Fx.last_big_hit_ms
 	if not _hit_shot_taken and Fx.last_big_hit_ms > 0 and since_big >= 190 and _autotest_t > 3.0:
 		_hit_shot_taken = true
@@ -768,6 +779,8 @@ func _check_hints(delta: float) -> void:
 		id = "awaken"
 	elif not Game.hint_seen("shield") and ENEMY.blocks > 0:
 		id = "shield"
+	elif not Game.hint_seen("bomber") and _any_fuse_lit():
+		id = "bomber"
 	elif not Game.hint_seen("necro") and _raises > 0:
 		id = "necro"
 	elif not Game.hint_seen("launch") and Game.combo_count >= 4:
@@ -809,9 +822,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d raises=%d music=%.2f upgrades=%s" % [
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d bones=%d raises=%d blasts=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, _raises, Game._combat_level, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, Game.bones_total, _raises, ENEMY.blasts, Game._combat_level, player.upgrades])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	# Exercise the summary screen too.
@@ -899,6 +912,11 @@ func _drive_bot() -> void:
 			return
 	for p in get_tree().get_nodes_in_group("projectiles"):
 		if p.global_position.distance_to(player.global_position + Vector3.UP) < 1.6:
+			Input.action_press("dash")
+			return
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.fuse_left() >= 0.0 and e.fuse_left() < 0.25 and e.global_position.distance_to(player.global_position) < e.blast_radius + 0.5:
+			player.bot_move = (player.global_position - e.global_position).normalized()
 			Input.action_press("dash")
 			return
 	# Now and then, from neutral, hold heavy for a charged slam.
