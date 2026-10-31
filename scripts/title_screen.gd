@@ -10,6 +10,7 @@ func open(focus := 0) -> void:
 	show_menu("AWAKEN", "a combo roguelike", [
 		["Start run", _start],
 		[Game.shake_label(), _cycle_shake],
+		[Game.music_label(), _cycle_music],
 		["Quit", _quit],
 	], CONTROLS, 0.85, focus)
 
@@ -17,6 +18,11 @@ func open(focus := 0) -> void:
 func _cycle_shake() -> void:
 	Game.cycle_shake()
 	open(1)
+
+
+func _cycle_music() -> void:
+	Game.cycle_music()
+	open(2)
 
 
 func _start() -> void:

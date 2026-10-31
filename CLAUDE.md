@@ -23,6 +23,7 @@ characters only (no licensed IP in the repo).
 - `scripts/spike_trap.gd` — floor spike hazard used by `main.LAYOUTS`
 - `scripts/projectile.gd` — enemy bolts; i-frames pass through, perfect dodge still triggers
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`
+- `assets/music/` — synthesized ambient + combat loops; regenerate with `python tools/gen_music.py`. `Game` plays them in sync and fades the combat layer by style rank (`MUSIC_RANK_LEVEL`)
 - `scripts/hud.gd`, `scripts/camera_rig.gd`, `scripts/fx.gd` (damage numbers, sparks, rings, flash)
 - `assets/kaykit/` — CC0 models (see CREDITS.md). `vendor_src/` holds the full packs; it's gitignored and `.gdignore`d — copy pieces into `assets/` to use them.
 

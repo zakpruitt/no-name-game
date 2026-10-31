@@ -30,6 +30,16 @@ const AIR_MILESTONES := {
 	6: {"text": "SKY DANCER", "style": 15.0, "awaken": 8.0},
 	10: {"text": "STRATOSPHERE", "style": 30.0, "awaken": 15.0},
 }
+# Music: two synced loops from tools/gen_music.py. The ambient layer always
+# plays; the combat layer fades to MUSIC_RANK_LEVEL[style rank] (0..1).
+# MUSIC_LEVELS is the menu volume setting (saved like screen shake).
+const MUSIC_PATH := "res://assets/music/%s.wav"
+const MUSIC_LAYERS := ["ambient", "combat"]
+const MUSIC_DB := -8.0  # each layer's volume at full level
+const MUSIC_LEVELS := [1.0, 0.5, 0.0]
+const MUSIC_RANK_LEVEL := {"D": 0.0, "C": 0.45, "B": 0.6, "A": 0.75, "S": 0.85, "SS": 0.95, "SSS": 1.0}
+const MUSIC_FADE_IN := 1.2  # combat layer level change per second
+const MUSIC_FADE_OUT := 0.25
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
@@ -43,6 +53,7 @@ var best_air := 0
 var skip_title := false
 ## Multiplier on all screen shake (accessibility / taste).
 var shake_scale := 1.0
+var music_scale := 1.0
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
 var _combo_timer := 0.0
@@ -54,6 +65,8 @@ var _sfx_last_ms := {}
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _sfx_next := 0
 var _sfx_muted := false
+var _music: Array[AudioStreamPlayer] = []
+var _combat_level := 0.0
 
 
 func _ready() -> void:
@@ -64,6 +77,7 @@ func _ready() -> void:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_sfx_players.append(p)
+	_start_music()
 
 
 func _process(delta: float) -> void:
@@ -81,6 +95,7 @@ func _process(delta: float) -> void:
 			_end_air_combo()
 	if style > 0.0 and _combo_timer < COMBO_TIMEOUT - 0.6:
 		style = maxf(style - STYLE_DECAY * delta, 0.0)
+	_update_music(delta)
 
 
 func _exit_tree() -> void:
@@ -93,7 +108,7 @@ func _exit_tree() -> void:
 ## Also blocks new sounds; call before quitting.
 func stop_all_sfx() -> void:
 	_sfx_muted = true
-	for p in _sfx_players:
+	for p in _sfx_players + _music:
 		p.stop()
 		p.stream = null
 
@@ -143,6 +158,47 @@ func shake(amount: float) -> void:
 		camera_rig.add_trauma(amount * shake_scale)
 
 
+func _start_music() -> void:
+	for layer in MUSIC_LAYERS:
+		var stream: AudioStreamWAV = load(MUSIC_PATH % layer)
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = roundi(stream.get_length() * stream.mix_rate)
+		var p := AudioStreamPlayer.new()
+		p.stream = stream
+		add_child(p)
+		_music.append(p)
+	_update_music(0.0)
+	for p in _music:
+		p.play()  # same frame, same length: the layers stay in sync
+
+
+## Fade the combat layer toward the current style rank's level.
+func _update_music(delta: float) -> void:
+	if _music.size() < 2:
+		return
+	var target: float = MUSIC_RANK_LEVEL[rank()]
+	var speed := MUSIC_FADE_IN if target > _combat_level else MUSIC_FADE_OUT
+	_combat_level = move_toward(_combat_level, target, speed * delta)
+	_music[0].volume_db = _music_db(1.0)
+	_music[1].volume_db = _music_db(_combat_level)
+
+
+func _music_db(level: float) -> float:
+	return maxf(linear_to_db(level * music_scale) + MUSIC_DB, -80.0)
+
+
+## Step to the next music volume level and save it.
+func cycle_music() -> void:
+	var i := MUSIC_LEVELS.find(music_scale)
+	music_scale = MUSIC_LEVELS[(i + 1) % MUSIC_LEVELS.size()]
+	_save_settings()
+
+
+func music_label() -> String:
+	return "Music: %d%%" % roundi(music_scale * 100.0)
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -158,11 +214,13 @@ func _load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
 		shake_scale = cfg.get_value("video", "shake_scale", 1.0)
+		music_scale = cfg.get_value("audio", "music_scale", 1.0)
 
 
 func _save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("video", "shake_scale", shake_scale)
+	cfg.set_value("audio", "music_scale", music_scale)
 	cfg.save(SETTINGS_PATH)
 
 

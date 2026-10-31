@@ -571,9 +571,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d upgrades=%s" % [
+	print("[autotest] room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d music=%.2f upgrades=%s" % [
 		room, room_kind, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.upgrades])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, Game._combat_level, player.upgrades])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)
 	await get_tree().create_timer(0.3, true, false, true).timeout
