@@ -53,3 +53,11 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] First-run hints: short contextual prompts in room 1 (dash through attacks, launch with L→H, awaken when the meter is full), shown once and saved — `Game.HINTS` text (attack, dash, launch, shield, awaken), triggers in `main._check_hints()` with a 7s gap; saved to settings.cfg, "Reset hints" in pause; autotest/tests never save them; `autotest_hint.png`
 - [x] Run records: save best room, best combo, best rank and wins to `user://`; show them on the title screen and flag new bests on the run summary — `records.gd` (`user://records.cfg`: runs, wins, best room/combo/rank/juggle, fastest win); title footer line; gold "NEW BEST" rows; autotest never saves
 - [x] Gamepad rumble on big hits, perfect dodges and taking damage (respects a setting) — `Game.RUMBLE` table (hit_big / perfect / hurt / awaken: weak, strong, seconds), `Game.rumble()`; "Rumble: On/Off" in title + pause, saved. Untested on a real pad
+
+## Round 5
+- [ ] Settings submenu: move shake / music / rumble / reset hints into one Settings screen shared by title and pause (menus are getting long); give hints a soft backdrop for readability
+- [ ] Bones: enemies drop bones (auto-collected, more from elites); HUD counter; kept per run and listed on the summary
+- [ ] Camp: rest rooms let you spend bones (max HP up, reroll a power, upgrade a power) besides the free heal
+- [ ] Reward reroll: spend bones to reroll the 3 power cards
+- [ ] Necromancer skeleton: hangs back and raises fallen minions until it's killed (priority target)
+- [ ] Bone Warden phase 2: a new enraged attack (line of ground spikes chasing the hero)
