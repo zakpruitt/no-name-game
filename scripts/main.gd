@@ -113,6 +113,10 @@ func _ready() -> void:
 		player.bot_enabled = true
 		Game.combo_changed.connect(func(c: int, _r: String) -> void:
 			if c > 0: _hits += 1)
+		Game.air_combo_changed.connect(func(c: int) -> void:
+			if c == 3 and Game.best_air == 3:
+				await get_tree().create_timer(0.1, true, false, true).timeout
+				_snap("user://autotest_air.png"))
 		Game.announced.connect(func(_t: String) -> void:
 			if Game.perfect_dodges == 1:
 				await get_tree().create_timer(0.15, true, false, true).timeout
@@ -263,6 +267,7 @@ func _end_run(victory: bool) -> void:
 		"Enemies slain": _kills,
 		"Best combo": _max_combo,
 		"Best style rank": _best_rank,
+		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
 	}
 	summary.open(victory, stats, player.upgrades)
@@ -429,8 +434,8 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d bolts=%d dodges=%d upgrades=%s" % [
-		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges,
+	print("[autotest] room=%d alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d bolts=%d dodges=%d upgrades=%s" % [
+		room, _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, player.upgrades])
 	# Exercise the summary screen too.
 	_end_run(player.hp > 0.0)

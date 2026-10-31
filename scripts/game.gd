@@ -6,6 +6,8 @@ signal combo_changed(count: int, rank: String)
 signal awakening_changed(value: float)
 ## Short callouts for the HUD ("PERFECT", ...).
 signal announced(text: String)
+## Consecutive hits on airborne enemies (0 when the juggle drops).
+signal air_combo_changed(count: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
@@ -15,6 +17,14 @@ const RANKS := [["SSS", 160.0], ["SS", 110.0], ["S", 70.0], ["A", 40.0], ["B", 2
 const SFX_PATH := "res://assets/sfx/%s.wav"
 const SFX_VOICES := 16
 const SFX_MIN_GAP_MS := 35  # same sound can't restart faster than this
+# Juggles: air hits chain while each lands within AIR_TIMEOUT of the last.
+# Reaching a milestone announces it and pays out bonus style + Awakening.
+const AIR_TIMEOUT := 0.9
+const AIR_MILESTONES := {
+	3: {"text": "AIRBORNE", "style": 8.0, "awaken": 4.0},
+	6: {"text": "SKY DANCER", "style": 15.0, "awaken": 8.0},
+	10: {"text": "STRATOSPHERE", "style": 30.0, "awaken": 15.0},
+}
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
@@ -22,11 +32,14 @@ var combo_count := 0
 var style := 0.0
 var awakening := 0.0
 var perfect_dodges := 0
+var air_hits := 0
+var best_air := 0
 ## Survives scene reloads: start the next run without the title screen.
 var skip_title := false
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
 var _combo_timer := 0.0
+var _air_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
 var _sfx_streams := {}
@@ -54,6 +67,10 @@ func _process(delta: float) -> void:
 			combo_count = 0
 			_recent_moves.clear()
 			combo_changed.emit(0, rank())
+	if air_hits > 0:
+		_air_timer -= delta
+		if _air_timer <= 0.0:
+			_end_air_combo()
 	if style > 0.0 and _combo_timer < COMBO_TIMEOUT - 0.6:
 		style = maxf(style - STYLE_DECAY * delta, 0.0)
 
@@ -78,6 +95,8 @@ func reset() -> void:
 	style = 0.0
 	awakening = 0.0
 	perfect_dodges = 0
+	air_hits = 0
+	best_air = 0
 	awakening_gain_mult = 1.0
 	_recent_moves.clear()
 	Engine.time_scale = 1.0
@@ -126,7 +145,27 @@ func register_hit(move_id: String) -> void:
 		_recent_moves.pop_front()
 	style += 1.0 + variety
 	add_awakening(1.5 * RANK_AWAKEN_MULT[rank()])
+	if move_id.ends_with("_air"):
+		_air_hit()
 	combo_changed.emit(combo_count, rank())
+
+
+func _air_hit() -> void:
+	air_hits += 1
+	best_air = maxi(best_air, air_hits)
+	_air_timer = AIR_TIMEOUT
+	if AIR_MILESTONES.has(air_hits):
+		var m: Dictionary = AIR_MILESTONES[air_hits]
+		style += m.style
+		add_awakening(m.awaken)
+		announced.emit(m.text)
+		sfx("perfect", -6.0, 0.0)
+	air_combo_changed.emit(air_hits)
+
+
+func _end_air_combo() -> void:
+	air_hits = 0
+	air_combo_changed.emit(0)
 
 
 func perfect_dodge(awaken_refund: float) -> void:
@@ -141,6 +180,8 @@ func perfect_dodge(awaken_refund: float) -> void:
 
 func player_damaged() -> void:
 	style *= 0.4
+	if air_hits > 0:
+		_end_air_combo()
 	combo_count = 0
 	_recent_moves.clear()
 	combo_changed.emit(0, rank())

@@ -9,6 +9,7 @@ var awaken_bar: ProgressBar
 var awaken_hint: Label
 var combo_label: Label
 var rank_label: Label
+var air_label: Label
 var wave_label: Label
 var center_label: Label
 var upgrades_label: Label
@@ -39,6 +40,11 @@ func _ready() -> void:
 	_anchor(rank_label, 1.0, 0.0, Rect2(-380, 180, 340, 110))
 	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rank_label.pivot_offset = Vector2(300, 55)
+
+	air_label = _label(root, "", 34, Color(0.55, 0.85, 1.0))
+	_anchor(air_label, 1.0, 0.0, Rect2(-380, 290, 340, 50))
+	air_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	air_label.pivot_offset = Vector2(300, 25)
 
 	wave_label = _label(root, "", 26, Color(0.85, 0.85, 0.95))
 	_anchor(wave_label, 0.5, 0.0, Rect2(-150, 24, 300, 40))
@@ -72,6 +78,7 @@ func _ready() -> void:
 	Game.combo_changed.connect(_on_combo)
 	Game.announced.connect(func(text: String) -> void: flash_message(text, 0.5))
 	Game.awakening_changed.connect(_on_awakening)
+	Game.air_combo_changed.connect(_on_air_combo)
 
 
 func bind_player(p: Node) -> void:
@@ -138,6 +145,20 @@ func _on_combo(count: int, rank: String) -> void:
 		rank_label.add_theme_color_override("font_color", RANK_COLORS[rank])
 		rank_label.scale = Vector2.ONE * 1.6
 		create_tween().tween_property(rank_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _on_air_combo(count: int) -> void:
+	if count < 2:
+		# Juggle dropped: fade the counter out instead of snapping it away.
+		if air_label.text != "":
+			var tw := create_tween()
+			tw.tween_property(air_label, "modulate:a", 0.0, 0.3)
+			tw.tween_callback(func() -> void: air_label.text = "")
+		return
+	air_label.text = "AIR x%d" % count
+	air_label.modulate.a = 1.0
+	air_label.scale = Vector2.ONE * 1.35
+	create_tween().tween_property(air_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _on_awakening(v: float) -> void:

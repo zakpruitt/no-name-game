@@ -28,5 +28,5 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 ## Polish / tech
 - [x] Fade pillars that block the camera's view of the hero: `main._fade_occluders`; check with `tests/occlusion_check.gd`
 - [x] Toon outline shader pass: `shaders/outline.gdshader` inverted hull in screen space (`width_px`), added to characters via `Fx.outline()` as a material next_pass
-- [ ] Juggle counter / air-combo bonus feedback in HUD
+- [x] Juggle counter / air-combo bonus feedback in HUD: "AIR xN" under the rank; `Game.AIR_MILESTONES` (3/6/10 hits) announce + pay style/Awakening; best juggle on the run summary
 - [ ] Settings for screen shake intensity
