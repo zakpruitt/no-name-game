@@ -72,6 +72,11 @@ const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
 @export var blast_enemy_damage := 40.0
 const BOMB_COLOR := Color(1.0, 0.5, 0.1)
 var _fuse := -1.0  # seconds left once lit; < 0 = not lit
+## Volatile (elite room twist): bursts VOLATILE_DELAY s after dying, with a
+## smaller blast_radius; the ring warns where.
+var volatile := false
+const VOLATILE_DELAY := 0.7
+const VOLATILE_RADIUS := 2.4
 var _spark: MeshInstance3D
 ## Necromancer (attack_kind "raise"): hangs back and raises up to raise_count
 ## fallen minions (main.gd keeps the graves; `can_raise` asks it whether any
@@ -564,10 +569,34 @@ func _burn_fuse(delta: float) -> void:
 		_die(Vector3.ZERO)
 
 
+func _volatile_pop() -> void:
+	blast_radius = VOLATILE_RADIUS
+	var warn := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = blast_radius
+	disc.bottom_radius = blast_radius
+	disc.height = 0.02
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(BOMB_COLOR, 0.15)
+	disc.material = mat
+	warn.mesh = disc
+	warn.top_level = true
+	warn.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(warn)
+	warn.global_position = Vector3(global_position.x, 0.08, global_position.z)
+	create_tween().tween_property(mat, "albedo_color:a", 0.5, VOLATILE_DELAY)
+	await get_tree().create_timer(VOLATILE_DELAY, false).timeout
+	warn.queue_free()
+	_blast()
+
+
 func _blast() -> void:
 	blasts += 1
 	_telegraph.visible = false
-	_spark.visible = false
+	if _spark:
+		_spark.visible = false
 	var at := global_position
 	Game.shake(0.5)
 	Game.sfx("hit_big", 0.0, 0.1)
@@ -592,6 +621,8 @@ func _die(knockback: Vector3) -> void:
 		_fuse = -1.0
 		remove_from_group("enemies")  # so chained blasts don't hit it again
 		_blast()
+	elif volatile:
+		_volatile_pop()
 	_set_state(State.DEAD)
 	remove_from_group("enemies")
 	collision_layer = 0

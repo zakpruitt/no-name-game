@@ -8,8 +8,8 @@ extends Node3D
 ## Add `--all-upgrades` to start with every upgrade (exercises all effects;
 ## `--max-upgrades` gives them all at MAX_LEVEL), `--upgrades=id,id` for just
 ## those, `--low-hp` to start at 15% HP (low-HP vignette → autotest_lowhp.png), `--start-room=N` to begin at a later room, `--boss-enraged` to start
-## the boss at half HP (enraged; it uses the spike line), `--start-rest` to
-## make it a rest (camp) room with some bones, and `--start-awakened` to begin
+## the boss at half HP (enraged; it uses the spike line), `--twist=volatile` to make
+## it an elite room with that twist, `--start-rest` to make it a rest (camp) room with some bones, and `--start-awakened` to begin
 ## with a full Awakening meter.
 
 const PLAYER := preload("res://scripts/player.gd")
@@ -70,6 +70,15 @@ const RAISE_FX_COLOR := Color(0.45, 1.0, 0.4)
 const RUN_LENGTH := 8
 const REST_HEAL := 0.4
 const ELITE_REWARDS := 2
+# Elite rooms roll one twist, shown on the door and the room title. "mult"
+# scales those ENEMY_TYPES stats for every enemy in the room; "volatile"
+# makes them burst shortly after dying (enemy.gd VOLATILE_*).
+const ELITE_TWISTS := {
+	"hasted": {"name": "Hasted", "desc": "faster foes", "mult": {"move_speed": 1.3, "attack_windup": 0.8,
+		"attack_recover": 0.8}},
+	"armored": {"name": "Armored", "desc": "+60% enemy HP", "mult": {"max_hp": 1.6}},
+	"volatile": {"name": "Volatile", "desc": "foes burst when slain", "volatile": true},
+}
 # Reroll on the reward screen: first costs REROLL_COST bones, each further
 # reroll of the same offer REROLL_COST_STEP more.
 const REROLL_COST := 8
@@ -138,6 +147,7 @@ var reward: CanvasLayer
 var summary: CanvasLayer
 var room := 0
 var room_kind := "fight"
+var room_twist := ""  # ELITE_TWISTS key for this (elite) room, else ""
 var path_menu: CanvasLayer
 var camp_menu: CanvasLayer
 var _reward_rerolls := 0  # rerolls bought for the reward currently open
@@ -258,6 +268,9 @@ func _ready() -> void:
 			room = clampi(arg.get_slice("=", 1).to_int() - 1, 0, RUN_LENGTH - 1)
 			if room + 1 >= RUN_LENGTH:
 				room_kind = "boss"
+		elif arg.begins_with("--twist="):
+			room_kind = "elite"
+			room_twist = arg.get_slice("=", 1)
 		elif arg == "--start-rest":
 			room_kind = "rest"
 			Game.add_bones(30)
@@ -280,7 +293,7 @@ func _next_room() -> void:
 	_between_rooms = false
 	_apply_layout(ROOM_LAYOUTS[room - 1])
 	_graves.clear()
-	hud.set_room(room, RUN_LENGTH, room_kind)
+	hud.set_room(room, RUN_LENGTH, room_kind, ELITE_TWISTS[room_twist].name if room_twist != "" else "")
 	if room_kind == "boss":
 		_spawn_boss()
 		return
@@ -343,13 +356,17 @@ func _camp() -> void:
 ## Ask which door to take next (or go straight on when there's only one).
 func _choose_path() -> void:
 	var options := path_options(room + 1, room_kind)
+	room_twist = ""
 	if options.size() == 1:
 		room_kind = options[0]
 		return
-	path_menu.open(options, room + 1)
+	var twist: String = ELITE_TWISTS.keys().pick_random()
+	path_menu.open(options, room + 1, "%s: %s" % [ELITE_TWISTS[twist].name, ELITE_TWISTS[twist].desc])
 	if _autotest:
 		_autotest_path()
 	room_kind = await path_menu.chosen
+	if room_kind == "elite":
+		room_twist = twist
 
 
 ## Spawns on a ring around the player unless `at` is given.
@@ -362,6 +379,11 @@ func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 			e.set(key, spec[key])
 	e.elite = elite
 	e.set_meta("kind", kind)
+	if room_twist != "":
+		var twist: Dictionary = ELITE_TWISTS[room_twist]
+		for key in twist.get("mult", {}):
+			e.set(key, e.get(key) * twist.mult[key])
+		e.volatile = twist.get("volatile", false)
 	if e.attack_kind == "raise":
 		e.can_raise = _can_raise
 		e.raise_requested.connect(_raise)

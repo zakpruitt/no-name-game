@@ -16,10 +16,14 @@ func _ready() -> void:
 	title_size = 56
 
 
-func open(kinds: Array, next_room: int) -> void:
+## `elite_note` (the rolled twist) replaces the elite door's first line.
+func open(kinds: Array, next_room: int, elite_note := "") -> void:
 	var items: Array = []
 	for k in kinds:
-		items.append([DOORS[k], _pick.bind(k)])
+		var text: String = DOORS[k]
+		if k == "elite" and elite_note != "":
+			text = "Elite  ·  %s\n%s" % [elite_note, text.get_slice("\n", 1)]
+		items.append([text, _pick.bind(k)])
 	show_menu("CHOOSE YOUR PATH", "room %d" % next_room, items, "", 0.6)
 
 
