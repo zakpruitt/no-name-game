@@ -118,6 +118,10 @@ back to L1:
   (Awakened: Ancestor's Fall), not Dash Stab / Cyclone. The guide's dash
   row shows it (`dash_light()`). With juggle tracking, that lets him dash
   from one launched foe to another and keep the string going.
+- Limits: one air dash per trip up (`AIR_DASHES`, `_air_dashes`, reset
+  when the model is back on the floor), and `climb` stops at
+  `AIR_MAX_HEIGHT` (2.8 m, plus the 0.15 m bob), so a dash-and-slash loop
+  can't keep him up or lift him forever.
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.

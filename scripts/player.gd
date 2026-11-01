@@ -310,6 +310,10 @@ const AIR_HOME_MAX := 22.0
 # Ancestor's Fall) instead of Dash Stab / Cyclone.
 const AIR_DASH_FROM := ["LH", "AL1", "AL2"]
 const AIR_DASH_MIN := 0.6
+# One air dash per trip up (reset on landing), and `climb` stops at
+# AIR_MAX_HEIGHT, so dash-slash loops can't keep him up or lift him forever.
+const AIR_DASHES := 1
+const AIR_MAX_HEIGHT := 2.8
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -320,6 +324,7 @@ var _dash_cd := 0.0
 var _dash_dir := Vector3.FORWARD
 var _post_dash_t := 0.0
 var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
+var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
 var _awaken_t := 0.0
 var _facing_yaw := 0.0
 var _invuln_t := 0.0
@@ -537,6 +542,8 @@ func _physics_process(delta: float) -> void:
 	var air_hold := _air_dash and (state == State.DASH or (state == State.MOVE and _post_dash_t > 0.0))
 	if state in [State.MOVE, State.DASH, State.HURT, State.CHARGE, State.DEAD] and model.position.y > 0.0 and not air_hold:
 		model.position.y = move_toward(model.position.y, 0.0, 16.0 * delta)  # out of a hop
+	if model.position.y < 0.05:
+		_air_dashes = 0  # back on the floor: the air dash comes back
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -655,8 +662,9 @@ func _hop(t: float) -> void:
 	var y := 0.0
 	if _move.get("air", false):  # air move: hold the height it started at
 		# `climb`: rise this much more by the hit, so each air cut goes higher.
-		var up: float = _move.get("climb", 0.0) * smoothstep(0.0, _move.hits[0], t)
-		y = _hop_y0 + up + sin(t * PI) * 0.15
+		var climb: float = minf(_move.get("climb", 0.0), maxf(0.0, AIR_MAX_HEIGHT - _hop_y0))
+		var up: float = climb * smoothstep(0.0, _move.hits[0], t)
+		y = minf(_hop_y0 + up + sin(t * PI) * 0.15, AIR_MAX_HEIGHT + 0.15)
 	elif _hop_y0 > 0.0:
 		var land: float = _move.get("land", _move.hits[0])
 		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
@@ -1178,7 +1186,7 @@ func _route_from() -> String:
 
 ## Whether a dash now would be an air dash (AIR_DASH_*).
 func _can_air_dash() -> bool:
-	return _move_id in AIR_DASH_FROM and model.position.y >= AIR_DASH_MIN
+	return _move_id in AIR_DASH_FROM and model.position.y >= AIR_DASH_MIN and _air_dashes < AIR_DASHES
 
 
 ## What dash-then-light starts from here (the combo guide's dash row).
@@ -1365,6 +1373,8 @@ func _start_attack(id: String) -> void:
 
 func _start_dash() -> void:
 	_air_dash = _can_air_dash()
+	if _air_dash:
+		_air_dashes += 1
 	_dash_buffer_t = 0.0
 	_dash_cd = dash_cooldown * (_path("dash_cd", 1.0) if awakened else 1.0) * (1.0 - _mastery("dash", "cooldown") / 100.0)
 	_anim_mult = _base_anim_mult()
