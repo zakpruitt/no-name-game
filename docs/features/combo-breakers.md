@@ -149,8 +149,11 @@ him, and a light shake.
   detonation once.
 - `scripts/breaker_cue.gd`: the floor rings. `lock()` greys them out (too
   early); `hit(perfect)` flashes them.
-- `scripts/breaker_prompt.gd`: the timing prompt. It's a circle in the
-  screen's top-left corner (`CENTER`, under the HUD bars) with the heavy
+- `scripts/breaker_prompt.gd`: the timing prompt. It's a circle affixed to
+  the hero, above his left shoulder on screen (`OFFSET` from his chest,
+  kept `MARGIN` inside the screen; the combo guide sits on his right), so
+  the important timing stays mid-screen. It follows the body, not the
+  leaping model, so it holds still while he's airborne. The heavy
   button in the middle. It fills clockwise toward full at `sweet`, and a
   thin gold band on the track marks the window from `open`. The fill turns
   gold inside the window and pulses when full. A press flashes it (gold

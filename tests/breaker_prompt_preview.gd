@@ -30,6 +30,7 @@ func _initialize() -> void:
 		var pr: Control = prompt_script.new()
 		pr.player = fake
 		pr.center = Vector2(80 + i * 150, 100)
+		pr.fixed = true
 		get_root().add_child(pr)
 		if i >= 3:  # one live frame, then it ends
 			await process_frame

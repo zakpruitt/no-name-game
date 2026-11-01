@@ -1,6 +1,7 @@
 extends Control
-## Combo breaker timing prompt (player.BREAKERS): a circle in the screen's
-## top-left corner that fills up while the hero is in a breaker's leap, with
+## Combo breaker timing prompt (player.BREAKERS): a circle affixed to the
+## hero, above his left shoulder on screen (the combo guide sits on his
+## right), so the timing stays in the middle of the screen. It fills up while the hero is in a breaker's leap, with
 ## the button to press (heavy) in the middle. Full = the sweet spot (press
 ## now: PERFECT); the ring turns gold while the window is open. A press flashes
 ## it (gold if perfect) and it goes; too early greys it out. Separate from the
@@ -8,7 +9,9 @@ extends Control
 ## Reads player.breaker_window() every frame; the player adds it on its own
 ## CanvasLayer the first time it leaps (player._breaker_prompt()).
 
-const CENTER := Vector2(78.0, 150.0)  # px from the top-left, below the HUD bars
+const OFFSET := Vector2(-92.0, -78.0)  # px from the hero's chest on screen: up and to his left
+const CHEST := 1.1  # metres above the feet it hangs off (as combo_guide.CHEST)
+const MARGIN := 56.0  # keep this far inside the screen edges
 const RADIUS := 38.0
 const WIDTH := 8.0
 const KEY_H := 26.0
@@ -18,7 +21,8 @@ const GREY := Color(0.42, 0.42, 0.46)
 const OUT_TIME := 0.22  # real s the press flash / lockout fade takes
 
 var player: Node
-var center := CENTER  # (tests/breaker_prompt_preview.gd lays several out)
+var center := Vector2.ZERO  # where it draws (follows the hero each frame)
+var fixed := false  # true: stay at `center` (tests/breaker_prompt_preview.gd lays several out)
 
 var _font: Font
 var _label := "RMB"  # the heavy button (combo_guide.LABELS, loaded in _ready)
@@ -52,12 +56,28 @@ func _process(_delta: float) -> void:
 	elif _shown and _out < 0.0:
 		_out = 0.0  # just ended: how?
 		_out_kind = w.get("ended", "miss")
+	if _shown and not fixed:
+		_follow()
 	if _out >= 0.0:
 		_out += dt
 		if _out >= OUT_TIME:
 			_shown = false
 			_out = -1.0
 	queue_redraw()
+
+
+## Pin it next to the hero: his chest on screen plus OFFSET, kept on screen.
+## The body, not the leaping model, so it holds still while he's in the air.
+func _follow() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or not (player is Node3D):
+		return
+	var chest: Vector3 = player.global_position + Vector3.UP * CHEST
+	if cam.is_position_behind(chest):
+		return
+	var screen := get_viewport_rect().size
+	var at := cam.unproject_position(chest) + OFFSET
+	center = Vector2(clampf(at.x, MARGIN, screen.x - MARGIN), clampf(at.y, MARGIN, screen.y - MARGIN))
 
 
 func _draw() -> void:

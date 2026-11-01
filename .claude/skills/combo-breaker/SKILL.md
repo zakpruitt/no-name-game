@@ -12,7 +12,7 @@ Read `docs/features/combo-breakers.md` first. It has the full design, files, inv
 - He leaps (`rise`, `height`, `back`; a negative `back` leaps forward) and waits in the air or a stance.
 - Timing cues show the window:
   - floor rings at the zone (`breaker_cue.gd`),
-  - the top-left timing circle (`breaker_prompt.gd`, which reads `player.breaker_window()`).
+  - the timing circle pinned up-left of the hero (`breaker_prompt.gd`, which reads `player.breaker_window()`).
 - The window `open..close` plays in slow motion (`BREAKER_FOCUS`).
 - Pressing heavy:
   - near `sweet` (within `perfect`) is a PERFECT: ×`perfect_mult`, a freeze-frame and more Awakening,
