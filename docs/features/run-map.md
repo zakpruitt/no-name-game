@@ -30,7 +30,7 @@ Pause → **Map** shows the same map read-only; the arrow keys walk a cursor ove
 - **Vault.** A gold chest rises, lit in the vault's path colour. It offers 1 of 3 powers of that path (fusions on that path count), under the title "LIGHT VAULT" etc. This lets you route toward your colour. There is no fight.
 - **Trial.** A fight at three-quarter size with a condition from `RunMap.TRIALS`, shown live under the room title:
   - **Untouched:** take no damage.
-  - **Swift:** clear within `20 + 4 × room` s.
+  - **Swift:** clear within `20 + 4 × room` s. The bot (`--pace --start-trial=swift --start-room=N`, seeds 1-3) clears room 3 in 8-9s (limit 32), room 5 in 13-23s (40), room 7 in 16-20s (48), so it holds at about 2x the bot's time even late; a person slower than half the bot's pace still fails.
   - **Stylish:** reach style rank A.
   - **Showman:** land 4 different named combos (counted from `player.callouts` / `player._last_combo`), so the trial pays for using the whole moveset.
 
