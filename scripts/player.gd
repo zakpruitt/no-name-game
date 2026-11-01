@@ -47,6 +47,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 #          instead of the `arc` cone
 #   decay: (optional, default 3) how fast the lunge dies: it's gone at 1/decay
 #          of the move, so a low decay keeps the hero travelling
+#   speed: (optional, default 1) plays the animation this much faster (or,
+#          below 1, slower), for anims whose natural length doesn't fit
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -92,8 +94,8 @@ const MOVES := {
 		"stop": 0.07, "shake": 0.22},
 	# Heavy right out of a dash: Cyclone, a spin that keeps travelling
 	# through the crowd (low lunge decay).
-	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 6.0, "range": 2.9, "arc": 360.0,
-		"hits": [0.2, 0.38, 0.56, 0.74], "cancel": 0.78, "end": 0.9, "lunge": 11.0, "decay": 1.2,
+	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 5.0, "range": 2.9, "arc": 360.0,
+		"hits": [0.2, 0.38, 0.56, 0.74], "cancel": 0.78, "end": 0.9, "lunge": 9.0, "decay": 1.2, "speed": 0.55,
 		"knockback": 4.0, "launch": 0.0, "stop": 0.035, "shake": 0.16},
 	# Awakened only: heavy right after L3. Huge two-handed swing that erupts all around.
 	"AF": {"anim": "2H_Melee_Attack_Slice", "damage": 30.0, "range": 4.5, "arc": 360.0,
@@ -647,7 +649,7 @@ func _start_attack(id: String) -> void:
 		return
 	_move_id = id
 	_move = _effective_move(id)
-	_anim_mult = _base_anim_mult()
+	_anim_mult = _base_anim_mult() * _move.get("speed", 1.0)
 	if id in LIGHT_MOVES and has_upgrade("quickblade"):
 		_anim_mult *= 1.0 + upg("quickblade", "speed") / 100.0
 	if _crescendo and id in SHATTER_MOVES:
