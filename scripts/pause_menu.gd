@@ -22,7 +22,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _open(focus := 0) -> void:
 	show_menu("PAUSED", "", [
 		["Resume", close_menu],
-		["Settings", open_settings.bind(_open.bind(1), 0.7)],
+		["Map", _show_map],
+		["Settings", open_settings.bind(_open.bind(2), 0.7)],
 		["Restart run", _restart.bind(true)],
 		["Quit to title", _restart.bind(false)],
 		["Quit game", _quit],
@@ -127,6 +128,11 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 	row.add_child(text)
 	var head := _label(text, "%s%s" % [u.name, Upgrades.level_tag(level)], 19, color.lightened(0.35))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	# How often it has fired this run (player.power_procs), so a quiet power shows.
+	var player := get_tree().get_first_node_in_group("player")
+	var fired: int = player.power_procs.get(id, 0) if player != null else 0
+	if fired > 0:
+		head.text += "   ×%d this run" % fired
 	var desc := RichTextLabel.new()
 	desc.bbcode_enabled = true
 	desc.fit_content = true
@@ -137,9 +143,14 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 	desc.add_theme_color_override("default_color", Color(0.85, 0.82, 0.92))
 	desc.text = Upgrades.describe(u, level, synergies, color.lightened(0.3))
 	text.add_child(desc)
+	var combo := Upgrades.combo_of(u)
+	if player != null and player.COMBOS.has(combo):
+		var how := _label(text, "%s:  %s" % [player.combo_name(combo), player.COMBOS[combo].input], 13, Color(1, 1, 1, 0.5))
+		how.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 ## "MOVES": the fixed move list, basics plus the named combos (player.COMBOS).
+## Combos landed this run show how often; the rest are dimmed, still to find.
 func _build_moves() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null or _root == null:
@@ -153,14 +164,34 @@ func _build_moves() -> void:
 	list.add_theme_constant_override("separation", 6)
 	panel.add_child(list)
 	_label(list, "MOVES", 30, Color(1.0, 0.7, 0.25))
+	_label(list, "%d / %d combos landed this run" % [player.combos_landed.size(), player.COMBOS.size()], 15,
+		Color(1, 1, 1, 0.5))
 	var rows: Array = [["L", "Slice"], ["H", "Spin"], ["Dash", "Dodge"], ["Q", "Awaken"]]
 	for id: String in player.COMBOS:
-		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier])
+		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier, player.combos_landed.get(id, 0), id])
 	for r: Array in rows:
 		var tier: int = r[2] if r.size() > 2 else 0
-		var line := _label(list, "%s   %s" % [r[0], r[1]], 19,
-			player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95))
+		var color: Color = player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95)
+		var times: int = r[3] if r.size() > 3 else -1
+		if times == 0:
+			color.a = 0.5
+		var line := _label(list, "%s   %s%s" % [r[0], r[1], "   ×%d" % times if times > 0 else ""], 19, color)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		# Owned powers that hook this combo (Upgrades.combo_of), in their path colour.
+		if r.size() > 4:
+			for pid: String in player.upgrades:
+				var u := Upgrades.get_by_id(pid)
+				if Upgrades.combo_of(u) == r[4]:
+					var hook := _label(list, "      + %s%s" % [u.name, Upgrades.level_tag(player.upgrades[pid])], 14,
+						Upgrades.color(u).lightened(0.3))
+					hook.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
+## The run map, read-only, over the pause menu (main.show_map()).
+func _show_map() -> void:
+	var main := get_parent()
+	if main.has_method("show_map"):
+		main.show_map()
 
 
 func _restart(skip_title: bool) -> void:

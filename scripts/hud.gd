@@ -7,6 +7,7 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
+const FOUND_HOLD := 2.5  # s the "New combo" hint stays up
 const POWER_ICON := 44.0  # px, the owned-power icons bottom right
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
@@ -26,6 +27,10 @@ var combo_label: Label
 var rank_label: Label
 var air_label: Label
 var wave_label: Label
+var trial_label: Label  # a trial room's condition and how it's going
+var route_strip: Control  # the run so far: one dot per room, in the map's colours
+var _route: Array = []  # Color of each room taken (last = this room)
+var _route_total := 0
 var center_label: Label
 var ult_label: Label
 var ult_sub: Label
@@ -108,6 +113,14 @@ func _ready() -> void:
 	wave_label = _label(root, "", 26, Color(0.85, 0.85, 0.95))
 	_anchor(wave_label, 0.5, 0.0, Rect2(-260, 24, 520, 40))
 	wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	trial_label = _label(root, "", 20, Color(1.0, 0.93, 0.6))
+	_anchor(trial_label, 0.5, 0.0, Rect2(-300, 62, 600, 30))
+	trial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	route_strip = Control.new()
+	route_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_anchor(route_strip, 0.5, 0.0, Rect2(-110, 6, 220, 16))
+	route_strip.draw.connect(_draw_route)
+	root.add_child(route_strip)
 
 	center_label = _label(root, "", 64, Color.WHITE)
 	_anchor(center_label, 0.5, 0.5, Rect2(-500, -120, 1000, 160))
@@ -193,6 +206,11 @@ func bind_player(p: Node) -> void:
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
 	combo_guide.player = p
+	# A combo's first landing this run, unless a tutorial hint is still up.
+	p.combo_found.connect(func(id: String) -> void:
+		if hint_panel.modulate.a < 0.05:
+			show_hint("New combo: %s   (%s)   ·   %d / %d found" % [p.combo_name(id), p.COMBOS[id].input,
+				p.combos_landed.size(), p.COMBOS.size()], FOUND_HOLD))
 
 
 func show_boss(boss: Node) -> void:
@@ -245,20 +263,60 @@ func set_upgrades(owned: Dictionary) -> void:
 			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.35) 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## `twist`: the elite room's twist name ("" for none).
-func set_room(n: int, total: int, kind: String, twist := "") -> void:
+## `twist`: the elite room's twist name ("" for none). `revealed`: it was an
+## unknown room on the map, so the banner says so.
+func set_room(n: int, total: int, kind: String, twist := "", revealed := false) -> void:
+	var head := "ROOM %d%s" % [n, "  ·  UNKNOWN" if revealed else ""]
 	_room_text = "ROOM %d / %d" % [n, total]
 	if twist != "":
 		_room_text += "   ·   " + twist.to_upper()
 	wave_label.text = _room_text
 	if kind == "elite":
-		flash_message("ROOM %d\nELITES%s" % [n, ("  ·  " + twist.to_upper()) if twist != "" else ""], 1.4)
+		flash_message("%s\nELITES%s" % [head, ("  ·  " + twist.to_upper()) if twist != "" else ""], 1.4)
 	elif kind == "rest":
-		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
+		flash_message("%s\nA MOMENT'S REST" % head, 1.8)
 	elif kind == "shrine":
-		flash_message("ROOM %d\nA QUIET SHRINE" % n, 1.8)
+		flash_message("%s\nA QUIET SHRINE" % head, 1.8)
+	elif kind == "vault" or kind == "trial":
+		flash_message("%s\n%s" % [head, twist], 1.8)
 	elif kind != "boss":  # the boss announces itself
-		flash_message("ROOM %d" % n, 1.2)
+		flash_message(head, 1.2)
+
+
+## The run so far: `colors` holds the map colour of each room taken (the
+## last is this room), out of `total` rooms.
+func set_route(colors: Array, total: int) -> void:
+	_route = colors
+	_route_total = total
+	route_strip.queue_redraw()
+
+
+func _draw_route() -> void:
+	if _route_total < 2:
+		return
+	var step := route_strip.size.x / (_route_total - 1)
+	var y := route_strip.size.y * 0.5
+	route_strip.draw_line(Vector2(0, y), Vector2(route_strip.size.x, y), Color(1, 1, 1, 0.18), 2.0)
+	if _route.size() > 1:
+		route_strip.draw_line(Vector2(0, y), Vector2(step * (_route.size() - 1), y), Color(1, 1, 1, 0.6), 2.0)
+	for i in _route_total:
+		var p := Vector2(step * i, y)
+		if i < _route.size():
+			route_strip.draw_circle(p, 5.0, _route[i])
+			if i == _route.size() - 1:
+				route_strip.draw_arc(p, 8.0, 0.0, TAU, 20, Color(1.0, 0.8, 0.35), 2.0, true)
+		else:
+			var boss := i == _route_total - 1
+			route_strip.draw_circle(p, 4.0, Color(0.05, 0.03, 0.08, 0.8))
+			route_strip.draw_arc(p, 4.0, 0.0, TAU, 16, Color(0.9, 0.2, 0.15, 0.8) if boss else Color(1, 1, 1, 0.35), 1.5, true)
+
+
+## A trial room's line under the room title ("" hides it). `state`: 0 under
+## way, 1 met (green), -1 failed (dim red).
+func set_trial(text: String, state := 0) -> void:
+	trial_label.text = text
+	trial_label.add_theme_color_override("font_color",
+		[Color(1.0, 0.45, 0.4, 0.75), Color(1.0, 0.93, 0.6), Color(0.55, 1.0, 0.6)][state + 1])
 
 
 ## Below LOW_HP: the vignette fades in and throbs with a heartbeat that

@@ -26,11 +26,12 @@ looking for blue cards.
 **Where the player sees it**
 - **Reward cards** (`reward_screen.gd`):
   - a colour band (split for fusions), key chips and the path name, and the move the power hooks;
-  - the icon (with level pips on a level-up), the name, NEW or LEVEL UP;
+  - the icon (with level pips on a level-up), the name, NEW or LEVEL UP (with "fired ×N" once the power has fired this run);
   - the description with its numbers in bold in the path colour;
+  - for a power on a named combo, how to do it in a dim line ("Flurry:  L L, pause, L", amber with "(not landed yet)" while that combo hasn't been landed this run, from `player.COMBOS` via `Upgrades.combo_of()`, whose `SLOT_COMBOS` maps slots named differently, like Charged → CH; the pause build view shows the same line under the power);
   - mastery progress ("HEAVY ■■□ MASTERY", "UNLOCKS LIGHT MASTERY", "LIGHT MASTERY ACTIVE"), synergy completion, and the synergy tags.
   - Cards deal in with a short stagger. Hovering a card makes its icon glow.
-- **Pause build view** (`pause_menu._build_powers`): powers grouped by path (fusions last). Each group has a header with the key chip and mastery pips, or the mastery's effect once it's on. Each power gets a row with the icon, name and current text. Active synergies are at the bottom. The view scrolls when the build is long.
+- **Pause build view** (`pause_menu._build_powers`): powers grouped by path (fusions last). A power that has fired this run says how often ("×7 this run", from `player.power_procs`). Each group has a header with the key chip and mastery pips, or the mastery's effect once it's on. Each power gets a row with the icon, name and current text. Active synergies are at the bottom. The view scrolls when the build is long.
 - **HUD** (`hud.power_strip`): owned powers as 44px icons with level pips, bottom right, in path order. A new or levelled icon pops in.
 - **Run summary**: the icons above the list of power names.
 - **Combo guide**: key rims use `Upgrades.PATHS[kind].color`, so LMB is the same blue as the Light powers.
@@ -40,7 +41,7 @@ looking for blue cards.
 | File | Role |
 |---|---|
 | `scripts/upgrades.gd` | Data. Each `ALL` entry has a `path` (and a `fusion` second path). Also `PATHS` (name, key, colour, mastery numbers), `MASTERY_NEED`, `FUSION_CHANCE` and `SLOT_NAMES`. Helpers: `paths_of`, `color`, `can_fuse`, `path_counts`, `masteries`, `mastery_text`, `slot_name`, `icon` (cached), `describe(..., bb)` for BBCode numbers. `roll()` keeps new fusions in a separate pool. |
-| `scripts/player.gd` | The effects. `masteries` is kept by `_refresh_masteries()`, which `add_upgrade` and `remove_upgrade` call. `_mastery(path, key)` returns the number, or 0 while the mastery is off. `_awaken_len()` and `_base_anim_mult()`. New powers: `quickblade` (in `_start_attack`), `thousand_cuts` (`_thousand_cuts`, per-enemy `cuts` meta), `slipstream` (`_slipstream`, from `_state_dash`), `eruption` (in `try_awaken`). Fusions: `crescendo` (`_crescendo` flag set by a landed L3, used by the next heavy in `_start_attack`), `flicker` (`_effective_move`, uses `_since_dash`), `shockstep` (the dash-cancel in `_state_attack`), `undying_flame` (`_on_enemy_killed`). `power_procs` counts these for the autotest. |
+| `scripts/player.gd` | The effects. `masteries` is kept by `_refresh_masteries()`, which `add_upgrade` and `remove_upgrade` call. `_mastery(path, key)` returns the number, or 0 while the mastery is off. `_awaken_len()` and `_base_anim_mult()`. New powers: `quickblade` (in `_start_attack`), `thousand_cuts` (`_thousand_cuts`, per-enemy `cuts` meta), `slipstream` (`_slipstream`, from `_state_dash`), `eruption` (in `try_awaken`), `razor_gale` (`_razor_gale`, on Flurry's last hit in `_do_hit`), `eye_of_storm` (`_eye_of_storm`, every Cyclone hit), `rebound` (`_rebound`, after `_spike`), `war_chant` (in `_combo_callout`, `_last_combo`). Fusion `sky_reaper` (in `_do_hit`, light hits on airborne foes). Fusions: `crescendo` (`_crescendo` flag set by a landed L3, used by the next heavy in `_start_attack`), `flicker` (`_effective_move`, uses `_since_dash`), `shockstep` (the dash-cancel in `_state_attack`), `undying_flame` (`_on_enemy_killed`). `power_procs` counts these for the autotest. |
 | `scripts/power_icon.gd` | `PowerIcon`, a `Control` drawn in `_draw`: a ring in the path colour (split for fusions), the tinted glyph, level pips and an optional `glow`. `make(id, px, level)`, `chip(path)` (key cap) and `mastery_pips(n)`. |
 | `tools/gen_power_icons.py` | The glyphs, one SVG body per id on a 64x64 grid, written to `assets/icons/powers/<id>.svg`. |
 | `scripts/reward_screen.gd` | The cards (`_card`). |
@@ -99,7 +100,9 @@ looking for blue cards.
   - **Data:** every power has a path, an icon, a slot name and placeholders for its numbers.
   - **Fusion offers:** none are offered with one path (200 seeds); Crescendo is offered with Light + Heavy.
   - **Masteries:** a fusion counts toward one; Soul adds HP and takes it back.
-  - **New effects:** Quickblade speed, Thousand Cuts on the Nth hit, Crescendo, Shockstep, Slipstream once per dash, Flicker, Undying Flame.
+  - **New effects:** Quickblade speed, Thousand Cuts on the Nth hit, Crescendo, Shockstep, Slipstream once per dash, Flicker, Undying Flame, Razor Gale's blades, Eye of the Storm's pull.
+  - **Move DPS:** no move (Charged Slam and the finisher aside) deals over `DPS_LIMIT` (1.75x) the median damage per second to its cancel point.
+  - **Cards:** a combo power's card and build row show the combo's input.
 
   It prints `[powers] PASS` or `[powers] FAIL ...`.
 - Windowed (drop `--headless`), it also saves `user://power_cards.png` (a new card, a level-up and a fusion), `power_hud.png` and `power_build.png`.

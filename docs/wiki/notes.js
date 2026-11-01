@@ -10,9 +10,12 @@ window.NOTES =
     "L3": {"note": "Big knockback finisher of the light chain."},
     "H": {"input": "H", "name": "Spin", "note": "Multi-hit spin from neutral; crowd control."},
     "LH": {"note": "Raises a pillar of the element under the target that pops it up for a juggle. Hits on juggled enemies give bonus style."},
+    "LHH": {"note": "Heavy again after the launcher: an overhead chop that slams juggled foes into the floor for +60% damage, knocking down foes where they land. Awakened, it becomes Ancestor's Fall."},
     "LLH": {"note": "Lunging thrust that knocks down everything in a strip ahead and breaks guards."},
     "CH": {"note": "Hold heavy from neutral, creep while charging, release to slam and launch. Breaks shield guards."},
     "DL": {"note": "Long lunging stab out of a dash; flows into L2."},
+    "LPL": {"note": "Let L2 finish, then light again: five quick cuts with little knockback, so foes stay in reach. Mashing gives Triple Chop instead."},
+    "DH": {"note": "Heavy out of a dash: a spin that keeps travelling through the crowd. Eye of the Storm makes it drag foes in."},
     "AF": {"note": "Awakened only. Erupts all around and throws six fire waves."}
   },
   "enemies": {

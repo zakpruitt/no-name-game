@@ -1,4 +1,5 @@
-"""Writes the power icons to assets/icons/powers/<id>.svg.
+"""Writes the power icons to assets/icons/powers/<id>.svg and the run map's
+room icons to assets/icons/rooms/<kind>.svg.
 
 Each icon is a white glyph on a 64x64 grid; the game tints it with the
 power's path colour (Upgrades.PATHS) and draws the frame round it
@@ -10,6 +11,7 @@ power's path colour (Upgrades.PATHS) and draws the frame round it
 import os
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "icons", "powers")
+ROOMS_OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "icons", "rooms")
 SIZE = 128  # rasterised size in Godot (the SVG's width/height)
 
 S = 'fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"'
@@ -50,6 +52,16 @@ ICONS = {
                 f'<path {S} d="M10 32 H18"/><path {S} d="M6 42 H22"/>',
     "riposte": f'<path {S} d="M14 50 L46 18"/><path {S} d="M50 50 L18 18"/><path {S} d="M8 42 L22 56"/>'
                f'<path {S} d="M42 56 L56 42"/><path {F} d="M46 18 L54 8 L56 10 Z"/><path {F} d="M18 18 L10 8 L8 10 Z"/>',
+    "razor_gale": f'<path {F} d="M12 52 L17 10 L24 44 Z"/><path {F} d="M12 52 L44 17 L29 47 Z"/>'
+                  f'<path {F} d="M12 52 L56 40 L31 53 Z"/>',
+    "eye_of_storm": f'<path {S} d="M32 30 C36 28 39 34 35 37 C29 41 22 35 25 27 C29 18 43 18 46 29 '
+                    f'C49 41 38 52 26 50 C14 48 7 36 12 22"/><path {S} d="M6 26 L12 22 L17 27"/>',
+    "rebound": f'<path {S} d="M14 8 L30 40"/><path {S} d="M30 40 L44 14"/><path {S} d="M36 14 H46 V24"/>'
+               f'<path {S} d="M8 54 H56"/><path {F} d="M24 46 L36 46 L30 52 Z"/>',
+    "war_chant": f'<ellipse {S} cx="32" cy="26" rx="19" ry="7"/><path {S} d="M13 26 V44 A19 7 0 0 0 51 44 V26"/>'
+                 f'<path {S} d="M10 6 L24 20"/><path {S} d="M54 6 L40 20"/>',
+    "sky_reaper": f'<path {S} d="M10 54 Q12 22 44 10"/><path {F} d="M44 10 L56 6 L52 18 Z"/>'
+                  f'<circle {F} cx="40" cy="34" r="7"/><path {S} d="M30 50 L36 42"/><path {S} d="M46 52 L44 42"/>',
     "slipstream": f'<path {S} d="M6 34 H56"/><path {S} d="M46 24 L56 34 L46 44"/><path {S} stroke-width="4" d="M26 14 L34 54"/>'
                   f'<path {S} stroke-width="3" d="M8 24 H20"/><path {S} stroke-width="3" d="M8 44 H20"/>',
     # --- Awaken ---
@@ -77,14 +89,43 @@ ICONS = {
 }
 
 
-def main() -> None:
-    os.makedirs(OUT, exist_ok=True)
-    for name, body in ICONS.items():
+# Run map rooms (RunMap.KINDS), tinted by map_screen.gd.
+ROOMS = {
+    "fight": f'<path {F} d="M52 6 L58 6 L58 12 L28 42 L22 36 Z"/><path {S} d="M16 34 L30 48"/><path {S} d="M22 42 L10 54"/>',
+    "elite": f'<path {F} fill-rule="evenodd" d="M32 12 C18 12 12 21 12 31 C12 38 16 42 20 44 L20 52 L44 52 L44 44 '
+             f'C48 42 52 38 52 31 C52 21 46 12 32 12 Z M24 23 A5 5 0 1 0 24 33 A5 5 0 1 0 24 23 Z '
+             f'M40 23 A5 5 0 1 0 40 33 A5 5 0 1 0 40 23 Z"/>'
+             f'<path {S} d="M14 18 L6 6"/><path {S} d="M50 18 L58 6"/>',
+    "rest": f'<path {F} d="M32 8 C38 18 44 22 42 32 C41 38 36 41 32 41 C26 41 22 37 22 31 C22 25 27 22 28 15 '
+            f'C31 20 33 22 33 26 C36 22 36 15 32 8 Z"/><path {S} d="M12 56 L52 44"/><path {S} d="M12 44 L52 56"/>',
+    "shrine": f'<path {S} d="M10 56 H54"/><path {S} d="M16 56 V40 H48 V56"/><rect {F} x="28" y="22" width="8" height="18" rx="2"/>'
+              f'<path {F} d="M32 6 C36 12 37 15 35 18 C34 20 30 20 29 18 C27 15 29 12 32 6 Z"/>',
+    "vault": f'<path {S} d="M10 30 H54 V54 H10 Z"/><path {S} d="M10 30 C10 16 20 12 32 12 C44 12 54 16 54 30"/>'
+             f'<rect {F} x="27" y="26" width="10" height="12" rx="2"/>',
+    "mystery": f'<path {S} stroke-width="6" d="M21 22 C21 10 43 10 43 22 C43 31 32 31 32 40"/><circle {F} cx="32" cy="53" r="4.5"/>',
+    "trial": f'<path {S} d="M16 6 H48"/><path {S} d="M16 58 H48"/>'
+             f'<path {S} d="M20 6 C20 22 30 26 32 32 C34 26 44 22 44 6"/><path {S} d="M20 58 C20 42 30 38 32 32 C34 38 44 42 44 58"/>'
+             f'<path {F} d="M24 56 C26 48 30 46 32 44 C34 46 38 48 40 56 Z"/>',
+    "boss": f'<path {F} fill-rule="evenodd" d="M32 18 C18 18 12 27 12 37 C12 44 16 48 20 50 L20 58 L44 58 L44 50 '
+            f'C48 48 52 44 52 37 C52 27 46 18 32 18 Z M24 29 A5 5 0 1 0 24 39 A5 5 0 1 0 24 29 Z '
+            f'M40 29 A5 5 0 1 0 40 39 A5 5 0 1 0 40 29 Z"/>'
+            f'<path {F} d="M14 16 L20 4 L26 12 L32 2 L38 12 L44 4 L50 16 Z"/>',
+}
+
+
+def write(icons: dict, out: str) -> None:
+    os.makedirs(out, exist_ok=True)
+    for name, body in icons.items():
         svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{SIZE}" height="{SIZE}" viewBox="0 0 64 64">'
                f'{body}</svg>\n')
-        with open(os.path.join(OUT, name + ".svg"), "w", encoding="utf-8") as f:
+        with open(os.path.join(out, name + ".svg"), "w", encoding="utf-8") as f:
             f.write(svg)
-    print(f"wrote {len(ICONS)} icons to {os.path.normpath(OUT)}")
+    print(f"wrote {len(icons)} icons to {os.path.normpath(out)}")
+
+
+def main() -> None:
+    write(ICONS, OUT)
+    write(ROOMS, ROOMS_OUT)
 
 
 if __name__ == "__main__":

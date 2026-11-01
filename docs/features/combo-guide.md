@@ -72,6 +72,7 @@ How the rows are built (`combo_options`):
 - **Light and heavy rows:** `route(kind, _move_id, attacking, _chain_i, dashing, awakened)`. A heavy that routes to the neutral spin `H` is left out, because it isn't a continuation.
 - **Dash row:** only while attacking and not already dashing. It always shows `DL` (dash, then light). It dims when `combo_window().dash` is false, which happens while the dash is on cooldown or before the move's first hit or 20% mark.
 - **Charging:** a single `hold` row for `CH`.
+- **The pause combo:** a press while L2 is still playing (even past its cancel point) is Triple Chop; Flurry needs L2 to finish, then a light press within the chain's grace (`_chain_reset_t`, 0.35s). In that gap the light row is Flurry itself; mid-L2 the row adds "or pause: Flurry" (`pause` in `combo_options()`: `route()` asked with `attacking = false`, shown when it gives a different named combo; `PAUSE_TEXT`).
 - **Lookahead (`_option`):** for any row below tier 3, call `route(k, id, true, chain_after(id), false, awakened)` for heavy and then light, and keep the highest-tier named combo. Heavy wins ties. `CH` is never offered as a follow-up, because it needs neutral.
 
 Routing rules in `route()`, checked in order:
@@ -79,8 +80,11 @@ Routing rules in `route()`, checked in order:
 | Press | Condition | Move |
 |---|---|---|
 | light | `post_dash` | `DL` |
+| light | not attacking, from `L2`, `chain == 2` (L2 finished, chain still live) | `LPL` (Flurry: the pause combo) |
 | light | otherwise | `LIGHT_CHAIN[chain]`: L1 → L2 → L3 → L1 |
+| heavy | `post_dash`, not attacking | `DH` (Cyclone) |
 | heavy | Awakened, attacking, from `L3` / `LH` / `DL` | `AF` / `SKY` / `RUSH` |
+| heavy | attacking from `LH` | `LHH` (Spike) |
 | heavy | attacking from `L2`, or not attacking with `chain == 2` | `LLH` |
 | heavy | attacking (from anything but `H`), or `chain > 0` | `LH` |
 | heavy | otherwise | `H` (or `CH` if held, handled in `_state_move` / `_state_charge`) |
@@ -137,4 +141,6 @@ Routing rules in `route()`, checked in order:
 - The autotest bot presses buttons with `Input.action_press`, which generates no `InputEvent`, so bot presses never flash rows. `_on_press(kind)` can be called directly if a test needs the flash.
 - `_box` is a single `StyleBoxFlat` reused for every pill. This works because `draw_style_box` issues its draw commands immediately. Don't cache draw commands that depend on it.
 - `combo_options()` treats `State.DASH` as "dashing" so the Dash Stab row shows during the dash itself. `route()` only receives `post_dash`, which is set when the dash ends; any buffered light press resolves then.
-- Still open in ROADMAP: a feel pass by hand (placement against the fight, and whether the follow-up hint becomes noise once the moves are learned). One option is to fade the hint after a combo has been landed N times.
+- Pause MOVES list: each named combo shows how often it was landed this run and, under it, the owned powers that hook it ("+ Rebound", `Upgrades.combo_of`).
+- Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Flurry  (L L, pause, L)  ·  5 / 11 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
+- Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint; ultimates are always hinted. Still open in ROADMAP: a feel pass by hand on placement against the fight.

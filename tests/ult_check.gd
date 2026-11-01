@@ -31,7 +31,7 @@ func _initialize() -> void:
 	p.state = p.State.MOVE
 	p._move_id = "LH"
 	p.state = p.State.ATTACK
-	_check(p._next_move("heavy") == "LH", "LH + H stays LH when not Awakened")
+	_check(p._next_move("heavy") == "LHH", "LH + H is Spike when not Awakened")
 	p.state = p.State.MOVE
 
 	for el: String in ["spirit", "wind", "earth", "water"]:

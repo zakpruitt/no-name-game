@@ -7,6 +7,7 @@ signal awakened_changed(active: bool)
 signal died
 ## Fired when any attack begins (enemies that dodge listen for this).
 signal attack_started(move_id: String)
+signal combo_found(id: String)  # a named combo landed for the first time this run
 
 enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD }
 
@@ -45,6 +46,10 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 #   end: when control returns    lunge: forward burst speed at start
 #   width: (optional) hits a straight strip `range` long and 2x`width` wide
 #          instead of the `arc` cone
+#   decay: (optional, default 3) how fast the lunge dies: it's gone at 1/decay
+#          of the move, so a low decay keeps the hero travelling
+#   speed: (optional, default 1) plays the animation this much faster (or,
+#          below 1, slower), for anims whose natural length doesn't fit
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -55,6 +60,11 @@ const MOVES := {
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
 		"stop": 0.1, "shake": 0.35, "big": true},
+	# Light after a pause once L2 has finished (L L · L): Flurry, a quick run
+	# of small cuts that keeps foes in reach (low knockback).
+	"LPL": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.5, "range": 2.6, "arc": 170.0,
+		"hits": [0.22, 0.32, 0.42, 0.52, 0.62], "cancel": 0.66, "end": 0.85, "lunge": 5.0, "knockback": 0.8,
+		"launch": 0.0, "stop": 0.03, "shake": 0.1},
 	# Heavy from neutral: spinning AoE, multi-hit.
 	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
 		"hits": [0.3, 0.45, 0.6], "cancel": 0.7, "end": 0.85, "lunge": 4.0, "knockback": 3.0, "launch": 0.0,
@@ -64,6 +74,11 @@ const MOVES := {
 	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
 		"hits": [0.3], "cancel": 0.42, "end": 0.58, "lunge": 3.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true},
+	# Heavy right after the launcher (L H H): Spike, an overhead chop that
+	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
+	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
+		"hits": [0.38], "cancel": 0.55, "end": 0.8, "lunge": 5.0, "knockback": 3.0, "launch": 0.0,
+		"stop": 0.1, "shake": 0.4, "big": true},
 	# Heavy right after L2 (L L H): Ground Breaker, a lunging thrust that
 	# knocks down everything in a strip ahead (launch > 0 also breaks guards).
 	"LLH": {"anim": "2H_Melee_Attack_Stab", "damage": 18.0, "range": 5.0, "width": 1.1, "arc": 360.0,
@@ -78,6 +93,11 @@ const MOVES := {
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
 		"stop": 0.07, "shake": 0.22},
+	# Heavy right out of a dash: Cyclone, a spin that keeps travelling
+	# through the crowd (low lunge decay).
+	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 5.0, "range": 2.9, "arc": 360.0,
+		"hits": [0.2, 0.38, 0.56, 0.74], "cancel": 0.78, "end": 0.9, "lunge": 9.0, "decay": 1.2, "speed": 0.55,
+		"knockback": 4.0, "launch": 0.0, "stop": 0.035, "shake": 0.16},
 	# Awakened only: heavy right after L3. Huge two-handed swing that erupts all around.
 	"AF": {"anim": "2H_Melee_Attack_Slice", "damage": 30.0, "range": 4.5, "arc": 360.0,
 		"hits": [0.45], "cancel": 0.7, "end": 0.9, "lunge": 5.0, "knockback": 6.0, "launch": 10.0,
@@ -88,9 +108,12 @@ const MOVES := {
 # pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
 const COMBOS := {
 	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
+	"LPL": {"name": "Flurry", "input": "L L, pause, L", "tier": 1},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
+	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
 	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
+	"LHH": {"name": "Spike", "input": "L H H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
 	"AF": {"name": "Cataclysm", "input": "L L L H (Awakened)", "tier": 3},
 	"SKY": {"name": "Ancestor's Fall", "input": "L H H (Awakened)", "tier": 3},
@@ -118,6 +141,9 @@ const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 const CAST_SFX_DB := -11.0
 # Names of the moves that aren't combos, for the combo guide.
 const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin"}
+# After landing a combo this many times in a run, the guide stops hinting it
+# as a follow-up (it still shows as a row); ultimates are always hinted.
+const GUIDE_LEARNED := 6
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
 const COMBO_SFX_DB := -9.0
@@ -163,13 +189,23 @@ var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
 var shatters := 0  # Shatter bursts (autotest)
+var spikes := 0  # juggled foes spiked down (autotest)
+var _last_combo := ""  # the last named combo landed (War Chant pays more for a new one)
+var combos_landed := {}  # COMBOS id -> times landed this run (pause menu, run summary)
 ## Moves that count as heavy for Shatter.
-const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF"]
+const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH", "LHH"]
+# Spike (LHH) on a juggled foe: damage multiplier, how hard it's slammed
+# down (m/s), and the impact that knocks down foes around where it lands.
+const SPIKE_AIR_MULT := 1.6
+const SPIKE_DOWN := 24.0
+const SPIKE_IMPACT := {"radius": 2.6, "damage": 6.0, "knockback": 5.0}
+const REBOUND_DELAY := 0.22  # s from the spike to the bounce (Rebound)
 const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
 ## Light-press moves, for the Light path's powers.
-const LIGHT_MOVES := ["L1", "L2", "L3", "DL"]
+const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL"]
+const RAZOR_GALE_SPREAD := 16.0  # degrees between Razor Gale's blades
 var _crescendo := false  # Crescendo: the next heavy is empowered
 var _slipped: Array = []  # enemies Slipstream already cut this dash
 var power_procs := {}  # power id -> times it fired, for the newer powers (autotest)
@@ -445,7 +481,7 @@ func _state_charge(delta: float) -> void:
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
 	# Lunge decays quickly so attacks feel snappy, not slidey.
-	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * 3.0)
+	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
 	var fwd := _facing()
 	velocity.x = fwd.x * lunge
 	velocity.z = fwd.z * lunge
@@ -458,6 +494,7 @@ func _state_attack(delta: float) -> void:
 	# Dash cancels anything once the first hit has come out (or early on whiff).
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2):
 		if _hits_done > 0 and has_upgrade("static_step"):
+			_proc("static_step")
 			_static_trap(global_position)
 		if _hits_done > 0 and has_upgrade("shockstep") and _move_id in SHATTER_MOVES:
 			_shockstep(global_position)
@@ -518,12 +555,19 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 	if kind == "light":
 		if post_dash:
 			return "DL"
+		if not attacking and from == "L2" and chain == 2:
+			return "LPL"  # L2 has finished: the pause turns the third light into Flurry
 		return LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
-	# Heavy: Awakened ultimates off L3 / LH / DL, launcher if mid-string, spin from neutral.
+	# Heavy: Cyclone out of a dash, Awakened ultimates off L3 / LH / DL,
+	# launcher if mid-string, spin from neutral.
+	if post_dash and not attacking:
+		return "DH"
 	if awake and attacking and from == "L3":
 		return "AF"
 	if awake and attacking and from == "LH":
 		return "SKY"
+	if attacking and from == "LH":
+		return "LHH"
 	if awake and attacking and from == "DL":
 		return "RUSH"
 	if (attacking and from == "L2") or (not attacking and chain == 2):
@@ -544,8 +588,9 @@ static func chain_after(id: String) -> int:
 
 ## What the combo guide shows right now: one row per input that continues the
 ## string ("light", "heavy", "dash" = dash then light), each with the move it
-## starts and the best named combo one more press past it. Empty when there's
-## no string to continue.
+## starts and the best named combo one more press past it, plus `pause` when
+## waiting for the move to finish first starts a different named combo (L2:
+## Flurry). Empty when there's no string to continue.
 func combo_options() -> Array:
 	var attacking := state == State.ATTACK
 	var dashing := state == State.DASH or _post_dash_t > 0.0
@@ -559,7 +604,12 @@ func combo_options() -> Array:
 		var id := route(kind, _move_id, attacking, _chain_i, dashing, awakened)
 		if kind == "heavy" and id == "H":
 			continue  # the plain spin isn't a continuation
-		rows.append(_option(kind, id))
+		var o := _option(kind, id)
+		if attacking:
+			var wait := route(kind, _move_id, false, _chain_i, false, awakened)
+			if wait != id and COMBOS.has(wait):
+				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
+		rows.append(o)
 	if attacking and not dashing:
 		rows.append(_option("dash", "DL"))
 	return rows
@@ -573,6 +623,8 @@ func _option(kind: String, id: String, hold := false) -> Dictionary:
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties
 			var n := route(k, id, true, chain_after(id), false, awakened)
 			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
+			if combos_landed.get(n, 0) >= GUIDE_LEARNED and not (ULTIMATES.has(n) or n == "AF"):
+				tier = 0  # learned: no need to hint it any more
 			if tier > best:
 				best = tier
 				o.next = {"kind": k, "id": n, "name": guide_name(n), "tier": tier, "ult": ULTIMATES.has(n) or n == "AF"}
@@ -604,8 +656,9 @@ func _start_attack(id: String) -> void:
 		return
 	_move_id = id
 	_move = _effective_move(id)
-	_anim_mult = _base_anim_mult()
+	_anim_mult = _base_anim_mult() * _move.get("speed", 1.0)
 	if id in LIGHT_MOVES and has_upgrade("quickblade"):
+		_proc("quickblade")
 		_anim_mult *= 1.0 + upg("quickblade", "speed") / 100.0
 	if _crescendo and id in SHATTER_MOVES:
 		_crescendo = false
@@ -622,7 +675,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 	if id == "AF":
 		_ult_begin(id)
@@ -696,17 +749,28 @@ func _do_hit() -> void:
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
 		var dmg: float = _move.damage * _dmg_mult
+		if _move_id == "LHH" and was_airborne:
+			dmg *= SPIKE_AIR_MULT
+		if was_airborne and _move_id in LIGHT_MOVES and has_upgrade("sky_reaper"):
+			dmg *= 1.0 + upg("sky_reaper", "bonus") / 100.0
+			_proc("sky_reaper")
 		if _move_id == "CH" and has_upgrade("bone_breaker") and (e.shield or e.elite or e.has_method("is_boss")):
+			_proc("bone_breaker")
 			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
 			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
+			_proc("shatter")
 			_shatter(e)
+		if _move_id == "LHH" and was_airborne:
+			_spike(e)
 		if was_airborne and has_upgrade("chain_spark"):
+			_proc("chain_spark")
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
+			_proc("bloodthirst")
 			heal(upg("bloodthirst", "heal"), false)
 		if _move_id in LIGHT_MOVES and has_upgrade("thousand_cuts") and e.is_alive():
 			_thousand_cuts(e)
@@ -716,6 +780,7 @@ func _do_hit() -> void:
 	if _hits_done == 1:
 		_cast(fwd)
 		if _move_id == "L3" and has_upgrade("ember_cleave"):
+			_proc("ember_cleave")
 			var w := FIRE_WAVE.new()
 			w.direction = fwd
 			w.damage = upg("ember_cleave", "damage")
@@ -734,6 +799,7 @@ func _do_hit() -> void:
 			ground_breakers += 1
 			_crack_line(fwd, Color(0.85, 0.75, 0.6))
 			if has_upgrade("fault_line"):
+				_proc("fault_line")
 				_fault_line(global_position, fwd)
 		if _move_id == "CH":
 			charged_slams += 1
@@ -742,8 +808,10 @@ func _do_hit() -> void:
 			Fx.burst(get_parent(), at + Vector3.UP * 0.2, CHARGE_COLOR, 24, 9.0, 0.14, 0.35, Vector3.UP, 80.0)
 			Fx.dust(get_parent(), at, 16, 1.0)
 			if has_upgrade("quake"):
+				_proc("quake")
 				_quake(at)
 		if _move_id == "LH" and has_upgrade("skybreaker"):
+			_proc("skybreaker")
 			var r := upg("skybreaker", "radius")
 			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), r, 0.3)
 			for e in get_tree().get_nodes_in_group("enemies"):
@@ -752,6 +820,10 @@ func _do_hit() -> void:
 				if e.is_alive() and not e.is_airborne() and to.length() < r:
 					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
 					Game.register_hit("skybreaker")
+	if _move_id == "LPL" and _hits_done == _move.hits.size() and has_upgrade("razor_gale"):
+		_razor_gale(fwd)
+	if _move_id == "DH" and has_upgrade("eye_of_storm"):
+		_eye_of_storm()
 	if hit_any:
 		if _move_id == "L3" and has_upgrade("crescendo") and not _crescendo:
 			_crescendo = true
@@ -773,6 +845,13 @@ func _combo_callout(id: String) -> void:
 	var tier: int = c.tier
 	callouts += 1
 	last_callout_tier = tier
+	if has_upgrade("war_chant") and not awakened:
+		_proc("war_chant")
+		Game.add_awakening(upg("war_chant", "awaken") * (2.0 if id != _last_combo else 1.0))
+	_last_combo = id
+	combos_landed[id] = combos_landed.get(id, 0) + 1
+	if combos_landed[id] == 1:
+		combo_found.emit(id)
 	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
 	_callout.text = combo_name(id)
 	_callout.modulate = Ascendancy.color(ascendancy) if id == "AF" and ascendancy != "" else COMBO_TIER_COLORS[tier - 1]
@@ -1182,6 +1261,7 @@ func _on_level_up(level: int) -> void:
 
 func _on_enemy_killed(_e: Node) -> void:
 	if has_upgrade("reaper") and state != State.DEAD:
+		_proc("reaper")
 		heal(upg("reaper", "heal"), false)
 		Game.add_awakening(upg("reaper", "awaken"))
 	if has_upgrade("undying_flame") and awakened and state != State.DEAD:
@@ -1290,6 +1370,7 @@ func _quake(at: Vector3) -> void:
 func _effective_move(id: String) -> Dictionary:
 	var m: Dictionary = MOVES[id].duplicate(true)
 	if id == "H" and has_upgrade("whirlwind"):
+		_proc("whirlwind")
 		# Spread the extra hits evenly across the spin.
 		var n := int(upg("whirlwind", "hits"))
 		m.hits = []
@@ -1297,8 +1378,10 @@ func _effective_move(id: String) -> Dictionary:
 			m.hits.append(lerpf(0.22, 0.7, float(i) / (n - 1)))
 		m.range += upg("whirlwind", "reach")
 	if id == "L2" and has_upgrade("rising_edge"):
+		_proc("rising_edge")
 		m.launch = upg("rising_edge", "launch")
 	if id == "DL" and has_upgrade("momentum"):
+		_proc("momentum")
 		m.damage *= 1.0 + upg("momentum", "bonus") / 100.0
 		m.range += 1.5
 		m.lunge *= 1.3
@@ -1373,6 +1456,71 @@ func _shockstep(pos: Vector3) -> void:
 			Game.register_hit("shockstep")
 
 
+## Spike: slam a juggled foe into the floor; the impact knocks down foes
+## around it.
+func _spike(e: Node3D) -> void:
+	spikes += 1
+	if e.is_alive():
+		e.velocity.y = -SPIKE_DOWN
+	var at: Vector3 = e.global_position
+	at.y = global_position.y
+	Fx.ring(get_parent(), at, Color(1.0, 0.85, 0.5, 0.9), SPIKE_IMPACT.radius, 0.25)
+	Fx.dust(get_parent(), at, 14, 1.0)
+	for o in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = o.global_position - at
+		to.y = 0.0
+		if o != e and o.is_alive() and not o.is_airborne() and to.length() < SPIKE_IMPACT.radius + o.radius:
+			o.take_hit(SPIKE_IMPACT.damage * _dmg_mult, to.normalized() * SPIKE_IMPACT.knockback, 0.0, true)
+			Game.register_hit("spike")
+	if has_upgrade("rebound"):
+		_rebound(e)
+
+
+## Rebound: a spiked foe bounces back up off the floor for another juggle.
+func _rebound(e: Node3D) -> void:
+	await get_tree().create_timer(REBOUND_DELAY).timeout
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	_proc("rebound")
+	e.take_hit(upg("rebound", "damage") * _dmg_mult, Vector3.ZERO, upg("rebound", "launch"), false)
+	Game.register_hit("rebound")
+	Fx.ring(get_parent(), e.global_position, Color(Upgrades.PATHS.soul.color, 0.85), 1.4, 0.25)
+
+
+## Razor Gale: Flurry's last cut flings a fan of the element's blades.
+func _razor_gale(fwd: Vector3) -> void:
+	_proc("razor_gale")
+	var n := int(upg("razor_gale", "count"))
+	var el := element()
+	for i in n:
+		var b := ELEMENTS.Bolt.new()
+		b.el = el
+		b.dir = fwd.rotated(Vector3.UP, deg_to_rad(RAZOR_GALE_SPREAD * (i - (n - 1) * 0.5)))
+		b.speed = 24.0
+		b.reach = minf(8.0, _clear_ahead(b.dir, 8.0) + 0.6)
+		b.damage = upg("razor_gale", "damage") * _dmg_mult
+		b.size = 0.8
+		b.tilt = 70.0 if i % 2 == 0 else -70.0
+		b.on_hit = _cast_hit
+		get_parent().add_child(b)
+		b.global_position = global_position + b.dir * 0.7 + Vector3.UP * (0.25 if el == "earth" else 1.0)
+
+
+## Eye of the Storm: each Cyclone hit drags foes around it into the spin
+## (not the boss).
+func _eye_of_storm() -> void:
+	_proc("eye_of_storm")
+	var r := upg("eye_of_storm", "radius")
+	Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.dash.color, 0.5), r, 0.2)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		var d := to.length()
+		if e.is_alive() and d > _move.range * 0.6 and d < r + e.radius and not e.has_method("is_boss"):
+			e.take_hit(upg("eye_of_storm", "damage"), -to / d * minf(d * 2.5, 9.0), 0.0, false)
+			Game.register_hit("eye_of_storm")
+
+
 func _static_trap(pos: Vector3) -> void:
 	Fx.ring(get_parent(), pos, Color(0.5, 0.85, 1.0, 0.6), 1.2, 0.4)
 	await get_tree().create_timer(0.4).timeout
@@ -1402,6 +1550,7 @@ func try_awaken() -> void:
 	Game.sfx("awaken", 0.0, 0.0)
 	Game.rumble("awaken")
 	if has_upgrade("phoenix_heart"):
+		_proc("phoenix_heart")
 		heal(upg("phoenix_heart", "heal"))
 	# Activation burst: big freeze, shockwave that blows enemies back.
 	Game.hitstop(0.25, 0.05)
@@ -1531,6 +1680,7 @@ func _perfect_dodge(attacker: Node) -> void:
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
 	if has_upgrade("riposte"):
+		_proc("riposte")
 		_riposte()
 
 
@@ -1607,6 +1757,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 	velocity.x = knockback.x
 	velocity.z = knockback.z
 	if hp <= 0.0 and has_upgrade("second_wind") and not _second_wind_used:
+		_proc("second_wind")
 		_second_wind_used = true
 		hp = max_hp * upg("second_wind", "hp") / 100.0
 		health_changed.emit(hp, max_hp)

@@ -1,6 +1,6 @@
 extends SceneTree
-## Boots to the title screen, starts a run, opens the pause menu and its
-## Settings screen, then the door choice with an elite twist, and saves a
+## Boots to the title screen, starts a run (the run's first map), opens the pause menu and its
+## Settings screen, then the run map mid-run (choosing room 5), and saves a
 ## frame of each. Run: godot --path . -s tests/menu_check.gd
 
 func _initialize() -> void:
@@ -30,6 +30,10 @@ func _initialize() -> void:
 	await create_timer(0.2).timeout
 	var title: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
 	title._start()
+	# The whole run, shown once before room 1.
+	await create_timer(0.6).timeout
+	_save("user://menu_intro.png")
+	main.map_menu._close()
 	await create_timer(1.5).timeout
 	# A few powers so the pause menu's build panel has something to list,
 	# including an active synergy (Skybreaker + Quake = Tremor).
@@ -46,19 +50,23 @@ func _initialize() -> void:
 	_save("user://menu_pause.png")
 	# Settings (from pause), then Esc should back out to the pause menu.
 	var pause: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_method("open_settings") and not n.has_signal("started"))[0]
-	pause._buttons[1].pressed.emit()
+	pause._buttons[2].pressed.emit()  # Settings (Map is [1])
 	await create_timer(0.3).timeout
 	_save("user://menu_settings.png")
 	Input.parse_input_event(ev)
 	await create_timer(0.3).timeout
 	print("back in pause menu=", pause.is_open() and not pause.in_settings())
-	# Door choice with a late elite's two twists (the longest door text).
+	# The map, four rooms in, choosing the fifth.
 	pause.close_menu()
-	var twists := ["volatile", "hasted"]
-	main.path_menu.open(["fight", "elite"], 6, main._twist_text(twists, "name", " + "), main._twist_text(twists, "desc", ", "))
-	await create_timer(0.3).timeout
-	_save("user://menu_path.png")
-	main.path_menu.close_menu()
+	var run_map_script: GDScript = load("res://scripts/run_map.gd")
+	var route: Array = [main.map_route[0]]
+	for i in 3:
+		route.append(Vector2i(route[-1].x + 1, run_map_script.next_nodes(main.run_map, route[-1])[-1].lane))
+	main.map_menu.open(main.run_map, route, run_map_script.next_nodes(main.run_map, route[-1]), false,
+		{"light": 2, "heavy": 1, "dash": 0, "awaken": 0, "soul": 0})
+	await create_timer(0.4).timeout
+	_save("user://menu_map.png")
+	main.map_menu.pick(0)
 	get_root().get_node("Game").stop_all_sfx()
 	await create_timer(0.2).timeout
 	quit()

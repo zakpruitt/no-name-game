@@ -12,6 +12,7 @@ const CARD_BG := Color(0.07, 0.05, 0.11)
 
 var _choices: Array = []
 var _reroll_cost := -1  # -1 = no reroll offered
+var _title_text := "CHOOSE A POWER"
 var _reroll_button: Button
 var _buttons: Array[Button] = []
 var _root: Control
@@ -23,9 +24,11 @@ func _ready() -> void:
 	visible = false
 
 
-func open(choices: Array, reroll_cost := -1) -> void:
+## `title` replaces "CHOOSE A POWER" (a vault, a trial's reward).
+func open(choices: Array, reroll_cost := -1, title := "") -> void:
 	_choices = choices
 	_reroll_cost = reroll_cost
+	_title_text = title if title != "" else "CHOOSE A POWER"
 	if _root:
 		_root.queue_free()
 	_build()
@@ -86,7 +89,7 @@ func _build() -> void:
 	_root.add_child(col)
 
 	var title := Label.new()
-	title.text = "CHOOSE A POWER"
+	title.text = _title_text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))
@@ -197,7 +200,11 @@ func _card(i: int, u: Dictionary, owned: Dictionary) -> Button:
 		sig.connect(_glow.bind(icon, 0.0))
 
 	_text(inner, u.name + Upgrades.level_tag(level), 28, Color.WHITE)
-	_text(inner, "NEW" if level == 1 else "LEVEL UP   %d → %d" % [level - 1, level], 15, color.lightened(0.2))
+	var player := get_tree().get_first_node_in_group("player")
+	# A level-up says how often the power has fired this run (player.power_procs).
+	var fired: int = player.power_procs.get(u.id, 0) if player != null and level > 1 else 0
+	_text(inner, "NEW" if level == 1 else "LEVEL UP   %d → %d%s" % [level - 1, level,
+		"   ·   fired ×%d" % fired if fired > 0 else ""], 15, color.lightened(0.2))
 
 	# Numbers as they'd be once taken, counting any synergy it completes.
 	var after := owned.duplicate()
@@ -212,6 +219,12 @@ func _card(i: int, u: Dictionary, owned: Dictionary) -> Button:
 	desc.add_theme_color_override("default_color", Color(0.88, 0.86, 0.94))
 	desc.text = "[center]%s[/center]" % Upgrades.describe(u, level, Upgrades.active_synergies(after), color.lightened(0.3))
 	inner.add_child(desc)
+	# A power on a named combo says how to do the combo ("Flurry:  L L, pause, L").
+	var combo := Upgrades.combo_of(u)
+	if player != null and player.COMBOS.has(combo):
+		var found: bool = player.combos_landed.has(combo)
+		_text(inner, "%s:  %s%s" % [player.combo_name(combo), player.COMBOS[combo].input,
+			"" if found else "   (not landed yet)"], 15, Color(1, 1, 1, 0.55) if found else Color(1.0, 0.8, 0.5, 0.75))
 
 	var gap := Control.new()
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL

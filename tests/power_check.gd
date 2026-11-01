@@ -25,6 +25,8 @@ func _initialize() -> void:
 		e.queue_free()
 	var p: Node3D = main.player
 	await _check_effects(main, p, upgrades)
+	await _check_card(main, upgrades)
+	_check_move_dps(p)
 
 	if DisplayServer.get_name() != "headless":
 		await _shots(main, p)
@@ -111,6 +113,60 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._slipstream()
 	_check(p.power_procs.get("slipstream", 0) == 1, "Slipstream cuts once per dash")
 	p._set_state(p.State.MOVE)
+	# Razor Gale (Flurry's last cut) and Eye of the Storm (Cyclone's pull).
+	p.add_upgrade("razor_gale")
+	var bolts_before := main.get_children().size()
+	p._razor_gale(p.facing_dir())
+	_check(p.power_procs.get("razor_gale", 0) == 1, "Razor Gale fires")
+	_check(main.get_children().size() - bolts_before == int(p.upg("razor_gale", "count")), "Razor Gale flings its blades")
+	p.add_upgrade("eye_of_storm")
+	p._start_attack("DH")
+	e.global_position = p.global_position + Vector3(4.0, 0, 0)
+	var pull_hp: float = e.hp
+	p._eye_of_storm()
+	_check(p.power_procs.get("eye_of_storm", 0) == 1 and e.hp < pull_hp, "Eye of the Storm drags a foe in")
+	# Spike (L H H, not a power but a combo): a juggled foe is slammed down.
+	_check(p.route("heavy", "LH", true, 0, false, false) == "LHH", "L H H routes to Spike")
+	e.take_hit(1.0, Vector3.ZERO, 8.0, false)
+	p._start_attack("LHH")
+	p._spike(e)
+	_check(p.spikes == 1 and e.velocity.y < 0.0, "Spike slams a juggled foe down")
+	# Sky Reaper (Light + Soul fusion): light hits on a juggled foe.
+	p.add_upgrade("sky_reaper")
+	e.global_position = p.global_position + p.facing_dir() * 1.2
+	e.take_hit(1.0, Vector3.ZERO, 8.0, false)
+	p._start_attack("L1")
+	p._do_hit()
+	_check(p.power_procs.get("sky_reaper", 0) == 1, "Sky Reaper boosts light hits on juggled foes")
+	p._set_state(p.State.MOVE)
+	# War Chant: named combos feed Awakening, a new one twice as much.
+	var game: Node = get_root().get_node("Game")
+	p.add_upgrade("war_chant")
+	p._set_awakened(false)
+	game.awakening = 0.0
+	p._last_combo = ""
+	p._callout_done = false
+	p._combo_callout("L3")
+	var fresh: float = game.awakening
+	p._callout_done = false
+	p._combo_callout("L3")
+	_check(fresh > 0.0 and is_equal_approx(game.awakening - fresh, fresh * 0.5), "War Chant pays double for a new combo")
+	_check(p.combos_landed.get("L3", 0) >= 2, "landed combos are counted for the move list")
+	p.combos_landed.erase("LPL")
+	main.hud.hint_panel.modulate.a = 0.0
+	p._callout_done = false
+	p._combo_callout("LPL")
+	_check(main.hud.hint_label.text.begins_with("New combo: Flurry"), "a first-time combo shows on the HUD")
+	p.combos_landed["LPL"] = 99
+	_check(main._signature_combo() == "Flurry ×99", "the run summary names the most-landed combo")
+	p.power_procs["war_chant"] = 999
+	_check(main._busiest_power() == "War Chant ×999", "the run summary names the power that fired most")
+	p.power_procs.erase("war_chant")
+	p.add_upgrade("rebound")
+	p._spike(e)
+	await create_timer(p.REBOUND_DELAY + 0.1).timeout
+	_check(p.power_procs.get("rebound", 0) == 1 and (not e.is_alive() or e.is_airborne()), "Rebound bounces the spiked foe back up")
+	p._set_state(p.State.MOVE)
 	# Flicker: light hits right after a dash.
 	p.add_upgrade("flicker")
 	p._since_dash = 0.1
@@ -126,6 +182,78 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	_check(p._awaken_t > 2.0, "Undying Flame extends Awakening")
 	p._set_awakened(false)
 	e.queue_free()
+
+
+## Damage per second to each move's cancel point (no powers, not Awakened).
+## A move far above the median is a tuning slip (Cyclone once ran at 78 DPS
+## against a median near 18); the charged slam and finisher are left out.
+const DPS_LIMIT := 1.75  # x the median
+
+
+func _check_move_dps(p: Node) -> void:
+	var dps := {}
+	for id: String in p.MOVES:
+		if id in ["CH", "AF"]:
+			continue
+		var m: Dictionary = p.MOVES[id]
+		var t: float = p.anim.get_animation(m.anim).length * m.get("cancel", m.get("end", 1.0)) / m.get("speed", 1.0)
+		dps[id] = m.damage * m.get("hits", [0]).size() / t
+	var sorted: Array = dps.values()
+	sorted.sort()
+	var median: float = sorted[sorted.size() / 2]
+	for id: String in dps:
+		_check(dps[id] <= median * DPS_LIMIT, "%s deals %.0f DPS, over %.2fx the median %.0f" % [id, dps[id], DPS_LIMIT, median])
+
+
+## A card for a power on a named combo says how to do the combo.
+func _check_card(main: Node, U: GDScript) -> void:
+	var gale: Dictionary = U.get_by_id("razor_gale").duplicate()
+	gale.level = 1
+	main.player.combos_landed.erase("LPL")
+	main.reward.open([gale], -1)
+	await process_frame
+	var fresh: Array = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(fresh.has("Flurry:  L L, pause, L   (not landed yet)"), "a card flags a combo not landed yet")
+	main.player.combos_landed["LPL"] = 1
+	main.reward.open([gale], -1)
+	await process_frame
+	var texts: Array = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.has("Flurry:  L L, pause, L"), "a combo power's card shows the combo's input")
+	main.player.power_procs["razor_gale"] = 5
+	gale.level = 2
+	main.reward.open([gale], -1)
+	await process_frame
+	texts = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.has("LEVEL UP   1 → 2   ·   fired ×5"), "a level-up card says how often the power fired")
+	main.player.power_procs.erase("razor_gale")
+	main.reward.visible = false
+	main.reward.get_tree().paused = false
+	main.reward._root.queue_free()
+	main.reward._root = null
+	_check(U.combo_of(U.get_by_id("bone_breaker")) == "CH", "Charged Slam powers hook the CH combo")
+	# The pause build view shows the same line under the power.
+	var p: Node = main.get_tree().get_first_node_in_group("player")
+	var had: bool = p.upgrades.has("rebound")
+	if not had:
+		p.add_upgrade("rebound")
+	var pause: Node = main.get_children().filter(func(n: Node) -> bool:
+		return n.has_method("open_settings") and not n.has_signal("started"))[0]
+	pause._open()
+	await process_frame
+	texts = pause.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.has("Spike:  L H H"), "the build view shows a combo power's input")
+	_check(texts.any(func(t: String) -> bool: return t.strip_edges().begins_with("+ Rebound")),
+		"the moves list shows the owned power on Spike")
+	p.power_procs["rebound"] = 7
+	pause.close_menu()
+	pause._open()
+	await process_frame
+	texts = pause.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.any(func(t: String) -> bool: return t.begins_with("Rebound") and t.ends_with("×7 this run")),
+		"the build view shows how often a power fired")
+	pause.close_menu()
+	if not had:
+		p.remove_upgrade("rebound")
 
 
 func _spawn(main: Node, p: Node3D) -> Node3D:
@@ -144,7 +272,10 @@ func _shots(main: Node, p: Node3D) -> void:
 	main.hud.set_upgrades(p.upgrades)
 	var U: GDScript = load("res://scripts/upgrades.gd")
 	var cards: Array = []
-	for pair: Array in [["thousand_cuts", 1], ["whirlwind", 2], ["crescendo", 1]]:
+	# A new card, a level-up on a combo (input line, "fired ×N") and a fusion.
+	p.power_procs["razor_gale"] = 6
+	p.add_upgrade("razor_gale")
+	for pair: Array in [["thousand_cuts", 1], ["razor_gale", 2], ["crescendo", 1]]:
 		var card: Dictionary = U.get_by_id(pair[0]).duplicate()
 		card.level = pair[1]
 		cards.append(card)

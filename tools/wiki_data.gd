@@ -25,7 +25,20 @@ func _initialize() -> void:
 		hero[k] = p.get(k)
 	hero["charge_time"] = player_s.CHARGE_TIME
 	hero["charge_move_mult"] = player_s.CHARGE_MOVE_MULT
+	hero["guide_learned"] = player_s.GUIDE_LEARNED
 	p.free()
+
+	# Each move's time to its cancel point and damage per second, no powers
+	# (the same sums as power_check's DPS_LIMIT check).
+	var rig: Node = player_s.MODEL.instantiate()
+	var anim: AnimationPlayer = rig.find_child("AnimationPlayer", true, false)
+	var move_time := {}
+	for id: String in player_s.MOVES:
+		var m: Dictionary = player_s.MOVES[id]
+		if anim != null and anim.has_animation(m.anim):
+			var t: float = anim.get_animation(m.anim).length * m.get("cancel", m.get("end", 1.0)) / m.get("speed", 1.0)
+			move_time[id] = {"time": snappedf(t, 0.01), "dps": snappedf(m.damage * m.get("hits", [0]).size() / t, 0.1)}
+	rig.free()
 
 	var e: Node = enemy_s.new()
 	var enemy_defaults := {}
@@ -51,6 +64,7 @@ func _initialize() -> void:
 		"branch": _git(["rev-parse", "--abbrev-ref", "HEAD"]),
 		"hero": hero,
 		"moves": player_s.MOVES,
+		"move_time": move_time,
 		"combos": player_s.COMBOS,
 		"light_chain": player_s.LIGHT_CHAIN,
 		"ranks": game.RANKS,
@@ -61,6 +75,14 @@ func _initialize() -> void:
 		"max_level": Upgrades.MAX_LEVEL,
 		"synergies": Upgrades.SYNERGIES,
 		"synergy_need": Upgrades.SYNERGY_NEED,
+		"paths": _colors_to_hex(Upgrades.PATHS),
+		"mastery_need": Upgrades.MASTERY_NEED,
+		"fusion_chance": Upgrades.FUSION_CHANCE,
+		"map": {
+			"lanes": RunMap.LANES, "weights": RunMap.WEIGHTS, "kinds": _colors_to_hex(RunMap.KINDS), "trials": RunMap.TRIALS, "mystery": RunMap.MYSTERY,
+			"unlock_room": RunMap.UNLOCK_ROOM, "trial_size": main_s.TRIAL_SIZE, "trial_bones": main_s.TRIAL_BONES,
+			"powers": RunMap.POWERS, "low_hp": load("res://scripts/map_screen.gd").LOW_HP,
+		},
 		"twists": main_s.ELITE_TWISTS,
 		"run": {
 			"length": main_s.RUN_LENGTH, "rest_heal": main_s.REST_HEAL, "room_clear_heal": main_s.ROOM_CLEAR_HEAL,

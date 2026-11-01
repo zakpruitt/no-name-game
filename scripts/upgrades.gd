@@ -1,7 +1,7 @@
 class_name Upgrades
 ## Combo-slot upgrades: each one hooks a specific move in the hero's string
-## (L1/L2/L3 light chain, H spin, LH launcher, LLH ground breaker, DL dash
-## stab, Charged slam, Heavy = any heavy move) or
+## (L1/L2/L3 light chain, LPL flurry, H spin, LH launcher, LLH ground breaker,
+## DL dash stab, DH cyclone, Charged slam, Heavy = any heavy move) or
 ## a mechanic (Dash, Air, Awaken, Perfect dodge, Death, Kill).
 ## Pure data here; the effects live in player.gd (search for the id).
 ##
@@ -78,6 +78,18 @@ const ALL := [
 	{"id": "slipstream", "name": "Slipstream", "path": "dash", "slot": "Dash",
 		"desc": "Dashing through enemies cuts them for {damage} damage.",
 		"lv": {"damage": [8, 12, 17]}},
+	{"id": "razor_gale", "name": "Razor Gale", "path": "light", "slot": "LPL",
+		"desc": "Flurry's last cut flings a fan of {count} blades ({damage} damage each).",
+		"lv": {"count": [3, 4, 5], "damage": [6, 8, 11]}},
+	{"id": "eye_of_storm", "name": "Eye of the Storm", "path": "dash", "slot": "DH",
+		"desc": "Each Cyclone hit drags foes within {radius}m into the spin.",
+		"lv": {"radius": [5, 6, 7.5], "damage": [2, 3, 4]}},
+	{"id": "rebound", "name": "Rebound", "path": "soul", "slot": "LHH",
+		"desc": "Foes you Spike bounce back up {launch}m/s off the floor for another juggle ({damage} damage).",
+		"lv": {"launch": [7, 8.5, 10], "damage": [6, 9, 13]}},
+	{"id": "war_chant", "name": "War Chant", "path": "awaken", "slot": "Combos",
+		"desc": "Each named combo you land grants {awaken} Awakening, twice that if it isn't the one you just landed.",
+		"lv": {"awaken": [3, 4.5, 6]}},
 	# Fusions: two paths in one card. Offered only once you own a power of
 	# both (`fusion` is the second path); they count toward both masteries.
 	{"id": "crescendo", "name": "Crescendo", "path": "light", "fusion": "heavy", "slot": "L3 → Heavy",
@@ -92,6 +104,9 @@ const ALL := [
 	{"id": "undying_flame", "name": "Undying Flame", "path": "awaken", "fusion": "soul", "slot": "Awakened kills",
 		"desc": "While Awakened, each kill extends it by {time}s and heals {heal} HP.",
 		"lv": {"time": [0.5, 0.75, 1.0], "heal": [2, 3, 4]}},
+	{"id": "sky_reaper", "name": "Sky Reaper", "path": "light", "fusion": "soul", "slot": "Light → Juggled",
+		"desc": "Your light hits deal +{bonus}% damage to juggled foes.",
+		"lv": {"bonus": [40, 60, 85]}},
 ]
 
 
@@ -116,7 +131,7 @@ const PATHS := {
 const FUSION_CHANCE := 0.5
 ## Readable names for `slot` on cards and the build view (fusions spell
 ## theirs out in the entry itself).
-const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "Light": "Light attacks",
+const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "LPL": "Flurry", "DH": "Cyclone", "LHH": "Spike", "Combos": "Named combos", "Light": "Light attacks",
 	"H": "Spin", "LH": "Launcher", "LLH": "Ground Breaker", "Charged": "Charged Slam", "Heavy": "Heavy kills",
 	"Dash": "Dash", "DL": "Dash Stab", "Perfect": "Perfect dodge", "Awaken": "Awakening",
 	"Air": "Juggles", "Death": "Killing blow", "Kill": "Kills"}
@@ -124,6 +139,15 @@ const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple
 
 static func slot_name(u: Dictionary) -> String:
 	return SLOT_NAMES.get(u.slot, u.slot)
+
+
+## The player.COMBOS id a power's slot hooks, when it hooks a named combo
+## (callers check player.COMBOS.has()); most slots are the combo id itself.
+const SLOT_COMBOS := {"Charged": "CH"}
+
+
+static func combo_of(u: Dictionary) -> String:
+	return SLOT_COMBOS.get(u.slot, u.slot)
 
 
 ## Synergies: own SYNERGY_NEED of a tag's `ids` and every one of them gets
@@ -139,10 +163,14 @@ const SYNERGIES := {
 		"desc": "fire powers deal +30% damage and heal +30%", "boost": {"damage": 1.3, "heal": 1.3}},
 	"blood": {"name": "Blood", "ids": ["bloodthirst", "reaper", "second_wind", "phoenix_heart"],
 		"desc": "healing powers heal +30%", "boost": {"heal": 1.3, "hp": 1.2}},
-	"night": {"name": "Night", "ids": ["overflow", "phoenix_heart"],
-		"desc": "Awakening powers are 25% stronger", "boost": {"bonus": 1.25}},
+	"night": {"name": "Night", "ids": ["overflow", "phoenix_heart", "war_chant"],
+		"desc": "Awakening powers are 25% stronger", "boost": {"bonus": 1.25, "awaken": 1.25}},
 	"bone": {"name": "Bone", "ids": ["shatter", "bone_breaker"],
 		"desc": "bone powers hit 30% harder and shatter 20% wider", "boost": {"damage": 1.3, "bonus": 1.3, "radius": 1.2}},
+	"gale": {"name": "Gale", "ids": ["razor_gale", "eye_of_storm", "slipstream"],
+		"desc": "wind powers cut 25% harder and reach 20% further", "boost": {"damage": 1.25, "radius": 1.2}},
+	"sky": {"name": "Sky", "ids": ["rising_edge", "rebound", "sky_reaper", "chain_spark"],
+		"desc": "juggle powers launch 20% higher and hit 25% harder", "boost": {"launch": 1.2, "damage": 1.25, "bonus": 1.25}},
 }
 
 
@@ -226,13 +254,17 @@ static func level_tag(level: int) -> String:
 ## Each card is the upgrade's entry plus "level" (the level it grants).
 ## `level_ups_only` limits it to owned upgrades (the camp's "hone").
 ## New fusions only come from can_fuse(); with FUSION_CHANCE one takes the
-## last card.
-static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: RandomNumberGenerator = null) -> Array:
+## last card. `path` (a vault) keeps to cards on that path (fusions count),
+## topped up from any path if it runs short.
+static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: RandomNumberGenerator = null,
+		path := "") -> Array:
 	var pool: Array = []
 	var fusions: Array = []
 	for u in ALL:
 		var level: int = owned.get(u.id, 0)
 		if level >= MAX_LEVEL or (level == 0 and level_ups_only):
+			continue
+		if path != "" and path not in paths_of(u):
 			continue
 		var card: Dictionary = u.duplicate()
 		card.level = level + 1
@@ -249,7 +281,32 @@ static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: Ra
 			cards[-1] = fusions[0]
 		else:
 			cards.append(fusions[0])
+	if path != "" and cards.size() < count:
+		var ids := cards.map(func(c: Dictionary) -> String: return c.id)
+		for extra: Dictionary in roll(owned, count * 3, level_ups_only, rng):
+			if cards.size() < count and extra.id not in ids:
+				cards.append(extra)
 	return cards
+
+
+## Up to `count` fusion cards (a met trial): new fusions `owned` can take,
+## else level-ups of owned ones. Empty if neither.
+static func roll_fusion(owned: Dictionary, count := 2, rng: RandomNumberGenerator = null) -> Array:
+	var fresh: Array = []
+	var owned_ups: Array = []
+	for u in ALL:
+		if not u.has("fusion"):
+			continue
+		var level: int = owned.get(u.id, 0)
+		var card: Dictionary = u.duplicate()
+		card.level = level + 1
+		if level == 0 and can_fuse(owned, u):
+			fresh.append(card)
+		elif level > 0 and level < MAX_LEVEL:
+			owned_ups.append(card)
+	var pool := fresh if not fresh.is_empty() else owned_ups
+	shuffle(pool, rng)
+	return pool.slice(0, count)
 
 
 ## The paths upgrade `u` counts for: its own, plus a fusion's second.

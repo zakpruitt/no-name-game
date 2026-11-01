@@ -20,6 +20,7 @@ const SMALL_GLYPH_H := 18.0
 const NAME_SIZE := 19
 const NEXT_SIZE := 15
 const KEY_SIZE := 15
+const PAUSE_TEXT := "or pause: "  # before a row's pause combo (player.combo_options() `pause`)
 const SIDE_GAP := 76.0  # px from the hero's centre to the rows
 const CHEST := 1.1  # metres above the feet the rows centre on
 const EDGE := 330.0  # flip to the hero's left this close to the right edge
@@ -190,6 +191,12 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 		var nnw := _font.get_string_size(nn, HORIZONTAL_ALIGNMENT_LEFT, -1, NEXT_SIZE).x
 		parts.append(["next", x, nnw, nn])
 		x += nnw
+	if row.has("pause"):
+		x += 12.0
+		var pt: String = PAUSE_TEXT + row.pause.name
+		var pw := _font.get_string_size(pt, HORIZONTAL_ALIGNMENT_LEFT, -1, NEXT_SIZE).x
+		parts.append(["pause", x, pw, pt])
+		x += pw
 	var width := x + 10.0
 	var x0 := pos.x if _side > 0.0 else pos.x - width
 	var base := _anchor + Vector2(x0, pos.y)
@@ -233,6 +240,8 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 				var nc: Color = Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25) if row.next.ult \
 					else player.COMBO_TIER_COLORS[row.next.tier - 1]
 				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(nc, 0.9 * alpha * lit))
+			"pause":
+				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(player.COMBO_TIER_COLORS[row.pause.tier - 1], 0.6 * alpha * lit))
 
 
 func _glyph_w(kind: String, h: float) -> float:
