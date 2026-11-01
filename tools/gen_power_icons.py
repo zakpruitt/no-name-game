@@ -60,6 +60,8 @@ ICONS = {
                f'<path {S} d="M8 54 H56"/><path {F} d="M24 46 L36 46 L30 52 Z"/>',
     "war_chant": f'<ellipse {S} cx="32" cy="26" rx="19" ry="7"/><path {S} d="M13 26 V44 A19 7 0 0 0 51 44 V26"/>'
                  f'<path {S} d="M10 6 L24 20"/><path {S} d="M54 6 L40 20"/>',
+    "sky_reaper": f'<path {S} d="M10 54 Q12 22 44 10"/><path {F} d="M44 10 L56 6 L52 18 Z"/>'
+                  f'<circle {F} cx="40" cy="34" r="7"/><path {S} d="M30 50 L36 42"/><path {S} d="M46 52 L44 42"/>',
     "slipstream": f'<path {S} d="M6 34 H56"/><path {S} d="M46 24 L56 34 L46 44"/><path {S} stroke-width="4" d="M26 14 L34 54"/>'
                   f'<path {S} stroke-width="3" d="M8 24 H20"/><path {S} stroke-width="3" d="M8 44 H20"/>',
     # --- Awaken ---

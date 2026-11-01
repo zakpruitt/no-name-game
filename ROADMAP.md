@@ -185,4 +185,5 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Spike (L H H): heavy again after the launcher was just a second launcher; now an overhead chop that slams juggled foes into the floor (+60%, `SPIKE_AIR_MULT`) and knocks down foes where they land (`SPIKE_IMPACT`). Awakened it is still Ancestor's Fall, so the ultimate reads as Spike's big version. The guide shows Spike as the launcher's follow-up; autotest prints `spikes=`
 - [x] Rebound (Soul, Spike): spiked foes bounce back up 7/8.5/10 m/s off the floor for another juggle, so L H H can loop; Soul had only three powers
 - [x] War Chant (Awaken, named combos): each named combo grants 3/4.5/6 Awakening, double when it differs from the last one, so varying the string fills the meter (Awaken had only three powers)
+- [x] Sky Reaper (Light + Soul fusion): light hits on juggled foes deal +40/60/85%, the payoff for launcher and Rebound juggles
 - [x] Element casts for the new combos (`elements.CASTS`): Flurry throws two small bolts, Cyclone carries the element vortex with it

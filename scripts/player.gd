@@ -734,6 +734,9 @@ func _do_hit() -> void:
 		var dmg: float = _move.damage * _dmg_mult
 		if _move_id == "LHH" and was_airborne:
 			dmg *= SPIKE_AIR_MULT
+		if was_airborne and _move_id in LIGHT_MOVES and has_upgrade("sky_reaper"):
+			dmg *= 1.0 + upg("sky_reaper", "bonus") / 100.0
+			_proc("sky_reaper")
 		if _move_id == "CH" and has_upgrade("bone_breaker") and (e.shield or e.elite or e.has_method("is_boss")):
 			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
 			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)

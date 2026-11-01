@@ -104,6 +104,9 @@ const ALL := [
 	{"id": "undying_flame", "name": "Undying Flame", "path": "awaken", "fusion": "soul", "slot": "Awakened kills",
 		"desc": "While Awakened, each kill extends it by {time}s and heals {heal} HP.",
 		"lv": {"time": [0.5, 0.75, 1.0], "heal": [2, 3, 4]}},
+	{"id": "sky_reaper", "name": "Sky Reaper", "path": "light", "fusion": "soul", "slot": "Light → Juggled",
+		"desc": "Your light hits deal +{bonus}% damage to juggled foes.",
+		"lv": {"bonus": [40, 60, 85]}},
 ]
 
 

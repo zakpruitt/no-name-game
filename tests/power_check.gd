@@ -129,6 +129,14 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._start_attack("LHH")
 	p._spike(e)
 	_check(p.spikes == 1 and e.velocity.y < 0.0, "Spike slams a juggled foe down")
+	# Sky Reaper (Light + Soul fusion): light hits on a juggled foe.
+	p.add_upgrade("sky_reaper")
+	e.global_position = p.global_position + p.facing_dir() * 1.2
+	e.take_hit(1.0, Vector3.ZERO, 8.0, false)
+	p._start_attack("L1")
+	p._do_hit()
+	_check(p.power_procs.get("sky_reaper", 0) == 1, "Sky Reaper boosts light hits on juggled foes")
+	p._set_state(p.State.MOVE)
 	# War Chant: named combos feed Awakening, a new one twice as much.
 	var game: Node = get_root().get_node("Game")
 	p.add_upgrade("war_chant")
