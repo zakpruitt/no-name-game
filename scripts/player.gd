@@ -184,6 +184,7 @@ var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
 var shatters := 0  # Shatter bursts (autotest)
 var spikes := 0  # juggled foes spiked down (autotest)
+var _last_combo := ""  # the last named combo landed (War Chant pays more for a new one)
 ## Moves that count as heavy for Shatter.
 const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH", "LHH"]
 # Spike (LHH) on a juggled foe: damage multiplier, how hard it's slammed
@@ -816,6 +817,10 @@ func _combo_callout(id: String) -> void:
 	var tier: int = c.tier
 	callouts += 1
 	last_callout_tier = tier
+	if has_upgrade("war_chant") and not awakened:
+		_proc("war_chant")
+		Game.add_awakening(upg("war_chant", "awaken") * (2.0 if id != _last_combo else 1.0))
+	_last_combo = id
 	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
 	_callout.text = combo_name(id)
 	_callout.modulate = Ascendancy.color(ascendancy) if id == "AF" and ascendancy != "" else COMBO_TIER_COLORS[tier - 1]

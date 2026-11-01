@@ -129,6 +129,18 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._start_attack("LHH")
 	p._spike(e)
 	_check(p.spikes == 1 and e.velocity.y < 0.0, "Spike slams a juggled foe down")
+	# War Chant: named combos feed Awakening, a new one twice as much.
+	var game: Node = get_root().get_node("Game")
+	p.add_upgrade("war_chant")
+	p._set_awakened(false)
+	game.awakening = 0.0
+	p._last_combo = ""
+	p._callout_done = false
+	p._combo_callout("L3")
+	var fresh: float = game.awakening
+	p._callout_done = false
+	p._combo_callout("L3")
+	_check(fresh > 0.0 and is_equal_approx(game.awakening - fresh, fresh * 0.5), "War Chant pays double for a new combo")
 	p.add_upgrade("rebound")
 	p._spike(e)
 	await create_timer(p.REBOUND_DELAY + 0.1).timeout

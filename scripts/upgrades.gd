@@ -87,6 +87,9 @@ const ALL := [
 	{"id": "rebound", "name": "Rebound", "path": "soul", "slot": "LHH",
 		"desc": "Foes you Spike bounce back up {launch}m/s off the floor for another juggle ({damage} damage).",
 		"lv": {"launch": [7, 8.5, 10], "damage": [6, 9, 13]}},
+	{"id": "war_chant", "name": "War Chant", "path": "awaken", "slot": "Combos",
+		"desc": "Each named combo you land grants {awaken} Awakening, twice that if it isn't the one you just landed.",
+		"lv": {"awaken": [3, 4.5, 6]}},
 	# Fusions: two paths in one card. Offered only once you own a power of
 	# both (`fusion` is the second path); they count toward both masteries.
 	{"id": "crescendo", "name": "Crescendo", "path": "light", "fusion": "heavy", "slot": "L3 → Heavy",
@@ -125,7 +128,7 @@ const PATHS := {
 const FUSION_CHANCE := 0.5
 ## Readable names for `slot` on cards and the build view (fusions spell
 ## theirs out in the entry itself).
-const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "LPL": "Flurry", "DH": "Cyclone", "LHH": "Spike", "Light": "Light attacks",
+const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "LPL": "Flurry", "DH": "Cyclone", "LHH": "Spike", "Combos": "Named combos", "Light": "Light attacks",
 	"H": "Spin", "LH": "Launcher", "LLH": "Ground Breaker", "Charged": "Charged Slam", "Heavy": "Heavy kills",
 	"Dash": "Dash", "DL": "Dash Stab", "Perfect": "Perfect dodge", "Awaken": "Awakening",
 	"Air": "Juggles", "Death": "Killing blow", "Kill": "Kills"}

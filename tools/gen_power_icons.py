@@ -58,6 +58,8 @@ ICONS = {
                     f'C49 41 38 52 26 50 C14 48 7 36 12 22"/><path {S} d="M6 26 L12 22 L17 27"/>',
     "rebound": f'<path {S} d="M14 8 L30 40"/><path {S} d="M30 40 L44 14"/><path {S} d="M36 14 H46 V24"/>'
                f'<path {S} d="M8 54 H56"/><path {F} d="M24 46 L36 46 L30 52 Z"/>',
+    "war_chant": f'<ellipse {S} cx="32" cy="26" rx="19" ry="7"/><path {S} d="M13 26 V44 A19 7 0 0 0 51 44 V26"/>'
+                 f'<path {S} d="M10 6 L24 20"/><path {S} d="M54 6 L40 20"/>',
     "slipstream": f'<path {S} d="M6 34 H56"/><path {S} d="M46 24 L56 34 L46 44"/><path {S} stroke-width="4" d="M26 14 L34 54"/>'
                   f'<path {S} stroke-width="3" d="M8 24 H20"/><path {S} stroke-width="3" d="M8 44 H20"/>',
     # --- Awaken ---
