@@ -16,7 +16,7 @@ const TRAIL := preload("res://scripts/weapon_trail.gd")
 const HERO_LOOK := preload("res://scripts/hero_look.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
-const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug"]
+const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug", "Barbarian_Hat", "Barbarian_Cape"]
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 
 @export var move_speed := 7.5
@@ -166,9 +166,12 @@ var hp := max_hp
 var state := State.MOVE
 var awakened := false
 var model: Node3D
+var _form: Node3D  # HERO_LOOK.add_form gear for the chosen Ascendancy
+var _coats: Array[Node3D] = []  # HERO_LOOK.coat_axes for the current element
 var rank_ups := 0  # style rank climbs that burst at the hero (autotest)
 var _rank_i := 0  # current style rank as a step above D (Game.RANKS)
 var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
+var _asc_aura: Node3D  # ascend_aura.gd: the Ascendancy's always-on aura
 var anim: AnimationPlayer
 
 var _state_t := 0.0
@@ -296,6 +299,7 @@ func _ready() -> void:
 			trail.color = _trail_rest_color()
 			_trails.append(trail)
 	anim = model.find_child("AnimationPlayer", true, false)
+	_coats = HERO_LOOK.coat_axes(model, element())  # after _meshes: coats are swapped on ascend
 	for a in LOOPING:
 		if anim.has_animation(a):
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -1692,6 +1696,18 @@ func combo_name(id: String) -> String:
 
 func ascend(path: String) -> void:
 	ascendancy = path
+	if _form != null:
+		_form.queue_free()
+	_form = HERO_LOOK.add_form(model, path)
+	for c in _coats:
+		c.queue_free()
+	_coats = HERO_LOOK.coat_axes(model, element())
+	HERO_LOOK.charge_coats(_coats, awakened)
+	if _asc_aura != null:
+		_asc_aura.queue_free()
+	_asc_aura = preload("res://scripts/ascend_aura.gd").new()
+	add_child(_asc_aura)
+	_asc_aura.setup(path)
 	Game.announced.emit(Ascendancy.PATHS[path].title)
 	Game.sfx("synergy", 0.0, 0.0)
 	var c := Ascendancy.color(path)
@@ -1764,6 +1780,11 @@ func _set_awakened(on: bool) -> void:
 		trail.color = Color(c, 0.9) if on else _trail_rest_color()
 	_aura.color = c
 	_aura.emitting = on and ascendancy != ""
+	if _asc_aura != null:
+		_asc_aura.set_awakened(on)
+	HERO_LOOK.charge_coats(_coats, on)
+	HERO_LOOK.charge_form(_form, on)
+	HERO_LOOK.set_eyes(model, on, c)
 	_orbit.setup(element(), on)
 	if on:
 		_ult_chain = 0
