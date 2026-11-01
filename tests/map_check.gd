@@ -120,6 +120,11 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	screen.set_status(30.0, 100.0, 12, 2, 0.4)
 	_check(screen._status.text.begins_with("HP 30 / 100") and screen._status.get_theme_color("font_color").r > 0.9
 		and screen._status.get_theme_color("font_color").g < 0.6, "low HP shows red on the map")
+	screen.set_notes({"shrine": "SHRINE NOTE"})
+	var shrine_node := {"kind": "shrine", "lane": 0, "next": [], "twists": [], "path": "", "trial": ""}
+	screen._show_room(shrine_node, 3)
+	_check("SHRINE NOTE" in screen._detail_text.text, "a room kind's note shows in its detail")
+	screen.set_notes({})
 	# A trial says what it would pay with the build.
 	screen.set_build({})
 	_check(screen.trial_payout().ends_with("pays a level-up"), "no fusion ready: a trial pays a level-up")

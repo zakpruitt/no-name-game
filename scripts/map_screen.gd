@@ -29,6 +29,7 @@ var _visited: Array = []  # Vector2i (column, lane) of every room so far
 var _choices: Array = []  # nodes the player may pick
 var _counts := {}  # Upgrades.path_counts() of the build, for the vault line
 var _owned := {}  # the hero's powers (id -> level), for the trial's payout line
+var _notes := {}  # room kind -> an extra detail line from main (shrine / camp prices)
 var _hp := Vector3.ZERO  # hp, max_hp, the rest's heal share (main.REST_HEAL), for the rest line
 var _room := 0  # room number of the choices
 var _read_only := false
@@ -131,6 +132,13 @@ func vault_pool(path: String) -> String:
 	if fresh + ups < 3:
 		text += ": the rest from other paths"
 	return text
+
+
+## Extra detail lines per room kind, from main's tables ("shrine": the
+## trades' prices against the hero's HP and bones).
+func set_notes(notes: Dictionary) -> void:
+	_notes = notes
+	_update_detail()
 
 
 ## What a rest would heal right now ("Heals 40 HP now (64 → 104 / 110)").
@@ -385,6 +393,8 @@ func _show_room(n: Dictionary, room: int) -> void:
 		text += "\n" + trial_payout()
 	if n.kind == "rest" and rest_text() != "":
 		text += "\n" + rest_text()
+	if _notes.has(n.kind):
+		text += "\n" + _notes[n.kind]
 	var ahead := _ahead_text(Vector2i(room - 1, n.lane))
 	if ahead != "":
 		text += "\nLeads on to: " + ahead

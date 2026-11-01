@@ -787,6 +787,19 @@ func show_map() -> void:
 func _map_status() -> void:
 	map_menu.set_status(player.hp, player.max_hp, Game.bones, Game.level, REST_HEAL)
 	map_menu.set_build(player.upgrades)
+	map_menu.set_notes(_map_notes())
+
+
+## What the shrine and camp would cost with the hero's HP and bones now.
+func _map_notes() -> Dictionary:
+	var cheapest := 999
+	for k: String in CAMP:
+		cheapest = mini(cheapest, CAMP[k].cost)
+	return {
+		"shrine": "Blood pact costs %d HP  ·  Bone offering %d bones (you have %d)  ·  and one rotating trade" % [
+			roundi(player.max_hp * SHRINE.blood.hp_frac), SHRINE.mend.cost, Game.bones],
+		"rest": "Camp offers from %d bones (you have %d)" % [cheapest, Game.bones],
+	}
 
 
 ## Twist names or descs joined for the door / room title ("" for none).
