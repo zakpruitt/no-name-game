@@ -758,6 +758,8 @@ func _state_attack(delta: float) -> void:
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
+		if _move.has("weave"):  # each cut of the dance leaves a spectral copy of him behind
+			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.4))
 	if BREAKERS.has(_move_id) and _connected and t >= BREAKERS[_move_id].leap:  # (a whiff plays out normally)
 		_start_leap(_move_id)
 		return
