@@ -1281,6 +1281,9 @@ func combo_options() -> Array:
 		if kind == "heavy" and id == "H":
 			continue  # the plain spin isn't a continuation
 		var o := _option(kind, id)
+		if id == "L3" and attacking and model.position.y >= PLUNGE_AXES_FROM:
+			o.name = combo_name("SKYFALL")  # from up here it plunges as Skyfall (named_id())
+			o.tier = COMBOS.SKYFALL.tier
 		if attacking:
 			var wait := route(kind, _move_id, false, _chain_i, false, awakened)
 			if wait != id and COMBOS.has(wait):

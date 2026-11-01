@@ -62,6 +62,8 @@ func _initialize() -> void:
 		_check(p.model.position.y > prev_y + 0.2, "%s climbs (%.2f -> %.2f)" % [id, prev_y, p.model.position.y])
 		prev_y = p.model.position.y
 	_check(p._next_move("light") == "L3" and p._next_move("heavy") == "LHH", "after the air slashes: L = Triple Chop, H = Spike")
+	var arows: Array = p.combo_options()
+	_check(not arows.is_empty() and arows[0].id == "L3" and arows[0].name == "Skyfall", "the guide names the light up here Skyfall (%s)" % (arows[0].name if not arows.is_empty() else "-"))
 	var air_peak: float = p._hop_peak
 	_check(air_peak > 2.0, "the air string ends high (%.2f)" % air_peak)
 	p._start_attack("L3")
