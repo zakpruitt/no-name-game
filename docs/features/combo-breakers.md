@@ -102,6 +102,11 @@ back to L1:
   Chop off Sky Rend) deals +`PLUNGE_PER_M` (15%) damage per metre it
   started above 0.4 m, on its first hit (`player.plunge_mult()`). L H H off
   L H is about x1.17; Triple Chop off Sky Rend about x1.34.
+- A plunge from `PLUNGE_AXES_FROM` (2 m: only off Sky Rend) also slams a
+  fan of three giant spectral axes into the floor ahead of him
+  (`_plunge_axes`: visual `_axe_fall` guillotines, `PLUNGE_AXES_SPREAD`
+  32 degrees apart, the middle one first, sized by `_cast_grow()`). Look:
+  `tests/cast_dump.gd -- --cast=plunge`.
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.

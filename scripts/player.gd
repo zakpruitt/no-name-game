@@ -293,6 +293,11 @@ const SLAM_SCALE := 2.0
 # the launcher, Triple Chop off Sky Rend) deals +PLUNGE_PER_M damage per metre
 # it started above 0.4 m, so the air string pays for going high (2.6 m: +33%).
 const PLUNGE_PER_M := 0.15
+# A plunge from at least PLUNGE_AXES_FROM (only the top of the air string,
+# Sky Rend) also slams a fan of spectral axes into the floor ahead of him
+# (visual: _plunge_axes), PLUNGE_AXES_SPREAD degrees apart.
+const PLUNGE_AXES_FROM := 2.0
+const PLUNGE_AXES_SPREAD := 32.0
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -672,6 +677,21 @@ func _land_slam(peak: float) -> void:
 	Fx.dust(get_parent(), global_position, int(6 * k), 0.5 * k)
 	Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2 * k, 0.22)
 	Game.shake(0.12 * k)
+	if _hop_y0 >= PLUNGE_AXES_FROM and not _move.get("air", false):
+		_plunge_axes()
+
+
+## The top-of-the-air-string plunge's crater: three giant spectral axes
+## (visual guillotines, `_axe_fall`) bury themselves in a fan ahead of him,
+## the middle one first, sized with the chain like the casts.
+func _plunge_axes() -> void:
+	var fwd := _facing()
+	var size := 2.4 * _cast_grow()
+	for i in 3:
+		var side := i - 1  # -1, 0, 1
+		var dir := fwd.rotated(Vector3.UP, deg_to_rad(PLUNGE_AXES_SPREAD * side))
+		var at := global_position + dir * (2.4 if side == 0 else 2.0)
+		_axe_fall(at, dir, size * (1.0 if side == 0 else 0.8), 0.05 * absi(side))
 
 
 func _state_attack(delta: float) -> void:

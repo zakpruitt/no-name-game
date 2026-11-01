@@ -62,6 +62,12 @@ func _initialize() -> void:
 	p._hits_done = 0
 	_check(plunge > 1.25, "Triple Chop off Sky Rend plunges (x%.2f)" % plunge)
 	await _run(p, p.MOVES.L3.hits[0])
+	await create_timer(0.15).timeout
+	var axes := 0
+	for n in world.get_children():
+		if n.get_script() and str(n.get_script().resource_path).contains("spirit_guillotine"):
+			axes += 1
+	_check(axes == 3, "the plunge off Sky Rend slams 3 spectral axes (%d)" % axes)
 	_check(p._hop_peak == 0.0, "the slam used and reset the peak")
 	_check(p.model.position.y < 0.1, "Triple Chop slams down from the air (y %.2f)" % p.model.position.y)
 	await _settle(p)

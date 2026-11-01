@@ -73,6 +73,21 @@ func _initialize() -> void:
 		p.global_position.y = 0.0  # (no floor here: the body falls)
 		print("breaker: model y=%.2f hero=%s zone=%s" % [p.model.position.y, p.global_position, p._brk_zone])
 		cast = "none"
+	if cast == "plunge":  # the air-string plunge's fan of axes ahead (player._plunge_axes), landed
+		for i in 3:
+			var side := i - 1
+			var dir := Vector3.BACK.rotated(Vector3.UP, deg_to_rad(32.0 * side))
+			var g: Node3D = load("res://scripts/spirit_guillotine.gd").new()
+			g.axe_mesh = axe
+			g.color = c
+			g.el = el
+			g.fwd = dir
+			g.size = 2.4 * (1.0 if side == 0 else 0.8)
+			world.add_child(g)
+			g.global_position = dir * (2.4 if side == 0 else 2.0)
+			g.process_mode = Node.PROCESS_MODE_DISABLED
+			g._axe.position.y = g._rest
+		cast = "none"
 	if cast == "cataclysm":  # the ring of axes round the hero, all landed
 		for i in 6:
 			var ang := TAU * (i + 0.5) / 6.0
