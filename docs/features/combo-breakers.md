@@ -83,6 +83,9 @@ height]` as fractions of the move, applied by `player._hop()`):
   height onto its hit. Any move started in the air lands by its first hit,
   or by `land` if set.
 - **Charged Slam** leaps into the slam (1.1 m).
+- **Spin (neutral H)** is a leaping whirl: up 0.8 m through all three hits,
+  landing by its cancel with a slam.
+- **Dash Stab (Dash > L)** pounces: a low leap (0.6 m) landing on the stab.
 
 **The air string.** Light after the Launcher goes into the air instead of
 back to L1:

@@ -81,10 +81,11 @@ const MOVES := {
 	"LPL": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.5, "range": 2.6, "arc": 170.0,
 		"hits": [0.22, 0.32, 0.42, 0.52, 0.62], "cancel": 0.66, "end": 0.85, "lunge": 5.0, "knockback": 0.8,
 		"launch": 0.0, "stop": 0.03, "shake": 0.1},
-	# Heavy from neutral: spinning AoE, multi-hit.
+	# Heavy from neutral: spinning AoE, multi-hit. A leaping whirl: he spins
+	# up off the floor through all three hits and lands with a slam.
 	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
 		"hits": [0.3, 0.45, 0.6], "cancel": 0.7, "end": 0.85, "lunge": 4.0, "knockback": 3.0, "launch": 0.0,
-		"stop": 0.035, "shake": 0.12},
+		"stop": 0.035, "shake": 0.12, "hop": [0.15, 0.68, 0.8]},
 	# Heavy after any light hit: launcher (raises a pillar of the element under
 	# the target). Juggled enemies take bonus style.
 	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
@@ -115,10 +116,11 @@ const MOVES := {
 	"CH": {"anim": "2H_Melee_Attack_Chop", "damage": 30.0, "range": 3.4, "arc": 160.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 10.0, "knockback": 12.0, "launch": 8.0,
 		"stop": 0.14, "shake": 0.55, "big": true, "hop": [0.12, 0.4, 1.1]},
-	# Light right out of a dash: long lunging stab.
+	# Light right out of a dash: long lunging stab, pouncing onto the foe
+	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
-		"stop": 0.07, "shake": 0.22},
+		"stop": 0.07, "shake": 0.22, "hop": [0.03, 0.3, 0.6]},
 	# Heavy right out of a dash: Cyclone, a spin that keeps travelling
 	# through the crowd (low lunge decay).
 	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 5.0, "range": 2.9, "arc": 360.0,

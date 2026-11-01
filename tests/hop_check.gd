@@ -1,5 +1,5 @@
 extends SceneTree
-## Move hops (player.MOVES `hop`), headless: L2 / L3 / CH leave the ground and land
+## Move hops (player.MOVES `hop`), headless: L2 / L3 / CH / DL leave the ground and land
 ## on their hit; L H rises and L H H, started at L H's cancel, comes down from
 ## that height onto its hit; L H L L holds the air (air slashes) and L3 slams
 ## down from it; back in MOVE the model settles to the floor.
@@ -15,11 +15,18 @@ func _initialize() -> void:
 	var p: CharacterBody3D = load("res://scripts/player.gd").new()
 	world.add_child(p)
 	await process_frame
-	for id: String in ["L2", "L3", "CH"]:
+	for id: String in ["L2", "L3", "CH", "DL"]:
 		p._start_attack(id)
 		var peak := await _run(p, p.MOVES[id].hits[0])
 		_check(peak > 0.5 and p.model.position.y < 0.1, "%s hops (peak %.2f) and lands on its hit (y %.2f)" % [id, peak, p.model.position.y])
 		await _settle(p)
+	# The neutral heavy whirls in the air through its hits, then lands.
+	p._start_attack("H")
+	var h_peak := await _run(p, p.MOVES.H.hits[1])
+	_check(h_peak > 0.5 and p.model.position.y > 0.4, "H whirls in the air (y %.2f at its 2nd hit)" % p.model.position.y)
+	await _run(p, p.MOVES.H.cancel)
+	_check(p.model.position.y < 0.1, "H lands by its cancel (y %.2f)" % p.model.position.y)
+	await _settle(p)
 	p._start_attack("LH")
 	var lh_peak := await _run(p, p.MOVES.LH.cancel)
 	var y0: float = p.model.position.y

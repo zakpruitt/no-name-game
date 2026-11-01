@@ -24,7 +24,7 @@ Pillar 1 is combat feel first. Zak described L L H as "axe, slam, jump in the ai
   - A move started in the air comes down by its first hit (or `land`); that's how L H rises and L H H drops onto the foe.
   - Landing from above 0.4 m is a slam: dust, a ring in the hero's colour and a shake (`_hop`).
   - Outside attacks, leaps and ultimates, the model settles back down, so a dash out of a hop doesn't snap.
-  - Current values: L2 0.6, L3 0.9, LH 1.5, CH 1.1.
+  - Current values: L2 0.6, L3 0.9, LH 1.5, CH 1.1, H 0.8 (whirl, lands after its hits), DL 0.6.
 - **Air moves.** `air: true` holds the height the move started at; `climb` rises that much more by the hit. Landing slams scale with the fall (`_land_slam`), and moves started in the air plunge for +15% damage per metre (`plunge_mult()`). The air string L H → AL1 → AL2 → L3 / LHH works this way. Any non-air move started in the air lands by its first hit.
 - **Travel.** `lunge` and `decay` set forward travel. A low `decay` keeps him moving, as in Cyclone.
 - **Enders.** Enders get extra hitstop and camera push per tier (`ENDER_HITSTOP` / `ENDER_ZOOM`), a second swoosh, and the camera `kick`.
