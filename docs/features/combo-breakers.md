@@ -340,4 +340,11 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
   `tests/prompt_follow_check.gd` (pinned at chest + `OFFSET`, follows him,
   ignores the leap height, clamped at the edges; it sets the headless root
   to 1280x720, since headless starts at 64x64). `agent.sh check` runs it.
-- The window size and dive speed haven't been played by hand yet.
+- Not played by hand yet (everything below is only checked headless):
+  breaker window sizes and dive speeds; the timing circle's spacing from
+  the hero (`breaker_prompt.OFFSET`); the air dash, juggle homing
+  (`AIR_HOME_*`) and the height cap (`AIR_MAX_HEIGHT`); plunge damage
+  (`PLUNGE_PER_M`); Flurry's weave and afterimages (afterimages don't
+  draw headless).
+- The autotest bot rarely uses L H H or the air string (its routes live in
+  `main.gd`), so those are covered only by `hop_check` / `breaker_check`.
