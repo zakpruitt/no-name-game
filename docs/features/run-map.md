@@ -35,6 +35,8 @@ Pause → **Map** shows the same map read-only.
 
   On clear, the normal power comes first, then "TRIAL COMPLETE" or "TRIAL FAILED". Meeting the condition offers up to 2 fusion cards (`Upgrades.roll_fusion`). If none can be offered, it falls back to a level-up roll, then to `main.TRIAL_BONES` (20).
 
+- **Unknown (?).** Shown as a question mark; revealed as you enter it (`RunMap.reveal`, rolled from `MYSTERY` with `run_rng`, dressed like any room), and the banner reads "ROOM 5 · UNKNOWN". The map node changes to what it became. It counts as fightless for the links, so whatever it turns out to be, the fightless rule holds.
+
 ## Files
 
 | File | Role |
@@ -85,6 +87,7 @@ Pause → **Map** shows the same map read-only.
 | `RunMap.BRANCH_CHANCE` | How many crossroads (0.45). |
 | `RunMap.UNLOCK_ROOM`, `PRE_BOSS_REST` | Plain fights at the start, and the rest before the boss. |
 | `RunMap.TRIALS` | Conditions; Swift's `time` and `per_room`; Stylish's `rank`. |
+| `RunMap.MYSTERY` | What an unknown room turns into (fight 20, elite 25, rest 12, shrine 13, vault 18, trial 12): it leans toward the rarer rooms. |
 | `RunMap.KINDS` | Name, map text and colour per kind. |
 | `main.TRIAL_SIZE`, `main.TRIAL_BONES` | Trial fight size; bones when no card can be offered. |
 | `map_screen.X0/X1/Y_MID/LANE_GAP/R` | Layout. |
@@ -105,7 +108,7 @@ Pause → **Map** shows the same map read-only.
 
 - `godot --headless --path . -s tests/map_check.gd` generates 500 seeds. It checks the shape, links, reachability, the fightless rule, the pre-boss rest, valid twists, paths and trials, and determinism, and prints how often each kind appeared. It also checks the screen on its own, headless: hover shows any room, hovering a choice focuses it, the pick walks before `chosen`, and the HUD comes back. It prints `[map] PASS` or `[map] FAIL`. Windowed, it saves `user://map_check.png`, four rooms in with a vault focused if one is offered.
 - `-- --autotest --tour` runs fight → rest → shrine → elite → vault (Light) → trial (Swift) → boss. PASS needs the vault to have offered only Light cards.
-- `--start-vault=<path>` and `--start-trial=<id>`, with `--pace` to stop at the first clear. The autotest prints `[autotest] trial=<id> met|failed fusions=<n>` and saves `autotest_map.png` and `autotest_vault_room.png`.
+- `--start-vault=<path>`, `--start-trial=<id>` and `--start-mystery` (prints `[autotest] unknown room N revealed as ...`; the autotest also takes an unknown room whenever the map offers one), with `--pace` to stop at the first clear. The autotest prints `[autotest] trial=<id> met|failed fusions=<n>` and saves `autotest_map.png` and `autotest_vault_room.png`.
 - `tests/menu_check.gd` saves `menu_intro.png` (the run's first map) and `menu_map.png`, the map mid-run.
 
 ## Gotchas / open questions

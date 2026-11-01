@@ -242,6 +242,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
         <div class="kind"><h3>Shrine</h3><p>Pick one trade, or walk on.</p><ul id="shrine"></ul></div>
         <div class="kind"><h3>Vault</h3><p id="vault-text"></p></div>
         <div class="kind"><h3>Trial</h3><p id="trial-text"></p><ul id="trials"></ul></div>
+        <div class="kind"><h3>Unknown</h3><p id="mystery-text"></p></div>
       </div>
       <div id="twists"></div>
       <h3>Rewards, bones and the Bone Altar</h3>
@@ -430,6 +431,9 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
   $("vault-text").innerHTML = "No fight. A gold chest lit in one path's colour: pick 1 of 3 powers of that path (fusions on it count), so you can route toward your build.";
   $("trial-text").innerHTML = pct(M.trial_size) + " of a fight with a condition. Clear it for the usual power; meet the condition for a fusion card too (else a level-up, else " +
     M.trial_bones + " bones):";
+  var mt = 0; Object.keys(M.mystery).forEach(function (k) { mt += M.mystery[k]; });
+  $("mystery-text").innerHTML = "A question mark on the map, revealed as you walk in: " + Object.keys(M.mystery).map(function (k) {
+    return M.kinds[k].name.toLowerCase() + " " + pct(M.mystery[k] / mt); }).join(", ") + ". It never sits next to a rest, shrine or vault, so any of them is fair.";
   $("trials").innerHTML = Object.keys(M.trials).map(function (k) { var t = M.trials[k];
     return "<li><b>" + esc(t.name) + "</b>: " + esc(fill(t.desc, {time: t.time ? "(" + n(t.time) + " + " + n(t.per_room) + " × room)" : "", rank: t.rank || ""})) + "</li>"; }).join("");
   $("elite-text").innerHTML = "The same mix with several elites and an elite twist (two twists late in the run). Reward: " + R.elite_rewards + " powers.";

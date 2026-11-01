@@ -22,6 +22,9 @@ const PRE_BOSS_REST := true
 ##   shrine one trade
 ##   vault  pick 1 of 3 powers of the vault's path (its colour on the map)
 ##   trial  a smaller fight with a condition (TRIALS); meet it for a fusion
+##   mystery  unknown until entered: rolled from MYSTERY then (`reveal`). It
+##          counts as fightless for the links, so whatever it turns out to
+##          be never breaks the fightless rule.
 ##   boss   the Bone Warden
 const KINDS := {
 	"fight": {"name": "Fight", "text": "skeletons, 1 power", "color": Color(0.82, 0.8, 0.78)},
@@ -30,10 +33,14 @@ const KINDS := {
 	"shrine": {"name": "Shrine", "text": "a trade, no fight", "color": Color(0.85, 0.72, 0.95), "fightless": true},
 	"vault": {"name": "Vault", "text": "choose 1 of 3 %s powers", "fightless": true},
 	"trial": {"name": "Trial", "text": "%s: a fusion", "color": Color(1.0, 0.93, 0.6)},
+	"mystery": {"name": "Unknown", "text": "revealed when you enter", "color": Color(0.55, 0.78, 0.82), "fightless": true},
 	"boss": {"name": "Boss", "text": "the Bone Warden", "color": Color(0.85, 0.15, 0.12)},
 }
 ## Odds of each kind for rooms from UNLOCK_ROOM on (relative weights).
-const WEIGHTS := {"fight": 32, "elite": 18, "rest": 10, "shrine": 9, "vault": 22, "trial": 12}
+const WEIGHTS := {"fight": 32, "elite": 18, "rest": 10, "shrine": 9, "vault": 22, "trial": 12, "mystery": 10}
+## What an unknown room turns out to be (relative weights): a gamble that
+## leans toward the rarer rooms.
+const MYSTERY := {"fight": 20, "elite": 25, "rest": 12, "shrine": 13, "vault": 18, "trial": 12}
 ## Trial conditions. `time`: Swift's limit is time + per_room * room (s).
 const TRIALS := {
 	"untouched": {"name": "Untouched", "desc": "clear without being hit"},
@@ -140,6 +147,21 @@ static func _dress(node: Dictionary, room: int, twist_ids: Array, double_twist_r
 			node.path = Upgrades.PATHS.keys()[rng.randi() % Upgrades.PATHS.size()]
 		"trial":
 			node.trial = TRIALS.keys()[rng.randi() % TRIALS.size()]
+
+
+## Turn an unknown room into a real one (rolled from MYSTERY with `rng`)
+## when the player enters it, dressed like any other; room number `room`.
+static func reveal(node: Dictionary, room: int, twist_ids: Array, double_twist_room: int, rng: RandomNumberGenerator) -> void:
+	var total := 0
+	for kind: String in MYSTERY:
+		total += MYSTERY[kind]
+	var roll := rng.randi() % total
+	for kind: String in MYSTERY:
+		roll -= MYSTERY[kind]
+		if roll < 0:
+			node.kind = kind
+			break
+	_dress(node, room, twist_ids, double_twist_room, rng)
 
 
 ## Nodes of column `c - 1` that link to `lane` in column `c`.

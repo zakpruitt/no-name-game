@@ -65,7 +65,7 @@ func _initialize() -> void:
 		"mastery_need": Upgrades.MASTERY_NEED,
 		"fusion_chance": Upgrades.FUSION_CHANCE,
 		"map": {
-			"lanes": RunMap.LANES, "weights": RunMap.WEIGHTS, "kinds": _colors_to_hex(RunMap.KINDS), "trials": RunMap.TRIALS,
+			"lanes": RunMap.LANES, "weights": RunMap.WEIGHTS, "kinds": _colors_to_hex(RunMap.KINDS), "trials": RunMap.TRIALS, "mystery": RunMap.MYSTERY,
 			"unlock_room": RunMap.UNLOCK_ROOM, "trial_size": main_s.TRIAL_SIZE, "trial_bones": main_s.TRIAL_BONES,
 		},
 		"twists": main_s.ELITE_TWISTS,

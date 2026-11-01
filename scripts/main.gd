@@ -241,6 +241,7 @@ var _autotest := false
 var _autotest_t := 0.0
 var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
 var _bot_next_charge := 3.0
+var _revealed := false  # the room was an unknown one (its banner says so)
 var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
 var _charge_shot_taken := false
 var _hint_shot_taken := false
@@ -412,6 +413,8 @@ func _ready() -> void:
 		elif arg.begins_with("--start-trial="):  # a trial with that condition
 			room_kind = "trial"
 			room_trial = arg.get_slice("=", 1)
+		elif arg == "--start-mystery":  # an unknown room, revealed on entry
+			room_kind = "mystery"
 	if not _autotest and not Game.skip_title:
 		var title := TITLE.new()
 		add_child(title)
@@ -452,6 +455,8 @@ func _start_map() -> void:
 		node.path = room_path
 		node.trial = room_trial
 	map_route.assign([Vector2i(col, node.lane)])
+	if node.kind == "mystery":
+		_reveal(node, col + 1)
 	_enter_node(node)
 
 
@@ -475,7 +480,8 @@ func _next_room() -> void:
 		if _vow_twist not in room_twists:
 			room_twists.append(_vow_twist)
 		_vow_twist = ""
-	hud.set_room(room, RUN_LENGTH, room_kind, _room_tag())
+	hud.set_room(room, RUN_LENGTH, room_kind, _room_tag(), _revealed)
+	_revealed = false
 	hud.set_route(map_route.map(func(at: Vector2i) -> Color:
 		var node := RunMap.node_at(run_map, at)
 		return RunMap.color(node) if not node.is_empty() else Color.WHITE), RUN_LENGTH)
@@ -745,7 +751,17 @@ func _choose_path() -> void:
 		index = await map_menu.chosen
 	var node: Dictionary = options[index]
 	map_route.append(Vector2i(map_route[-1].x + 1, node.lane))
+	if node.kind == "mystery":
+		_reveal(node, room + 1)
 	_enter_node(node)
+
+
+## An unknown room on the map becomes a real one as the hero enters it.
+func _reveal(node: Dictionary, at_room: int) -> void:
+	RunMap.reveal(node, at_room, ELITE_TWISTS.keys(), DOUBLE_TWIST_ROOM, run_rng)
+	_revealed = true
+	if _autotest:
+		print("[autotest] unknown room %d revealed as %s" % [at_room, node.kind])
 
 
 ## The map, read-only (the pause menu's Map button).
@@ -1453,7 +1469,12 @@ func _autotest_shrine(rot: String) -> void:
 func _autotest_path() -> void:
 	await get_tree().create_timer(0.5).timeout
 	_snap("user://autotest_map.png")
-	map_menu.pick(0)
+	# Take an unknown room when there is one, so the reveal gets exercised.
+	var pick := 0
+	for i in map_menu._choices.size():
+		if map_menu._choices[i].kind == "mystery":
+			pick = i
+	map_menu.pick(pick)
 
 
 func _snap(path: String) -> void:

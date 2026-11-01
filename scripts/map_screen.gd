@@ -20,7 +20,7 @@ const AHEAD := Color(1, 1, 1, 0.34)  # links on the routes the focused room lead
 const OFF_ROUTE := 0.32  # alpha of rooms the focused room can't reach
 const MOVE_TIME := 0.35  # the marker's walk to the picked room (s)
 ## Legend order along the bottom.
-const LEGEND := ["fight", "elite", "rest", "shrine", "vault", "trial", "boss"]
+const LEGEND := ["fight", "elite", "rest", "shrine", "vault", "trial", "mystery", "boss"]
 const LEGEND_VAULT := Color(0.95, 0.78, 0.4)  # vaults wear their path's colour on the map
 
 var _map: Array = []

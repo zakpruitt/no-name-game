@@ -257,22 +257,24 @@ func set_upgrades(owned: Dictionary) -> void:
 			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.35) 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## `twist`: the elite room's twist name ("" for none).
-func set_room(n: int, total: int, kind: String, twist := "") -> void:
+## `twist`: the elite room's twist name ("" for none). `revealed`: it was an
+## unknown room on the map, so the banner says so.
+func set_room(n: int, total: int, kind: String, twist := "", revealed := false) -> void:
+	var head := "ROOM %d%s" % [n, "  ·  UNKNOWN" if revealed else ""]
 	_room_text = "ROOM %d / %d" % [n, total]
 	if twist != "":
 		_room_text += "   ·   " + twist.to_upper()
 	wave_label.text = _room_text
 	if kind == "elite":
-		flash_message("ROOM %d\nELITES%s" % [n, ("  ·  " + twist.to_upper()) if twist != "" else ""], 1.4)
+		flash_message("%s\nELITES%s" % [head, ("  ·  " + twist.to_upper()) if twist != "" else ""], 1.4)
 	elif kind == "rest":
-		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
+		flash_message("%s\nA MOMENT'S REST" % head, 1.8)
 	elif kind == "shrine":
-		flash_message("ROOM %d\nA QUIET SHRINE" % n, 1.8)
+		flash_message("%s\nA QUIET SHRINE" % head, 1.8)
 	elif kind == "vault" or kind == "trial":
-		flash_message("ROOM %d\n%s" % [n, twist], 1.8)
+		flash_message("%s\n%s" % [head, twist], 1.8)
 	elif kind != "boss":  # the boss announces itself
-		flash_message("ROOM %d" % n, 1.2)
+		flash_message(head, 1.2)
 
 
 ## The run so far: `colors` holds the map colour of each room taken (the

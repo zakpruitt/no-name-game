@@ -72,6 +72,15 @@ func _check_map(RM: GDScript, map: Array, length: int, twists: Array, i: int, se
 					_check(Upgrades.PATHS.has(n.path), "%s: vault path %s" % [tag, n.path])
 				"trial":
 					_check(RM.TRIALS.has(n.trial), "%s: trial %s" % [tag, n.trial])
+				"mystery":
+					# Reveal a copy: a real, dressed room (the map itself stays unknown).
+					var r: Dictionary = n.duplicate(true)
+					var rr := RandomNumberGenerator.new()
+					rr.seed = i * 31 + c
+					RM.reveal(r, c + 1, twists, 5, rr)
+					_check(RM.MYSTERY.has(r.kind), "%s: unknown room revealed as %s" % [tag, r.kind])
+					_check((r.kind != "vault" or Upgrades.PATHS.has(r.path)) and (r.kind != "trial" or RM.TRIALS.has(r.trial))
+						and (r.kind != "elite" or not r.twists.is_empty()), "%s: revealed %s is dressed" % [tag, r.kind])
 	_check(pre_boss_rest or not RM.PRE_BOSS_REST, "%s: a rest before the boss" % tag)
 	# Every room reachable from the start (links only go forward, so this
 	# plus "a way out" everywhere means every room also reaches the boss).
