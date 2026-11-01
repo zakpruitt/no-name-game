@@ -16,7 +16,7 @@ that continues the string.
 
 Each row has three parts:
 
-- **The button.** A pill-shaped key showing LMB (light), RMB (heavy) or SPACE (dash). Its rim takes the input's colour from `KIND_COLORS`. The dash row also carries a small LMB key, because a dash only becomes a Dash Stab when light follows it.
+- **The button.** A pill-shaped key showing LMB (light), RMB (heavy) or SPACE (dash). Its rim takes the input's path colour from `Upgrades.PATHS`, the same colour as that button's powers (see [powers.md](powers.md)). The dash row also carries a small LMB key, because a dash only becomes a Dash Stab when light follows it.
 - **The move that press starts.** The text takes the combo tier's colour from `player.COMBO_TIER_COLORS`. Moves that aren't named combos (L1, L2, H) are pale grey. Ultimates (SKY, RUSH and the AF finisher) use the element's colour and glow on a pulse.
 - **The follow-up hint.** After a `>`, in smaller type: the best named combo one more press past that move, with its button.
 
@@ -102,7 +102,7 @@ Routing rules in `route()`, checked in order:
 | `ROW_H`, `ROW_GAP`, `GLYPH_H`, `SMALL_GLYPH_H` | Size of the layout (px, in the 1600x900 viewport space). |
 | `NAME_SIZE`, `NEXT_SIZE`, `KEY_SIZE` | Font sizes. |
 | `SIDE_GAP`, `CHEST`, `EDGE` | Where the rows sit next to the hero, and when they flip. |
-| `PLAIN_COLOR`, `BACK_COLOR`, `KIND_COLORS` | Colours: plain moves, row backing, key rims. |
+| `PLAIN_COLOR`, `BACK_COLOR` | Colours: plain moves, row backing. Key rims come from `Upgrades.PATHS[kind].color`. |
 | `LABELS` | Button text. Only one control set (mouse and keyboard) is shown; the J/K/Shift and gamepad bindings in `Game` still work but appear nowhere in the UI. |
 | `lit` in `_draw_row` | Brightness of the rows before the cancel window (0.78). |
 | `player.input_buffer` | Also sets when the rows turn "ready". |
@@ -116,7 +116,7 @@ Routing rules in `route()`, checked in order:
   3. Nothing in the guide needs to change. Run `tests/guide_check.gd`, and add the new move to its `FROM` list if it can be started directly.
 - **Non-combo move:** give it a name in `MOVE_NAMES`, or the guide shows its raw id.
 - **New input kind** (for example a special button):
-  1. Add the action to `ACTIONS`, `LABELS` and `KIND_COLORS`.
+  1. Add the action to `ACTIONS` and `LABELS`, and give it a path in `Upgrades.PATHS` (its colour).
   2. Add a row for it in `combo_options()`, and add it to the lookahead loop in `_option()`.
   3. Extend `route()` to accept the new kind.
 - **Gamepad glyphs again:** an earlier version (`133ec7d`) tracked the last-used device in `_input` and kept a separate label set for each device. Zak asked for a single control set, so that version was removed. Restore it from that commit if it's wanted again.

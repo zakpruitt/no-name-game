@@ -27,7 +27,6 @@ const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
 const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.74)
 ## Button text: mouse and keyboard, the one control set shown in the game.
 const LABELS := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
-const KIND_COLORS := {"light": Color(0.35, 0.62, 1.0), "heavy": Color(1.0, 0.78, 0.2), "dash": Color(0.35, 0.88, 0.45)}
 const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash"}
 
 var player: Node3D
@@ -247,7 +246,7 @@ func _glyph(c: Vector2, kind: String, h: float, alpha: float) -> void:
 	var size := int(KEY_SIZE * h / GLYPH_H)
 	var w := maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + h * 0.6)
 	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
-	var kc: Color = KIND_COLORS[kind]
+	var kc: Color = Upgrades.PATHS[kind].color  # the same colour as that path's powers
 	_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, alpha))

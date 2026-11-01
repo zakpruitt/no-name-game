@@ -7,7 +7,7 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
-const POWER_LINES := 14  # powers listed at full size before the list shrinks
+const POWER_ICON := 44.0  # px, the owned-power icons bottom right
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
 uniform float strength = 0.0;
@@ -31,7 +31,7 @@ var ult_label: Label
 var ult_sub: Label
 var ult_flash: ColorRect
 var _ult_tw: Tween
-var upgrades_label: Label
+var power_strip: HFlowContainer  # owned powers as icons, by path
 var _room_text := ""
 var hint_label: Label
 var bones_label: Label
@@ -117,10 +117,15 @@ func _ready() -> void:
 	_label(root, "WASD move   LMB light   RMB heavy   Space dash   Q awaken   Esc pause", 16, Color(1, 1, 1, 0.5)) \
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
 
-	upgrades_label = _label(root, "", 16, Color(1.0, 0.8, 0.5))
-	_anchor(upgrades_label, 1.0, 1.0, Rect2(-420, -440, 396, 416))
-	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	power_strip = HFlowContainer.new()
+	power_strip.alignment = FlowContainer.ALIGNMENT_END
+	power_strip.last_wrap_alignment = FlowContainer.LAST_WRAP_ALIGNMENT_END
+	power_strip.reverse_fill = true  # rows stack upward from the bottom edge
+	power_strip.add_theme_constant_override("h_separation", 4)
+	power_strip.add_theme_constant_override("v_separation", 6)
+	power_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(power_strip)
+	_anchor(power_strip, 1.0, 1.0, Rect2(-420, -440, 396, 412))
 
 	# Hint: a soft dark panel sized to the text, bottom center.
 	hint_panel = PanelContainer.new()
@@ -215,15 +220,29 @@ func set_remaining(count: int) -> void:
 	wave_label.text = _room_text + ("   ·   %d LEFT" % count if count > 0 else "")
 
 
-## `owned` maps upgrade id -> level.
+## `owned` maps upgrade id -> level: one icon per power with level pips,
+## in path order (Upgrades.PATHS, fusions last). A new icon pops in.
 func set_upgrades(owned: Dictionary) -> void:
-	var lines: Array[String] = []
-	for id in owned:
-		var u := Upgrades.get_by_id(id)
-		lines.append("%s%s  [%s]" % [u.name, Upgrades.level_tag(owned[id]), u.slot])
-	upgrades_label.text = "\n".join(lines)
-	# Long builds shrink so the list stays inside its box above the screen edge.
-	upgrades_label.add_theme_font_size_override("font_size", 16 if lines.size() <= POWER_LINES else 13)
+	var had := {}
+	for icon: PowerIcon in power_strip.get_children():
+		had[icon.id] = icon.level
+		power_strip.remove_child(icon)
+		icon.queue_free()
+	var order: Array = Upgrades.PATHS.keys()
+	var ids: Array = owned.keys()
+	ids.sort_custom(func(a: String, b: String) -> bool:
+		var ua := Upgrades.get_by_id(a)
+		var ub := Upgrades.get_by_id(b)
+		var ka := order.find(ua.path) + (10 if ua.has("fusion") else 0)
+		var kb := order.find(ub.path) + (10 if ub.has("fusion") else 0)
+		return ka < kb if ka != kb else Upgrades.ALL.find(ua) < Upgrades.ALL.find(ub))
+	for id: String in ids:
+		var icon := PowerIcon.make(id, POWER_ICON, owned[id])
+		power_strip.add_child(icon)
+		if had.get(id, 0) != owned[id]:
+			icon.pivot_offset = Vector2.ONE * POWER_ICON * 0.5
+			icon.scale = Vector2.ONE * 1.7
+			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.35) 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## `twist`: the elite room's twist name ("" for none).

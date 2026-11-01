@@ -13,6 +13,7 @@ invariants and the gotchas.
 | Feature | Doc | Main code |
 |---|---|---|
 | Combo guide (next-input hints beside the hero) | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `player.route()` |
+| Powers: paths, masteries, fusions, icons | [powers.md](powers.md) | `scripts/upgrades.gd`, `scripts/power_icon.gd`, `reward_screen.gd` |
 
 ## Writing one
 
