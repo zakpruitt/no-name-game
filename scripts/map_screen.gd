@@ -406,6 +406,9 @@ func _show_room(n: Dictionary, room: int) -> void:
 		text += "\nIn the vault: " + vault_pool(n.path)
 	if n.kind == "trial":
 		text += "\n" + trial_payout()
+	if n.kind == "mystery":
+		text += "
+Could be: " + RunMap.mystery_odds()
 	if n.kind == "rest" and rest_text() != "":
 		text += "\n" + rest_text()
 	if _notes.has(n.kind):

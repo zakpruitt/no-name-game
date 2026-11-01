@@ -192,6 +192,17 @@ static func node_at(cols: Array, at: Vector2i) -> Dictionary:
 
 
 ## The nodes the player can pick after standing on `at`.
+## An unknown room's odds, likeliest first ("Elite 25%  ·  Fight 20%  ·  ...").
+static func mystery_odds() -> String:
+	var total := 0
+	for k: String in MYSTERY:
+		total += MYSTERY[k]
+	var kinds: Array = MYSTERY.keys()
+	kinds.sort_custom(func(a: String, b: String) -> bool: return MYSTERY[a] > MYSTERY[b])
+	return "  ·  ".join(kinds.map(func(k: String) -> String:
+		return "%s %d%%" % [KINDS[k].name, roundi(100.0 * MYSTERY[k] / total)]))
+
+
 ## Fewest and most sure powers (POWERS) from room `at` (counted) to the
 ## boss (not counted), over every route on: Vector2i(least, most).
 static func power_range(cols: Array, at: Vector2i) -> Vector2i:

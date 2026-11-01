@@ -128,6 +128,7 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 		[{"kind": "boss", "lane": 0, "next": []}]]
 	_check(RM.power_range(tiny, Vector2i(0, 0)) == Vector2i(1, 3), "power range spans the routes (1–3)")
 	_check(RM.power_range(tiny, Vector2i(1, 1)) == Vector2i.ZERO, "a rest before the boss gives none")
+	_check(RM.mystery_odds().begins_with("Elite 25%"), "unknown rooms list their odds, likeliest first")
 	# A long detail lifts the panel instead of running off the screen.
 	screen.set_notes({"vault": "a long line ".repeat(30)})
 	screen._show_room({"kind": "vault", "lane": 0, "next": [], "twists": [], "path": "light", "trial": ""}, 3)
