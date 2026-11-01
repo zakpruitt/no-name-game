@@ -802,6 +802,15 @@ func _map_notes() -> Dictionary:
 	}
 
 
+## The named combo landed most this run ("Flurry ×12"), or "none".
+func _signature_combo() -> String:
+	var best := ""
+	for id: String in player.combos_landed:
+		if best == "" or player.combos_landed[id] > player.combos_landed[best]:
+			best = id
+	return "%s ×%d" % [player.combo_name(best), player.combos_landed[best]] if best != "" else "none"
+
+
 ## Twist names or descs joined for the door / room title ("" for none).
 static func _twist_text(ids: Array, field: String, sep: String) -> String:
 	return sep.join(ids.map(func(id: String) -> String: return ELITE_TWISTS[id][field]))
@@ -1088,6 +1097,7 @@ func _end_run(victory: bool) -> void:
 		"Enemies slain": _kills,
 		"Best combo": _max_combo,
 		"Combos found": "%d / %d" % [player.combos_landed.size(), player.COMBOS.size()],
+		"Signature combo": _signature_combo(),
 		"Best style rank": _best_rank,
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
