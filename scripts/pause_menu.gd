@@ -128,6 +128,11 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 	row.add_child(text)
 	var head := _label(text, "%s%s" % [u.name, Upgrades.level_tag(level)], 19, color.lightened(0.35))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	# How often it has fired this run (player.power_procs), so a quiet power shows.
+	var player := get_tree().get_first_node_in_group("player")
+	var fired: int = player.power_procs.get(id, 0) if player != null else 0
+	if fired > 0:
+		head.text += "   ×%d this run" % fired
 	var desc := RichTextLabel.new()
 	desc.bbcode_enabled = true
 	desc.fit_content = true
@@ -138,7 +143,6 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 	desc.add_theme_color_override("default_color", Color(0.85, 0.82, 0.92))
 	desc.text = Upgrades.describe(u, level, synergies, color.lightened(0.3))
 	text.add_child(desc)
-	var player := get_tree().get_first_node_in_group("player")
 	var combo := Upgrades.combo_of(u)
 	if player != null and player.COMBOS.has(combo):
 		var how := _label(text, "%s:  %s" % [player.combo_name(combo), player.COMBOS[combo].input], 13, Color(1, 1, 1, 0.5))
