@@ -241,6 +241,7 @@ var _autotest := false
 var _autotest_t := 0.0
 var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
 var _bot_next_charge := 3.0
+var _bot_next_spin := 2.0  # when the bot next spins from neutral (Whirlwind)
 var _trial_combos := {}  # named combos landed this trial room (Showman)
 var _trial_callouts := 0  # player.callouts when last looked at
 var _revealed := false  # the room was an unknown one (its banner says so)
@@ -1641,6 +1642,13 @@ func _drive_bot() -> void:
 		Input.action_press("attack_heavy")  # finish into the ultimate even if the hit knocked the target away
 		return
 	if nd < 3.0:
+		# Now and then a Spin from neutral (Whirlwind's move): hold off until
+		# the string resets, then heavy.
+		if not player.awakened and _autotest_t >= _bot_next_spin and player.state == player.State.MOVE:
+			if player._chain_i == 0 and player._post_dash_t <= 0.0:
+				Input.action_press("attack_heavy")
+				_bot_next_spin = _autotest_t + 4.0
+			return
 		# Cycle through routes: L H (launch), L L H (ground breaker), L L L.
 		var step := (f / 9) % 8
 		var heavy: bool = step in [1, 4]
