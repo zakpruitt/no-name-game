@@ -20,6 +20,8 @@ const AHEAD := Color(1, 1, 1, 0.34)  # links on the routes the focused room lead
 const OFF_ROUTE := 0.32  # alpha of rooms the focused room can't reach
 const MOVE_TIME := 0.35  # the marker's walk to the picked room (s)
 const LOW_HP := 0.4  # below this share of max HP the status line turns red
+const DETAIL_Y := 655.0  # the detail panel's top, unless it's tall enough to need lifting
+const DETAIL_BOTTOM := 885.0  # its lowest edge (the screen is 900 high)
 ## Legend order along the bottom.
 const LEGEND := ["fight", "elite", "rest", "shrine", "vault", "trial", "mystery", "boss"]
 const LEGEND_VAULT := Color(0.95, 0.78, 0.4)  # vaults wear their path's colour on the map
@@ -338,9 +340,13 @@ func _build() -> void:
 	s.set_corner_radius_all(10)
 	s.set_content_margin_all(14)
 	_detail.add_theme_stylebox_override("panel", s)
-	_detail.position = Vector2(400, 655)
+	_detail.position = Vector2(400, DETAIL_Y)
 	_detail.custom_minimum_size = Vector2(800, 0)
 	_root.add_child(_detail)
+	# Fit the panel to its lines, lifting it when they'd run off the bottom.
+	_detail.minimum_size_changed.connect(func() -> void:
+		_detail.reset_size()
+		_detail.position.y = minf(DETAIL_Y, DETAIL_BOTTOM - _detail.size.y))
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	_detail.add_child(col)

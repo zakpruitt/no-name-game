@@ -120,6 +120,15 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	screen.set_status(30.0, 100.0, 12, 2, 0.4)
 	_check(screen._status.text.begins_with("HP 30 / 100") and screen._status.get_theme_color("font_color").r > 0.9
 		and screen._status.get_theme_color("font_color").g < 0.6, "low HP shows red on the map")
+	# A long detail lifts the panel instead of running off the screen.
+	screen.set_notes({"vault": "a long line ".repeat(30)})
+	screen._show_room({"kind": "vault", "lane": 0, "next": [], "twists": [], "path": "light", "trial": ""}, 3)
+	await process_frame
+	_check(screen._detail.get_rect().end.y <= screen.DETAIL_BOTTOM + 0.5, "a tall detail panel stays on screen")
+	screen.set_notes({})
+	screen._show_room({"kind": "fight", "lane": 0, "next": [], "twists": [], "path": "", "trial": ""}, 3)
+	await process_frame
+	_check(is_equal_approx(screen._detail.position.y, screen.DETAIL_Y), "a short detail panel sits at its usual spot")
 	screen.set_notes({"shrine": "SHRINE NOTE"})
 	var shrine_node := {"kind": "shrine", "lane": 0, "next": [], "twists": [], "path": "", "trial": ""}
 	screen._show_room(shrine_node, 3)
