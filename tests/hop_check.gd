@@ -92,6 +92,11 @@ func _initialize() -> void:
 	_check(p.dash_light() == "AL1", "the guide's dash row off L H is the air slash (%s)" % p.dash_light())
 	p._start_dash()
 	_check(p._air_dash, "a dash out of L H in the air is an air dash")
+	var cut: Node3D = null
+	for n in p.get_children():
+		if n.get_script() and str(n.get_script().resource_path).contains("spirit_echo"):
+			cut = n
+	_check(cut != null and cut.position.y > 1.0, "it cuts with a spectral axe up at his height")
 	var dlow := 99.0
 	for i in 120:
 		await physics_frame

@@ -122,6 +122,10 @@ back to L1:
   when the model is back on the floor), and `climb` stops at
   `AIR_MAX_HEIGHT` (2.8 m, plus the 0.15 m bob), so a dash-and-slash loop
   can't keep him up or lift him forever.
+- The air dash leaves no floor smear. A giant spectral axe (`spirit_echo`,
+  `AIR_DASH_CUT`) rides with him at his height instead, sweeping 150
+  degrees round the dash direction and nicking what it passes (3 damage,
+  grows with the chain: `_air_dash_cut`).
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.

@@ -314,6 +314,9 @@ const AIR_DASH_MIN := 0.6
 # AIR_MAX_HEIGHT, so dash-slash loops can't keep him up or lift him forever.
 const AIR_DASHES := 1
 const AIR_MAX_HEIGHT := 2.8
+# The air dash's cut: a giant spectral axe (spirit_echo) rides with him at his
+# height and sweeps through the dash, nicking what it passes.
+const AIR_DASH_CUT := {"damage": 3.0, "radius": 3.0, "arc": 150.0, "time": 0.16}
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -1184,6 +1187,21 @@ func _route_from() -> String:
 	return "AD" if _air_dash and (state == State.DASH or (state == State.MOVE and _post_dash_t > 0.0)) else _move_id
 
 
+## The air dash's spectral axe (AIR_DASH_CUT): a spirit_echo parented to the
+## hero at the model's height, so it travels with the dash, sweeping round
+## the dash direction. Grows with the chain like the casts.
+func _air_dash_cut() -> void:
+	var c: Dictionary = AIR_DASH_CUT
+	var echo = _spirit(SPIRIT_ECHO.new(), c, element())
+	echo.fwd = _dash_dir
+	echo.arc_deg = c.arc
+	echo.radius = c.radius * _cast_grow()
+	echo.delay = 0.0
+	echo.time = c.time
+	add_child(echo)
+	echo.position = Vector3(0.0, model.position.y, 0.0)
+
+
 ## Whether a dash now would be an air dash (AIR_DASH_*).
 func _can_air_dash() -> bool:
 	return _move_id in AIR_DASH_FROM and model.position.y >= AIR_DASH_MIN and _air_dashes < AIR_DASHES
@@ -1388,8 +1406,11 @@ func _start_dash() -> void:
 	_set_state(State.DASH)
 	_ghost_t = 0.0
 	_play("Dodge_Forward", 0.04, true)
-	Fx.dust(get_parent(), global_position, 8)
-	Fx.dash_streak(get_parent(), global_position, _dash_dir, dash_speed * dash_time + 0.8, Color(_fx_color(), 0.8))
+	if _air_dash:
+		_air_dash_cut()
+	else:
+		Fx.dust(get_parent(), global_position, 8)
+		Fx.dash_streak(get_parent(), global_position, _dash_dir, dash_speed * dash_time + 0.8, Color(_fx_color(), 0.8))
 	Game.sfx("dash", -4.0)
 
 
