@@ -29,10 +29,47 @@ func _initialize() -> void:
 		await _case("early", b.open - 0.15, false, false)
 		await _case("none", -1.0, false, false)
 		await _case("awakened", b.sweet, true, true, true)
+		await _dash_out()
 	await _trigger(true)
 	await _trigger(false)
 	print("[breaker] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
+
+
+## Dash during the hang (in the slow-motion window, Awakened so the dive
+## breakers' ancestor is up): the breaker is off, its pieces go, full speed
+## comes back and he dashes.
+func _dash_out() -> void:
+	var world := Node3D.new()
+	get_root().add_child(world)
+	var p: CharacterBody3D = load("res://scripts/player.gd").new()
+	world.add_child(p)
+	var foe := Dummy.new()
+	foe.add_to_group("enemies")
+	world.add_child(foe)
+	foe.global_position = Vector3(0.5, 0.0, 3.0)
+	await process_frame
+	p._set_awakened(true)
+	p._start_leap(_id)
+	var b: Dictionary = p.BREAKERS[_id]
+	for i in 600:
+		if p._state_t >= b.open + 0.03:
+			break
+		await physics_frame
+	var slowed := Engine.time_scale < 0.99
+	Input.action_press("dash")
+	await physics_frame
+	Input.action_release("dash")
+	await physics_frame
+	var ok: bool = p.state == p.State.DASH and Engine.time_scale > 0.99 and not is_instance_valid(p._brk_ancestor) 		and p._brk_volley.is_empty() and p.breaker_window().get("ended", "") == "miss"
+	ok = ok and slowed
+	print("[breaker] %s dash out of the hang %s: state %s, time %.2f (slowed before: %s)" % [_id, "ok" if ok else "FAIL",
+		p.State.keys()[p.state], Engine.time_scale, slowed])
+	if not ok:
+		fails += 1
+	get_root().get_node("Game").end_slowmo()
+	world.queue_free()
+	await process_frame
 
 
 ## Leap, press heavy `press_at` s after take-off (-1 never); expect a dive

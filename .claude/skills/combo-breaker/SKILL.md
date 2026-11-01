@@ -18,7 +18,8 @@ Read `docs/features/combo-breakers.md` first. It has the full design, files, inv
   - near `sweet` (within `perfect`) is a PERFECT: ×`perfect_mult`, a freeze-frame and more Awakening,
   - inside the window, but not near `sweet`, is a normal hit,
   - too early locks the breaker out,
-  - no press floats him down.
+  - no press floats him down,
+  - a dash before the press calls it off (`_leap_dash_out`). A new kind that spawns pieces must clean them up there too.
 - The combo guide shows nothing during a leap. Keep the two prompts separate.
 
 ## Kinds (keys on the `BREAKERS` entry)

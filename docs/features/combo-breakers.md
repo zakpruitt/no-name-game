@@ -21,6 +21,12 @@ The first one hangs off **L L H (Ground Breaker)**:
    **PERFECT**: more damage, more Awakening, a gold callout.
 5. Pressing too early **locks it out** (the cue greys), and with no press he
    floats back down. Either way the spikes fade and nothing more happens.
+6. Dash cancels anything, the hang included: a dash before the press calls
+   the breaker off (`_leap_dash_out`: hovering axes cancelled, ancestor,
+   cue and sawblade removed, slow motion ended; the prompt shows a miss)
+   and he dashes away. Once the dive starts it's committed. The autotest
+   bot is exempt (`bot_enabled`), so its dodges don't cancel the breakers
+   it's there to exercise.
 
 He is untouchable while airborne.
 
@@ -293,7 +299,9 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
 
 - `godot --headless --path . -s tests/breaker_check.gd`: four cases (perfect,
   late, early lockout, no press) for every `BREAKERS` entry against a dummy,
-  PASS/FAIL. It also checks that `breaker_window()` is live inside the
+  PASS/FAIL, plus a dash out of the hang for each (Awakened, in the
+  slowed window: state DASH, full speed back, ancestor and volley gone,
+  ended = miss). It also checks that `breaker_window()` is live inside the
   window while the combo guide shows nothing, that each case ends the right
   way (perfect, hit, lock or miss), that the window plays in slow motion, and that full speed returns afterwards. A fifth case per breaker
   is a perfect press while Awakened (via `_set_awakened()`): the dive

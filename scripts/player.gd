@@ -826,6 +826,12 @@ func _state_leap(delta: float) -> void:
 	_invuln_t = maxf(_invuln_t, 0.12)  # airborne: untouchable
 	velocity.x = 0.0
 	velocity.z = 0.0
+	# Dash cancels anything, a breaker's hang included. (Not for the autotest
+	# bot: its dodge presses would throw away the breakers it's there to test;
+	# he's untouchable in the hang anyway.)
+	if _brk_phase == 0 and _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and not bot_enabled:
+		_leap_dash_out()
+		return
 	if _brk_phase == 0:
 		if t < b.rise:  # hop back (forward if `back` < 0) while rising
 			var k: float = t / b.rise
@@ -1167,6 +1173,30 @@ func _breaker_callout(text: String, perfect: bool) -> void:
 	_callout_tw.parallel().tween_property(_callout, "position:y", 3.3, 0.7).set_ease(Tween.EASE_OUT)
 	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.5)
 	_callout_tw.tween_callback(_callout.hide)
+
+
+## Dash out of a breaker's hang (before the press): the breaker is off, its
+## pieces go (hovering axes, ancestor, floor cue, sawblade), the slow motion
+## ends and he dashes. The prompt shows it as a miss.
+func _leap_dash_out() -> void:
+	_brk_ended = "miss"
+	for g in _brk_volley:
+		if is_instance_valid(g):
+			g.cancel()
+	_brk_volley.clear()
+	if is_instance_valid(_brk_ancestor):
+		_brk_ancestor.queue_free()
+	if is_instance_valid(_brk_cue):
+		_brk_cue.queue_free()
+	if _brk_focus:
+		Game.end_slowmo()
+	_drop_wheel()
+	velocity = Vector3.ZERO
+	_brk_spikes.clear()
+	_brk_cue = null
+	_chain_i = 0
+	_set_state(State.MOVE)  # (the model settles from the hang during the dash)
+	_start_dash()
 
 
 func _end_leap() -> void:
