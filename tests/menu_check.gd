@@ -1,5 +1,5 @@
 extends SceneTree
-## Boots to the title screen, starts a run, opens the pause menu and its
+## Boots to the title screen, starts a run (the run's first map), opens the pause menu and its
 ## Settings screen, then the run map mid-run (choosing room 5), and saves a
 ## frame of each. Run: godot --path . -s tests/menu_check.gd
 
@@ -30,6 +30,10 @@ func _initialize() -> void:
 	await create_timer(0.2).timeout
 	var title: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_signal("started"))[0]
 	title._start()
+	# The whole run, shown once before room 1.
+	await create_timer(0.6).timeout
+	_save("user://menu_intro.png")
+	main.map_menu._close()
 	await create_timer(1.5).timeout
 	# A few powers so the pause menu's build panel has something to list,
 	# including an active synergy (Skybreaker + Quake = Tremor).

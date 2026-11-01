@@ -34,6 +34,7 @@ func _initialize() -> void:
 	rng.seed = 42
 	var b: Array = RM.generate(rng, length, twists, main_script.DOUBLE_TWIST_ROOM)
 	_check(str(a) == str(b), "same seed, same map")
+	await _check_screen(RM, a)
 
 	if DisplayServer.get_name() != "headless":
 		await _shot(RM)
@@ -83,6 +84,46 @@ func _check_map(RM: GDScript, map: Array, length: int, twists: Array, i: int, se
 	for c in length:
 		for n: Dictionary in map[c]:
 			_check(reach.has(Vector2i(c, n.lane)), "%s: room %d lane %d reachable" % [tag, c + 1, n.lane])
+
+
+## The screen on its own (works headless): hovering any room shows it,
+## the focused choice's onward routes are what the "Leads on to" line counts,
+## and a pick walks the marker over, then emits `chosen`.
+func _check_screen(RM: GDScript, map: Array) -> void:
+	var screen: CanvasLayer = load("res://scripts/map_screen.gd").new()
+	var cover := CanvasLayer.new()
+	get_root().add_child(cover)
+	get_root().add_child(screen)
+	screen.cover = cover
+	var route: Array = [Vector2i(0, map[0][0].lane)]
+	route.append(Vector2i(1, RM.next_nodes(map, route[-1])[0].lane))
+	var choices: Array = RM.next_nodes(map, route[-1])
+	screen.open(map, route, choices, false, {})
+	_check(not cover.visible, "the map hides the HUD")
+	# The focused choice reaches only rooms its links lead to.
+	for at: Vector2i in screen._reach:
+		_check(at.x >= 2, "reach starts at the choice (%s)" % at)
+	var far := Vector2i(map.size() - 2, map[-2][0].lane)
+	screen._set_hover(far)
+	_check(screen._detail_title.text == RM.title(map[-2][0]), "hovering room %d shows it" % (far.x + 1))
+	_check(screen._detail_hint.text.begins_with("Room %d" % (far.x + 1)), "hover hint names the room")
+	screen._set_hover(Vector2i(2, choices[-1].lane))
+	_check(screen._focus == choices.size() - 1, "hovering a choice focuses it")
+	var picked := [-1]
+	screen.chosen.connect(func(i: int) -> void: picked[0] = i)
+	screen.pick(0)
+	_check(screen.visible and picked[0] == -1, "a pick walks the marker before closing")
+	await create_timer(screen.MOVE_TIME + 0.2).timeout
+	_check(picked[0] == 0 and not screen.visible, "the pick lands after the walk")
+	_check(cover.visible, "closing brings the HUD back")
+	screen.open(map, route, [], true, {})
+	_check(screen._detail_text.text.begins_with("Ahead: ") or screen._detail_text.text.begins_with("Only"),
+		"read-only map sums up what's ahead")
+	screen._close()
+	paused = false
+	screen.queue_free()
+	cover.queue_free()
+	await process_frame
 
 
 ## The map four rooms in, a vault chosen as the focus if one is on offer.

@@ -16,6 +16,12 @@ const R_BOSS := 46.0
 const BACK := Color(0.07, 0.05, 0.11, 0.95)
 const FAINT := Color(1, 1, 1, 0.13)
 const TRAVELLED := Color(1, 1, 1, 0.85)
+const AHEAD := Color(1, 1, 1, 0.34)  # links on the routes the focused room leads to
+const OFF_ROUTE := 0.32  # alpha of rooms the focused room can't reach
+const MOVE_TIME := 0.35  # the marker's walk to the picked room (s)
+## Legend order along the bottom.
+const LEGEND := ["fight", "elite", "rest", "shrine", "vault", "trial", "boss"]
+const LEGEND_VAULT := Color(0.95, 0.78, 0.4)  # vaults wear their path's colour on the map
 
 var _map: Array = []
 var _visited: Array = []  # Vector2i (column, lane) of every room so far
@@ -23,7 +29,15 @@ var _choices: Array = []  # nodes the player may pick
 var _counts := {}  # Upgrades.path_counts() of the build, for the vault line
 var _room := 0  # room number of the choices
 var _read_only := false
+var _intro := false  # the run's first look (open_intro): closing it starts room 1
 var _focus := 0
+var _hover := Vector2i(-1, -1)  # any room under the mouse, for its detail
+var _reach := {}  # Vector2i -> true: rooms the focused room (or the hero) can still reach
+var _move_t := -1.0  # >= 0 while the marker walks to the picked room
+var _move_to := -1
+## Hidden while the map is open (main sets it to the HUD).
+var cover: CanvasLayer
+var _cover_was := false
 var _t := 0.0
 var _icons := {}
 var _root: Control
@@ -52,10 +66,16 @@ func open(map: Array, visited: Array, choices: Array, read_only := false, counts
 	_visited = visited
 	_choices = choices
 	_read_only = read_only
+	_intro = false
 	_counts = counts
 	_room = visited[-1].x + 2 if not visited.is_empty() else 1
 	_focus = 0
+	_hover = Vector2i(-1, -1)
+	_move_t = -1.0
 	_t = 0.0
+	if cover:
+		_cover_was = cover.visible
+		cover.visible = false
 	_title.text = "THE RUN" if read_only else "CHOOSE YOUR PATH"
 	visible = true
 	get_tree().paused = true
@@ -63,20 +83,32 @@ func open(map: Array, visited: Array, choices: Array, read_only := false, counts
 	_board.queue_redraw()
 
 
+## The whole run at its start, read-only; Enter (or Esc) begins room 1.
+func open_intro(map: Array, visited: Array) -> void:
+	open(map, visited, [], true)
+	_intro = true
+	_title.text = "YOUR RUN"
+	_update_detail()
+
+
 func is_open() -> bool:
 	return visible
 
 
+## Choose `_choices[index]`: the marker walks there, then `chosen` fires.
 func pick(index: int) -> void:
-	if not visible or _read_only or index < 0 or index >= _choices.size():
+	if not visible or _read_only or _move_t >= 0.0 or index < 0 or index >= _choices.size():
 		return
-	_close()
-	chosen.emit(index)
+	_set_focus(index)
+	_move_to = index
+	_move_t = 0.0
 
 
 func _close() -> void:
 	visible = false
-	if not _read_only:
+	if cover:
+		cover.visible = _cover_was
+	if not _read_only or _intro:
 		get_tree().paused = false
 	closed.emit()
 
@@ -90,6 +122,13 @@ func node_pos(col: int, lane: int) -> Vector2:
 func _process(delta: float) -> void:
 	if visible:
 		_t += delta
+		if _move_t >= 0.0:
+			_move_t += delta
+			if _move_t >= MOVE_TIME:
+				_move_t = -1.0
+				_close()
+				chosen.emit(_move_to)
+				return
 		_board.queue_redraw()
 
 
@@ -97,6 +136,12 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	var handled := true
+	if _move_t >= 0.0:
+		if event is InputEventKey or event is InputEventMouseButton:
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion:
+		_set_hover(_node_under(event.position))
 	if _read_only:
 		if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel") or event.is_action_pressed("ui_accept"):
 			_close()
@@ -112,26 +157,37 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_accept"):
 		pick(_focus)
 	elif event is InputEventMouseMotion:
-		var i := _choice_at(event.position)
-		if i >= 0:
-			_set_focus(i)
 		handled = false
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		pick(_choice_at(event.position))
+		var at := _node_under(event.position)
+		pick(_choice_index(at.x, at.y))
 	else:
 		handled = event is InputEventKey or event is InputEventMouseButton
 	if handled:
 		get_viewport().set_input_as_handled()
 
 
-## Index of the choice under `screen_pos` (viewport coordinates), or -1.
-func _choice_at(screen_pos: Vector2) -> int:
+## (column, lane) of the room under `screen_pos` (viewport coordinates),
+## or (-1, -1).
+func _node_under(screen_pos: Vector2) -> Vector2i:
 	var at := _board.get_global_transform_with_canvas().affine_inverse() * screen_pos
-	for i in _choices.size():
-		var n: Dictionary = _choices[i]
-		if at.distance_to(node_pos(_room - 1, n.lane)) <= R + 10.0:
-			return i
-	return -1
+	for c in _map.size():
+		for n: Dictionary in _map[c]:
+			if at.distance_to(node_pos(c, n.lane)) <= (R_BOSS if n.kind == "boss" else R) + 10.0:
+				return Vector2i(c, n.lane)
+	return Vector2i(-1, -1)
+
+
+## Hover a room: a choice takes the focus; any other room shows its detail.
+func _set_hover(at: Vector2i) -> void:
+	if at == _hover:
+		return
+	_hover = at
+	var i := _choice_index(at.x, at.y)
+	if i >= 0:
+		_set_focus(i)
+	else:
+		_update_detail()
 
 
 ## Index into `_choices` of the node at column `c`, lane `lane`, or -1.
@@ -150,6 +206,8 @@ func _set_focus(i: int) -> void:
 	if _choices.is_empty():
 		return
 	_focus = wrapi(i, 0, _choices.size())
+	if _choice_index(_hover.x, _hover.y) != _focus:
+		_hover = Vector2i(-1, -1)
 	_update_detail()
 
 
@@ -180,7 +238,7 @@ func _build() -> void:
 	s.set_corner_radius_all(10)
 	s.set_content_margin_all(14)
 	_detail.add_theme_stylebox_override("panel", s)
-	_detail.position = Vector2(400, 700)
+	_detail.position = Vector2(400, 655)
 	_detail.custom_minimum_size = Vector2(800, 0)
 	_root.add_child(_detail)
 	var col := VBoxContainer.new()
@@ -192,25 +250,82 @@ func _build() -> void:
 
 
 func _update_detail() -> void:
-	if _read_only or _choices.is_empty():
-		var here := RunMap.node_at(_map, _visited[-1]) if not _visited.is_empty() else {}
-		_detail_title.text = "Room %d of %d%s" % [_room - 1, _map.size(),
-			("  ·  " + RunMap.title(here)) if not here.is_empty() else ""]
-		_detail_title.add_theme_color_override("font_color", Color.WHITE)
-		_detail_text.text = "The route so far is lit; plan the rooms ahead."
-		_detail_hint.text = "[Esc] back"
+	var here: Vector2i = _visited[-1] if not _visited.is_empty() else Vector2i(-1, -1)
+	var hovered := {} if _choice_index(_hover.x, _hover.y) >= 0 else RunMap.node_at(_map, _hover)
+	var from := here
+	if not hovered.is_empty():
+		from = _hover
+	elif not _read_only and not _choices.is_empty():
+		from = Vector2i(_room - 1, _choices[_focus].lane)
+	_reach = _reach_from(from)
+	if not hovered.is_empty():
+		_show_room(hovered, _hover.x + 1)
+		var where := "you were here" if _hover in _visited else (
+			"on your way" if _reach_from(here).has(_hover) else "out of reach now")
+		_detail_hint.text = "Room %d  ·  %s" % [_hover.x + 1, where]
 		return
-	var n: Dictionary = _choices[_focus]
+	if _read_only or _choices.is_empty():
+		var at := RunMap.node_at(_map, here)
+		_detail_title.text = "Room %d of %d%s" % [_room - 1, _map.size(),
+			("  ·  " + RunMap.title(at)) if not at.is_empty() else ""]
+		_detail_title.add_theme_color_override("font_color", Color.WHITE)
+		var ahead := _ahead_text(here)
+		_detail_text.text = "Ahead: " + ahead if ahead != "" else "Only the Bone Warden remains."
+		_detail_hint.text = ("[Enter] begin" if _intro else "[Esc] back") + "   ·   hover a room for its detail"
+		return
+	_show_room(_choices[_focus], _room)
+	var keys := ", ".join(range(_choices.size()).map(func(i: int) -> String: return "[%d]" % (i + 1)))
+	_detail_hint.text = "%s or click   ·   arrows + Enter" % keys
+
+
+## Title and text of room `n` (room number `room`), with what it leads to.
+func _show_room(n: Dictionary, room: int) -> void:
 	_detail_title.text = RunMap.title(n)
 	_detail_title.add_theme_color_override("font_color", RunMap.color(n).lightened(0.15))
-	var text := RunMap.describe(n, _room)
+	var text := RunMap.describe(n, room)
 	if n.kind == "vault" and _counts.has(n.path):
 		var have: int = _counts[n.path]
 		text += "\nYou have %d %s power%s  %s" % [have, Upgrades.PATHS[n.path].name, "" if have == 1 else "s",
 			PowerIcon.mastery_pips(have) + " mastery"]
+	var ahead := _ahead_text(Vector2i(room - 1, n.lane))
+	if ahead != "":
+		text += "\nLeads on to: " + ahead
 	_detail_text.text = text
-	var keys := ", ".join(range(_choices.size()).map(func(i: int) -> String: return "[%d]" % (i + 1)))
-	_detail_hint.text = "%s or click   ·   arrows + Enter" % keys
+
+
+## Rooms reachable from `at` (inclusive), as a set of Vector2i.
+func _reach_from(at: Vector2i) -> Dictionary:
+	var reach := {at: true}
+	for c in range(maxi(at.x, 0), _map.size() - 1):
+		for n: Dictionary in _map[c]:
+			if reach.has(Vector2i(c, n.lane)):
+				for lane: int in n.next:
+					reach[Vector2i(c + 1, lane)] = true
+	return reach
+
+
+## The rooms past `at` that `_reach` holds, fights and the boss left out:
+## "2 elites  ·  Light vault  ·  1 rest".
+func _ahead_text(at: Vector2i) -> String:
+	var count := {}
+	var vaults: Array = []
+	for c in range(at.x + 1, _map.size() - 1):
+		for n: Dictionary in _map[c]:
+			if not _reach.has(Vector2i(c, n.lane)):
+				continue
+			if n.kind == "vault":
+				var name: String = Upgrades.PATHS[n.path].name + " vault"
+				if name not in vaults:
+					vaults.append(name)
+			else:
+				count[n.kind] = count.get(n.kind, 0) + 1
+	var parts: Array = []
+	for kind: String in LEGEND:
+		if kind == "vault":
+			parts.append_array(vaults)
+		elif kind not in ["fight", "boss"] and count.has(kind):
+			parts.append("%d %s%s" % [count[kind], RunMap.KINDS[kind].name.to_lower(), "s" if count[kind] > 1 else ""])
+	return "  ·  ".join(parts)
 
 
 func _draw_map() -> void:
@@ -248,11 +363,49 @@ func _draw_map() -> void:
 					var focused: bool = _choice_index(c + 1, lane) == _focus
 					col = Color(RunMap.color(target), 0.45 + 0.45 * pulse if focused else 0.5)
 					width = 5.0 if focused else 3.5
+				elif _reach.has(from) and _reach.has(to) and from.x > here.x:
+					col = AHEAD
+					width = 3.0
 				_board.draw_line(a + dir * (R + 4), b - dir * (R + 4), Color(col, col.a * fade), width, true)
 	# Rooms.
 	for c in _map.size():
 		for n: Dictionary in _map[c]:
 			_draw_node(c, n, here, pulse, fade)
+	# Where the hero stands, walking to the picked room after a pick.
+	if here.x >= 0:
+		var p := node_pos(here.x, here.y)
+		if _move_t >= 0.0:
+			var to := node_pos(_room - 1, _choices[_move_to].lane)
+			var dir := (to - p).normalized()
+			var walked := p.lerp(to, ease(_move_t / MOVE_TIME, -2.0))
+			_board.draw_line(p + dir * (R + 4), walked, Color(1.0, 0.8, 0.35, 0.9), 5.0, true)
+			p = walked
+		var m := p + Vector2(0, -R - 14)
+		_board.draw_colored_polygon(PackedVector2Array([m + Vector2(-9, -12), m + Vector2(9, -12), m]),
+			Color(1.0, 0.8, 0.35, fade))
+	_draw_legend(fade)
+
+
+## Room kinds along the bottom: icon and name.
+func _draw_legend(fade: float) -> void:
+	var font := ThemeDB.fallback_font
+	var widths: Array = LEGEND.map(func(k: String) -> float:
+		return 30.0 + font.get_string_size(RunMap.KINDS[k].name, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x)
+	var gap := 28.0
+	var total: float = widths.reduce(func(a: float, b: float) -> float: return a + b, 0.0)
+	var x := 800.0 - (total + gap * (LEGEND.size() - 1)) * 0.5
+	for i in LEGEND.size():
+		var kind: String = LEGEND[i]
+		var color: Color = LEGEND_VAULT if kind == "vault" else RunMap.KINDS[kind].color
+		var c := Vector2(x + 11, 868)
+		_board.draw_circle(c, 13, Color(BACK, fade))
+		_board.draw_arc(c, 13, 0.0, TAU, 24, Color(color, 0.8 * fade), 2.0, true)
+		var tex: Texture2D = _icons.get(kind)
+		if tex:
+			_board.draw_texture_rect(tex, Rect2(c - Vector2(8, 8), Vector2(16, 16)), false, Color(color, fade))
+		_board.draw_string(font, Vector2(x + 30, 874), RunMap.KINDS[kind].name, HORIZONTAL_ALIGNMENT_LEFT, -1, 16,
+			Color(1, 1, 1, 0.6 * fade))
+		x += widths[i] + gap
 
 
 func _draw_node(c: int, n: Dictionary, here: Vector2i, pulse: float, fade: float) -> void:
@@ -263,7 +416,8 @@ func _draw_node(c: int, n: Dictionary, here: Vector2i, pulse: float, fade: float
 	var choice := _choice_index(c, n.lane)
 	var visited := at in _visited
 	var passed := c <= here.x and not visited  # a room left behind
-	var a := (0.3 if passed else 1.0) * fade
+	var off := c > here.x and choice < 0 and not _reach.has(at)  # the focused room can't reach it
+	var a := (0.3 if passed else (OFF_ROUTE if off else 1.0)) * fade
 	if choice >= 0 and choice == _focus:
 		for i in 4:
 			_board.draw_circle(p, r + 6 + i * 5 * (0.6 + 0.4 * pulse), Color(color, 0.07 * fade))
@@ -280,12 +434,10 @@ func _draw_node(c: int, n: Dictionary, here: Vector2i, pulse: float, fade: float
 		var tp := p + Vector2((i - (n.twists.size() - 1) * 0.5) * 12.0, r + 9.0)
 		_board.draw_circle(tp, 4.5, Color(BACK, a))
 		_board.draw_circle(tp, 3.0, Color(RunMap.KINDS.elite.color, a))
-	# Where the hero stands: a marker above the node.
 	if at == here:
-		var m := p + Vector2(0, -r - 14)
-		_board.draw_colored_polygon(PackedVector2Array([m + Vector2(-9, -12), m + Vector2(9, -12), m]),
-			Color(1.0, 0.8, 0.35, fade))
 		_board.draw_arc(p, r + 6, 0.0, TAU, 48, Color(1.0, 0.8, 0.35, 0.9 * fade), 3.0, true)
+	elif at == _hover:
+		_board.draw_arc(p, r + 6, 0.0, TAU, 48, Color(1, 1, 1, 0.7 * fade), 2.0, true)
 	# Key number on each choice.
 	if choice >= 0:
 		var k := p + Vector2(r * 0.75, -r * 0.75)

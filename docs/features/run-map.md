@@ -5,7 +5,7 @@ Added in Round 21. It replaces the two-door choice (`path_options()` and
 
 ## What it does
 
-When a run starts, the whole run is laid out as a map:
+When a run starts, the whole run is laid out as a map, and shown once before room 1 ("YOUR RUN", Enter begins; skipped by the autotest and by restarts that skip the title):
 - 8 columns (`main.RUN_LENGTH`) of up to 3 lanes, linked left to right;
 - room 1 is a lone fight, room 2 is two fights, and the Bone Warden is alone at the end.
 
@@ -16,9 +16,13 @@ What the map shows:
 - for a vault, the colour of its path;
 - for an elite, pips for its twists;
 - the route so far, lit, and the hero marker over the current room;
-- the reachable rooms, pulsing with their key number.
+- the reachable rooms, pulsing with their key number;
+- the routes the focused choice leads to (brighter links); rooms it can't reach are dimmed;
+- a legend of room kinds along the bottom.
 
-A panel describes the focused choice, for example "Elite · Volatile + Hasted — foes burst when slain, faster foes, 2 powers". For a vault, the panel adds how many powers of that path you own, with mastery pips.
+Hovering any room shows its detail, with "on your way" / "out of reach now". After a pick the marker walks to the room (`MOVE_TIME`) before the map closes. The HUD (`map_screen.cover`) hides while the map is open.
+
+A panel describes the focused choice, for example "Elite · Volatile + Hasted — foes burst when slain, faster foes, 2 powers". For a vault, the panel adds how many powers of that path you own, with mastery pips. Every room's panel ends with what it leads on to ("Leads on to: 2 elites · Light vault · 1 rest", `_ahead_text` over `_reach`).
 
 Pause → **Map** shows the same map read-only.
 
@@ -36,7 +40,7 @@ Pause → **Map** shows the same map read-only.
 | File | Role |
 |---|---|
 | `scripts/run_map.gd` | `RunMap`, which is static data plus generation. It holds the tuning (`LANES`, `UNLOCK_ROOM`, `BRANCH_CHANCE`, `PRE_BOSS_REST`, `KINDS`, `WEIGHTS`, `TRIALS`) and builds the map (`generate`, `_link`, `_assign`, `_ensure_rest`, `_dress`). Queries: `node_at`, `next_nodes`, `preds`, `is_fightless`. Text: `color`, `title`, `describe`, `trial_text`, `trial_time`. |
-| `scripts/map_screen.gd` | The screen: one `Control` drawn by `_draw_map` / `_draw_node`, plus a detail panel. `open(map, visited, choices, read_only, counts)`, `pick(i)`, `signal chosen(index)`. Layer 12, pauses the tree. |
+| `scripts/map_screen.gd` | The screen: one `Control` drawn by `_draw_map` / `_draw_node` / `_draw_legend`, plus a detail panel (`_update_detail`, `_show_room`). `open(map, visited, choices, read_only, counts)`, `open_intro(map, visited)`, `pick(i)` (walks the marker, then `signal chosen(index)`). Hover: `_node_under`, `_set_hover`; routes: `_reach_from`, `_ahead_text`. Layer 12, pauses the tree, hides `cover` (the HUD). |
 | `scripts/main.gd` | `run_map` and `map_route` (the `Vector2i` column/lane of each room so far). `_start_map()` (after the title, before room 1), `_choose_path()` (opens the map), `_enter_node()`, `show_map()` (pause), `_vault()`, the trial (`_update_trial`, `_finish_trial`, `_on_hero_hp`, `_trial_t`, `_trial_state`), `_room_tag()` for the HUD, and `_take_reward(choices, reroll_cost, title)`, shared by all rewards. |
 | `scripts/vault_prop.gd` | The chest, candles and path-coloured light. `rise()`, `burst()`, `sink()`. |
 | `scripts/upgrades.gd` | `roll(..., path)` (the vault filter, topped up from any path when short) and `roll_fusion()`. |
@@ -77,13 +81,14 @@ Pause → **Map** shows the same map read-only.
 
 | Where | What |
 |---|---|
-| `RunMap.WEIGHTS` | How often each kind appears from room 3 on (fight 32, elite 18, rest 11, shrine 11, vault 14, trial 14). |
+| `RunMap.WEIGHTS` | How often each kind appears from room 3 on (fight 32, elite 18, rest 10, shrine 9, vault 22, trial 12). Vaults are weighted up because they can't follow a rest or shrine; this gives about 2 vaults and 2 trials a map (`map_check` prints the totals over 500 seeds). |
 | `RunMap.BRANCH_CHANCE` | How many crossroads (0.45). |
 | `RunMap.UNLOCK_ROOM`, `PRE_BOSS_REST` | Plain fights at the start, and the rest before the boss. |
 | `RunMap.TRIALS` | Conditions; Swift's `time` and `per_room`; Stylish's `rank`. |
 | `RunMap.KINDS` | Name, map text and colour per kind. |
 | `main.TRIAL_SIZE`, `main.TRIAL_BONES` | Trial fight size; bones when no card can be offered. |
 | `map_screen.X0/X1/Y_MID/LANE_GAP/R` | Layout. |
+| `map_screen.AHEAD`, `OFF_ROUTE`, `MOVE_TIME`, `LEGEND` | Route highlight, dimming of unreachable rooms, the marker's walk, legend order. |
 
 ## Extending
 
@@ -98,10 +103,10 @@ Pause → **Map** shows the same map read-only.
 
 ## Testing
 
-- `godot --headless --path . -s tests/map_check.gd` generates 500 seeds. It checks the shape, links, reachability, the fightless rule, the pre-boss rest, valid twists, paths and trials, and determinism, and prints how often each kind appeared. It prints `[map] PASS` or `[map] FAIL`. Windowed, it saves `user://map_check.png`, four rooms in with a vault focused if one is offered.
+- `godot --headless --path . -s tests/map_check.gd` generates 500 seeds. It checks the shape, links, reachability, the fightless rule, the pre-boss rest, valid twists, paths and trials, and determinism, and prints how often each kind appeared. It also checks the screen on its own, headless: hover shows any room, hovering a choice focuses it, the pick walks before `chosen`, and the HUD comes back. It prints `[map] PASS` or `[map] FAIL`. Windowed, it saves `user://map_check.png`, four rooms in with a vault focused if one is offered.
 - `-- --autotest --tour` runs fight → rest → shrine → elite → vault (Light) → trial (Swift) → boss. PASS needs the vault to have offered only Light cards.
 - `--start-vault=<path>` and `--start-trial=<id>`, with `--pace` to stop at the first clear. The autotest prints `[autotest] trial=<id> met|failed fusions=<n>` and saves `autotest_map.png` and `autotest_vault_room.png`.
-- `tests/menu_check.gd` saves `menu_map.png`, the map mid-run.
+- `tests/menu_check.gd` saves `menu_intro.png` (the run's first map) and `menu_map.png`, the map mid-run.
 
 ## Gotchas / open questions
 

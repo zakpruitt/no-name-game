@@ -319,6 +319,7 @@ func _ready() -> void:
 	add_child(PAUSE.new())
 	map_menu = MAP_SCREEN.new()
 	add_child(map_menu)
+	map_menu.cover = hud
 	player.health_changed.connect(_on_hero_hp)
 	_last_hp = player.hp
 	camp_menu = CAMP_MENU.new()
@@ -427,8 +428,12 @@ func _ready() -> void:
 			seed(run_seed)
 		title.queue_free()
 		hud.visible = true
+	var intro := not _autotest and not Game.skip_title
 	Game.skip_title = false
 	_start_map()
+	if intro:
+		map_menu.open_intro(run_map, map_route)
+		await map_menu.closed
 	_next_room()
 
 

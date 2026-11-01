@@ -33,7 +33,7 @@ const KINDS := {
 	"boss": {"name": "Boss", "text": "the Bone Warden", "color": Color(0.85, 0.15, 0.12)},
 }
 ## Odds of each kind for rooms from UNLOCK_ROOM on (relative weights).
-const WEIGHTS := {"fight": 32, "elite": 18, "rest": 11, "shrine": 11, "vault": 14, "trial": 14}
+const WEIGHTS := {"fight": 32, "elite": 18, "rest": 10, "shrine": 9, "vault": 22, "trial": 12}
 ## Trial conditions. `time`: Swift's limit is time + per_room * room (s).
 const TRIALS := {
 	"untouched": {"name": "Untouched", "desc": "clear without being hit"},
