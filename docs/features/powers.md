@@ -101,6 +101,8 @@ looking for blue cards.
   - **Fusion offers:** none are offered with one path (200 seeds); Crescendo is offered with Light + Heavy.
   - **Masteries:** a fusion counts toward one; Soul adds HP and takes it back.
   - **New effects:** Quickblade speed, Thousand Cuts on the Nth hit, Crescendo, Shockstep, Slipstream once per dash, Flicker, Undying Flame, Razor Gale's blades, Eye of the Storm's pull.
+  - **Move DPS:** no move (Charged Slam and the finisher aside) deals over `DPS_LIMIT` (1.75x) the median damage per second to its cancel point.
+  - **Cards:** a combo power's card and build row show the combo's input.
 
   It prints `[powers] PASS` or `[powers] FAIL ...`.
 - Windowed (drop `--headless`), it also saves `user://power_cards.png` (a new card, a level-up and a fusion), `power_hud.png` and `power_build.png`.

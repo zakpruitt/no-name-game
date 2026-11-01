@@ -26,6 +26,7 @@ func _initialize() -> void:
 	var p: Node3D = main.player
 	await _check_effects(main, p, upgrades)
 	await _check_card(main, upgrades)
+	_check_move_dps(p)
 
 	if DisplayServer.get_name() != "headless":
 		await _shots(main, p)
@@ -176,6 +177,27 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	_check(p._awaken_t > 2.0, "Undying Flame extends Awakening")
 	p._set_awakened(false)
 	e.queue_free()
+
+
+## Damage per second to each move's cancel point (no powers, not Awakened).
+## A move far above the median is a tuning slip (Cyclone once ran at 78 DPS
+## against a median near 18); the charged slam and finisher are left out.
+const DPS_LIMIT := 1.75  # x the median
+
+
+func _check_move_dps(p: Node) -> void:
+	var dps := {}
+	for id: String in p.MOVES:
+		if id in ["CH", "AF"]:
+			continue
+		var m: Dictionary = p.MOVES[id]
+		var t: float = p.anim.get_animation(m.anim).length * m.get("cancel", m.get("end", 1.0)) / m.get("speed", 1.0)
+		dps[id] = m.damage * m.get("hits", [0]).size() / t
+	var sorted: Array = dps.values()
+	sorted.sort()
+	var median: float = sorted[sorted.size() / 2]
+	for id: String in dps:
+		_check(dps[id] <= median * DPS_LIMIT, "%s deals %.0f DPS, over %.2fx the median %.0f" % [id, dps[id], DPS_LIMIT, median])
 
 
 ## A card for a power on a named combo says how to do the combo.
