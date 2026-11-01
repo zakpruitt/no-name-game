@@ -37,7 +37,7 @@ Pillar 1 is combat feel first. Zak described L L H as "axe, slam, jump in the ai
 4. **Check the look.** Use the `headless-render` skill for any visual change.
 5. **Verify.** The autotest with no errors and an average of about 6.9 ms, plus `hop_check`, `breaker_check`, `ult_check`, `ascend_check` and `guide_check`.
 6. **Document it.** Update CLAUDE.md (the player/MOVES lines) and the feature doc: `docs/features/combo-breakers.md` covers movement in the strings, and `combo-guide.md` covers the guide.
-7. **Commit only when asked**, using the `commit` skill.
+7. **Commit and land.** Work in your own worktree (`docs/agents.md`), commit with the `commit` skill, then `bash tools/agent.sh land`.
 
 ## Loops
 When Zak asks to "keep improving combos in a loop", do one improvement per round, verify, update the docs, and report briefly. Good round types:

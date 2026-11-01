@@ -95,6 +95,9 @@ back to L1:
   is Ancestor's Fall.
 - Routing lives in `player.route()`, so the combo guide shows it, and the
   air slashes get small echo casts (`elements.CASTS`).
+- Their swooshes (`player._swoosh`) and echo casts spawn at the model's
+  height, so the arcs and spectral axes cut through the air with him, not
+  along the floor under him.
 
 Only the model moves; the body stays on the floor, so hit areas don't
 change. Outside attacks, leaps and ultimates, the model settles back down
