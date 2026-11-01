@@ -89,7 +89,12 @@ back to L1:
 
 - **Air Slash (`AL1`)**, then **`AL2`** (the named combo "Sky Rend", L H L
   L). Both are `air` moves: `_hop` holds the height they started at, plus a
-  small bob, so he stays up with the launched foe. Each cut re-juggles it.
+  small bob, so he stays up with the launched foe. Each cut re-juggles it
+  and climbs (`climb`: AL1 +0.4 m, AL2 +0.5 m by the hit), so the string
+  ends about 2.4 m up and the follow-up falls from there.
+- Landing from a hop is a slam (`_land_slam`): dust, ring and shake scale
+  with the highest point of the fall, from x1 at 0.4 m to `SLAM_SCALE` (x2)
+  at `SLAM_FULL_HEIGHT` (2.4 m). Triple Chop out of Sky Rend lands hardest.
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.
