@@ -439,6 +439,7 @@ func _ready() -> void:
 	_start_map()
 	if intro:
 		map_menu.open_intro(run_map, map_route)
+		_map_status()
 		await map_menu.closed
 	_next_room()
 
@@ -758,6 +759,7 @@ func _choose_path() -> void:
 	var index := 0
 	if options.size() > 1:
 		map_menu.open(run_map, map_route, options, false, Upgrades.path_counts(player.upgrades))
+		_map_status()
 		if _autotest:
 			_autotest_path()
 		index = await map_menu.chosen
@@ -779,6 +781,11 @@ func _reveal(node: Dictionary, at_room: int) -> void:
 ## The map, read-only (the pause menu's Map button).
 func show_map() -> void:
 	map_menu.open(run_map, map_route, [], true, Upgrades.path_counts(player.upgrades))
+	_map_status()
+
+
+func _map_status() -> void:
+	map_menu.set_status(player.hp, player.max_hp, Game.bones, Game.level)
 
 
 ## Twist names or descs joined for the door / room title ("" for none).

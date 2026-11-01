@@ -20,7 +20,7 @@ What the map shows:
 - the routes the focused choice leads to (brighter links); rooms it can't reach are dimmed;
 - a legend of room kinds along the bottom.
 
-Hovering any room shows its detail, with "on your way" / "out of reach now". After a pick the marker walks to the room (`MOVE_TIME`) before the map closes. The HUD (`map_screen.cover`) hides while the map is open.
+Hovering any room shows its detail, with "on your way" / "out of reach now". After a pick the marker walks to the room (`MOVE_TIME`) before the map closes. The HUD (`map_screen.cover`) hides while the map is open, so the top left shows HP, bones and level instead (`set_status`, red under `LOW_HP` 40%, when a rest matters).
 
 A panel describes the focused choice, for example "Elite · Volatile + Hasted — foes burst when slain, faster foes, 2 powers". For a vault, the panel adds how many powers of that path you own, with mastery pips. Every room's panel ends with what it leads on to ("Leads on to: 2 elites · Light vault · 1 rest", `_ahead_text` over `_reach`).
 

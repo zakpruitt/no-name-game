@@ -179,6 +179,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Showman trial: land 4 different named combos in the room (`RunMap.TRIALS.showman.count`), live "2 / 4 combos" under the title; ties the map's trials to the combo list. `--start-trial=showman`
 - [x] Unknown rooms (?): about one a map (`RunMap.WEIGHTS.mystery`), revealed on entry from `RunMap.MYSTERY` (leans toward elites and vaults), counted as fightless for the links so any reveal is legal; the node becomes what it was and the banner reads "ROOM N · UNKNOWN". `--start-mystery`; `map_check` reveals every unknown room over 500 seeds
 - [x] Read-only map cursor: on pause → Map the arrows walk over the rooms (columns left/right, lanes up/down) and show each one's detail, so the map isn't mouse-only (`map_screen.move_cursor`, checked in `map_check`)
+- [x] Map status line: HP, bones and level at the top left of the map (red below 40% HP), since the HUD is hidden while choosing and that's when HP decides rest vs elite (`map_screen.set_status`)
 - [x] HUD route strip: a dot per room across the top of the screen, the rooms taken in their map colours and this room ringed, so the run's shape reads mid-fight (`hud.set_route`)
 - [x] Map weights: vaults were the rarest room (about 1.3 a map, since they can't follow a rest or shrine); `RunMap.WEIGHTS` now vault 22, trial 12, rest 10, shrine 9 for about 2 vaults and 2 trials a map
 

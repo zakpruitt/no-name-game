@@ -113,6 +113,9 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	var choices: Array = RM.next_nodes(map, route[-1])
 	screen.open(map, route, choices, false, {})
 	_check(not cover.visible, "the map hides the HUD")
+	screen.set_status(30.0, 100.0, 12, 2)
+	_check(screen._status.text.begins_with("HP 30 / 100") and screen._status.get_theme_color("font_color").r > 0.9
+		and screen._status.get_theme_color("font_color").g < 0.6, "low HP shows red on the map")
 	# The focused choice reaches only rooms its links lead to.
 	for at: Vector2i in screen._reach:
 		_check(at.x >= 2, "reach starts at the choice (%s)" % at)

@@ -19,6 +19,7 @@ const TRAVELLED := Color(1, 1, 1, 0.85)
 const AHEAD := Color(1, 1, 1, 0.34)  # links on the routes the focused room leads to
 const OFF_ROUTE := 0.32  # alpha of rooms the focused room can't reach
 const MOVE_TIME := 0.35  # the marker's walk to the picked room (s)
+const LOW_HP := 0.4  # below this share of max HP the status line turns red
 ## Legend order along the bottom.
 const LEGEND := ["fight", "elite", "rest", "shrine", "vault", "trial", "mystery", "boss"]
 const LEGEND_VAULT := Color(0.95, 0.78, 0.4)  # vaults wear their path's colour on the map
@@ -43,6 +44,7 @@ var _icons := {}
 var _root: Control
 var _board: Control
 var _title: Label
+var _status: Label  # HP, bones, level (the HUD is hidden under the map)
 var _detail_title: Label
 var _detail_text: Label
 var _detail_hint: Label
@@ -81,6 +83,13 @@ func open(map: Array, visited: Array, choices: Array, read_only := false, counts
 	get_tree().paused = true
 	_update_detail()
 	_board.queue_redraw()
+
+
+## The hero's state while choosing: "HP 64 / 110   ·   23 bones   ·   Lv 3".
+## Under LOW_HP the line turns red, since that's when a rest matters.
+func set_status(hp: float, max_hp: float, bones: int, level: int) -> void:
+	_status.text = "HP %d / %d   ·   %d bones   ·   Lv %d" % [ceili(hp), roundi(max_hp), bones, level]
+	_status.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4) if hp < max_hp * LOW_HP else Color(0.92, 0.9, 0.96))
 
 
 ## The whole run at its start, read-only; Enter (or Esc) begins room 1.
@@ -248,6 +257,10 @@ func _build() -> void:
 	_title = _label(_root, "", 44, Color(1.0, 0.75, 0.3))
 	_title.position = Vector2(500, 40)
 	_title.size = Vector2(600, 60)
+	_status = _label(_root, "", 20, Color(0.92, 0.9, 0.96))
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_status.position = Vector2(40, 30)
+	_status.size = Vector2(420, 30)
 
 	_detail = PanelContainer.new()
 	var s := StyleBoxFlat.new()
