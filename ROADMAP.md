@@ -217,3 +217,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Reward cards for a power on a named combo show how to do it ("Flurry:  L L, pause, L"), so a new combo's power doesn't need the pause menu to look up its input
 - [x] Cyclone retuned: its spin anim is short, so it reached its cancel in 0.31s for 24 AoE damage (78 DPS, the most of any move, while moving). `MOVES.speed` (new, optional) slows it to 0.55x: 20 damage over about 0.56s, near the Launcher and Dash Stab; lunge 11 → 9 since it now lasts longer
 - [x] Synergies for the new powers: Gale (Razor Gale, Eye of the Storm, Slipstream: +25% damage, +20% reach) and Sky (Rising Edge, Rebound, Sky Reaper, Chain Spark: launch +20%, +25% damage); War Chant joins Night (its Awakening +25%)
+
+## Round 24 (training)
+- [x] Training mode: title → Training opens one room with a dummy that never fights back or dies (`training_dummy.gd`); the HUD shows each string's damage and hits plus the best; Esc offers a free power pick (free rerolls), Fill Awakening, Ascend and Restart training (`main._start_training`, `pause_menu._open_training`, `tests/training_check.gd`)
