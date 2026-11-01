@@ -10,19 +10,35 @@ extends RefCounted
 ##   fissure  a march of small pillars or spikes along a line
 ##   nova     burst all around: spikes or blades outward
 ##   vortex   pieces whirling round the hero during the spin
+##   echo     the axe's bound spirit finishes the swing: a giant spectral axe
+##            sweeping the same arc a beat later (spirit_echo.gd; L1, L2 bigger)
+##   cleave   two colossal spectral axes rise either side of the target and slam
+##            inward, meeting in a V on it: blast round the heads (spirit_cleave.gd; L3)
+##   avatar   a towering spectral copy of the shaman rises round him and brings
+##            the great axe down ahead: blast + the element's nova (spirit_avatar.gd; CH)
+##   crown    three colossal spectral axes burst blade-up from the floor under the
+##            target round the element's column, launching it (spirit_crown.gd; LH)
+##   rift     a wave of colossal spectral axes bursting from the floor one after
+##            another along the thrust, growing (spirit_rift.gd; LLH)
+##   wheel    a ring of giant spectral axes laid flat like a sawblade, whirling
+##            round the hero through the spin, grinding (spirit_wheel.gd; H, DH)
+##   tomahawk giant spectral axe flung spinning flat like a sawblade, piercing out
+##            to `range` and boomeranging back to the hero (spirit_tomahawk.gd; DL, LPL fan)
+##   guillotine colossal spectral axe dropping blade-first from the sky onto the
+##            target and burying itself in the floor (spirit_guillotine.gd; LHH)
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
 const CASTS := {
-	"L1": {"kind": "bolt", "damage": 5.0, "range": 7.0, "speed": 20.0, "tilt": 35.0},
-	"L2": {"kind": "bolt", "damage": 6.0, "range": 7.5, "speed": 21.0, "tilt": -12.0},
-	"L3": {"kind": "bolt", "damage": 6.0, "range": 8.0, "speed": 22.0, "tilt": 0.0, "fan": 3, "spread": 22.0, "size": 1.3},
-	"DL": {"kind": "bolt", "damage": 6.0, "range": 8.0, "speed": 26.0, "tilt": 0.0, "size": 1.15},
-	"LPL": {"kind": "bolt", "damage": 4.0, "range": 6.5, "speed": 24.0, "tilt": 50.0, "fan": 2, "spread": 30.0, "size": 0.85},
-	"H": {"kind": "vortex", "radius": 3.0, "time": 0.95},
-	"DH": {"kind": "vortex", "radius": 2.9, "time": 0.9},
-	"LH": {"kind": "pillar", "damage": 6.0, "radius": 1.5, "height": 4.0, "launch": 9.0, "reach": 4.5, "ahead": 2.4},
-	"LLH": {"kind": "fissure", "length": 5.5, "steps": 6},
-	"CH": {"kind": "nova", "damage": 8.0, "radius": 5.0, "count": 10},
+	"L1": {"kind": "echo", "damage": 5.0, "radius": 3.4, "arc": 160.0, "delay": 0.05, "time": 0.18},
+	"L2": {"kind": "echo", "damage": 6.0, "radius": 3.9, "arc": 200.0, "delay": 0.04, "time": 0.2},
+	"L3": {"kind": "cleave", "damage": 12.0, "reach": 5.0, "ahead": 3.0, "size": 3.2, "blast": 2.8, "launch": 4.0},
+	"DL": {"kind": "tomahawk", "damage": 6.0, "back_damage": 4.0, "range": 8.0, "size": 2.6},
+	"LPL": {"kind": "tomahawk", "damage": 4.0, "back_damage": 3.0, "range": 6.5, "size": 1.5, "fan": 2, "spread": 34.0},
+	"H": {"kind": "wheel", "radius": 3.1, "time": 0.95, "count": 4, "turns": 2.5, "damage": 2.0},
+	"DH": {"kind": "wheel", "radius": 3.0, "time": 0.9, "count": 6, "turns": 3.0, "damage": 2.0},
+	"LH": {"kind": "crown", "damage": 6.0, "radius": 1.9, "height": 4.0, "launch": 9.0, "reach": 4.5, "ahead": 2.4, "size": 3.4},
+	"LHH": {"kind": "guillotine", "damage": 7.0, "radius": 2.4, "size": 3.8, "reach": 4.5, "ahead": 2.0},
+	"CH": {"kind": "avatar", "damage": 14.0, "radius": 4.2, "launch": 8.0, "size": 3.0},
 }
 ## color: main glow; glow: hot core; rock: solid pieces (earth).
 const LOOK := {
@@ -31,6 +47,7 @@ const LOOK := {
 	"earth": {"color": Color(1.0, 0.38, 0.08), "glow": Color(1.0, 0.78, 0.3), "rock": Color(0.2, 0.16, 0.15), "sfx": "cast_earth"},
 	"water": {"color": Color(0.4, 0.78, 1.0), "glow": Color(0.88, 0.97, 1.0), "sfx": "cast_water"},
 }
+const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const ORBIT_REST := 3
 const ORBIT_AWAKENED := 7
 
@@ -41,6 +58,7 @@ static var casts := 0  # casts summoned (autotest)
 
 ## Drop cached materials and meshes so nothing is left alive at exit (Game._exit_tree).
 static func release() -> void:
+	SPIRIT_ECHO._form_meshes.clear()
 	_mats.clear()
 	_meshes.clear()
 
@@ -69,6 +87,38 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 		mi.material_override = mat
 		root.add_child(mi)
 	gather(root, at, Color.WHITE, 0.1, 1)
+	# Fx sprite materials (particle textures, flares, ground ring).
+	for tex: String in ["dot", "smoke", "spark"]:
+		for add: bool in [false, true]:
+			Fx.burst(root, at, Color.WHITE, 1, 0.0, 0.01, 0.1, Vector3.UP, 0.0, 0.0, 0.0, tex, add)
+	Fx.flare(root, at, Color.WHITE, 0.01, 0.1, "flare")
+	Fx.flare(root, at, Color.WHITE, 0.01, 0.1, "dot", true)
+	Fx.flare(root, at, Color.WHITE, 0.3, 0.1, "dot")  # projectile halo variant
+	Fx.flare(root, at, Color.WHITE, 0.3, 0.1, "star8")
+	Fx.flare(root, at, Color.WHITE, 0.3, 0.1, "ring")
+	Fx.ring(root, at, Color.WHITE, 0.01, 0.1)
+	Fx.scorch(root, at, Color.WHITE, 0.3, 0.1)
+	# Real sizes (the root is scaled to 5%): sub-pixel draws may skip the compile.
+	Fx.swoosh(root, at, Vector3.FORWARD, 1.0, 90.0, Color.WHITE, false, 0.15)
+	Fx.shards(root, at, Color.WHITE, 2, Vector3.UP, 0.0, 0.3, 0.15)
+	Fx.dash_streak(root, at, Vector3.FORWARD, 1.0, Color.WHITE, 0.15)
+	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color, true)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.spirit.color, true, 3.0, 2.0)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(Color(0.95, 0.25, 0.05))))  # Cataclysm vortex
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(Color(0.95, 0.25, 0.05), true)))
+	var ghost: MeshInstance3D = SPIRIT_ECHO.ghost(BoxMesh.new(), Color.WHITE)  # spirit casts
+	ghost.material_override.albedo_color.a = 0.5
+	root.add_child(ghost)
+	var ribbon := MeshInstance3D.new()  # the weapon trail's shader (it draws nothing until a swing)
+	ribbon.mesh = QuadMesh.new()
+	var ribbon_mat := ShaderMaterial.new()
+	ribbon_mat.shader = load("res://shaders/weapon_trail.gdshader")
+	ribbon_mat.set_shader_parameter("noise", Fx.NOISE)
+	ribbon.material_override = ribbon_mat
+	root.add_child(ribbon)
 	var l := OmniLight3D.new()
 	l.light_energy = 0.01
 	root.add_child(l)

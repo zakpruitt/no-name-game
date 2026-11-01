@@ -16,6 +16,7 @@ invariants and the gotchas.
 | Powers: paths, masteries, fusions, icons | [powers.md](powers.md) | `scripts/upgrades.gd`, `scripts/power_icon.gd`, `reward_screen.gd` |
 | Run map, vaults and trials | [run-map.md](run-map.md) | `scripts/run_map.gd`, `scripts/map_screen.gd`, `main._choose_path()` |
 | Training room and dummy | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `pause_menu._open_training()` |
+| Spirit casts (giant spectral axes / ancestor per move) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_*.gd`, `player._cast()`, `elements.CASTS` |
 
 ## Writing one
 

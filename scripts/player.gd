@@ -14,6 +14,16 @@ enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD }
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
 const HERO_LOOK := preload("res://scripts/hero_look.gd")
+const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
+const CAST_GROW := 0.15  # spirit cast size per chain tier (_cast_grow)
+const CAST_POWER := 0.12  # spirit cast damage per chain tier
+const SPIRIT_CLEAVE := preload("res://scripts/spirit_cleave.gd")
+const SPIRIT_AVATAR := preload("res://scripts/spirit_avatar.gd")
+const SPIRIT_CROWN := preload("res://scripts/spirit_crown.gd")
+const SPIRIT_RIFT := preload("res://scripts/spirit_rift.gd")
+const SPIRIT_WHEEL := preload("res://scripts/spirit_wheel.gd")
+const SPIRIT_TOMAHAWK := preload("res://scripts/spirit_tomahawk.gd")
+const SPIRIT_GUILLOTINE := preload("res://scripts/spirit_guillotine.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
 const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug", "Barbarian_Hat", "Barbarian_Cape"]
@@ -136,6 +146,9 @@ const ULTIMATES := {
 		"names": {"spirit": "Spirit Stampede", "wind": "Gale Rush", "earth": "Tectonic Charge", "water": "Tidal Surge"}},
 }
 const ULT_CHAIN_BONUS := 0.3
+const CATACLYSM_AXES := 6  # colossal spirit axes slamming down round the hero
+const CATACLYSM_AXE_RING := 3.8  # m from him
+const SKY_ANCESTOR := 5.0  # Ancestor's Fall: the ancestor's size vs the hero
 const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
 const CAST_SFX_DB := -11.0
@@ -946,6 +959,7 @@ func _cast(fwd: Vector3) -> void:
 	var parent := get_parent()
 	ELEMENTS.casts += 1
 	Game.sfx(ELEMENTS.LOOK[el].sfx, CAST_SFX_DB, 0.1)
+	var g := _cast_grow()  # spirit weapons swell with the chain
 	match c.kind:
 		"bolt":
 			var n: int = c.get("fan", 1)
@@ -961,6 +975,77 @@ func _cast(fwd: Vector3) -> void:
 				b.on_hit = _cast_hit
 				parent.add_child(b)
 				b.global_position = global_position + b.dir * 0.7 + Vector3.UP * (0.25 if el == "earth" else 1.0)
+		"echo":
+			var echo = _spirit(SPIRIT_ECHO.new(), c, el)
+			echo.fwd = fwd
+			echo.flip = _swoosh_flip  # follows the swing's own swoosh
+			echo.arc_deg = c.arc
+			echo.radius = c.radius * g
+			echo.delay = c.delay
+			echo.time = c.time
+			parent.add_child(echo)
+			echo.global_position = Vector3(global_position.x, 0.0, global_position.z)
+		"cleave":
+			var cl = _spirit(SPIRIT_CLEAVE.new(), c, el)
+			cl.fwd = fwd
+			cl.size = c.size * g
+			cl.blast = c.blast * g
+			cl.launch = c.launch
+			parent.add_child(cl)
+			cl.global_position = _cast_target(fwd, c.reach, minf(c.ahead, _clear_ahead(fwd, c.ahead)))
+		"avatar":
+			var av = _spirit(SPIRIT_AVATAR.new(), c, el)
+			av.fwd = fwd
+			av.scale_to = c.size * g
+			av.radius = c.radius * g
+			av.launch = c.launch
+			parent.add_child(av)
+			av.global_position = Vector3(global_position.x, 0.0, global_position.z)
+		"crown":
+			var cr = _spirit(SPIRIT_CROWN.new(), c, el)
+			cr.fwd = fwd
+			cr.size = c.size * g
+			cr.radius = c.radius * g
+			cr.height = c.height * g
+			cr.launch = c.launch
+			parent.add_child(cr)
+			cr.global_position = _cast_target(fwd, c.reach, c.ahead)
+		"rift":
+			var rf = _spirit(SPIRIT_RIFT.new(), c, el)
+			rf.fwd = fwd
+			rf.length = minf(c.length * g, _clear_ahead(fwd, c.length * g) + 0.5)
+			rf.steps = c.steps
+			rf.size_from *= g
+			rf.size_to *= g
+			rf.radius *= g
+			rf.launch = c.launch
+			parent.add_child(rf)
+			rf.global_position = Vector3(global_position.x, 0.0, global_position.z)
+		"wheel":
+			var wh = _spirit(SPIRIT_WHEEL.new(), c, el)
+			wh.count = c.count
+			wh.radius = c.radius * g
+			wh.time = c.time
+			wh.turns = c.turns
+			add_child(wh)  # follows the hero (Cyclone dashes)
+		"tomahawk":
+			var n: int = c.get("fan", 1)
+			for i in n:
+				var th = _spirit(SPIRIT_TOMAHAWK.new(), c, el)
+				th.dir = fwd.rotated(Vector3.UP, deg_to_rad(c.get("spread", 0.0) * (i - (n - 1) * 0.5)))
+				th.hero = self
+				th.size = c.size * g
+				th.reach = minf(c.range, _clear_ahead(th.dir, c.range) + 0.4)
+				th.back_damage = c.back_damage * _dmg_mult * _cast_power()
+				parent.add_child(th)
+				th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
+		"guillotine":
+			var gu = _spirit(SPIRIT_GUILLOTINE.new(), c, el)
+			gu.fwd = fwd
+			gu.size = c.size * g
+			gu.radius = c.radius * g
+			parent.add_child(gu)
+			gu.global_position = _cast_target(fwd, c.reach, c.ahead)
 		"vortex":
 			ELEMENTS.vortex(self, el, c.radius, c.time)
 		"pillar":
@@ -973,6 +1058,28 @@ func _cast(fwd: Vector3) -> void:
 			var at := global_position + fwd * 1.6
 			ELEMENTS.nova(parent, at, el, c.radius, c.count)
 			ELEMENTS.hit_area(get_tree(), at, c.radius, c.damage * _dmg_mult, 6.0, true, "cast", _cast_hit)
+
+
+## The common setup of a spirit cast node (spirit_*.gd): the hero's axe,
+## colour, element, damage (scaled by the chain) and hit callback.
+func _spirit(node: Node3D, c: Dictionary, el: String) -> Node3D:
+	if "axe_mesh" in node:
+		node.axe_mesh = (model.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
+	node.color = _fx_color()
+	node.el = el
+	node.damage = c.damage * _dmg_mult * _cast_power()
+	node.on_hit = _cast_hit
+	return node
+
+
+## Spirit casts grow with the chain: CAST_GROW more size/reach per Fx chain
+## tier (10 / 20 / 35 hits), CAST_POWER more damage.
+func _cast_grow() -> float:
+	return 1.0 + CAST_GROW * Fx.chain_tier(Game.combo_count)
+
+
+func _cast_power() -> float:
+	return 1.0 + CAST_POWER * Fx.chain_tier(Game.combo_count)
 
 
 ## Element casts and ultimates hitting `e`: the Awakened path passive applies.
@@ -1046,6 +1153,7 @@ func _start_ult(id: String) -> void:
 	_ult_from = global_position
 	if id == "SKY":
 		_ult_at = _cast_target(_ult_dir, ULTIMATES.SKY.reach, 3.0)
+		_sky_ancestor()
 	if id == "RUSH":
 		_ult_len = _clear_ahead(_ult_dir, ULTIMATES.RUSH.length)
 	_set_state(State.ULT)
@@ -1111,6 +1219,35 @@ func _state_sky(u: Dictionary, t: float, el: String, c: Color, delta: float) -> 
 		_ult_impact()
 
 
+## Ancestor's Fall: a colossal ancestor (SKY_ANCESTOR x the hero) rises behind
+## the target and brings his axe down on it exactly as the hero lands (visual:
+## the ultimate's own impact deals the damage).
+func _sky_ancestor() -> void:
+	var u: Dictionary = ULTIMATES.SKY
+	var av = _spirit(SPIRIT_AVATAR.new(), {"damage": 0.0}, element())
+	av.fwd = _ult_dir
+	av.scale_to = SKY_ANCESTOR
+	av.speed = SPIRIT_AVATAR.speed_for(u.time * u.impact)
+	av.impact_fx = false
+	get_parent().add_child(av)
+	var back: float = SPIRIT_AVATAR.LAND.z * SKY_ANCESTOR - 0.6  # model offset: land point ahead of its origin
+	av.global_position = _ult_at - _ult_dir * back
+
+
+## Spirit Stampede's wake: a wave of colossal axes bursts up along the whole
+## charge line (visual: the wake deals the damage).
+func _rush_blades(length: float, el: String) -> void:
+	var rf = _spirit(SPIRIT_RIFT.new(), {"damage": 0.0}, el)
+	rf.fwd = _ult_dir
+	rf.length = length + 1.0
+	rf.steps = clampi(int(length / 1.1), 4, 10)
+	rf.step_time = 0.03
+	rf.size_from = 2.6
+	rf.size_to = 4.6
+	get_parent().add_child(rf)
+	rf.global_position = Vector3(_ult_from.x, 0.0, _ult_from.z)
+
+
 ## RUSH: wind up, charge through everything ahead, then the line erupts.
 func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
 	var go: float = u.go
@@ -1157,6 +1294,7 @@ func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
 			line.y = 0.0
 			var length := maxf(line.length(), 2.0)
 			ELEMENTS.rush_wake(get_parent(), _ult_from, _ult_dir, length, el)
+			_rush_blades(length, el)
 			for e in get_tree().get_nodes_in_group("enemies"):
 				var to: Vector3 = e.global_position - _ult_from
 				to.y = 0.0
@@ -1221,6 +1359,7 @@ func _trinity() -> void:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
 		ELEMENTS.storm_strike(parent, e.global_position, el)
+		_axe_fall(e.global_position, _facing(), 4.6)
 		e.take_hit(TRINITY.damage * _dmg_mult, Vector3.ZERO, 6.0, true)
 		Game.register_hit("trinity")
 		_cast_hit(e)
@@ -1824,6 +1963,9 @@ func _cataclysm() -> void:
 	Fx.flare(get_parent(), global_position + Vector3.UP * 1.0, Color(1.0, 0.55, 0.15), 6.0, 0.2)
 	Fx.shards(get_parent(), global_position + Vector3.UP * 0.4, Color(1.0, 0.42, 0.1), 16, Vector3.UP, 10.0, 0.22, 0.8)
 	Fx.scorch(get_parent(), global_position, Color(1.0, 0.45, 0.1), _move.range * 0.75, 1.6)
+	for i in CATACLYSM_AXES:  # the ancestors' axes slam down in a ring round him
+		var ang := TAU * (i + 0.5) / CATACLYSM_AXES
+		_axe_fall(global_position + Vector3(sin(ang), 0.0, cos(ang)) * CATACLYSM_AXE_RING, _facing(), 4.2, i * 0.04)
 	for i in CATACLYSM_WAVES:
 		var ang := TAU * i / CATACLYSM_WAVES
 		var w := FIRE_WAVE.new()
@@ -1831,6 +1973,24 @@ func _cataclysm() -> void:
 		w.damage = 8.0
 		get_parent().add_child(w)
 		w.global_position = global_position + w.direction * 1.0
+
+
+## A visual-only spirit guillotine at `at` (light impact, no hitstop) after
+## `delay` s: volleys for Cataclysm's ring and the Trinity storm.
+func _axe_fall(at: Vector3, fwd: Vector3, size: float, delay := 0.0) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay, false).timeout
+		if not is_inside_tree():
+			return
+	var gu = _spirit(SPIRIT_GUILLOTINE.new(), {"damage": 0.0}, element())
+	gu.fwd = fwd
+	gu.size = size
+	gu.heavy = false
+	gu.fall = 0.11
+	get_parent().add_child(gu)
+	gu.global_position = Vector3(at.x, 0.0, at.z)
+
+
 ## Cataclysm's pillar: two counter-spinning fire funnels (the wind tornado's swirl
 ## shader in fire colours) that flare out and fade.
 func _fire_vortex(at: Vector3, radius: float, height: float, life: float) -> void:
