@@ -812,6 +812,15 @@ func _signature_combo() -> String:
 	return "%s ×%d" % [player.combo_name(best), player.combos_landed[best]] if best != "" else "none"
 
 
+## The owned power that fired most this run ("Reaper ×16"), or "none".
+func _busiest_power() -> String:
+	var best := ""
+	for id: String in player.power_procs:
+		if player.upgrades.has(id) and (best == "" or player.power_procs[id] > player.power_procs[best]):
+			best = id
+	return "%s ×%d" % [Upgrades.get_by_id(best).name, player.power_procs[best]] if best != "" else "none"
+
+
 ## Twist names or descs joined for the door / room title ("" for none).
 static func _twist_text(ids: Array, field: String, sep: String) -> String:
 	return sep.join(ids.map(func(id: String) -> String: return ELITE_TWISTS[id][field]))
@@ -1099,6 +1108,7 @@ func _end_run(victory: bool) -> void:
 		"Best combo": _max_combo,
 		"Combos found": "%d / %d" % [player.combos_landed.size(), player.COMBOS.size()],
 		"Signature combo": _signature_combo(),
+		"Busiest power": _busiest_power(),
 		"Best style rank": _best_rank,
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,

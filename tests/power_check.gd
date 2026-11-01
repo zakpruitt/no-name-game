@@ -159,6 +159,9 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	_check(main.hud.hint_label.text.begins_with("New combo: Flurry"), "a first-time combo shows on the HUD")
 	p.combos_landed["LPL"] = 99
 	_check(main._signature_combo() == "Flurry ×99", "the run summary names the most-landed combo")
+	p.power_procs["war_chant"] = 999
+	_check(main._busiest_power() == "War Chant ×999", "the run summary names the power that fired most")
+	p.power_procs.erase("war_chant")
 	p.add_upgrade("rebound")
 	p._spike(e)
 	await create_timer(p.REBOUND_DELAY + 0.1).timeout
