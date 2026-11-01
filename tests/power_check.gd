@@ -272,7 +272,10 @@ func _shots(main: Node, p: Node3D) -> void:
 	main.hud.set_upgrades(p.upgrades)
 	var U: GDScript = load("res://scripts/upgrades.gd")
 	var cards: Array = []
-	for pair: Array in [["thousand_cuts", 1], ["whirlwind", 2], ["crescendo", 1]]:
+	# A new card, a level-up on a combo (input line, "fired ×N") and a fusion.
+	p.power_procs["razor_gale"] = 6
+	p.add_upgrade("razor_gale")
+	for pair: Array in [["thousand_cuts", 1], ["razor_gale", 2], ["crescendo", 1]]:
 		var card: Dictionary = U.get_by_id(pair[0]).duplicate()
 		card.level = pair[1]
 		cards.append(card)
