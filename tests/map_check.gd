@@ -120,6 +120,14 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	screen.set_status(30.0, 100.0, 12, 2, 0.4)
 	_check(screen._status.text.begins_with("HP 30 / 100") and screen._status.get_theme_color("font_color").r > 0.9
 		and screen._status.get_theme_color("font_color").g < 0.6, "low HP shows red on the map")
+	_check(RM.POWERS.elite == load("res://scripts/main.gd").ELITE_REWARDS, "the map counts an elite's powers like main")
+	# Power range: a hand-built 3-room run, fight or elite, then a rest, then the boss.
+	var tiny: Array = [
+		[{"kind": "fight", "lane": 0, "next": [0, 1]}],
+		[{"kind": "elite", "lane": 0, "next": [0]}, {"kind": "rest", "lane": 1, "next": [0]}],
+		[{"kind": "boss", "lane": 0, "next": []}]]
+	_check(RM.power_range(tiny, Vector2i(0, 0)) == Vector2i(1, 3), "power range spans the routes (1–3)")
+	_check(RM.power_range(tiny, Vector2i(1, 1)) == Vector2i.ZERO, "a rest before the boss gives none")
 	# A long detail lifts the panel instead of running off the screen.
 	screen.set_notes({"vault": "a long line ".repeat(30)})
 	screen._show_room({"kind": "vault", "lane": 0, "next": [], "twists": [], "path": "light", "trial": ""}, 3)

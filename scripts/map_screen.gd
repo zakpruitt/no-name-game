@@ -143,6 +143,15 @@ func set_notes(notes: Dictionary) -> void:
 	_update_detail()
 
 
+## "4–6 powers from here to the boss" (RunMap.power_range, by route).
+func powers_text(at: Vector2i) -> String:
+	var r := RunMap.power_range(_map, at)
+	if r.y == 0:
+		return "No more powers before the boss"
+	var count := str(r.x) if r.x == r.y else "%d–%d" % [r.x, r.y]
+	return "%s power%s from here to the boss" % [count, "" if r.y == 1 else "s"]
+
+
 ## What a rest would heal right now ("Heals 40 HP now (64 → 104 / 110)").
 func rest_text() -> String:
 	if _hp.y <= 0.0 or _hp.z <= 0.0:
@@ -404,6 +413,7 @@ func _show_room(n: Dictionary, room: int) -> void:
 	var ahead := _ahead_text(Vector2i(room - 1, n.lane))
 	if ahead != "":
 		text += "\nLeads on to: " + ahead
+	text += "\n" + powers_text(Vector2i(room - 1, n.lane))
 	_detail_text.text = text
 
 

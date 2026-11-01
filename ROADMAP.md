@@ -196,6 +196,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Element casts for the new combos (`elements.CASTS`): Flurry throws two small bolts, Cyclone carries the element vortex with it
 - [x] Fusion frequency measured (2000 simulated runs of `Upgrades.roll`, random picks): a fusion is offered in 83% of runs with 6 rewards (first at about the 4th reward, 1.4 offers a run) and 97% with 9 (2.6 offers), before trials add theirs, so `FUSION_CHANCE` 0.5 stays
 - [ ] Windowed screenshot pass (held while Zak was gaming; only headless checks ran): the map intro and route preview (`menu_check` → `menu_intro.png`, `map_check.png`), the HUD route strip (`autotest_*.png`), the guide's pause hint (`guide_sheet.png`), Cyclone and Spike in motion
+- [x] Map rooms say how many powers lie between them and the boss over every route on ("4–6 powers from here to the boss"), so a rest's cost in powers is visible (`RunMap.power_range`)
 - [x] The map's detail panel fits its lines and lifts itself when they'd run off the bottom (the new vault/rest/shrine lines reached 873 of 900px; `map_screen.DETAIL_BOTTOM`)
 - [x] Map shrines and rests show their prices against your HP and bones ("Blood pact costs 33 HP · Bone offering 15 bones (you have 12)", "Camp offers from 15 bones") (`main._map_notes`)
 - [x] Map rests say what they'd heal right now ("Heals 40 HP now (30 → 70 / 100)", or that you're at full HP), so rest vs. elite is read off the map (`map_screen.rest_text`)

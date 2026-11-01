@@ -36,6 +36,10 @@ const KINDS := {
 	"mystery": {"name": "Unknown", "text": "revealed when you enter", "color": Color(0.55, 0.78, 0.82), "fightless": true},
 	"boss": {"name": "Boss", "text": "the Bone Warden", "color": Color(0.85, 0.15, 0.12)},
 }
+## Powers a room surely gives on clear (elite = main.ELITE_REWARDS; a met
+## trial's bonus, camp buys and shrine trades aren't counted). Mystery rooms
+## count as the least / most of what they can turn into.
+const POWERS := {"fight": 1, "elite": 2, "vault": 1, "trial": 1}
 ## Odds of each kind for rooms from UNLOCK_ROOM on (relative weights).
 const WEIGHTS := {"fight": 32, "elite": 18, "rest": 10, "shrine": 9, "vault": 22, "trial": 12, "mystery": 10}
 ## What an unknown room turns out to be (relative weights): a gamble that
@@ -188,6 +192,24 @@ static func node_at(cols: Array, at: Vector2i) -> Dictionary:
 
 
 ## The nodes the player can pick after standing on `at`.
+## Fewest and most sure powers (POWERS) from room `at` (counted) to the
+## boss (not counted), over every route on: Vector2i(least, most).
+static func power_range(cols: Array, at: Vector2i) -> Vector2i:
+	var n := node_at(cols, at)
+	if n.is_empty() or n.kind == "boss":
+		return Vector2i.ZERO
+	var own := Vector2i(POWERS.get(n.kind, 0), POWERS.get(n.kind, 0))
+	if n.kind == "mystery":
+		own = Vector2i(99, 0)
+		for k: String in MYSTERY:
+			own = Vector2i(mini(own.x, POWERS.get(k, 0)), maxi(own.y, POWERS.get(k, 0)))
+	var on := Vector2i(-1, -1)
+	for m: Dictionary in next_nodes(cols, at):
+		var r := power_range(cols, Vector2i(at.x + 1, m.lane))
+		on = r if on.x < 0 else Vector2i(mini(on.x, r.x), maxi(on.y, r.y))
+	return own + on.maxi(0)
+
+
 static func next_nodes(cols: Array, at: Vector2i) -> Array:
 	var here := node_at(cols, at)
 	if here.is_empty() or at.x + 1 >= cols.size():
