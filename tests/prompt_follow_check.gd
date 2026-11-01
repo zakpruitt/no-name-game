@@ -12,7 +12,7 @@ class FakeHero extends Node3D:
 	var model := Node3D.new()
 	func _ready() -> void: add_child(model)
 	func breaker_window() -> Dictionary:
-		return {"live": true, "t": 0.3, "open": 0.36, "sweet": 0.5, "close": 0.66, "color": Color.CYAN}
+		return {"live": true, "t": 0.3, "open": 0.36, "sweet": 0.5, "close": 0.66, "color": Color.CYAN, "name": "Ground Breaker"}
 
 
 func _initialize() -> void:
@@ -41,6 +41,7 @@ func _initialize() -> void:
 	_check(pr.center.x < chest.x and pr.center.y < chest.y, "up and to his left")
 	var mid := size * 0.5
 	_check(pr.center.distance_to(mid) < size.length() * 0.25, "near mid-screen when he is (%s, screen %s)" % [pr.center, size])
+	_check(pr._w.get("name", "") == "Ground Breaker", "carries the breaker's name to draw under the circle")
 	# He leaps: the model rises, the circle holds still.
 	var before: Vector2 = pr.center
 	hero.model.position.y = 2.5

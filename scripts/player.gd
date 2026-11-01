@@ -1244,7 +1244,8 @@ func combo_options() -> Array:
 func breaker_window() -> Dictionary:
 	if state == State.LEAP and _brk_phase == 0 and not _brk_locked:
 		var b := _brk
-		return {"live": true, "t": _state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": _fx_color()}
+		return {"live": true, "t": _state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": _fx_color(),
+			"name": breaker_name()}
 	return {"ended": _brk_ended}
 
 

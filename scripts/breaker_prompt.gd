@@ -19,6 +19,8 @@ const KEY_SIZE := 15
 const GOLD := Color(1.0, 0.82, 0.3)
 const GREY := Color(0.42, 0.42, 0.46)
 const OUT_TIME := 0.22  # real s the press flash / lockout fade takes
+const NAME_SIZE := 15  # the breaker's name under the circle (breaker_window() `name`)
+const NAME_GAP := 8.0
 
 var player: Node
 var center := Vector2.ZERO  # where it draws (follows the hero each frame)
@@ -121,6 +123,19 @@ func _draw() -> void:
 	if _out >= 0.0 and _out_kind in ["perfect", "hit"]:
 		draw_arc(c, r + WIDTH + 18.0 * (_out / OUT_TIME), 0.0, TAU, 48, Color(col, a), 3.0, true)
 	_key(c, a, col if in_window or _out >= 0.0 else Color(1, 1, 1))
+	_name(c + Vector2(0.0, r + WIDTH * 0.5 + NAME_GAP), a, col)
+
+
+## The breaker's name centred under the circle, with a dark outline so it
+## reads over the floor.
+func _name(at: Vector2, a: float, col: Color) -> void:
+	var label: String = _w.get("name", "")
+	if label == "":
+		return
+	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
+	var pos := Vector2(at.x - tw * 0.5, at.y + NAME_SIZE)
+	draw_string_outline(_font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, 4, Color(0.04, 0.03, 0.07, 0.8 * a))
+	draw_string(_font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, Color(col.lerp(Color.WHITE, 0.5), a))
 
 
 ## The button to press in the middle (the combo guide's key style).

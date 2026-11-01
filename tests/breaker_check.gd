@@ -59,7 +59,7 @@ func _case(name: String, press_at: float, dive: bool, perfect: bool, awake := fa
 	while p.state == p.State.LEAP and t < 3.0:
 		var w: Dictionary = p.breaker_window()
 		if p._brk_phase == 0 and p._state_t >= b_open() + 0.01 and p._state_t <= b_sweet() and w.get("live", false):
-			guided = guided or (p.combo_options().is_empty() and w.t >= w.open and w.t <= w.close)
+			guided = guided or (p.combo_options().is_empty() and w.t >= w.open and w.t <= w.close and w.get("name", "") != "")
 			slowed = slowed or Engine.time_scale <= p.BREAKER_FOCUS + 0.01
 			ancestor = ancestor or is_instance_valid(p._brk_ancestor)
 		if press_at >= 0.0 and not pressed and p._brk_phase == 0 and p._state_t >= press_at:

@@ -18,7 +18,7 @@ func _initialize() -> void:
 	back.color = Color(0.32, 0.31, 0.3)
 	back.size = Vector2(760, 200)
 	get_root().add_child(back)
-	var b := {"open": 0.36, "sweet": 0.5, "close": 0.66, "color": Color(0.3, 0.95, 0.85)}
+	var b := {"open": 0.36, "sweet": 0.5, "close": 0.66, "color": Color(0.3, 0.95, 0.85), "name": "Ground Breaker"}
 	var live := [0.2, 0.42, 0.5]
 	for i in 5:
 		var fake := FakePlayer.new()
