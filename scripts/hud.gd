@@ -7,6 +7,7 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
+const FOUND_HOLD := 2.5  # s the "New combo" hint stays up
 const POWER_ICON := 44.0  # px, the owned-power icons bottom right
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
@@ -205,6 +206,11 @@ func bind_player(p: Node) -> void:
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
 	combo_guide.player = p
+	# A combo's first landing this run, unless a tutorial hint is still up.
+	p.combo_found.connect(func(id: String) -> void:
+		if hint_panel.modulate.a < 0.05:
+			show_hint("New combo: %s   (%s)   ·   %d / %d found" % [p.combo_name(id), p.COMBOS[id].input,
+				p.combos_landed.size(), p.COMBOS.size()], FOUND_HOLD))
 
 
 func show_boss(boss: Node) -> void:

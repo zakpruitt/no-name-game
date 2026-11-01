@@ -7,6 +7,7 @@ signal awakened_changed(active: bool)
 signal died
 ## Fired when any attack begins (enemies that dodge listen for this).
 signal attack_started(move_id: String)
+signal combo_found(id: String)  # a named combo landed for the first time this run
 
 enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD }
 
@@ -839,6 +840,8 @@ func _combo_callout(id: String) -> void:
 		Game.add_awakening(upg("war_chant", "awaken") * (2.0 if id != _last_combo else 1.0))
 	_last_combo = id
 	combos_landed[id] = combos_landed.get(id, 0) + 1
+	if combos_landed[id] == 1:
+		combo_found.emit(id)
 	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
 	_callout.text = combo_name(id)
 	_callout.modulate = Ascendancy.color(ascendancy) if id == "AF" and ascendancy != "" else COMBO_TIER_COLORS[tier - 1]
