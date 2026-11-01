@@ -141,4 +141,4 @@ Routing rules in `route()`, checked in order:
 - The autotest bot presses buttons with `Input.action_press`, which generates no `InputEvent`, so bot presses never flash rows. `_on_press(kind)` can be called directly if a test needs the flash.
 - `_box` is a single `StyleBoxFlat` reused for every pill. This works because `draw_style_box` issues its draw commands immediately. Don't cache draw commands that depend on it.
 - `combo_options()` treats `State.DASH` as "dashing" so the Dash Stab row shows during the dash itself. `route()` only receives `post_dash`, which is set when the dash ends; any buffered light press resolves then.
-- Still open in ROADMAP: a feel pass by hand (placement against the fight, and whether the follow-up hint becomes noise once the moves are learned). One option is to fade the hint after a combo has been landed N times.
+- Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint; ultimates are always hinted. Still open in ROADMAP: a feel pass by hand on placement against the fight.

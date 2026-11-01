@@ -71,6 +71,13 @@ func _initialize() -> void:
 		_check(rows[0].get("pause", {}).get("id", "") == "LPL", "mid-L2 the light row hints the pause (Flurry)" + _tag(awake))
 		_check(rows.slice(1).all(func(r: Dictionary) -> bool: return not r.has("pause")), "only the light row has a pause hint" + _tag(awake))
 	p._set_awakened(false)
+	# A combo landed GUIDE_LEARNED times is no longer hinted as the follow-up.
+	_begin(p, "L1")
+	_check(p.combo_options()[1].next.get("id", "") == "LHH", "L1's heavy row hints Spike")
+	p.combos_landed["LHH"] = p.GUIDE_LEARNED
+	_begin(p, "L1")
+	_check(p.combo_options()[1].next.get("id", "") != "LHH", "a learned Spike is no longer hinted")
+	p.combos_landed.clear()
 	p._set_state(p.State.MOVE)
 	p._post_dash_t = 0.0
 	p._chain_i = 0

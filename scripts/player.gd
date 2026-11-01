@@ -140,6 +140,9 @@ const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 const CAST_SFX_DB := -11.0
 # Names of the moves that aren't combos, for the combo guide.
 const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin"}
+# After landing a combo this many times in a run, the guide stops hinting it
+# as a follow-up (it still shows as a row); ultimates are always hinted.
+const GUIDE_LEARNED := 6
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
 const COMBO_SFX_DB := -9.0
@@ -618,6 +621,8 @@ func _option(kind: String, id: String, hold := false) -> Dictionary:
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties
 			var n := route(k, id, true, chain_after(id), false, awakened)
 			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
+			if combos_landed.get(n, 0) >= GUIDE_LEARNED and not (ULTIMATES.has(n) or n == "AF"):
+				tier = 0  # learned: no need to hint it any more
 			if tier > best:
 				best = tier
 				o.next = {"kind": k, "id": n, "name": guide_name(n), "tier": tier, "ult": ULTIMATES.has(n) or n == "AF"}
