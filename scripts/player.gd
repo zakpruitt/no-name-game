@@ -1496,14 +1496,15 @@ func _swoosh(fwd: Vector3) -> void:
 	var c: Color = _trails[0].color if not _trails.is_empty() else _trail_rest_color()
 	var big: bool = _move.get("big", false)
 	var time := 0.32 if big else 0.24
-	Fx.swoosh(get_parent(), global_position, fwd, _move.range * 0.9, _move.arc, c, _swoosh_flip, time)
+	var at := global_position + Vector3.UP * model.position.y  # up with him in a hop / the air string
+	Fx.swoosh(get_parent(), at, fwd, _move.range * 0.9, _move.arc, c, _swoosh_flip, time)
 	# Escalation: combo enders and long chains add a wider, hotter arc above the
 	# first, so a string visibly builds to its finish.
 	var tier := Fx.chain_tier(Game.combo_count)
 	if COMBOS.has(_move_id) or tier >= 2:
 		var hot := c.lerp(Color.WHITE, 0.35)
 		hot.a = 0.75 + 0.08 * tier
-		Fx.swoosh(get_parent(), global_position, fwd, _move.range * (1.05 + 0.04 * tier), _move.arc, hot,
+		Fx.swoosh(get_parent(), at, fwd, _move.range * (1.05 + 0.04 * tier), _move.arc, hot,
 				_swoosh_flip, time * 1.15, 1.15)
 
 
@@ -1552,7 +1553,7 @@ func _cast(fwd: Vector3) -> void:
 			echo.delay = c.delay
 			echo.time = c.time
 			parent.add_child(echo)
-			echo.global_position = Vector3(global_position.x, 0.0, global_position.z)
+			echo.global_position = Vector3(global_position.x, model.position.y, global_position.z)  # (air slashes: in the air)
 		"cleave":
 			var cl = _spirit(SPIRIT_CLEAVE.new(), c, el)
 			cl.fwd = fwd
