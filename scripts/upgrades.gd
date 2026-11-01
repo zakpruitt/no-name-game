@@ -141,6 +141,15 @@ static func slot_name(u: Dictionary) -> String:
 	return SLOT_NAMES.get(u.slot, u.slot)
 
 
+## The player.COMBOS id a power's slot hooks, when it hooks a named combo
+## (callers check player.COMBOS.has()); most slots are the combo id itself.
+const SLOT_COMBOS := {"Charged": "CH"}
+
+
+static func combo_of(u: Dictionary) -> String:
+	return SLOT_COMBOS.get(u.slot, u.slot)
+
+
 ## Synergies: own SYNERGY_NEED of a tag's `ids` and every one of them gets
 ## its `boost` (a multiplier on those lv keys, applied in player.upg()).
 ## A power can carry more than one tag.

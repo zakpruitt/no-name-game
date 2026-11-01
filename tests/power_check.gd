@@ -185,6 +185,21 @@ func _check_card(main: Node, U: GDScript) -> void:
 	main.reward.get_tree().paused = false
 	main.reward._root.queue_free()
 	main.reward._root = null
+	_check(U.combo_of(U.get_by_id("bone_breaker")) == "CH", "Charged Slam powers hook the CH combo")
+	# The pause build view shows the same line under the power.
+	var p: Node = main.get_tree().get_first_node_in_group("player")
+	var had: bool = p.upgrades.has("rebound")
+	if not had:
+		p.add_upgrade("rebound")
+	var pause: Node = main.get_children().filter(func(n: Node) -> bool:
+		return n.has_method("open_settings") and not n.has_signal("started"))[0]
+	pause._open()
+	await process_frame
+	texts = pause.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.has("Spike:  L H H"), "the build view shows a combo power's input")
+	pause.close_menu()
+	if not had:
+		p.remove_upgrade("rebound")
 
 
 func _spawn(main: Node, p: Node3D) -> Node3D:

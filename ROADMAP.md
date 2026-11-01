@@ -196,6 +196,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Element casts for the new combos (`elements.CASTS`): Flurry throws two small bolts, Cyclone carries the element vortex with it
 - [x] Fusion frequency measured (2000 simulated runs of `Upgrades.roll`, random picks): a fusion is offered in 83% of runs with 6 rewards (first at about the 4th reward, 1.4 offers a run) and 97% with 9 (2.6 offers), before trials add theirs, so `FUSION_CHANCE` 0.5 stays
 - [ ] Windowed screenshot pass (held while Zak was gaming; only headless checks ran): the map intro and route preview (`menu_check` → `menu_intro.png`, `map_check.png`), the HUD route strip (`autotest_*.png`), the guide's pause hint (`guide_sheet.png`), Cyclone and Spike in motion
+- [x] The pause build view also shows each combo power's input under it ("Spike:  L H H"); `Upgrades.combo_of()` maps a power to its combo for both
 - [x] Map vaults say what's left in their path for your build ("In the vault: 3 new, 2 to level up", or that it tops up from other paths), so a vault of a nearly finished path isn't a trap (`map_screen.vault_pool`)
 - [x] Map trials say what they'd pay with your build ("Fusion ready: Sky Reaper" or "pays a level-up"), so routing to a trial is a real choice rather than a guess (`map_screen.trial_payout`)
 - [x] Reward cards for a power on a named combo show how to do it ("Flurry:  L L, pause, L"), so a new combo's power doesn't need the pause menu to look up its input

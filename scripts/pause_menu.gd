@@ -138,6 +138,11 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 	desc.add_theme_color_override("default_color", Color(0.85, 0.82, 0.92))
 	desc.text = Upgrades.describe(u, level, synergies, color.lightened(0.3))
 	text.add_child(desc)
+	var player := get_tree().get_first_node_in_group("player")
+	var combo := Upgrades.combo_of(u)
+	if player != null and player.COMBOS.has(combo):
+		var how := _label(text, "%s:  %s" % [player.combo_name(combo), player.COMBOS[combo].input], 13, Color(1, 1, 1, 0.5))
+		how.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 ## "MOVES": the fixed move list, basics plus the named combos (player.COMBOS).
