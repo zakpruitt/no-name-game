@@ -28,8 +28,15 @@ The fourth one hangs off **Cyclone (Dash > H)**. At the end of the spin
 he rises 1.2 m inside a six-axe sawblade, and the whirlwind drags foes
 within 6 m in toward him. The cue rings close in on the hero himself. The
 press drops him and flings six spectral tomahawks out in a ring, which
-boomerang back, with a small blast round him ("Spirit Maelstrom", "Eye of
-the Storm", "Shrapnel Storm", "Hailstorm").
+boomerang back, with a small blast round him ("Spirit Maelstrom",
+"Tempest Ring", "Shrapnel Storm", "Hailstorm").
+
+The fifth one hangs off **Spike (L H H)**. After the slam he bounces
+straight up, and a giant spectral axe appears hovering point-down over each
+foe near the zone (up to six), following them as they move. The press dives
+him in and every axe drops with him, a guillotine volley ("Spirit Verdict",
+"Storm Verdict", "Mountain Verdict", "Frost Verdict"). With no press, the
+axes fade away.
 
 **Awakened, they get bigger.** As the window opens, the dive breakers
 (L L H, Charged Slam) summon a `BREAKER_ANCESTOR` (4x) spectral ancestor
@@ -69,6 +76,7 @@ Step", "Fault Rush", "Riptide Rush").
 The regular strings leave the ground too (`MOVES` `hop`: `[start, end,
 height]` as fractions of the move, applied by `player._hop()`):
 
+- **L2** hops onto its hit (0.6 m): L L H reads as axe, slam, leap.
 - **Triple Chop (L L L)** leaps onto its hit (0.9 m).
 - **Launcher (L H)** rises with the foe it launches (1.5 m).
 - **Spike (L H H)**, started from the Launcher's rise, comes down from that
@@ -76,17 +84,32 @@ height]` as fractions of the move, applied by `player._hop()`):
   or by `land` if set.
 - **Charged Slam** leaps into the slam (1.1 m).
 
+**The air string.** Light after the Launcher goes into the air instead of
+back to L1:
+
+- **Air Slash (`AL1`)**, then **`AL2`** (the named combo "Sky Rend", L H L
+  L). Both are `air` moves: `_hop` holds the height they started at, plus a
+  small bob, so he stays up with the launched foe. Each cut re-juggles it.
+- After them, Light is Triple Chop slamming down from the air, and Heavy is
+  Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
+  is Ancestor's Fall.
+- Routing lives in `player.route()`, so the combo guide shows it, and the
+  air slashes get small echo casts (`elements.CASTS`).
+
 Only the model moves; the body stays on the floor, so hit areas don't
 change. Outside attacks, leaps and ultimates, the model settles back down
 (`_physics_process`), so a dash out of a hop doesn't snap. A landing from
-above 0.4 m kicks up dust.
+above 0.4 m is a slam: dust, a small ring in the hero's colour ahead of
+him, and a light shake.
 
 ## Files
 
 - `scripts/player.gd`
   - `BREAKERS`: the tuning, keyed by move id.
   - `State.LEAP`. `_state_attack()` hands off to `_start_leap()` once the
-    move has landed a hit and reached `leap`.
+    move has reached `leap`, but only if it connected (`_connected`, set
+    by `_do_hit()` when it hits something). A whiff plays out normally, so
+    swinging at nothing never launches him into the air.
   - `_state_leap()` runs the phases: 0 rise/hang/throw/cue/press, 1 dive,
     2 fall.
   - `_juggle()` / `_drop_wheel()`: the Charged Slam's spin and its
@@ -98,6 +121,10 @@ above 0.4 m kicks up dust.
     one hit record (`spirit_tomahawk.shared`), so each foe takes one hit
     per leg from the whole ring. The pull (`pull`, `pull_radius`) lives in
     `_juggle()` and skips bosses.
+  - `_volley_raise()`: Spike's hovering axes (`volley` key). These are
+    `spirit_guillotine`s in `wait` mode, which track their `target` until
+    `drop(delay)`, or `cancel()` on a miss. `_start_dive` drops them so
+    they land with him, and they share one hit record (`shared`).
   - `_dash_cut()` / `_dash_wake()`: Flurry's dash breaker (`dash` key).
     The cut hits each foe within `width` once (`_brk_passed`). The wake
     raises the rift from the dash start to the hero and hits the strip
@@ -114,10 +141,19 @@ above 0.4 m kicks up dust.
   detonation once.
 - `scripts/breaker_cue.gd`: the floor rings. `lock()` greys them out (too
   early); `hit(perfect)` flashes them.
-- Combo guide: while airborne and before the press, `combo_options()`
-  returns `_breaker_options()`, a single heavy row named by `breaker_name()`
-  at tier 3. `combo_window()` fills `progress` toward `open` and sets `ready`
-  inside `open..close`. `combo_guide.gd` itself is unchanged.
+- `scripts/breaker_prompt.gd`: the timing prompt. It's a circle in the
+  screen's top-left corner (`CENTER`, under the HUD bars) with the heavy
+  button in the middle. It fills clockwise toward full at `sweet`, and a
+  thin gold band on the track marks the window from `open`. The fill turns
+  gold inside the window and pulses when full. A press flashes it (gold
+  and growing on a perfect), and a lockout greys it out.
+  - It's kept separate from the combo guide: the guide shows only the next
+    combo inputs, and nothing during a leap.
+  - It reads `player.breaker_window()` every frame: `live` with the times,
+    or how the last breaker `ended` ("perfect", "hit", "lock", "miss").
+  - The player adds it on its own `CanvasLayer` on the first leap
+    (`_breaker_prompt()`), so `hud.gd` is untouched.
+  - It animates in real time, because the window plays in slow motion.
 - `scripts/elements.gd`: LLH no longer has a `CASTS` entry. The breaker is
   its finisher.
 
@@ -153,6 +189,9 @@ except `leap`, which is a fraction of the move's animation.
   timing inside the leap (`_state_t`, the cue's rings) slows with it and the
   window stays in sync. A press must call `Game.end_slowmo()`: hitstop only
   extends, so a later freeze would otherwise inherit the window's end time.
+- `leap` must be at or before the move's `cancel`. Otherwise a buffered
+  press starts the next move at the cancel point and steals the breaker
+  (heavy after Spike is the Launcher; light after Flurry is L1).
 - `_end_leap` zeroes `velocity`: without that, the dash's ~45 m/s carries
   him past the zone.
 - `_brk_wheel` must not outlive the leap: it's a child of the model and
@@ -183,6 +222,7 @@ On one dummy in the check:
 | Charged Slam | ~49 | 41 | 12 (juggle grinds) |
 | Flurry | ~43 | 32 | 0 |
 | Cyclone | ~52 + return leg | 39 + return leg | 11 (juggle grinds) |
+| Spike | ~55 | 44 | 0 |
 
 All of these are on top of the move's own hit.
 
@@ -204,11 +244,13 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
 
 - `godot --headless --path . -s tests/breaker_check.gd`: four cases (perfect,
   late, early lockout, no press) for every `BREAKERS` entry against a dummy,
-  PASS/FAIL. It also checks that the guide row names the
-  breaker and is ready inside the window, that the window plays in slow
-  motion, and that full speed returns afterwards. A fifth case per breaker
+  PASS/FAIL. It also checks that `breaker_window()` is live inside the
+  window while the combo guide shows nothing, that each case ends the right
+  way (perfect, hit, lock or miss), that the window plays in slow motion, and that full speed returns afterwards. A fifth case per breaker
   is a perfect press while Awakened (via `_set_awakened()`): the dive
-  breakers must summon the ancestor, and the dash one must not.
+  breakers must summon the ancestor, and the dash and fan ones must not.
+  Two more cases run L L H through `_start_attack`: with a foe in front
+  it leaps, and on a whiff it doesn't.
 - The autotest bot presses at `sweet` and prints
   `[autotest] combo_breaker #N <id> perfect=true` when it gets through the
   leap without dash-cancelling.
@@ -220,12 +262,15 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
   so wakes need about 0.3 s or more), then `python tools/render_hero.py
   <user://cast_dump.json> out.png side,back`.
 
-- `godot --headless --path . -s tests/hop_check.gd`: L3 and CH hop and land
-  on their hit, L H's height carries into L H H, which lands on its hit, and
+- `godot --headless --path . -s tests/hop_check.gd`: L2, L3 and CH hop and land
+  on their hit; L H L L stays above 1 m through both air slashes and Triple
+  Chop slams down from there; L H's height carries into L H H, which lands on its hit, and
   the model settles afterwards (PASS/FAIL).
 
 ## Gotchas / open questions
 
-- The HUD has no breaker prompt (it belongs to another workstream). The
-  rings and the combo guide row are the prompts.
+- The prompt is drawn in 2D, which headless can't render. Its preview is
+  `godot --path . -s tests/breaker_prompt_preview.gd` (windowed), which
+  saves five states to `user://breaker_prompt.png`. Its logic is covered
+  headless by `breaker_check`.
 - The window size and dive speed haven't been played by hand yet.
