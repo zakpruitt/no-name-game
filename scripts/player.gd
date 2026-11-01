@@ -494,6 +494,7 @@ func _state_attack(delta: float) -> void:
 	# Dash cancels anything once the first hit has come out (or early on whiff).
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2):
 		if _hits_done > 0 and has_upgrade("static_step"):
+			_proc("static_step")
 			_static_trap(global_position)
 		if _hits_done > 0 and has_upgrade("shockstep") and _move_id in SHATTER_MOVES:
 			_shockstep(global_position)
@@ -657,6 +658,7 @@ func _start_attack(id: String) -> void:
 	_move = _effective_move(id)
 	_anim_mult = _base_anim_mult() * _move.get("speed", 1.0)
 	if id in LIGHT_MOVES and has_upgrade("quickblade"):
+		_proc("quickblade")
 		_anim_mult *= 1.0 + upg("quickblade", "speed") / 100.0
 	if _crescendo and id in SHATTER_MOVES:
 		_crescendo = false
@@ -753,18 +755,22 @@ func _do_hit() -> void:
 			dmg *= 1.0 + upg("sky_reaper", "bonus") / 100.0
 			_proc("sky_reaper")
 		if _move_id == "CH" and has_upgrade("bone_breaker") and (e.shield or e.elite or e.has_method("is_boss")):
+			_proc("bone_breaker")
 			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
 			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
+			_proc("shatter")
 			_shatter(e)
 		if _move_id == "LHH" and was_airborne:
 			_spike(e)
 		if was_airborne and has_upgrade("chain_spark"):
+			_proc("chain_spark")
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
+			_proc("bloodthirst")
 			heal(upg("bloodthirst", "heal"), false)
 		if _move_id in LIGHT_MOVES and has_upgrade("thousand_cuts") and e.is_alive():
 			_thousand_cuts(e)
@@ -774,6 +780,7 @@ func _do_hit() -> void:
 	if _hits_done == 1:
 		_cast(fwd)
 		if _move_id == "L3" and has_upgrade("ember_cleave"):
+			_proc("ember_cleave")
 			var w := FIRE_WAVE.new()
 			w.direction = fwd
 			w.damage = upg("ember_cleave", "damage")
@@ -792,6 +799,7 @@ func _do_hit() -> void:
 			ground_breakers += 1
 			_crack_line(fwd, Color(0.85, 0.75, 0.6))
 			if has_upgrade("fault_line"):
+				_proc("fault_line")
 				_fault_line(global_position, fwd)
 		if _move_id == "CH":
 			charged_slams += 1
@@ -800,8 +808,10 @@ func _do_hit() -> void:
 			Fx.burst(get_parent(), at + Vector3.UP * 0.2, CHARGE_COLOR, 24, 9.0, 0.14, 0.35, Vector3.UP, 80.0)
 			Fx.dust(get_parent(), at, 16, 1.0)
 			if has_upgrade("quake"):
+				_proc("quake")
 				_quake(at)
 		if _move_id == "LH" and has_upgrade("skybreaker"):
+			_proc("skybreaker")
 			var r := upg("skybreaker", "radius")
 			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), r, 0.3)
 			for e in get_tree().get_nodes_in_group("enemies"):
@@ -1251,6 +1261,7 @@ func _on_level_up(level: int) -> void:
 
 func _on_enemy_killed(_e: Node) -> void:
 	if has_upgrade("reaper") and state != State.DEAD:
+		_proc("reaper")
 		heal(upg("reaper", "heal"), false)
 		Game.add_awakening(upg("reaper", "awaken"))
 	if has_upgrade("undying_flame") and awakened and state != State.DEAD:
@@ -1359,6 +1370,7 @@ func _quake(at: Vector3) -> void:
 func _effective_move(id: String) -> Dictionary:
 	var m: Dictionary = MOVES[id].duplicate(true)
 	if id == "H" and has_upgrade("whirlwind"):
+		_proc("whirlwind")
 		# Spread the extra hits evenly across the spin.
 		var n := int(upg("whirlwind", "hits"))
 		m.hits = []
@@ -1366,8 +1378,10 @@ func _effective_move(id: String) -> Dictionary:
 			m.hits.append(lerpf(0.22, 0.7, float(i) / (n - 1)))
 		m.range += upg("whirlwind", "reach")
 	if id == "L2" and has_upgrade("rising_edge"):
+		_proc("rising_edge")
 		m.launch = upg("rising_edge", "launch")
 	if id == "DL" and has_upgrade("momentum"):
+		_proc("momentum")
 		m.damage *= 1.0 + upg("momentum", "bonus") / 100.0
 		m.range += 1.5
 		m.lunge *= 1.3
@@ -1536,6 +1550,7 @@ func try_awaken() -> void:
 	Game.sfx("awaken", 0.0, 0.0)
 	Game.rumble("awaken")
 	if has_upgrade("phoenix_heart"):
+		_proc("phoenix_heart")
 		heal(upg("phoenix_heart", "heal"))
 	# Activation burst: big freeze, shockwave that blows enemies back.
 	Game.hitstop(0.25, 0.05)
@@ -1665,6 +1680,7 @@ func _perfect_dodge(attacker: Node) -> void:
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
 	if has_upgrade("riposte"):
+		_proc("riposte")
 		_riposte()
 
 
@@ -1741,6 +1757,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 	velocity.x = knockback.x
 	velocity.z = knockback.z
 	if hp <= 0.0 and has_upgrade("second_wind") and not _second_wind_used:
+		_proc("second_wind")
 		_second_wind_used = true
 		hp = max_hp * upg("second_wind", "hp") / 100.0
 		health_changed.emit(hp, max_hp)
