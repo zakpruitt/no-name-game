@@ -177,6 +177,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     <section id="combat">
       <h2>Moves &amp; combos</h2>
       <p>The moveset is fixed: a light chain, a heavy that changes with what came before it, a charged heavy, a dash attack and the Awakened finisher. Every move also summons the shaman's element (see <a href="#elements">Elements &amp; ultimates</a>). Landing a <b>named combo</b> plays a short sound for its tier and shows its name above the hero: <span class="t1">string</span>, <span class="t2">heavy route</span>, <span class="t3">finisher</span>. The pause menu lists the same moves.</p>
+      <p id="combo-text"></p>
       <div id="moves"></div>
       <h3>Dash and the perfect dodge</h3>
       <p id="dash-text"></p>
@@ -249,7 +250,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
       <p id="reward-text"></p>
       <div id="boons"></div>
       <h3>Daily runs, seeds and records</h3>
-      <p>Every run has a seed shown on the pause menu and the summary. <b>Daily run</b> seeds from the date, so everyone on this build gets the same map and offers that day. The title lists your last five runs; pick one to replay its seed. Records track best room, combo, rank, juggle and fastest win.</p>
+      <p>Every run has a seed shown on the pause menu and the summary. <b>Daily run</b> seeds from the date, so everyone on this build gets the same map and offers that day. The title lists your last five runs; pick one to replay its seed. Records track best room, combo, rank, juggle and fastest win. The run summary also shows the combos found, your <b>signature combo</b> (the one landed most) and your <b>busiest power</b> (the one that fired most).</p>
     </section>
 
     <section id="bestiary">
@@ -356,9 +357,15 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     var dmg = m.hits.length > 1 ? n(m.damage) + " ×" + m.hits.length : n(m.damage);
     var reach = m.width ? n(m.range) + "m strip" : n(m.range) + "m · " + n(m.arc) + "°";
     var tier = c ? '<span class="t' + c.tier + '"><b>' + esc(name) + "</b></span>" : esc(name);
-    return ['<span class="inp">' + esc(input) + "</span>", tier, {num: dmg}, {num: reach}, {num: m.launch ? n(m.launch) : "–"}, t.note ? esc(t.note) : miss()];
+    var mt = D.move_time[id];
+    return ['<span class="inp">' + esc(input) + "</span>", tier, {num: dmg}, {num: reach}, {num: m.launch ? n(m.launch) : "–"},
+      {num: mt ? n(mt.time) + "s" : "–"}, {num: mt ? n(mt.dps) : "–"}, t.note ? esc(t.note) : miss()];
   });
-  $("moves").innerHTML = table(["Input", "Move", "Dmg", "Reach", "Launch", "What it does"], mrows);
+  $("moves").innerHTML = table(["Input", "Move", "Dmg", "Reach", "Launch", "To cancel", "DPS", "What it does"], mrows);
+  $("combo-text").innerHTML = "The <b>combo guide</b> beside the hero shows what each button does next mid-string, including the pause route (L L, wait, L for Flurry); once you've landed a combo " +
+    H.guide_learned + " times in a run it stops hinting it (ultimates are always hinted). The first time a named combo lands in a run, the HUD says <b>New combo</b> with its input and how many of the " +
+    Object.keys(D.combos).length + " you've found. The pause menu's MOVES list counts each combo landed this run, dims the ones still to find, and lists under each the powers you own that hook it. " +
+    "<b>To cancel</b> is how long a move takes before you can act again; <b>DPS</b> is its damage over that time, with no powers (the test suite fails any move far above the median).";
   $("dash-text").innerHTML = "The dash moves at " + n(H.dash_speed) + " m/s for " + n(H.dash_time) + "s (" + n(H.dash_cooldown) +
     "s cooldown), grants invulnerability, and cancels any attack once its first hit is out. Dash in the last " + n(H.perfect_dodge_window) +
     "s before a hit lands for a <b>PERFECT</b> dodge: the attacker is stunned " + n(H.perfect_dodge_stun) + "s and you get " +
@@ -427,7 +434,9 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     " lanes, the links between them shown. Room 1 is always a fight, room 2 offers two fights, and room " + R.length +
     " is always the Bone Warden. After each room you pick one of the rooms linked to yours; the map shows elite twists, each vault's colour and each trial's condition ahead, and pause → Map shows it mid-run. A rest, shrine or vault never follows another, and the room before the boss always has a rest. From room " +
     M.unlock_room + " on, the odds of each room are " + Object.keys(M.weights).map(function (k) { return M.kinds[k].name.toLowerCase() + " " + pct(M.weights[k] / mw); }).join(", ") +
-    ". Clearing a room heals " + pct(R.room_clear_heal) + " of max HP.";
+    ". Clearing a room heals " + pct(R.room_clear_heal) + " of max HP." +
+    "<br><br>The map's top left shows your HP (red below " + pct(M.low_hp) + "), bones and level, since the HUD hides under it. Hover or arrow to any room for its detail: what it leads to, and how many powers lie between it and the boss over every route on (fights " +
+    M.powers.fight + ", elites " + M.powers.elite + ", vaults " + M.powers.vault + ", trials " + M.powers.trial + "). Each kind adds what it means for <i>your</i> run right now: a rest what it would heal and the camp's cheapest offer against your bones, a shrine the blood pact's HP and the offering's price, a vault how many new and level-up powers its path has left for your build, a trial which fusions are ready (else a level-up), and an unknown room its odds.";
   $("vault-text").innerHTML = "No fight. A gold chest lit in one path's colour: pick 1 of 3 powers of that path (fusions on it count), so you can route toward your build.";
   $("trial-text").innerHTML = pct(M.trial_size) + " of a fight with a condition. Clear it for the usual power; meet the condition for a fusion card too (else a level-up, else " +
     M.trial_bones + " bones):";
@@ -478,7 +487,8 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
   function pathChip(k) { var c = "#" + D.paths[k].color; return '<span class="chip" style="color:' + c + ";border-color:" + c + '">' + esc(D.paths[k].name) + "</span>"; }
   $("powers-text").innerHTML = "Each power hooks one move or mechanic (its slot) and belongs to the button it upgrades: its path, worn as its colour on cards, icons and the combo guide. Own " +
     D.mastery_need + " powers of one path for its mastery. Fusions carry two paths, count toward both masteries, and are only offered once you own a power of each (" +
-    pct(D.fusion_chance) + " of offers swap their last card for one). Numbers are per level, I / II / III. Card text shows level I.";
+    pct(D.fusion_chance) + " of offers swap their last card for one). Numbers are per level, I / II / III. Card text shows level I." +
+    "<br><br>A card for a power on a named combo shows how to do the combo (amber with <i>not landed yet</i> if you haven't this run); a level-up card says how often the power has fired this run. The pause build view shows the same input lines and fire counts, so a power that never triggers for your playstyle stands out.";
   $("path-table").innerHTML = table(["Path", "Button", "Powers", "Mastery (own " + D.mastery_need + ")"], Object.keys(D.paths).map(function (k) {
     var P = D.paths[k], count = D.powers.filter(function (p) { return p.path === k || p.fusion === k; }).length;
     return [pathChip(k), P.key ? "<code>" + esc(P.key) + "</code>" : "kills, juggles, death", {num: count}, esc(fill(P.mastery.desc, P.mastery))];
