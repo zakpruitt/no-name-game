@@ -167,3 +167,9 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Power feel pass by hand: are the mastery numbers worth chasing; do fusions show up often enough; are the weaker icons (Riposte, Shockstep) readable at HUD size
 - [ ] Wiki: show paths, masteries and fusions on the powers page (data.js already carries `path` / `fusion`)
 - [ ] Element powers could become a sixth path later (see Round 17)
+
+## Round 21 (run map)
+- [x] Run map: the whole run is laid out at the start (8 columns, up to 3 lanes, the boss at the end) and you pick the next room on it instead of from two blind doors. Elite twists, vault colours and trial conditions show ahead; the route so far is lit; pause → Map shows it read-only. `RunMap` (`scripts/run_map.gd`: `WEIGHTS`, `KINDS`, `TRIALS`) generates it from `run_rng`, so seeded and daily runs share the map (seeds give different runs than before this round); `map_screen.gd` draws it; `path_choice.gd` and `path_options()` are gone. `tests/map_check.gd` PASS over 500 seeds (links, reachability, no two fightless rooms linked, rest before the boss)
+- [x] Vault room: a gold chest lit in a path's colour offers 1 of 3 powers of that path (fusions count), so you can route toward your build — `main._vault()`, `vault_prop.gd`, `Upgrades.roll(..., path)`; `--start-vault=light`
+- [x] Trial room: three quarters of a fight with a condition (Untouched: no hits; Swift: clear in 20 + 4×room s; Stylish: reach rank A), shown live under the room title; meeting it offers a fusion (`Upgrades.roll_fusion`), else a level-up, else 20 bones — `--start-trial=id`, autotest prints `trial=... met|failed`. Tour now runs fight → rest → shrine → elite → vault → trial → boss
+- [ ] Map feel pass by hand: is the route choice interesting (enough vaults/trials vs fights in `RunMap.WEIGHTS`), is Swift's time fair for a person rather than the bot, should Untouched forgive a chip hit

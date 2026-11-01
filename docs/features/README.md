@@ -14,6 +14,7 @@ invariants and the gotchas.
 |---|---|---|
 | Combo guide (next-input hints beside the hero) | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `player.route()` |
 | Powers: paths, masteries, fusions, icons | [powers.md](powers.md) | `scripts/upgrades.gd`, `scripts/power_icon.gd`, `reward_screen.gd` |
+| Run map, vaults and trials | [run-map.md](run-map.md) | `scripts/run_map.gd`, `scripts/map_screen.gd`, `main._choose_path()` |
 
 ## Writing one
 

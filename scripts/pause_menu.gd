@@ -22,7 +22,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _open(focus := 0) -> void:
 	show_menu("PAUSED", "", [
 		["Resume", close_menu],
-		["Settings", open_settings.bind(_open.bind(1), 0.7)],
+		["Map", _show_map],
+		["Settings", open_settings.bind(_open.bind(2), 0.7)],
 		["Restart run", _restart.bind(true)],
 		["Quit to title", _restart.bind(false)],
 		["Quit game", _quit],
@@ -161,6 +162,13 @@ func _build_moves() -> void:
 		var line := _label(list, "%s   %s" % [r[0], r[1]], 19,
 			player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95))
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
+## The run map, read-only, over the pause menu (main.show_map()).
+func _show_map() -> void:
+	var main := get_parent()
+	if main.has_method("show_map"):
+		main.show_map()
 
 
 func _restart(skip_title: bool) -> void:

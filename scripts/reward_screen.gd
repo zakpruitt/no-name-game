@@ -12,6 +12,7 @@ const CARD_BG := Color(0.07, 0.05, 0.11)
 
 var _choices: Array = []
 var _reroll_cost := -1  # -1 = no reroll offered
+var _title_text := "CHOOSE A POWER"
 var _reroll_button: Button
 var _buttons: Array[Button] = []
 var _root: Control
@@ -23,9 +24,11 @@ func _ready() -> void:
 	visible = false
 
 
-func open(choices: Array, reroll_cost := -1) -> void:
+## `title` replaces "CHOOSE A POWER" (a vault, a trial's reward).
+func open(choices: Array, reroll_cost := -1, title := "") -> void:
 	_choices = choices
 	_reroll_cost = reroll_cost
+	_title_text = title if title != "" else "CHOOSE A POWER"
 	if _root:
 		_root.queue_free()
 	_build()
@@ -86,7 +89,7 @@ func _build() -> void:
 	_root.add_child(col)
 
 	var title := Label.new()
-	title.text = "CHOOSE A POWER"
+	title.text = _title_text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))

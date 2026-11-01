@@ -226,13 +226,17 @@ static func level_tag(level: int) -> String:
 ## Each card is the upgrade's entry plus "level" (the level it grants).
 ## `level_ups_only` limits it to owned upgrades (the camp's "hone").
 ## New fusions only come from can_fuse(); with FUSION_CHANCE one takes the
-## last card.
-static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: RandomNumberGenerator = null) -> Array:
+## last card. `path` (a vault) keeps to cards on that path (fusions count),
+## topped up from any path if it runs short.
+static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: RandomNumberGenerator = null,
+		path := "") -> Array:
 	var pool: Array = []
 	var fusions: Array = []
 	for u in ALL:
 		var level: int = owned.get(u.id, 0)
 		if level >= MAX_LEVEL or (level == 0 and level_ups_only):
+			continue
+		if path != "" and path not in paths_of(u):
 			continue
 		var card: Dictionary = u.duplicate()
 		card.level = level + 1
@@ -249,7 +253,32 @@ static func roll(owned: Dictionary, count := 3, level_ups_only := false, rng: Ra
 			cards[-1] = fusions[0]
 		else:
 			cards.append(fusions[0])
+	if path != "" and cards.size() < count:
+		var ids := cards.map(func(c: Dictionary) -> String: return c.id)
+		for extra: Dictionary in roll(owned, count * 3, level_ups_only, rng):
+			if cards.size() < count and extra.id not in ids:
+				cards.append(extra)
 	return cards
+
+
+## Up to `count` fusion cards (a met trial): new fusions `owned` can take,
+## else level-ups of owned ones. Empty if neither.
+static func roll_fusion(owned: Dictionary, count := 2, rng: RandomNumberGenerator = null) -> Array:
+	var fresh: Array = []
+	var owned_ups: Array = []
+	for u in ALL:
+		if not u.has("fusion"):
+			continue
+		var level: int = owned.get(u.id, 0)
+		var card: Dictionary = u.duplicate()
+		card.level = level + 1
+		if level == 0 and can_fuse(owned, u):
+			fresh.append(card)
+		elif level > 0 and level < MAX_LEVEL:
+			owned_ups.append(card)
+	var pool := fresh if not fresh.is_empty() else owned_ups
+	shuffle(pool, rng)
+	return pool.slice(0, count)
 
 
 ## The paths upgrade `u` counts for: its own, plus a fusion's second.

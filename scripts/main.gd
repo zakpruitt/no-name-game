@@ -23,7 +23,8 @@ const SUMMARY := preload("res://scripts/run_summary.gd")
 const TITLE := preload("res://scripts/title_screen.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const SPIKES := preload("res://scripts/spike_trap.gd")
-const PATH := preload("res://scripts/path_choice.gd")
+const MAP_SCREEN := preload("res://scripts/map_screen.gd")
+const VAULT_PROP := preload("res://scripts/vault_prop.gd")
 const RECORDS := preload("res://scripts/records.gd")
 const BONE_CAGE := preload("res://scripts/bone_cage.gd")
 const ALTAR := preload("res://scripts/altar.gd")
@@ -68,14 +69,20 @@ const RAISE_RANGE := 12.0
 const MAX_GRAVES := 8
 const RAISE_FX_COLOR := Color(0.45, 1.0, 0.4)
 # A run is RUN_LENGTH rooms; the last is always the boss and room 1 a fight.
-# After each room you pick the next from two doors (path_options). Room n's
+# The run's map (RunMap, generated at the start from run_rng) links them;
+# after each room you pick the next on the map (map_screen.gd). Room n's
 # difficulty is its position in the run.
 #   fight  regular enemy mix (wave_composition), 1 power
 #   elite  the same mix with several elites (elite_count), 2 powers
 #   rest   no enemies, heals REST_HEAL of max HP
 #   shrine no enemies, one trade from SHRINE (or walk on)
+#   vault  no enemies, 1 of 3 powers of the vault's path
+#   trial  TRIAL_SIZE of the mix with a RunMap.TRIALS condition; meet it for
+#          a fusion (Upgrades.roll_fusion), else a level-up, else TRIAL_BONES
 #   boss   the Bone Warden and a small escort; beating it wins the run
 const RUN_LENGTH := 8
+const TRIAL_SIZE := 0.75
+const TRIAL_BONES := 20
 const REST_HEAL := 0.4
 const ELITE_REWARDS := 2
 # Elite rooms roll one twist (two different ones from DOUBLE_TWIST_ROOM on),
@@ -88,8 +95,9 @@ const DOUBLE_TWIST_ROOM := 6
 # wipe each fight after TOUR_FIGHT_TIME s, and print PASS if the run reaches
 # and beats the boss having seen every kind (FAIL after TOUR_TIMEOUT s).
 # The camp is topped up to afford its first offer and buys it; the shrine
-# takes its rotating trade (vow or melt). Both must happen to PASS.
-const TOUR := ["fight", "rest", "shrine", "elite", "boss"]
+# takes its rotating trade (vow or melt); the vault (Light) must offer only
+# Light cards. All three must happen to PASS. The tour's trial is Swift.
+const TOUR := ["fight", "rest", "shrine", "elite", "vault", "trial", "boss"]
 const TOUR_FIGHT_TIME := 1.5
 const TOUR_TIMEOUT := 120.0
 # `--pace`: run until the first room clears (prints `cleared ... time=`), for
@@ -157,21 +165,6 @@ static func daily_seed(date: String) -> int:
 
 
 ## The (up to) two doors offered for room n, given the previous room's kind.
-## Elites, rests and shrines unlock from room 3; never two fightless rooms
-## (rest, shrine) in a row.
-static func path_options(n: int, prev: String, rng: RandomNumberGenerator = null) -> Array:
-	if n >= RUN_LENGTH:
-		return ["boss"]
-	var pool := ["fight", "elite", "rest", "shrine"]
-	if n < 3:
-		return ["fight"]
-	if prev in ["rest", "shrine"]:
-		pool.erase("rest")
-		pool.erase("shrine")
-	Upgrades.shuffle(pool, rng)
-	return pool.slice(0, 2)
-
-
 ## How many of each type room n spawns.
 static func wave_composition(n: int) -> Dictionary:
 	return {"minion": 4, "warrior": n / 2, "mage": n / 2, "rogue": (n + 1) / 3, "shield": (n - 1) / 2, "archer": n / 3,
@@ -209,7 +202,14 @@ var _shatter_shot_taken := false
 var _splits := 0  # minions split off by the Splitting twist (autotest line)
 var _vow_twist := ""  # ELITE_TWISTS key a shrine vow adds to the next room
 var _shrine_trade := ""  # --shrine-trade=id: force the rotating trade (autotest)
-var path_menu: CanvasLayer
+var map_menu: CanvasLayer
+var run_map: Array = []  # RunMap columns, made once per run (_start_map)
+var map_route: Array[Vector2i] = []  # (column, lane) of every room so far
+var room_path := ""  # a vault's Upgrades.PATHS key
+var room_trial := ""  # a trial's RunMap.TRIALS key
+var _trial_state := 0  # 0 under way, 1 met, -1 failed
+var _trial_t := 0.0  # seconds into the trial room
+var _last_hp := 0.0  # hero HP, to spot a hit (the Untouched trial)
 var camp_menu: CanvasLayer
 var ascend_menu: CanvasLayer
 var _ascend_pick := ""  # --ascend=path: the autotest's pick (or applied at start)
@@ -317,8 +317,10 @@ func _ready() -> void:
 	summary = SUMMARY.new()
 	add_child(summary)
 	add_child(PAUSE.new())
-	path_menu = PATH.new()
-	add_child(path_menu)
+	map_menu = MAP_SCREEN.new()
+	add_child(map_menu)
+	player.health_changed.connect(_on_hero_hp)
+	_last_hp = player.hp
 	camp_menu = CAMP_MENU.new()
 	add_child(camp_menu)
 	ascend_menu = ASCEND_MENU.new()
@@ -402,6 +404,12 @@ func _ready() -> void:
 		elif arg == "--start-shrine":
 			room_kind = "shrine"
 			Game.add_bones(30)
+		elif arg.begins_with("--start-vault="):  # a vault of that path
+			room_kind = "vault"
+			room_path = arg.get_slice("=", 1)
+		elif arg.begins_with("--start-trial="):  # a trial with that condition
+			room_kind = "trial"
+			room_trial = arg.get_slice("=", 1)
 	if not _autotest and not Game.skip_title:
 		var title := TITLE.new()
 		add_child(title)
@@ -420,10 +428,33 @@ func _ready() -> void:
 		title.queue_free()
 		hud.visible = true
 	Game.skip_title = false
+	_start_map()
 	_next_room()
 
 
 # --- Rooms ------------------------------------------------------------------
+
+## Make the run's map and stand on the first room (or the room the start
+## flags asked for, which then becomes what the map shows there).
+func _start_map() -> void:
+	run_map = RunMap.generate(run_rng, RUN_LENGTH, ELITE_TWISTS.keys(), DOUBLE_TWIST_ROOM)
+	var col := clampi(room, 0, RUN_LENGTH - 1)
+	var node: Dictionary = run_map[col][0]
+	if room_kind != "fight" or col > 0:
+		node.kind = room_kind
+		node.twists.assign(room_twists)
+		node.path = room_path
+		node.trial = room_trial
+	map_route.assign([Vector2i(col, node.lane)])
+	_enter_node(node)
+
+
+## Take on the room at `node` (kind, twists, vault path, trial).
+func _enter_node(node: Dictionary) -> void:
+	room_kind = node.kind
+	room_twists.assign(node.twists)
+	room_path = node.path
+	room_trial = node.trial
 
 func _next_room() -> void:
 	room += 1
@@ -438,7 +469,10 @@ func _next_room() -> void:
 		if _vow_twist not in room_twists:
 			room_twists.append(_vow_twist)
 		_vow_twist = ""
-	hud.set_room(room, RUN_LENGTH, room_kind, _twist_text(room_twists, "name", " + "))
+	hud.set_room(room, RUN_LENGTH, room_kind, _room_tag())
+	_trial_state = 0
+	_trial_t = 0.0
+	hud.set_trial("")
 	if room_kind == "boss":
 		_spawn_boss()
 		return
@@ -448,7 +482,14 @@ func _next_room() -> void:
 	if room_kind == "shrine":
 		_shrine()
 		return
+	if room_kind == "vault":
+		_vault()
+		return
 	var comp := wave_composition(room)
+	if room_kind == "trial":
+		for kind: String in comp:
+			comp[kind] = ceili(comp[kind] * TRIAL_SIZE)
+		_update_trial()
 	var kinds: Array[String] = []
 	for kind in comp:
 		for i in comp[kind]:
@@ -464,6 +505,107 @@ func _next_room() -> void:
 	while _alive < MAX_ALIVE and not _queue.is_empty():
 		var next: Array = _queue.pop_front()
 		_spawn(next[0], next[1])
+
+
+## What the HUD's room line adds after the room number: the elite twists,
+## "VAULT · LIGHT" or "TRIAL · SWIFT".
+func _room_tag() -> String:
+	match room_kind:
+		"vault":
+			return "VAULT  ·  " + Upgrades.PATHS[room_path].name if room_path != "" else "VAULT"
+		"trial":
+			return "TRIAL  ·  " + RunMap.TRIALS[room_trial].name if room_trial != "" else "TRIAL"
+	return _twist_text(room_twists, "name", " + ")
+
+
+## Vault room: no enemies; a chest in the vault's path colour offers 1 of 3
+## powers of that path, then the map.
+func _vault() -> void:
+	_between_rooms = true
+	if room_path == "":
+		room_path = Upgrades.PATHS.keys()[run_rng.randi() % Upgrades.PATHS.size()]
+	var prop := VAULT_PROP.new()
+	prop.color = Upgrades.PATHS[room_path].color
+	add_child(prop)
+	var at := player.global_position + Vector3(0.0, 0.0, -5.0)
+	prop.global_position = Vector3(clampf(at.x, -ARENA_HALF + 3.0, ARENA_HALF - 3.0), 0.0,
+		clampf(at.z, -ARENA_HALF + 3.0, ARENA_HALF - 3.0))
+	prop.rise()
+	if _autotest:
+		get_tree().create_timer(2.0).timeout.connect(_snap.bind("user://autotest_vault_room.png"))
+	await get_tree().create_timer(2.2).timeout  # let the room title fade first
+	var offered := Upgrades.roll(player.upgrades, 3, false, run_rng, room_path)
+	if _tour:
+		var only_path := offered.all(func(c: Dictionary) -> bool: return room_path in Upgrades.paths_of(c))
+		_tour_trades.append("vault:%s%s" % [room_path, "" if only_path else "(mixed)"])
+	if offered.is_empty():
+		Game.add_bones(TRIAL_BONES)
+		hud.flash_message("+%d BONES" % TRIAL_BONES, 1.0)
+	else:
+		await _take_reward(offered, -1, "%s VAULT" % Upgrades.PATHS[room_path].name.to_upper())
+		prop.burst()
+	await get_tree().create_timer(0.4).timeout
+	prop.sink()
+	if not player.is_dead():
+		await _choose_path()
+		_next_room()
+
+
+## The trial's live state on the HUD; settles it once met or failed.
+func _update_trial() -> void:
+	if room_kind != "trial" or room_trial == "":
+		return
+	var t: Dictionary = RunMap.TRIALS[room_trial]
+	var label: String = t.name.to_upper()
+	match room_trial:
+		"untouched":
+			hud.set_trial("TRIAL  ·  %s  %s" % [label, ["FAILED", "no hits yet", "MET"][_trial_state + 1]], _trial_state)
+		"swift":
+			var left := RunMap.trial_time(room) - _trial_t
+			if left <= 0.0 and _trial_state == 0:
+				_trial_state = -1
+			hud.set_trial("TRIAL  ·  %s  %s" % [label, ["FAILED", "%ds" % ceili(left), "MET"][_trial_state + 1]], _trial_state)
+		"stylish":
+			var ranks: Array = Game.RANKS.map(func(r: Array) -> String: return r[0])
+			if _trial_state == 0 and ranks.find(Game.rank()) <= ranks.find(t.rank):
+				_trial_state = 1
+			hud.set_trial("TRIAL  ·  %s  rank %s%s" % [label, t.rank, ["  FAILED", "  (now %s)" % Game.rank(), "  MET"][_trial_state + 1]],
+				_trial_state)
+
+
+## Trial cleared: say how it went, then the bonus for meeting it.
+func _finish_trial() -> void:
+	if _trial_state == 0:
+		# Untouched / Swift still hold at the end; Stylish never got there.
+		_trial_state = -1 if room_trial == "stylish" else 1
+	_update_trial()
+	var met := _trial_state > 0
+	if _autotest:
+		print("[autotest] trial=%s %s fusions=%d" % [room_trial, "met" if met else "failed",
+			Upgrades.roll_fusion(player.upgrades, 2).size()])
+	if _tour:
+		_tour_trades.append("trial:%s:%s" % [room_trial, "met" if met else "failed"])
+	hud.flash_message("TRIAL COMPLETE" if met else "TRIAL FAILED", 1.2)
+	Game.sfx("synergy" if met else "wave_clear", -3.0, 0.0)
+	await get_tree().create_timer(1.0).timeout
+	if not met:
+		return
+	var cards := Upgrades.roll_fusion(player.upgrades, 2, run_rng)
+	if cards.is_empty():
+		cards = Upgrades.roll(player.upgrades, 3, true, run_rng)
+	if cards.is_empty():
+		Game.add_bones(TRIAL_BONES)
+		hud.flash_message("+%d BONES" % TRIAL_BONES, 1.0)
+		return
+	await _take_reward(cards, -1, "TRIAL REWARD")
+
+
+func _on_hero_hp(hp: float, _max_hp: float) -> void:
+	if hp < _last_hp - 0.01 and room_kind == "trial" and room_trial == "untouched" and _trial_state == 0 \
+			and not _between_rooms:
+		_trial_state = -1
+		_update_trial()
+	_last_hp = hp
 
 
 ## Rest room: no enemies, a heal, then straight on to the next door.
@@ -571,27 +713,35 @@ func _camp() -> void:
 				await _offer_reward(true)
 
 
-## Ask which door to take next (or go straight on when there's only one).
+## Pick the next room on the map (or go straight on when there's only one).
 func _choose_path() -> void:
-	var options := path_options(room + 1, room_kind, run_rng)
 	room_twists.clear()
 	if _tour and _tour_seen.size() < TOUR.size():
 		room_kind = TOUR[_tour_seen.size()]
+		room_path = "light" if room_kind == "vault" else ""
+		room_trial = "swift" if room_kind == "trial" else ""
 		if room_kind == "boss":
 			room = RUN_LENGTH - 1  # the boss is always the last room
+		var col := mini(room, RUN_LENGTH - 1)
+		map_route.append(Vector2i(col, run_map[col][0].lane))
 		return
-	if options.size() == 1:
-		room_kind = options[0]
+	var options := RunMap.next_nodes(run_map, map_route[-1])
+	if options.is_empty():
 		return
-	var twists: Array = ELITE_TWISTS.keys()
-	Upgrades.shuffle(twists, run_rng)
-	twists = twists.slice(0, 2 if room + 1 >= DOUBLE_TWIST_ROOM else 1)
-	path_menu.open(options, room + 1, _twist_text(twists, "name", " + "), _twist_text(twists, "desc", ", "))
-	if _autotest:
-		_autotest_path()
-	room_kind = await path_menu.chosen
-	if room_kind == "elite":
-		room_twists.assign(twists)
+	var index := 0
+	if options.size() > 1:
+		map_menu.open(run_map, map_route, options, false, Upgrades.path_counts(player.upgrades))
+		if _autotest:
+			_autotest_path()
+		index = await map_menu.chosen
+	var node: Dictionary = options[index]
+	map_route.append(Vector2i(map_route[-1].x + 1, node.lane))
+	_enter_node(node)
+
+
+## The map, read-only (the pause menu's Map button).
+func show_map() -> void:
+	map_menu.open(run_map, map_route, [], true, Upgrades.path_counts(player.upgrades))
 
 
 ## Twist names or descs joined for the door / room title ("" for none).
@@ -759,6 +909,8 @@ func _on_enemy_died(e: Node) -> void:
 			await _offer_ascendancy()
 		for i in ELITE_REWARDS if room_kind == "elite" else 1:
 			await _offer_reward()
+		if room_kind == "trial":
+			await _finish_trial()
 		await get_tree().create_timer(0.6).timeout
 		if player.is_dead():
 			return
@@ -810,7 +962,13 @@ func _offer_reward(level_ups_only := false) -> void:
 		return
 	_reward_rerolls = 0
 	_reward_level_ups_only = level_ups_only
-	reward.open(choices, _reroll_cost())
+	await _take_reward(choices, _reroll_cost())
+
+
+## Open the reward screen on `choices` and take the picked power.
+## `reroll_cost` -1 offers no reroll; `title` replaces "CHOOSE A POWER".
+func _take_reward(choices: Array, reroll_cost: int, title := "") -> void:
+	reward.open(choices, reroll_cost, title)
 	if _autotest:
 		_autotest_pick()
 	var id: String = await reward.picked
@@ -1062,6 +1220,9 @@ func _process(delta: float) -> void:
 	if not _run_over and not player.is_dead():
 		_run_time += delta
 		_check_hints(delta)
+		if room_kind == "trial" and not _between_rooms:
+			_trial_t += delta
+			_update_trial()
 	if not _autotest:
 		return
 	_autotest_t += delta
@@ -1217,7 +1378,8 @@ func _autotest_finish() -> void:
 	if _tour:
 		var bought := _tour_trades.any(func(t: String) -> bool: return t.begins_with("camp:") and t != "camp:leave")
 		var traded := _tour_trades.any(func(t: String) -> bool: return t in ["shrine:vow", "shrine:melt"])
-		var ok := ",".join(_tour_seen) == ",".join(TOUR) and _won and bought and traded
+		var vaulted := _tour_trades.has("vault:light")
+		var ok := ",".join(_tour_seen) == ",".join(TOUR) and _won and bought and traded and vaulted
 		print("[tour] %s rooms=%s trades=%s time=%.1fs" % ["PASS" if ok else "FAIL", ",".join(_tour_seen),
 			",".join(_tour_trades), _autotest_t])
 	# Exercise the summary screen too.
@@ -1281,8 +1443,8 @@ func _autotest_shrine(rot: String) -> void:
 
 func _autotest_path() -> void:
 	await get_tree().create_timer(0.5).timeout
-	_snap("user://autotest_path.png")
-	path_menu.pick(0)
+	_snap("user://autotest_map.png")
+	map_menu.pick(0)
 
 
 func _snap(path: String) -> void:

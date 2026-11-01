@@ -26,6 +26,7 @@ var combo_label: Label
 var rank_label: Label
 var air_label: Label
 var wave_label: Label
+var trial_label: Label  # a trial room's condition and how it's going
 var center_label: Label
 var ult_label: Label
 var ult_sub: Label
@@ -108,6 +109,9 @@ func _ready() -> void:
 	wave_label = _label(root, "", 26, Color(0.85, 0.85, 0.95))
 	_anchor(wave_label, 0.5, 0.0, Rect2(-260, 24, 520, 40))
 	wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	trial_label = _label(root, "", 20, Color(1.0, 0.93, 0.6))
+	_anchor(trial_label, 0.5, 0.0, Rect2(-300, 62, 600, 30))
+	trial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	center_label = _label(root, "", 64, Color.WHITE)
 	_anchor(center_label, 0.5, 0.5, Rect2(-500, -120, 1000, 160))
@@ -257,8 +261,18 @@ func set_room(n: int, total: int, kind: String, twist := "") -> void:
 		flash_message("ROOM %d\nA MOMENT'S REST" % n, 1.8)
 	elif kind == "shrine":
 		flash_message("ROOM %d\nA QUIET SHRINE" % n, 1.8)
+	elif kind == "vault" or kind == "trial":
+		flash_message("ROOM %d\n%s" % [n, twist], 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
+
+
+## A trial room's line under the room title ("" hides it). `state`: 0 under
+## way, 1 met (green), -1 failed (dim red).
+func set_trial(text: String, state := 0) -> void:
+	trial_label.text = text
+	trial_label.add_theme_color_override("font_color",
+		[Color(1.0, 0.45, 0.4, 0.75), Color(1.0, 0.93, 0.6), Color(0.55, 1.0, 0.6)][state + 1])
 
 
 ## Below LOW_HP: the vignette fades in and throbs with a heartbeat that
