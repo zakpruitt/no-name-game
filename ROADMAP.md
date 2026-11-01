@@ -187,3 +187,4 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] War Chant (Awaken, named combos): each named combo grants 3/4.5/6 Awakening, double when it differs from the last one, so varying the string fills the meter (Awaken had only three powers)
 - [x] Sky Reaper (Light + Soul fusion): light hits on juggled foes deal +40/60/85%, the payoff for launcher and Rebound juggles
 - [x] Element casts for the new combos (`elements.CASTS`): Flurry throws two small bolts, Cyclone carries the element vortex with it
+- [x] Fusion frequency measured (2000 simulated runs of `Upgrades.roll`, random picks): a fusion is offered in 83% of runs with 6 rewards (first at about the 4th reward, 1.4 offers a run) and 97% with 9 (2.6 offers), before trials add theirs, so `FUSION_CHANCE` 0.5 stays
