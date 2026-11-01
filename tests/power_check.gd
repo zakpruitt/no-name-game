@@ -209,6 +209,12 @@ func _check_move_dps(p: Node) -> void:
 func _check_card(main: Node, U: GDScript) -> void:
 	var gale: Dictionary = U.get_by_id("razor_gale").duplicate()
 	gale.level = 1
+	main.player.combos_landed.erase("LPL")
+	main.reward.open([gale], -1)
+	await process_frame
+	var fresh: Array = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(fresh.has("Flurry:  L L, pause, L   (not landed yet)"), "a card flags a combo not landed yet")
+	main.player.combos_landed["LPL"] = 1
 	main.reward.open([gale], -1)
 	await process_frame
 	var texts: Array = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)

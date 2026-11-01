@@ -28,7 +28,7 @@ looking for blue cards.
   - a colour band (split for fusions), key chips and the path name, and the move the power hooks;
   - the icon (with level pips on a level-up), the name, NEW or LEVEL UP (with "fired ×N" once the power has fired this run);
   - the description with its numbers in bold in the path colour;
-  - for a power on a named combo, how to do it in a dim line ("Flurry:  L L, pause, L", from `player.COMBOS` via `Upgrades.combo_of()`, whose `SLOT_COMBOS` maps slots named differently, like Charged → CH; the pause build view shows the same line under the power);
+  - for a power on a named combo, how to do it in a dim line ("Flurry:  L L, pause, L", amber with "(not landed yet)" while that combo hasn't been landed this run, from `player.COMBOS` via `Upgrades.combo_of()`, whose `SLOT_COMBOS` maps slots named differently, like Charged → CH; the pause build view shows the same line under the power);
   - mastery progress ("HEAVY ■■□ MASTERY", "UNLOCKS LIGHT MASTERY", "LIGHT MASTERY ACTIVE"), synergy completion, and the synergy tags.
   - Cards deal in with a short stagger. Hovering a card makes its icon glow.
 - **Pause build view** (`pause_menu._build_powers`): powers grouped by path (fusions last). A power that has fired this run says how often ("×7 this run", from `player.power_procs`). Each group has a header with the key chip and mastery pips, or the mastery's effect once it's on. Each power gets a row with the icon, name and current text. Active synergies are at the bottom. The view scrolls when the build is long.

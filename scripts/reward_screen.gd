@@ -222,7 +222,9 @@ func _card(i: int, u: Dictionary, owned: Dictionary) -> Button:
 	# A power on a named combo says how to do the combo ("Flurry:  L L, pause, L").
 	var combo := Upgrades.combo_of(u)
 	if player != null and player.COMBOS.has(combo):
-		_text(inner, "%s:  %s" % [player.combo_name(combo), player.COMBOS[combo].input], 15, Color(1, 1, 1, 0.55))
+		var found: bool = player.combos_landed.has(combo)
+		_text(inner, "%s:  %s%s" % [player.combo_name(combo), player.COMBOS[combo].input,
+			"" if found else "   (not landed yet)"], 15, Color(1, 1, 1, 0.55) if found else Color(1.0, 0.8, 0.5, 0.75))
 
 	var gap := Control.new()
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL

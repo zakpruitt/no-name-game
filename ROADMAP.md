@@ -196,6 +196,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Element casts for the new combos (`elements.CASTS`): Flurry throws two small bolts, Cyclone carries the element vortex with it
 - [x] Fusion frequency measured (2000 simulated runs of `Upgrades.roll`, random picks): a fusion is offered in 83% of runs with 6 rewards (first at about the 4th reward, 1.4 offers a run) and 97% with 9 (2.6 offers), before trials add theirs, so `FUSION_CHANCE` 0.5 stays
 - [ ] Windowed screenshot pass (held while Zak was gaming; only headless checks ran): the map intro and route preview (`menu_check` → `menu_intro.png`, `map_check.png`), the HUD route strip (`autotest_*.png`), the guide's pause hint (`guide_sheet.png`), Cyclone and Spike in motion
+- [x] A combo power's card flags a combo you haven't landed this run ("Flurry: L L, pause, L (not landed yet)", amber), so a power on a move you don't use reads as a commitment
 - [x] The pause MOVES list shows the owned powers under each combo they hook ("L H H   Spike   ×3" then "+ Rebound"), tying the combo list to the build
 - [x] The run summary adds "Busiest power: Reaper ×16", the owned power that fired most (`main._busiest_power`, from `player.power_procs`)
 - [x] Unknown rooms on the map list their odds ("Could be: Elite 25% · Fight 20% · Vault 18% · ..."), so a ? is a gamble you can price (`RunMap.mystery_odds`)
