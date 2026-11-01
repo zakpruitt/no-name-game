@@ -116,6 +116,15 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	screen.set_status(30.0, 100.0, 12, 2)
 	_check(screen._status.text.begins_with("HP 30 / 100") and screen._status.get_theme_color("font_color").r > 0.9
 		and screen._status.get_theme_color("font_color").g < 0.6, "low HP shows red on the map")
+	# A trial says what it would pay with the build.
+	screen.set_build({})
+	_check(screen.trial_payout().ends_with("pays a level-up"), "no fusion ready: a trial pays a level-up")
+	screen.set_build({"razor_gale": 1, "rebound": 1})
+	_check(screen.trial_payout().begins_with("Fusion ready:") and "Sky Reaper" in screen.trial_payout(),
+		"light + soul powers: a trial offers Sky Reaper")
+	screen.set_build({"razor_gale": 1, "rebound": 1, "sky_reaper": 1})
+	_check("Sky Reaper" not in screen.trial_payout(), "an owned fusion isn't offered as new")
+	screen.set_build({})
 	# The focused choice reaches only rooms its links lead to.
 	for at: Vector2i in screen._reach:
 		_check(at.x >= 2, "reach starts at the choice (%s)" % at)

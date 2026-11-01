@@ -28,6 +28,7 @@ var _map: Array = []
 var _visited: Array = []  # Vector2i (column, lane) of every room so far
 var _choices: Array = []  # nodes the player may pick
 var _counts := {}  # Upgrades.path_counts() of the build, for the vault line
+var _owned := {}  # the hero's powers (id -> level), for the trial's payout line
 var _room := 0  # room number of the choices
 var _read_only := false
 var _intro := false  # the run's first look (open_intro): closing it starts room 1
@@ -83,6 +84,32 @@ func open(map: Array, visited: Array, choices: Array, read_only := false, counts
 	get_tree().paused = true
 	_update_detail()
 	_board.queue_redraw()
+
+
+## The hero's powers, so a trial says what meeting it would pay right now.
+func set_build(owned: Dictionary) -> void:
+	_owned = owned
+	_update_detail()
+
+
+## What a met trial pays with the current build: the fusions it could offer,
+## else a fusion level-up, else a level-up (main._finish_trial's order).
+func trial_payout() -> String:
+	var ready: Array = []
+	var ups := false
+	for u: Dictionary in Upgrades.ALL:
+		if not u.has("fusion"):
+			continue
+		var level: int = _owned.get(u.id, 0)
+		if level == 0 and Upgrades.can_fuse(_owned, u):
+			ready.append(u.name)
+		elif level > 0 and level < Upgrades.MAX_LEVEL:
+			ups = true
+	if not ready.is_empty():
+		return "Fusion ready: " + ", ".join(ready.slice(0, 3)) + (" +%d more" % (ready.size() - 3) if ready.size() > 3 else "")
+	if ups:
+		return "No new fusion ready: pays a fusion level-up"
+	return "No fusion ready yet (own powers of two paths): pays a level-up"
 
 
 ## The hero's state while choosing: "HP 64 / 110   ·   23 bones   ·   Lv 3".
@@ -319,6 +346,8 @@ func _show_room(n: Dictionary, room: int) -> void:
 		var have: int = _counts[n.path]
 		text += "\nYou have %d %s power%s  %s" % [have, Upgrades.PATHS[n.path].name, "" if have == 1 else "s",
 			PowerIcon.mastery_pips(have) + " mastery"]
+	if n.kind == "trial":
+		text += "\n" + trial_payout()
 	var ahead := _ahead_text(Vector2i(room - 1, n.lane))
 	if ahead != "":
 		text += "\nLeads on to: " + ahead
