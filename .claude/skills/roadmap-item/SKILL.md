@@ -32,6 +32,7 @@ Read `CLAUDE.md` (layout, test flags) and `ROADMAP.md` first.
 ## 4. Record
 - Check the item off in ROADMAP.md with a one-line note of what was done, including the numbers if any. Add follow-ups you discovered as new `- [ ]` items.
 - Update CLAUDE.md if you added a flag, script, table or workflow.
+- Add or update the feature's doc in `docs/features/` (template and index in its README): how it works, files, invariants, tuning, extending, tests. Do this for any feature that spans several files or has its own test.
 - If players would see the change (new move, enemy, power, menu, numbers), run the `update-wiki` skill. `python tools/wiki.py` is enough when only numbers or ids changed.
 
 ## 5. Commit and report
