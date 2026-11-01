@@ -60,6 +60,10 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 #          of the move, so a low decay keeps the hero travelling
 #   speed: (optional, default 1) plays the animation this much faster (or,
 #          below 1, slower), for anims whose natural length doesn't fit
+#   hop: (optional) [start, end, height]: the hero leaves the ground in an arc
+#        between those fractions (the model lifts, the body stays). A move
+#        started in the air (out of a hop) comes down by its first hit
+#        (`land` overrides), so L H's rise carries into L H H's drop.
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -69,7 +73,7 @@ const MOVES := {
 		"stop": 0.05, "shake": 0.14},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
-		"stop": 0.1, "shake": 0.35, "big": true},
+		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9]},
 	# Light after a pause once L2 has finished (L L · L): Flurry, a quick run
 	# of small cuts that keeps foes in reach (low knockback).
 	"LPL": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.5, "range": 2.6, "arc": 170.0,
@@ -83,7 +87,7 @@ const MOVES := {
 	# the target). Juggled enemies take bonus style.
 	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
 		"hits": [0.3], "cancel": 0.42, "end": 0.58, "lunge": 3.0, "knockback": 2.0, "launch": 9.0,
-		"stop": 0.09, "shake": 0.3, "big": true},
+		"stop": 0.09, "shake": 0.3, "big": true, "hop": [0.28, 0.58, 1.5]},
 	# Heavy right after the launcher (L H H): Spike, an overhead chop that
 	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
 	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
@@ -98,7 +102,7 @@ const MOVES := {
 	# Big launching slam; breaks shield guards (launch > 0).
 	"CH": {"anim": "2H_Melee_Attack_Chop", "damage": 30.0, "range": 3.4, "arc": 160.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 10.0, "knockback": 12.0, "launch": 8.0,
-		"stop": 0.14, "shake": 0.55, "big": true},
+		"stop": 0.14, "shake": 0.55, "big": true, "hop": [0.12, 0.4, 1.1]},
 	# Light right out of a dash: long lunging stab.
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
@@ -192,6 +196,8 @@ var _move_id := ""
 var _move: Dictionary = {}
 var _move_len := 1.0
 var _hits_done := 0
+var _hop_y0 := 0.0  # model height the current move started at (MOVES `hop`)
+var _hop_air := false  # off the ground this move (for the landing dust)
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -393,6 +399,8 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
 
 	move_and_slide()
+	if state in [State.MOVE, State.DASH, State.HURT, State.CHARGE, State.DEAD] and model.position.y > 0.0:
+		model.position.y = move_toward(model.position.y, 0.0, 16.0 * delta)  # out of a hop
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -505,6 +513,27 @@ func _state_charge(delta: float) -> void:
 		_start_attack("CH" if _charged else "H")
 
 
+## The move's height off the floor at progress `t`: comes down from where it
+## started by `land` (first hit), plus its own `hop` arc.
+func _hop(t: float) -> void:
+	var y := 0.0
+	if _hop_y0 > 0.0:
+		var land: float = _move.get("land", _move.hits[0])
+		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
+		y = _hop_y0 * (1.0 - k * k)  # accelerating down onto the hit
+	if _move.has("hop"):
+		var h: Array = _move.hop
+		if t > h[0] and t < h[1]:
+			var k: float = (t - h[0]) / (h[1] - h[0])
+			y += h[2] * 4.0 * k * (1.0 - k)
+	if y > 0.4:
+		_hop_air = true
+	elif _hop_air and y < 0.05:
+		_hop_air = false
+		Fx.dust(get_parent(), global_position, 6, 0.5)
+	model.position.y = y
+
+
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
 	# Lunge decays quickly so attacks feel snappy, not slidey.
@@ -513,6 +542,7 @@ func _state_attack(delta: float) -> void:
 	velocity.x = fwd.x * lunge
 	velocity.z = fwd.z * lunge
 
+	_hop(t)
 	var hits: Array = _move.hits
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
@@ -695,6 +725,8 @@ func _start_attack(id: String) -> void:
 		Fx.burst(get_parent(), global_position + Vector3.UP, Upgrades.PATHS.heavy.color, 16, 5.0, 0.1, 0.3, Vector3.UP, 70.0)
 	_move_len = anim.get_animation(_move.anim).length
 	_hits_done = 0
+	_hop_y0 = model.position.y
+	_hop_air = _hop_y0 > 0.4
 	_callout_done = false
 	_chain_i = chain_after(id)
 	_post_dash_t = 0.0
