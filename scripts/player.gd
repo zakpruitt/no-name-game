@@ -9,7 +9,7 @@ signal died
 signal attack_started(move_id: String)
 signal combo_found(id: String)  # a named combo landed for the first time this run
 
-enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD }
+enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD, LEAP }
 
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
@@ -152,6 +152,65 @@ const ULTIMATES := {
 const ULT_CHAIN_BONUS := 0.3
 const CATACLYSM_AXES := 6  # colossal spirit axes slamming down round the hero
 const CATACLYSM_AXE_RING := 3.8  # m from him
+# Combo breakers: timed finishers. The move leaps into the air at `leap`
+# (fraction of its anim), hops `back` m while rising `height` m over `rise` s,
+# hurls `spikes` spikes onto a zone `zone` m ahead (spread `spread`), and a
+# cue rings that zone: press heavy between `open` and `close` s after take-off
+# (rings meet at `sweet`; within `perfect` of it = PERFECT, x`perfect_mult`)
+# to dive onto it in `dive` s, detonating the spikes and hitting `radius` for
+# `damage`. Too early locks it out; no press = he floats down in `fall` s.
+const BREAKERS := {
+	"LLH": {"leap": 0.5, "rise": 0.3, "height": 3.2, "back": 1.4, "spikes": 7, "zone": 3.8, "spread": 2.0,
+		"spike_damage": 4.0, "detonate": 6.0, "throw": 0.12, "cue": 0.12, "open": 0.36, "sweet": 0.5, "close": 0.66,
+		"perfect": 0.06, "dive": 0.14, "damage": 22.0, "radius": 3.4, "launch": 7.0, "perfect_mult": 1.5,
+		"fall": 0.24, "awaken": 6.0, "awaken_perfect": 14.0,
+		"names": {"spirit": "Ancestor Meteor", "wind": "Thunderfall", "earth": "Meteor Breaker", "water": "Comet Breaker"}},
+	# Charged Slam: leaps forward after the foes it launched (negative `back`)
+	# and spins up among them inside a spectral sawblade (`juggle`: a
+	# spirit_wheel on the model, `juggle_damage` a tick, keeping them airborne
+	# within `juggle_radius`), then the press slams him down onto them.
+	"CH": {"leap": 0.55, "rise": 0.26, "height": 2.6, "back": -1.4, "spikes": 0, "zone": 2.8, "spread": 0.0,
+		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.1, "cue": 0.1, "open": 0.34, "sweet": 0.48, "close": 0.64,
+		"perfect": 0.06, "dive": 0.12, "damage": 26.0, "radius": 3.6, "launch": 9.0, "perfect_mult": 1.5,
+		"fall": 0.24, "awaken": 6.0, "awaken_perfect": 14.0,
+		"juggle": true, "juggle_damage": 2.5, "juggle_radius": 3.0, "juggle_axes": 5,
+		"names": {"spirit": "Ancestor Skyfall", "wind": "Cyclone Drop", "earth": "Landslide", "water": "Whirlpool Drop"}},
+	# Flurry: a low hop back into a ready stance, then the press is a dash
+	# (`dash`) through everything along the line to the zone: `pass_damage` to
+	# each foe within `width` as he passes, then the line erupts in spectral
+	# axes (a spirit_rift) for `damage` (no radius blast at the end).
+	"LPL": {"leap": 0.68, "rise": 0.18, "height": 0.45, "back": 1.2, "spikes": 0, "zone": 6.5, "spread": 0.0,
+		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.08, "cue": 0.08, "open": 0.3, "sweet": 0.42, "close": 0.56,
+		"perfect": 0.06, "dive": 0.16, "damage": 18.0, "radius": 0.0, "launch": 6.0, "perfect_mult": 1.5,
+		"fall": 0.18, "awaken": 5.0, "awaken_perfect": 12.0,
+		"dash": true, "pass_damage": 8.0, "width": 1.4, "hang_anim": "2H_Melee_Idle",
+		"names": {"spirit": "Spirit Step", "wind": "Lightning Step", "earth": "Fault Rush", "water": "Riptide Rush"}},
+	# Cyclone: spins up on the spot inside the sawblade (`juggle`), the
+	# whirlwind dragging foes within `pull_radius` in at `pull` m/s; the press
+	# flings `fan` spectral tomahawks out in a ring (`fan_range`, each hits
+	# out and back for `fan_damage` / `fan_back`), plus a `radius` blast round him.
+	"DH": {"leap": 0.8, "rise": 0.22, "height": 1.2, "back": 0.0, "spikes": 0, "zone": 0.0, "spread": 0.0,
+		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.08, "cue": 0.08, "open": 0.32, "sweet": 0.46, "close": 0.6,
+		"perfect": 0.06, "dive": 0.1, "damage": 12.0, "radius": 2.6, "launch": 5.0, "perfect_mult": 1.5,
+		"fall": 0.2, "awaken": 5.0, "awaken_perfect": 12.0,
+		"juggle": true, "juggle_damage": 2.0, "juggle_radius": 2.6, "juggle_axes": 6, "pull": 4.5, "pull_radius": 6.0,
+		"fan": 6, "fan_damage": 8.0, "fan_back": 5.0, "fan_range": 7.0,
+		"names": {"spirit": "Spirit Maelstrom", "wind": "Eye of the Storm", "earth": "Shrapnel Storm", "water": "Hailstorm"}},
+}
+# The breaker window plays in slow motion (BREAKER_FOCUS time scale, camera
+# pushed in to BREAKER_FOCUS_ZOOM), and a perfect press freezes the frame for
+# BREAKER_PERFECT_STOP real s before the dive.
+const BREAKER_FOCUS := 0.6
+const BREAKER_FOCUS_ZOOM := 0.86
+const BREAKER_PERFECT_STOP := 0.07
+# Awakened, the dive breakers summon a BREAKER_ANCESTOR-times spectral
+# ancestor as the window opens, timed to bring its axe down with the hero's
+# dive at the sweet spot (visual; gone if he doesn't dive). The dash breaker's
+# wake axes grow by BREAKER_AWAKENED_WAKE instead.
+const BREAKER_ANCESTOR := 4.0
+const BREAKER_AWAKENED_WAKE := 1.4
+const BREAKER_SPIKE := preload("res://scripts/breaker_spike.gd")
+const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const SKY_ANCESTOR := 5.0  # Ancestor's Fall: the ancestor's size vs the hero
 const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
@@ -283,6 +342,24 @@ var bot_move := Vector3.ZERO
 ## Owned combo-slot upgrades: id -> level (see upgrades.gd).
 var upgrades := {}
 var bot_enabled := false
+var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
+var breaker_perfects := 0
+var _brk: Dictionary = {}  # the breaker in play (BREAKERS entry)
+var _brk_id := ""
+var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
+var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
+var _brk_locked := false
+var _brk_thrown := 0
+var _brk_zone := Vector3.ZERO
+var _brk_dir := Vector3.FORWARD
+var _brk_dive_from := Vector3.ZERO
+var _brk_spikes: Array = []
+var _brk_blasted: Dictionary = {}  # foes the spikes' detonation already hit
+var _brk_cue: Node3D
+var _brk_wheel: Node3D  # the juggle's sawblade (BREAKERS `juggle`)
+var _brk_focus := false  # the window's slow motion has started
+var _brk_ancestor: Node3D  # Awakened: the ancestor slamming down with the dive
+var _brk_passed: Dictionary = {}  # foes the dash breaker has cut through
 
 
 func _ready() -> void:
@@ -394,6 +471,7 @@ func _physics_process(delta: float) -> void:
 		State.HURT: _state_hurt(delta)
 		State.CHARGE: _state_charge(delta)
 		State.ULT: _state_ult(delta)
+		State.LEAP: _state_leap(delta)
 		State.DEAD:
 			velocity.x = move_toward(velocity.x, 0.0, 40.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
@@ -547,6 +625,9 @@ func _state_attack(delta: float) -> void:
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
+	if BREAKERS.has(_move_id) and _hits_done > 0 and t >= BREAKERS[_move_id].leap:
+		_start_leap(_move_id)
+		return
 
 	# Dash cancels anything once the first hit has come out (or early on whiff).
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2):
@@ -595,6 +676,355 @@ func _set_state(s: State) -> void:
 	_state_t = 0.0
 	if s != State.CHARGE:
 		_charge_light.light_energy = 0.0
+
+
+## Combo breaker, part 1: leap up and back, hurl spikes onto the zone ahead,
+## ring it with the timing cue (BREAKERS).
+func _start_leap(id: String) -> void:
+	_brk_id = id
+	_brk = BREAKERS[id]
+	_brk_phase = 0
+	_brk_press = -1.0
+	_brk_locked = false
+	_brk_thrown = 0
+	_brk_spikes.clear()
+	_brk_blasted = {}
+	_brk_cue = null
+	_brk_wheel = null
+	_brk_passed = {}
+	_brk_focus = false
+	_brk_ancestor = null
+	_brk_dir = _facing()
+	var ahead := minf(_brk.zone, _clear_ahead(_brk_dir, _brk.zone) + 0.3)
+	_brk_zone = Vector3(global_position.x, 0.0, global_position.z) + _brk_dir * ahead
+	_buffered = ""
+	_set_state(State.LEAP)
+	_play("Jump_Start", 0.05, true)
+	Game.sfx("dash", -4.0, 0.05)
+	Fx.dust(get_parent(), global_position, 10, 0.8)
+	Fx.ring(get_parent(), global_position, Color(_fx_color(), 0.8), 1.6, 0.25)
+
+
+## Combo breaker, part 2: rise and hang, throw, wait for the timed press, then
+## dive (pressed in the window) or float down (missed / locked out).
+func _state_leap(delta: float) -> void:
+	var b := _brk
+	var t := _state_t
+	_invuln_t = maxf(_invuln_t, 0.12)  # airborne: untouchable
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if _brk_phase == 0:
+		if t < b.rise:  # hop back (forward if `back` < 0) while rising
+			var k: float = t / b.rise
+			velocity.x = -_brk_dir.x * b.back / b.rise
+			velocity.z = -_brk_dir.z * b.back / b.rise
+			model.position.y = b.height * (1.0 - pow(1.0 - k, 3.0))
+		else:
+			model.position.y = b.height + sin((t - b.rise) * 9.0) * 0.06  # hangs
+			var hang: String = b.get("hang_anim", "Jump_Idle")
+			if anim.current_animation != hang and _brk_thrown >= b.spikes and not b.has("juggle"):
+				_play(hang, 0.15)
+		_face(_brk_dir)
+		if b.spikes > 0 and t >= b.throw and _brk_thrown == 0:
+			_play("Spellcast_Shoot", 0.05, true)
+		if b.has("juggle") and t >= b.throw:
+			_juggle()
+		while _brk_thrown < b.spikes and t >= b.throw + _brk_thrown * 0.03:
+			_throw_spike()
+		if t >= b.cue and _brk_cue == null:
+			_brk_cue = BREAKER_CUE.new()
+			_brk_cue.color = _fx_color()
+			_brk_cue.open = b.open - b.cue
+			_brk_cue.sweet = b.sweet - b.cue
+			_brk_cue.close = b.close - b.cue
+			get_parent().add_child(_brk_cue)
+			_brk_cue.global_position = _brk_zone
+		if not _brk_locked and not _brk_focus and t >= b.open:
+			_brk_focus = true  # the window opens: slow down, push in
+			Game.hitstop((b.close - b.open) / BREAKER_FOCUS, BREAKER_FOCUS)
+			if Game.camera_rig:
+				Game.camera_rig.punch(BREAKER_FOCUS_ZOOM, (b.close - b.open) / BREAKER_FOCUS)
+			Game.sfx("heartbeat", -6.0, 0.0)
+			if awakened and not b.has("dash") and not b.has("fan"):
+				_breaker_ancestor()
+		if not _brk_locked and _breaker_pressed(t):
+			if t < b.open:
+				_brk_locked = true  # too early: no breaker this time
+				if is_instance_valid(_brk_cue):
+					_brk_cue.lock()
+				Game.sfx("player_hurt", -14.0, 0.0)
+			else:
+				_brk_press = t
+				_start_dive()
+				return
+		if t > b.close:
+			if is_instance_valid(_brk_ancestor):
+				_brk_ancestor.queue_free()  # no dive: it never lands
+			_brk_phase = 2
+			_state_t = 0.0
+			_play("Jump_Idle", 0.1)
+	elif _brk_phase == 1:
+		var k: float = clampf(t / b.dive, 0.0, 1.0)
+		var to := _brk_zone - _brk_dive_from
+		to.y = 0.0
+		velocity.x = to.x / b.dive
+		velocity.z = to.z / b.dive
+		model.position.y = b.height * (1.0 - k * k)
+		_ghost_t -= delta
+		if _ghost_t <= 0.0:
+			_ghost_t = 0.02
+			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.5))
+		if b.has("dash"):
+			_dash_cut()
+		if k >= 1.0:
+			_breaker_impact()
+	else:
+		var k: float = clampf(t / b.fall, 0.0, 1.0)
+		model.position.y = b.height * (1.0 - k * k)
+		if k >= 1.0:
+			_end_leap()
+			Fx.dust(get_parent(), global_position, 8, 0.6)
+
+
+## The juggle (BREAKERS `juggle`): spin in the air inside a spectral
+## sawblade that grinds the launched foes and keeps them up.
+func _juggle() -> void:
+	var b := _brk
+	if anim.current_animation != "2H_Melee_Attack_Spinning" or not anim.is_playing():
+		_play("2H_Melee_Attack_Spinning", 0.05, true)
+	if b.has("pull"):  # the whirlwind drags foes in (never closer than 1.2 m)
+		var step: float = b.pull * get_physics_process_delta_time()
+		for e in Ascendancy.enemies_near(get_tree(), global_position, b.pull_radius):
+			if e.has_method("is_boss"):
+				continue
+			var to: Vector3 = global_position - e.global_position
+			to.y = 0.0
+			if to.length() > 1.2:
+				e.global_position += to.normalized() * minf(step, to.length() - 1.2)
+	if _brk_wheel != null:
+		return
+	var wh = _spirit(SPIRIT_WHEEL.new(), {"damage": b.juggle_damage}, element())
+	wh.count = b.juggle_axes
+	wh.radius = b.juggle_radius * _cast_grow()
+	wh.time = b.close - b.throw + 0.1
+	wh.turns = 3.5
+	model.add_child(wh)  # rides up with him
+	_brk_wheel = wh
+	Game.sfx("swing", -6.0, 0.1)
+
+
+## Awakened dive breakers: a giant ancestor rises behind the zone as the
+## window opens and brings its axe down on it as the hero dives (visual).
+func _breaker_ancestor() -> void:
+	var b := _brk
+	var av = _spirit(SPIRIT_AVATAR.new(), {"damage": 0.0}, element())
+	av.fwd = _brk_dir
+	av.scale_to = BREAKER_ANCESTOR
+	av.speed = SPIRIT_AVATAR.speed_for(b.sweet - b.open + b.dive)
+	av.impact_fx = false
+	get_parent().add_child(av)
+	av.global_position = _brk_zone
+	av.global_position += _brk_zone - av.land_point()  # its axe head lands on the zone
+	_brk_ancestor = av
+
+
+## The dash breaker cuts each foe it passes once (BREAKERS `dash`).
+func _dash_cut() -> void:
+	var b := _brk
+	for e in Ascendancy.enemies_near(get_tree(), global_position, b.width):
+		if _brk_passed.has(e):
+			continue
+		_brk_passed[e] = true
+		var side: Vector3 = e.global_position - global_position
+		side.y = 0.0
+		side = (side - _brk_dir * side.dot(_brk_dir)).normalized()
+		e.take_hit(b.pass_damage * _dmg_mult * _cast_power(), side * 6.0 + _brk_dir * 2.0, 0.0, true)
+		Game.register_hit("breaker")
+		_cast_hit(e)
+		Fx.element_hit(get_parent(), e.global_position + Vector3.UP, element(), _brk_dir)
+		Game.hitstop(0.03)
+
+
+func _drop_wheel() -> void:
+	if is_instance_valid(_brk_wheel):
+		_brk_wheel.queue_free()
+	_brk_wheel = null
+
+
+## The breaker press this frame: heavy, or the autotest bot at the sweet spot.
+func _breaker_pressed(t: float) -> bool:
+	if bot_enabled:
+		return t >= _brk.sweet
+	return Input.is_action_just_pressed("attack_heavy")
+
+
+func _throw_spike() -> void:
+	var b := _brk
+	var i := _brk_thrown
+	_brk_thrown += 1
+	var s := BREAKER_SPIKE.new()
+	s.axe_mesh = (model.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
+	s.el = element()
+	s.color = _fx_color()
+	s.damage = b.spike_damage * _dmg_mult
+	s.detonate_damage = b.detonate * _dmg_mult * _cast_power()
+	s.on_hit = _cast_hit
+	s.blasted = _brk_blasted
+	s.size = 1.5 * _cast_grow()
+	# Centre one, then spiralling out (golden angle, so they spread evenly).
+	var off := Vector3.ZERO
+	if i > 0:
+		var ang := i * 2.39996
+		off = Vector3(sin(ang), 0.0, cos(ang)) * b.spread * sqrt(float(i) / b.spikes)
+	s.from = global_position + Vector3.UP * (model.position.y + 1.3)
+	s.to = _brk_zone + off
+	s.life = b.close - b.throw + 0.5
+	get_parent().add_child(s)
+	_brk_spikes.append(s)
+	Game.sfx("swing", -10.0, 0.2)
+
+
+func _start_dive() -> void:
+	_brk_phase = 1
+	_state_t = 0.0
+	_drop_wheel()
+	_brk_dive_from = global_position
+	var perfect: bool = absf(_brk_press - _brk.sweet) <= _brk.perfect
+	if is_instance_valid(_brk_cue):
+		_brk_cue.hit(perfect)
+	if _brk_focus:
+		Game.end_slowmo()
+	if perfect:
+		Game.hitstop(BREAKER_PERFECT_STOP, 0.05)
+		Game.sfx("perfect", -4.0, 0.0)
+	if _brk.has("dash"):
+		_play("Dodge_Forward", 0.03, true)
+		Game.sfx("dash", 0.0, 0.0)
+		var run := (_brk_zone - global_position).length()
+		Fx.dash_streak(get_parent(), global_position, _brk_dir, run, Color(_fx_color(), 0.8))
+	else:
+		_play("2H_Melee_Attack_Chop", 0.04, true)
+		anim.seek(anim.current_animation_length * 0.3, true)
+	Game.sfx("ult", -6.0, 0.0)
+	Fx.flash(model)
+	if Game.camera_rig:
+		Game.camera_rig.punch(0.85, 0.3)
+
+
+## The dive lands: detonate the spikes, blast the zone, name the breaker.
+func _breaker_impact() -> void:
+	var b := _brk
+	var el := element()
+	var at := Vector3(global_position.x, 0.0, global_position.z)
+	var perfect: bool = absf(_brk_press - b.sweet) <= b.perfect
+	var mult: float = (b.perfect_mult if perfect else 1.0) * _cast_power()
+	if b.has("dash"):
+		_dash_wake(b.damage * _dmg_mult * mult, perfect)
+	elif b.has("fan"):
+		_fan_release(mult, perfect)
+		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius, Vector3.ZERO, false)
+	else:
+		ELEMENTS.sky_impact(get_parent(), at, el, b.radius)
+		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius * 0.9, _brk_dir)
+		_axe_fall(at, _brk_dir, 4.6 if perfect else 3.8)
+	for s in _brk_spikes:
+		if is_instance_valid(s):
+			s.detonate()
+	if b.radius > 0.0:
+		ELEMENTS.hit_area(get_tree(), at, b.radius, b.damage * _dmg_mult * mult, b.launch, true, "breaker", _cast_hit)
+	Game.hitstop(0.18 if perfect else 0.12, 0.05)
+	Game.shake(0.8 if perfect else 0.6)
+	if Game.camera_rig:
+		Game.camera_rig.punch(0.75 if perfect else 0.82, 0.35)
+	Game.add_awakening(b.awaken_perfect if perfect else b.awaken)
+	breakers_landed += 1
+	if perfect:
+		breaker_perfects += 1
+	_breaker_callout(breaker_name(), perfect)
+	if bot_enabled:
+		print("[autotest] combo_breaker #%d %s perfect=%s" % [breakers_landed, _brk_id, perfect])
+	_end_leap()
+
+
+## The Cyclone breaker's release: a ring of spectral tomahawks flung out in
+## every direction, each boomeranging back to him (BREAKERS `fan`). Awakened:
+## half as many again, bigger.
+func _fan_release(mult: float, perfect: bool) -> void:
+	var b := _brk
+	var n: int = b.fan + (b.fan / 2 if awakened else 0)
+	var g := _cast_grow() * (1.3 if awakened else 1.0) * (1.15 if perfect else 1.0)
+	var fwd := _facing()
+	var shared := {}  # each foe hit once per leg by the whole ring
+	for i in n:
+		var th = _spirit(SPIRIT_TOMAHAWK.new(), {"damage": b.fan_damage * mult}, element())
+		th.shared = shared
+		th.dir = fwd.rotated(Vector3.UP, TAU * i / n)
+		th.hero = self
+		th.size = 2.2 * g
+		th.reach = minf(b.fan_range, _clear_ahead(th.dir, b.fan_range) + 0.4)
+		th.back_damage = b.fan_back * _dmg_mult * mult
+		get_parent().add_child(th)
+		th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
+	Game.sfx("swing_heavy", 0.0, 0.05)
+
+
+## The dash breaker's end: he turns out of the dash with a slash and the line
+## behind him erupts in spectral axes, hitting everything along it.
+func _dash_wake(damage: float, perfect: bool) -> void:
+	var b := _brk
+	var line := global_position - _brk_dive_from
+	line.y = 0.0
+	var length := maxf(line.length(), 2.0)
+	_play("2H_Melee_Attack_Slice", 0.04, true)
+	anim.seek(anim.current_animation_length * 0.3, true)
+	var rf = _spirit(SPIRIT_RIFT.new(), {"damage": 0.0}, element())
+	rf.fwd = _brk_dir
+	rf.length = length + 0.6
+	rf.steps = clampi(int(length / 1.0), 4, 9)
+	rf.step_time = 0.025
+	rf.size_from = 2.2
+	rf.size_to = 4.2 if perfect else 3.4
+	if awakened:
+		rf.size_from *= BREAKER_AWAKENED_WAKE
+		rf.size_to *= BREAKER_AWAKENED_WAKE
+	get_parent().add_child(rf)
+	rf.global_position = Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)
+	var from := Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - from
+		to.y = 0.0
+		if e.is_alive() and _in_strip(to, _brk_dir, length, b.width, e.radius):
+			e.take_hit(damage, Vector3.UP, b.launch, true)
+			Game.register_hit("breaker")
+			_cast_hit(e)
+
+
+func _breaker_callout(text: String, perfect: bool) -> void:
+	Game.sfx(COMBO_TIER_SFX[2], COMBO_SFX_DB, 0.0)
+	_callout.text = text + ("\nPERFECT" if perfect else "")
+	_callout.modulate = COMBO_TIER_COLORS[2] if perfect else _fx_color().lerp(Color.WHITE, 0.3)
+	Fx.combo_pop(get_parent(), global_position, _callout.modulate, 3 if perfect else 2)
+	_callout.position = Vector3(0.0, 2.9, 0.0)
+	_callout.scale = Vector3.ONE * 0.6
+	_callout.visible = true
+	if _callout_tw:
+		_callout_tw.kill()
+	_callout_tw = _callout.create_tween()
+	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * (1.35 if perfect else 1.15), 0.08)
+	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * (1.15 if perfect else 1.0), 0.08)
+	_callout_tw.parallel().tween_property(_callout, "position:y", 3.3, 0.7).set_ease(Tween.EASE_OUT)
+	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.5)
+	_callout_tw.tween_callback(_callout.hide)
+
+
+func _end_leap() -> void:
+	_drop_wheel()
+	velocity = Vector3.ZERO  # (the dive / dash speed would carry on)
+	model.position.y = 0.0
+	_brk_spikes.clear()
+	_brk_cue = null
+	_chain_i = 0
+	_set_state(State.MOVE)
 
 
 # --- Actions ----------------------------------------------------------------
@@ -648,6 +1078,8 @@ static func chain_after(id: String) -> int:
 ## waiting for the move to finish first starts a different named combo (L2:
 ## Flurry). Empty when there's no string to continue.
 func combo_options() -> Array:
+	if state == State.LEAP:
+		return _breaker_options()
 	var attacking := state == State.ATTACK
 	var dashing := state == State.DASH or _post_dash_t > 0.0
 	var live := attacking or dashing or state == State.CHARGE or (state == State.MOVE and _chain_i > 0)
@@ -669,6 +1101,20 @@ func combo_options() -> Array:
 	if attacking and not dashing:
 		rows.append(_option("dash", "DL"))
 	return rows
+
+
+## The combo guide mid-leap: one heavy row naming the breaker, until it's
+## pressed, locked out or missed.
+func _breaker_options() -> Array:
+	if _brk_phase != 0 or _brk_locked:
+		return []
+	return [{"kind": "heavy", "id": _brk_id, "name": breaker_name(), "tier": 3, "ult": false, "hold": false,
+		"next": {}}]
+
+
+## The breaker in play's name for the current element.
+func breaker_name() -> String:
+	return _brk.names.get(element(), _brk.names.spirit) if not _brk.is_empty() else ""
 
 
 func _option(kind: String, id: String, hold := false) -> Dictionary:
@@ -695,6 +1141,10 @@ func guide_name(id: String) -> String:
 ## `ready` once a press now would be buffered into the next move (input_buffer);
 ## while charging, how far the charge is and whether it's full.
 func combo_window() -> Dictionary:
+	if state == State.LEAP:  # the breaker: fills toward the window, ready inside it
+		var b := _brk
+		return {"progress": clampf(_state_t / b.open, 0.0, 1.0), "ready": _state_t >= b.open and _state_t <= b.close,
+			"dash": false}
 	if state == State.CHARGE:
 		return {"progress": clampf(_state_t / CHARGE_TIME, 0.0, 1.0), "ready": _charged, "dash": _dash_cd <= 0.0}
 	if state != State.ATTACK:

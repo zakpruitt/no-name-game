@@ -17,6 +17,7 @@ invariants and the gotchas.
 | Run map, vaults and trials | [run-map.md](run-map.md) | `scripts/run_map.gd`, `scripts/map_screen.gd`, `main._choose_path()` |
 | Training room and dummy | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `pause_menu._open_training()` |
 | Spirit casts (giant spectral axes / ancestor per move) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_*.gd`, `player._cast()`, `elements.CASTS` |
+| Combo breakers (timed aerial finishers) | [combo-breakers.md](combo-breakers.md) | `player.BREAKERS`, `player._state_leap()`, `scripts/breaker_spike.gd`, `scripts/breaker_cue.gd` |
 
 ## Writing one
 
