@@ -39,11 +39,13 @@ func _ready() -> void:
 		mesh = orb
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = color.lightened(0.4)
+	mat.albedo_color = color.lightened(0.7)  # white-hot core inside the coloured halo
 	mesh.material = mat
 	m.mesh = mesh
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(m)
+	_add_halo(0.75 if bolt else 1.5)
+	_add_trail(0.22 if bolt else 0.4)
 	var light := OmniLight3D.new()
 	light.light_color = color
 	light.light_energy = 1.5
@@ -75,4 +77,45 @@ func _physics_process(delta: float) -> void:
 
 func _pop() -> void:
 	Fx.burst(get_parent(), global_position, color, 12, 6.0, 0.18, 0.3, -direction, 80.0, 0.0)
+	Fx.flare(get_parent(), global_position, color, 2.4, 0.15, "flare")
+	Fx.flare(get_parent(), global_position, Color(color, 0.8), 1.4, 0.2, "ring")
 	queue_free()
+
+
+## Soft glow sprite in the shot's colour (a danger colour that reads on the light floor).
+func _add_halo(size: float) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = Fx.TEX.dot
+	mat.albedo_color = Color(color, 0.9)
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * size
+	quad.material = mat
+	var halo := MeshInstance3D.new()
+	halo.mesh = quad
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(halo)
+
+
+## Fading motes left behind in world space.
+func _add_trail(size: float) -> void:
+	var p := CPUParticles3D.new()
+	p.amount = 18
+	p.lifetime = 0.3
+	p.local_coords = false
+	p.gravity = Vector3.ZERO
+	p.initial_velocity_max = 0.4
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.0
+	var fade := Gradient.new()
+	fade.set_color(0, Color(color, 0.8))
+	fade.set_color(1, Color(color, 0.0))
+	p.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * size
+	quad.material = Fx.particle_mat("dot", false)
+	p.mesh = quad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(p)

@@ -146,6 +146,10 @@ const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin"}
 const GUIDE_LEARNED := 6
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
+const ENDER_HITSTOP := 0.025  # extra hitstop per tier when a named combo's ender lands
+const ENDER_ZOOM := 0.035  # camera push-in per tier on a combo ender
+const RANK_COLORS: Dictionary = preload("res://scripts/hud.gd").RANK_COLORS
+const LAST_KILL_SLOWMO := 0.55  # real seconds of slow motion on the fight's final blow
 const COMBO_SFX_DB := -9.0
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
 # Charging (hold heavy from neutral): release before CHARGE_TIME for the
@@ -162,6 +166,9 @@ var hp := max_hp
 var state := State.MOVE
 var awakened := false
 var model: Node3D
+var rank_ups := 0  # style rank climbs that burst at the hero (autotest)
+var _rank_i := 0  # current style rank as a step above D (Game.RANKS)
+var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
 var anim: AnimationPlayer
 
 var _state_t := 0.0
@@ -169,6 +176,7 @@ var _move_id := ""
 var _move: Dictionary = {}
 var _move_len := 1.0
 var _hits_done := 0
+var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
 var _buffered := ""
@@ -259,6 +267,7 @@ func _ready() -> void:
 	hp = max_hp
 	Game.enemy_killed.connect(_on_enemy_killed)
 	Game.leveled_up.connect(_on_level_up)
+	Game.combo_changed.connect(_on_combo_changed)
 	add_to_group("player")
 	collision_layer = 2
 	collision_mask = 1
@@ -284,6 +293,7 @@ func _ready() -> void:
 			var trail := TRAIL.new()
 			add_child(trail)
 			trail.setup(mi)
+			trail.color = _trail_rest_color()
 			_trails.append(trail)
 	anim = model.find_child("AnimationPlayer", true, false)
 	for a in LOOPING:
@@ -512,8 +522,7 @@ func _state_dash(delta: float) -> void:
 	_ghost_t -= delta
 	if _ghost_t <= 0.0:
 		_ghost_t = afterimage_interval
-		var tint := Color(Ascendancy.color(ascendancy), 0.45) if awakened else Color(0.55, 0.8, 1.0, 0.4)
-		Fx.afterimage(get_parent(), model, tint)
+		Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.45))
 	velocity.x = _dash_dir.x * dash_speed
 	velocity.z = _dash_dir.z * dash_speed
 	if has_upgrade("slipstream"):
@@ -697,6 +706,7 @@ func _start_dash() -> void:
 	_ghost_t = 0.0
 	_play("Dodge_Forward", 0.04, true)
 	Fx.dust(get_parent(), global_position, 8)
+	Fx.dash_streak(get_parent(), global_position, _dash_dir, dash_speed * dash_time + 0.8, Color(_fx_color(), 0.8))
 	Game.sfx("dash", -4.0)
 
 
@@ -730,6 +740,8 @@ func _aim() -> void:
 
 func _do_hit() -> void:
 	var fwd := _facing()
+	var named_before := _callout_done  # a combo ender lands its extra punch once
+	_swoosh(fwd)
 	var hit_any := false
 	var any_airborne := false
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -759,6 +771,7 @@ func _do_hit() -> void:
 			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
 			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
+		Fx.element_hit(get_parent(), e.global_position, element(), kb_dir, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
@@ -828,12 +841,25 @@ func _do_hit() -> void:
 		if _move_id == "L3" and has_upgrade("crescendo") and not _crescendo:
 			_crescendo = true
 			Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.heavy.color, 0.8), 1.6, 0.25)
+		var ender: int = COMBOS[_move_id].tier if COMBOS.has(_move_id) and not named_before else 0
 		_combo_callout(_move_id)
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		if _move.get("big", false):
 			Game.rumble("hit_big")
-		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0))
+		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0) + ender * ENDER_HITSTOP)
 		Game.shake(_move.shake)
+		if ender > 0 or _move.get("big", false):
+			_camera_hit(fwd, ender)
+
+
+## Combo enders push the camera in (more per tier); big hits and enders kick it
+## along the swing.
+func _camera_hit(fwd: Vector3, ender: int) -> void:
+	if Game.camera_rig == null:
+		return
+	Game.camera_rig.kick(fwd, 0.18 + ender * 0.12)
+	if ender > 0:
+		Game.camera_rig.punch(1.0 - ENDER_ZOOM * ender, 0.08 + 0.05 * ender)
 
 
 ## Names a landed combo (COMBOS) above the hero with its tier's sound, once per move.
@@ -855,6 +881,7 @@ func _combo_callout(id: String) -> void:
 	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
 	_callout.text = combo_name(id)
 	_callout.modulate = Ascendancy.color(ascendancy) if id == "AF" and ascendancy != "" else COMBO_TIER_COLORS[tier - 1]
+	Fx.combo_pop(get_parent(), global_position, _fx_color() if tier < 3 else _callout.modulate, tier)
 	_callout.position = Vector3(0.0, 2.9, 0.0)
 	_callout.scale = Vector3.ONE * 0.6
 	_callout.visible = true
@@ -873,6 +900,37 @@ func _combo_callout(id: String) -> void:
 ## The hero's element: the Ascendancy path, or spirit before one.
 func element() -> String:
 	return ascendancy if ascendancy != "" else "spirit"
+
+
+## The swing's arc (Fx.swoosh) out to the move's reach, in the trail's colour.
+## Strip moves (`width`) thrust instead of sweep and get none.
+func _swoosh(fwd: Vector3) -> void:
+	if _move.has("width"):
+		return
+	_swoosh_flip = not _swoosh_flip
+	var c: Color = _trails[0].color if not _trails.is_empty() else _trail_rest_color()
+	var big: bool = _move.get("big", false)
+	var time := 0.32 if big else 0.24
+	Fx.swoosh(get_parent(), global_position, fwd, _move.range * 0.9, _move.arc, c, _swoosh_flip, time)
+	# Escalation: combo enders and long chains add a wider, hotter arc above the
+	# first, so a string visibly builds to its finish.
+	var tier := Fx.chain_tier(Game.combo_count)
+	if COMBOS.has(_move_id) or tier >= 2:
+		var hot := c.lerp(Color.WHITE, 0.35)
+		hot.a = 0.75 + 0.08 * tier
+		Fx.swoosh(get_parent(), global_position, fwd, _move.range * (1.05 + 0.04 * tier), _move.arc, hot,
+				_swoosh_flip, time * 1.15, 1.15)
+
+
+## Colour for the hero's own effects (dash ghosts and streak): Ascendancy
+## colour while Awakened, otherwise the element's.
+func _fx_color() -> Color:
+	return Ascendancy.color(ascendancy) if awakened else ELEMENTS.color(element())
+
+
+## Swing trail colour outside Awakening: the current element's.
+func _trail_rest_color() -> Color:
+	return Color(ELEMENTS.color(element()), 0.85)
 
 
 ## The element cast that comes with the current move (ELEMENTS.CASTS), on its first active frame.
@@ -1259,7 +1317,9 @@ func _on_level_up(level: int) -> void:
 	Fx.burst(get_parent(), global_position + Vector3.UP * 0.4, Color(1.0, 0.85, 0.4), 18, 5.0, 0.1, 0.5, Vector3.UP, 30.0)
 
 
-func _on_enemy_killed(_e: Node) -> void:
+func _on_enemy_killed(e: Node) -> void:
+	if state != State.DEAD and _is_last_kill():
+		_last_kill(e)
 	if has_upgrade("reaper") and state != State.DEAD:
 		_proc("reaper")
 		heal(upg("reaper", "heal"), false)
@@ -1272,6 +1332,45 @@ func _on_enemy_killed(_e: Node) -> void:
 		heal(upg("undying_flame", "heal"), false)
 		_proc("undying_flame")
 		Fx.burst(get_parent(), global_position + Vector3.UP, Upgrades.PATHS.awaken.color, 10, 4.0, 0.1, 0.4, Vector3.UP, 60.0)
+
+
+## Style rank climbed: a burst in the new rank's colour (the HUD's), bigger the higher it goes.
+func _on_combo_changed(_count: int, rank: String) -> void:
+	var i := Game.RANKS.size() - 1 - Game.RANKS.map(func(r: Array) -> String: return r[0]).find(rank)
+	if i > _rank_i and state != State.DEAD and is_inside_tree():
+		rank_ups += 1
+		var c: Color = RANK_COLORS.get(rank, Color.WHITE)
+		var at := global_position + Vector3.UP * 1.1
+		Fx.ring(get_parent(), global_position, Color(c, 0.9), 1.8 + i * 0.45, 0.3)
+		Fx.flare(get_parent(), at, c, 1.8 + i * 0.5, 0.2, "star8")
+		Fx.burst(get_parent(), at, c, 6 + i * 4, 9.0, 0.14, 0.35, Vector3.UP, 120.0, -6.0, 0.3, "spark")
+		if i >= 4 and Game.camera_rig != null:  # S and up
+			Game.camera_rig.punch(0.94, 0.15)
+	_rank_i = i
+
+
+## Nothing left to fight: no enemy alive and no reinforcements queued (main._queue).
+func _is_last_kill() -> bool:
+	if not get_tree().get_nodes_in_group("enemies").is_empty():
+		return false
+	var queue = get_parent().get("_queue")
+	return queue is Array and queue.is_empty()
+
+
+## The fight's final blow: slow motion, a camera push-in and a gold shock ring.
+func _last_kill(e: Node) -> void:
+	last_kills += 1
+	if "--autotest" in OS.get_cmdline_user_args():
+		print("[autotest] last_kill #%d rank_ups=%d" % [last_kills, rank_ups])
+	Game.hitstop(LAST_KILL_SLOWMO, 0.2)
+	if Game.camera_rig != null:
+		Game.camera_rig.punch(0.82, LAST_KILL_SLOWMO + 0.15)
+	var at: Vector3 = (e as Node3D).global_position
+	var gold := Color(1.0, 0.82, 0.3)
+	Fx.ring(get_parent(), at, Color(gold, 0.95), 5.0, 0.5)
+	Fx.ring(get_parent(), at, Color(1, 1, 1, 0.8), 2.5, 0.3)
+	Fx.flare(get_parent(), at + Vector3.UP * 1.1, gold, 6.0, 0.3, "star8")
+	Fx.burst(get_parent(), at + Vector3.UP * 0.8, gold, 30, 12.0, 0.16, 0.6, Vector3.UP, 120.0, -10.0, 0.2, "spark")
 
 
 ## True if offset `to` (flat) lies in the strip `length` ahead along `fwd`.
@@ -1556,7 +1655,9 @@ func try_awaken() -> void:
 	Game.hitstop(0.25, 0.05)
 	Game.shake(0.6)
 	var r := upg("eruption", "radius") if has_upgrade("eruption") else 7.0
-	Fx.ring(get_parent(), global_position, Color(1.0, 0.55, 0.15, 0.9), r, 0.45)
+	Fx.awaken_burst(get_parent(), global_position, Ascendancy.color(ascendancy), r)
+	if Game.camera_rig:
+		Game.camera_rig.punch(0.85, 0.35)
 	if has_upgrade("eruption"):
 		_proc("eruption")
 		Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.awaken.color, 0.9), r * 0.7, 0.35)
@@ -1597,6 +1698,8 @@ func ascend(path: String) -> void:
 	Fx.ring(get_parent(), global_position, Color(c, 0.95), 5.0, 0.5)
 	Fx.burst(get_parent(), global_position + Vector3.UP * 0.6, c, 40, 9.0, 0.15, 0.6, Vector3.UP, 60.0)
 	_orbit.setup(element(), awakened)
+	for trail in _trails:
+		trail.color = _trail_rest_color()
 	if awakened:
 		_set_awakened(true)
 
@@ -1658,7 +1761,7 @@ func _set_awakened(on: bool) -> void:
 	for mi: MeshInstance3D in _meshes:
 		mi.material_overlay = _awaken_rim if on else _rest_overlay(mi)
 	for trail in _trails:
-		trail.color = Color(c, 0.9) if on else Color(1.0, 0.95, 0.8, 0.8)
+		trail.color = Color(c, 0.9) if on else _trail_rest_color()
 	_aura.color = c
 	_aura.emitting = on and ascendancy != ""
 	_orbit.setup(element(), on)
@@ -1676,6 +1779,9 @@ func _perfect_dodge(attacker: Node) -> void:
 	Game.perfect_dodge(perfect_dodge_refund)
 	Game.hitstop(0.5, 0.25)
 	Fx.ring(get_parent(), global_position, Color(0.5, 0.85, 1.0, 0.9), 4.0, 0.4)
+	Fx.ring(get_parent(), global_position, Color(0.25, 0.6, 1.0, 0.9), 2.2, 0.3)
+	Fx.flare(get_parent(), global_position + Vector3.UP * 1.0, Color(0.35, 0.75, 1.0), 9.0, 0.35, "flare")
+	Fx.burst(get_parent(), global_position + Vector3.UP * 0.8, Color(0.6, 0.9, 1.0), 20, 9.0, 0.14, 0.4, Vector3.UP, 180.0, 0.0, 0.0, "dot", true)
 	Fx.afterimage(get_parent(), model, Color(0.8, 0.95, 1.0, 0.6), 0.5)
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
@@ -1690,8 +1796,13 @@ func _cataclysm() -> void:
 	Game.sfx("awaken", -4.0, 0.1)
 	Fx.ring(get_parent(), global_position, Color(1.0, 0.5, 0.15, 0.95), _move.range + 0.5, 0.4)
 	Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.4, 0.8), _move.range * 0.5, 0.25)
-	Fx.burst(get_parent(), global_position + Vector3.UP * 0.3, Color(1.0, 0.5, 0.15), 50, 11.0, 0.2, 0.5, Vector3.UP, 160.0, -8.0, 1.0)
+	Fx.burst(get_parent(), global_position + Vector3.UP * 0.3, Color(1.0, 0.5, 0.15), 36, 11.0, 0.14, 0.5, Vector3.UP, 160.0, -8.0, 1.0, "star")
 	Fx.dust(get_parent(), global_position, 24, 1.2)
+	# Crisp core: a pillar of fire, a hot flare, molten debris and a burn mark left behind.
+	_fire_vortex(global_position, _move.range * 0.6, 5.5, 0.6)
+	Fx.flare(get_parent(), global_position + Vector3.UP * 1.0, Color(1.0, 0.55, 0.15), 6.0, 0.2)
+	Fx.shards(get_parent(), global_position + Vector3.UP * 0.4, Color(1.0, 0.42, 0.1), 16, Vector3.UP, 10.0, 0.22, 0.8)
+	Fx.scorch(get_parent(), global_position, Color(1.0, 0.45, 0.1), _move.range * 0.75, 1.6)
 	for i in CATACLYSM_WAVES:
 		var ang := TAU * i / CATACLYSM_WAVES
 		var w := FIRE_WAVE.new()
@@ -1699,6 +1810,32 @@ func _cataclysm() -> void:
 		w.damage = 8.0
 		get_parent().add_child(w)
 		w.global_position = global_position + w.direction * 1.0
+## Cataclysm's pillar: two counter-spinning fire funnels (the wind tornado's swirl
+## shader in fire colours) that flare out and fade.
+func _fire_vortex(at: Vector3, radius: float, height: float, life: float) -> void:
+	var c := Color(0.95, 0.25, 0.05)  # deep red-orange: paler fire washes out on the floor
+	var root := Node3D.new()
+	get_parent().add_child(root)
+	root.global_position = Vector3(at.x, 0.0, at.z)
+	var outer := ELEMENTS._mi(ELEMENTS.funnel(radius, radius * 0.3, height), _fire_mat(c, false))
+	outer.position.y = height * 0.5
+	root.add_child(outer)
+	var inner := ELEMENTS._mi(ELEMENTS.funnel(radius * 0.55, radius * 0.15, height * 0.85), _fire_mat(c, true))
+	inner.position.y = height * 0.425
+	root.add_child(inner)
+	root.scale = Vector3(0.2, 0.4, 0.2)
+	var tw := root.create_tween().set_parallel()
+	tw.tween_property(root, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(outer, "rotation:y", TAU * 1.5, life)
+	tw.tween_property(inner, "rotation:y", -TAU * 2.5, life)
+	ELEMENTS._fade_free(root, life * 0.4, life * 0.6)
+
+
+## The swirl material with gold streaks: its default (colour toward white) reads salmon pink in fire.
+func _fire_mat(c: Color, inner: bool) -> ShaderMaterial:
+	var m: ShaderMaterial = ELEMENTS.swirl_mat(c, inner).duplicate()  # same shader: no compile hitch
+	m.set_shader_parameter("streak_color", Color(1.0, 0.78, 0.25))
+	return m
 
 
 func _riposte() -> void:

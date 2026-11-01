@@ -531,6 +531,10 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	Fx.damage_number(get_parent(), global_position, damage, big)
 	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
 	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
+	var hero := get_tree().get_first_node_in_group("player")
+	if hero != null and hero.has_method("_fx_color"):  # long strings escalate the sparks
+		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
+			knockback.normalized() + Vector3.UP * 0.5)
 	Fx.flash(model)
 	_telegraph.visible = false
 	_freeze_t = hit_freeze_big if big else hit_freeze
@@ -731,12 +735,14 @@ func _die(knockback: Vector3) -> void:
 	collision_mask = 1
 	velocity = Vector3(knockback.x * 1.3, 4.0, knockback.z * 1.3)
 	_play("Death_A", 0.05, 1.4, true)
+	Fx.death(get_parent(), global_position, knockback, elite, Color(1.0, 0.85, 0.45) if elite else Color(0.93, 0.89, 0.78))
 	Game.add_awakening(4.0 + (ELITE_AWAKEN_BONUS if elite else 0.0))
 	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
 	Game.enemy_killed.emit(self)
 	var tw := create_tween()
 	tw.tween_interval(1.4)
+	tw.tween_callback(func() -> void: Fx.soul(get_parent(), global_position))
 	tw.tween_property(model, "position:y", -1.5, 0.6)
 	tw.tween_callback(queue_free)
 
