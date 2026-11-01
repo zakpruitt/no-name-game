@@ -435,7 +435,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
   $("mystery-text").innerHTML = "A question mark on the map, revealed as you walk in: " + Object.keys(M.mystery).map(function (k) {
     return M.kinds[k].name.toLowerCase() + " " + pct(M.mystery[k] / mt); }).join(", ") + ". It never sits next to a rest, shrine or vault, so any of them is fair.";
   $("trials").innerHTML = Object.keys(M.trials).map(function (k) { var t = M.trials[k];
-    return "<li><b>" + esc(t.name) + "</b>: " + esc(fill(t.desc, {time: t.time ? "(" + n(t.time) + " + " + n(t.per_room) + " × room)" : "", rank: t.rank || ""})) + "</li>"; }).join("");
+    return "<li><b>" + esc(t.name) + "</b>: " + esc(fill(t.desc, {time: t.time ? "(" + n(t.time) + " + " + n(t.per_room) + " × room)" : "", rank: t.rank || "", count: t.count || ""})) + "</li>"; }).join("");
   $("elite-text").innerHTML = "The same mix with several elites and an elite twist (two twists late in the run). Reward: " + R.elite_rewards + " powers.";
   $("rest-text").innerHTML = "Heals " + pct(R.rest_heal) + " of max HP, then spend bones:";
   $("camp").innerHTML = Object.keys(D.camp).map(function (k) { var c = D.camp[k]; return "<li>" + esc(c.text) + " · " + c.cost + " bones</li>"; }).join("");

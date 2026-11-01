@@ -241,6 +241,8 @@ var _autotest := false
 var _autotest_t := 0.0
 var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
 var _bot_next_charge := 3.0
+var _trial_combos := {}  # named combos landed this trial room (Showman)
+var _trial_callouts := 0  # player.callouts when last looked at
 var _revealed := false  # the room was an unknown one (its banner says so)
 var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
 var _charge_shot_taken := false
@@ -487,6 +489,8 @@ func _next_room() -> void:
 		return RunMap.color(node) if not node.is_empty() else Color.WHITE), RUN_LENGTH)
 	_trial_state = 0
 	_trial_t = 0.0
+	_trial_combos.clear()
+	_trial_callouts = player.callouts
 	hud.set_trial("")
 	if room_kind == "boss":
 		_spawn_boss()
@@ -586,13 +590,21 @@ func _update_trial() -> void:
 				_trial_state = 1
 			hud.set_trial("TRIAL  ·  %s  rank %s%s" % [label, t.rank, ["  FAILED", "  (now %s)" % Game.rank(), "  MET"][_trial_state + 1]],
 				_trial_state)
+		"showman":
+			if player.callouts > _trial_callouts:
+				_trial_callouts = player.callouts
+				_trial_combos[player._last_combo] = true
+			if _trial_state == 0 and _trial_combos.size() >= t.count:
+				_trial_state = 1
+			hud.set_trial("TRIAL  ·  %s  %d / %d combos%s" % [label, mini(_trial_combos.size(), t.count), t.count,
+				["  FAILED", "", "  MET"][_trial_state + 1]], _trial_state)
 
 
 ## Trial cleared: say how it went, then the bonus for meeting it.
 func _finish_trial() -> void:
 	if _trial_state == 0:
-		# Untouched / Swift still hold at the end; Stylish never got there.
-		_trial_state = -1 if room_trial == "stylish" else 1
+		# Untouched / Swift still hold at the end; Stylish / Showman never got there.
+		_trial_state = -1 if room_trial in ["stylish", "showman"] else 1
 	_update_trial()
 	var met := _trial_state > 0
 	if _autotest:

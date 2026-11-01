@@ -32,6 +32,7 @@ Pause → **Map** shows the same map read-only.
   - **Untouched:** take no damage.
   - **Swift:** clear within `20 + 4 × room` s.
   - **Stylish:** reach style rank A.
+  - **Showman:** land 4 different named combos (counted from `player.callouts` / `player._last_combo`), so the trial pays for using the whole moveset.
 
   On clear, the normal power comes first, then "TRIAL COMPLETE" or "TRIAL FAILED". Meeting the condition offers up to 2 fusion cards (`Upgrades.roll_fusion`). If none can be offered, it falls back to a level-up roll, then to `main.TRIAL_BONES` (20).
 

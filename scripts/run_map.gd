@@ -41,11 +41,13 @@ const WEIGHTS := {"fight": 32, "elite": 18, "rest": 10, "shrine": 9, "vault": 22
 ## What an unknown room turns out to be (relative weights): a gamble that
 ## leans toward the rarer rooms.
 const MYSTERY := {"fight": 20, "elite": 25, "rest": 12, "shrine": 13, "vault": 18, "trial": 12}
-## Trial conditions. `time`: Swift's limit is time + per_room * room (s).
+## Trial conditions. `time`: Swift's limit is time + per_room * room (s);
+## `count`: how many different named combos (player.COMBOS) Showman wants.
 const TRIALS := {
 	"untouched": {"name": "Untouched", "desc": "clear without being hit"},
 	"swift": {"name": "Swift", "desc": "clear within {time}s", "time": 20.0, "per_room": 4.0},
 	"stylish": {"name": "Stylish", "desc": "reach style rank {rank}", "rank": "A"},
+	"showman": {"name": "Showman", "desc": "land {count} different named combos", "count": 4},
 }
 
 
@@ -229,7 +231,7 @@ static func describe(node: Dictionary, room: int) -> String:
 ## A trial's condition with its numbers ("clear within 36s").
 static func trial_text(id: String, room: int) -> String:
 	var t: Dictionary = TRIALS[id]
-	return t.desc.format({"time": int(trial_time(room)), "rank": t.get("rank", "")})
+	return t.desc.format({"time": int(trial_time(room)), "rank": t.get("rank", ""), "count": t.get("count", 0)})
 
 
 ## Swift's time limit in room `room`.

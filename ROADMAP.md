@@ -176,6 +176,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 
 ## Round 22 (map polish)
 - [x] Map screen pass: the run's map shows once before room 1 ("YOUR RUN", Enter begins); focusing a choice lights the routes it leads to and dims rooms it can't reach, and the panel adds "Leads on to: 2 elites · Light vault · 1 rest"; hover any room for its detail ("out of reach now" / "on your way"); a legend of room kinds along the bottom; the marker walks to the picked room before the map closes; the HUD hides under the map. `map_check` now also checks the screen headless (hover, focus, walk, HUD restore)
+- [x] Showman trial: land 4 different named combos in the room (`RunMap.TRIALS.showman.count`), live "2 / 4 combos" under the title; ties the map's trials to the combo list. `--start-trial=showman`
 - [x] Unknown rooms (?): about one a map (`RunMap.WEIGHTS.mystery`), revealed on entry from `RunMap.MYSTERY` (leans toward elites and vaults), counted as fightless for the links so any reveal is legal; the node becomes what it was and the banner reads "ROOM N · UNKNOWN". `--start-mystery`; `map_check` reveals every unknown room over 500 seeds
 - [x] HUD route strip: a dot per room across the top of the screen, the rooms taken in their map colours and this room ringed, so the run's shape reads mid-fight (`hud.set_route`)
 - [x] Map weights: vaults were the rarest room (about 1.3 a map, since they can't follow a rest or shrine); `RunMap.WEIGHTS` now vault 22, trial 12, rest 10, shrine 9 for about 2 vaults and 2 trials a map
