@@ -61,6 +61,13 @@ func _initialize() -> void:
 		"max_level": Upgrades.MAX_LEVEL,
 		"synergies": Upgrades.SYNERGIES,
 		"synergy_need": Upgrades.SYNERGY_NEED,
+		"paths": _colors_to_hex(Upgrades.PATHS),
+		"mastery_need": Upgrades.MASTERY_NEED,
+		"fusion_chance": Upgrades.FUSION_CHANCE,
+		"map": {
+			"lanes": RunMap.LANES, "weights": RunMap.WEIGHTS, "kinds": _colors_to_hex(RunMap.KINDS), "trials": RunMap.TRIALS,
+			"unlock_room": RunMap.UNLOCK_ROOM, "trial_size": main_s.TRIAL_SIZE, "trial_bones": main_s.TRIAL_BONES,
+		},
 		"twists": main_s.ELITE_TWISTS,
 		"run": {
 			"length": main_s.RUN_LENGTH, "rest_heal": main_s.REST_HEAL, "room_clear_heal": main_s.ROOM_CLEAR_HEAL,

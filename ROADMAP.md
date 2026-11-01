@@ -165,7 +165,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Power icons and UI: 25 glyph icons (`tools/gen_power_icons.py` → `assets/icons/powers/`, drawn by `PowerIcon` in a path-coloured ring with level pips). Reward cards rebuilt: colour band, key chips, icon, numbers in the path colour, mastery progress ("HEAVY ■■□ MASTERY" / "UNLOCKS LIGHT MASTERY"); cards deal in. The pause build view groups powers by path with icons; the HUD shows owned powers as an icon strip; the run summary shows the icons
 - [x] New powers to balance the paths: Quickblade and Thousand Cuts (Light), Slipstream (Dash), Eruption (Awaken). Fusions, two-colour cards offered only once you own both paths (`FUSION_CHANCE` 50% to take the last card): Crescendo (Light+Heavy), Flicker (Light+Dash), Shockstep (Heavy+Dash), Undying Flame (Awaken+Soul). `tests/power_check.gd` PASS checks the data, fusion offers, masteries and every new effect, and renders `power_cards.png` / `power_build.png` / `power_hud.png`; autotest prints `masteries=` and `power_procs=`
 - [ ] Power feel pass by hand: are the mastery numbers worth chasing; do fusions show up often enough; are the weaker icons (Riposte, Shockstep) readable at HUD size
-- [ ] Wiki: show paths, masteries and fusions on the powers page (data.js already carries `path` / `fusion`)
+- [x] Wiki: show paths, masteries and fusions on the powers page: a Paths table (button, power count, mastery) and a path chip per power in its colour (two for a fusion). The run section now describes the map, vaults and trials instead of the two doors (Round 23)
 - [ ] Element powers could become a sixth path later (see Round 17)
 
 ## Round 21 (run map)

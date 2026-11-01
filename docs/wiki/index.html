@@ -240,13 +240,15 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
         <div class="kind"><h3>Elite</h3><p id="elite-text"></p></div>
         <div class="kind"><h3>Rest (camp)</h3><p id="rest-text"></p><ul id="camp"></ul></div>
         <div class="kind"><h3>Shrine</h3><p>Pick one trade, or walk on.</p><ul id="shrine"></ul></div>
+        <div class="kind"><h3>Vault</h3><p id="vault-text"></p></div>
+        <div class="kind"><h3>Trial</h3><p id="trial-text"></p><ul id="trials"></ul></div>
       </div>
       <div id="twists"></div>
       <h3>Rewards, bones and the Bone Altar</h3>
       <p id="reward-text"></p>
       <div id="boons"></div>
       <h3>Daily runs, seeds and records</h3>
-      <p>Every run has a seed shown on the pause menu and the summary. <b>Daily run</b> seeds from the date, so everyone on this build gets the same doors and offers that day. The title lists your last five runs; pick one to replay its seed. Records track best room, combo, rank, juggle and fastest win.</p>
+      <p>Every run has a seed shown on the pause menu and the summary. <b>Daily run</b> seeds from the date, so everyone on this build gets the same map and offers that day. The title lists your last five runs; pick one to replay its seed. Records track best room, combo, rank, juggle and fastest win.</p>
     </section>
 
     <section id="bestiary">
@@ -275,6 +277,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
     <section id="powers">
       <h2>Powers</h2>
       <p id="powers-text"></p>
+      <div id="path-table"></div>
       <div id="power-table"></div>
     </section>
 
@@ -418,8 +421,17 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
 
   // Run
   var R = D.run;
-  $("run-text").innerHTML = R.length + " rooms. Room 1 is always a fight and room " + R.length +
-    " is always the Bone Warden. After each room you choose between two doors. Clearing a room heals " + pct(R.room_clear_heal) + " of max HP.";
+  var M = D.map, mw = 0; Object.keys(M.weights).forEach(function (k) { mw += M.weights[k]; });
+  $("run-text").innerHTML = R.length + " rooms, laid out as a map at the start of the run: one column per room, up to " + M.lanes +
+    " lanes, the links between them shown. Room 1 is always a fight, room 2 offers two fights, and room " + R.length +
+    " is always the Bone Warden. After each room you pick one of the rooms linked to yours; the map shows elite twists, each vault's colour and each trial's condition ahead, and pause → Map shows it mid-run. A rest, shrine or vault never follows another, and the room before the boss always has a rest. From room " +
+    M.unlock_room + " on, the odds of each room are " + Object.keys(M.weights).map(function (k) { return M.kinds[k].name.toLowerCase() + " " + pct(M.weights[k] / mw); }).join(", ") +
+    ". Clearing a room heals " + pct(R.room_clear_heal) + " of max HP.";
+  $("vault-text").innerHTML = "No fight. A gold chest lit in one path's colour: pick 1 of 3 powers of that path (fusions on it count), so you can route toward your build.";
+  $("trial-text").innerHTML = pct(M.trial_size) + " of a fight with a condition. Clear it for the usual power; meet the condition for a fusion card too (else a level-up, else " +
+    M.trial_bones + " bones):";
+  $("trials").innerHTML = Object.keys(M.trials).map(function (k) { var t = M.trials[k];
+    return "<li><b>" + esc(t.name) + "</b>: " + esc(fill(t.desc, {time: t.time ? "(" + n(t.time) + " + " + n(t.per_room) + " × room)" : "", rank: t.rank || ""})) + "</li>"; }).join("");
   $("elite-text").innerHTML = "The same mix with several elites and an elite twist (two twists late in the run). Reward: " + R.elite_rewards + " powers.";
   $("rest-text").innerHTML = "Heals " + pct(R.rest_heal) + " of max HP, then spend bones:";
   $("camp").innerHTML = Object.keys(D.camp).map(function (k) { var c = D.camp[k]; return "<li>" + esc(c.text) + " · " + c.cost + " bones</li>"; }).join("");
@@ -459,11 +471,19 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
   // Powers + synergies
   var tagsOf = {};
   Object.keys(D.synergies).forEach(function (k) { D.synergies[k].ids.forEach(function (id) { (tagsOf[id] = tagsOf[id] || []).push(D.synergies[k].name); }); });
-  $("powers-text").innerHTML = "Each power hooks one move or mechanic (its slot). Numbers are per level, I / II / III. Card text shows level I.";
-  $("power-table").innerHTML = table(["Power", "Slot", "Effect", "Per level", "Synergy"], D.powers.map(function (p) {
+  function pathChip(k) { var c = "#" + D.paths[k].color; return '<span class="chip" style="color:' + c + ";border-color:" + c + '">' + esc(D.paths[k].name) + "</span>"; }
+  $("powers-text").innerHTML = "Each power hooks one move or mechanic (its slot) and belongs to the button it upgrades: its path, worn as its colour on cards, icons and the combo guide. Own " +
+    D.mastery_need + " powers of one path for its mastery. Fusions carry two paths, count toward both masteries, and are only offered once you own a power of each (" +
+    pct(D.fusion_chance) + " of offers swap their last card for one). Numbers are per level, I / II / III. Card text shows level I.";
+  $("path-table").innerHTML = table(["Path", "Button", "Powers", "Mastery (own " + D.mastery_need + ")"], Object.keys(D.paths).map(function (k) {
+    var P = D.paths[k], count = D.powers.filter(function (p) { return p.path === k || p.fusion === k; }).length;
+    return [pathChip(k), P.key ? "<code>" + esc(P.key) + "</code>" : "kills, juggles, death", {num: count}, esc(fill(P.mastery.desc, P.mastery))];
+  }), true);
+  $("power-table").innerHTML = table(["Power", "Path", "Slot", "Effect", "Per level", "Synergy"], D.powers.map(function (p) {
     var lv1 = {}; Object.keys(p.lv).forEach(function (k) { lv1[k] = p.lv[k][0]; });
     var per = Object.keys(p.lv).map(function (k) { return k + " " + p.lv[k].join(" / "); }).join("<br>");
-    return ["<b>" + esc(p.name) + "</b><br><code>" + p.id + "</code>", '<span class="chip">' + esc(p.slot) + "</span>", esc(fill(p.desc, lv1)), {num: per},
+    return ["<b>" + esc(p.name) + "</b><br><code>" + p.id + "</code>", pathChip(p.path) + (p.fusion ? " " + pathChip(p.fusion) : ""),
+      '<span class="chip">' + esc(p.slot) + "</span>", esc(fill(p.desc, lv1)), {num: per},
       (tagsOf[p.id] || []).map(function (t) { return '<span class="chip teal">' + t + "</span>"; }).join(" ")];
   }));
   var pname = {}; D.powers.forEach(function (p) { pname[p.id] = p.name; });
