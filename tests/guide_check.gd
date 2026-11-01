@@ -67,6 +67,9 @@ func _initialize() -> void:
 		_begin(p, "L1")
 		p._start_attack("L2")
 		_check(p._next_move("light") == "L3", "L L L without the pause stays Triple Chop" + _tag(awake))
+		rows = p.combo_options()
+		_check(rows[0].get("pause", {}).get("id", "") == "LPL", "mid-L2 the light row hints the pause (Flurry)" + _tag(awake))
+		_check(rows.slice(1).all(func(r: Dictionary) -> bool: return not r.has("pause")), "only the light row has a pause hint" + _tag(awake))
 	p._set_awakened(false)
 	p._set_state(p.State.MOVE)
 	p._post_dash_t = 0.0

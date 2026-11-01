@@ -72,7 +72,7 @@ How the rows are built (`combo_options`):
 - **Light and heavy rows:** `route(kind, _move_id, attacking, _chain_i, dashing, awakened)`. A heavy that routes to the neutral spin `H` is left out, because it isn't a continuation.
 - **Dash row:** only while attacking and not already dashing. It always shows `DL` (dash, then light). It dims when `combo_window().dash` is false, which happens while the dash is on cooldown or before the move's first hit or 20% mark.
 - **Charging:** a single `hold` row for `CH`.
-- **The pause combo:** a press while L2 is still playing (even past its cancel point) is Triple Chop; Flurry needs L2 to finish, then a light press within the chain's grace (`_chain_reset_t`, 0.35s). The guide shows Flurry only in that gap, since the lookahead assumes the next press comes mid-move.
+- **The pause combo:** a press while L2 is still playing (even past its cancel point) is Triple Chop; Flurry needs L2 to finish, then a light press within the chain's grace (`_chain_reset_t`, 0.35s). In that gap the light row is Flurry itself; mid-L2 the row adds "or pause: Flurry" (`pause` in `combo_options()`: `route()` asked with `attacking = false`, shown when it gives a different named combo; `PAUSE_TEXT`).
 - **Lookahead (`_option`):** for any row below tier 3, call `route(k, id, true, chain_after(id), false, awakened)` for heavy and then light, and keep the highest-tier named combo. Heavy wins ties. `CH` is never offered as a follow-up, because it needs neutral.
 
 Routing rules in `route()`, checked in order:

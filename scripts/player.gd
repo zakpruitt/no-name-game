@@ -580,8 +580,9 @@ static func chain_after(id: String) -> int:
 
 ## What the combo guide shows right now: one row per input that continues the
 ## string ("light", "heavy", "dash" = dash then light), each with the move it
-## starts and the best named combo one more press past it. Empty when there's
-## no string to continue.
+## starts and the best named combo one more press past it, plus `pause` when
+## waiting for the move to finish first starts a different named combo (L2:
+## Flurry). Empty when there's no string to continue.
 func combo_options() -> Array:
 	var attacking := state == State.ATTACK
 	var dashing := state == State.DASH or _post_dash_t > 0.0
@@ -595,7 +596,12 @@ func combo_options() -> Array:
 		var id := route(kind, _move_id, attacking, _chain_i, dashing, awakened)
 		if kind == "heavy" and id == "H":
 			continue  # the plain spin isn't a continuation
-		rows.append(_option(kind, id))
+		var o := _option(kind, id)
+		if attacking:
+			var wait := route(kind, _move_id, false, _chain_i, false, awakened)
+			if wait != id and COMBOS.has(wait):
+				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
+		rows.append(o)
 	if attacking and not dashing:
 		rows.append(_option("dash", "DL"))
 	return rows
