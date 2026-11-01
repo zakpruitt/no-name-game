@@ -99,7 +99,11 @@ func _check_map(RM: GDScript, map: Array, length: int, twists: Array, i: int, se
 ## the focused choice's onward routes are what the "Leads on to" line counts,
 ## and a pick walks the marker over, then emits `chosen`.
 func _check_screen(RM: GDScript, map: Array) -> void:
-	var screen: CanvasLayer = load("res://scripts/map_screen.gd").new()
+	var screen_script: GDScript = load("res://scripts/map_screen.gd")
+	_check(screen_script != null and screen_script.can_instantiate(), "map_screen.gd compiles")
+	if screen_script == null or not screen_script.can_instantiate():
+		return
+	var screen: CanvasLayer = screen_script.new()
 	var cover := CanvasLayer.new()
 	get_root().add_child(cover)
 	get_root().add_child(screen)
