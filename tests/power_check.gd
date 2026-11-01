@@ -129,6 +129,10 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._start_attack("LHH")
 	p._spike(e)
 	_check(p.spikes == 1 and e.velocity.y < 0.0, "Spike slams a juggled foe down")
+	p.add_upgrade("rebound")
+	p._spike(e)
+	await create_timer(p.REBOUND_DELAY + 0.1).timeout
+	_check(p.power_procs.get("rebound", 0) == 1 and (not e.is_alive() or e.is_airborne()), "Rebound bounces the spiked foe back up")
 	p._set_state(p.State.MOVE)
 	# Flicker: light hits right after a dash.
 	p.add_upgrade("flicker")

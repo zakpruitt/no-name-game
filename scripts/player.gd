@@ -191,6 +191,7 @@ const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH", "LHH"]
 const SPIKE_AIR_MULT := 1.6
 const SPIKE_DOWN := 24.0
 const SPIKE_IMPACT := {"radius": 2.6, "damage": 6.0, "knockback": 5.0}
+const REBOUND_DELAY := 0.22  # s from the spike to the bounce (Rebound)
 const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
@@ -1431,6 +1432,19 @@ func _spike(e: Node3D) -> void:
 		if o != e and o.is_alive() and not o.is_airborne() and to.length() < SPIKE_IMPACT.radius + o.radius:
 			o.take_hit(SPIKE_IMPACT.damage * _dmg_mult, to.normalized() * SPIKE_IMPACT.knockback, 0.0, true)
 			Game.register_hit("spike")
+	if has_upgrade("rebound"):
+		_rebound(e)
+
+
+## Rebound: a spiked foe bounces back up off the floor for another juggle.
+func _rebound(e: Node3D) -> void:
+	await get_tree().create_timer(REBOUND_DELAY).timeout
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	_proc("rebound")
+	e.take_hit(upg("rebound", "damage") * _dmg_mult, Vector3.ZERO, upg("rebound", "launch"), false)
+	Game.register_hit("rebound")
+	Fx.ring(get_parent(), e.global_position, Color(Upgrades.PATHS.soul.color, 0.85), 1.4, 0.25)
 
 
 ## Razor Gale: Flurry's last cut flings a fan of the element's blades.

@@ -56,6 +56,8 @@ ICONS = {
                   f'<path {F} d="M12 52 L56 40 L31 53 Z"/>',
     "eye_of_storm": f'<path {S} d="M32 30 C36 28 39 34 35 37 C29 41 22 35 25 27 C29 18 43 18 46 29 '
                     f'C49 41 38 52 26 50 C14 48 7 36 12 22"/><path {S} d="M6 26 L12 22 L17 27"/>',
+    "rebound": f'<path {S} d="M14 8 L30 40"/><path {S} d="M30 40 L44 14"/><path {S} d="M36 14 H46 V24"/>'
+               f'<path {S} d="M8 54 H56"/><path {F} d="M24 46 L36 46 L30 52 Z"/>',
     "slipstream": f'<path {S} d="M6 34 H56"/><path {S} d="M46 24 L56 34 L46 44"/><path {S} stroke-width="4" d="M26 14 L34 54"/>'
                   f'<path {S} stroke-width="3" d="M8 24 H20"/><path {S} stroke-width="3" d="M8 44 H20"/>',
     # --- Awaken ---

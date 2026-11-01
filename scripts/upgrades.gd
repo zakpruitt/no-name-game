@@ -84,6 +84,9 @@ const ALL := [
 	{"id": "eye_of_storm", "name": "Eye of the Storm", "path": "dash", "slot": "DH",
 		"desc": "Each Cyclone hit drags foes within {radius}m into the spin.",
 		"lv": {"radius": [5, 6, 7.5], "damage": [2, 3, 4]}},
+	{"id": "rebound", "name": "Rebound", "path": "soul", "slot": "LHH",
+		"desc": "Foes you Spike bounce back up {launch}m/s off the floor for another juggle ({damage} damage).",
+		"lv": {"launch": [7, 8.5, 10], "damage": [6, 9, 13]}},
 	# Fusions: two paths in one card. Offered only once you own a power of
 	# both (`fusion` is the second path); they count toward both masteries.
 	{"id": "crescendo", "name": "Crescendo", "path": "light", "fusion": "heavy", "slot": "L3 → Heavy",
