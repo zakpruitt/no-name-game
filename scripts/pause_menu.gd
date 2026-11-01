@@ -168,7 +168,7 @@ func _build_moves() -> void:
 		Color(1, 1, 1, 0.5))
 	var rows: Array = [["L", "Slice"], ["H", "Spin"], ["Dash", "Dodge"], ["Q", "Awaken"]]
 	for id: String in player.COMBOS:
-		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier, player.combos_landed.get(id, 0)])
+		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier, player.combos_landed.get(id, 0), id])
 	for r: Array in rows:
 		var tier: int = r[2] if r.size() > 2 else 0
 		var color: Color = player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95)
@@ -177,6 +177,14 @@ func _build_moves() -> void:
 			color.a = 0.5
 		var line := _label(list, "%s   %s%s" % [r[0], r[1], "   ×%d" % times if times > 0 else ""], 19, color)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		# Owned powers that hook this combo (Upgrades.combo_of), in their path colour.
+		if r.size() > 4:
+			for pid: String in player.upgrades:
+				var u := Upgrades.get_by_id(pid)
+				if Upgrades.combo_of(u) == r[4]:
+					var hook := _label(list, "      + %s%s" % [u.name, Upgrades.level_tag(player.upgrades[pid])], 14,
+						Upgrades.color(u).lightened(0.3))
+					hook.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 ## The run map, read-only, over the pause menu (main.show_map()).

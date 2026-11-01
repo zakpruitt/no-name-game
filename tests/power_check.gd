@@ -236,6 +236,8 @@ func _check_card(main: Node, U: GDScript) -> void:
 	await process_frame
 	texts = pause.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
 	_check(texts.has("Spike:  L H H"), "the build view shows a combo power's input")
+	_check(texts.any(func(t: String) -> bool: return t.strip_edges().begins_with("+ Rebound")),
+		"the moves list shows the owned power on Spike")
 	p.power_procs["rebound"] = 7
 	pause.close_menu()
 	pause._open()

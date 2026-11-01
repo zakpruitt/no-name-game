@@ -141,5 +141,6 @@ Routing rules in `route()`, checked in order:
 - The autotest bot presses buttons with `Input.action_press`, which generates no `InputEvent`, so bot presses never flash rows. `_on_press(kind)` can be called directly if a test needs the flash.
 - `_box` is a single `StyleBoxFlat` reused for every pill. This works because `draw_style_box` issues its draw commands immediately. Don't cache draw commands that depend on it.
 - `combo_options()` treats `State.DASH` as "dashing" so the Dash Stab row shows during the dash itself. `route()` only receives `post_dash`, which is set when the dash ends; any buffered light press resolves then.
+- Pause MOVES list: each named combo shows how often it was landed this run and, under it, the owned powers that hook it ("+ Rebound", `Upgrades.combo_of`).
 - Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Flurry  (L L, pause, L)  ·  5 / 11 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
 - Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint; ultimates are always hinted. Still open in ROADMAP: a feel pass by hand on placement against the fight.
