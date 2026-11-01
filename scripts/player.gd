@@ -298,6 +298,12 @@ const PLUNGE_PER_M := 0.15
 # (visual: _plunge_axes), PLUNGE_AXES_SPREAD degrees apart.
 const PLUNGE_AXES_FROM := 2.0
 const PLUNGE_AXES_SPREAD := 32.0
+# Juggle tracking: a move started in the air (the air slashes, a plunge) turns
+# to the nearest airborne foe within AIR_HOME_RANGE and lunges far enough to
+# reach it (`_air_home`), so a launched foe that drifted doesn't make the
+# string whiff. AIR_HOME_MAX caps the lunge speed.
+const AIR_HOME_RANGE := 5.5
+const AIR_HOME_MAX := 22.0
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -1319,6 +1325,8 @@ func _start_attack(id: String) -> void:
 	_chain_i = chain_after(id)
 	_post_dash_t = 0.0
 	_aim()
+	if _hop_air:
+		_air_home()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
 	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH"] else "swing", -3.0, 0.12)
@@ -1373,6 +1381,36 @@ func _aim() -> void:
 		want.y = 0.0
 	_face(want)
 	model.rotation.y = _facing_yaw  # snap: attacks must point where they hit
+
+
+## Juggle tracking (AIR_HOME_*): face the nearest airborne foe and lunge to
+## reach it by the first hit. The lunge decays to 0 by a third of the move
+## (`decay` 3), covering lunge * length / 6 metres.
+func _air_home() -> void:
+	var best: Node3D = null
+	var best_d := AIR_HOME_RANGE
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not e.is_alive() or not e.is_airborne():
+			continue
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		if to.length() < best_d:
+			best_d = to.length()
+			best = e
+	if best == null:
+		return
+	var to := best.global_position - global_position
+	to.y = 0.0
+	if to.length() > 0.05:
+		_face(to)
+		model.rotation.y = _facing_yaw
+	var gap: float = best_d - _move.get("range", 2.5) * 0.6
+	if gap <= 0.0:
+		return
+	var length: float = _move_len / maxf(anim_speed * _anim_mult, 0.01)
+	var decay: float = _move.get("decay", 3.0)
+	var need := gap * 2.0 * decay / maxf(length, 0.01)  # travel = lunge * length / (2 * decay)
+	_move.lunge = clampf(maxf(_move.lunge, need), 0.0, AIR_HOME_MAX)
 
 
 func _do_hit() -> void:

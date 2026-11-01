@@ -107,6 +107,10 @@ back to L1:
   (`_plunge_axes`: visual `_axe_fall` guillotines, `PLUNGE_AXES_SPREAD`
   32 degrees apart, the middle one first, sized by `_cast_grow()`). Look:
   `tests/cast_dump.gd -- --cast=plunge`.
+- Juggle tracking: any move started in the air turns to the nearest
+  airborne foe within `AIR_HOME_RANGE` (5.5 m) and raises its lunge so it
+  reaches the foe by the first hit (`_air_home`, capped at `AIR_HOME_MAX`).
+  A launched foe that drifts off doesn't make the air string whiff.
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.

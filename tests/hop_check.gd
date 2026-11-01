@@ -8,6 +8,14 @@ extends SceneTree
 var fails := 0
 
 
+class Floater extends Node3D:  # a juggled foe hanging in the air
+	var radius := 0.5
+	var hp := 100.0
+	func is_alive() -> bool: return hp > 0.0
+	func take_hit(d: float, _kb = Vector3.ZERO, _l = 0.0, _b = false, _x = null) -> void: hp -= d
+	func is_airborne() -> bool: return true
+
+
 func _initialize() -> void:
 	await process_frame
 	var world := Node3D.new()
@@ -77,6 +85,24 @@ func _initialize() -> void:
 	p._hits_done = 0
 	await _settle(p)
 	_check(p.model.position.y == 0.0, "settled on the floor after (y %.2f, lh peak %.2f)" % [p.model.position.y, lh_peak])
+	# Juggle tracking: from the air, the slash turns to a foe drifting off to
+	# the side and lunges to reach it by its hit.
+	var f := Floater.new()
+	world.add_child(f)
+	f.add_to_group("enemies")
+	f.global_position = p.global_position + Vector3(4.5, 0, 0)
+	p._start_attack("LH")
+	await _run(p, p.MOVES.LH.cancel)
+	f.global_position = p.global_position + Vector3(4.5, 0, 0)
+	f.hp = 100.0
+	p._start_attack("AL1")
+	var face: Vector3 = p._facing()
+	_check(face.x > 0.95, "an air slash turns to the airborne foe (facing %s)" % face)
+	await _run(p, p.MOVES.AL1.hits[0] + 0.02)
+	var gap: float = Vector2(f.global_position.x - p.global_position.x, f.global_position.z - p.global_position.z).length()
+	_check(gap < 2.7 and f.hp < 100.0, "and reaches it by the hit (gap %.2f, hp %.0f)" % [gap, f.hp])
+	f.queue_free()
+	await _settle(p)
 	print("[hop] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
 
