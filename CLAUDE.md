@@ -37,6 +37,7 @@ characters only (no licensed IP in the repo).
 - `assets/kaykit/` — CC0 models (see CREDITS.md). `vendor_src/` holds the full packs; it's gitignored and `.gdignore`d — copy pieces into `assets/` to use them.
 
 ## Workflow
+- **Several agents at once:** each agent works in its own git worktree and branch (`bash tools/agent.sh new <name>` → `../awaken-<name>`, branch `agent/<name>`), commits there, and lands with `bash tools/agent.sh land` (rebase onto dev, resolve your own conflicts, headless checks, fast-forward dev). Never stage or commit in another agent's checkout, including `awaken/`. Rules: `docs/agents.md`
 - Headless check (compile + 12s bot playthrough): `godot --headless --path . -- --autotest`
 - Visual check (screenshots to `%APPDATA%/Godot/app_userdata/Awaken/autotest_*.png`): `godot --path . -- --autotest`
 - Effect preview (isolated, game camera and lighting, screenshot to `user://fx_preview.png`): `godot --path . -s tests/fx_preview.gd [-- --at=0.06]` (`--at` = seconds after spawn; flares peak ~0.03–0.08s); `-- --swoosh` shows the melee arcs instead, `-- --death` the kill effects, `-- --dash` the dash and perfect dodge, `-- --awaken` the activation burst, `-- --shots` enemy projectiles (halo + trail) and their pop. Swing trail mid-swing: `godot --path . -s tests/trail_preview.gd` → `user://trail_preview.png`
