@@ -31,6 +31,8 @@ extends RefCounted
 const CASTS := {
 	"L1": {"kind": "echo", "damage": 5.0, "radius": 3.4, "arc": 160.0, "delay": 0.05, "time": 0.18},
 	"L2": {"kind": "echo", "damage": 6.0, "radius": 3.9, "arc": 200.0, "delay": 0.04, "time": 0.2},
+	"AL1": {"kind": "echo", "damage": 4.0, "radius": 3.2, "arc": 170.0, "delay": 0.05, "time": 0.18},
+	"AL2": {"kind": "echo", "damage": 5.0, "radius": 3.6, "arc": 210.0, "delay": 0.04, "time": 0.2},
 	"L3": {"kind": "cleave", "damage": 12.0, "reach": 5.0, "ahead": 3.0, "size": 3.2, "blast": 2.8, "launch": 4.0},
 	"DL": {"kind": "tomahawk", "damage": 6.0, "back_damage": 4.0, "range": 8.0, "size": 2.6},
 	"LPL": {"kind": "tomahawk", "damage": 4.0, "back_damage": 3.0, "range": 6.5, "size": 1.5, "fan": 2, "spread": 34.0},

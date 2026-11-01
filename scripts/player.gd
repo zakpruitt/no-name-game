@@ -70,7 +70,7 @@ const MOVES := {
 		"stop": 0.045, "shake": 0.12},
 	"L2": {"anim": "Throw", "damage": 9.0, "range": 2.5, "arc": 160.0,
 		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
-		"stop": 0.05, "shake": 0.14},
+		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6]},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
 		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9]},
@@ -88,6 +88,16 @@ const MOVES := {
 	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
 		"hits": [0.3], "cancel": 0.42, "end": 0.58, "lunge": 3.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true, "hop": [0.28, 0.58, 1.5]},
+	# Light after the launcher (L H L, then L H L L): air slashes. He stays up
+	# with the foe he launched (`air`: holds the height he started at) and
+	# each cut re-juggles it; a third light is Triple Chop slamming down, a
+	# heavy is Spike from the air.
+	"AL1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 7.0, "range": 2.6, "arc": 170.0,
+		"hits": [0.32], "cancel": 0.42, "end": 0.7, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
+		"stop": 0.045, "shake": 0.12, "air": true},
+	"AL2": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.6, "arc": 190.0,
+		"hits": [0.24, 0.4], "cancel": 0.5, "end": 0.75, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
+		"stop": 0.04, "shake": 0.14, "air": true},
 	# Heavy right after the launcher (L H H): Spike, an overhead chop that
 	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
 	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
@@ -126,6 +136,7 @@ const COMBOS := {
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
 	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
 	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
+	"AL2": {"name": "Sky Rend", "input": "L H L L", "tier": 2},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
 	"LHH": {"name": "Spike", "input": "L H H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
@@ -179,7 +190,7 @@ const BREAKERS := {
 	# (`dash`) through everything along the line to the zone: `pass_damage` to
 	# each foe within `width` as he passes, then the line erupts in spectral
 	# axes (a spirit_rift) for `damage` (no radius blast at the end).
-	"LPL": {"leap": 0.68, "rise": 0.18, "height": 0.45, "back": 1.2, "spikes": 0, "zone": 6.5, "spread": 0.0,
+	"LPL": {"leap": 0.64, "rise": 0.18, "height": 0.45, "back": 1.2, "spikes": 0, "zone": 6.5, "spread": 0.0,
 		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.08, "cue": 0.08, "open": 0.3, "sweet": 0.42, "close": 0.56,
 		"perfect": 0.06, "dive": 0.16, "damage": 18.0, "radius": 0.0, "launch": 6.0, "perfect_mult": 1.5,
 		"fall": 0.18, "awaken": 5.0, "awaken_perfect": 12.0,
@@ -189,13 +200,23 @@ const BREAKERS := {
 	# whirlwind dragging foes within `pull_radius` in at `pull` m/s; the press
 	# flings `fan` spectral tomahawks out in a ring (`fan_range`, each hits
 	# out and back for `fan_damage` / `fan_back`), plus a `radius` blast round him.
-	"DH": {"leap": 0.8, "rise": 0.22, "height": 1.2, "back": 0.0, "spikes": 0, "zone": 0.0, "spread": 0.0,
+	"DH": {"leap": 0.76, "rise": 0.22, "height": 1.2, "back": 0.0, "spikes": 0, "zone": 0.0, "spread": 0.0,
 		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.08, "cue": 0.08, "open": 0.32, "sweet": 0.46, "close": 0.6,
 		"perfect": 0.06, "dive": 0.1, "damage": 12.0, "radius": 2.6, "launch": 5.0, "perfect_mult": 1.5,
 		"fall": 0.2, "awaken": 5.0, "awaken_perfect": 12.0,
 		"juggle": true, "juggle_damage": 2.0, "juggle_radius": 2.6, "juggle_axes": 6, "pull": 4.5, "pull_radius": 6.0,
 		"fan": 6, "fan_damage": 8.0, "fan_back": 5.0, "fan_range": 7.0,
-		"names": {"spirit": "Spirit Maelstrom", "wind": "Eye of the Storm", "earth": "Shrapnel Storm", "water": "Hailstorm"}},
+		"names": {"spirit": "Spirit Maelstrom", "wind": "Tempest Ring", "earth": "Shrapnel Storm", "water": "Hailstorm"}},
+	# Spike: bounces straight up off the slam while a spectral axe appears
+	# hovering point-down over each foe within `volley_radius` of the zone (up
+	# to `volley_max`, following them); the press dives him in and every axe
+	# drops with him (`volley_damage` each, one hit per foe for the volley).
+	"LHH": {"leap": 0.48, "rise": 0.24, "height": 3.0, "back": 0.0, "spikes": 0, "zone": 1.6, "spread": 0.0,
+		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.1, "cue": 0.1, "open": 0.34, "sweet": 0.48, "close": 0.62,
+		"perfect": 0.06, "dive": 0.13, "damage": 16.0, "radius": 2.8, "launch": 0.0, "perfect_mult": 1.5,
+		"fall": 0.24, "awaken": 6.0, "awaken_perfect": 14.0,
+		"volley": true, "volley_damage": 12.0, "volley_radius": 6.0, "volley_max": 6, "volley_size": 2.6,
+		"names": {"spirit": "Spirit Verdict", "wind": "Storm Verdict", "earth": "Mountain Verdict", "water": "Frost Verdict"}},
 }
 # The breaker window plays in slow motion (BREAKER_FOCUS time scale, camera
 # pushed in to BREAKER_FOCUS_ZOOM), and a perfect press freezes the frame for
@@ -211,12 +232,13 @@ const BREAKER_ANCESTOR := 4.0
 const BREAKER_AWAKENED_WAKE := 1.4
 const BREAKER_SPIKE := preload("res://scripts/breaker_spike.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
+const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
 const SKY_ANCESTOR := 5.0  # Ancestor's Fall: the ancestor's size vs the hero
 const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
 const CAST_SFX_DB := -11.0
 # Names of the moves that aren't combos, for the combo guide.
-const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin"}
+const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin", "AL1": "Air Slash"}
 # After landing a combo this many times in a run, the guide stops hinting it
 # as a follow-up (it still shows as a row); ultimates are always hinted.
 const GUIDE_LEARNED := 6
@@ -255,6 +277,7 @@ var _move_id := ""
 var _move: Dictionary = {}
 var _move_len := 1.0
 var _hits_done := 0
+var _connected := false  # the current move has hit something (combo breakers need it)
 var _hop_y0 := 0.0  # model height the current move started at (MOVES `hop`)
 var _hop_air := false  # off the ground this move (for the landing dust)
 var _swoosh_flip := false  # alternate swing direction each swoosh
@@ -293,7 +316,7 @@ const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
 ## Light-press moves, for the Light path's powers.
-const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL"]
+const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL", "AL1", "AL2"]
 const RAZOR_GALE_SPREAD := 16.0  # degrees between Razor Gale's blades
 var _crescendo := false  # Crescendo: the next heavy is empowered
 var _slipped: Array = []  # enemies Slipstream already cut this dash
@@ -358,7 +381,10 @@ var _brk_blasted: Dictionary = {}  # foes the spikes' detonation already hit
 var _brk_cue: Node3D
 var _brk_wheel: Node3D  # the juggle's sawblade (BREAKERS `juggle`)
 var _brk_focus := false  # the window's slow motion has started
+var _brk_ended := ""  # how the last breaker's press went (breaker_window)
+var _brk_prompt: Control  # the timing circle (breaker_prompt.gd), made on the first leap
 var _brk_ancestor: Node3D  # Awakened: the ancestor slamming down with the dive
+var _brk_volley: Array = []  # Spike's breaker: the axes hovering over its foes
 var _brk_passed: Dictionary = {}  # foes the dash breaker has cut through
 
 
@@ -595,7 +621,9 @@ func _state_charge(delta: float) -> void:
 ## started by `land` (first hit), plus its own `hop` arc.
 func _hop(t: float) -> void:
 	var y := 0.0
-	if _hop_y0 > 0.0:
+	if _move.get("air", false):  # air move: hold the height it started at
+		y = _hop_y0 + sin(t * PI) * 0.15
+	elif _hop_y0 > 0.0:
 		var land: float = _move.get("land", _move.hits[0])
 		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
 		y = _hop_y0 * (1.0 - k * k)  # accelerating down onto the hit
@@ -607,8 +635,10 @@ func _hop(t: float) -> void:
 	if y > 0.4:
 		_hop_air = true
 	elif _hop_air and y < 0.05:
-		_hop_air = false
+		_hop_air = false  # landed onto the hit: a slam
 		Fx.dust(get_parent(), global_position, 6, 0.5)
+		Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2, 0.22)
+		Game.shake(0.12)
 	model.position.y = y
 
 
@@ -625,7 +655,7 @@ func _state_attack(delta: float) -> void:
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
-	if BREAKERS.has(_move_id) and _hits_done > 0 and t >= BREAKERS[_move_id].leap:
+	if BREAKERS.has(_move_id) and _connected and t >= BREAKERS[_move_id].leap:  # (a whiff plays out normally)
 		_start_leap(_move_id)
 		return
 
@@ -693,6 +723,9 @@ func _start_leap(id: String) -> void:
 	_brk_wheel = null
 	_brk_passed = {}
 	_brk_focus = false
+	_brk_ended = ""
+	_brk_volley.clear()
+	_breaker_prompt()
 	_brk_ancestor = null
 	_brk_dir = _facing()
 	var ahead := minf(_brk.zone, _clear_ahead(_brk_dir, _brk.zone) + 0.3)
@@ -729,6 +762,8 @@ func _state_leap(delta: float) -> void:
 			_play("Spellcast_Shoot", 0.05, true)
 		if b.has("juggle") and t >= b.throw:
 			_juggle()
+		if b.has("volley") and t >= b.throw and _brk_volley.is_empty():
+			_volley_raise()
 		while _brk_thrown < b.spikes and t >= b.throw + _brk_thrown * 0.03:
 			_throw_spike()
 		if t >= b.cue and _brk_cue == null:
@@ -750,6 +785,7 @@ func _state_leap(delta: float) -> void:
 		if not _brk_locked and _breaker_pressed(t):
 			if t < b.open:
 				_brk_locked = true  # too early: no breaker this time
+				_brk_ended = "lock"
 				if is_instance_valid(_brk_cue):
 					_brk_cue.lock()
 				Game.sfx("player_hurt", -14.0, 0.0)
@@ -758,6 +794,12 @@ func _state_leap(delta: float) -> void:
 				_start_dive()
 				return
 		if t > b.close:
+			if _brk_ended == "":
+				_brk_ended = "miss"
+			for g in _brk_volley:
+				if is_instance_valid(g):
+					g.cancel()
+			_brk_volley.clear()
 			if is_instance_valid(_brk_ancestor):
 				_brk_ancestor.queue_free()  # no dive: it never lands
 			_brk_phase = 2
@@ -828,6 +870,31 @@ func _breaker_ancestor() -> void:
 	_brk_ancestor = av
 
 
+## Spike's breaker: a spectral axe hovering point-down over each foe near the
+## zone (one over the zone if there are none), following them (BREAKERS `volley`).
+func _volley_raise() -> void:
+	var b := _brk
+	var foes: Array = Ascendancy.enemies_near(get_tree(), _brk_zone, b.volley_radius)
+	foes.sort_custom(func(a: Node3D, c: Node3D) -> bool:
+		return a.global_position.distance_squared_to(_brk_zone) < c.global_position.distance_squared_to(_brk_zone))
+	var shared := {}
+	var n := maxi(mini(foes.size(), b.volley_max), 1)
+	for i in n:
+		var gu = _spirit(SPIRIT_GUILLOTINE.new(), {"damage": b.volley_damage * _cast_power()}, element())
+		gu.fwd = _brk_dir
+		gu.size = b.volley_size * _cast_grow()
+		gu.radius = 1.6
+		gu.heavy = false
+		gu.wait = true
+		gu.shared = shared
+		if i < foes.size():
+			gu.target = foes[i]
+		get_parent().add_child(gu)
+		gu.global_position = Vector3(foes[i].global_position.x, 0.0, foes[i].global_position.z) if i < foes.size() else _brk_zone
+		_brk_volley.append(gu)
+	Game.sfx("ult", -10.0, 0.1)
+
+
 ## The dash breaker cuts each foe it passes once (BREAKERS `dash`).
 func _dash_cut() -> void:
 	var b := _brk
@@ -890,6 +957,11 @@ func _start_dive() -> void:
 	_drop_wheel()
 	_brk_dive_from = global_position
 	var perfect: bool = absf(_brk_press - _brk.sweet) <= _brk.perfect
+	_brk_ended = "perfect" if perfect else "hit"
+	for i in _brk_volley.size():  # the axes fall with him
+		if is_instance_valid(_brk_volley[i]):
+			_brk_volley[i].drop(maxf(_brk.dive - _brk_volley[i].fall, 0.0) + 0.02 * i)
+	_brk_volley.clear()
 	if is_instance_valid(_brk_cue):
 		_brk_cue.hit(perfect)
 	if _brk_focus:
@@ -1041,6 +1113,12 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 	if kind == "light":
 		if post_dash:
 			return "DL"
+		if attacking and from == "LH":
+			return "AL1"  # off the launcher: into the air
+		if attacking and from == "AL1":
+			return "AL2"
+		if attacking and from == "AL2":
+			return "L3"  # Triple Chop slams down from the air
 		if not attacking and from == "L2" and chain == 2:
 			return "LPL"  # L2 has finished: the pause turns the third light into Flurry
 		return LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
@@ -1050,10 +1128,10 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 		return "DH"
 	if awake and attacking and from == "L3":
 		return "AF"
-	if awake and attacking and from == "LH":
+	if awake and attacking and from in ["LH", "AL1", "AL2"]:
 		return "SKY"
-	if attacking and from == "LH":
-		return "LHH"
+	if attacking and from in ["LH", "AL1", "AL2"]:
+		return "LHH"  # Spike, from the air
 	if awake and attacking and from == "DL":
 		return "RUSH"
 	if (attacking and from == "L2") or (not attacking and chain == 2):
@@ -1078,8 +1156,6 @@ static func chain_after(id: String) -> int:
 ## waiting for the move to finish first starts a different named combo (L2:
 ## Flurry). Empty when there's no string to continue.
 func combo_options() -> Array:
-	if state == State.LEAP:
-		return _breaker_options()
 	var attacking := state == State.ATTACK
 	var dashing := state == State.DASH or _post_dash_t > 0.0
 	var live := attacking or dashing or state == State.CHARGE or (state == State.MOVE and _chain_i > 0)
@@ -1103,13 +1179,25 @@ func combo_options() -> Array:
 	return rows
 
 
-## The combo guide mid-leap: one heavy row naming the breaker, until it's
-## pressed, locked out or missed.
-func _breaker_options() -> Array:
-	if _brk_phase != 0 or _brk_locked:
-		return []
-	return [{"kind": "heavy", "id": _brk_id, "name": breaker_name(), "tier": 3, "ult": false, "hold": false,
-		"next": {}}]
+## The breaker timing prompt (breaker_prompt.gd) reads this every frame:
+## `live` while the press is still to come (times in s since take-off, the
+## hero's colour); otherwise how the last one `ended` ("perfect", "hit",
+## "lock" = too early, "miss" = no press).
+func breaker_window() -> Dictionary:
+	if state == State.LEAP and _brk_phase == 0 and not _brk_locked:
+		var b := _brk
+		return {"live": true, "t": _state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": _fx_color()}
+	return {"ended": _brk_ended}
+
+
+func _breaker_prompt() -> void:
+	if _brk_prompt != null:
+		return
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	_brk_prompt = BREAKER_PROMPT.new()
+	_brk_prompt.player = self
+	layer.add_child(_brk_prompt)
 
 
 ## The breaker in play's name for the current element.
@@ -1141,10 +1229,6 @@ func guide_name(id: String) -> String:
 ## `ready` once a press now would be buffered into the next move (input_buffer);
 ## while charging, how far the charge is and whether it's full.
 func combo_window() -> Dictionary:
-	if state == State.LEAP:  # the breaker: fills toward the window, ready inside it
-		var b := _brk
-		return {"progress": clampf(_state_t / b.open, 0.0, 1.0), "ready": _state_t >= b.open and _state_t <= b.close,
-			"dash": false}
 	if state == State.CHARGE:
 		return {"progress": clampf(_state_t / CHARGE_TIME, 0.0, 1.0), "ready": _charged, "dash": _dash_cd <= 0.0}
 	if state != State.ATTACK:
@@ -1175,6 +1259,7 @@ func _start_attack(id: String) -> void:
 		Fx.burst(get_parent(), global_position + Vector3.UP, Upgrades.PATHS.heavy.color, 16, 5.0, 0.1, 0.3, Vector3.UP, 70.0)
 	_move_len = anim.get_animation(_move.anim).length
 	_hits_done = 0
+	_connected = false
 	_hop_y0 = model.position.y
 	_hop_air = _hop_y0 > 0.4
 	_callout_done = false
@@ -1273,6 +1358,7 @@ func _do_hit() -> void:
 		Fx.element_hit(get_parent(), e.global_position, element(), kb_dir, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
+		_connected = true
 		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
 			_proc("shatter")
 			_shatter(e)
