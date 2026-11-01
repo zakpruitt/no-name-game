@@ -55,7 +55,7 @@ const MUSIC_FADE_OUT := 0.25
 # First-run hints: main.gd decides when each applies; each shows once, then
 # is saved as seen (Reset hints in the pause menu brings them back).
 const HINTS := {
-	"attack": "Light [J / LMB] and heavy [K / RMB] chain into combos.\nMixing different moves raises your style rank.",
+	"attack": "Light [LMB] and heavy [RMB] chain into combos.\nMixing different moves raises your style rank.",
 	"dash": "Dash [Space] through attacks.\nDash just before a hit lands for a PERFECT dodge.",
 	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
 	"breaker": "Light, light, heavy is a GROUND BREAKER:\na lunging thrust that knocks down everything in a line.",

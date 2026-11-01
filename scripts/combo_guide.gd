@@ -25,10 +25,8 @@ const CHEST := 1.1  # metres above the feet the rows centre on
 const EDGE := 330.0  # flip to the hero's left this close to the right edge
 const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
 const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.74)
-## Button text per device; the guide follows whichever was used last.
-const KEYS := {"light": "J", "heavy": "K", "dash": "SPACE"}
-const MOUSE := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
-const PAD := {"light": "X", "heavy": "Y", "dash": "A"}
+## Button text: mouse and keyboard, the one control set shown in the game.
+const LABELS := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
 const KIND_COLORS := {"light": Color(0.35, 0.62, 1.0), "heavy": Color(1.0, 0.78, 0.2), "dash": Color(0.35, 0.88, 0.45)}
 const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash"}
 
@@ -41,7 +39,6 @@ var _swap_t := 99.0
 var _ready_t := 99.0  # since the rows became ready (pop)
 var _was_ready := false
 var _side := 1.0
-var _device := "keys"
 var _flashes: Array = []  # [offset from anchor, colour, age]
 var _press := {}  # kind -> age of the last press
 var _anchor := Vector2.ZERO
@@ -60,12 +57,6 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.5):
-		_device = "pad"
-	elif event is InputEventKey and event.pressed:
-		_device = "keys"
-	elif event is InputEventMouseButton and event.pressed:
-		_device = "mouse"
 	if not event.is_pressed() or event.is_echo():
 		return
 	for action: String in ACTIONS:
@@ -246,28 +237,20 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 
 
 func _glyph_w(kind: String, h: float) -> float:
-	var label: String = _labels()[kind]
+	var label: String = LABELS[kind]
 	return maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(KEY_SIZE * h / GLYPH_H)).x + h * 0.6)
 
 
-func _labels() -> Dictionary:
-	return PAD if _device == "pad" else (MOUSE if _device == "mouse" else KEYS)
-
-
-## A button: filled in the pad's colour, or a dark key with a coloured rim.
+## A button: a dark key with a rim in the input's colour.
 func _glyph(c: Vector2, kind: String, h: float, alpha: float) -> void:
-	var label: String = _labels()[kind]
+	var label: String = LABELS[kind]
 	var size := int(KEY_SIZE * h / GLYPH_H)
 	var w := maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + h * 0.6)
 	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
 	var kc: Color = KIND_COLORS[kind]
-	if _device == "pad":
-		_pill(r, Color(kc, alpha))
-	else:
-		_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
+	_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	var fc := Color(0.06, 0.04, 0.08, alpha) if _device == "pad" else Color(1, 1, 1, alpha)
-	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, fc)
+	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, alpha))
 
 
 func _pill(r: Rect2, fill: Color, border := Color.TRANSPARENT, border_w := 0) -> void:

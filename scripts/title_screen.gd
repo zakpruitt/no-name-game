@@ -3,7 +3,7 @@ extends "res://scripts/menu_screen.gd"
 
 signal started
 
-const CONTROLS := "WASD / left stick move    J / LMB / X light    K / RMB / Y heavy\nSpace / A dash    Q / RB awaken    Esc / Start pause"
+const CONTROLS := "WASD move    LMB light    RMB heavy\nSpace dash    Q awaken    Esc pause"
 
 
 const ALTAR_MENU := preload("res://scripts/altar_menu.gd")
