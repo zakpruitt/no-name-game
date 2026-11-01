@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## Health, Awakening meter, combo counter with style rank, room banner, boss bar,
-## and a red edge vignette + heartbeat when HP runs low.
+## the combo guide beside the hero (combo_guide.gd), and a red edge vignette +
+## heartbeat when HP runs low.
 
 const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B": Color(0.4, 1.0, 0.5),
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
@@ -46,6 +47,7 @@ var _hp_ratio := 1.0
 var _beat_t := 0.0
 var _pulse := 0.0
 var _vignette := 0.0
+var combo_guide: Control
 
 
 func _ready() -> void:
@@ -64,6 +66,8 @@ func _ready() -> void:
 	root.add_child(vignette)
 	root.add_child(preload("res://scripts/enemy_bars.gd").new())
 	root.add_child(preload("res://scripts/threat_arrows.gd").new())
+	combo_guide = preload("res://scripts/combo_guide.gd").new()
+	root.add_child(combo_guide)
 
 	hp_bar = _bar(root, Vector2(32, 28), Vector2(360, 22), Color(0.9, 0.25, 0.25))
 	awaken_bar = _bar(root, Vector2(32, 58), Vector2(360, 14), Color(1.0, 0.6, 0.15))
@@ -183,6 +187,7 @@ func bind_player(p: Node) -> void:
 		_hp_ratio = hp / mx)
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
+	combo_guide.player = p
 
 
 func show_boss(boss: Node) -> void:

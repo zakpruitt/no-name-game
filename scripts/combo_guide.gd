@@ -1,0 +1,285 @@
+extends Control
+## Combo guide: beside the hero mid-string, one row per input that continues
+## it (button glyph + the move it starts, coloured by combo tier) and, dimmer,
+## the best named combo one press past that. Reads `player.combo_options()`
+## every frame, so it changes the instant a move starts. A ring round each
+## glyph fills toward the move's cancel point and the rows light up once a
+## press would be taken (`player.combo_window()`); pressing flashes the row
+## straight from `_input`, before the move even starts. Animates in real time
+## so hitstop and slow motion don't stall it. Off in Settings (Game.combo_guide).
+
+const FADE_IN := 0.05
+const FADE_OUT := 0.14
+const SWAP_TIME := 0.09  # rows slide in when the options change
+const SWAP_STAGGER := 0.018
+const FLASH_TIME := 0.2
+const ROW_H := 34.0
+const ROW_GAP := 5.0
+const GLYPH_H := 26.0
+const SMALL_GLYPH_H := 18.0
+const NAME_SIZE := 19
+const NEXT_SIZE := 15
+const KEY_SIZE := 15
+const SIDE_GAP := 76.0  # px from the hero's centre to the rows
+const CHEST := 1.1  # metres above the feet the rows centre on
+const EDGE := 330.0  # flip to the hero's left this close to the right edge
+const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
+const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.74)
+## Button text per device; the guide follows whichever was used last.
+const KEYS := {"light": "J", "heavy": "K", "dash": "SPACE"}
+const MOUSE := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
+const PAD := {"light": "X", "heavy": "Y", "dash": "A"}
+const KIND_COLORS := {"light": Color(0.35, 0.62, 1.0), "heavy": Color(1.0, 0.78, 0.2), "dash": Color(0.35, 0.88, 0.45)}
+const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash"}
+
+var player: Node3D
+var shown := 0  # times the guide appeared (autotest)
+var _rows: Array = []
+var _sig := ""
+var _vis := 0.0
+var _swap_t := 99.0
+var _ready_t := 99.0  # since the rows became ready (pop)
+var _was_ready := false
+var _side := 1.0
+var _device := "keys"
+var _flashes: Array = []  # [offset from anchor, colour, age]
+var _press := {}  # kind -> age of the last press
+var _anchor := Vector2.ZERO
+var _glyph_at := {}  # row index -> main glyph centre, relative to the anchor (last draw)
+var _last_us := 0
+var _font: Font
+var _box := StyleBoxFlat.new()
+
+
+func _ready() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_font = ThemeDB.fallback_font
+	_box.anti_aliasing = true
+	_last_us = Time.get_ticks_usec()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.5):
+		_device = "pad"
+	elif event is InputEventKey and event.pressed:
+		_device = "keys"
+	elif event is InputEventMouseButton and event.pressed:
+		_device = "mouse"
+	if not event.is_pressed() or event.is_echo():
+		return
+	for action: String in ACTIONS:
+		if event.is_action(action):
+			_on_press(ACTIONS[action])
+
+
+## Flash the row for `kind` right away (also called by the autotest bot).
+func _on_press(kind: String) -> void:
+	_press[kind] = 0.0
+	if _vis <= 0.05:
+		return
+	for i in _rows.size():
+		if _rows[i].kind == kind and _glyph_at.has(i):
+			_flashes.append([_glyph_at[i], _row_color(_rows[i]), 0.0])
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PAUSED:
+		visible = false
+	elif what == NOTIFICATION_UNPAUSED:
+		visible = true
+
+
+func _process(_delta: float) -> void:
+	# Real time: hitstop and ultimate slow motion scale delta down.
+	var now := Time.get_ticks_usec()
+	var dt := minf((now - _last_us) / 1000000.0, 0.1)
+	_last_us = now
+	var rows: Array = player.combo_options() if Game.combo_guide and is_instance_valid(player) else []
+	if not rows.is_empty():
+		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s" % [r.kind, r.id, r.next.get("id", "")]))
+		if sig != _sig:
+			_sig = sig
+			_swap_t = 0.0
+			_was_ready = false
+		if _vis <= 0.0:
+			shown += 1
+		_rows = rows
+		_vis = minf(_vis + dt / FADE_IN, 1.0)
+	else:
+		_sig = ""
+		_vis = maxf(_vis - dt / FADE_OUT, 0.0)
+	_swap_t += dt
+	_ready_t += dt
+	for k in _press:
+		_press[k] += dt
+	for f in _flashes:
+		f[2] += dt
+	_flashes = _flashes.filter(func(f: Array) -> bool: return f[2] < FLASH_TIME)
+	queue_redraw()
+
+
+func _draw() -> void:
+	if (_vis <= 0.0 and _flashes.is_empty()) or not is_instance_valid(player):
+		return
+	var cam := get_viewport().get_camera_3d()
+	var chest: Vector3 = player.global_position + Vector3.UP * CHEST
+	if cam == null or cam.is_position_behind(chest):
+		return
+	var screen := get_viewport_rect().size
+	var at := cam.unproject_position(chest)
+	# Flip to the left near the right edge (with some slack so it doesn't flicker).
+	if _side > 0.0 and at.x > screen.x - EDGE:
+		_side = -1.0
+	elif _side < 0.0 and at.x < screen.x - EDGE - 80.0:
+		_side = 1.0
+	_anchor = at + Vector2(_side * SIDE_GAP, 0.0)
+	var win: Dictionary = player.combo_window()
+	var ready: bool = win.ready
+	if ready and not _was_ready:
+		_ready_t = 0.0
+	_was_ready = ready
+	var top := -(_rows.size() * ROW_H + (_rows.size() - 1) * ROW_GAP) * 0.5
+	_anchor.y = clampf(_anchor.y, 110.0 - top, screen.y - 60.0 + top)
+	for i in _rows.size():
+		var k := clampf((_swap_t - i * SWAP_STAGGER) / SWAP_TIME, 0.0, 1.0)
+		k = 1.0 - (1.0 - k) * (1.0 - k)
+		var row: Dictionary = _rows[i]
+		var usable: bool = ready and (row.kind != "dash" or win.dash)
+		_draw_row(i, row, _row_pos(i) + Vector2(-_side * 14.0 * (1.0 - k), 0.0), _vis * k, usable, win.progress)
+	for f: Array in _flashes:
+		var a: float = f[2] / FLASH_TIME
+		draw_arc(_anchor + f[0], GLYPH_H * (0.6 + a * 0.9), 0.0, TAU, 40, Color(f[1], 1.0 - a), 3.0 * (1.0 - a) + 1.0, true)
+
+
+## Left (right when flipped) middle of row `i`, relative to the anchor.
+func _row_pos(i: int) -> Vector2:
+	var top := -(_rows.size() * ROW_H + (_rows.size() - 1) * ROW_GAP) * 0.5
+	return Vector2(0.0, top + i * (ROW_H + ROW_GAP) + ROW_H * 0.5)
+
+
+func _row_color(row: Dictionary) -> Color:
+	if row.ult:
+		return Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25)
+	return player.COMBO_TIER_COLORS[row.tier - 1] if row.tier > 0 else PLAIN_COLOR
+
+
+func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool, progress: float) -> void:
+	if alpha <= 0.01:
+		return
+	var col := _row_color(row)
+	var t := Time.get_ticks_msec() / 1000.0
+	var lit := 1.0 if usable else 0.78
+	var pressed: float = clampf(1.0 - _press.get(row.kind, 9.0) / FLASH_TIME, 0.0, 1.0)
+	# Lay the row out first (measured left to right), then mirror if flipped.
+	var parts := []  # [kind, x, w] pieces
+	var x := 6.0
+	var gw := _glyph_w(row.kind, GLYPH_H)
+	parts.append(["glyph", x, gw, row.kind, GLYPH_H])
+	x += gw + 4.0
+	if row.kind == "dash":
+		var sw := _glyph_w("light", SMALL_GLYPH_H)
+		parts.append(["glyph", x, sw, "light", SMALL_GLYPH_H])
+		x += sw + 4.0
+	x += 4.0
+	var name: String = row.name
+	if row.hold:
+		name = ("RELEASE  " if usable else "HOLD  ") + name
+	var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
+	parts.append(["name", x, nw, name])
+	x += nw
+	if not row.next.is_empty():
+		x += 10.0
+		parts.append(["arrow", x, 8.0])
+		x += 16.0
+		var nk: String = row.next.kind
+		var ngw := _glyph_w(nk, SMALL_GLYPH_H)
+		parts.append(["glyph", x, ngw, nk, SMALL_GLYPH_H])
+		x += ngw + 6.0
+		var nn: String = row.next.name
+		var nnw := _font.get_string_size(nn, HORIZONTAL_ALIGNMENT_LEFT, -1, NEXT_SIZE).x
+		parts.append(["next", x, nnw, nn])
+		x += nnw
+	var width := x + 10.0
+	var x0 := pos.x if _side > 0.0 else pos.x - width
+	var base := _anchor + Vector2(x0, pos.y)
+
+	# Backing pill; ultimates glow, a press flashes it.
+	var glow := 0.0
+	if row.ult:
+		glow = 0.6 + 0.3 * sin(t * 9.0) if usable else 0.25
+	if glow > 0.0:
+		_pill(Rect2(base + Vector2(-4.0, -ROW_H * 0.5 - 4.0), Vector2(width + 8.0, ROW_H + 8.0)), Color(col, glow * 0.45 * alpha))
+	_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(BACK_COLOR, BACK_COLOR.a * alpha))
+	if pressed > 0.0:
+		_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(col, 0.45 * pressed * alpha))
+
+	for p: Array in parts:
+		var px: float = base.x + p[1]
+		match p[0]:
+			"glyph":
+				var main: bool = p[4] == GLYPH_H
+				var c := Vector2(px + p[2] * 0.5, base.y)
+				if main:
+					_glyph_at[i] = c - _anchor
+				var s := 1.0
+				if main and usable:
+					s = 1.0 + 0.16 * clampf(1.0 - _ready_t / 0.12, 0.0, 1.0) + 0.04 * sin(t * 14.0)
+				if main:
+					s += 0.18 * pressed
+				_glyph(c, p[3], p[4] * s, alpha * (lit if main else 0.75 * lit))
+				if main and not usable:
+					var r: float = p[4] * 0.5 + 4.0
+					draw_arc(c, r, 0.0, TAU, 32, Color(1, 1, 1, 0.15 * alpha), 2.0, true)
+					draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * progress, 32, Color(col, 0.9 * alpha), 2.5, true)
+				elif main and row.hold:
+					draw_arc(c, p[4] * 0.5 + 4.0, 0.0, TAU, 32, Color(col, alpha), 2.5, true)
+			"name":
+				_text(Vector2(px, base.y), p[3], NAME_SIZE, Color(col.lightened(0.15 * pressed), alpha * lit))
+			"arrow":
+				var a := Vector2(px, base.y)
+				draw_polyline([a + Vector2(0, -5), a + Vector2(5, 0), a + Vector2(0, 5)], Color(1, 1, 1, 0.45 * alpha), 2.0, true)
+			"next":
+				var nc: Color = Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25) if row.next.ult \
+					else player.COMBO_TIER_COLORS[row.next.tier - 1]
+				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(nc, 0.9 * alpha * lit))
+
+
+func _glyph_w(kind: String, h: float) -> float:
+	var label: String = _labels()[kind]
+	return maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(KEY_SIZE * h / GLYPH_H)).x + h * 0.6)
+
+
+func _labels() -> Dictionary:
+	return PAD if _device == "pad" else (MOUSE if _device == "mouse" else KEYS)
+
+
+## A button: filled in the pad's colour, or a dark key with a coloured rim.
+func _glyph(c: Vector2, kind: String, h: float, alpha: float) -> void:
+	var label: String = _labels()[kind]
+	var size := int(KEY_SIZE * h / GLYPH_H)
+	var w := maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + h * 0.6)
+	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
+	var kc: Color = KIND_COLORS[kind]
+	if _device == "pad":
+		_pill(r, Color(kc, alpha))
+	else:
+		_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
+	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var fc := Color(0.06, 0.04, 0.08, alpha) if _device == "pad" else Color(1, 1, 1, alpha)
+	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, fc)
+
+
+func _pill(r: Rect2, fill: Color, border := Color.TRANSPARENT, border_w := 0) -> void:
+	_box.bg_color = fill
+	_box.set_corner_radius_all(int(r.size.y * 0.5))
+	_box.set_border_width_all(border_w)
+	_box.border_color = border
+	draw_style_box(_box, r)
+
+
+## Text with its left edge at `at.x`, vertically centred on `at.y`.
+func _text(at: Vector2, s: String, size: int, c: Color) -> void:
+	var p := Vector2(at.x, at.y + size * 0.36)
+	draw_string_outline(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, maxi(3, size / 5), Color(0.04, 0.02, 0.06, c.a))
+	draw_string(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, c)

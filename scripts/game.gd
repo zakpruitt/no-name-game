@@ -92,6 +92,8 @@ var rumble_on := true
 ## Reduce flashing (Settings): softer white hit flashes and sparks, and a
 ## steady low-HP vignette instead of a throbbing one (Fx, hud.gd).
 var reduce_flashing := false
+## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
+var combo_guide := true
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
@@ -324,6 +326,15 @@ func flashing_label() -> String:
 	return "Reduce flashing: %s" % ("On" if reduce_flashing else "Off")
 
 
+func toggle_combo_guide() -> void:
+	combo_guide = not combo_guide
+	_save_settings()
+
+
+func guide_label() -> String:
+	return "Combo guide: %s" % ("On" if combo_guide else "Off")
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -342,6 +353,7 @@ func _load_settings() -> void:
 		music_scale = cfg.get_value("audio", "music_scale", 1.0)
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
+		combo_guide = cfg.get_value("video", "combo_guide", true)
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -351,6 +363,7 @@ func _save_settings() -> void:
 	cfg.set_value("audio", "music_scale", music_scale)
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
+	cfg.set_value("video", "combo_guide", combo_guide)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 

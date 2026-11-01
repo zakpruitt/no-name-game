@@ -155,3 +155,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Ultimate feel pass by hand: are 8s enough for all three plus the Trinity? Is RUSH's charge readable, and does the banner block the fight?
 - [ ] Model work: element-specific kit pieces on the shaman (wind feathers, magma-cracked shoulder stones, ice crown) and a proper casting pose instead of the KayKit Spellcast_Raise
 
+## Round 19 (combo guide)
+- [x] Combo guide: mid-string, rows beside the hero show each input that continues it (button glyph for the last-used device: J/K/Space, LMB/RMB, pad X/Y/A), the move it starts in its tier colour (ultimates in the element colour, glowing), and the best named combo one more press past it. A ring fills toward the cancel point and the rows light up once a press would be taken; pressing flashes the row from `_input`, before the move starts. Real-time animation (no stalls in hitstop/slow-mo). Routing moved into `player.route()` so the guide and the moves can't disagree; `tests/guide_check.gd` PASS checks every row against the real routing and renders `guide_sheet.png`. Settings toggle "Combo guide"
+- [ ] Guide feel pass by hand: placement next to the hero vs. the fight, keyboard vs. pad glyphs, whether the follow-up hint is too much once the moves are learned
+

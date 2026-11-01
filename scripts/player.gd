@@ -116,6 +116,8 @@ const ULT_CHAIN_BONUS := 0.3
 const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
 const CAST_SFX_DB := -11.0
+# Names of the moves that aren't combos, for the combo guide.
+const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin"}
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
 const COMBO_SFX_DB := -9.0
@@ -495,23 +497,94 @@ func _set_state(s: State) -> void:
 # --- Actions ----------------------------------------------------------------
 
 func _next_move(kind: String) -> String:
+	return route(kind, _move_id, state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened)
+
+
+## The move a "light" or "heavy" press starts. `from` is the move playing (or
+## the last one), `attacking` whether it's still going, `chain` the light
+## chain position, `post_dash` just out of a dash. The combo guide asks this
+## too (with made-up states to look one press ahead), so they always agree.
+static func route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool) -> String:
 	if kind == "light":
-		if _post_dash_t > 0.0:
+		if post_dash:
 			return "DL"
-		var id: String = LIGHT_CHAIN[_chain_i % LIGHT_CHAIN.size()]
-		return id
-	# Heavy: Awakened finisher off L3, launcher if mid-string, spin from neutral.
-	if awakened and state == State.ATTACK and _move_id == "L3":
+		return LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
+	# Heavy: Awakened ultimates off L3 / LH / DL, launcher if mid-string, spin from neutral.
+	if awake and attacking and from == "L3":
 		return "AF"
-	if awakened and state == State.ATTACK and _move_id == "LH":
+	if awake and attacking and from == "LH":
 		return "SKY"
-	if awakened and state == State.ATTACK and _move_id == "DL":
+	if awake and attacking and from == "DL":
 		return "RUSH"
-	if (state == State.ATTACK and _move_id == "L2") or (state != State.ATTACK and _chain_i == 2):
+	if (attacking and from == "L2") or (not attacking and chain == 2):
 		return "LLH"
-	if (state == State.ATTACK and _move_id != "H") or _chain_i > 0:
+	if (attacking and from != "H") or chain > 0:
 		return "LH"
 	return "H"
+
+
+## Light chain position after `id` starts.
+static func chain_after(id: String) -> int:
+	if id in LIGHT_CHAIN:
+		return (LIGHT_CHAIN.find(id) + 1) % LIGHT_CHAIN.size()
+	if id == "DL":
+		return 1  # a dash stab flows into L2
+	return 0
+
+
+## What the combo guide shows right now: one row per input that continues the
+## string ("light", "heavy", "dash" = dash then light), each with the move it
+## starts and the best named combo one more press past it. Empty when there's
+## no string to continue.
+func combo_options() -> Array:
+	var attacking := state == State.ATTACK
+	var dashing := state == State.DASH or _post_dash_t > 0.0
+	var live := attacking or dashing or state == State.CHARGE or (state == State.MOVE and _chain_i > 0)
+	if not live or (attacking and _move_id == "AF"):
+		return []  # (the finisher has the screen to itself)
+	if state == State.CHARGE:
+		return [_option("heavy", "CH", true)]
+	var rows := []
+	for kind: String in ["light", "heavy"]:
+		var id := route(kind, _move_id, attacking, _chain_i, dashing, awakened)
+		if kind == "heavy" and id == "H":
+			continue  # the plain spin isn't a continuation
+		rows.append(_option(kind, id))
+	if attacking and not dashing:
+		rows.append(_option("dash", "DL"))
+	return rows
+
+
+func _option(kind: String, id: String, hold := false) -> Dictionary:
+	var o := {"kind": kind, "id": id, "name": guide_name(id), "tier": COMBOS[id].tier if COMBOS.has(id) else 0,
+		"ult": ULTIMATES.has(id) or id == "AF", "hold": hold, "next": {}}
+	if o.tier < 3 and not hold:
+		var best := 0
+		for k: String in ["heavy", "light"]:  # heavy first: wins ties
+			var n := route(k, id, true, chain_after(id), false, awakened)
+			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
+			if tier > best:
+				best = tier
+				o.next = {"kind": k, "id": n, "name": guide_name(n), "tier": tier, "ult": ULTIMATES.has(n) or n == "AF"}
+	return o
+
+
+func guide_name(id: String) -> String:
+	return combo_name(id) if COMBOS.has(id) else MOVE_NAMES.get(id, id)
+
+
+## How soon a press is taken: `progress` 0..1 toward the move's cancel point,
+## `ready` once a press now would be buffered into the next move (input_buffer);
+## while charging, how far the charge is and whether it's full.
+func combo_window() -> Dictionary:
+	if state == State.CHARGE:
+		return {"progress": clampf(_state_t / CHARGE_TIME, 0.0, 1.0), "ready": _charged, "dash": _dash_cd <= 0.0}
+	if state != State.ATTACK:
+		return {"progress": 1.0, "ready": true, "dash": _dash_cd <= 0.0}
+	var t := _state_t * anim_speed * _anim_mult / _move_len
+	var left: float = (_move.cancel - t) * _move_len / (anim_speed * _anim_mult)
+	return {"progress": clampf(t / _move.cancel, 0.0, 1.0), "ready": left <= input_buffer,
+		"dash": _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2)}
 
 
 func _start_attack(id: String) -> void:
@@ -524,12 +597,7 @@ func _start_attack(id: String) -> void:
 	_move_len = anim.get_animation(_move.anim).length
 	_hits_done = 0
 	_callout_done = false
-	if id in LIGHT_CHAIN:
-		_chain_i = (LIGHT_CHAIN.find(id) + 1) % LIGHT_CHAIN.size()
-	elif id == "DL":
-		_chain_i = 1  # a dash stab flows into L2
-	else:
-		_chain_i = 0
+	_chain_i = chain_after(id)
 	_post_dash_t = 0.0
 	_aim()
 	_set_state(State.ATTACK)
