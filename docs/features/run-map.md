@@ -24,7 +24,7 @@ Hovering any room shows its detail, with "on your way" / "out of reach now". Aft
 
 A panel describes the focused choice, for example "Elite · Volatile + Hasted — foes burst when slain, faster foes, 2 powers". For a vault, the panel adds how many powers of that path you own, with mastery pips. Every room's panel ends with what it leads on to ("Leads on to: 2 elites · Light vault · 1 rest", `_ahead_text` over `_reach`).
 
-Pause → **Map** shows the same map read-only.
+Pause → **Map** shows the same map read-only; the arrow keys walk a cursor over its rooms (`move_cursor`) for keyboard players.
 
 **New rooms:**
 - **Vault.** A gold chest rises, lit in the vault's path colour. It offers 1 of 3 powers of that path (fusions on that path count), under the title "LIGHT VAULT" etc. This lets you route toward your colour. There is no fight.

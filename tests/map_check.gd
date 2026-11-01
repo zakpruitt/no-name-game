@@ -126,6 +126,14 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	_check(picked[0] == 0 and not screen.visible, "the pick lands after the walk")
 	_check(cover.visible, "closing brings the HUD back")
 	screen.open(map, route, [], true, {})
+	screen.move_cursor(1, 0)
+	_check(screen._hover.x == route[-1].x + 1 and screen._detail_hint.text.begins_with("Room %d" % (route[-1].x + 2)),
+		"arrows walk the read-only map")
+	screen.move_cursor(0, 1)
+	screen.move_cursor(99, 0)
+	_check(screen._hover == Vector2i(map.size() - 1, map[-1][0].lane), "the cursor stops at the boss")
+	screen._hover = Vector2i(-1, -1)
+	screen._update_detail()
 	_check(screen._detail_text.text.begins_with("Ahead: ") or screen._detail_text.text.begins_with("Only"),
 		"read-only map sums up what's ahead")
 	screen._close()

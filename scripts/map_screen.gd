@@ -145,6 +145,10 @@ func _input(event: InputEvent) -> void:
 	if _read_only:
 		if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel") or event.is_action_pressed("ui_accept"):
 			_close()
+		elif event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
+			move_cursor(1 if event.is_action_pressed("ui_right") else -1, 0)
+		elif event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down"):
+			move_cursor(0, 1 if event.is_action_pressed("ui_down") else -1)
 		elif not (event is InputEventMouseMotion):
 			handled = event is InputEventKey or event is InputEventMouseButton
 	elif event is InputEventKey and event.pressed and not event.echo and event.physical_keycode >= KEY_1 \
@@ -176,6 +180,21 @@ func _node_under(screen_pos: Vector2) -> Vector2i:
 			if at.distance_to(node_pos(c, n.lane)) <= (R_BOSS if n.kind == "boss" else R) + 10.0:
 				return Vector2i(c, n.lane)
 	return Vector2i(-1, -1)
+
+
+## Read-only map: arrows walk a cursor over the rooms (columns left/right,
+## lanes up/down), starting from where the hero stands.
+func move_cursor(dc: int, dl: int) -> void:
+	var at: Vector2i = _hover if _hover.x >= 0 else (_visited[-1] if not _visited.is_empty() else Vector2i(0, 1))
+	var c := clampi(at.x + dc, 0, _map.size() - 1)
+	var lanes: Array = _map[c].map(func(n: Dictionary) -> int: return n.lane)
+	var lane: int = at.y
+	if dl != 0:
+		var i := lanes.find(lane)
+		lane = lanes[clampi((i if i >= 0 else 0) + dl, 0, lanes.size() - 1)]
+	elif lane not in lanes:
+		lane = lanes.reduce(func(best: int, l: int) -> int: return l if absi(l - at.y) < absi(best - at.y) else best)
+	_set_hover(Vector2i(c, lane))
 
 
 ## Hover a room: a choice takes the focus; any other room shows its detail.
@@ -271,7 +290,7 @@ func _update_detail() -> void:
 		_detail_title.add_theme_color_override("font_color", Color.WHITE)
 		var ahead := _ahead_text(here)
 		_detail_text.text = "Ahead: " + ahead if ahead != "" else "Only the Bone Warden remains."
-		_detail_hint.text = ("[Enter] begin" if _intro else "[Esc] back") + "   ·   hover a room for its detail"
+		_detail_hint.text = ("[Enter] begin" if _intro else "[Esc] back") + "   ·   hover a room or use the arrows for its detail"
 		return
 	_show_room(_choices[_focus], _room)
 	var keys := ", ".join(range(_choices.size()).map(func(i: int) -> String: return "[%d]" % (i + 1)))
