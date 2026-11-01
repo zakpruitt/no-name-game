@@ -125,6 +125,15 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	screen.set_build({"razor_gale": 1, "rebound": 1, "sky_reaper": 1})
 	_check("Sky Reaper" not in screen.trial_payout(), "an owned fusion isn't offered as new")
 	screen.set_build({})
+	_check(screen.vault_pool("light").begins_with("%d new, 0" % Upgrades.ALL.filter(func(u: Dictionary) -> bool:
+		return u.path == "light" and not u.has("fusion")).size()), "a fresh build sees every Light power in a vault")
+	var maxed := {}
+	for u: Dictionary in Upgrades.ALL:
+		if "light" in Upgrades.paths_of(u):
+			maxed[u.id] = Upgrades.MAX_LEVEL
+	screen.set_build(maxed)
+	_check(screen.vault_pool("light").ends_with("other paths"), "a finished path's vault tops up from others")
+	screen.set_build({})
 	# The focused choice reaches only rooms its links lead to.
 	for at: Vector2i in screen._reach:
 		_check(at.x >= 2, "reach starts at the choice (%s)" % at)

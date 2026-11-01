@@ -112,6 +112,26 @@ func trial_payout() -> String:
 	return "No fusion ready yet (own powers of two paths): pays a level-up"
 
 
+## What a vault of `path` has left for the build ("3 new, 2 to level up"),
+## counted the way Upgrades.roll(..., path) builds its pool; under 3 cards it
+## tops up from other paths.
+func vault_pool(path: String) -> String:
+	var fresh := 0
+	var ups := 0
+	for u: Dictionary in Upgrades.ALL:
+		if path not in Upgrades.paths_of(u):
+			continue
+		var level: int = _owned.get(u.id, 0)
+		if level == 0 and (not u.has("fusion") or Upgrades.can_fuse(_owned, u)):
+			fresh += 1
+		elif level > 0 and level < Upgrades.MAX_LEVEL:
+			ups += 1
+	var text := "%d new, %d to level up" % [fresh, ups]
+	if fresh + ups < 3:
+		text += ": the rest from other paths"
+	return text
+
+
 ## The hero's state while choosing: "HP 64 / 110   ·   23 bones   ·   Lv 3".
 ## Under LOW_HP the line turns red, since that's when a rest matters.
 func set_status(hp: float, max_hp: float, bones: int, level: int) -> void:
@@ -346,6 +366,8 @@ func _show_room(n: Dictionary, room: int) -> void:
 		var have: int = _counts[n.path]
 		text += "\nYou have %d %s power%s  %s" % [have, Upgrades.PATHS[n.path].name, "" if have == 1 else "s",
 			PowerIcon.mastery_pips(have) + " mastery"]
+	if n.kind == "vault":
+		text += "\nIn the vault: " + vault_pool(n.path)
 	if n.kind == "trial":
 		text += "\n" + trial_payout()
 	var ahead := _ahead_text(Vector2i(room - 1, n.lane))
