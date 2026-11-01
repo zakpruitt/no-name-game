@@ -52,6 +52,10 @@ ICONS = {
                 f'<path {S} d="M10 32 H18"/><path {S} d="M6 42 H22"/>',
     "riposte": f'<path {S} d="M14 50 L46 18"/><path {S} d="M50 50 L18 18"/><path {S} d="M8 42 L22 56"/>'
                f'<path {S} d="M42 56 L56 42"/><path {F} d="M46 18 L54 8 L56 10 Z"/><path {F} d="M18 18 L10 8 L8 10 Z"/>',
+    "razor_gale": f'<path {F} d="M12 52 L17 10 L24 44 Z"/><path {F} d="M12 52 L44 17 L29 47 Z"/>'
+                  f'<path {F} d="M12 52 L56 40 L31 53 Z"/>',
+    "eye_of_storm": f'<path {S} d="M32 30 C36 28 39 34 35 37 C29 41 22 35 25 27 C29 18 43 18 46 29 '
+                    f'C49 41 38 52 26 50 C14 48 7 36 12 22"/><path {S} d="M6 26 L12 22 L17 27"/>',
     "slipstream": f'<path {S} d="M6 34 H56"/><path {S} d="M46 24 L56 34 L46 44"/><path {S} stroke-width="4" d="M26 14 L34 54"/>'
                   f'<path {S} stroke-width="3" d="M8 24 H20"/><path {S} stroke-width="3" d="M8 44 H20"/>',
     # --- Awaken ---

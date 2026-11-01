@@ -85,7 +85,7 @@ const MOVES := {
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
 		"stop": 0.07, "shake": 0.22},
-	# Heavy right out of a dash: Whirlwind, a spin that keeps travelling
+	# Heavy right out of a dash: Cyclone, a spin that keeps travelling
 	# through the crowd (low lunge decay).
 	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 6.0, "range": 2.9, "arc": 360.0,
 		"hits": [0.2, 0.38, 0.56, 0.74], "cancel": 0.78, "end": 0.9, "lunge": 11.0, "decay": 1.2,
@@ -102,7 +102,7 @@ const COMBOS := {
 	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
 	"LPL": {"name": "Flurry", "input": "L L, pause, L", "tier": 1},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
-	"DH": {"name": "Whirlwind", "input": "Dash > H", "tier": 2},
+	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
 	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
@@ -184,6 +184,7 @@ var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade(
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
 ## Light-press moves, for the Light path's powers.
 const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL"]
+const RAZOR_GALE_SPREAD := 16.0  # degrees between Razor Gale's blades
 var _crescendo := false  # Crescendo: the next heavy is empowered
 var _slipped: Array = []  # enemies Slipstream already cut this dash
 var power_procs := {}  # power id -> times it fired, for the newer powers (autotest)
@@ -535,7 +536,7 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 		if not attacking and from == "L2" and chain == 2:
 			return "LPL"  # L2 has finished: the pause turns the third light into Flurry
 		return LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
-	# Heavy: Whirlwind out of a dash, Awakened ultimates off L3 / LH / DL,
+	# Heavy: Cyclone out of a dash, Awakened ultimates off L3 / LH / DL,
 	# launcher if mid-string, spin from neutral.
 	if post_dash and not attacking:
 		return "DH"
@@ -771,6 +772,10 @@ func _do_hit() -> void:
 				if e.is_alive() and not e.is_airborne() and to.length() < r:
 					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
 					Game.register_hit("skybreaker")
+	if _move_id == "LPL" and _hits_done == _move.hits.size() and has_upgrade("razor_gale"):
+		_razor_gale(fwd)
+	if _move_id == "DH" and has_upgrade("eye_of_storm"):
+		_eye_of_storm()
 	if hit_any:
 		if _move_id == "L3" and has_upgrade("crescendo") and not _crescendo:
 			_crescendo = true
@@ -1390,6 +1395,40 @@ func _shockstep(pos: Vector3) -> void:
 		if e.is_alive() and to.length() < r + e.radius:
 			e.take_hit(upg("shockstep", "damage"), to.normalized() * 4.0, 7.0, true)
 			Game.register_hit("shockstep")
+
+
+## Razor Gale: Flurry's last cut flings a fan of the element's blades.
+func _razor_gale(fwd: Vector3) -> void:
+	_proc("razor_gale")
+	var n := int(upg("razor_gale", "count"))
+	var el := element()
+	for i in n:
+		var b := ELEMENTS.Bolt.new()
+		b.el = el
+		b.dir = fwd.rotated(Vector3.UP, deg_to_rad(RAZOR_GALE_SPREAD * (i - (n - 1) * 0.5)))
+		b.speed = 24.0
+		b.reach = minf(8.0, _clear_ahead(b.dir, 8.0) + 0.6)
+		b.damage = upg("razor_gale", "damage") * _dmg_mult
+		b.size = 0.8
+		b.tilt = 70.0 if i % 2 == 0 else -70.0
+		b.on_hit = _cast_hit
+		get_parent().add_child(b)
+		b.global_position = global_position + b.dir * 0.7 + Vector3.UP * (0.25 if el == "earth" else 1.0)
+
+
+## Eye of the Storm: each Cyclone hit drags foes around it into the spin
+## (not the boss).
+func _eye_of_storm() -> void:
+	_proc("eye_of_storm")
+	var r := upg("eye_of_storm", "radius")
+	Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.dash.color, 0.5), r, 0.2)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		var d := to.length()
+		if e.is_alive() and d > _move.range * 0.6 and d < r + e.radius and not e.has_method("is_boss"):
+			e.take_hit(upg("eye_of_storm", "damage"), -to / d * minf(d * 2.5, 9.0), 0.0, false)
+			Game.register_hit("eye_of_storm")
 
 
 func _static_trap(pos: Vector3) -> void:

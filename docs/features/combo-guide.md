@@ -82,7 +82,7 @@ Routing rules in `route()`, checked in order:
 | light | `post_dash` | `DL` |
 | light | not attacking, from `L2`, `chain == 2` (L2 finished, chain still live) | `LPL` (Flurry: the pause combo) |
 | light | otherwise | `LIGHT_CHAIN[chain]`: L1 → L2 → L3 → L1 |
-| heavy | `post_dash`, not attacking | `DH` (Whirlwind) |
+| heavy | `post_dash`, not attacking | `DH` (Cyclone) |
 | heavy | Awakened, attacking, from `L3` / `LH` / `DL` | `AF` / `SKY` / `RUSH` |
 | heavy | attacking from `L2`, or not attacking with `chain == 2` | `LLH` |
 | heavy | attacking (from anything but `H`), or `chain > 0` | `LH` |

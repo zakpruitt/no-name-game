@@ -1,7 +1,7 @@
 class_name Upgrades
 ## Combo-slot upgrades: each one hooks a specific move in the hero's string
-## (L1/L2/L3 light chain, H spin, LH launcher, LLH ground breaker, DL dash
-## stab, Charged slam, Heavy = any heavy move) or
+## (L1/L2/L3 light chain, LPL flurry, H spin, LH launcher, LLH ground breaker,
+## DL dash stab, DH cyclone, Charged slam, Heavy = any heavy move) or
 ## a mechanic (Dash, Air, Awaken, Perfect dodge, Death, Kill).
 ## Pure data here; the effects live in player.gd (search for the id).
 ##
@@ -78,6 +78,12 @@ const ALL := [
 	{"id": "slipstream", "name": "Slipstream", "path": "dash", "slot": "Dash",
 		"desc": "Dashing through enemies cuts them for {damage} damage.",
 		"lv": {"damage": [8, 12, 17]}},
+	{"id": "razor_gale", "name": "Razor Gale", "path": "light", "slot": "LPL",
+		"desc": "Flurry's last cut flings a fan of {count} blades ({damage} damage each).",
+		"lv": {"count": [3, 4, 5], "damage": [6, 8, 11]}},
+	{"id": "eye_of_storm", "name": "Eye of the Storm", "path": "dash", "slot": "DH",
+		"desc": "Each Cyclone hit drags foes within {radius}m into the spin.",
+		"lv": {"radius": [5, 6, 7.5], "damage": [2, 3, 4]}},
 	# Fusions: two paths in one card. Offered only once you own a power of
 	# both (`fusion` is the second path); they count toward both masteries.
 	{"id": "crescendo", "name": "Crescendo", "path": "light", "fusion": "heavy", "slot": "L3 → Heavy",
@@ -116,7 +122,7 @@ const PATHS := {
 const FUSION_CHANCE := 0.5
 ## Readable names for `slot` on cards and the build view (fusions spell
 ## theirs out in the entry itself).
-const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "LPL": "Flurry", "DH": "Whirlwind", "Light": "Light attacks",
+const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "LPL": "Flurry", "DH": "Cyclone", "Light": "Light attacks",
 	"H": "Spin", "LH": "Launcher", "LLH": "Ground Breaker", "Charged": "Charged Slam", "Heavy": "Heavy kills",
 	"Dash": "Dash", "DL": "Dash Stab", "Perfect": "Perfect dodge", "Awaken": "Awakening",
 	"Air": "Juggles", "Death": "Killing blow", "Kill": "Kills"}

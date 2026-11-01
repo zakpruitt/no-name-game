@@ -40,7 +40,7 @@ looking for blue cards.
 | File | Role |
 |---|---|
 | `scripts/upgrades.gd` | Data. Each `ALL` entry has a `path` (and a `fusion` second path). Also `PATHS` (name, key, colour, mastery numbers), `MASTERY_NEED`, `FUSION_CHANCE` and `SLOT_NAMES`. Helpers: `paths_of`, `color`, `can_fuse`, `path_counts`, `masteries`, `mastery_text`, `slot_name`, `icon` (cached), `describe(..., bb)` for BBCode numbers. `roll()` keeps new fusions in a separate pool. |
-| `scripts/player.gd` | The effects. `masteries` is kept by `_refresh_masteries()`, which `add_upgrade` and `remove_upgrade` call. `_mastery(path, key)` returns the number, or 0 while the mastery is off. `_awaken_len()` and `_base_anim_mult()`. New powers: `quickblade` (in `_start_attack`), `thousand_cuts` (`_thousand_cuts`, per-enemy `cuts` meta), `slipstream` (`_slipstream`, from `_state_dash`), `eruption` (in `try_awaken`). Fusions: `crescendo` (`_crescendo` flag set by a landed L3, used by the next heavy in `_start_attack`), `flicker` (`_effective_move`, uses `_since_dash`), `shockstep` (the dash-cancel in `_state_attack`), `undying_flame` (`_on_enemy_killed`). `power_procs` counts these for the autotest. |
+| `scripts/player.gd` | The effects. `masteries` is kept by `_refresh_masteries()`, which `add_upgrade` and `remove_upgrade` call. `_mastery(path, key)` returns the number, or 0 while the mastery is off. `_awaken_len()` and `_base_anim_mult()`. New powers: `quickblade` (in `_start_attack`), `thousand_cuts` (`_thousand_cuts`, per-enemy `cuts` meta), `slipstream` (`_slipstream`, from `_state_dash`), `eruption` (in `try_awaken`), `razor_gale` (`_razor_gale`, on Flurry's last hit in `_do_hit`), `eye_of_storm` (`_eye_of_storm`, every Cyclone hit). Fusions: `crescendo` (`_crescendo` flag set by a landed L3, used by the next heavy in `_start_attack`), `flicker` (`_effective_move`, uses `_since_dash`), `shockstep` (the dash-cancel in `_state_attack`), `undying_flame` (`_on_enemy_killed`). `power_procs` counts these for the autotest. |
 | `scripts/power_icon.gd` | `PowerIcon`, a `Control` drawn in `_draw`: a ring in the path colour (split for fusions), the tinted glyph, level pips and an optional `glow`. `make(id, px, level)`, `chip(path)` (key cap) and `mastery_pips(n)`. |
 | `tools/gen_power_icons.py` | The glyphs, one SVG body per id on a 64x64 grid, written to `assets/icons/powers/<id>.svg`. |
 | `scripts/reward_screen.gd` | The cards (`_card`). |
@@ -99,7 +99,7 @@ looking for blue cards.
   - **Data:** every power has a path, an icon, a slot name and placeholders for its numbers.
   - **Fusion offers:** none are offered with one path (200 seeds); Crescendo is offered with Light + Heavy.
   - **Masteries:** a fusion counts toward one; Soul adds HP and takes it back.
-  - **New effects:** Quickblade speed, Thousand Cuts on the Nth hit, Crescendo, Shockstep, Slipstream once per dash, Flicker, Undying Flame.
+  - **New effects:** Quickblade speed, Thousand Cuts on the Nth hit, Crescendo, Shockstep, Slipstream once per dash, Flicker, Undying Flame, Razor Gale's blades, Eye of the Storm's pull.
 
   It prints `[powers] PASS` or `[powers] FAIL ...`.
 - Windowed (drop `--headless`), it also saves `user://power_cards.png` (a new card, a level-up and a fusion), `power_hud.png` and `power_build.png`.

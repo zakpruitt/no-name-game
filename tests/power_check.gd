@@ -111,6 +111,19 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._slipstream()
 	_check(p.power_procs.get("slipstream", 0) == 1, "Slipstream cuts once per dash")
 	p._set_state(p.State.MOVE)
+	# Razor Gale (Flurry's last cut) and Eye of the Storm (Cyclone's pull).
+	p.add_upgrade("razor_gale")
+	var bolts_before := main.get_children().size()
+	p._razor_gale(p.facing_dir())
+	_check(p.power_procs.get("razor_gale", 0) == 1, "Razor Gale fires")
+	_check(main.get_children().size() - bolts_before == int(p.upg("razor_gale", "count")), "Razor Gale flings its blades")
+	p.add_upgrade("eye_of_storm")
+	p._start_attack("DH")
+	e.global_position = p.global_position + Vector3(4.0, 0, 0)
+	var pull_hp: float = e.hp
+	p._eye_of_storm()
+	_check(p.power_procs.get("eye_of_storm", 0) == 1 and e.hp < pull_hp, "Eye of the Storm drags a foe in")
+	p._set_state(p.State.MOVE)
 	# Flicker: light hits right after a dash.
 	p.add_upgrade("flicker")
 	p._since_dash = 0.1
