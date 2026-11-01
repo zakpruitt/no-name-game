@@ -9,6 +9,8 @@ signal reroll_pressed
 
 const SYNERGY_COLOR := Color(0.45, 1.0, 0.85)
 const CARD_BG := Color(0.07, 0.05, 0.11)
+# Power slots whose id differs from the named combo they hook (player.COMBOS).
+const SLOT_COMBOS := {"Charged": "CH"}
 
 var _choices: Array = []
 var _reroll_cost := -1  # -1 = no reroll offered
@@ -215,6 +217,11 @@ func _card(i: int, u: Dictionary, owned: Dictionary) -> Button:
 	desc.add_theme_color_override("default_color", Color(0.88, 0.86, 0.94))
 	desc.text = "[center]%s[/center]" % Upgrades.describe(u, level, Upgrades.active_synergies(after), color.lightened(0.3))
 	inner.add_child(desc)
+	# A power on a named combo says how to do the combo ("Flurry:  L L, pause, L").
+	var player := get_tree().get_first_node_in_group("player")
+	var combo: String = SLOT_COMBOS.get(u.slot, u.slot)
+	if player != null and player.COMBOS.has(combo):
+		_text(inner, "%s:  %s" % [player.combo_name(combo), player.COMBOS[combo].input], 15, Color(1, 1, 1, 0.55))
 
 	var gap := Control.new()
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL

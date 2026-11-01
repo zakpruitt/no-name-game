@@ -25,6 +25,7 @@ func _initialize() -> void:
 		e.queue_free()
 	var p: Node3D = main.player
 	await _check_effects(main, p, upgrades)
+	await _check_card(main, upgrades)
 
 	if DisplayServer.get_name() != "headless":
 		await _shots(main, p)
@@ -170,6 +171,20 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	_check(p._awaken_t > 2.0, "Undying Flame extends Awakening")
 	p._set_awakened(false)
 	e.queue_free()
+
+
+## A card for a power on a named combo says how to do the combo.
+func _check_card(main: Node, U: GDScript) -> void:
+	var gale: Dictionary = U.get_by_id("razor_gale").duplicate()
+	gale.level = 1
+	main.reward.open([gale], -1)
+	await process_frame
+	var texts: Array = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.has("Flurry:  L L, pause, L"), "a combo power's card shows the combo's input")
+	main.reward.visible = false
+	main.reward.get_tree().paused = false
+	main.reward._root.queue_free()
+	main.reward._root = null
 
 
 func _spawn(main: Node, p: Node3D) -> Node3D:
