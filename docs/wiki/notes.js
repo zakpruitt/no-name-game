@@ -13,8 +13,10 @@ window.NOTES =
     "LHH": {"note": "Heavy again after the launcher: an overhead chop that slams juggled foes into the floor for +60% damage, knocking down foes where they land. Awakened, it becomes Ancestor's Fall."},
     "LLH": {"note": "Lunging thrust that knocks down everything in a strip ahead and breaks guards."},
     "CH": {"note": "Hold heavy from neutral, creep while charging, release to slam and launch. Breaks shield guards."},
-    "DL": {"note": "Long lunging stab out of a dash; flows into L2."},
-    "LPL": {"note": "Let L2 finish, then light again: five quick cuts with little knockback, so foes stay in reach. Mashing gives Triple Chop instead."},
+    "DL": {"note": "Long lunging stab out of a dash, pouncing onto the foe; flows into L2."},
+    "LPL": {"note": "Let L2 finish, then light again: five quick cuts with little knockback, so foes stay in reach, weaving side to side and leaving spectral afterimages. Mashing gives Triple Chop instead."},
+    "AL1": {"input": "L H L", "name": "Air Slash", "note": "Light after the launcher: he stays up with the foe and climbs, re-juggling it. Homes in on the nearest airborne foe. Dash up here for an air dash that keeps the string going."},
+    "AL2": {"input": "L H L L", "name": "Sky Rend", "note": "Second air slash, climbing higher. Then light = Skyfall (Triple Chop plunging from the top, extra damage and a fan of spectral axes), heavy = Spike from the air."},
     "DH": {"note": "Heavy out of a dash: a spin that keeps travelling through the crowd. Eye of the Storm makes it drag foes in."},
     "AF": {"note": "Awakened only. Erupts all around and throws six fire waves."}
   },
