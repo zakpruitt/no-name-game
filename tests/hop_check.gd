@@ -85,6 +85,33 @@ func _initialize() -> void:
 	p._hits_done = 0
 	await _settle(p)
 	_check(p.model.position.y == 0.0, "settled on the floor after (y %.2f, lh peak %.2f)" % [p.model.position.y, lh_peak])
+	# Air dash: dashing out of the launcher keeps him up, and the next press
+	# carries on in the air.
+	p._start_attack("LH")
+	await _run(p, p.MOVES.LH.cancel)
+	_check(p.dash_light() == "AL1", "the guide's dash row off L H is the air slash (%s)" % p.dash_light())
+	p._start_dash()
+	_check(p._air_dash, "a dash out of L H in the air is an air dash")
+	var dlow := 99.0
+	for i in 120:
+		await physics_frame
+		dlow = minf(dlow, p.model.position.y)
+		if p.state == p.State.MOVE:
+			break
+	_check(dlow > 1.0, "he stays up through the air dash (lowest %.2f)" % dlow)
+	_check(p._next_move("light") == "AL1" and p._next_move("heavy") == "LHH", "after it: L = Air Slash, H = Spike (%s / %s)" % [p._next_move("light"), p._next_move("heavy")])
+	var drows: Array = p.combo_options()
+	_check(not drows.is_empty() and drows[0].id == "AL1", "the guide shows the air slash after the air dash")
+	p._start_attack(p._next_move("light"))
+	await physics_frame
+	_check(p.model.position.y > 1.0 and not p._air_dash, "the air slash goes on from up there (y %.2f)" % p.model.position.y)
+	await _settle(p)
+	p._start_attack("L1")
+	await _run(p, p.MOVES.L1.cancel)
+	_check(p.dash_light() == "DL", "a dash off the ground is still Dash Stab")
+	p._start_dash()
+	_check(not p._air_dash, "and not an air dash")
+	await _settle(p)
 	# Juggle tracking: from the air, the slash turns to a foe drifting off to
 	# the side and lunges to reach it by its hit.
 	var f := Floater.new()

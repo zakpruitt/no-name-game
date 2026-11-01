@@ -111,6 +111,13 @@ back to L1:
   airborne foe within `AIR_HOME_RANGE` (5.5 m) and raises its lunge so it
   reaches the foe by the first hit (`_air_home`, capped at `AIR_HOME_MAX`).
   A launched foe that drifts off doesn't make the air string whiff.
+- Air dash: a dash out of L H / AL1 / AL2 while at least `AIR_DASH_MIN`
+  (0.6 m) up keeps his height through the dash and its follow-up window
+  (`_air_dash`). The next press goes on in the air: `route()` sees `from`
+  "AD" (`_route_from()`), so light is Air Slash and heavy is Spike
+  (Awakened: Ancestor's Fall), not Dash Stab / Cyclone. The guide's dash
+  row shows it (`dash_light()`). With juggle tracking, that lets him dash
+  from one launched foe to another and keep the string going.
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.

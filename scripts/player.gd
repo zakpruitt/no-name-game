@@ -304,6 +304,12 @@ const PLUNGE_AXES_SPREAD := 32.0
 # string whiff. AIR_HOME_MAX caps the lunge speed.
 const AIR_HOME_RANGE := 5.5
 const AIR_HOME_MAX := 22.0
+# Air dash: dashing out of the launcher or an air slash while at least
+# AIR_DASH_MIN up keeps him at that height, and the press after it carries
+# on in the air (route() `from` "AD": light = Air Slash, heavy = Spike /
+# Ancestor's Fall) instead of Dash Stab / Cyclone.
+const AIR_DASH_FROM := ["LH", "AL1", "AL2"]
+const AIR_DASH_MIN := 0.6
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -313,6 +319,7 @@ var _dash_buffer_t := 0.0
 var _dash_cd := 0.0
 var _dash_dir := Vector3.FORWARD
 var _post_dash_t := 0.0
+var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
 var _awaken_t := 0.0
 var _facing_yaw := 0.0
 var _invuln_t := 0.0
@@ -527,7 +534,8 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
 
 	move_and_slide()
-	if state in [State.MOVE, State.DASH, State.HURT, State.CHARGE, State.DEAD] and model.position.y > 0.0:
+	var air_hold := _air_dash and (state == State.DASH or (state == State.MOVE and _post_dash_t > 0.0))
+	if state in [State.MOVE, State.DASH, State.HURT, State.CHARGE, State.DEAD] and model.position.y > 0.0 and not air_hold:
 		model.position.y = move_toward(model.position.y, 0.0, 16.0 * delta)  # out of a hop
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
 	for trail in _trails:
@@ -1160,7 +1168,22 @@ func _end_leap() -> void:
 # --- Actions ----------------------------------------------------------------
 
 func _next_move(kind: String) -> String:
-	return route(kind, _move_id, state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened)
+	return route(kind, _route_from(), state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened)
+
+
+## The `from` route() sees: "AD" just out of an air dash, else the last move.
+func _route_from() -> String:
+	return "AD" if _air_dash and (state == State.DASH or (state == State.MOVE and _post_dash_t > 0.0)) else _move_id
+
+
+## Whether a dash now would be an air dash (AIR_DASH_*).
+func _can_air_dash() -> bool:
+	return _move_id in AIR_DASH_FROM and model.position.y >= AIR_DASH_MIN
+
+
+## What dash-then-light starts from here (the combo guide's dash row).
+func dash_light() -> String:
+	return "AL1" if _can_air_dash() else "DL"
 
 
 ## The move a "light" or "heavy" press starts. `from` is the move playing (or
@@ -1170,7 +1193,7 @@ func _next_move(kind: String) -> String:
 static func route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool) -> String:
 	if kind == "light":
 		if post_dash:
-			return "DL"
+			return "AL1" if from == "AD" else "DL"  # (an air dash keeps the air string going)
 		if attacking and from == "LH":
 			return "AL1"  # off the launcher: into the air
 		if attacking and from == "AL1":
@@ -1183,6 +1206,8 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 	# Heavy: Cyclone out of a dash, Awakened ultimates off L3 / LH / DL,
 	# launcher if mid-string, spin from neutral.
 	if post_dash and not attacking:
+		if from == "AD":
+			return "SKY" if awake else "LHH"  # Spike down out of the air dash
 		return "DH"
 	if awake and attacking and from == "L3":
 		return "AF"
@@ -1223,7 +1248,7 @@ func combo_options() -> Array:
 		return [_option("heavy", "CH", true)]
 	var rows := []
 	for kind: String in ["light", "heavy"]:
-		var id := route(kind, _move_id, attacking, _chain_i, dashing, awakened)
+		var id := route(kind, _route_from(), attacking, _chain_i, dashing, awakened)
 		if kind == "heavy" and id == "H":
 			continue  # the plain spin isn't a continuation
 		var o := _option(kind, id)
@@ -1233,7 +1258,7 @@ func combo_options() -> Array:
 				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
 		rows.append(o)
 	if attacking and not dashing:
-		rows.append(_option("dash", "DL"))
+		rows.append(_option("dash", dash_light()))
 	return rows
 
 
@@ -1325,6 +1350,7 @@ func _start_attack(id: String) -> void:
 	_callout_done = false
 	_chain_i = chain_after(id)
 	_post_dash_t = 0.0
+	_air_dash = false
 	_aim()
 	if _hop_air:
 		_air_home()
@@ -1338,6 +1364,7 @@ func _start_attack(id: String) -> void:
 
 
 func _start_dash() -> void:
+	_air_dash = _can_air_dash()
 	_dash_buffer_t = 0.0
 	_dash_cd = dash_cooldown * (_path("dash_cd", 1.0) if awakened else 1.0) * (1.0 - _mastery("dash", "cooldown") / 100.0)
 	_anim_mult = _base_anim_mult()
