@@ -64,6 +64,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 #        between those fractions (the model lifts, the body stays). A move
 #        started in the air (out of a hop) comes down by its first hit
 #        (`land` overrides), so L H's rise carries into L H H's drop.
+#   air: (optional) holds the height the move started at; `climb` adds this
+#        many metres by its first hit (the air string goes up cut by cut)
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -94,10 +96,10 @@ const MOVES := {
 	# heavy is Spike from the air.
 	"AL1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 7.0, "range": 2.6, "arc": 170.0,
 		"hits": [0.32], "cancel": 0.42, "end": 0.7, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
-		"stop": 0.045, "shake": 0.12, "air": true},
+		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4},
 	"AL2": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.6, "arc": 190.0,
 		"hits": [0.24, 0.4], "cancel": 0.5, "end": 0.75, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
-		"stop": 0.04, "shake": 0.14, "air": true},
+		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.5},
 	# Heavy right after the launcher (L H H): Spike, an overhead chop that
 	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
 	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
@@ -280,6 +282,11 @@ var _hits_done := 0
 var _connected := false  # the current move has hit something (combo breakers need it)
 var _hop_y0 := 0.0  # model height the current move started at (MOVES `hop`)
 var _hop_air := false  # off the ground this move (for the landing dust)
+var _hop_peak := 0.0  # highest the model got this time up (scales the landing slam)
+# Landing slams scale with the fall: shake, ring and dust grow from a 0.4 m hop
+# up to SLAM_FULL_HEIGHT (the top of the air string), by up to SLAM_SCALE.
+const SLAM_FULL_HEIGHT := 2.4
+const SLAM_SCALE := 2.0
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -622,7 +629,9 @@ func _state_charge(delta: float) -> void:
 func _hop(t: float) -> void:
 	var y := 0.0
 	if _move.get("air", false):  # air move: hold the height it started at
-		y = _hop_y0 + sin(t * PI) * 0.15
+		# `climb`: rise this much more by the hit, so each air cut goes higher.
+		var up: float = _move.get("climb", 0.0) * smoothstep(0.0, _move.hits[0], t)
+		y = _hop_y0 + up + sin(t * PI) * 0.15
 	elif _hop_y0 > 0.0:
 		var land: float = _move.get("land", _move.hits[0])
 		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
@@ -634,12 +643,21 @@ func _hop(t: float) -> void:
 			y += h[2] * 4.0 * k * (1.0 - k)
 	if y > 0.4:
 		_hop_air = true
+		_hop_peak = maxf(_hop_peak, y)
 	elif _hop_air and y < 0.05:
 		_hop_air = false  # landed onto the hit: a slam
-		Fx.dust(get_parent(), global_position, 6, 0.5)
-		Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2, 0.22)
-		Game.shake(0.12)
+		_land_slam(_hop_peak)
+		_hop_peak = 0.0
 	model.position.y = y
+
+
+## Landing from a hop: dust, a ring in the hero's colour and a shake, all
+## bigger the further he fell (an air-string Triple Chop lands hardest).
+func _land_slam(peak: float) -> void:
+	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
+	Fx.dust(get_parent(), global_position, int(6 * k), 0.5 * k)
+	Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2 * k, 0.22)
+	Game.shake(0.12 * k)
 
 
 func _state_attack(delta: float) -> void:
@@ -1262,6 +1280,7 @@ func _start_attack(id: String) -> void:
 	_connected = false
 	_hop_y0 = model.position.y
 	_hop_air = _hop_y0 > 0.4
+	_hop_peak = _hop_y0 if _hop_air else 0.0
 	_callout_done = false
 	_chain_i = chain_after(id)
 	_post_dash_t = 0.0

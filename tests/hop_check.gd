@@ -34,6 +34,7 @@ func _initialize() -> void:
 	p._start_attack("LH")
 	await _run(p, p.MOVES.LH.cancel)
 	_check(p._next_move("light") == "AL1", "light after L H is the air slash (got %s)" % p._next_move("light"))
+	var prev_y: float = p.model.position.y
 	for id: String in ["AL1", "AL2"]:
 		p._start_attack(id)
 		var low := 99.0
@@ -43,9 +44,14 @@ func _initialize() -> void:
 			await physics_frame
 			low = minf(low, p.model.position.y)
 		_check(low > 1.0, "%s stays in the air (lowest %.2f)" % [id, low])
+		_check(p.model.position.y > prev_y + 0.2, "%s climbs (%.2f -> %.2f)" % [id, prev_y, p.model.position.y])
+		prev_y = p.model.position.y
 	_check(p._next_move("light") == "L3" and p._next_move("heavy") == "LHH", "after the air slashes: L = Triple Chop, H = Spike")
+	var air_peak: float = p._hop_peak
+	_check(air_peak > 2.0, "the air string ends high (%.2f)" % air_peak)
 	p._start_attack("L3")
 	await _run(p, p.MOVES.L3.hits[0])
+	_check(p._hop_peak == 0.0, "the slam used and reset the peak")
 	_check(p.model.position.y < 0.1, "Triple Chop slams down from the air (y %.2f)" % p.model.position.y)
 	await _settle(p)
 	_check(p.model.position.y == 0.0, "settled on the floor after (y %.2f, lh peak %.2f)" % [p.model.position.y, lh_peak])
