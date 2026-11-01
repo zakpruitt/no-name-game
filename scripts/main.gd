@@ -1379,9 +1379,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d callouts=%d guide=%d casts=%d ults=%d chain=%d impacts=%d trinity=%d level=%d xp=%d ascend=%s procs=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s masteries=%s power_procs=%s moves=%s" % [
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d spikes=%d callouts=%d guide=%d casts=%d ults=%d chain=%d impacts=%d trinity=%d level=%d xp=%d ascend=%s procs=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s masteries=%s power_procs=%s moves=%s" % [
 		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.callouts, hud.combo_guide.shown, player.ELEMENTS.casts, player.ults, player.max_chain, player.ult_impacts, player.trinities, Game.level, Game.xp, player.ascendancy if player.ascendancy != "" else "-", player.element_procs, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades, ",".join(player.masteries), player.power_procs, ",".join(_bot_moves.keys())])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.spikes, player.callouts, hud.combo_guide.shown, player.ELEMENTS.casts, player.ults, player.max_chain, player.ult_impacts, player.trinities, Game.level, Game.xp, player.ascendancy if player.ascendancy != "" else "-", player.element_procs, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades, ",".join(player.masteries), player.power_procs, ",".join(_bot_moves.keys())])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:
@@ -1568,6 +1568,9 @@ func _drive_bot() -> void:
 		Input.action_press("attack_heavy")
 		_bot_charge_t = player.CHARGE_TIME + 0.15
 		_bot_next_charge = _autotest_t + 5.0
+		return
+	if not player.awakened and player.state == player.State.ATTACK and player._move_id == "LH" and f % 9 == 0 			and int(_autotest_t / 2.0) % 2 == 0:
+		Input.action_press("attack_heavy")  # L H H: spike the juggled foe
 		return
 	if player.awakened and player.state == player.State.ATTACK and player._move_id in ["L3", "LH", "DL"] and f % 9 == 0:
 		Input.action_press("attack_heavy")  # finish into the ultimate even if the hit knocked the target away

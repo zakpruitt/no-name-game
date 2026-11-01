@@ -84,6 +84,7 @@ Routing rules in `route()`, checked in order:
 | light | otherwise | `LIGHT_CHAIN[chain]`: L1 → L2 → L3 → L1 |
 | heavy | `post_dash`, not attacking | `DH` (Cyclone) |
 | heavy | Awakened, attacking, from `L3` / `LH` / `DL` | `AF` / `SKY` / `RUSH` |
+| heavy | attacking from `LH` | `LHH` (Spike) |
 | heavy | attacking from `L2`, or not attacking with `chain == 2` | `LLH` |
 | heavy | attacking (from anything but `H`), or `chain > 0` | `LH` |
 | heavy | otherwise | `H` (or `CH` if held, handled in `_state_move` / `_state_charge`) |

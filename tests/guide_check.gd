@@ -6,7 +6,7 @@ extends SceneTree
 ## `user://guide_sheet.png`. godot --path . -s tests/guide_check.gd
 ## (headless works for the checks: godot --headless --path . -s tests/guide_check.gd)
 
-const FROM := ["L1", "L2", "L3", "LPL", "H", "LH", "LLH", "CH", "DL", "DH"]
+const FROM := ["L1", "L2", "L3", "LPL", "H", "LH", "LHH", "LLH", "CH", "DL", "DH"]
 const CROP := Vector2i(760, 300)
 
 var _fails: Array[String] = []

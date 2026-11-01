@@ -71,6 +71,11 @@ const MOVES := {
 	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
 		"hits": [0.3], "cancel": 0.42, "end": 0.58, "lunge": 3.0, "knockback": 2.0, "launch": 9.0,
 		"stop": 0.09, "shake": 0.3, "big": true},
+	# Heavy right after the launcher (L H H): Spike, an overhead chop that
+	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
+	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
+		"hits": [0.38], "cancel": 0.55, "end": 0.8, "lunge": 5.0, "knockback": 3.0, "launch": 0.0,
+		"stop": 0.1, "shake": 0.4, "big": true},
 	# Heavy right after L2 (L L H): Ground Breaker, a lunging thrust that
 	# knocks down everything in a strip ahead (launch > 0 also breaks guards).
 	"LLH": {"anim": "2H_Melee_Attack_Stab", "damage": 18.0, "range": 5.0, "width": 1.1, "arc": 360.0,
@@ -105,6 +110,7 @@ const COMBOS := {
 	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
 	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
+	"LHH": {"name": "Spike", "input": "L H H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
 	"AF": {"name": "Cataclysm", "input": "L L L H (Awakened)", "tier": 3},
 	"SKY": {"name": "Ancestor's Fall", "input": "L H H (Awakened)", "tier": 3},
@@ -177,8 +183,14 @@ var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
 var shatters := 0  # Shatter bursts (autotest)
+var spikes := 0  # juggled foes spiked down (autotest)
 ## Moves that count as heavy for Shatter.
-const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH"]
+const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH", "LHH"]
+# Spike (LHH) on a juggled foe: damage multiplier, how hard it's slammed
+# down (m/s), and the impact that knocks down foes around where it lands.
+const SPIKE_AIR_MULT := 1.6
+const SPIKE_DOWN := 24.0
+const SPIKE_IMPACT := {"radius": 2.6, "damage": 6.0, "knockback": 5.0}
 const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
@@ -544,6 +556,8 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 		return "AF"
 	if awake and attacking and from == "LH":
 		return "SKY"
+	if attacking and from == "LH":
+		return "LHH"
 	if awake and attacking and from == "DL":
 		return "RUSH"
 	if (attacking and from == "L2") or (not attacking and chain == 2):
@@ -642,7 +656,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 	if id == "AF":
 		_ult_begin(id)
@@ -716,6 +730,8 @@ func _do_hit() -> void:
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
 		var dmg: float = _move.damage * _dmg_mult
+		if _move_id == "LHH" and was_airborne:
+			dmg *= SPIKE_AIR_MULT
 		if _move_id == "CH" and has_upgrade("bone_breaker") and (e.shield or e.elite or e.has_method("is_boss")):
 			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
 			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)
@@ -724,6 +740,8 @@ func _do_hit() -> void:
 		hit_any = true
 		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
 			_shatter(e)
+		if _move_id == "LHH" and was_airborne:
+			_spike(e)
 		if was_airborne and has_upgrade("chain_spark"):
 			_chain_spark(e)
 		if _move_id == "L1" and has_upgrade("bloodthirst"):
@@ -1395,6 +1413,24 @@ func _shockstep(pos: Vector3) -> void:
 		if e.is_alive() and to.length() < r + e.radius:
 			e.take_hit(upg("shockstep", "damage"), to.normalized() * 4.0, 7.0, true)
 			Game.register_hit("shockstep")
+
+
+## Spike: slam a juggled foe into the floor; the impact knocks down foes
+## around it.
+func _spike(e: Node3D) -> void:
+	spikes += 1
+	if e.is_alive():
+		e.velocity.y = -SPIKE_DOWN
+	var at: Vector3 = e.global_position
+	at.y = global_position.y
+	Fx.ring(get_parent(), at, Color(1.0, 0.85, 0.5, 0.9), SPIKE_IMPACT.radius, 0.25)
+	Fx.dust(get_parent(), at, 14, 1.0)
+	for o in get_tree().get_nodes_in_group("enemies"):
+		var to: Vector3 = o.global_position - at
+		to.y = 0.0
+		if o != e and o.is_alive() and not o.is_airborne() and to.length() < SPIKE_IMPACT.radius + o.radius:
+			o.take_hit(SPIKE_IMPACT.damage * _dmg_mult, to.normalized() * SPIKE_IMPACT.knockback, 0.0, true)
+			Game.register_hit("spike")
 
 
 ## Razor Gale: Flurry's last cut flings a fan of the element's blades.

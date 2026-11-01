@@ -123,6 +123,12 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	var pull_hp: float = e.hp
 	p._eye_of_storm()
 	_check(p.power_procs.get("eye_of_storm", 0) == 1 and e.hp < pull_hp, "Eye of the Storm drags a foe in")
+	# Spike (L H H, not a power but a combo): a juggled foe is slammed down.
+	_check(p.route("heavy", "LH", true, 0, false, false) == "LHH", "L H H routes to Spike")
+	e.take_hit(1.0, Vector3.ZERO, 8.0, false)
+	p._start_attack("LHH")
+	p._spike(e)
+	_check(p.spikes == 1 and e.velocity.y < 0.0, "Spike slams a juggled foe down")
 	p._set_state(p.State.MOVE)
 	# Flicker: light hits right after a dash.
 	p.add_upgrade("flicker")
