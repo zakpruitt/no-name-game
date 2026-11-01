@@ -45,6 +45,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 #   end: when control returns    lunge: forward burst speed at start
 #   width: (optional) hits a straight strip `range` long and 2x`width` wide
 #          instead of the `arc` cone
+#   decay: (optional, default 3) how fast the lunge dies: it's gone at 1/decay
+#          of the move, so a low decay keeps the hero travelling
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
@@ -55,6 +57,11 @@ const MOVES := {
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
 		"stop": 0.1, "shake": 0.35, "big": true},
+	# Light after a pause once L2 has finished (L L · L): Flurry, a quick run
+	# of small cuts that keeps foes in reach (low knockback).
+	"LPL": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.5, "range": 2.6, "arc": 170.0,
+		"hits": [0.22, 0.32, 0.42, 0.52, 0.62], "cancel": 0.66, "end": 0.85, "lunge": 5.0, "knockback": 0.8,
+		"launch": 0.0, "stop": 0.03, "shake": 0.1},
 	# Heavy from neutral: spinning AoE, multi-hit.
 	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
 		"hits": [0.3, 0.45, 0.6], "cancel": 0.7, "end": 0.85, "lunge": 4.0, "knockback": 3.0, "launch": 0.0,
@@ -78,6 +85,11 @@ const MOVES := {
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
 		"stop": 0.07, "shake": 0.22},
+	# Heavy right out of a dash: Whirlwind, a spin that keeps travelling
+	# through the crowd (low lunge decay).
+	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 6.0, "range": 2.9, "arc": 360.0,
+		"hits": [0.2, 0.38, 0.56, 0.74], "cancel": 0.78, "end": 0.9, "lunge": 11.0, "decay": 1.2,
+		"knockback": 4.0, "launch": 0.0, "stop": 0.035, "shake": 0.16},
 	# Awakened only: heavy right after L3. Huge two-handed swing that erupts all around.
 	"AF": {"anim": "2H_Melee_Attack_Slice", "damage": 30.0, "range": 4.5, "arc": 360.0,
 		"hits": [0.45], "cancel": 0.7, "end": 0.9, "lunge": 5.0, "knockback": 6.0, "launch": 10.0,
@@ -88,7 +100,9 @@ const MOVES := {
 # pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
 const COMBOS := {
 	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
+	"LPL": {"name": "Flurry", "input": "L L, pause, L", "tier": 1},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
+	"DH": {"name": "Whirlwind", "input": "Dash > H", "tier": 2},
 	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
@@ -164,12 +178,12 @@ var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
 var shatters := 0  # Shatter bursts (autotest)
 ## Moves that count as heavy for Shatter.
-const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF"]
+const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH"]
 const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
 ## Light-press moves, for the Light path's powers.
-const LIGHT_MOVES := ["L1", "L2", "L3", "DL"]
+const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL"]
 var _crescendo := false  # Crescendo: the next heavy is empowered
 var _slipped: Array = []  # enemies Slipstream already cut this dash
 var power_procs := {}  # power id -> times it fired, for the newer powers (autotest)
@@ -445,7 +459,7 @@ func _state_charge(delta: float) -> void:
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
 	# Lunge decays quickly so attacks feel snappy, not slidey.
-	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * 3.0)
+	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
 	var fwd := _facing()
 	velocity.x = fwd.x * lunge
 	velocity.z = fwd.z * lunge
@@ -518,8 +532,13 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 	if kind == "light":
 		if post_dash:
 			return "DL"
+		if not attacking and from == "L2" and chain == 2:
+			return "LPL"  # L2 has finished: the pause turns the third light into Flurry
 		return LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
-	# Heavy: Awakened ultimates off L3 / LH / DL, launcher if mid-string, spin from neutral.
+	# Heavy: Whirlwind out of a dash, Awakened ultimates off L3 / LH / DL,
+	# launcher if mid-string, spin from neutral.
+	if post_dash and not attacking:
+		return "DH"
 	if awake and attacking and from == "L3":
 		return "AF"
 	if awake and attacking and from == "LH":
@@ -622,7 +641,7 @@ func _start_attack(id: String) -> void:
 	_aim()
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 	if id == "AF":
 		_ult_begin(id)

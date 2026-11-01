@@ -116,7 +116,7 @@ const PATHS := {
 const FUSION_CHANCE := 0.5
 ## Readable names for `slot` on cards and the build view (fusions spell
 ## theirs out in the entry itself).
-const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "Light": "Light attacks",
+const SLOT_NAMES := {"L1": "1st light hit", "L2": "2nd light hit", "L3": "Triple Chop", "LPL": "Flurry", "DH": "Whirlwind", "Light": "Light attacks",
 	"H": "Spin", "LH": "Launcher", "LLH": "Ground Breaker", "Charged": "Charged Slam", "Heavy": "Heavy kills",
 	"Dash": "Dash", "DL": "Dash Stab", "Perfect": "Perfect dodge", "Awaken": "Awakening",
 	"Air": "Juggles", "Death": "Killing blow", "Kill": "Kills"}

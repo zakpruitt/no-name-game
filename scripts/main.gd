@@ -241,6 +241,7 @@ var _autotest := false
 var _autotest_t := 0.0
 var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
 var _bot_next_charge := 3.0
+var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
 var _charge_shot_taken := false
 var _hint_shot_taken := false
 var _necro_shot_taken := false
@@ -1378,9 +1379,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	if not ALTAR.override.is_empty():
 		print("[autotest] altar=%s max_hp=%.0f" % [ALTAR.override, player.max_hp])
-	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d callouts=%d guide=%d casts=%d ults=%d chain=%d impacts=%d trinity=%d level=%d xp=%d ascend=%s procs=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s masteries=%s power_procs=%s" % [
+	print("[autotest] seed=%d room=%d kind=%s alive=%d player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d cataclysm=%d bolts=%d dodges=%d blocks=%d charged=%d breakers=%d shatters=%d callouts=%d guide=%d casts=%d ults=%d chain=%d impacts=%d trinity=%d level=%d xp=%d ascend=%s procs=%d bones=%d raises=%d splits=%d blasts=%d cage_escapes=%d/%d music=%.2f hints=%s upgrades=%s masteries=%s power_procs=%s moves=%s" % [
 		run_seed, room, "+".join([room_kind] + Array(room_twists)), _alive, player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air, player.cataclysms,
-		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.callouts, hud.combo_guide.shown, player.ELEMENTS.casts, player.ults, player.max_chain, player.ult_impacts, player.trinities, Game.level, Game.xp, player.ascendancy if player.ascendancy != "" else "-", player.element_procs, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades, ",".join(player.masteries), player.power_procs])
+		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.callouts, hud.combo_guide.shown, player.ELEMENTS.casts, player.ults, player.max_chain, player.ult_impacts, player.trinities, Game.level, Game.xp, player.ascendancy if player.ascendancy != "" else "-", player.element_procs, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades, ",".join(player.masteries), player.power_procs, ",".join(_bot_moves.keys())])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	if _tour:
@@ -1524,6 +1525,8 @@ func _drive_bot() -> void:
 	Input.action_release("attack_heavy")
 	Input.action_release("dash")
 	Input.action_release("awaken")
+	if player.state == player.State.ATTACK or player.state == player.State.ULT:
+		_bot_moves[player._move_id] = true
 	if _bot_escape_cage():
 		return
 	if nearest == null:
@@ -1547,6 +1550,18 @@ func _drive_bot() -> void:
 			player.bot_move = (player.global_position - e.global_position).normalized()
 			Input.action_press("dash")
 			return
+	# The pause and dash routes: light again once L2 has finished (Flurry),
+	# heavy just out of a dash near a foe (Whirlwind). On a flurry turn the
+	# bot lets L2 play out instead of chaining it.
+	if not player.awakened and int(_autotest_t / 2.0) % 2 == 1 and player.state == player.State.ATTACK 			and player._move_id == "L2":
+		return
+	if not player.awakened and nd < 4.5 and player.state == player.State.MOVE and player._move_id == "L2" \
+			and player._chain_i == 2 and player._chain_reset_t > 0.0 and player._chain_reset_t < 0.28:
+		Input.action_press("attack_light")
+		return
+	if not player.awakened and nd < 4.5 and player._post_dash_t > 0.0 and player.state == player.State.MOVE:
+		Input.action_press("attack_heavy")
+		return
 	# Now and then, from neutral, hold heavy for a charged slam: from just
 	# outside melee reach (the slam lunges in), when nothing is about to hit.
 	if nd > 2.8 and nd < 6.0 and player.state == player.State.MOVE and not player.awakened and _autotest_t >= _bot_next_charge 			and not _bot_threatened():

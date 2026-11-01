@@ -13,6 +13,8 @@ window.NOTES =
     "LLH": {"note": "Lunging thrust that knocks down everything in a strip ahead and breaks guards."},
     "CH": {"note": "Hold heavy from neutral, creep while charging, release to slam and launch. Breaks shield guards."},
     "DL": {"note": "Long lunging stab out of a dash; flows into L2."},
+    "LPL": {"note": "Let L2 finish, then light again: five quick cuts with little knockback, so foes stay in reach. Mashing gives Triple Chop instead."},
+    "DH": {"note": "Heavy out of a dash: a spin that keeps travelling through the crowd."},
     "AF": {"note": "Awakened only. Erupts all around and throws six fire waves."}
   },
   "enemies": {

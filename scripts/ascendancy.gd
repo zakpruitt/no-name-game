@@ -30,7 +30,7 @@ const PATHS := {
 ## Awakening colour before an Ascendancy is chosen (ancestral gold).
 const BASE_COLOR := Color(1.0, 0.78, 0.3)
 ## Moves that count as heavy for Earth's magma pools.
-const HEAVY_MOVES := ["H", "LH", "LLH", "CH", "AF"]
+const HEAVY_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH"]
 
 
 static func color(path: String) -> Color:

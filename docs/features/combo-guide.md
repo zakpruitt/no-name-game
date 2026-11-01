@@ -72,6 +72,7 @@ How the rows are built (`combo_options`):
 - **Light and heavy rows:** `route(kind, _move_id, attacking, _chain_i, dashing, awakened)`. A heavy that routes to the neutral spin `H` is left out, because it isn't a continuation.
 - **Dash row:** only while attacking and not already dashing. It always shows `DL` (dash, then light). It dims when `combo_window().dash` is false, which happens while the dash is on cooldown or before the move's first hit or 20% mark.
 - **Charging:** a single `hold` row for `CH`.
+- **The pause combo:** a press while L2 is still playing (even past its cancel point) is Triple Chop; Flurry needs L2 to finish, then a light press within the chain's grace (`_chain_reset_t`, 0.35s). The guide shows Flurry only in that gap, since the lookahead assumes the next press comes mid-move.
 - **Lookahead (`_option`):** for any row below tier 3, call `route(k, id, true, chain_after(id), false, awakened)` for heavy and then light, and keep the highest-tier named combo. Heavy wins ties. `CH` is never offered as a follow-up, because it needs neutral.
 
 Routing rules in `route()`, checked in order:
@@ -79,7 +80,9 @@ Routing rules in `route()`, checked in order:
 | Press | Condition | Move |
 |---|---|---|
 | light | `post_dash` | `DL` |
+| light | not attacking, from `L2`, `chain == 2` (L2 finished, chain still live) | `LPL` (Flurry: the pause combo) |
 | light | otherwise | `LIGHT_CHAIN[chain]`: L1 → L2 → L3 → L1 |
+| heavy | `post_dash`, not attacking | `DH` (Whirlwind) |
 | heavy | Awakened, attacking, from `L3` / `LH` / `DL` | `AF` / `SKY` / `RUSH` |
 | heavy | attacking from `L2`, or not attacking with `chain == 2` | `LLH` |
 | heavy | attacking (from anything but `H`), or `chain > 0` | `LH` |

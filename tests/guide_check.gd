@@ -6,7 +6,7 @@ extends SceneTree
 ## `user://guide_sheet.png`. godot --path . -s tests/guide_check.gd
 ## (headless works for the checks: godot --headless --path . -s tests/guide_check.gd)
 
-const FROM := ["L1", "L2", "L3", "H", "LH", "LLH", "CH", "DL"]
+const FROM := ["L1", "L2", "L3", "LPL", "H", "LH", "LLH", "CH", "DL", "DH"]
 const CROP := Vector2i(760, 300)
 
 var _fails: Array[String] = []
@@ -54,6 +54,19 @@ func _initialize() -> void:
 		_check(not rows.is_empty() and rows[0].id == "DL", "post-dash light -> DL" + _tag(awake))
 		if awake:
 			_check(rows[0].next.get("id", "") == "RUSH", "post-dash DL then heavy -> RUSH (Awakened)")
+		# ...and heavy is Whirlwind.
+		_check(rows.size() > 1 and rows[1].id == "DH" and p._next_move("heavy") == "DH", "post-dash heavy -> DH" + _tag(awake))
+		# L2 finished, chain still live: the pause makes the third light Flurry.
+		_begin(p, "L1")
+		p._start_attack("L2")
+		p._set_state(p.State.MOVE)
+		p._chain_reset_t = 0.3
+		rows = p.combo_options()
+		_check(not rows.is_empty() and rows[0].id == "LPL" and p._next_move("light") == "LPL",
+			"L L, pause, L -> Flurry" + _tag(awake))
+		_begin(p, "L1")
+		p._start_attack("L2")
+		_check(p._next_move("light") == "L3", "L L L without the pause stays Triple Chop" + _tag(awake))
 	p._set_awakened(false)
 	p._set_state(p.State.MOVE)
 	p._post_dash_t = 0.0
