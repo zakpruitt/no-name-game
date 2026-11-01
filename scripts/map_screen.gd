@@ -29,6 +29,7 @@ var _visited: Array = []  # Vector2i (column, lane) of every room so far
 var _choices: Array = []  # nodes the player may pick
 var _counts := {}  # Upgrades.path_counts() of the build, for the vault line
 var _owned := {}  # the hero's powers (id -> level), for the trial's payout line
+var _hp := Vector3.ZERO  # hp, max_hp, the rest's heal share (main.REST_HEAL), for the rest line
 var _room := 0  # room number of the choices
 var _read_only := false
 var _intro := false  # the run's first look (open_intro): closing it starts room 1
@@ -132,9 +133,21 @@ func vault_pool(path: String) -> String:
 	return text
 
 
+## What a rest would heal right now ("Heals 40 HP now (64 → 104 / 110)").
+func rest_text() -> String:
+	if _hp.y <= 0.0 or _hp.z <= 0.0:
+		return ""
+	var after := minf(_hp.x + _hp.y * _hp.z, _hp.y)
+	if after - _hp.x < 0.5:
+		return "You're at full HP: the camp is all it gives"
+	return "Heals %d HP now (%d → %d / %d)" % [roundi(after - _hp.x), ceili(_hp.x), roundi(after), roundi(_hp.y)]
+
+
 ## The hero's state while choosing: "HP 64 / 110   ·   23 bones   ·   Lv 3".
 ## Under LOW_HP the line turns red, since that's when a rest matters.
-func set_status(hp: float, max_hp: float, bones: int, level: int) -> void:
+func set_status(hp: float, max_hp: float, bones: int, level: int, rest_heal := 0.0) -> void:
+	_hp = Vector3(hp, max_hp, rest_heal)
+	_update_detail()
 	_status.text = "HP %d / %d   ·   %d bones   ·   Lv %d" % [ceili(hp), roundi(max_hp), bones, level]
 	_status.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4) if hp < max_hp * LOW_HP else Color(0.92, 0.9, 0.96))
 
@@ -370,6 +383,8 @@ func _show_room(n: Dictionary, room: int) -> void:
 		text += "\nIn the vault: " + vault_pool(n.path)
 	if n.kind == "trial":
 		text += "\n" + trial_payout()
+	if n.kind == "rest" and rest_text() != "":
+		text += "\n" + rest_text()
 	var ahead := _ahead_text(Vector2i(room - 1, n.lane))
 	if ahead != "":
 		text += "\nLeads on to: " + ahead

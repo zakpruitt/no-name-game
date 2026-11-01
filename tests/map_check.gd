@@ -113,7 +113,11 @@ func _check_screen(RM: GDScript, map: Array) -> void:
 	var choices: Array = RM.next_nodes(map, route[-1])
 	screen.open(map, route, choices, false, {})
 	_check(not cover.visible, "the map hides the HUD")
-	screen.set_status(30.0, 100.0, 12, 2)
+	screen.set_status(30.0, 100.0, 12, 2, 0.4)
+	_check(screen.rest_text() == "Heals 40 HP now (30 → 70 / 100)", "a rest says what it would heal")
+	screen.set_status(90.0, 100.0, 12, 2, 0.4)
+	_check(screen.rest_text().begins_with("Heals 10 HP"), "a rest's heal stops at max HP")
+	screen.set_status(30.0, 100.0, 12, 2, 0.4)
 	_check(screen._status.text.begins_with("HP 30 / 100") and screen._status.get_theme_color("font_color").r > 0.9
 		and screen._status.get_theme_color("font_color").g < 0.6, "low HP shows red on the map")
 	# A trial says what it would pay with the build.

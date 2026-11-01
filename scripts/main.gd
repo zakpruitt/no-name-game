@@ -785,7 +785,7 @@ func show_map() -> void:
 
 
 func _map_status() -> void:
-	map_menu.set_status(player.hp, player.max_hp, Game.bones, Game.level)
+	map_menu.set_status(player.hp, player.max_hp, Game.bones, Game.level, REST_HEAL)
 	map_menu.set_build(player.upgrades)
 
 
