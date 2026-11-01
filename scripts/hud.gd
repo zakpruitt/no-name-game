@@ -27,6 +27,9 @@ var rank_label: Label
 var air_label: Label
 var wave_label: Label
 var trial_label: Label  # a trial room's condition and how it's going
+var route_strip: Control  # the run so far: one dot per room, in the map's colours
+var _route: Array = []  # Color of each room taken (last = this room)
+var _route_total := 0
 var center_label: Label
 var ult_label: Label
 var ult_sub: Label
@@ -112,6 +115,11 @@ func _ready() -> void:
 	trial_label = _label(root, "", 20, Color(1.0, 0.93, 0.6))
 	_anchor(trial_label, 0.5, 0.0, Rect2(-300, 62, 600, 30))
 	trial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	route_strip = Control.new()
+	route_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_anchor(route_strip, 0.5, 0.0, Rect2(-110, 6, 220, 16))
+	route_strip.draw.connect(_draw_route)
+	root.add_child(route_strip)
 
 	center_label = _label(root, "", 64, Color.WHITE)
 	_anchor(center_label, 0.5, 0.5, Rect2(-500, -120, 1000, 160))
@@ -265,6 +273,34 @@ func set_room(n: int, total: int, kind: String, twist := "") -> void:
 		flash_message("ROOM %d\n%s" % [n, twist], 1.8)
 	elif kind != "boss":  # the boss announces itself
 		flash_message("ROOM %d" % n, 1.2)
+
+
+## The run so far: `colors` holds the map colour of each room taken (the
+## last is this room), out of `total` rooms.
+func set_route(colors: Array, total: int) -> void:
+	_route = colors
+	_route_total = total
+	route_strip.queue_redraw()
+
+
+func _draw_route() -> void:
+	if _route_total < 2:
+		return
+	var step := route_strip.size.x / (_route_total - 1)
+	var y := route_strip.size.y * 0.5
+	route_strip.draw_line(Vector2(0, y), Vector2(route_strip.size.x, y), Color(1, 1, 1, 0.18), 2.0)
+	if _route.size() > 1:
+		route_strip.draw_line(Vector2(0, y), Vector2(step * (_route.size() - 1), y), Color(1, 1, 1, 0.6), 2.0)
+	for i in _route_total:
+		var p := Vector2(step * i, y)
+		if i < _route.size():
+			route_strip.draw_circle(p, 5.0, _route[i])
+			if i == _route.size() - 1:
+				route_strip.draw_arc(p, 8.0, 0.0, TAU, 20, Color(1.0, 0.8, 0.35), 2.0, true)
+		else:
+			var boss := i == _route_total - 1
+			route_strip.draw_circle(p, 4.0, Color(0.05, 0.03, 0.08, 0.8))
+			route_strip.draw_arc(p, 4.0, 0.0, TAU, 16, Color(0.9, 0.2, 0.15, 0.8) if boss else Color(1, 1, 1, 0.35), 1.5, true)
 
 
 ## A trial room's line under the room title ("" hides it). `state`: 0 under

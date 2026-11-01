@@ -475,6 +475,9 @@ func _next_room() -> void:
 			room_twists.append(_vow_twist)
 		_vow_twist = ""
 	hud.set_room(room, RUN_LENGTH, room_kind, _room_tag())
+	hud.set_route(map_route.map(func(at: Vector2i) -> Color:
+		var node := RunMap.node_at(run_map, at)
+		return RunMap.color(node) if not node.is_empty() else Color.WHITE), RUN_LENGTH)
 	_trial_state = 0
 	_trial_t = 0.0
 	hud.set_trial("")

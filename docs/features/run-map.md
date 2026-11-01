@@ -45,7 +45,7 @@ Pause → **Map** shows the same map read-only.
 | `scripts/vault_prop.gd` | The chest, candles and path-coloured light. `rise()`, `burst()`, `sink()`. |
 | `scripts/upgrades.gd` | `roll(..., path)` (the vault filter, topped up from any path when short) and `roll_fusion()`. |
 | `scripts/reward_screen.gd` | `open(choices, reroll_cost, title)`. |
-| `scripts/hud.gd` | `trial_label` / `set_trial(text, state)`; `set_room` banners for vault and trial. |
+| `scripts/hud.gd` | `trial_label` / `set_trial(text, state)`; `set_room` banners for vault and trial; `route_strip` / `set_route(colors, total)`: a dot per room across the top, the rooms taken in their map colours (set from `main._next_room`). |
 | `scripts/pause_menu.gd` | The **Map** button (index 1; Settings is now 2). |
 | `tools/gen_power_icons.py` | `ROOMS` glyphs → `assets/icons/rooms/<kind>.svg`. |
 | `assets/kaykit/dungeon/chest_gold.glb` | The vault's chest model (already in the repo). |
