@@ -95,6 +95,10 @@ back to L1:
 - Landing from a hop is a slam (`_land_slam`): dust, ring and shake scale
   with the highest point of the fall, from x1 at 0.4 m to `SLAM_SCALE` (x2)
   at `SLAM_FULL_HEIGHT` (2.4 m). Triple Chop out of Sky Rend lands hardest.
+- Plunge: a non-air move started in the air (L H H off the launcher, Triple
+  Chop off Sky Rend) deals +`PLUNGE_PER_M` (15%) damage per metre it
+  started above 0.4 m, on its first hit (`player.plunge_mult()`). L H H off
+  L H is about x1.17; Triple Chop off Sky Rend about x1.34.
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
   Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
   is Ancestor's Fall.

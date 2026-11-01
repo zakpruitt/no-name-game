@@ -50,9 +50,18 @@ func _initialize() -> void:
 	var air_peak: float = p._hop_peak
 	_check(air_peak > 2.0, "the air string ends high (%.2f)" % air_peak)
 	p._start_attack("L3")
+	p._hits_done = 1
+	var plunge: float = p.plunge_mult()
+	p._hits_done = 0
+	_check(plunge > 1.25, "Triple Chop off Sky Rend plunges (x%.2f)" % plunge)
 	await _run(p, p.MOVES.L3.hits[0])
 	_check(p._hop_peak == 0.0, "the slam used and reset the peak")
 	_check(p.model.position.y < 0.1, "Triple Chop slams down from the air (y %.2f)" % p.model.position.y)
+	await _settle(p)
+	p._start_attack("L1")
+	p._hits_done = 1
+	_check(p.plunge_mult() == 1.0, "no plunge from the ground (x%.2f)" % p.plunge_mult())
+	p._hits_done = 0
 	await _settle(p)
 	_check(p.model.position.y == 0.0, "settled on the floor after (y %.2f, lh peak %.2f)" % [p.model.position.y, lh_peak])
 	print("[hop] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)

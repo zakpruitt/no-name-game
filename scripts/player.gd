@@ -287,6 +287,10 @@ var _hop_peak := 0.0  # highest the model got this time up (scales the landing s
 # up to SLAM_FULL_HEIGHT (the top of the air string), by up to SLAM_SCALE.
 const SLAM_FULL_HEIGHT := 2.4
 const SLAM_SCALE := 2.0
+# Plunge: a move started in the air that comes down onto its hit (L H H off
+# the launcher, Triple Chop off Sky Rend) deals +PLUNGE_PER_M damage per metre
+# it started above 0.4 m, so the air string pays for going high (2.6 m: +33%).
+const PLUNGE_PER_M := 0.15
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -649,6 +653,14 @@ func _hop(t: float) -> void:
 		_land_slam(_hop_peak)
 		_hop_peak = 0.0
 	model.position.y = y
+
+
+## Damage multiplier for the current move's plunge (see PLUNGE_PER_M): only
+## for moves that start in the air and land, and only on their first hit.
+func plunge_mult() -> float:
+	if _move.get("air", false) or _hits_done > 1:
+		return 1.0
+	return 1.0 + PLUNGE_PER_M * maxf(0.0, _hop_y0 - 0.4)
 
 
 ## Landing from a hop: dust, a ring in the hero's colour and a shake, all
@@ -1363,7 +1375,7 @@ func _do_hit() -> void:
 		var kb_dir := to / d if d > 0.01 else fwd
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
-		var dmg: float = _move.damage * _dmg_mult
+		var dmg: float = _move.damage * _dmg_mult * plunge_mult()
 		if _move_id == "LHH" and was_airborne:
 			dmg *= SPIKE_AIR_MULT
 		if was_airborne and _move_id in LIGHT_MOVES and has_upgrade("sky_reaper"):
