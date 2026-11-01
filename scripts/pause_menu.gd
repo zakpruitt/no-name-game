@@ -141,6 +141,7 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 
 
 ## "MOVES": the fixed move list, basics plus the named combos (player.COMBOS).
+## Combos landed this run show how often; the rest are dimmed, still to find.
 func _build_moves() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null or _root == null:
@@ -154,13 +155,18 @@ func _build_moves() -> void:
 	list.add_theme_constant_override("separation", 6)
 	panel.add_child(list)
 	_label(list, "MOVES", 30, Color(1.0, 0.7, 0.25))
+	_label(list, "%d / %d combos landed this run" % [player.combos_landed.size(), player.COMBOS.size()], 15,
+		Color(1, 1, 1, 0.5))
 	var rows: Array = [["L", "Slice"], ["H", "Spin"], ["Dash", "Dodge"], ["Q", "Awaken"]]
 	for id: String in player.COMBOS:
-		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier])
+		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier, player.combos_landed.get(id, 0)])
 	for r: Array in rows:
 		var tier: int = r[2] if r.size() > 2 else 0
-		var line := _label(list, "%s   %s" % [r[0], r[1]], 19,
-			player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95))
+		var color: Color = player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95)
+		var times: int = r[3] if r.size() > 3 else -1
+		if times == 0:
+			color.a = 0.5
+		var line := _label(list, "%s   %s%s" % [r[0], r[1], "   ×%d" % times if times > 0 else ""], 19, color)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 

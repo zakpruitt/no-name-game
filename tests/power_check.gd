@@ -149,6 +149,7 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._callout_done = false
 	p._combo_callout("L3")
 	_check(fresh > 0.0 and is_equal_approx(game.awakening - fresh, fresh * 0.5), "War Chant pays double for a new combo")
+	_check(p.combos_landed.get("L3", 0) >= 2, "landed combos are counted for the move list")
 	p.add_upgrade("rebound")
 	p._spike(e)
 	await create_timer(p.REBOUND_DELAY + 0.1).timeout

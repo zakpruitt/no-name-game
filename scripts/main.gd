@@ -1066,6 +1066,7 @@ func _end_run(victory: bool) -> void:
 		"Time": RECORDS.time_text(_run_time),
 		"Enemies slain": _kills,
 		"Best combo": _max_combo,
+		"Combos found": "%d / %d" % [player.combos_landed.size(), player.COMBOS.size()],
 		"Best style rank": _best_rank,
 		"Best juggle": Game.best_air,
 		"Perfect dodges": Game.perfect_dodges,
