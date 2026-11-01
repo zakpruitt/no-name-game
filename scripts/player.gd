@@ -64,6 +64,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
 #        between those fractions (the model lifts, the body stays). A move
 #        started in the air (out of a hop) comes down by its first hit
 #        (`land` overrides), so L H's rise carries into L H H's drop.
+#   weave: (optional) metres the model sways side to side, one way per hit,
+#        between the first and last hit (Flurry dances through its cuts)
 #   air: (optional) holds the height the move started at; `climb` adds this
 #        many metres by its first hit (the air string goes up cut by cut)
 const MOVES := {
@@ -80,7 +82,7 @@ const MOVES := {
 	# of small cuts that keeps foes in reach (low knockback).
 	"LPL": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.5, "range": 2.6, "arc": 170.0,
 		"hits": [0.22, 0.32, 0.42, 0.52, 0.62], "cancel": 0.66, "end": 0.85, "lunge": 5.0, "knockback": 0.8,
-		"launch": 0.0, "stop": 0.03, "shake": 0.1},
+		"launch": 0.0, "stop": 0.03, "shake": 0.1, "weave": 0.45},
 	# Heavy from neutral: spinning AoE, multi-hit. A leaping whirl: he spins
 	# up off the floor through all three hits and lands with a slam.
 	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
@@ -548,6 +550,9 @@ func _physics_process(delta: float) -> void:
 	var air_hold := _air_dash and (state == State.DASH or (state == State.MOVE and _post_dash_t > 0.0))
 	if state in [State.MOVE, State.DASH, State.HURT, State.CHARGE, State.DEAD] and model.position.y > 0.0 and not air_hold:
 		model.position.y = move_toward(model.position.y, 0.0, 16.0 * delta)  # out of a hop
+	if state != State.ATTACK and (model.position.x != 0.0 or model.position.z != 0.0):
+		model.position.x = move_toward(model.position.x, 0.0, 6.0 * delta)  # out of a weave
+		model.position.z = move_toward(model.position.z, 0.0, 6.0 * delta)
 	if model.position.y < 0.05:
 		_air_dashes = 0  # back on the floor: the air dash comes back
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
@@ -698,6 +703,23 @@ func plunge_mult() -> float:
 	return 1.0 + PLUNGE_PER_M * maxf(0.0, _hop_y0 - 0.4)
 
 
+## MOVES `weave`: sway the model sideways, crossing over on each hit (a
+## sine from the first hit to the last), easing back to centre after.
+func _weave(t: float) -> void:
+	var w: float = _move.get("weave", 0.0)
+	var side := Vector3.ZERO
+	if w > 0.0:
+		var hits: Array = _move.hits
+		var a: float = hits[0] - 0.08
+		var b: float = hits[hits.size() - 1]
+		if t > a and t < b:
+			var k := (t - a) / (b - a)
+			var right := _facing().cross(Vector3.UP)
+			side = right * sin(k * PI * hits.size()) * w * sin(k * PI)
+	model.position.x = side.x
+	model.position.z = side.z
+
+
 ## Landing from a hop: dust, a ring in the hero's colour and a shake, all
 ## bigger the further he fell (an air-string Triple Chop lands hardest).
 func _land_slam(peak: float) -> void:
@@ -731,6 +753,7 @@ func _state_attack(delta: float) -> void:
 	velocity.z = fwd.z * lunge
 
 	_hop(t)
+	_weave(t)
 	var hits: Array = _move.hits
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
@@ -1683,7 +1706,7 @@ func _swoosh(fwd: Vector3) -> void:
 	var c: Color = _trails[0].color if not _trails.is_empty() else _trail_rest_color()
 	var big: bool = _move.get("big", false)
 	var time := 0.32 if big else 0.24
-	var at := global_position + Vector3.UP * model.position.y  # up with him in a hop / the air string
+	var at := global_position + model.position  # up with him in a hop / the air string, beside him in a weave
 	Fx.swoosh(get_parent(), at, fwd, _move.range * 0.9, _move.arc, c, _swoosh_flip, time)
 	# Escalation: combo enders and long chains add a wider, hotter arc above the
 	# first, so a string visibly builds to its finish.

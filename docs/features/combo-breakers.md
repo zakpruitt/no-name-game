@@ -92,6 +92,10 @@ height]` as fractions of the move, applied by `player._hop()`):
 - **Spin (neutral H)** is a leaping whirl: up 0.8 m through all three hits,
   landing by its cancel with a slam.
 - **Dash Stab (Dash > L)** pounces: a low leap (0.6 m) landing on the stab.
+- **Flurry (L L, pause, L)** weaves: `MOVES` `weave` (0.45 m) sways the
+  model side to side, crossing over on each of its five cuts (`_weave`),
+  and it eases back to centre after. Only the model moves; the swoosh
+  follows it (`_swoosh` uses `global_position + model.position`).
 
 **The air string.** Light after the Launcher goes into the air instead of
 back to L1:

@@ -90,6 +90,21 @@ func _initialize() -> void:
 	p._hits_done = 0
 	await _settle(p)
 	_check(p.model.position.y == 0.0, "settled on the floor after (y %.2f, lh peak %.2f)" % [p.model.position.y, lh_peak])
+	# Flurry weaves side to side through its cuts, then centres again.
+	var model_x0: Vector3 = Vector3(p.model.position.x, 0, p.model.position.z)
+	_check(model_x0.length() < 0.01, "the model starts centred")
+	p._start_attack("LPL")
+	var sway := 0.0
+	for i in 240:
+		if p.state != p.State.ATTACK:
+			break
+		await physics_frame
+		sway = maxf(sway, Vector2(p.model.position.x, p.model.position.z).length())
+	_check(sway > 0.25, "Flurry weaves side to side (%.2f m)" % sway)
+	await _settle(p)
+	for i in 20:
+		await physics_frame
+	_check(Vector2(p.model.position.x, p.model.position.z).length() < 0.01, "and centres again after")
 	# Air dash: dashing out of the launcher keeps him up, and the next press
 	# carries on in the air.
 	p._start_attack("LH")
