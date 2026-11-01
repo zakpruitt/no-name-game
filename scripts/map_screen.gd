@@ -452,7 +452,8 @@ func _ahead_text(at: Vector2i) -> String:
 			parts.append_array(vaults)
 		elif kind not in ["fight", "boss"] and count.has(kind):
 			parts.append("%d %s%s" % [count[kind], RunMap.KINDS[kind].name.to_lower(), "s" if count[kind] > 1 else ""])
-	return "  ·  ".join(parts)
+	# Non-breaking spaces keep "1 unknown" / "Light vault" whole when the line wraps.
+	return "  ·  ".join(parts.map(func(p: String) -> String: return p.replace(" ", " ")))
 
 
 func _draw_map() -> void:
