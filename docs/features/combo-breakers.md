@@ -295,5 +295,8 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
 - The prompt is drawn in 2D, which headless can't render. Its preview is
   `godot --path . -s tests/breaker_prompt_preview.gd` (windowed), which
   saves five states to `user://breaker_prompt.png`. Its logic is covered
-  headless by `breaker_check`.
+  headless by `breaker_check`, and its placement by
+  `tests/prompt_follow_check.gd` (pinned at chest + `OFFSET`, follows him,
+  ignores the leap height, clamped at the edges; it sets the headless root
+  to 1280x720, since headless starts at 64x64). `agent.sh check` runs it.
 - The window size and dive speed haven't been played by hand yet.
