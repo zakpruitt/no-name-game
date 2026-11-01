@@ -9,6 +9,16 @@ extends SceneTree
 
 const DUMP := "user://cast_dump.json"
 
+var _foes: Array = []  # breaker case: real dummy foes (drawn as the red posts)
+
+
+class Dummy extends Node3D:
+	var radius := 0.5
+	var hp := 1000.0
+	func is_alive() -> bool: return hp > 0.0
+	func is_airborne() -> bool: return false
+	func take_hit(d: float, _kb = Vector3.ZERO, _l = 0.0, _b = false, _x = null) -> void: hp -= d
+
 
 func _initialize() -> void:
 	await process_frame
@@ -38,6 +48,12 @@ func _initialize() -> void:
 	var c: Color = load("res://scripts/elements.gd").LOOK[el].color
 	if cast == "breaker":  # a breaker's leap (--breaker=, default LLH), `t` s after take-off
 		p.set_physics_process(true)
+		for at in [Vector3(-1.6, 0, 3.2), Vector3(1.8, 0, 2.4), Vector3(0.4, 0, 4.8)]:  # in the leap's way (+Z)
+			var d := Dummy.new()
+			d.add_to_group("enemies")
+			world.add_child(d)
+			d.global_position = at
+			_foes.append(d)
 		if el != "spirit":
 			p.ascend(el)  # the breaker takes the hero's element
 		if "--awakened" in OS.get_cmdline_user_args():
@@ -148,8 +164,11 @@ func _initialize() -> void:
 	await process_frame
 	var tris: Array = []
 	_quad(tris, Vector3.ZERO, 7.0, Color(0.55, 0.52, 0.48))
-	for x in [-1.2, 0.0, 1.3]:
-		_post(tris, Vector3(x, 0, -4.2 - absf(x) * 0.4), Color(0.8, 0.2, 0.2))
+	if _foes.is_empty():
+		for x in [-1.2, 0.0, 1.3]:
+			_post(tris, Vector3(x, 0, -4.2 - absf(x) * 0.4), Color(0.8, 0.2, 0.2))
+	for f: Node3D in _foes:
+		_post(tris, Vector3(f.global_position.x, 0, f.global_position.z), Color(0.8, 0.2, 0.2))
 	for mi: MeshInstance3D in world.find_children("*", "MeshInstance3D", true, false):
 		if not mi.is_visible_in_tree() or mi.mesh == null:
 			continue
