@@ -210,6 +210,13 @@ func _check_card(main: Node, U: GDScript) -> void:
 	await process_frame
 	var texts: Array = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
 	_check(texts.has("Flurry:  L L, pause, L"), "a combo power's card shows the combo's input")
+	main.player.power_procs["razor_gale"] = 5
+	gale.level = 2
+	main.reward.open([gale], -1)
+	await process_frame
+	texts = main.reward.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(texts.has("LEVEL UP   1 → 2   ·   fired ×5"), "a level-up card says how often the power fired")
+	main.player.power_procs.erase("razor_gale")
 	main.reward.visible = false
 	main.reward.get_tree().paused = false
 	main.reward._root.queue_free()

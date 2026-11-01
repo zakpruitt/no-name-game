@@ -200,7 +200,11 @@ func _card(i: int, u: Dictionary, owned: Dictionary) -> Button:
 		sig.connect(_glow.bind(icon, 0.0))
 
 	_text(inner, u.name + Upgrades.level_tag(level), 28, Color.WHITE)
-	_text(inner, "NEW" if level == 1 else "LEVEL UP   %d → %d" % [level - 1, level], 15, color.lightened(0.2))
+	var player := get_tree().get_first_node_in_group("player")
+	# A level-up says how often the power has fired this run (player.power_procs).
+	var fired: int = player.power_procs.get(u.id, 0) if player != null and level > 1 else 0
+	_text(inner, "NEW" if level == 1 else "LEVEL UP   %d → %d%s" % [level - 1, level,
+		"   ·   fired ×%d" % fired if fired > 0 else ""], 15, color.lightened(0.2))
 
 	# Numbers as they'd be once taken, counting any synergy it completes.
 	var after := owned.duplicate()
@@ -216,7 +220,6 @@ func _card(i: int, u: Dictionary, owned: Dictionary) -> Button:
 	desc.text = "[center]%s[/center]" % Upgrades.describe(u, level, Upgrades.active_synergies(after), color.lightened(0.3))
 	inner.add_child(desc)
 	# A power on a named combo says how to do the combo ("Flurry:  L L, pause, L").
-	var player := get_tree().get_first_node_in_group("player")
 	var combo := Upgrades.combo_of(u)
 	if player != null and player.COMBOS.has(combo):
 		_text(inner, "%s:  %s" % [player.combo_name(combo), player.COMBOS[combo].input], 15, Color(1, 1, 1, 0.55))

@@ -26,7 +26,7 @@ looking for blue cards.
 **Where the player sees it**
 - **Reward cards** (`reward_screen.gd`):
   - a colour band (split for fusions), key chips and the path name, and the move the power hooks;
-  - the icon (with level pips on a level-up), the name, NEW or LEVEL UP;
+  - the icon (with level pips on a level-up), the name, NEW or LEVEL UP (with "fired ×N" once the power has fired this run);
   - the description with its numbers in bold in the path colour;
   - for a power on a named combo, how to do it in a dim line ("Flurry:  L L, pause, L", from `player.COMBOS` via `Upgrades.combo_of()`, whose `SLOT_COMBOS` maps slots named differently, like Charged → CH; the pause build view shows the same line under the power);
   - mastery progress ("HEAVY ■■□ MASTERY", "UNLOCKS LIGHT MASTERY", "LIGHT MASTERY ACTIVE"), synergy completion, and the synergy tags.
