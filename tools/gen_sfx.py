@@ -135,6 +135,20 @@ def main():
     # Low-HP heartbeat: "lub" then a softer "dub".
     save("heartbeat", mix(thump(0.22, 70, 45, 0.06),
                           [0.0] * int(0.17 * RATE) + gain(thump(0.2, 60, 40, 0.05), 0.7)), 0.7)
+    # Combo callouts, quiet and short, one per tier: string, heavy route, finisher.
+    save("combo_1", chime(0.2, [1320, 1760], 0.04, 0.035), 0.35)
+    save("combo_2", mix(chime(0.3, [880, 1320], 0.07, 0.06), gain(thump(0.2, 160, 90, 0.05), 0.35)), 0.4)
+    save("combo_3", mix(chime(0.35, [660, 880, 1320], 0.1, 0.04), gain(whoosh(0.35, 17, 0.5), 0.35)), 0.45)
+    # Element casts (quiet, they come with most attacks) and the ultimates.
+    save("cast_spirit", mix(chime(0.3, [990, 1485], 0.08, 0.03), gain(whoosh(0.25, 18, 0.6), 0.5)), 0.35)
+    save("cast_wind", mix(whoosh(0.24, 19, 0.85), gain(chime(0.2, [1760], 0.04), 0.15)), 0.4)
+    save("cast_earth", mix(thump(0.25, 110, 45, 0.08), gain(crack(0.2, 20, 0.04, 0.2), 0.8), gain(rattle(0.25, 21, 8), 0.4)), 0.45)
+    save("cast_water", mix(whoosh(0.25, 22, 0.4), gain(chime(0.25, [2093, 2637, 3136], 0.05, 0.02), 0.35)), 0.4)
+    # Ultimate: a rising sweep into a chord; impact: a deep boom with a long rumble.
+    sweep = [math.sin(tone(i / RATE, 180, 900, 0.7)) * env(i / RATE, 0.25, 0.25) for i in range(int(0.7 * RATE))]
+    save("ult", mix(gain(sweep, 0.5), whoosh(0.7, 23, 0.3), gain(chime(0.9, [523, 784, 1047], 0.35, 0.05), 0.5)), 0.8)
+    save("ult_impact", mix(thump(0.9, 90, 28, 0.3), gain(crack(0.5, 24, 0.08, 0.35), 0.9),
+                           gain([x * env(i / RATE, 0.01, 0.25) for i, x in enumerate(lowpass(noise(int(0.9 * RATE), 25), 0.04))], 2.5)), 0.95)
     print("wrote", sorted(os.listdir(OUT)))
 
 

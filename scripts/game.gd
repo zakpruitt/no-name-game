@@ -12,10 +12,20 @@ signal air_combo_changed(count: int)
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
 signal bones_changed(count: int)
+## Hero level (1..LEVEL_MAX) and progress toward the next one.
+signal level_changed(level: int, xp_into: int, xp_needed: int)
+signal leveled_up(level: int)
+## An Awakened ultimate began (chain: its number this Awakening; 0 = the Trinity storm).
+signal ultimate(ult_name: String, color: Color, chain: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
 const AWAKEN_MAX := 100.0
+# Hero levels: each kill gives XP equal to the enemy's bones (risen and split
+# minions give none). LEVEL_XP[i] is the total XP for level i + 2, so level 6
+# (Ascendancy) lands around room 5 of a typical run.
+const LEVEL_XP := [4, 12, 24, 40, 60]
+const LEVEL_MAX := 6
 # Style rank thresholds. Varied moves earn more style than repeating one.
 const RANKS := [["SSS", 160.0], ["SS", 110.0], ["S", 70.0], ["A", 40.0], ["B", 20.0], ["C", 8.0], ["D", 0.0]]
 # Player settings, saved to SETTINGS_PATH. Screen shake cycles through these.
@@ -45,7 +55,7 @@ const MUSIC_FADE_OUT := 0.25
 # First-run hints: main.gd decides when each applies; each shows once, then
 # is saved as seen (Reset hints in the pause menu brings them back).
 const HINTS := {
-	"attack": "Light [J / LMB] and heavy [K / RMB] chain into combos.\nMixing different moves raises your style rank.",
+	"attack": "Light [LMB] and heavy [RMB] chain into combos.\nMixing different moves raises your style rank.",
 	"dash": "Dash [Space] through attacks.\nDash just before a hit lands for a PERFECT dodge.",
 	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
 	"breaker": "Light, light, heavy is a GROUND BREAKER:\na lunging thrust that knocks down everything in a line.",
@@ -82,10 +92,16 @@ var rumble_on := true
 ## Reduce flashing (Settings): softer white hit flashes and sparks, and a
 ## steady low-HP vignette instead of a throbbing one (Fx, hud.gd).
 var reduce_flashing := false
+## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
+var combo_guide := true
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
 var awakening_gain_mult := 1.0
+## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
+var awaken_locked := false
+var xp := 0
+var level := 1
 var _combo_timer := 0.0
 var _air_timer := 0.0
 var _recent_moves: Array[String] = []
@@ -101,6 +117,7 @@ var _combat_level := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	enemy_killed.connect(func(e: Node) -> void: add_xp(e.bones))
 	_setup_input()
 	_load_settings()
 	for i in SFX_VOICES:
@@ -131,6 +148,8 @@ func _process(delta: float) -> void:
 func _exit_tree() -> void:
 	stop_all_sfx()
 	Fx.release()
+	preload("res://scripts/hero_look.gd").release()
+	preload("res://scripts/elements.gd").release()
 	_sfx_streams.clear()
 
 
@@ -153,10 +172,32 @@ func reset() -> void:
 	air_hits = 0
 	best_air = 0
 	awakening_gain_mult = 1.0
+	awaken_locked = false
+	xp = 0
+	level = 1
+	_emit_level()
 	_recent_moves.clear()
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
+
+
+func add_xp(amount: int) -> void:
+	if amount <= 0 or level >= LEVEL_MAX:
+		return
+	xp += amount
+	while level < LEVEL_MAX and xp >= LEVEL_XP[level - 1]:
+		level += 1
+		leveled_up.emit(level)
+	_emit_level()
+
+
+func _emit_level() -> void:
+	if level >= LEVEL_MAX:
+		level_changed.emit(level, 1, 1)
+		return
+	var start: int = 0 if level == 1 else LEVEL_XP[level - 2]
+	level_changed.emit(level, xp - start, LEVEL_XP[level - 1] - start)
 
 
 func add_bones(count: int) -> void:
@@ -285,6 +326,15 @@ func flashing_label() -> String:
 	return "Reduce flashing: %s" % ("On" if reduce_flashing else "Off")
 
 
+func toggle_combo_guide() -> void:
+	combo_guide = not combo_guide
+	_save_settings()
+
+
+func guide_label() -> String:
+	return "Combo guide: %s" % ("On" if combo_guide else "Off")
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -303,6 +353,7 @@ func _load_settings() -> void:
 		music_scale = cfg.get_value("audio", "music_scale", 1.0)
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
+		combo_guide = cfg.get_value("video", "combo_guide", true)
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -312,6 +363,7 @@ func _save_settings() -> void:
 	cfg.set_value("audio", "music_scale", music_scale)
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
+	cfg.set_value("video", "combo_guide", combo_guide)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 
@@ -372,6 +424,8 @@ func player_damaged() -> void:
 
 func add_awakening(amount: float) -> void:
 	if amount > 0.0:
+		if awaken_locked:
+			return
 		amount *= awakening_gain_mult
 	awakening = clampf(awakening + amount, 0.0, AWAKEN_MAX)
 	awakening_changed.emit(awakening)

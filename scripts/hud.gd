@@ -1,12 +1,13 @@
 extends CanvasLayer
 ## Health, Awakening meter, combo counter with style rank, room banner, boss bar,
-## and a red edge vignette + heartbeat when HP runs low.
+## the combo guide beside the hero (combo_guide.gd), and a red edge vignette +
+## heartbeat when HP runs low.
 
 const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B": Color(0.4, 1.0, 0.5),
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
-const POWER_LINES := 14  # powers listed at full size before the list shrinks
+const POWER_ICON := 44.0  # px, the owned-power icons bottom right
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
 uniform float strength = 0.0;
@@ -19,12 +20,18 @@ void fragment() {
 var hp_bar: ProgressBar
 var awaken_bar: ProgressBar
 var awaken_hint: Label
+var xp_fill: ColorRect
+var level_label: Label
 var combo_label: Label
 var rank_label: Label
 var air_label: Label
 var wave_label: Label
 var center_label: Label
-var upgrades_label: Label
+var ult_label: Label
+var ult_sub: Label
+var ult_flash: ColorRect
+var _ult_tw: Tween
+var power_strip: HFlowContainer  # owned powers as icons, by path
 var _room_text := ""
 var hint_label: Label
 var bones_label: Label
@@ -40,6 +47,7 @@ var _hp_ratio := 1.0
 var _beat_t := 0.0
 var _pulse := 0.0
 var _vignette := 0.0
+var combo_guide: Control
 
 
 func _ready() -> void:
@@ -58,6 +66,8 @@ func _ready() -> void:
 	root.add_child(vignette)
 	root.add_child(preload("res://scripts/enemy_bars.gd").new())
 	root.add_child(preload("res://scripts/threat_arrows.gd").new())
+	combo_guide = preload("res://scripts/combo_guide.gd").new()
+	root.add_child(combo_guide)
 
 	hp_bar = _bar(root, Vector2(32, 28), Vector2(360, 22), Color(0.9, 0.25, 0.25))
 	awaken_bar = _bar(root, Vector2(32, 58), Vector2(360, 14), Color(1.0, 0.6, 0.15))
@@ -65,8 +75,21 @@ func _ready() -> void:
 	bones_label = _label(root, "BONES  0", 22, Color(0.95, 0.9, 0.75))
 	bones_label.position = Vector2(408, 24)
 	Game.bones_changed.connect(func(n: int) -> void: bones_label.text = "BONES  %d" % n)
+	# XP: a thin strip (ProgressBar has a font-sized minimum height).
+	var xp_back := ColorRect.new()
+	xp_back.color = Color(0, 0, 0, 0.55)
+	xp_back.position = Vector2(32, 78)
+	xp_back.size = Vector2(360, 5)
+	root.add_child(xp_back)
+	xp_fill = ColorRect.new()
+	xp_fill.color = Color(1.0, 0.85, 0.4)
+	xp_fill.size = Vector2(0, 5)
+	xp_back.add_child(xp_fill)
+	level_label = _label(root, "LV 1", 22, Color(1.0, 0.85, 0.4))
+	level_label.position = Vector2(408, 52)
+	Game.level_changed.connect(_on_level)
 	awaken_hint = _label(root, "AWAKEN READY  [Q]", 20, Color(1.0, 0.7, 0.2))
-	awaken_hint.position = Vector2(32, 76)
+	awaken_hint.position = Vector2(32, 88)
 	awaken_hint.visible = false
 
 	combo_label = _label(root, "", 56, Color.WHITE)
@@ -91,13 +114,18 @@ func _ready() -> void:
 	center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
-	_label(root, "WASD move   J/LMB light   K/RMB heavy   Space dash   Q awaken   Esc pause", 16, Color(1, 1, 1, 0.5)) \
+	_label(root, "WASD move   LMB light   RMB heavy   Space dash   Q awaken   Esc pause", 16, Color(1, 1, 1, 0.5)) \
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
 
-	upgrades_label = _label(root, "", 16, Color(1.0, 0.8, 0.5))
-	_anchor(upgrades_label, 1.0, 1.0, Rect2(-420, -440, 396, 416))
-	upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	power_strip = HFlowContainer.new()
+	power_strip.alignment = FlowContainer.ALIGNMENT_END
+	power_strip.last_wrap_alignment = FlowContainer.LAST_WRAP_ALIGNMENT_END
+	power_strip.reverse_fill = true  # rows stack upward from the bottom edge
+	power_strip.add_theme_constant_override("h_separation", 4)
+	power_strip.add_theme_constant_override("v_separation", 6)
+	power_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(power_strip)
+	_anchor(power_strip, 1.0, 1.0, Rect2(-420, -440, 396, 412))
 
 	# Hint: a soft dark panel sized to the text, bottom center.
 	hint_panel = PanelContainer.new()
@@ -133,6 +161,24 @@ func _ready() -> void:
 	boss_break_bar = _bar(boss_root, Vector2(80, 66), Vector2(480, 6), Color(1.0, 0.8, 0.3))
 	boss_root.visible = false
 
+	# Ultimate banner: a full-screen tint flash and the move's name in its element colour.
+	ult_flash = ColorRect.new()
+	ult_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ult_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ult_flash.color = Color(1, 1, 1, 0)
+	root.add_child(ult_flash)
+	ult_flash.move_to_front()
+	ult_label = _label(root, "", 78, Color.WHITE)
+	_anchor(ult_label, 0.5, 0.3, Rect2(-600, -60, 1200, 110))
+	ult_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ult_label.add_theme_constant_override("outline_size", 22)
+	ult_label.pivot_offset = Vector2(600, 55)
+	ult_sub = _label(root, "", 30, Color(1.0, 0.95, 0.8))
+	_anchor(ult_sub, 0.5, 0.3, Rect2(-300, 50, 600, 44))
+	ult_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ult_label.modulate.a = 0.0
+	ult_sub.modulate.a = 0.0
+	Game.ultimate.connect(_on_ultimate)
 	Game.combo_changed.connect(_on_combo)
 	Game.announced.connect(func(text: String) -> void: flash_message(text, 0.5))
 	Game.awakening_changed.connect(_on_awakening)
@@ -146,6 +192,7 @@ func bind_player(p: Node) -> void:
 		_hp_ratio = hp / mx)
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
+	combo_guide.player = p
 
 
 func show_boss(boss: Node) -> void:
@@ -173,15 +220,29 @@ func set_remaining(count: int) -> void:
 	wave_label.text = _room_text + ("   ·   %d LEFT" % count if count > 0 else "")
 
 
-## `owned` maps upgrade id -> level.
+## `owned` maps upgrade id -> level: one icon per power with level pips,
+## in path order (Upgrades.PATHS, fusions last). A new icon pops in.
 func set_upgrades(owned: Dictionary) -> void:
-	var lines: Array[String] = []
-	for id in owned:
-		var u := Upgrades.get_by_id(id)
-		lines.append("%s%s  [%s]" % [u.name, Upgrades.level_tag(owned[id]), u.slot])
-	upgrades_label.text = "\n".join(lines)
-	# Long builds shrink so the list stays inside its box above the screen edge.
-	upgrades_label.add_theme_font_size_override("font_size", 16 if lines.size() <= POWER_LINES else 13)
+	var had := {}
+	for icon: PowerIcon in power_strip.get_children():
+		had[icon.id] = icon.level
+		power_strip.remove_child(icon)
+		icon.queue_free()
+	var order: Array = Upgrades.PATHS.keys()
+	var ids: Array = owned.keys()
+	ids.sort_custom(func(a: String, b: String) -> bool:
+		var ua := Upgrades.get_by_id(a)
+		var ub := Upgrades.get_by_id(b)
+		var ka := order.find(ua.path) + (10 if ua.has("fusion") else 0)
+		var kb := order.find(ub.path) + (10 if ub.has("fusion") else 0)
+		return ka < kb if ka != kb else Upgrades.ALL.find(ua) < Upgrades.ALL.find(ub))
+	for id: String in ids:
+		var icon := PowerIcon.make(id, POWER_ICON, owned[id])
+		power_strip.add_child(icon)
+		if had.get(id, 0) != owned[id]:
+			icon.pivot_offset = Vector2.ONE * POWER_ICON * 0.5
+			icon.scale = Vector2.ONE * 1.7
+			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.35) 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## `twist`: the elite room's twist name ("" for none).
@@ -248,6 +309,24 @@ func flash_message(text: String, duration := 0.0) -> void:
 		tw.tween_property(center_label, "modulate:a", 0.0, 0.4)
 
 
+func _on_ultimate(ult_name: String, color: Color, chain: int) -> void:
+	ult_label.text = ult_name.to_upper()
+	ult_label.add_theme_color_override("font_color", color.lightened(0.25))
+	ult_sub.text = "TRINITY" if chain == 0 else ("CHAIN x%d" % chain if chain > 1 else "ULTIMATE")
+	ult_flash.color = Color(color, 0.12 if Game.reduce_flashing else 0.38)
+	if _ult_tw:
+		_ult_tw.kill()
+	ult_label.modulate.a = 1.0
+	ult_sub.modulate.a = 1.0
+	ult_label.scale = Vector2.ONE * 1.6
+	# Real-time tween: ultimates start in slow motion.
+	_ult_tw = create_tween().set_parallel().set_ignore_time_scale()
+	_ult_tw.tween_property(ult_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_ult_tw.tween_property(ult_flash, "color:a", 0.0, 0.35)
+	_ult_tw.tween_property(ult_label, "modulate:a", 0.0, 0.35).set_delay(0.9)
+	_ult_tw.tween_property(ult_sub, "modulate:a", 0.0, 0.35).set_delay(0.9)
+
+
 func _on_combo(count: int, rank: String) -> void:
 	if count < 2:
 		combo_label.text = ""
@@ -273,6 +352,11 @@ func _on_air_combo(count: int) -> void:
 	air_label.modulate.a = 1.0
 	air_label.scale = Vector2.ONE * 1.35
 	create_tween().tween_property(air_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _on_level(level: int, into: int, needed: int) -> void:
+	level_label.text = "LV %d" % level if level < Game.LEVEL_MAX else "LV %d  MAX" % level
+	xp_fill.size.x = 360.0 * clampf(float(into) / maxf(needed, 1.0), 0.0, 1.0)
 
 
 func _on_awakening(v: float) -> void:

@@ -67,8 +67,15 @@ func _build(victory: bool, stats: Dictionary, upgrades: Dictionary, new_bests: A
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	var names: Array[String] = []
+	var icons := HFlowContainer.new()
+	icons.alignment = FlowContainer.ALIGNMENT_CENTER
+	icons.custom_minimum_size = Vector2(700, 0)
+	icons.add_theme_constant_override("h_separation", 6)
 	for id in upgrades:
 		names.append(Upgrades.get_by_id(id).name + Upgrades.level_tag(upgrades[id]))
+		icons.add_child(PowerIcon.make(id, 52, upgrades[id]))
+	if not upgrades.is_empty():
+		col.add_child(icons)
 	var ups := _label(col, "Powers: " + (", ".join(names) if not names.is_empty() else "none"), 20, Color(1.0, 0.8, 0.5))
 	ups.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ups.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
