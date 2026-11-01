@@ -141,6 +141,9 @@ const COMBOS := {
 	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
 	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
 	"AL2": {"name": "Sky Rend", "input": "L H L L", "tier": 2},
+	# Not a move: Triple Chop plunging from the top of the air string
+	# (PLUNGE_AXES_FROM) is named this instead (named_id()).
+	"SKYFALL": {"name": "Skyfall", "input": "L H L L L", "tier": 2},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
 	"LHH": {"name": "Spike", "input": "L H H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
@@ -1576,8 +1579,9 @@ func _do_hit() -> void:
 		if _move_id == "L3" and has_upgrade("crescendo") and not _crescendo:
 			_crescendo = true
 			Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.heavy.color, 0.8), 1.6, 0.25)
-		var ender: int = COMBOS[_move_id].tier if COMBOS.has(_move_id) and not named_before else 0
-		_combo_callout(_move_id)
+		var named := named_id()
+		var ender: int = COMBOS[named].tier if COMBOS.has(named) and not named_before else 0
+		_combo_callout(named)
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		if _move.get("big", false):
 			Game.rumble("hit_big")
@@ -2544,6 +2548,14 @@ func _path(key: String, fallback: float) -> float:
 
 
 ## COMBOS name, with the finisher renamed by the Ascendancy path.
+## The COMBOS id the current move lands as: Triple Chop from the top of the
+## air string is Skyfall, otherwise the move itself.
+func named_id() -> String:
+	if _move_id == "L3" and _hop_y0 >= PLUNGE_AXES_FROM:
+		return "SKYFALL"
+	return _move_id
+
+
 func combo_name(id: String) -> String:
 	if ULTIMATES.has(id):
 		return ULTIMATES[id].names[element()]

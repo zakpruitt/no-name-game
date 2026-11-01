@@ -69,6 +69,7 @@ func _initialize() -> void:
 	var plunge: float = p.plunge_mult()
 	p._hits_done = 0
 	_check(plunge > 1.25, "Triple Chop off Sky Rend plunges (x%.2f)" % plunge)
+	_check(p.named_id() == "SKYFALL", "and lands as Skyfall (%s)" % p.named_id())
 	await _run(p, p.MOVES.L3.hits[0])
 	await create_timer(0.15).timeout
 	var axes := 0
@@ -82,6 +83,8 @@ func _initialize() -> void:
 	p._start_attack("L1")
 	p._hits_done = 1
 	_check(p.plunge_mult() == 1.0, "no plunge from the ground (x%.2f)" % p.plunge_mult())
+	p._start_attack("L3")
+	_check(p.named_id() == "L3", "a Triple Chop from the ground is just Triple Chop")
 	p._hits_done = 0
 	await _settle(p)
 	_check(p.model.position.y == 0.0, "settled on the floor after (y %.2f, lh peak %.2f)" % [p.model.position.y, lh_peak])

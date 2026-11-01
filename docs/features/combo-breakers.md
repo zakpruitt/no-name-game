@@ -107,6 +107,10 @@ back to L1:
   (`_plunge_axes`: visual `_axe_fall` guillotines, `PLUNGE_AXES_SPREAD`
   32 degrees apart, the middle one first, sized by `_cast_grow()`). Look:
   `tests/cast_dump.gd -- --cast=plunge`.
+- That Triple Chop lands as its own named combo, **Skyfall** (L H L L L,
+  tier 2: callout, combo sound, ender hitstop and camera push). `COMBOS`
+  has a `SKYFALL` entry that isn't a move, and `player.named_id()` maps L3
+  from `PLUNGE_AXES_FROM` or higher onto it. The pause menu lists it.
 - Juggle tracking: any move started in the air turns to the nearest
   airborne foe within `AIR_HOME_RANGE` (5.5 m) and raises its lunge so it
   reaches the foe by the first hit (`_air_home`, capped at `AIR_HOME_MAX`).
