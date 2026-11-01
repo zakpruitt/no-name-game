@@ -167,7 +167,7 @@ func _state_windup(delta: float) -> void:
 		if is_instance_valid(_player):
 			_face(_player.global_position - global_position)
 		_telegraph.visible = true
-		_telegraph.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
+		_scale_fill(lerpf(0.3, 1.0, k))
 		_telegraph_mat.albedo_color.a = lerpf(0.15, 0.55, k)
 	if _state_t >= attack_windup:
 		_telegraph.visible = false

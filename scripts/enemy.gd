@@ -366,7 +366,7 @@ func _state_windup(delta: float) -> void:
 	if attack_kind == "line":
 		_track_aim(k)
 	else:
-		_telegraph.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
+		_scale_fill(lerpf(0.3, 1.0, k))
 	if _state_t >= attack_windup:
 		_telegraph.visible = false
 		if attack_kind == "line":
@@ -656,7 +656,7 @@ func _light_fuse() -> void:
 	_fuse = attack_windup
 	_spark.visible = true
 	_telegraph.visible = true
-	_telegraph.scale = Vector3.ONE
+	_scale_fill(1.0)
 	Game.sfx("swing", -10.0, 0.2)
 
 
@@ -823,6 +823,14 @@ const EDGE_PULSE_HZ := Vector2(3.0, 9.0)  # pulses/s at windup start, end
 func _build_edge(r: float) -> void:
 	_edge = Fx.edge_ring(r)
 	_telegraph.add_child(_edge)
+
+
+## Grow the telegraph's fill to `s` of the reach while the rim stays at full
+## reach the whole windup: the hit lands when the fill meets the rim.
+func _scale_fill(s: float) -> void:
+	_telegraph.scale = Vector3.ONE * s
+	if _edge:
+		_edge.scale = Vector3(1.0 / s, 0.3 / s, 1.0 / s)  # edge_ring's own scale is (1, 0.3, 1)
 
 
 ## Match the rim to a ring of radius r (boss.gd resizes its telegraph).
