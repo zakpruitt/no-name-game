@@ -16,7 +16,9 @@ window.NOTES =
     "DL": {"note": "Long lunging stab out of a dash, pouncing onto the foe; flows into L2."},
     "LPL": {"note": "Let L2 finish, then light again: five quick cuts with little knockback, so foes stay in reach, weaving side to side and leaving spectral afterimages. Mashing gives Triple Chop instead."},
     "AL1": {"input": "L H L", "name": "Air Slash", "note": "Light after the launcher: he stays up with the foe and climbs, re-juggling it. Homes in on the nearest airborne foe. Dash up here for an air dash that keeps the string going."},
-    "AL2": {"input": "L H L L", "name": "Sky Rend", "note": "Second air slash, climbing higher. Then light = Skyfall (Triple Chop plunging from the top, extra damage and a fan of spectral axes), heavy = Spike from the air."},
+    "AL2": {"input": "L H L L", "name": "Sky Rend", "note": "Second air slash, climbing higher. Then light = Skyfall (Triple Chop plunging from the top, extra damage and a fan of spectral axes), heavy = Updraft."},
+    "AH": {"input": "L H L L H", "name": "Updraft", "note": "Heavy after Sky Rend: a gale roars up under him and he spins up on it, past the normal air ceiling, launching the foes round him. The gale gives the air dash back. Once per trip up. Then light = Gale Waltz, heavy = Spike."},
+    "AL3": {"input": "L H L L H L", "name": "Gale Waltz", "note": "Light off the Updraft: three weaving cuts riding the gale at the top, each flinging a spectral axe. Then light = Stormfall (Triple Chop from the very top: the floor cracks into a crater and the element erupts in a ring round it), heavy = Spike."},
     "DH": {"note": "Heavy out of a dash: a spin that keeps travelling through the crowd. Eye of the Storm makes it drag foes in."},
     "AF": {"note": "Awakened only. Erupts all around and throws six fire waves."}
   },

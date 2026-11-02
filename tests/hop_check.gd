@@ -61,7 +61,7 @@ func _initialize() -> void:
 		_check(low > 1.0, "%s stays in the air (lowest %.2f)" % [id, low])
 		_check(p.model.position.y > prev_y + 0.2, "%s climbs (%.2f -> %.2f)" % [id, prev_y, p.model.position.y])
 		prev_y = p.model.position.y
-	_check(p._next_move("light") == "L3" and p._next_move("heavy") == "LHH", "after the air slashes: L = Triple Chop, H = Spike")
+	_check(p._next_move("light") == "L3" and p._next_move("heavy") == "AH", "after the air slashes: L = Triple Chop, H = Updraft")
 	var arows: Array = p.combo_options()
 	_check(not arows.is_empty() and arows[0].id == "L3" and arows[0].name == "Skyfall", "the guide names the light up here Skyfall (%s)" % (arows[0].name if not arows.is_empty() else "-"))
 	var air_peak: float = p._hop_peak
@@ -139,6 +139,7 @@ func _initialize() -> void:
 	_check(top <= p.AIR_MAX_HEIGHT + 0.2, "air slashes stop climbing at the cap (peak %.2f)" % top)
 	await _settle(p)
 	_check(p._air_dashes == 0, "landing gives the air dash back")
+	await _updraft(p)
 	p._start_attack("L1")
 	await _run(p, p.MOVES.L1.cancel)
 	_check(p.dash_light() == "DL", "a dash off the ground is still Dash Stab")
@@ -176,6 +177,48 @@ func _run(p: Node, to: float) -> float:
 		await physics_frame
 		peak = maxf(peak, p.model.position.y)
 	return peak
+
+
+## The Updraft (L H L L H): the gale lifts him past AIR_MAX_HEIGHT and gives
+## the air dash back, once per trip up; Gale Waltz rides it; Triple Chop from
+## the top lands as Stormfall and breaks the floor.
+func _updraft(p: Node) -> void:
+	for id: String in ["LH", "AL1", "AL2"]:
+		p._start_attack(id)
+		await _run(p, p.MOVES[id].cancel)
+	p._air_dashes = p.AIR_DASHES  # as if the air dash was spent on the way up
+	_check(not p._can_air_dash(), "the air dash is spent before the Updraft")
+	p._start_attack(p._next_move("heavy"))
+	_check(p._move_id == "AH" and p._gusted, "heavy after Sky Rend is the Updraft (%s)" % p._move_id)
+	var top := await _run(p, p.MOVES.AH.cancel)
+	_check(top > p.AIR_MAX_HEIGHT + 0.3 and top <= p.AIR_GUST_HEIGHT + 0.2, "the gale lifts him past the cap (peak %.2f)" % top)
+	_check(p._can_air_dash(), "the gale gives the air dash back")
+	var rows: Array = p.combo_options()
+	_check(not rows.is_empty() and rows[0].id == "AL3", "the guide shows Gale Waltz off the Updraft")
+	p._start_attack(p._next_move("light"))
+	_check(p._move_id == "AL3", "light off the Updraft is Gale Waltz (%s)" % p._move_id)
+	var low := 99.0
+	for i in 240:
+		if p.state != p.State.ATTACK or p._state_t * p.anim_speed * p._anim_mult / p._move_len >= p.MOVES.AL3.cancel:
+			break
+		await physics_frame
+		low = minf(low, p.model.position.y)
+	_check(low > p.STORMFALL_FROM, "Gale Waltz stays up at the top (lowest %.2f)" % low)
+	p._start_attack("AL1")  # (as if an air dash went on: AL1, AL2 again)
+	await _run(p, p.MOVES.AL1.cancel)
+	p._start_attack("AL2")
+	await _run(p, p.MOVES.AL2.cancel)
+	_check(p._next_move("heavy") == "LHH", "one gust per trip up: heavy is Spike now (%s)" % p._next_move("heavy"))
+	var srows: Array = p.combo_options()
+	_check(not srows.is_empty() and srows[0].name == "Stormfall", "the guide names the light up here Stormfall (%s)" % (srows[0].name if not srows.is_empty() else "-"))
+	p._start_attack("L3")
+	_check(p.named_id() == "STORMFALL", "Triple Chop from the top is Stormfall (%s)" % p.named_id())
+	var falls: int = p.stormfalls
+	await _run(p, p.MOVES.L3.hits[0])
+	await physics_frame
+	_check(p.stormfalls == falls + 1, "and breaks the floor as it lands")
+	await _settle(p)
+	_check(not p._gusted and p.model.position.y == 0.0, "landing resets the gust")
 
 
 func _settle(p: Node) -> void:

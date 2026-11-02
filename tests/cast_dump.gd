@@ -73,6 +73,27 @@ func _initialize() -> void:
 		p.global_position.y = 0.0  # (no floor here: the body falls)
 		print("breaker: model y=%.2f hero=%s zone=%s" % [p.model.position.y, p.global_position, p._brk_zone])
 		cast = "none"
+	if cast == "updraft" or cast == "stormfall":  # L H L L H: the gale under him, `t` s into it; stormfall = -t s after Triple Chop from the top lands
+		p.set_physics_process(true)
+		if el != "spirit":
+			p.ascend(el)
+		for id: String in ["LH", "AL1", "AL2"]:
+			p._start_attack(id)
+			while p.state == p.State.ATTACK and p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES[id].cancel:
+				await physics_frame
+		p._start_attack("AH")
+		if cast == "stormfall":
+			while p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES.AH.cancel:
+				await physics_frame
+			p._start_attack("L3")
+			while p.stormfalls == 0:
+				await physics_frame
+		for i in int(absf(t) * Engine.physics_ticks_per_second):
+			await physics_frame
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+		p.global_position.y = 0.0
+		print("%s: model y=%.2f" % [cast, p.model.position.y])
+		cast = "none"
 	if cast == "plunge":  # the air-string plunge's fan of axes ahead (player._plunge_axes), landed
 		for i in 3:
 			var side := i - 1

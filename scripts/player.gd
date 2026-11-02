@@ -103,6 +103,19 @@ const MOVES := {
 	"AL2": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.6, "arc": 190.0,
 		"hits": [0.24, 0.4], "cancel": 0.5, "end": 0.75, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
 		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.5},
+	# Heavy after Sky Rend (L H L L H): Updraft. He calls a gale under his feet
+	# and spins up on it (`gust`: air_gust.gd), climbing past AIR_MAX_HEIGHT
+	# toward AIR_GUST_HEIGHT and launching the foes round him up with him. The
+	# gale gives the air dash back; one gust per trip up.
+	"AH": {"anim": "2H_Melee_Attack_Spin", "damage": 5.0, "range": 3.0, "arc": 360.0,
+		"hits": [0.3, 0.48], "cancel": 0.56, "end": 0.8, "lunge": 1.0, "knockback": 0.5, "launch": 8.0,
+		"stop": 0.05, "shake": 0.2, "air": true, "climb": 1.6, "gust": true},
+	# Light off the Updraft (L H L L H L): Gale Waltz, a whirl of cuts riding
+	# the gale (weaving), each flinging a spectral axe. Then L is Triple Chop
+	# from the very top (Stormfall), H is Spike.
+	"AL3": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.8, "arc": 220.0,
+		"hits": [0.22, 0.36, 0.5], "cancel": 0.58, "end": 0.8, "lunge": 2.0, "knockback": 0.5, "launch": 5.0,
+		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.3, "weave": 0.35},
 	# Heavy right after the launcher (L H H): Spike, an overhead chop that
 	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
 	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
@@ -146,6 +159,10 @@ const COMBOS := {
 	# Not a move: Triple Chop plunging from the top of the air string
 	# (PLUNGE_AXES_FROM) is named this instead (named_id()).
 	"SKYFALL": {"name": "Skyfall", "input": "L H L L L", "tier": 2},
+	"AH": {"name": "Updraft", "input": "L H L L H", "tier": 2},
+	"AL3": {"name": "Gale Waltz", "input": "L H L L H L", "tier": 2},
+	# Not a move: Triple Chop from the top of the Updraft (STORMFALL_FROM).
+	"STORMFALL": {"name": "Stormfall", "input": "L H L L H L L", "tier": 3},
 	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
 	"LHH": {"name": "Spike", "input": "L H H", "tier": 2},
 	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
@@ -320,12 +337,18 @@ const AIR_HOME_MAX := 22.0
 # AIR_DASH_MIN up keeps him at that height, and the press after it carries
 # on in the air (route() `from` "AD": light = Air Slash, heavy = Spike /
 # Ancestor's Fall) instead of Dash Stab / Cyclone.
-const AIR_DASH_FROM := ["LH", "AL1", "AL2"]
+const AIR_DASH_FROM := ["LH", "AL1", "AL2", "AH", "AL3"]
 const AIR_DASH_MIN := 0.6
 # One air dash per trip up (reset on landing), and `climb` stops at
 # AIR_MAX_HEIGHT, so dash-slash loops can't keep him up or lift him forever.
 const AIR_DASHES := 1
 const AIR_MAX_HEIGHT := 2.8
+# The Updraft's gale lifts him past that, up to AIR_GUST_HEIGHT, for the rest
+# of the trip up. Triple Chop from STORMFALL_FROM lands as Stormfall: the
+# floor breaks (breaker_quake crater) and the element erupts round him.
+const AIR_GUST_HEIGHT := 4.2
+const STORMFALL_FROM := 3.4
+const AIR_GUST := preload("res://scripts/air_gust.gd")
 # The air dash's cut: a giant spectral axe (spirit_echo) rides with him at his
 # height and sweeps through the dash, nicking what it passes.
 const AIR_DASH_CUT := {"damage": 3.0, "radius": 3.0, "arc": 150.0, "time": 0.16}
@@ -340,6 +363,7 @@ var _dash_dir := Vector3.FORWARD
 var _post_dash_t := 0.0
 var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
 var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
+var _gusted := false  # the Updraft's gale has lifted him this trip up (one per trip)
 var _awaken_t := 0.0
 var _facing_yaw := 0.0
 var _invuln_t := 0.0
@@ -367,7 +391,7 @@ const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
 var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
 var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
 ## Light-press moves, for the Light path's powers.
-const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL", "AL1", "AL2"]
+const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL", "AL1", "AL2", "AL3"]
 const RAZOR_GALE_SPREAD := 16.0  # degrees between Razor Gale's blades
 var _crescendo := false  # Crescendo: the next heavy is empowered
 var _slipped: Array = []  # enemies Slipstream already cut this dash
@@ -416,6 +440,7 @@ var bot_move := Vector3.ZERO
 ## Owned combo-slot upgrades: id -> level (see upgrades.gd).
 var upgrades := {}
 var bot_enabled := false
+var stormfalls := 0  # landings from the top of the Updraft (tests)
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
 var _brk: Dictionary = {}  # the breaker in play (BREAKERS entry)
@@ -563,6 +588,7 @@ func _physics_process(delta: float) -> void:
 		model.position.z = move_toward(model.position.z, 0.0, 6.0 * delta)
 	if model.position.y < 0.05:
 		_air_dashes = 0  # back on the floor: the air dash comes back
+		_gusted = false
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -681,9 +707,10 @@ func _hop(t: float) -> void:
 	var y := 0.0
 	if _move.get("air", false):  # air move: hold the height it started at
 		# `climb`: rise this much more by the hit, so each air cut goes higher.
-		var climb: float = minf(_move.get("climb", 0.0), maxf(0.0, AIR_MAX_HEIGHT - _hop_y0))
+		var cap := AIR_GUST_HEIGHT if _gusted else AIR_MAX_HEIGHT
+		var climb: float = minf(_move.get("climb", 0.0), maxf(0.0, cap - _hop_y0))
 		var up: float = climb * smoothstep(0.0, _move.hits[0], t)
-		y = minf(_hop_y0 + up + sin(t * PI) * 0.15, AIR_MAX_HEIGHT + 0.15)
+		y = minf(_hop_y0 + up + sin(t * PI) * 0.15, cap + 0.15)
 	elif _hop_y0 > 0.0:
 		var land: float = _move.get("land", _move.hits[0])
 		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
@@ -737,6 +764,8 @@ func _land_slam(peak: float) -> void:
 	Game.shake(0.12 * k)
 	if _hop_y0 >= PLUNGE_AXES_FROM and not _move.get("air", false):
 		_plunge_axes()
+	if _hop_y0 >= STORMFALL_FROM and not _move.get("air", false):
+		_stormfall()
 
 
 ## The top-of-the-air-string plunge's crater: three giant spectral axes
@@ -750,6 +779,20 @@ func _plunge_axes() -> void:
 		var dir := fwd.rotated(Vector3.UP, deg_to_rad(PLUNGE_AXES_SPREAD * side))
 		var at := global_position + dir * (2.4 if side == 0 else 2.0)
 		_axe_fall(at, dir, size * (1.0 if side == 0 else 0.8), 0.05 * absi(side))
+
+
+## Landing from the top of the Updraft: the floor breaks under him, and off
+## a Triple Chop (Stormfall) the element erupts in a ring round the crater.
+func _stormfall() -> void:
+	var el := element()
+	var at := global_position + _facing() * 1.2
+	BREAKER_QUAKE.crater(get_parent(), at, el, 3.2, true, _move_id == "L3")
+	Game.sfx("quake", -3.0, 0.05)
+	Game.shake(0.5)
+	if _move_id == "L3":
+		BREAKER_QUAKE.eruption(get_parent(), at, el, 4.2, 0.05)
+		ELEMENTS.sky_impact(get_parent(), at, el, 3.0)
+	stormfalls += 1
 
 
 func _state_attack(delta: float) -> void:
@@ -1269,7 +1312,7 @@ func _end_leap() -> void:
 # --- Actions ----------------------------------------------------------------
 
 func _next_move(kind: String) -> String:
-	return route(kind, _route_from(), state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened)
+	return route(kind, _route_from(), state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened, _gusted)
 
 
 ## The `from` route() sees: "AD" just out of an air dash, else the last move.
@@ -1306,7 +1349,7 @@ func dash_light() -> String:
 ## the last one), `attacking` whether it's still going, `chain` the light
 ## chain position, `post_dash` just out of a dash. The combo guide asks this
 ## too (with made-up states to look one press ahead), so they always agree.
-static func route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool) -> String:
+static func route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool, gusted := false) -> String:
 	if kind == "light":
 		if post_dash:
 			return "AL1" if from == "AD" else "DL"  # (an air dash keeps the air string going)
@@ -1314,7 +1357,9 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 			return "AL1"  # off the launcher: into the air
 		if attacking and from == "AL1":
 			return "AL2"
-		if attacking and from == "AL2":
+		if attacking and from == "AH":
+			return "AL3"  # riding the gale
+		if attacking and from in ["AL2", "AL3"]:
 			return "L3"  # Triple Chop slams down from the air
 		if not attacking and from == "L2" and chain == 2:
 			return "LPL"  # L2 has finished: the pause turns the third light into Flurry
@@ -1327,9 +1372,11 @@ static func route(kind: String, from: String, attacking: bool, chain: int, post_
 		return "DH"
 	if awake and attacking and from == "L3":
 		return "AF"
-	if awake and attacking and from in ["LH", "AL1", "AL2"]:
+	if attacking and from == "AL2" and not gusted:
+		return "AH"  # Updraft: the gale lifts him higher (once per trip up)
+	if awake and attacking and from in ["LH", "AL1", "AL2", "AH", "AL3"]:
 		return "SKY"
-	if attacking and from in ["LH", "AL1", "AL2"]:
+	if attacking and from in ["LH", "AL1", "AL2", "AH", "AL3"]:
 		return "LHH"  # Spike, from the air
 	if awake and attacking and from == "DL":
 		return "RUSH"
@@ -1364,15 +1411,16 @@ func combo_options() -> Array:
 		return [_option("heavy", "CH", true)]
 	var rows := []
 	for kind: String in ["light", "heavy"]:
-		var id := route(kind, _route_from(), attacking, _chain_i, dashing, awakened)
+		var id := route(kind, _route_from(), attacking, _chain_i, dashing, awakened, _gusted)
 		if kind == "heavy" and id == "H":
 			continue  # the plain spin isn't a continuation
 		var o := _option(kind, id)
 		if id == "L3" and attacking and model.position.y >= PLUNGE_AXES_FROM:
-			o.name = combo_name("SKYFALL")  # from up here it plunges as Skyfall (named_id())
-			o.tier = COMBOS.SKYFALL.tier
+			var fall := "STORMFALL" if model.position.y >= STORMFALL_FROM else "SKYFALL"
+			o.name = combo_name(fall)  # from up here it plunges as Skyfall / Stormfall (named_id())
+			o.tier = COMBOS[fall].tier
 		if attacking:
-			var wait := route(kind, _move_id, false, _chain_i, false, awakened)
+			var wait := route(kind, _move_id, false, _chain_i, false, awakened, _gusted)
 			if wait != id and COMBOS.has(wait):
 				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
 		rows.append(o)
@@ -1414,7 +1462,7 @@ func _option(kind: String, id: String, hold := false) -> Dictionary:
 	if o.tier < 3 and not hold:
 		var best := 0
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties
-			var n := route(k, id, true, chain_after(id), false, awakened)
+			var n := route(k, id, true, chain_after(id), false, awakened, _gusted or id == "AH")
 			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
 			if combos_landed.get(n, 0) >= GUIDE_LEARNED and not (ULTIMATES.has(n) or n == "AF"):
 				tier = 0  # learned: no need to hint it any more
@@ -1473,9 +1521,13 @@ func _start_attack(id: String) -> void:
 	_aim()
 	if _hop_air:
 		_air_home()
+	if _move.get("gust", false):
+		_gusted = true
+		_air_dashes = 0  # the gale gives the air dash back
+		AIR_GUST.gust(get_parent(), global_position, model, _fx_color(), element())
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH", "AH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
 	if id == "AF":
 		_ult_begin(id)
@@ -2641,6 +2693,8 @@ func _path(key: String, fallback: float) -> float:
 ## The COMBOS id the current move lands as: Triple Chop from the top of the
 ## air string is Skyfall, otherwise the move itself.
 func named_id() -> String:
+	if _move_id == "L3" and _hop_y0 >= STORMFALL_FROM:
+		return "STORMFALL"
 	if _move_id == "L3" and _hop_y0 >= PLUNGE_AXES_FROM:
 		return "SKYFALL"
 	return _move_id

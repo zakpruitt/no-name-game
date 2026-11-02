@@ -163,8 +163,23 @@ back to L1:
   degrees round the dash direction and nicking what it passes (3 damage,
   grows with the chain: `_air_dash_cut`).
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
-  Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
-  is Ancestor's Fall.
+  the **Updraft** (`AH`, L H L L H): he calls a gale under his feet
+  (`scripts/air_gust.gd`: a twisting wind funnel from the floor to him in
+  his colour, wind blades whirling round him on the model, the floor's dust
+  blasting out, his element streaming up; lightning for wind) and spins up
+  on it, launching the foes round him. `MOVES` `gust` sets `_gusted`, which
+  lifts the climb cap from `AIR_MAX_HEIGHT` to `AIR_GUST_HEIGHT` (4.2 m)
+  and gives the air dash back. One gust per trip up: `route()`'s `gusted`
+  argument sends a second heavy off Sky Rend to Spike, and landing clears it.
+- Off the Updraft, Light is **Gale Waltz** (`AL3`, three weaving cuts at the
+  top with an echo cast), Heavy is Spike (Awakened: Ancestor's Fall). Light
+  after Gale Waltz is Triple Chop from the very top, which lands as the
+  named combo **Stormfall** (tier 3, `named_id()` from `STORMFALL_FROM`
+  3.4 m): any non-air landing from there breaks the floor
+  (`_stormfall()`: a `breaker_quake` crater and `quake.wav`), and off
+  Triple Chop the element erupts in a ring round it with a `sky_impact`.
+  Its plunge from ~4.3 m is about x1.6. Look: `tests/cast_dump.gd --
+  --cast=updraft --t=0.15` / `--cast=stormfall --t=-0.3`.
 - Routing lives in `player.route()`, so the combo guide shows it, and the
   air slashes get small echo casts (`elements.CASTS`).
 - Their swooshes (`player._swoosh`) and echo casts spawn at the model's
