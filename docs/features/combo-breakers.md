@@ -71,6 +71,16 @@ crater (lightning, magma spikes, ice, spirit beams: `elements.storm_strike`),
 and Flurry's perfect marches them down the dash line instead. These are
 visual only.
 
+The element is in all of it. The war cry's floor answers in it (`war_cry`'s
+`el`: pebbles and embers jump for earth, frost blows out for water,
+lightning cracks down onto him for wind, wisps rise for spirit). The dive
+comes down as a comet (`air_gust.comet()` every 0.02 s instead of plain
+afterimages; Flurry's dash keeps them). The landing's cracks vent the
+element from their ends `VENT_DELAY` (0.1 s) after the impact
+(`breaker_quake._vent`: embers and smoke, frost and splinters, sparks,
+wisps). Rim craters vent from every other crack, or from every crack on a
+perfect. The vents are particles, so headless renders don't show them.
+
 **The window plays in slow motion.** When it opens, the game drops to
 `BREAKER_FOCUS` speed (0.6), the camera pushes in and a heartbeat plays.
 The window is 0.3 s of game time, so about 0.5 s in real time. A press ends
@@ -180,7 +190,9 @@ back to L1:
 - Off the Updraft, Light is **Gale Waltz** (`AL3`, three weaving cuts at the
   top with an echo cast; `MOVES` `blades`: each cut flings a wind blade,
   `air_gust.wind_blade()`, raking down onto the floor in a 60-degree fan
-  and bursting there in his element; visual only), Heavy is Spike (Awakened: Ancestor's Fall). Light
+  and bursting there in his element; the cuts go left, right, then the last
+  one flings a big crossed X dead ahead, 5.5 m out, that lands harder and
+  scores an X in the floor; visual only), Heavy is Spike (Awakened: Ancestor's Fall). Light
   after Gale Waltz is Triple Chop from the very top, which lands as the
   named combo **Stormfall** (tier 3, `named_id()` from `STORMFALL_FROM`
   3.4 m): any non-air landing from there breaks the floor

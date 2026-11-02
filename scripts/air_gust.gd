@@ -105,7 +105,8 @@ static func vanish(cloud_node: Node3D, parent: Node) -> void:
 
 ## Gale Waltz: a wind blade flung off the cut at `from` (his height), raking
 ## down onto the floor `reach` m along `dir` and bursting there in his element.
-static func wind_blade(parent: Node, from: Vector3, dir: Vector3, c: Color, el: String, reach := 4.5) -> void:
+## `big` (the last cut): a larger blade with a twin crossed over it, landing harder.
+static func wind_blade(parent: Node, from: Vector3, dir: Vector3, c: Color, el: String, reach := 4.5, big := false) -> void:
 	var to := Vector3(from.x, 0.0, from.z) + dir * reach
 	var b := ELEMENTS._mi(ELEMENTS.crescent(0.35), ELEMENTS.glow(c.lerp(Color.WHITE, 0.3), 1.8))
 	parent.add_child(b)
@@ -116,17 +117,31 @@ static func wind_blade(parent: Node, from: Vector3, dir: Vector3, c: Color, el: 
 	b.add_child(trail)
 	trail.position.z = -0.35
 	trail.scale = Vector3.ONE * 0.85
+	if big:
+		b.scale = Vector3.ONE * 1.8
+		var twin := ELEMENTS._mi(ELEMENTS.crescent(0.3), ELEMENTS.glow(c.lerp(Color.WHITE, 0.5), 2.0))
+		b.add_child(twin)
+		twin.rotation.z = PI * 0.5  # crossed: an X of wind
+		twin.scale = Vector3.ONE * 0.9
+		b.create_tween().tween_property(b, "rotation:z", TAU, BLADE_TIME * 1.2).as_relative()
 	var tw := b.create_tween()
-	tw.tween_property(b, "global_position", to + Vector3.UP * 0.2, BLADE_TIME).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(_blade_land.bind(parent, to, dir, c, el))
+	tw.tween_property(b, "global_position", to + Vector3.UP * 0.2, BLADE_TIME * (1.2 if big else 1.0)).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(_blade_land.bind(parent, to, dir, c, el, big))
 	tw.tween_callback(b.queue_free)
 
 
-static func _blade_land(parent: Node, at: Vector3, dir: Vector3, c: Color, el: String) -> void:
-	Fx.ring(parent, at, Color(c, 0.85), 1.6, 0.25)
-	Fx.burst(parent, at + Vector3.UP * 0.2, c.lerp(Color.WHITE, 0.3), 12, 8.0, 0.12, 0.35, Vector3.UP + dir * 0.5, 55.0, -6.0)
-	ELEMENTS.spikes(parent, at, el, 0.7, 2, 0.5)
-	Fx.dust(parent, at, 5, 0.6)
+static func _blade_land(parent: Node, at: Vector3, dir: Vector3, c: Color, el: String, big := false) -> void:
+	var k := 1.6 if big else 1.0
+	Fx.ring(parent, at, Color(c, 0.85), 1.6 * k, 0.25)
+	Fx.burst(parent, at + Vector3.UP * 0.2, c.lerp(Color.WHITE, 0.3), int(12 * k), 8.0 * k, 0.12, 0.35, Vector3.UP + dir * 0.5, 55.0, -6.0)
+	ELEMENTS.spikes(parent, at, el, 0.7 * k, 4 if big else 2, 0.5)
+	Fx.dust(parent, at, int(5 * k), 0.6 * k)
+	if big:  # the X carves its mark in the floor
+		var side := dir.cross(Vector3.UP).normalized()
+		for s: float in [-1.0, 1.0]:
+			Fx.dash_streak(parent, at - (dir + side * s) * 1.1, (dir + side * s).normalized(), 2.6, Color(c, 0.8), 0.45, 0.5)
+		ELEMENTS.light_pop(parent, at, c, 4.0, 5.0, 0.25)
+		Game.sfx("swing_heavy", -6.0, 0.1)
 
 
 ## Stormfall's fall: one beat of the comet trail behind him (called every

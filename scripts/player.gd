@@ -819,10 +819,11 @@ func _state_attack(delta: float) -> void:
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
-		if _move.get("blades", false):  # Gale Waltz: a wind blade rakes down off each cut, fanning out
-			var side := (_hits_done - 2) * 30.0
+		if _move.get("blades", false):  # Gale Waltz: a wind blade rakes down off each cut, left, right, then a big one dead ahead
+			var last := _hits_done == hits.size()
+			var side := 0.0 if last else (-30.0 if _hits_done % 2 == 1 else 30.0)
 			AIR_GUST.wind_blade(get_parent(), global_position + Vector3.UP * (model.position.y + 1.0),
-				_facing().rotated(Vector3.UP, deg_to_rad(side)), _fx_color(), element())
+				_facing().rotated(Vector3.UP, deg_to_rad(side)), _fx_color(), element(), 5.5 if last else 4.5, last)
 		if _move.has("weave"):  # each cut of the dance leaves a spectral copy of him behind
 			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.4))
 	if BREAKERS.has(_move_id) and _connected and t >= BREAKERS[_move_id].leap:  # (a whiff plays out normally)
@@ -961,7 +962,7 @@ func _state_leap(delta: float) -> void:
 			Game.sfx("heartbeat", -6.0, 0.0)
 			# The war cry marks the window: he roars in the slowed hang.
 			Game.sfx("war_cry", -3.0, 0.06)
-			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _fx_color())
+			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _fx_color(), element())
 			if awakened and not b.has("dash") and not b.has("fan"):
 				_breaker_ancestor()
 		if not _brk_locked and not _brk_held and _breaker_pressed(t):
@@ -1005,7 +1006,10 @@ func _state_leap(delta: float) -> void:
 		_ghost_t -= delta
 		if _ghost_t <= 0.0:
 			_ghost_t = 0.02
-			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.5))
+			if b.has("dash"):
+				Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.5))
+			else:  # the dive comes down like a comet in his element
+				AIR_GUST.comet(get_parent(), model, _fx_color(), element())
 		if b.has("dash"):
 			_dash_cut()
 		if k >= 1.0:
