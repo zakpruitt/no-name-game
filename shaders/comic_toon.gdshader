@@ -19,6 +19,9 @@ uniform float brush = 0.3;   // how far the streaky noise bends the tone edges
 uniform float spot = 0.075;  // below this: solid ink
 uniform float inner = 0.17;  // inner contour: facing ratio below this is inked (0 = none)
 uniform float rim_width = 0.05;  // hard rim band just outside the inner ink
+// 1 = multiply the tones by the mesh's `g` (dungeon pieces: per-stone tone, 0.5 = neutral,
+// env_kit.tone_extra). Stays 0 for enemies, whose `g` means something else.
+uniform float tone_by_g = 0.0;
 
 const float BAND_MID = 0.3;
 const float BAND_LIGHT = 0.72;
@@ -45,7 +48,7 @@ void fragment() {
 	float thin = inner + v_brush * inner * 1.4;
 	float inked = inner > 0.0 ? step(nv, thin) : 0.0;
 	float rim = step(nv, thin + rim_width) * (1.0 - inked);
-	ALBEDO = vec3(1.0 - inked);
+	ALBEDO = vec3((1.0 - inked) * (1.0 + tone_by_g * (COLOR.r * 0.8 - 0.4)));
 	ROUGHNESS = 1.0;
 	EMISSION = ink_color + rim_color * rim;
 }

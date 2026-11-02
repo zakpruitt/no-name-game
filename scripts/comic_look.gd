@@ -8,6 +8,9 @@ extends RefCounted
 const TOON_SHADER := "res://shaders/comic_toon.gdshader"
 const EMIT_SHADER := "res://shaders/comic_emit.gdshader"
 const MODEL_PATH := "res://assets/comic/%s.glb"
+const PIECE_PATH := "res://assets/comic/dungeon/%s.glb"
+const KAYKIT_PIECE_PATH := "res://assets/kaykit/dungeon/%s.glb"
+const OUTLINE_SHADER := "res://shaders/outline.gdshader"
 
 ## Material name -> toon tones (comic_lib.toon's arguments, sRGB). Optional keys:
 ## hi (else = light), rim (else black), spot (0.075), inner (0.17).
@@ -26,6 +29,18 @@ const TONES := {
 	"P_Teeth": {"shadow": Color(0.4, 0.28, 0.16), "mid": Color(0.8, 0.7, 0.44), "light": Color(0.96, 0.9, 0.68), "brush": 0.08, "inner": 0.0},
 	"P_Black": {"shadow": Color(0.012, 0.01, 0.02), "mid": Color(0.03, 0.02, 0.03), "light": Color(0.06, 0.05, 0.06), "brush": 0.05, "inner": 0.0},
 	"P_Floor": {"shadow": Color(0.03, 0.03, 0.07), "mid": Color(0.09, 0.09, 0.16), "light": Color(0.17, 0.165, 0.26), "brush": 0.1, "inner": 0.0, "spot": 0.02},
+	# env_kit.env_materials, multiplied by the mesh's per-stone `g` (see tone_by_g)
+	"comic_floor": {"shadow": Color(0.042, 0.042, 0.085), "mid": Color(0.085, 0.085, 0.15), "light": Color(0.128, 0.125, 0.205), "brush": 0.06, "inner": 0.0, "spot": 0.015},
+	"comic_floor_hi": {"shadow": Color(0.05, 0.05, 0.1), "mid": Color(0.1, 0.1, 0.17), "light": Color(0.168, 0.163, 0.26), "brush": 0.05, "inner": 0.0, "spot": 0.015},
+	"comic_grout": {"shadow": Color(0.016, 0.016, 0.036), "mid": Color(0.036, 0.036, 0.07), "light": Color(0.066, 0.064, 0.118), "brush": 0.02, "inner": 0.0, "spot": 0.01},
+	"comic_stone": {"shadow": Color(0.045, 0.045, 0.105), "mid": Color(0.125, 0.125, 0.235), "light": Color(0.225, 0.225, 0.365), "hi": Color(0.3, 0.3, 0.45), "rim": Color(0.06, 0.07, 0.16), "brush": 0.025, "inner": 0.12, "spot": 0.05},
+	"comic_cap": {"shadow": Color(0.04, 0.04, 0.095), "mid": Color(0.11, 0.11, 0.21), "light": Color(0.195, 0.195, 0.32), "hi": Color(0.26, 0.26, 0.39), "rim": Color(0.05, 0.06, 0.14), "brush": 0.025, "inner": 0.1, "spot": 0.05},
+	"comic_iron": {"shadow": Color(0.025, 0.025, 0.06), "mid": Color(0.09, 0.1, 0.18), "light": Color(0.2, 0.215, 0.33), "hi": Color(0.38, 0.41, 0.55), "rim": Color(0.08, 0.1, 0.2), "brush": 0.1, "inner": 0.16},
+	"comic_wood": {"shadow": Color(0.04, 0.03, 0.07), "mid": Color(0.12, 0.09, 0.15), "light": Color(0.235, 0.165, 0.21), "hi": Color(0.31, 0.22, 0.25), "rim": Color(0.06, 0.04, 0.08), "brush": 0.2, "inner": 0.14},
+	"comic_bone": {"shadow": Color(0.17, 0.11, 0.15), "mid": Color(0.42, 0.34, 0.33), "light": Color(0.68, 0.6, 0.5), "hi": Color(0.8, 0.72, 0.58), "rim": Color(0.12, 0.08, 0.08), "brush": 0.12, "inner": 0.12},
+	"comic_banner": {"shadow": Color(0.22, 0.025, 0.06), "mid": Color(0.56, 0.07, 0.05), "light": Color(0.86, 0.2, 0.05), "hi": Color(0.96, 0.32, 0.07), "rim": Color(0.2, 0.03, 0.02), "brush": 0.22, "inner": 0.14},
+	"comic_gold": {"shadow": Color(0.2, 0.07, 0.05), "mid": Color(0.55, 0.26, 0.06), "light": Color(0.82, 0.5, 0.12), "hi": Color(0.95, 0.7, 0.3), "rim": Color(0.2, 0.1, 0.02), "brush": 0.12, "inner": 0.12},
+	"comic_void": {"shadow": Color(0.008, 0.008, 0.02), "mid": Color(0.016, 0.016, 0.036), "light": Color(0.028, 0.028, 0.06), "brush": 0.02, "inner": 0.0},
 	# enemy_*.py extras
 	"P_Rust": {"shadow": Color(0.14, 0.04, 0.03), "mid": Color(0.55, 0.24, 0.09), "light": Color(0.8, 0.45, 0.2), "hi": Color(1, 0.82, 0.55), "rim": Color(0.3, 0.12, 0.04), "brush": 0.3},
 	"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.42, 0.23, 0.13), "light": Color(0.72, 0.47, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.32, "inner": 0.1},
@@ -58,6 +73,9 @@ const EMITS := {
 	# comic_lib.flat: one colour
 	"P_String": [Color(0.96, 0.92, 0.74), Color(0.96, 0.92, 0.74)],
 	"P_Under": [Color(0.13, 0.05, 0.3), Color(0.13, 0.05, 0.3)],
+	"comic_fire": [Color(0.95, 0.16, 0.03), Color(1, 0.88, 0.28)],
+	"comic_ink": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
+	"comic_wash": [Color(0.028, 0.027, 0.06), Color(0.028, 0.027, 0.06)],
 }
 ## A kind whose script defines a shared material name differently.
 const KIND_TONES := {
@@ -78,6 +96,10 @@ const CLIPS := {
 		"Spellcast_Shoot": "",
 	},
 }
+## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
+## stone is 3 px). Floors and seam-core materials have none: their ink is geometry.
+const PIECE_INK_PX := {"comic_stone": 3.0, "comic_cap": 3.0, "comic_wood": 2.5, "comic_banner": 2.5,
+	"comic_gold": 2.2, "comic_iron": 2.0, "comic_bone": 2.0, "comic_fire": 1.6}
 ## Model name -> scale on its rig node. enemy.gd's model_scale also sizes collision, so
 ## it stays as tuned; the Warden is modelled at full size (3.2 m) where the KayKit boss
 ## relied on model_scale 1.8. The others match KayKit's height (~2.2 m bounds) as built.
@@ -102,6 +124,8 @@ const FILL_COLOR := Color(0.55, 0.62, 1.0)  # linear
 static var _mats := {}  # material name -> shared ShaderMaterial, so every enemy batches
 static var _warned := {}
 static var _scenes := {}
+static var _pieces := {}
+static var _piece_ink := {}  # width -> shared outline ShaderMaterial
 
 
 ## The comic model for `kind`, or null (flag off, or no GLB yet: caller keeps KayKit).
@@ -112,6 +136,27 @@ static func scene(kind: String) -> PackedScene:
 		var path := MODEL_PATH % kind
 		_scenes[kind] = load(path) if ResourceLoader.exists(path) else null
 	return _scenes[kind]
+
+
+## A new comic dungeon piece, or null (flag off, or no GLB: caller keeps KayKit).
+static func comic_piece(piece_name: String) -> Node3D:
+	if not Game.comic_style:
+		return null
+	if not _pieces.has(piece_name):
+		var path := PIECE_PATH % piece_name
+		_pieces[piece_name] = load(path) if ResourceLoader.exists(path) else null
+	if _pieces[piece_name] == null:
+		return null
+	var n: Node3D = _pieces[piece_name].instantiate()
+	apply(n)
+	return n
+
+
+## A new dungeon piece: comic when flagged and present, else KayKit's. Same names,
+## sizes and pivots, so callers don't care which.
+static func piece(piece_name: String) -> Node3D:
+	var n := comic_piece(piece_name)
+	return n if n != null else load(KAYKIT_PIECE_PATH % piece_name).instantiate()
 
 
 ## The clip to play on this model for a clip name the game asks for.
@@ -157,8 +202,21 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		m.set_shader_parameter("brush", t.brush)
 		m.set_shader_parameter("spot", t.get("spot", 0.075))
 		m.set_shader_parameter("inner", t.get("inner", 0.17))
+		m.set_shader_parameter("tone_by_g", 1.0 if mat_name.begins_with("comic_") else 0.0)
+	if PIECE_INK_PX.has(mat_name):
+		m.next_pass = _piece_outline(PIECE_INK_PX[mat_name])
 	_mats[key] = m
 	return m
+
+
+static func _piece_outline(width: float) -> ShaderMaterial:
+	if not _piece_ink.has(width):
+		var o := ShaderMaterial.new()
+		o.shader = load(OUTLINE_SHADER)
+		o.set_shader_parameter("width_px", width)
+		o.set_shader_parameter("outline_color", INK)
+		_piece_ink[width] = o
+	return _piece_ink[width]
 
 
 ## Swap every surface under `root` to its comic material. Call before Fx.outline,
@@ -235,3 +293,5 @@ static func restore_shadows() -> void:
 static func release() -> void:
 	_mats.clear()
 	_scenes.clear()
+	_pieces.clear()
+	_piece_ink.clear()

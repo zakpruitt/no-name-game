@@ -16,6 +16,7 @@ const BY_ROLE := {
 	"dodge": ["Dodge_Backward"],
 	"shield": ["Block_Hit", "1H_Melee_Attack_Chop"],
 }
+const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
 const BOSS_ONLY := ["Enrage", "Jump_Idle", "Jump_Land", "Spellcast_Shoot"]
 
 # Loaded at run time: a preload here compiles them before the Game autoload exists.
@@ -53,6 +54,7 @@ func _initialize() -> void:
 		with_glb.append("warden")
 	else:
 		absent.append("warden")
+	_check_dungeon()
 	await _check_fx(game)
 	game.comic_style = false
 	Look.release()
@@ -117,6 +119,64 @@ func _has_g(model: Node) -> bool:
 	if not readable:
 		print("[comic_check] note: mesh arrays not readable here, `g` not judged")
 	return not readable
+
+
+## Every piece the game can load exists in the comic set, drop-in: same bounds and the
+## nodes code reaches for. The names come from the scripts, so a new piece can't slip by.
+func _check_dungeon() -> void:
+	var pieces := _pieces_in_sources()
+	_expect(pieces.size() >= 15, "source scan found the dungeon pieces (%d)" % pieces.size())
+	for f in DirAccess.get_files_at("res://assets/kaykit/dungeon"):
+		if f.ends_with(".glb") and f.get_basename() not in pieces:
+			pieces.append(f.get_basename())
+	var missing := []
+	for piece: String in pieces:
+		if not ResourceLoader.exists(Look.PIECE_PATH % piece):
+			missing.append(piece)
+			continue
+		var comic: Node3D = load(Look.PIECE_PATH % piece).instantiate()
+		var kaykit: Node3D = load(Look.KAYKIT_PIECE_PATH % piece).instantiate()
+		var a: Vector3 = _bounds(comic).size
+		var b: Vector3 = _bounds(kaykit).size
+		_expect(a.distance_to(b) < PIECE_SIZE_SLACK, "%s: size %s vs KayKit %s" % [piece, a, b])
+		for mat: String in Look.material_names(comic):
+			_expect(Look.known_material(mat), "%s: material %s has tones" % [piece, mat])
+		for mi: MeshInstance3D in comic.find_children("*", "MeshInstance3D", true, false):
+			for i in mi.mesh.get_surface_count():
+				_expect(mi.mesh.surface_get_arrays(i)[Mesh.ARRAY_COLOR] != null, "%s: `g` imported" % piece)
+		comic.free()
+		kaykit.free()
+	_expect(missing.is_empty(), "comic set has every dungeon piece, missing %s" % [missing])
+	var tile: Node3D = load(Look.PIECE_PATH % "floor_tile_big_spikes").instantiate()
+	_expect(tile.find_child("spikes", true, false) != null, "spike tile keeps its `spikes` node (spike_trap.gd)")
+	tile.free()
+	_expect(Look.comic_piece("no_such_piece") == null, "absent piece: null, caller keeps KayKit")
+
+
+## Piece names from every script that loads one.
+func _pieces_in_sources() -> Array:
+	var found := []
+	var quoted := RegEx.create_from_string("\"([a-zA-Z_]+)\"")
+	for line in FileAccess.get_file_as_string("res://scripts/main.gd").split("\n"):
+		if "_place(" in line or "var piece :=" in line:
+			for m in quoted.search_all(line):
+				if m.get_string(1) not in found:
+					found.append(m.get_string(1))
+	for path: String in ["res://scripts/shrine_prop.gd", "res://scripts/vault_prop.gd"]:
+		for row: Array in load(path).PIECES:
+			if row[0] not in found:
+				found.append(row[0])
+	found.append("floor_tile_big_spikes")  # spike_trap.gd
+	return found
+
+
+func _bounds(root: Node3D) -> AABB:
+	var ab := AABB()
+	var first := true
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		ab = mi.mesh.get_aabb() if first else ab.merge(mi.mesh.get_aabb())
+		first = false
+	return ab
 
 
 ## The text layer's logic: words escalate by tier, the panel names the combo, reduced

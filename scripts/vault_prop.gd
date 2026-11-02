@@ -3,7 +3,6 @@ extends Node3D
 ## vault's path colour (`color`, set before adding). Rises out of the floor,
 ## bursts when the power is taken, sinks after (main._vault).
 
-const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 ## [piece, offset, yaw degrees]
 const PIECES := [
 	["chest_gold", Vector3.ZERO, 0.0],
@@ -20,7 +19,7 @@ var _t := 0.0
 
 func _ready() -> void:
 	for p: Array in PIECES:
-		var n: Node3D = load(DUNGEON % p[0]).instantiate()
+		var n: Node3D = ComicLook.piece(p[0])
 		n.position = p[1]
 		n.rotation_degrees.y = p[2]
 		add_child(n)
