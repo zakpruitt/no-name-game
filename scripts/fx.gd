@@ -509,7 +509,11 @@ static func release() -> void:
 	_outline_mat = null
 	_outlined.clear()
 	_particle_mats.clear()
+	ComicLook.release()
 
+
+const COMIC_INK_PX := 5.5  # Game.comic_style's hull width (default 3.5)
+const COMIC_INK_WOBBLE := 0.45  # how much of the width varies over the form
 
 ## Give every mesh under `root` a dark toon outline (inverted hull pass).
 static func outline(root: Node) -> void:
@@ -518,6 +522,10 @@ static func outline(root: Node) -> void:
 	if _outline_mat == null:
 		_outline_mat = ShaderMaterial.new()
 		_outline_mat.shader = load("res://shaders/outline.gdshader")
+	if Game.comic_style:  # thicker, darker ink, swelling over the form like a brush
+		_outline_mat.set_shader_parameter("width_px", COMIC_INK_PX)
+		_outline_mat.set_shader_parameter("wobble", COMIC_INK_WOBBLE)
+		_outline_mat.set_shader_parameter("outline_color", ComicLook.INK)
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
 			continue
