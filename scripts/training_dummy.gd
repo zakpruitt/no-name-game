@@ -1,13 +1,19 @@
 extends "res://scripts/enemy.gd"
 ## Training dummy: a skeleton that never fights back or dies. It takes hits,
-## staggers, launches and juggles like any foe, then walks back to its spot
-## and refills once left alone. Reports each hit's damage for the training
+## staggers, launches and juggles like any foe (but heavier: LAUNCH_SCALE,
+## MAX_HEIGHT), then walks back to its spot and refills once left alone. Reports each hit's damage for the training
 ## readout (main._train_hit).
 
 signal hit_taken(damage: float)
 
 const REFILL_DELAY := 2.0  # seconds without a hit before HP refills
 const HOME_SPEED := 2.0
+# Heavier than a skeleton in the air: launches lift it LAUNCH_SCALE as high,
+# and however many hits keep it up (casts, wheels, element set-offs) it never
+# climbs past MAX_HEIGHT m, so long strings don't juggle it out of reach.
+const LAUNCH_SCALE := 0.55
+const MAX_HEIGHT := 3.0
+const AIR_GRAVITY := 14.0  # (enemy.gd's airborne gravity)
 
 var home := Vector3.ZERO
 
@@ -50,6 +56,8 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	if hp <= damage * 4.0:
 		hp = max_hp
 	var before := hp
-	super(damage, knockback, launch, big)
+	super(damage, knockback, launch * LAUNCH_SCALE, big)
+	if state == State.AIRBORNE:  # rise no higher than MAX_HEIGHT: v^2 = 2 g h
+		velocity.y = minf(velocity.y, sqrt(2.0 * AIR_GRAVITY * maxf(MAX_HEIGHT - global_position.y, 0.0)))
 	if hp < before:
 		hit_taken.emit(before - hp)

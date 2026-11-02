@@ -18,7 +18,7 @@ The usual Settings and quit options and the build and moves panels are also ther
 
 - `scripts/training_dummy.gd`: extends `enemy.gd`.
   - `_state_chase` never winds up an attack; it faces the hero, or walks back to `home` when knocked away.
-  - `take_hit` tops up HP before a hit that could kill it and emits `hit_taken(damage)`.
+  - `take_hit` tops up HP before a hit that could kill it and emits `hit_taken(damage)`. It is also heavier in the air than a skeleton: launches lift it `LAUNCH_SCALE` (0.55) as high, and its upward speed is capped so it never rises past `MAX_HEIGHT` (3 m). Otherwise every hit of a long string (casts, wheels, element set-offs) resets its rise and juggles it out of reach.
   - `_physics_process` refills HP after `REFILL_DELAY`.
 - `scripts/main.gd`, "Training" section:
   - `training` and the static `_train_next`;
@@ -45,6 +45,7 @@ The dummy is not counted in `_alive` and its `died` signal is never connected, s
 - `godot --headless --path . -s tests/training_check.gd`: PASS/FAIL. It checks:
   - the dummy survives 2400 damage;
   - hits add to the string, and a dropped combo records it;
+  - a launcher every frame for a second never lifts it past `MAX_HEIGHT`;
   - the dummy walks home after a launch, never attacks and refills;
   - the pause menu items, power pick, free reroll, Fill Awakening and Ascend.
   Windowed, it saves `user://training_room.png` and `training_pause.png`.

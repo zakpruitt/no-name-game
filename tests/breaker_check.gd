@@ -5,6 +5,8 @@ extends SceneTree
 ##   late    — press near the window's close: dive lands, not perfect
 ##   early   — press before the window: locked out, he floats down, no dive
 ##   none    — no press: floats down, no dive
+##   spill   — a press in the first BREAKER_SPILL s (the ender's mash) is ignored; a press at the sweet spot still lands PERFECT
+##   held    — a press just before the window (BREAKER_EARLY) is held and dives as it opens (a hit)
 ##   awakened — perfect while Awakened: the dive breakers summon the ancestor
 ## Prints PASS/FAIL per case. Run: godot --headless --path . -s tests/breaker_check.gd
 
@@ -28,6 +30,8 @@ func _initialize() -> void:
 		await _case("late", b.close - 0.04, true, false)  # (the press reaches the player a frame or two later)
 		await _case("early", b.open - 0.15, false, false)
 		await _case("none", -1.0, false, false)
+		await _case("spill", 0.03, true, true, false, b.sweet)
+		await _case("held", b.open - 0.06, true, false)
 		await _case("awakened", b.sweet, true, true, true)
 		await _dash_out()
 	await _trigger(true)
@@ -74,7 +78,7 @@ func _dash_out() -> void:
 
 ## Leap, press heavy `press_at` s after take-off (-1 never); expect a dive
 ## (`dive`) and whether it's perfect.
-func _case(name: String, press_at: float, dive: bool, perfect: bool, awake := false) -> void:
+func _case(name: String, press_at: float, dive: bool, perfect: bool, awake := false, then := -1.0) -> void:
 	var world := Node3D.new()
 	get_root().add_child(world)
 	var p: CharacterBody3D = load("res://scripts/player.gd").new()
@@ -104,11 +108,16 @@ func _case(name: String, press_at: float, dive: bool, perfect: bool, awake := fa
 			pressed = true
 			await physics_frame
 			Input.action_release("attack_heavy")
+		elif then >= 0.0 and pressed and p._brk_phase == 0 and p._state_t >= then:
+			Input.action_press("attack_heavy")
+			then = -1.0
+			await physics_frame
+			Input.action_release("attack_heavy")
 		await physics_frame
 		t += 1.0 / Engine.physics_ticks_per_second
 	var ok: bool = p.state == p.State.MOVE and p.model.position.y == 0.0
 	ok = ok and (p.breakers_landed == 1) == dive and (p.breaker_perfects == 1) == perfect
-	if press_at < 0.0 or press_at >= b_open():
+	if press_at < 0.0 or press_at >= b_open() or then >= 0.0:
 		ok = ok and guided and slowed
 	ok = ok and ancestor == (awake and not p._brk.has("dash") and not p._brk.has("fan"))
 	for i in 60:  # full speed again once it's over

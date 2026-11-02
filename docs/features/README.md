@@ -18,6 +18,7 @@ invariants and the gotchas.
 | Training room and dummy | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `pause_menu._open_training()` |
 | Spirit casts (giant spectral axes / ancestor per move) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_*.gd`, `player._cast()`, `elements.CASTS` |
 | Combo breakers (timed aerial finishers) and strings that move (hops, weave, air string, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `player.BREAKERS`, `player._state_leap()`, `player._hop()`, `scripts/breaker_spike.gd`, `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd` |
+| Ascended heavies: lava wells / static charge / soak, set off by the next heavy | [element-rites.md](element-rites.md) | `scripts/element_rite.gd`, `player._rite_set_off()`, `player._rite_wells()` |
 
 ## Writing one
 

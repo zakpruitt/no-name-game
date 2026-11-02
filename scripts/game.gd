@@ -150,6 +150,7 @@ func _exit_tree() -> void:
 	Fx.release()
 	preload("res://scripts/hero_look.gd").release()
 	preload("res://scripts/elements.gd").release()
+	preload("res://scripts/breaker_quake.gd").release()
 	_sfx_streams.clear()
 
 

@@ -149,6 +149,23 @@ def main():
     save("ult", mix(gain(sweep, 0.5), whoosh(0.7, 23, 0.3), gain(chime(0.9, [523, 784, 1047], 0.35, 0.05), 0.5)), 0.8)
     save("ult_impact", mix(thump(0.9, 90, 28, 0.3), gain(crack(0.5, 24, 0.08, 0.35), 0.9),
                            gain([x * env(i / RATE, 0.01, 0.25) for i, x in enumerate(lowpass(noise(int(0.9 * RATE), 25), 0.04))], 2.5)), 0.95)
+    # Combo breakers. War cry: a distorted growl swelling up and breaking off
+    # (two detuned saws with a wobble, breath noise, darkened, clipped).
+    n = int(0.55 * RATE)
+    breath = lowpass(noise(n, 26), 0.25)
+    cry = []
+    for i in range(n):
+        t = i / RATE
+        f = 105 + 70 * math.sin(math.pi * min(t / 0.4, 1.0)) + 6 * math.sin(2 * math.pi * 23 * t)
+        ph = f * t
+        saw = (ph % 1.0) * 2 - 1 + ((ph * 1.507) % 1.0) - 0.5
+        e = min(t / 0.06, 1.0) * (1.0 if t < 0.32 else math.exp(-(t - 0.32) / 0.08))
+        cry.append(math.tanh(2.5 * (saw * 0.7 + breath[i] * 0.8)) * e)
+    save("war_cry", mix(lowpass(lowpass(cry, 0.22), 0.35), gain(thump(0.3, 90, 50, 0.1), 0.4)), 0.8)
+    # Quake: the floor breaking under the dive, a crack, a low rumble, rubble.
+    save("quake", mix(gain(crack(0.3, 27, 0.04, 0.5), 0.9), thump(0.7, 70, 25, 0.22),
+                      gain([x * env(i / RATE, 0.005, 0.2) for i, x in enumerate(lowpass(noise(int(0.7 * RATE), 28), 0.03))], 2.2),
+                      gain(rattle(0.6, 29, 22), 0.5)), 0.9)
     print("wrote", sorted(os.listdir(OUT)))
 
 

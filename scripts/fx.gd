@@ -473,7 +473,7 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 	parent.add_child(ghost)
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var flashing := _flash_mat != null and mi.material_overlay == _flash_mat
-		if not mi.is_visible_in_tree() or mi.mesh == null or flashing:
+		if not mi.is_visible_in_tree() or mi.mesh == null or flashing or mi.has_meta("no_ghost"):  # (no_ghost: effects riding on him)
 			continue
 		var copy := MeshInstance3D.new()
 		copy.mesh = mi.bake_mesh_from_current_skeleton_pose() if mi.skin else mi.mesh

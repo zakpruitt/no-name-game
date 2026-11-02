@@ -18,6 +18,8 @@ class Dummy extends Node3D:
 	func is_alive() -> bool: return hp > 0.0
 	func is_airborne() -> bool: return false
 	func take_hit(d: float, _kb = Vector3.ZERO, _l = 0.0, _b = false, _x = null) -> void: hp -= d
+	func chill(_t: float, _m: float) -> void: pass
+	func freeze(_t: float, _m: float) -> void: pass
 
 
 func _initialize() -> void:
@@ -72,6 +74,62 @@ func _initialize() -> void:
 		world.process_mode = Node.PROCESS_MODE_DISABLED
 		p.global_position.y = 0.0  # (no floor here: the body falls)
 		print("breaker: model y=%.2f hero=%s zone=%s" % [p.model.position.y, p.global_position, p._brk_zone])
+		cast = "none"
+	if cast in ["updraft", "stormfall", "waltz"]:  # L H L L H: the gale under him, `t` s into it; waltz = `t` s into Gale Waltz off it; stormfall = -t s after Triple Chop from the top lands
+		var ground := StaticBody3D.new()  # (a real floor, so the body doesn't fall and drag the effects down)
+		var box := CollisionShape3D.new()
+		box.shape = BoxShape3D.new()
+		box.shape.size = Vector3(60.0, 1.0, 60.0)
+		ground.add_child(box)
+		world.add_child(ground)
+		ground.position.y = -0.5
+		p.set_physics_process(true)
+		if el != "spirit":
+			p.ascend(el)
+		for id: String in ["LH", "AL1", "AL2"]:
+			p._start_attack(id)
+			while p.state == p.State.ATTACK and p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES[id].cancel:
+				await physics_frame
+		p._start_attack("AH")
+		if cast == "waltz":
+			while p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES.AH.cancel:
+				await physics_frame
+			p._start_attack("AL3")
+		if cast == "stormfall":
+			while p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES.AH.cancel:
+				await physics_frame
+			p._start_attack("L3")
+			while p.stormfalls == 0:
+				await physics_frame
+		for i in int(absf(t) * Engine.physics_ticks_per_second):
+			await physics_frame
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+		p.global_position.y = 0.0
+		print("%s: model y=%.2f" % [cast, p.model.position.y])
+		cast = "none"
+	if cast == "rite":  # Ascended heavies (element_rite.gd) on three foes ahead: --t>=0 = primed, t s in; --t<0 = -t s after the set-off
+		var rite: GDScript = load("res://scripts/element_rite.gd")
+		if el == "spirit":
+			el = "earth"
+		p.ascend(el)
+		for at in [Vector3(-2.0, 0, 3.0), Vector3(2.0, 0, 3.4), Vector3(0.2, 0, 5.4)]:
+			var d := Dummy.new()
+			d.add_to_group("enemies")
+			world.add_child(d)
+			d.global_position = at
+			_foes.append(d)
+			if el == "earth":
+				rite.well(world, at)
+			else:
+				rite.prime_foe(d, el)
+		for i in int((0.3 if t < 0.0 else t) * Engine.physics_ticks_per_second):
+			await physics_frame
+		if t < 0.0:
+			rite.set_off(world, p.global_position, el, 1.0)
+			for i in int(-t * Engine.physics_ticks_per_second):
+				await physics_frame
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+		print("rite %s: wells=%d" % [el, get_root().get_tree().get_nodes_in_group("lava_wells").size()])
 		cast = "none"
 	if cast == "plunge":  # the air-string plunge's fan of axes ahead (player._plunge_axes), landed
 		for i in 3:

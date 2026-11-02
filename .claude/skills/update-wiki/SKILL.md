@@ -5,7 +5,7 @@ description: Refresh the Awaken wiki in docs/wiki/ (index.html + generated data.
 
 # Update the wiki
 
-The wiki is `docs/wiki/index.html`. Open it in a browser straight from disk; it needs no server.
+The wiki is `docs/wiki/index.html`. Open it in a browser straight from disk; it needs no server. It's also published at https://zakpruitt.github.io/no-name-game/ by `.github/workflows/wiki.yml`, which deploys `docs/wiki/` to GitHub Pages whenever a push to `dev` touches it.
 
 | File | Contents | Who writes it |
 |---|---|---|

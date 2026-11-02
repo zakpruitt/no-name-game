@@ -1,0 +1,61 @@
+{
+	// Headless checks (no Godot window). Needs `godot` and Git Bash's `bash` on PATH.
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Checks: all (PASS/FAIL tests + autotest)",
+			"type": "process",
+			"command": "bash",
+			"args": ["tools/agent.sh", "check"],
+			"group": { "kind": "test", "isDefault": true },
+			"problemMatcher": []
+		},
+		{
+			"label": "Checks: quick",
+			"type": "process",
+			"command": "bash",
+			"args": ["tools/agent.sh", "check", "--quick"],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Check: one test",
+			"type": "process",
+			"command": "godot",
+			"args": ["--headless", "--path", "${workspaceFolder}", "-s", "tests/${input:test}.gd"],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Autotest (headless)",
+			"type": "process",
+			"command": "godot",
+			"args": ["--headless", "--path", "${workspaceFolder}", "--", "--autotest"],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Import assets (after adding assets or a class_name)",
+			"type": "process",
+			"command": "godot",
+			"args": ["--headless", "--import", "--path", "${workspaceFolder}"],
+			"problemMatcher": []
+		},
+		{
+			"label": "Wiki: regenerate data",
+			"type": "process",
+			"command": "python",
+			"args": ["tools/wiki.py"],
+			"problemMatcher": []
+		}
+	],
+	"inputs": [
+		{
+			"id": "test",
+			"type": "pickString",
+			"description": "Which check",
+			"options": ["rite_check", "breaker_check", "hop_check", "ult_check", "ascend_check", "guide_check",
+				"power_check", "map_check", "training_check", "prompt_follow_check"]
+		}
+	]
+}

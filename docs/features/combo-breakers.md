@@ -21,6 +21,11 @@ The first one hangs off **L L H (Ground Breaker)**:
    **PERFECT**: more damage, more Awakening, a gold callout.
 5. Pressing too early **locks it out** (the cue greys), and with no press he
    floats back down. Either way the spikes fade and nothing more happens.
+   Two presses are forgiven: one in the first `BREAKER_SPILL` (0.12 s) after
+   take-off is the ender's own mashed heavy spilling over and is ignored,
+   and one within `BREAKER_EARLY` (0.08 s) before `open` is held and dives
+   the moment the window opens (a normal hit, not a perfect). Only a press
+   between the two locks out.
 6. Dash cancels anything, the hang included: a dash before the press calls
    the breaker off (`_leap_dash_out`: hovering axes cancelled, ancestor,
    cue and sawblade removed, slow motion ended; the prompt shows a miss)
@@ -52,6 +57,29 @@ he doesn't dive it vanishes. Flurry's wake axes grow by
 `BREAKER_AWAKENED_WAKE` instead, and Cyclone throws nine tomahawks, 30%
 bigger. The damage already rises with Awakening's
 damage multiplier.
+
+**It's barbaric.** As the window opens he roars a **war cry** in the slowed
+hang (`war_cry.wav` and a shockwave shell off his chest: `breaker_quake.war_cry`),
+so the window has a sound cue as well as the circle. He kicks off hard
+enough to crack the floor (a small `crater` without a rim), and every
+landing except the dash breaker's **breaks the floor**: glowing cracks in
+the element's colour split out and cool to soot, slabs heave up round the
+rim tilted outward (floor stone, magma rock for earth, ice for water),
+rubble flies and a `quake.wav` rumbles. On a **PERFECT** the element
+answers the blow: `ERUPT` (8) strikes sweep round a ring 1.35 times the
+crater (lightning, magma spikes, ice, spirit beams: `elements.storm_strike`),
+and Flurry's perfect marches them down the dash line instead. These are
+visual only.
+
+The element is in all of it. The war cry's floor answers in it (`war_cry`'s
+`el`: pebbles and embers jump for earth, frost blows out for water,
+lightning cracks down onto him for wind, wisps rise for spirit). The dive
+comes down as a comet (`air_gust.comet()` every 0.02 s instead of plain
+afterimages; Flurry's dash keeps them). The landing's cracks vent the
+element from their ends `VENT_DELAY` (0.1 s) after the impact
+(`breaker_quake._vent`: embers and smoke, frost and splinters, sparks,
+wisps). Rim craters vent from every other crack, or from every crack on a
+perfect. The vents are particles, so headless renders don't show them.
 
 **The window plays in slow motion.** When it opens, the game drops to
 `BREAKER_FOCUS` speed (0.6), the camera pushes in and a heartbeat plays.
@@ -145,8 +173,37 @@ back to L1:
   degrees round the dash direction and nicking what it passes (3 damage,
   grows with the chain: `_air_dash_cut`).
 - After them, Light is Triple Chop slamming down from the air, and Heavy is
-  Spike from the air, which can go on into Spike's breaker. Awakened, Heavy
-  is Ancestor's Fall.
+  the **Updraft** (`AH`, L H L L H): he calls a gale under his feet
+  (`scripts/air_gust.gd`: a twisting wind funnel from the floor to him in
+  his colour, wind blades whirling round him on the model, the floor's dust
+  blasting out, his element torn up and spiralling round the column:
+  `_helix`, rocks / ice / leaf blades / wisps; lightning for wind) and spins
+  up on it, launching the foes round him. The gale stays under his feet
+  while he's up there (`air_gust.cloud()`: a low spinning vortex with wind
+  crescents, on the model, held in `player._gust_cloud`) and blows apart
+  where he leaves it (`vanish()`: when he lands, or as a plunge dives off
+  it). Gale pieces on the model are tagged `no_ghost`, so
+  `Fx.afterimage` leaves them out of his ghosts. `MOVES` `gust` sets `_gusted`, which
+  lifts the climb cap from `AIR_MAX_HEIGHT` to `AIR_GUST_HEIGHT` (4.2 m)
+  and gives the air dash back. One gust per trip up: `route()`'s `gusted`
+  argument sends a second heavy off Sky Rend to Spike, and landing clears it.
+- Off the Updraft, Light is **Gale Waltz** (`AL3`, three weaving cuts at the
+  top with an echo cast; `MOVES` `blades`: each cut flings a wind blade,
+  `air_gust.wind_blade()`, raking down onto the floor in a 60-degree fan
+  and bursting there in his element; the cuts go left, right, then the last
+  one flings a big crossed X dead ahead, 5.5 m out, that lands harder and
+  scores an X in the floor; visual only), Heavy is Spike (Awakened: Ancestor's Fall). Light
+  after Gale Waltz is Triple Chop from the very top, which lands as the
+  named combo **Stormfall** (tier 3, `named_id()` from `STORMFALL_FROM`
+  3.4 m): any non-air landing from there breaks the floor
+  (`_stormfall()`: a `breaker_quake` crater, a flat `shockwave()` dome and
+  `quake.wav`), and off Triple Chop the element erupts in a ring round it
+  with a `sky_impact`. On the way down Stormfall leaves a comet trail
+  (`air_gust.comet()` every `COMET_STEP`: an afterimage plus sparks in the
+  element; afterimages don't draw headless).
+  Its plunge from ~4.3 m is about x1.6. Look: `tests/cast_dump.gd --
+  --cast=updraft --t=0.15` / `--cast=waltz --t=0.3` / `--cast=stormfall
+  --t=-0.3` (these cases add a real floor, so the body doesn't fall).
 - Routing lives in `player.route()`, so the combo guide shows it, and the
   air slashes get small echo casts (`elements.CASTS`).
 - Their swooshes (`player._swoosh`) and echo casts spawn at the model's
@@ -196,6 +253,11 @@ him, and a light shake.
   it sinks away after `life`.
   `blasted` is shared by one breaker's spikes, so each foe takes the
   detonation once.
+- `scripts/breaker_quake.gd`: the barbaric look. `war_cry()` (window opens),
+  `crater()` (take-off without the rim, every non-dash landing with it),
+  `eruption()` / `eruption_line()` (perfects). Visual only; `stone()` is
+  the slab material for spirit and wind, freed in `release()` from
+  `Game._exit_tree`. Sounds: `war_cry`, `quake` in `tools/gen_sfx.py`.
 - `scripts/breaker_cue.gd`: the floor rings. `lock()` greys them out (too
   early); `hit(perfect)` flashes them.
 - `scripts/breaker_prompt.gd`: the timing prompt. It's a circle affixed to
@@ -272,7 +334,7 @@ while he waits.
 | Group | Keys |
 |---|---|
 | Height and spacing | `height`, `back`, `zone`, `spread` |
-| Window (seconds) | `open`, `sweet`, `close`, `perfect` |
+| Window (seconds) | `open`, `sweet`, `close`, `perfect`; `BREAKER_SPILL`, `BREAKER_EARLY` (shared) |
 | Damage | `spike_damage` (landing), `detonate` (once per foe), `damage` + `radius` (the dive), `perfect_mult` |
 | Awakening gain | `awaken`, `awaken_perfect` |
 
@@ -306,7 +368,9 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
 
 - `godot --headless --path . -s tests/breaker_check.gd`: four cases (perfect,
   late, early lockout, no press) for every `BREAKERS` entry against a dummy,
-  PASS/FAIL, plus a dash out of the hang for each (Awakened, in the
+  PASS/FAIL, plus `spill` (a press at 0.03 s is ignored and a second at
+  the sweet spot still lands PERFECT) and `held` (a press 0.06 s before
+  `open` dives as it opens), plus a dash out of the hang for each (Awakened, in the
   slowed window: state DASH, full speed back, ancestor and volley gone,
   ended = miss). It also checks that `breaker_window()` is live inside the
   window while the combo guide shows nothing, that each case ends the right
