@@ -1,0 +1,37 @@
+{
+	// Run the game from VS Code with breakpoints (godot-tools; keep the Godot
+	// editor open, it serves the debugger and language server).
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Play",
+			"type": "godot",
+			"request": "launch",
+			"project": "${workspaceFolder}",
+			"scene": "main"
+		},
+		{
+			"name": "Training room",
+			"type": "godot",
+			"request": "launch",
+			"project": "${workspaceFolder}",
+			"scene": "main",
+			"additional_options": "-- --training"
+		},
+		{
+			"name": "Autotest (windowed, screenshots)",
+			"type": "godot",
+			"request": "launch",
+			"project": "${workspaceFolder}",
+			"scene": "main",
+			"additional_options": "-- --autotest"
+		},
+		{
+			"name": "Current scene",
+			"type": "godot",
+			"request": "launch",
+			"project": "${workspaceFolder}",
+			"scene": "current"
+		}
+	]
+}

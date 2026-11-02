@@ -20,6 +20,10 @@ Open the folder in Godot 4.7, or run it straight from a terminal:
 godot --path .
 ```
 
+VS Code works well: open the folder, install the recommended godot-tools
+extension, and keep the Godot editor open (it serves completion and the
+debugger). Run and debug from the Run panel; the headless checks are tasks.
+
 The [wiki](https://zakpruitt.github.io/no-name-game/) has the controls, every move and combo, the
 enemies, powers and run structure, with the numbers pulled from the game's
 tuning tables.

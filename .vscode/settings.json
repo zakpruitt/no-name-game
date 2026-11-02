@@ -1,0 +1,16 @@
+{
+	// GDScript uses tabs (the Godot style); the repo's scripts are all tab-indented.
+	"[gdscript]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 4
+	},
+	"files.exclude": {
+		".godot": true
+	},
+	// Big generated files that drown out real search hits.
+	"search.exclude": {
+		"docs/engine_api": true,
+		"docs/wiki/data.js": true,
+		"vendor_src": true
+	}
+}
