@@ -537,6 +537,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	Fx.damage_number(get_parent(), global_position, damage, big)
 	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
 	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
+	ComicFx.hit(global_position, big)
 	var hero := get_tree().get_first_node_in_group("player")
 	if hero != null and hero.has_method("_fx_color"):  # long strings escalate the sparks
 		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
