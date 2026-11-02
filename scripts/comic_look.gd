@@ -35,8 +35,10 @@ const TONES := {
 	"P_Edge": {"shadow": Color(0.2, 0.24, 0.34), "mid": Color(0.55, 0.62, 0.72), "light": Color(0.9, 0.95, 1), "hi": Color(1, 1, 1), "rim": Color(0.3, 0.4, 0.5), "brush": 0.1, "inner": 0.1},
 	"P_IronPlain": {"shadow": Color(0.05, 0.06, 0.14), "mid": Color(0.2, 0.25, 0.38), "light": Color(0.46, 0.54, 0.68), "hi": Color(0.86, 0.92, 1), "rim": Color(0.18, 0.3, 0.5), "brush": 0.16, "inner": 0.2},
 	"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.3, 0.36, 0.5), "light": Color(0.56, 0.64, 0.76), "hi": Color(0.8, 0.86, 0.92), "rim": Color(0.26, 0.36, 0.5), "brush": 0.16, "inner": 0.1},
-	"P_Coat": {"shadow": Color(0.03, 0.03, 0.22), "mid": Color(0.1, 0.13, 0.58), "light": Color(0.22, 0.3, 0.9), "hi": Color(0.52, 0.62, 1), "rim": Color(0.2, 0.16, 0.6), "brush": 0.16},
-	"P_Hat": {"shadow": Color(0.05, 0.02, 0.24), "mid": Color(0.2, 0.11, 0.66), "light": Color(0.36, 0.24, 0.95), "hi": Color(0.66, 0.52, 1), "rim": Color(0.32, 0.14, 0.62), "brush": 0.18},
+	"P_Coat": {"shadow": Color(0.05, 0.06, 0.36), "mid": Color(0.1, 0.15, 0.62), "light": Color(0.22, 0.32, 0.92), "hi": Color(0.52, 0.64, 1), "rim": Color(0.2, 0.16, 0.6), "brush": 0.16, "spot": 0.02},
+	"P_Hat": {"shadow": Color(0.1, 0.05, 0.4), "mid": Color(0.2, 0.11, 0.68), "light": Color(0.36, 0.24, 0.95), "hi": Color(0.66, 0.52, 1), "rim": Color(0.32, 0.14, 0.62), "brush": 0.18, "spot": 0.02},
+	"P_Wrap": {"shadow": Color(0.1, 0.02, 0.14), "mid": Color(0.32, 0.07, 0.28), "light": Color(0.58, 0.16, 0.4), "hi": Color(0.8, 0.34, 0.52), "rim": Color(0.26, 0.08, 0.24), "brush": 0.26, "inner": 0.14},
+	"P_Forest": {"shadow": Color(0.03, 0.16, 0.1), "mid": Color(0.07, 0.36, 0.16), "light": Color(0.17, 0.6, 0.22), "hi": Color(0.48, 0.86, 0.38), "rim": Color(0.1, 0.3, 0.12), "brush": 0.2, "spot": 0.02},
 	"P_Lining": {"shadow": Color(0.08, 0.01, 0.14), "mid": Color(0.28, 0.05, 0.34), "light": Color(0.5, 0.12, 0.5), "rim": Color(0.2, 0.05, 0.2), "brush": 0.2},
 }
 ## Material name -> flat stepped colour [low, high] (comic_lib.emit, sRGB).
@@ -52,7 +54,34 @@ const EMITS := {
 	"P_Necro": [Color(0.2, 0.85, 0.3), Color(0.9, 1, 0.55)],
 	"P_Hot": [Color(1, 0.72, 0.12), Color(1, 1, 0.78)],
 	"P_Arcane": [Color(0.55, 0.16, 1), Color(0.96, 0.86, 1)],
+	"P_Ember": [Color(1, 0.42, 0.05), Color(1, 0.93, 0.55)],
+	# comic_lib.flat: one colour
+	"P_String": [Color(0.96, 0.92, 0.74), Color(0.96, 0.92, 0.74)],
+	"P_Under": [Color(0.13, 0.05, 0.3), Color(0.13, 0.05, 0.3)],
 }
+## A kind whose script defines a shared material name differently.
+const KIND_TONES := {
+	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
+}
+## Model name -> clip the game asks for -> clip it has ("" = keep what's playing,
+## the clip already covers that beat). Only consulted when the model lacks the clip
+## asked for, so a re-export that adds one wins by itself.
+const CLIPS := {
+	"necromancer": {"Running_A": "Walking_D_Skeletons", "Spawn_Ground_Skeletons": "Idle_Combat"},
+	"warden": {
+		"Spawn_Ground_Skeletons": "Idle_Combat",
+		"Hit_B": "Hit_A",
+		"Lie_StandUp": "Idle_Combat",
+		# boss.gd's beats inside Attack_Slam / Attack_Nova / Attack_Cage
+		"Jump_Idle": "",
+		"Jump_Land": "",
+		"Spellcast_Shoot": "",
+	},
+}
+## Model name -> scale on its rig node. enemy.gd's model_scale also sizes collision, so
+## it stays as tuned; the Warden is modelled at full size (3.2 m) where the KayKit boss
+## relied on model_scale 1.8. The others match KayKit's height (~2.2 m bounds) as built.
+const RIG_SCALE := {"warden": 1.0 / 1.8}
 ## Used (with a warning) for a material the tables don't know yet.
 const FALLBACK_TONE := "P_Trousers"
 const INK := Color(0.012, 0.01, 0.02)
@@ -72,12 +101,40 @@ const FILL_COLOR := Color(0.55, 0.62, 1.0)  # linear
 
 static var _mats := {}  # material name -> shared ShaderMaterial, so every enemy batches
 static var _warned := {}
+static var _scenes := {}
+
+
+## The comic model for `kind`, or null (flag off, or no GLB yet: caller keeps KayKit).
+static func scene(kind: String) -> PackedScene:
+	if not Game.comic_style:
+		return null
+	if not _scenes.has(kind):
+		var path := MODEL_PATH % kind
+		_scenes[kind] = load(path) if ResourceLoader.exists(path) else null
+	return _scenes[kind]
+
+
+## The clip to play on this model for a clip name the game asks for.
+static func clip(player: AnimationPlayer, kind: String, wanted: String) -> String:
+	if player.has_animation(wanted):
+		return wanted
+	return CLIPS.get(kind, {}).get(wanted, wanted)
+
+
+## Scale the rig under the model's root (the root belongs to model_scale and _squash).
+static func fit(model: Node3D, kind: String) -> void:
+	if RIG_SCALE.has(kind):
+		for child in model.get_children():
+			if child is Node3D:
+				child.scale *= RIG_SCALE[kind]
 
 
 ## The shared comic material for a GLB material name.
-static func material(mat_name: String) -> ShaderMaterial:
-	if _mats.has(mat_name):
-		return _mats[mat_name]
+static func material(mat_name: String, kind := "") -> ShaderMaterial:
+	var override: Dictionary = KIND_TONES.get(kind, {})
+	var key := kind + "/" + mat_name if override.has(mat_name) else mat_name
+	if _mats.has(key):
+		return _mats[key]
 	var m := ShaderMaterial.new()
 	if EMITS.has(mat_name):
 		var c: Array = EMITS[mat_name]
@@ -86,10 +143,10 @@ static func material(mat_name: String) -> ShaderMaterial:
 		m.set_shader_parameter("mid_color", (c[0] as Color).lerp(c[1], 0.55))
 		m.set_shader_parameter("high_color", c[1])
 	else:
-		if not TONES.has(mat_name) and not _warned.has(mat_name):
+		if not known_material(mat_name) and not _warned.has(mat_name):
 			_warned[mat_name] = true
 			push_warning("ComicLook: no tones for material %s" % mat_name)
-		var t: Dictionary = TONES.get(mat_name, TONES[FALLBACK_TONE])
+		var t: Dictionary = override.get(mat_name, TONES.get(mat_name, TONES[FALLBACK_TONE]))
 		m.shader = load(TOON_SHADER)
 		m.set_shader_parameter("ink_color", INK)
 		m.set_shader_parameter("shadow_color", t.shadow)
@@ -100,13 +157,13 @@ static func material(mat_name: String) -> ShaderMaterial:
 		m.set_shader_parameter("brush", t.brush)
 		m.set_shader_parameter("spot", t.get("spot", 0.075))
 		m.set_shader_parameter("inner", t.get("inner", 0.17))
-	_mats[mat_name] = m
+	_mats[key] = m
 	return m
 
 
 ## Swap every surface under `root` to its comic material. Call before Fx.outline,
 ## which adds the ink hull to whatever is active.
-static func apply(root: Node) -> void:
+static func apply(root: Node, kind := "") -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # like Fx.outline: the dummy renderer errors on shared override materials at exit
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
@@ -115,7 +172,7 @@ static func apply(root: Node) -> void:
 		for i in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(i)
 			if src != null:
-				mi.set_surface_override_material(i, material(src.resource_name))
+				mi.set_surface_override_material(i, material(src.resource_name, kind))
 
 
 ## Every GLB material name under `root` (imported names, works headless).
@@ -177,3 +234,4 @@ static func restore_shadows() -> void:
 ## Drop cached materials so nothing is left alive at exit.
 static func release() -> void:
 	_mats.clear()
+	_scenes.clear()
