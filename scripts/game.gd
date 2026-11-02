@@ -94,6 +94,8 @@ var rumble_on := true
 var reduce_flashing := false
 ## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
 var combo_guide := true
+## Comic-book art style (--comic or Settings), see docs/features/comic-style.md.
+var comic_style := false
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
