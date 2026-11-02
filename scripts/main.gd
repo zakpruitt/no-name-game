@@ -327,6 +327,8 @@ func _ready() -> void:
 
 	hud = HUD.new()
 	add_child(hud)
+	if Game.comic_style:
+		add_child(ComicFx.new())
 	_apply_altar()
 	hud.bind_player(player)
 

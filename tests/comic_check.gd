@@ -53,6 +53,7 @@ func _initialize() -> void:
 		with_glb.append("warden")
 	else:
 		absent.append("warden")
+	await _check_fx(game)
 	game.comic_style = false
 	Look.release()
 	print("[comic_check] models=", with_glb, " kaykit_fallback=", absent)
@@ -106,6 +107,48 @@ func _has_g(model: Node) -> bool:
 	if not readable:
 		print("[comic_check] note: mesh arrays not readable here, `g` not judged")
 	return not readable
+
+
+## The text layer's logic: words escalate by tier, the panel names the combo, reduced
+## flashing drops the pop and the second word in a burst. Nothing here sees a pixel.
+func _check_fx(game: Node) -> void:
+	var Comic: GDScript = load("res://scripts/comic_fx.gd")
+	var fx: CanvasLayer = Comic.new()
+	get_root().add_child(fx)
+	await process_frame
+	_expect(fx._font is Font, "Bangers loads")
+	_expect(Comic.WORDS.size() == load("res://scripts/fx.gd").CHAIN_TIERS.size() + 1, "one word list per chain tier")
+	for s: Array in [Comic.WORD_SCALE, Comic.WORDS]:
+		_expect(s.size() == Comic.WORDS.size(), "tier tables line up")
+	for i in Comic.WORD_SCALE.size() - 1:
+		_expect(Comic.WORD_SCALE[i] < Comic.WORD_SCALE[i + 1], "words grow with the tier")
+	var saved_reduce: bool = game.reduce_flashing
+	game.reduce_flashing = false
+	game.combo_count = 0
+	Comic.hit(Vector3.ZERO, false)
+	var first: Label = fx._words[0]
+	_expect(first.visible and first.text in Comic.WORDS[0], "tier 0 hit shows a tier 0 word")
+	Comic.hit(Vector3.ZERO, false)
+	_expect(not fx._words[1].visible, "second hit inside the gap shows nothing")
+	fx._last_word_ms = -100000
+	game.combo_count = 35
+	Comic.hit(Vector3.ZERO, false)
+	_expect(fx._words[1].text in Comic.WORDS[3], "tier 3 chain shows a tier 3 word")
+	game.combo_count = 0
+	_expect(Comic.word_scale(2, false) > 1.0, "normal words pop")
+	_expect(Comic.word_scale(2, true) == 1.0, "reduced flashing: no pop")
+	Comic.combo("Triple Chop", 1)
+	_expect(fx._bars.visible and fx._caption.text == "TRIPLE CHOP!", "panel names the combo")
+	_expect(fx._caption.scale.x > Comic.CAPTION_SCALE[0], "panel caption pops")
+	game.reduce_flashing = true
+	Comic.combo("Stormfall", 3)
+	_expect(fx._bars.big and fx._bars.modulate.a == 0.0, "reduced flashing: bars fade in, don't cut")
+	_expect(is_equal_approx(fx._caption.scale.x, Comic.CAPTION_SCALE[2]), "reduced flashing: no caption pop")
+	game.reduce_flashing = saved_reduce
+	fx.free()
+	Comic.hit(Vector3.ZERO, false)
+	Comic.combo("Nothing", 1)
+	_expect(true, "no instance: calls do nothing")
 
 
 ## Every clip name the scripts ask for must be classified above.

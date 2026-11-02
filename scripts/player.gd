@@ -1806,6 +1806,14 @@ func _combo_callout(id: String) -> void:
 	_callout_tw.parallel().tween_property(_callout, "position:y", 3.2, 0.6).set_ease(Tween.EASE_OUT)
 	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.35)
 	_callout_tw.tween_callback(_callout.hide)
+	_comic_callout(id, tier)
+
+
+## Under Game.comic_style the panel cut-in names the combo, not the floating label.
+func _comic_callout(id: String, tier: int) -> void:
+	if Game.comic_style:
+		_callout.visible = false
+		ComicFx.combo(combo_name(id), tier)
 
 
 # --- Elements and ultimates ---------------------------------------------------
