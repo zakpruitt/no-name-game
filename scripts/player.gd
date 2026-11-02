@@ -263,6 +263,7 @@ const BREAKER_AWAKENED_WAKE := 1.4
 const BREAKER_SPILL := 0.12
 const BREAKER_EARLY := 0.08
 const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
+const RITE := preload("res://scripts/element_rite.gd")  # Ascended heavies: prime the element, the next heavy sets it off
 const BREAKER_SPIKE := preload("res://scripts/breaker_spike.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
@@ -442,6 +443,7 @@ var bot_move := Vector3.ZERO
 var upgrades := {}
 var bot_enabled := false
 var stormfalls := 0  # landings from the top of the Updraft (tests)
+var rites := 0  # Ascended heavies that set off primes (RITE, autotest)
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
 var _brk: Dictionary = {}  # the breaker in play (BREAKERS entry)
@@ -1203,6 +1205,8 @@ func _breaker_impact() -> void:
 		if perfect:
 			BREAKER_QUAKE.eruption(get_parent(), at, el, maxf(b.radius, 2.4) * 1.35)
 		Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
+	if ascendancy != "":  # the landing sets off every prime round him
+		_rite_set_off(b.perfect_mult if perfect else 1.0)
 	for s in _brk_spikes:
 		if is_instance_valid(s):
 			s.detonate()
@@ -1644,8 +1648,12 @@ func _do_hit() -> void:
 	var fwd := _facing()
 	var named_before := _callout_done  # a combo ender lands its extra punch once
 	_swoosh(fwd)
+	var rite := ascendancy != "" and _move_id in RITE.HEAVIES
+	if rite and _hits_done == 1:  # sets off what the last heavy laid down, before this one lays its own
+		_rite_set_off(1.0)
 	var hit_any := false
 	var any_airborne := false
+	var struck: Array[Vector3] = []  # where this hit's foes stand (earth wells lava under them)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not e.is_alive():
 			continue
@@ -1692,6 +1700,9 @@ func _do_hit() -> void:
 			_thousand_cuts(e)
 		if awakened and ascendancy != "":
 			_element_hit(e)
+		if rite:
+			RITE.prime_foe(e, ascendancy)
+			struck.append(e.global_position)
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
 		_cast(fwd)
@@ -1707,10 +1718,8 @@ func _do_hit() -> void:
 		if _move_id == "AF":
 			_finisher(fwd)
 			_ult_landed()
-		if awakened and ascendancy == "earth" and _move_id in Ascendancy.HEAVY_MOVES and _move_id != "AF":
-			element_procs += 1
-			var r: float = Ascendancy.PATHS.earth.magma_radius
-			Ascendancy.magma_pool(get_parent(), global_position + (Vector3.ZERO if _move.arc >= 360.0 else fwd * 1.6), r)
+		if rite and ascendancy == "earth":
+			_rite_wells(fwd, struck)
 		if _move_id == "LLH":
 			ground_breakers += 1
 			_crack_line(fwd, Color(0.85, 0.75, 0.6))
@@ -2755,6 +2764,65 @@ func ascend(path: String) -> void:
 		trail.color = _trail_rest_color()
 	if awakened:
 		_set_awakened(true)
+
+
+## Ascended heavies (RITE): set off every prime of his element near him,
+## naming it over his head when anything answered.
+func _rite_set_off(mult: float) -> void:
+	var m := mult * _dmg_mult * _cast_power() * (RITE.AWAKENED_MULT if awakened else 1.0)
+	var at := global_position + Vector3.UP * model.position.y
+	var n := RITE.set_off(get_parent(), at, ascendancy, m, _cast_hit)
+	if n == 0:
+		return
+	rites += 1
+	Game.hitstop(0.05)
+	Game.shake(0.35 + 0.05 * mini(n, 5))
+	if not _callout.visible:
+		_rite_callout(RITE.NAMES[ascendancy] + (" x%d" % n if n > 1 else ""))
+	if bot_enabled:
+		print("[autotest] rite %s x%d" % [RITE.NAMES[ascendancy], n])
+
+
+## Earth's heavies well up lava: under the foes a spin hits (round him where
+## there are none), a line down the thrust, otherwise one well on the target.
+func _rite_wells(fwd: Vector3, struck: Array[Vector3]) -> void:
+	var parent := get_parent()
+	if _move.arc >= 360.0 and not _move.has("width"):
+		var n := 4 if awakened else 3
+		var spots: Array[Vector3] = []
+		for p in struck:
+			if spots.size() < n and spots.all(func(q: Vector3) -> bool: return q.distance_to(p) > RITE.WELL_RADIUS * 1.2):
+				spots.append(p)
+		for i in n:
+			if spots.size() >= n:
+				break
+			var dir := fwd.rotated(Vector3.UP, TAU * (i + 0.5) / n)
+			var p := global_position + dir * minf(2.4, _clear_ahead(dir, 2.4))
+			if spots.all(func(q: Vector3) -> bool: return q.distance_to(p) > RITE.WELL_RADIUS * 1.2):
+				spots.append(p)
+		for p in spots:
+			RITE.well(parent, p, awakened)
+	elif _move.has("width"):
+		for d in [1.6, 3.2, 4.8]:
+			RITE.well(parent, global_position + fwd * minf(d, _clear_ahead(fwd, d)), awakened)
+	else:
+		RITE.well(parent, _cast_target(fwd, 4.5, minf(1.8, _clear_ahead(fwd, 1.8))), awakened)
+
+
+func _rite_callout(text: String) -> void:
+	_callout.text = text
+	_callout.modulate = ELEMENTS.LOOK[ascendancy].color.lerp(Color.WHITE, 0.25)
+	_callout.position = Vector3(0.0, 2.9, 0.0)
+	_callout.scale = Vector3.ONE * 0.6
+	_callout.visible = true
+	if _callout_tw:
+		_callout_tw.kill()
+	_callout_tw = _callout.create_tween()
+	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * 1.1, 0.08)
+	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * 0.95, 0.08)
+	_callout_tw.parallel().tween_property(_callout, "position:y", 3.3, 0.6).set_ease(Tween.EASE_OUT)
+	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.25).set_delay(0.4)
+	_callout_tw.tween_callback(_callout.hide)
 
 
 ## Awakened per-hit element effect (Wind lightning, Water chill).

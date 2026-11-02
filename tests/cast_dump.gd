@@ -18,6 +18,8 @@ class Dummy extends Node3D:
 	func is_alive() -> bool: return hp > 0.0
 	func is_airborne() -> bool: return false
 	func take_hit(d: float, _kb = Vector3.ZERO, _l = 0.0, _b = false, _x = null) -> void: hp -= d
+	func chill(_t: float, _m: float) -> void: pass
+	func freeze(_t: float, _m: float) -> void: pass
 
 
 func _initialize() -> void:
@@ -104,6 +106,30 @@ func _initialize() -> void:
 		world.process_mode = Node.PROCESS_MODE_DISABLED
 		p.global_position.y = 0.0
 		print("%s: model y=%.2f" % [cast, p.model.position.y])
+		cast = "none"
+	if cast == "rite":  # Ascended heavies (element_rite.gd) on three foes ahead: --t>=0 = primed, t s in; --t<0 = -t s after the set-off
+		var rite: GDScript = load("res://scripts/element_rite.gd")
+		if el == "spirit":
+			el = "earth"
+		p.ascend(el)
+		for at in [Vector3(-2.0, 0, 3.0), Vector3(2.0, 0, 3.4), Vector3(0.2, 0, 5.4)]:
+			var d := Dummy.new()
+			d.add_to_group("enemies")
+			world.add_child(d)
+			d.global_position = at
+			_foes.append(d)
+			if el == "earth":
+				rite.well(world, at)
+			else:
+				rite.prime_foe(d, el)
+		for i in int((0.3 if t < 0.0 else t) * Engine.physics_ticks_per_second):
+			await physics_frame
+		if t < 0.0:
+			rite.set_off(world, p.global_position, el, 1.0)
+			for i in int(-t * Engine.physics_ticks_per_second):
+				await physics_frame
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+		print("rite %s: wells=%d" % [el, get_root().get_tree().get_nodes_in_group("lava_wells").size()])
 		cast = "none"
 	if cast == "plunge":  # the air-string plunge's fan of axes ahead (player._plunge_axes), landed
 		for i in 3:

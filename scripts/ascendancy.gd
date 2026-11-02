@@ -2,12 +2,13 @@ class_name Ascendancy
 extends RefCounted
 ## Ascendancy: at hero level 6 (Game.LEVEL_MAX) the shaman picks an element.
 ## It reshapes Awakening for the rest of the run: colour, a passive while
-## Awakened, and the finisher (L L L H) that replaces Cataclysm.
+## Awakened, and the finisher (L L L H) that replaces Cataclysm. From then on
+## his heavies also prime the element for the next heavy (element_rite.gd).
 ## Pure tuning data plus the element effects; player.gd calls them.
 ##
 ##   wind   swift: faster, shorter dash cooldown; every few hits calls lightning.
 ##          Finisher Tempest: a cyclone that drags foes in and strikes them.
-##   earth  sturdy: takes less damage; heavy moves leave magma pools.
+##   earth  sturdy: takes less damage (heavy moves well up lava: element_rite.gd).
 ##          Finisher Eruption: a volcano that rains lava bombs on nearby foes.
 ##   water  control: hits chill (slow) foes, enough hits freeze them; the next
 ##          hit shatters the ice for bonus damage.
@@ -15,22 +16,20 @@ extends RefCounted
 
 const PATHS := {
 	"wind": {"name": "Wind", "title": "TEMPEST ASCENDANT", "color": Color(0.55, 1.0, 0.6), "finisher": "Tempest",
-		"desc": "Faster, quicker dashes, lightning every 3rd hit",
+		"desc": "Faster, lightning every 3rd hit, heavies charge foes for thunder",
 		"speed": 1.25, "dash_cd": 0.5, "strike_every": 3, "strike_damage": 10.0, "strike_radius": 1.8,
 		"tempest_time": 2.2, "tempest_radius": 6.5, "tempest_pull": 7.0, "tempest_strikes": 8, "tempest_damage": 10.0},
 	"earth": {"name": "Earth", "title": "MAGMA ASCENDANT", "color": Color(1.0, 0.3, 0.08), "finisher": "Eruption",
-		"desc": "Tougher, heavy moves leave burning magma",
-		"armor": 0.45, "magma_damage": 5.0, "magma_tick": 0.4, "magma_time": 3.0, "magma_radius": 1.5,
+		"desc": "Tougher, heavies well up lava the next heavy erupts",
+		"armor": 0.45, "magma_damage": 5.0, "magma_tick": 0.4, "magma_time": 3.0,
 		"volcano_time": 2.6, "volcano_bombs": 12, "volcano_range": 8.0, "bomb_damage": 14.0, "bomb_radius": 2.2},
 	"water": {"name": "Water", "title": "TIDE ASCENDANT", "color": Color(0.5, 0.85, 1.0), "finisher": "Glacier",
-		"desc": "Hits chill foes, 4 hits freeze them solid",
+		"desc": "Hits chill, heavies soak foes the next heavy freezes",
 		"chill_time": 2.0, "chill_slow": 0.55, "freeze_hits": 4, "freeze_time": 1.6, "shatter_mult": 1.5,
 		"glacier_radius": 6.5, "glacier_damage": 16.0, "glacier_freeze": 2.5, "glacier_spikes": 18},
 }
 ## Awakening colour before an Ascendancy is chosen (ancestral gold).
 const BASE_COLOR := Color(1.0, 0.78, 0.3)
-## Moves that count as heavy for Earth's magma pools.
-const HEAVY_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH", "LHH"]
 
 
 static func color(path: String) -> Color:
