@@ -10,6 +10,9 @@ only reads COLOR_0, so each primitive's two accessors are swapped in the JSON ch
 src_dir defaults to the kit's output in the integration checkout; no names = every
 .glb there. --env takes the dungeon pieces (out/env -> assets/comic/dungeon); those
 already export `g` as their only colour attribute, so nothing needs swapping.
+A mesh node named like a joint is renamed <name>_mesh: Godot's importer keeps node
+names unique and gives the clash to the joint, so the hero's `head` bone arrived as
+`head_2` and every attachment to it silently failed.
 Refuses a file whose header length doesn't match (an export mid-write).
 Run `godot --headless --import --path .` afterwards.
 """
@@ -37,6 +40,11 @@ def convert(data, name):
             if "COLOR_1" in attrs:
                 attrs["COLOR_0"], attrs["COLOR_1"] = attrs["COLOR_1"], attrs["COLOR_0"]
                 swapped += 1
+    joints = {i for skin in doc.get("skins", []) for i in skin["joints"]}
+    joint_names = {doc["nodes"][i].get("name") for i in joints}
+    for i, node in enumerate(doc.get("nodes", [])):
+        if i not in joints and node.get("name") in joint_names:
+            node["name"] += "_mesh"
     body = json.dumps(doc, separators=(",", ":")).encode()
     body += b" " * (-len(body) % 4)
     rest = data[20 + json_len:]
