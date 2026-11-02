@@ -73,7 +73,14 @@ func _initialize() -> void:
 		p.global_position.y = 0.0  # (no floor here: the body falls)
 		print("breaker: model y=%.2f hero=%s zone=%s" % [p.model.position.y, p.global_position, p._brk_zone])
 		cast = "none"
-	if cast == "updraft" or cast == "stormfall":  # L H L L H: the gale under him, `t` s into it; stormfall = -t s after Triple Chop from the top lands
+	if cast in ["updraft", "stormfall", "waltz"]:  # L H L L H: the gale under him, `t` s into it; waltz = `t` s into Gale Waltz off it; stormfall = -t s after Triple Chop from the top lands
+		var ground := StaticBody3D.new()  # (a real floor, so the body doesn't fall and drag the effects down)
+		var box := CollisionShape3D.new()
+		box.shape = BoxShape3D.new()
+		box.shape.size = Vector3(60.0, 1.0, 60.0)
+		ground.add_child(box)
+		world.add_child(ground)
+		ground.position.y = -0.5
 		p.set_physics_process(true)
 		if el != "spirit":
 			p.ascend(el)
@@ -82,6 +89,10 @@ func _initialize() -> void:
 			while p.state == p.State.ATTACK and p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES[id].cancel:
 				await physics_frame
 		p._start_attack("AH")
+		if cast == "waltz":
+			while p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES.AH.cancel:
+				await physics_frame
+			p._start_attack("AL3")
 		if cast == "stormfall":
 			while p._state_t * p.anim_speed * p._anim_mult / p._move_len < p.MOVES.AH.cancel:
 				await physics_frame

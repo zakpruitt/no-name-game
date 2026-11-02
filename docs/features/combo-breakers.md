@@ -166,20 +166,32 @@ back to L1:
   the **Updraft** (`AH`, L H L L H): he calls a gale under his feet
   (`scripts/air_gust.gd`: a twisting wind funnel from the floor to him in
   his colour, wind blades whirling round him on the model, the floor's dust
-  blasting out, his element streaming up; lightning for wind) and spins up
-  on it, launching the foes round him. `MOVES` `gust` sets `_gusted`, which
+  blasting out, his element torn up and spiralling round the column:
+  `_helix`, rocks / ice / leaf blades / wisps; lightning for wind) and spins
+  up on it, launching the foes round him. The gale stays under his feet
+  while he's up there (`air_gust.cloud()`: a low spinning vortex with wind
+  crescents, on the model, held in `player._gust_cloud`) and blows apart
+  where he leaves it (`vanish()`: when he lands, or as a plunge dives off
+  it). Gale pieces on the model are tagged `no_ghost`, so
+  `Fx.afterimage` leaves them out of his ghosts. `MOVES` `gust` sets `_gusted`, which
   lifts the climb cap from `AIR_MAX_HEIGHT` to `AIR_GUST_HEIGHT` (4.2 m)
   and gives the air dash back. One gust per trip up: `route()`'s `gusted`
   argument sends a second heavy off Sky Rend to Spike, and landing clears it.
 - Off the Updraft, Light is **Gale Waltz** (`AL3`, three weaving cuts at the
-  top with an echo cast), Heavy is Spike (Awakened: Ancestor's Fall). Light
+  top with an echo cast; `MOVES` `blades`: each cut flings a wind blade,
+  `air_gust.wind_blade()`, raking down onto the floor in a 60-degree fan
+  and bursting there in his element; visual only), Heavy is Spike (Awakened: Ancestor's Fall). Light
   after Gale Waltz is Triple Chop from the very top, which lands as the
   named combo **Stormfall** (tier 3, `named_id()` from `STORMFALL_FROM`
   3.4 m): any non-air landing from there breaks the floor
-  (`_stormfall()`: a `breaker_quake` crater and `quake.wav`), and off
-  Triple Chop the element erupts in a ring round it with a `sky_impact`.
+  (`_stormfall()`: a `breaker_quake` crater, a flat `shockwave()` dome and
+  `quake.wav`), and off Triple Chop the element erupts in a ring round it
+  with a `sky_impact`. On the way down Stormfall leaves a comet trail
+  (`air_gust.comet()` every `COMET_STEP`: an afterimage plus sparks in the
+  element; afterimages don't draw headless).
   Its plunge from ~4.3 m is about x1.6. Look: `tests/cast_dump.gd --
-  --cast=updraft --t=0.15` / `--cast=stormfall --t=-0.3`.
+  --cast=updraft --t=0.15` / `--cast=waltz --t=0.3` / `--cast=stormfall
+  --t=-0.3` (these cases add a real floor, so the body doesn't fall).
 - Routing lives in `player.route()`, so the combo guide shows it, and the
   air slashes get small echo casts (`elements.CASTS`).
 - Their swooshes (`player._swoosh`) and echo casts spawn at the model's

@@ -115,7 +115,7 @@ const MOVES := {
 	# from the very top (Stormfall), H is Spike.
 	"AL3": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.8, "arc": 220.0,
 		"hits": [0.22, 0.36, 0.5], "cancel": 0.58, "end": 0.8, "lunge": 2.0, "knockback": 0.5, "launch": 5.0,
-		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.3, "weave": 0.35},
+		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.3, "weave": 0.35, "blades": true},
 	# Heavy right after the launcher (L H H): Spike, an overhead chop that
 	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
 	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
@@ -364,6 +364,7 @@ var _post_dash_t := 0.0
 var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
 var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
 var _gusted := false  # the Updraft's gale has lifted him this trip up (one per trip)
+var _gust_cloud: Node3D  # the gale under his feet while he's up there (air_gust.cloud)
 var _awaken_t := 0.0
 var _facing_yaw := 0.0
 var _invuln_t := 0.0
@@ -589,6 +590,9 @@ func _physics_process(delta: float) -> void:
 	if model.position.y < 0.05:
 		_air_dashes = 0  # back on the floor: the air dash comes back
 		_gusted = false
+		if is_instance_valid(_gust_cloud):
+			AIR_GUST.vanish(_gust_cloud, get_parent())
+		_gust_cloud = null
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -787,6 +791,7 @@ func _stormfall() -> void:
 	var el := element()
 	var at := global_position + _facing() * 1.2
 	BREAKER_QUAKE.crater(get_parent(), at, el, 3.2, true, _move_id == "L3")
+	BREAKER_QUAKE.shockwave(get_parent(), at, _fx_color(), 5.5 if _move_id == "L3" else 4.0)
 	Game.sfx("quake", -3.0, 0.05)
 	Game.shake(0.5)
 	if _move_id == "L3":
@@ -804,11 +809,20 @@ func _state_attack(delta: float) -> void:
 	velocity.z = fwd.z * lunge
 
 	_hop(t)
+	if model.position.y > 0.3 and named_id() == "STORMFALL":  # the comet trail down
+		_ghost_t -= delta
+		if _ghost_t <= 0.0:
+			_ghost_t = AIR_GUST.COMET_STEP
+			AIR_GUST.comet(get_parent(), model, _fx_color(), element())
 	_weave(t)
 	var hits: Array = _move.hits
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
+		if _move.get("blades", false):  # Gale Waltz: a wind blade rakes down off each cut, fanning out
+			var side := (_hits_done - 2) * 30.0
+			AIR_GUST.wind_blade(get_parent(), global_position + Vector3.UP * (model.position.y + 1.0),
+				_facing().rotated(Vector3.UP, deg_to_rad(side)), _fx_color(), element())
 		if _move.has("weave"):  # each cut of the dance leaves a spectral copy of him behind
 			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.4))
 	if BREAKERS.has(_move_id) and _connected and t >= BREAKERS[_move_id].leap:  # (a whiff plays out normally)
@@ -1521,10 +1535,15 @@ func _start_attack(id: String) -> void:
 	_aim()
 	if _hop_air:
 		_air_home()
+	if is_instance_valid(_gust_cloud) and not _move.get("air", false):
+		AIR_GUST.vanish(_gust_cloud, get_parent())  # he dives off the gale
+		_gust_cloud = null
 	if _move.get("gust", false):
 		_gusted = true
 		_air_dashes = 0  # the gale gives the air dash back
 		AIR_GUST.gust(get_parent(), global_position, model, _fx_color(), element())
+		if not is_instance_valid(_gust_cloud):
+			_gust_cloud = AIR_GUST.cloud(model, _fx_color())
 	_set_state(State.ATTACK)
 	attack_started.emit(id)
 	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH", "AH"] else "swing", -3.0, 0.12)
