@@ -33,6 +33,18 @@ const ATTACKS := {
 	"cage": {"windup": 1.0, "recover": 1.2, "damage": 20.0, "radius": 7.0, "end_radius": 1.0,
 		"rise": 0.5, "close": 2.6, "gap": 50.0, "spin": 25.0, "walls": 22},
 }
+## warden.glb's clips, one per attack: [clip, frame the attack lands on]. They were
+## keyed to ATTACKS at CLIP_FPS, so at unit speed the hit falls on the windup's end.
+const COMIC_ATTACKS := {
+	"cleave": ["Attack_Cleave", 20.0],
+	"slam": ["Attack_Slam", 24.0],
+	"nova": ["Attack_Nova", 26.0],
+	"spikes": ["Attack_Spikes", 22.0],
+	"cage": ["Attack_Cage", 24.0],
+}
+const CLIP_FPS := 24.0
+const COMIC_SLAM_AIR := 13.0  # Attack_Slam frames from take-off to landing
+const COMIC_SLAM_RECOVER := 26.0  # and from landing to the end
 ## Damage that breaks its guard if dealt within `break_window` seconds.
 @export var break_damage := 90.0
 @export var break_window := 4.0
@@ -133,20 +145,30 @@ func _start_attack(kind: String) -> void:
 		"cleave":
 			attack_range = spec.range
 			_set_telegraph(spec.range, Color(1.0, 0.15, 0.1, 0.3))
-			_play("2H_Melee_Attack_Spin", 0.1, anim.get_animation("2H_Melee_Attack_Spin").length * 0.4 / attack_windup)
+			_windup_anim("2H_Melee_Attack_Spin", 0.4)
 		"slam":
 			_slam_target = _player.global_position
-			_play("Jump_Start", 0.1, anim.get_animation("Jump_Start").length / attack_windup)
+			_windup_anim("Jump_Start", 1.0)
 		"nova":
 			_set_telegraph(1.8, Color(0.7, 0.3, 1.0, 0.3))
-			_play("Spellcast_Raise", 0.1, anim.get_animation("Spellcast_Raise").length / attack_windup)
+			_windup_anim("Spellcast_Raise", 1.0)
 		"spikes":
 			_set_telegraph(2.2, Color(1.0, 0.15, 0.1, 0.3))
-			_play("2H_Melee_Attack_Chop", 0.1, anim.get_animation("2H_Melee_Attack_Chop").length * 0.45 / attack_windup)
+			_windup_anim("2H_Melee_Attack_Chop", 0.45)
 		"cage":
 			_set_telegraph(2.6, Color(0.95, 0.85, 0.6, 0.3))
-			_play("Spellcast_Raise", 0.1, anim.get_animation("Spellcast_Raise").length / attack_windup)
+			_windup_anim("Spellcast_Raise", 1.0)
 	Game.sfx("spawn", -6.0, 0.1)
+
+
+## Play `clip` so `fraction` of it fits the windup, or the comic model's own clip for
+## the current attack, timed so its hit frame lands on the windup's end.
+func _windup_anim(clip: String, fraction: float) -> void:
+	if comic_kind != "":
+		var c: Array = COMIC_ATTACKS[_attack]
+		_play(c[0], 0.1, c[1] / CLIP_FPS / attack_windup)
+		return
+	_play(clip, 0.1, anim.get_animation(clip).length * fraction / attack_windup)
 
 
 func _state_windup(delta: float) -> void:
@@ -202,6 +224,8 @@ func _leap() -> void:
 	_leaping = true
 	attack_recover = 5.0  # held until landing; _land() starts the real recover
 	_play("Jump_Idle", 0.05)
+	if comic_kind != "":
+		_clip_speed(COMIC_SLAM_AIR / CLIP_FPS / air)
 	Fx.dust(get_parent(), global_position, 16, 1.0)
 
 
@@ -213,6 +237,8 @@ func _land() -> void:
 	attack_recover = spec.recover * (enrage_speed if is_enraged else 1.0)
 	_set_state(State.RECOVER)
 	_play("Jump_Land", 0.05, 1.2, true)
+	if comic_kind != "":
+		_clip_speed(COMIC_SLAM_RECOVER / CLIP_FPS / attack_recover)
 	velocity.x = 0.0
 	velocity.z = 0.0
 	Game.shake(0.7)
@@ -353,6 +379,8 @@ func _guard_break() -> void:
 
 func _enrage() -> void:
 	is_enraged = true
+	if comic_kind != "":
+		_hold_clip("Enrage")
 	move_speed *= 1.25
 	Game.announced.emit("THE WARDEN ENRAGES")
 	Game.shake(0.6)

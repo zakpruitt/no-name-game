@@ -13,6 +13,9 @@ const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"
 const PROJECTILE := preload("res://scripts/projectile.gd")
 
 @export var model_scene: PackedScene
+## ComicLook model name when model_scene is a comic GLB ("" = KayKit, nothing changes).
+var comic_kind := ""
+var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (_hold_clip)
 @export var max_hp := 30.0
 @export var move_speed := 3.6
 @export var attack_range := 1.9
@@ -156,15 +159,18 @@ func _ready() -> void:
 	model.scale = Vector3.ONE * model_scale
 	radius *= model_scale
 	add_child(model)
-	if shield:
+	if comic_kind != "":
+		ComicLook.fit(model, comic_kind)
+		ComicLook.apply(model, comic_kind)
+	if shield and comic_kind == "":
 		_attach_shield()
-	if body_tint != Color.WHITE:
+	if body_tint != Color.WHITE and comic_kind == "":
 		_tint_body()
-	if cloth_color.a > 0.0:
+	if cloth_color.a > 0.0 and comic_kind == "":
 		_tint_cloth()
 	if attack_kind == "bomb":
 		_attach_bomb()
-	if attack_kind == "line":
+	if attack_kind == "line" and comic_kind == "":
 		var bow: Node3D = CROSSBOW_SCENE.instantiate()
 		bow.rotation_degrees.y = 90.0  # point down the aim
 		_attach_to_hand("handslot.r", bow)
@@ -583,6 +589,8 @@ func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
 		Game.announced.emit("GUARD BREAK")
 		return false
 	blocks += 1
+	if comic_kind != "":
+		_hold_clip("Block_Hit", 0.05)
 	Fx.hit_spark(get_parent(), shield_pos, Color(0.7, 0.85, 1.0), 0.8)
 	Game.sfx("hit", -6.0, 0.3)
 	Game.hitstop(0.03)
@@ -628,6 +636,9 @@ func _attach_to_hand(bone: String, item: Node3D) -> void:
 
 
 func _attach_bomb() -> void:
+	if comic_kind != "":
+		_attach_comic_spark()
+		return
 	var bomb := MeshInstance3D.new()
 	var ball := SphereMesh.new()
 	ball.radius = 0.36
@@ -652,7 +663,24 @@ func _attach_bomb() -> void:
 	_attach_to_hand("handslot.r", bomb)
 
 
+## The comic bomber carries its own bomb; only the fuse's spark is live.
+func _attach_comic_spark() -> void:
+	_spark = MeshInstance3D.new()
+	var tip := SphereMesh.new()
+	tip.radius = 0.08
+	tip.height = 0.16
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = BOMB_COLOR
+	tip.material = glow
+	_spark.mesh = tip
+	_spark.scale = Vector3.ONE * 0.6
+	_attach_to_hand("spark", _spark)
+
+
 func _light_fuse() -> void:
+	if comic_kind != "":
+		_hold_clip("Bomb_Windup", 0.1, anim.get_animation("Bomb_Windup").length / attack_windup)
 	_fuse = attack_windup
 	_spark.visible = true
 	_telegraph.visible = true
@@ -763,6 +791,12 @@ func _set_state(s: State) -> void:
 
 
 func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> void:
+	if comic_kind != "":
+		if anim_name in [run_anim, "Idle_Combat"] and Time.get_ticks_msec() < _clip_hold_ms:
+			return
+		anim_name = ComicLook.clip(anim, comic_kind, anim_name)
+		if anim_name == "":
+			return  # the clip already playing covers this beat
 	if anim.current_animation == anim_name and not restart:
 		return
 	anim.play(anim_name, blend, 1.0)
@@ -770,6 +804,20 @@ func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> 
 		anim.seek(0.0, true)
 	if _frozen_speed >= 0.0:
 		_frozen_speed = speed  # applied when the hit freeze ends
+	else:
+		anim.speed_scale = speed
+
+
+## Comic clips the state machine would otherwise replace next frame with run/idle.
+func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
+	_play(anim_name, blend, speed, true)
+	_clip_hold_ms = Time.get_ticks_msec() + int(anim.get_animation(anim_name).length / speed * 1000.0)
+
+
+## Speed of the clip already playing, respecting a running hit freeze.
+func _clip_speed(speed: float) -> void:
+	if _frozen_speed >= 0.0:
+		_frozen_speed = speed
 	else:
 		anim.speed_scale = speed
 

@@ -313,6 +313,8 @@ func _ready() -> void:
 	_build_arena()
 	for spec in ENEMY_TYPES.values() + [BOSS_SPEC]:
 		_model(spec.model)
+	for kind in ENEMY_TYPES.keys() + ["warden"]:
+		ComicLook.scene(kind)
 
 	player = PLAYER.new()
 	add_child(player)
@@ -927,7 +929,7 @@ static func _twist_text(ids: Array, field: String, sep: String) -> String:
 func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	var e := ENEMY.new()
 	var spec: Dictionary = ENEMY_TYPES[kind]
-	e.model_scene = _model(spec.model)
+	_set_model(e, kind, spec.model)
 	for key in spec:
 		if key not in ["model", "title"]:
 			e.set(key, spec[key])
@@ -992,10 +994,17 @@ func _model(model_name: String) -> PackedScene:
 	return _models[model_name]
 
 
+## The comic GLB when Game.comic_style is on and it exists, else the KayKit model.
+func _set_model(e: Node, kind: String, kaykit: String) -> void:
+	var comic := ComicLook.scene(kind)
+	e.model_scene = comic if comic != null else _model(kaykit)
+	e.comic_kind = kind if comic != null else ""
+
+
 func _spawn_boss() -> void:
 	hud.flash_message("THE BONE WARDEN", 1.6)
 	var b := BOSS.new()
-	b.model_scene = _model(BOSS_SPEC.model)
+	_set_model(b, "warden", BOSS_SPEC.model)
 	for key in BOSS_SPEC:
 		if key != "model":
 			b.set(key, BOSS_SPEC[key])
