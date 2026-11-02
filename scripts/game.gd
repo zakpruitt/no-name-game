@@ -215,6 +215,13 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 	Engine.time_scale = minf(Engine.time_scale, time_scale)
 
 
+## Back to full speed now, cutting any hitstop / slow motion short (a combo
+## breaker's press ends its slow-motion window).
+func end_slowmo() -> void:
+	_hitstop_end_ms = Time.get_ticks_msec()
+	Engine.time_scale = 1.0
+
+
 ## Fire-and-forget sound from assets/sfx/<sound_name>.wav, slightly pitch-varied.
 func sfx(sound_name: String, volume_db := 0.0, pitch_jitter := 0.08) -> void:
 	if _sfx_muted:

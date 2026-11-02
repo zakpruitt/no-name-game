@@ -11,6 +11,7 @@ const RECORDS := preload("res://scripts/records.gd")
 
 var daily := false  # "Daily run" picked: main seeds the run from today's date
 var replay := {}  # a RECENT RUNS entry picked: main replays its seed
+var training := false  # "Training" picked: main opens the training room
 
 
 func open(focus := 0) -> void:
@@ -18,8 +19,9 @@ func open(focus := 0) -> void:
 	show_menu("AWAKEN", "a combo roguelike", [
 		["Start run", _start],
 		["Daily run", _start_daily],
+		["Training", _start_training],
 		["Bone altar", open_altar],
-		["Settings", open_settings.bind(open.bind(3), 0.85)],
+		["Settings", open_settings.bind(open.bind(4), 0.85)],
 		["Quit", _quit],
 	], _footer(), 0.85, focus)
 	build_recent(RECORDS.recent_runs())
@@ -28,7 +30,7 @@ func open(focus := 0) -> void:
 ## Spend banked bones on permanent boons (altar.gd).
 func open_altar(focus := 0) -> void:
 	button_width = 720
-	var items := ALTAR_MENU.items(func() -> void: open_altar(focus), open.bind(2))
+	var items := ALTAR_MENU.items(func() -> void: open_altar(focus), open.bind(3))
 	show_menu("BONE ALTAR", ALTAR_MENU.subtitle(), items, "", 0.85, focus)
 
 
@@ -85,6 +87,12 @@ func _start() -> void:
 ## Same doors, twists and rewards for everyone today (main.daily_seed()).
 func _start_daily() -> void:
 	daily = true
+	_start()
+
+
+## A room with a dummy to practise combos on (main._start_training()).
+func _start_training() -> void:
+	training = true
 	_start()
 
 

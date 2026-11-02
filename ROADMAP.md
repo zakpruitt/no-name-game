@@ -217,3 +217,16 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Reward cards for a power on a named combo show how to do it ("Flurry:  L L, pause, L"), so a new combo's power doesn't need the pause menu to look up its input
 - [x] Cyclone retuned: its spin anim is short, so it reached its cancel in 0.31s for 24 AoE damage (78 DPS, the most of any move, while moving). `MOVES.speed` (new, optional) slows it to 0.55x: 20 damage over about 0.56s, near the Launcher and Dash Stab; lunge 11 → 9 since it now lasts longer
 - [x] Synergies for the new powers: Gale (Razor Gale, Eye of the Storm, Slipstream: +25% damage, +20% reach) and Sky (Rising Edge, Rebound, Sky Reaper, Chain Spark: launch +20%, +25% damage); War Chant joins Night (its Awakening +25%)
+
+## Round 24 (training)
+- [x] Training mode: title → Training opens one room with a dummy that never fights back or dies (`training_dummy.gd`); the HUD shows each string's damage and hits plus the best; Esc offers a free power pick (free rerolls), Fill Awakening, Ascend and Restart training (`main._start_training`, `pause_menu._open_training`, `tests/training_check.gd`)
+
+## Round 25 (combo breakers and strings that move)
+- [x] Combo breakers (`player.BREAKERS`, docs/features/combo-breakers.md): timed finishers on enders, only when the ender connected, with a slow-motion window (`BREAKER_FOCUS`), PERFECT freeze-frame and Awakened ancestors. Ground Breaker (L L H) throws spectral axes and dives onto them; Charged Slam juggles in a sawblade; Flurry dashes through the line; Cyclone (Dash H) pulls foes in and flings a ring of tomahawks; Spike (L H H) drops a hovering axe on every foe. `tests/breaker_check.gd`
+- [x] Breaker timing circle (`breaker_prompt.gd`): fills to the sweet spot with the heavy button in the middle and the breaker's name under it, pinned up and to the hero's left (the combo guide is on his right), separate from the guide. `tests/prompt_follow_check.gd`
+- [x] Dash out of a breaker's hang calls it off (dash cancels anything); the autotest bot is exempt so its dodges don't throw breakers away
+- [x] Strings move: `MOVES` `hop` (L2, Triple Chop, Launcher, Charged Slam, Dash Stab pounce, neutral heavy whirl), `weave` (Flurry sways side to side and leaves afterimages); landings slam harder from higher. `tests/hop_check.gd`
+- [x] Air string: L H then light = Air Slash, then Sky Rend (L H L L), climbing each cut (capped at `AIR_MAX_HEIGHT`); air moves home in on the juggled foe; moves that start in the air plunge for more damage (`PLUNGE_PER_M`); Triple Chop from the top is Skyfall, slamming a fan of spectral axes
+- [x] Air dash: one per trip up, keeps his height and carries the string on in the air (route `from` "AD"), cutting with a spectral axe
+- [ ] Hand play-test: breaker windows and dive speeds, the timing circle's spacing (`breaker_prompt.OFFSET`), the air dash / homing / height cap, Flurry's afterimages (windowed only)
+- [ ] The autotest bot rarely uses L H H or the air string (bot routes live in `main.gd`), so they're covered only by the PASS/FAIL tests

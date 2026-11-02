@@ -69,8 +69,8 @@ In `_draw()`:
 How the rows are built (`combo_options`):
 
 - **"Live" states:** `ATTACK`; `DASH` or `_post_dash_t > 0` (counted as "dashing"); `CHARGE`; and `MOVE` while `_chain_i > 0`. The last one is the short window after a light attack ends, before `_chain_reset_t` clears the chain.
-- **Light and heavy rows:** `route(kind, _move_id, attacking, _chain_i, dashing, awakened)`. A heavy that routes to the neutral spin `H` is left out, because it isn't a continuation.
-- **Dash row:** only while attacking and not already dashing. It always shows `DL` (dash, then light). It dims when `combo_window().dash` is false, which happens while the dash is on cooldown or before the move's first hit or 20% mark.
+- **Light and heavy rows:** `route(kind, _route_from(), attacking, _chain_i, dashing, awakened)`; `_route_from()` is `"AD"` during and just after an air dash, otherwise `_move_id`. A heavy that routes to the neutral spin `H` is left out, because it isn't a continuation. A light row to `L3` while the hero is at least `PLUNGE_AXES_FROM` up (the top of the air string) is named Skyfall at its tier, because that is what it lands as (`named_id()`).
+- **Dash row:** only while attacking and not already dashing. It shows `dash_light()`: `DL` (dash, then light), or `AL1` when a dash now would be an air dash (up in the air off `LH` / `AL1` / `AL2`). It dims when `combo_window().dash` is false, which happens while the dash is on cooldown or before the move's first hit or 20% mark.
 - **Charging:** a single `hold` row for `CH`.
 - **The pause combo:** a press while L2 is still playing (even past its cancel point) is Triple Chop; Flurry needs L2 to finish, then a light press within the chain's grace (`_chain_reset_t`, 0.35s). In that gap the light row is Flurry itself; mid-L2 the row adds "or pause: Flurry" (`pause` in `combo_options()`: `route()` asked with `attacking = false`, shown when it gives a different named combo; `PAUSE_TEXT`).
 - **Lookahead (`_option`):** for any row below tier 3, call `route(k, id, true, chain_after(id), false, awakened)` for heavy and then light, and keep the highest-tier named combo. Heavy wins ties. `CH` is never offered as a follow-up, because it needs neutral.
@@ -79,10 +79,10 @@ Routing rules in `route()`, checked in order:
 
 | Press | Condition | Move |
 |---|---|---|
-| light | `post_dash` | `DL` |
+| light | `post_dash` | `DL`, or `AL1` from `AD` (air dash) |
 | light | not attacking, from `L2`, `chain == 2` (L2 finished, chain still live) | `LPL` (Flurry: the pause combo) |
 | light | otherwise | `LIGHT_CHAIN[chain]`: L1 → L2 → L3 → L1 |
-| heavy | `post_dash`, not attacking | `DH` (Cyclone) |
+| heavy | `post_dash`, not attacking | `DH` (Cyclone), or `LHH` / `SKY` (Awakened) from `AD` |
 | heavy | Awakened, attacking, from `L3` / `LH` / `DL` | `AF` / `SKY` / `RUSH` |
 | heavy | attacking from `LH` | `LHH` (Spike) |
 | heavy | attacking from `L2`, or not attacking with `chain == 2` | `LLH` |
@@ -129,7 +129,7 @@ Routing rules in `route()`, checked in order:
 ## Testing
 
 - `godot --headless --path . -s tests/guide_check.gd` runs from every move in `FROM`, both resting and Awakened, and checks two things:
-  1. Each row's move equals what `_next_move()` returns for that press (dash rows equal `DL`).
+  1. Each row's move equals what `_next_move()` returns for that press (dash rows equal `dash_light()`).
   2. Starting that move and pressing the hinted button gives the hinted combo.
 
   It also checks the post-dash rows, that neutral shows no rows, and the charge row. It prints `[guide] PASS` or `[guide] FAIL ...`.

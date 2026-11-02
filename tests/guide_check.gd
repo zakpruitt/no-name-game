@@ -36,12 +36,13 @@ func _initialize() -> void:
 			_check(not rows.is_empty(), "%s%s shows rows" % [from, _tag(awake)])
 			for row: Dictionary in rows:
 				_begin(p, from)
-				var want: String = "DL" if row.kind == "dash" else p._next_move(row.kind)
+				var want: String = p.dash_light() if row.kind == "dash" else p._next_move(row.kind)
 				_check(row.id == want, "%s%s %s -> %s (guide says %s)" % [from, _tag(awake), row.kind, want, row.id])
 				if row.next.is_empty():
 					continue
 				_begin(p, from)
 				if row.kind == "dash":
+					p._air_dash = p._can_air_dash()
 					p._set_state(p.State.MOVE)
 					p._post_dash_t = 0.3
 				p._start_attack(row.id)

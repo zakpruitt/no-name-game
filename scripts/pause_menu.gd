@@ -20,6 +20,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _open(focus := 0) -> void:
+	var main := get_parent()
+	if main != null and main.get("training"):
+		_open_training(focus)
+		return
 	show_menu("PAUSED", "", [
 		["Resume", close_menu],
 		["Map", _show_map],
@@ -30,6 +34,38 @@ func _open(focus := 0) -> void:
 	], _run_info(), 0.7, focus)
 	_build_powers()
 	_build_moves()
+
+
+## Training's pause menu: free powers, Awakening and Ascendancy (main.train_*).
+func _open_training(focus := 0) -> void:
+	var main := get_parent()
+	var items: Array = [
+		["Resume", close_menu],
+		["Pick a power", _train.bind("train_power")],
+		["Fill Awakening", _train.bind("train_awaken")],
+	]
+	if main.player.ascendancy == "":
+		items.append(["Ascend", _train.bind("train_ascend")])
+	var settings := items.size()
+	items.append_array([
+		["Settings", open_settings.bind(_open.bind(settings), 0.7)],
+		["Restart training", _restart_training],
+		["Quit to title", _restart.bind(false)],
+		["Quit game", _quit],
+	])
+	show_menu("TRAINING", "", items, "Restart training clears your powers", 0.7, focus)
+	_build_powers()
+	_build_moves()
+
+
+func _train(method: String) -> void:
+	close_menu()
+	get_parent().call(method)
+
+
+func _restart_training() -> void:
+	close_menu()
+	get_parent().restart_training()
 
 
 ## "Room 3 / 8   ·   daily run 2026-10-31   ·   seed 975604274"

@@ -33,6 +33,7 @@ const CAMP_MENU := preload("res://scripts/camp.gd")
 const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
 const SHRINE_MENU := preload("res://scripts/shrine.gd")
 const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
+const DUMMY := preload("res://scripts/training_dummy.gd")
 const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
@@ -274,6 +275,15 @@ var _trinity_shot_taken := false
 var _cast_shot_taken := false
 var _archer_shot_taken := false
 var _quitting := false
+# Training (title → Training, or --training): one room and a dummy that never
+# fights back; powers, Awakening and the Ascendancy are free from the pause menu.
+static var _train_next := false  # "Restart training" reloads straight into it
+var training := false
+var _dummy: Node
+var _string := Vector2.ZERO  # this string's damage, hits on the dummy
+var _last_string := Vector2.ZERO
+var _best_string := 0.0
+var _strings := 0
 var _hits := 0
 
 
@@ -418,7 +428,9 @@ func _ready() -> void:
 			room_trial = arg.get_slice("=", 1)
 		elif arg == "--start-mystery":  # an unknown room, revealed on entry
 			room_kind = "mystery"
-	if not _autotest and not Game.skip_title:
+	training = _train_next or "--training" in OS.get_cmdline_user_args()
+	_train_next = false
+	if not _autotest and not Game.skip_title and not training:
 		var title := TITLE.new()
 		add_child(title)
 		hud.visible = false
@@ -433,8 +445,13 @@ func _ready() -> void:
 		if title.daily or not title.replay.is_empty():
 			run_rng.seed = run_seed
 			seed(run_seed)
+		training = title.training
 		title.queue_free()
 		hud.visible = true
+	if training:
+		Game.skip_title = false
+		_start_training()
+		return
 	var intro := not _autotest and not Game.skip_title
 	Game.skip_title = false
 	_start_map()
@@ -443,6 +460,85 @@ func _ready() -> void:
 		_map_status()
 		await map_menu.closed
 	_next_room()
+
+
+# --- Training -----------------------------------------------------------------
+
+func _start_training() -> void:
+	room = 1
+	room_kind = "training"
+	_apply_layout(0)
+	hud.wave_label.text = "TRAINING"
+	hud.flash_message("TRAINING
+Esc: powers, Awakening, Ascendancy", 2.0)
+	_dummy = DUMMY.new()
+	_dummy.model_scene = _model("Skeleton_Warrior")
+	_dummy.set_meta("kind", "dummy")
+	_dummy.set_meta("title", "training dummy")
+	add_child(_dummy)
+	_dummy.home = player.global_position + Vector3(0.0, 0.0, -4.5)
+	_dummy.global_position = _dummy.home
+	_dummy.hit_taken.connect(_train_hit)
+	Game.combo_changed.connect(_train_combo)
+	_train_text()
+
+
+func _train_hit(damage: float) -> void:
+	_string += Vector2(damage, 1.0)
+	_train_text()
+
+
+## The combo dropped: that string is done.
+func _train_combo(count: int, _rank: String) -> void:
+	if count > 0 or _string.y == 0.0:
+		return
+	_last_string = _string
+	_best_string = maxf(_best_string, _string.x)
+	_strings += 1
+	_string = Vector2.ZERO
+	_train_text()
+
+
+## "THIS STRING 120 · 6 hits    LAST 312 · 14 hits    BEST 540"
+func _train_text() -> void:
+	var parts: Array[String] = []
+	if _string.y > 0.0:
+		parts.append("THIS STRING  %d  ·  %s" % [_string.x, _hits_text(_string.y)])
+	if _last_string.y > 0.0:
+		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
+	if _best_string > 0.0:
+		parts.append("BEST  %d" % _best_string)
+	hud.set_trial("      ".join(parts) if not parts.is_empty() else "Hit the dummy: each string's damage shows here")
+
+
+func _hits_text(n: float) -> String:
+	return "%d hit%s" % [n, "" if n == 1.0 else "s"]
+
+
+## Pause menu → Pick a power: three cards, rerolls free.
+func train_power() -> void:
+	var choices := Upgrades.roll(player.upgrades, 3, false, run_rng)
+	if choices.is_empty():
+		hud.flash_message("EVERY POWER MAXED", 1.2)
+		return
+	_reward_rerolls = 0
+	_reward_level_ups_only = false
+	await _take_reward(choices, 0, "TRAINING · PICK A POWER")
+
+
+func train_awaken() -> void:
+	Game.add_awakening(Game.AWAKEN_MAX)
+
+
+func train_ascend() -> void:
+	Game.add_xp(Game.LEVEL_XP[-1] - Game.xp)
+	await _offer_ascendancy()
+
+
+## Back into training with no powers.
+func restart_training() -> void:
+	_train_next = true
+	get_tree().reload_current_scene()
 
 
 # --- Rooms ------------------------------------------------------------------
@@ -1057,6 +1153,8 @@ func _take_reward(choices: Array, reroll_cost: int, title := "") -> void:
 
 
 func _reroll_cost() -> int:
+	if training:
+		return 0
 	return REROLL_COST + REROLL_COST_STEP * _reward_rerolls
 
 
@@ -1455,6 +1553,9 @@ func _autotest_finish() -> void:
 		preload("res://scripts/projectile.gd").fired, ENEMY.dodges, ENEMY.blocks, player.charged_slams, player.ground_breakers, player.shatters, player.spikes, player.callouts, hud.combo_guide.shown, player.ELEMENTS.casts, player.ults, player.max_chain, player.ult_impacts, player.trinities, Game.level, Game.xp, player.ascendancy if player.ascendancy != "" else "-", player.element_procs, Game.bones_total, _raises, _splits, ENEMY.blasts, BONE_CAGE.escapes, BONE_CAGE.raised, Game._combat_level, ",".join(Game._hints_seen), player.upgrades, ",".join(player.masteries), player.power_procs, ",".join(_bot_moves.keys())])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
+	if training:
+		print("[training] strings=%d best=%.0f last=%.0f/%d dummy_hp=%.0f" % [_strings, _best_string,
+			_last_string.x, _last_string.y, _dummy.hp if is_instance_valid(_dummy) else -1.0])
 	if _tour:
 		var bought := _tour_trades.any(func(t: String) -> bool: return t.begins_with("camp:") and t != "camp:leave")
 		var traded := _tour_trades.any(func(t: String) -> bool: return t in ["shrine:vow", "shrine:melt"])

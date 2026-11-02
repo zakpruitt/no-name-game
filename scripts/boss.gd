@@ -167,7 +167,7 @@ func _state_windup(delta: float) -> void:
 		if is_instance_valid(_player):
 			_face(_player.global_position - global_position)
 		_telegraph.visible = true
-		_telegraph.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
+		_scale_fill(lerpf(0.3, 1.0, k))
 		_telegraph_mat.albedo_color.a = lerpf(0.15, 0.55, k)
 	if _state_t >= attack_windup:
 		_telegraph.visible = false
@@ -371,6 +371,7 @@ func _die(knockback: Vector3) -> void:
 	Game.shake(1.0)
 	Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.4, 0.9), 8.0, 0.6)
 	Fx.burst(get_parent(), global_position + Vector3.UP * 1.5, Color(1.0, 0.8, 0.4), 60, 10.0, 0.25, 0.8, Vector3.UP, 180.0, -6.0)
+	Fx.shards(get_parent(), global_position + Vector3.UP * 1.5, Color(0.93, 0.89, 0.78), 36, knockback, 14.0, 0.38, 1.0)
 
 
 ## 0..1 fill of the guard-break meter (for the HUD).

@@ -10,19 +10,37 @@ extends RefCounted
 ##   fissure  a march of small pillars or spikes along a line
 ##   nova     burst all around: spikes or blades outward
 ##   vortex   pieces whirling round the hero during the spin
+##   echo     the axe's bound spirit finishes the swing: a giant spectral axe
+##            sweeping the same arc a beat later (spirit_echo.gd; L1, L2 bigger)
+##   cleave   two colossal spectral axes rise either side of the target and slam
+##            inward, meeting in a V on it: blast round the heads (spirit_cleave.gd; L3)
+##   avatar   a towering spectral copy of the shaman rises round him and brings
+##            the great axe down ahead: blast + the element's nova (spirit_avatar.gd; CH)
+##   crown    three colossal spectral axes burst blade-up from the floor under the
+##            target round the element's column, launching it (spirit_crown.gd; LH)
+##   rift     a wave of colossal spectral axes bursting from the floor one after
+##            another along the thrust, growing (spirit_rift.gd; LLH)
+##   wheel    a ring of giant spectral axes laid flat like a sawblade, whirling
+##            round the hero through the spin, grinding (spirit_wheel.gd; H, DH)
+##   tomahawk giant spectral axe flung spinning flat like a sawblade, piercing out
+##            to `range` and boomeranging back to the hero (spirit_tomahawk.gd; DL, LPL fan)
+##   guillotine colossal spectral axe dropping blade-first from the sky onto the
+##            target and burying itself in the floor (spirit_guillotine.gd; LHH)
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
 const CASTS := {
-	"L1": {"kind": "bolt", "damage": 5.0, "range": 7.0, "speed": 20.0, "tilt": 35.0},
-	"L2": {"kind": "bolt", "damage": 6.0, "range": 7.5, "speed": 21.0, "tilt": -12.0},
-	"L3": {"kind": "bolt", "damage": 6.0, "range": 8.0, "speed": 22.0, "tilt": 0.0, "fan": 3, "spread": 22.0, "size": 1.3},
-	"DL": {"kind": "bolt", "damage": 6.0, "range": 8.0, "speed": 26.0, "tilt": 0.0, "size": 1.15},
-	"LPL": {"kind": "bolt", "damage": 4.0, "range": 6.5, "speed": 24.0, "tilt": 50.0, "fan": 2, "spread": 30.0, "size": 0.85},
-	"H": {"kind": "vortex", "radius": 3.0, "time": 0.95},
-	"DH": {"kind": "vortex", "radius": 2.9, "time": 0.9},
-	"LH": {"kind": "pillar", "damage": 6.0, "radius": 1.5, "height": 4.0, "launch": 9.0, "reach": 4.5, "ahead": 2.4},
-	"LLH": {"kind": "fissure", "length": 5.5, "steps": 6},
-	"CH": {"kind": "nova", "damage": 8.0, "radius": 5.0, "count": 10},
+	"L1": {"kind": "echo", "damage": 5.0, "radius": 3.4, "arc": 160.0, "delay": 0.05, "time": 0.18},
+	"L2": {"kind": "echo", "damage": 6.0, "radius": 3.9, "arc": 200.0, "delay": 0.04, "time": 0.2},
+	"AL1": {"kind": "echo", "damage": 4.0, "radius": 3.2, "arc": 170.0, "delay": 0.05, "time": 0.18},
+	"AL2": {"kind": "echo", "damage": 5.0, "radius": 3.6, "arc": 210.0, "delay": 0.04, "time": 0.2},
+	"L3": {"kind": "cleave", "damage": 12.0, "reach": 5.0, "ahead": 3.0, "size": 3.2, "blast": 2.8, "launch": 4.0},
+	"DL": {"kind": "tomahawk", "damage": 6.0, "back_damage": 4.0, "range": 8.0, "size": 2.6},
+	"LPL": {"kind": "tomahawk", "damage": 4.0, "back_damage": 3.0, "range": 6.5, "size": 1.5, "fan": 2, "spread": 34.0},
+	"H": {"kind": "wheel", "radius": 3.1, "time": 0.95, "count": 4, "turns": 2.5, "damage": 2.0},
+	"DH": {"kind": "wheel", "radius": 3.0, "time": 0.9, "count": 6, "turns": 3.0, "damage": 2.0},
+	"LH": {"kind": "crown", "damage": 6.0, "radius": 1.9, "height": 4.0, "launch": 9.0, "reach": 4.5, "ahead": 2.4, "size": 3.4},
+	"LHH": {"kind": "guillotine", "damage": 7.0, "radius": 2.4, "size": 3.8, "reach": 4.5, "ahead": 2.0},
+	"CH": {"kind": "avatar", "damage": 14.0, "radius": 4.2, "launch": 8.0, "size": 3.0},
 }
 ## color: main glow; glow: hot core; rock: solid pieces (earth).
 const LOOK := {
@@ -31,6 +49,7 @@ const LOOK := {
 	"earth": {"color": Color(1.0, 0.38, 0.08), "glow": Color(1.0, 0.78, 0.3), "rock": Color(0.2, 0.16, 0.15), "sfx": "cast_earth"},
 	"water": {"color": Color(0.4, 0.78, 1.0), "glow": Color(0.88, 0.97, 1.0), "sfx": "cast_water"},
 }
+const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const ORBIT_REST := 3
 const ORBIT_AWAKENED := 7
 
@@ -41,6 +60,7 @@ static var casts := 0  # casts summoned (autotest)
 
 ## Drop cached materials and meshes so nothing is left alive at exit (Game._exit_tree).
 static func release() -> void:
+	SPIRIT_ECHO._form_meshes.clear()
 	_mats.clear()
 	_meshes.clear()
 
@@ -69,6 +89,38 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 		mi.material_override = mat
 		root.add_child(mi)
 	gather(root, at, Color.WHITE, 0.1, 1)
+	# Fx sprite materials (particle textures, flares, ground ring).
+	for tex: String in ["dot", "smoke", "spark"]:
+		for add: bool in [false, true]:
+			Fx.burst(root, at, Color.WHITE, 1, 0.0, 0.01, 0.1, Vector3.UP, 0.0, 0.0, 0.0, tex, add)
+	Fx.flare(root, at, Color.WHITE, 0.01, 0.1, "flare")
+	Fx.flare(root, at, Color.WHITE, 0.01, 0.1, "dot", true)
+	Fx.flare(root, at, Color.WHITE, 0.3, 0.1, "dot")  # projectile halo variant
+	Fx.flare(root, at, Color.WHITE, 0.3, 0.1, "star8")
+	Fx.flare(root, at, Color.WHITE, 0.3, 0.1, "ring")
+	Fx.ring(root, at, Color.WHITE, 0.01, 0.1)
+	Fx.scorch(root, at, Color.WHITE, 0.3, 0.1)
+	# Real sizes (the root is scaled to 5%): sub-pixel draws may skip the compile.
+	Fx.swoosh(root, at, Vector3.FORWARD, 1.0, 90.0, Color.WHITE, false, 0.15)
+	Fx.shards(root, at, Color.WHITE, 2, Vector3.UP, 0.0, 0.3, 0.15)
+	Fx.dash_streak(root, at, Vector3.FORWARD, 1.0, Color.WHITE, 0.15)
+	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color, true)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.spirit.color, true, 3.0, 2.0)))
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(Color(0.95, 0.25, 0.05))))  # Cataclysm vortex
+	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(Color(0.95, 0.25, 0.05), true)))
+	var ghost: MeshInstance3D = SPIRIT_ECHO.ghost(BoxMesh.new(), Color.WHITE)  # spirit casts
+	ghost.material_override.albedo_color.a = 0.5
+	root.add_child(ghost)
+	var ribbon := MeshInstance3D.new()  # the weapon trail's shader (it draws nothing until a swing)
+	ribbon.mesh = QuadMesh.new()
+	var ribbon_mat := ShaderMaterial.new()
+	ribbon_mat.shader = load("res://shaders/weapon_trail.gdshader")
+	ribbon_mat.set_shader_parameter("noise", Fx.NOISE)
+	ribbon.material_override = ribbon_mat
+	root.add_child(ribbon)
 	var l := OmniLight3D.new()
 	l.light_energy = 0.01
 	root.add_child(l)
@@ -96,6 +148,43 @@ static func glow(c: Color, hdr := 1.0, add := false) -> StandardMaterial3D:
 		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if add else BaseMaterial3D.BLEND_MODE_MIX
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		m.albedo_color = Color(c.r * hdr, c.g * hdr, c.b * hdr, c.a)
+		_mats[key] = m
+	return _mats[key]
+
+
+## Open cone for the wind funnels: wide at the top, narrow at the base.
+static func funnel(top: float, bottom: float, height: float) -> CylinderMesh:
+	var key := "funnel%.2f_%.2f_%.2f" % [top, bottom, height]
+	if not _meshes.has(key):
+		var m := CylinderMesh.new()
+		m.top_radius = top
+		m.bottom_radius = bottom
+		m.height = height
+		m.cap_top = false
+		m.cap_bottom = false
+		m.radial_segments = 18
+		m.rings = 6
+		_meshes[key] = m
+	return _meshes[key]
+
+
+## Swirling band shader for the wind funnels (shaders/swirl.gdshader) in colour
+## `c`: a darker body so it reads on the light floor, bright streaks over it.
+## `inner` = the faster, brighter inner funnel.
+## `twist` = turns a band makes over the height (low = a straight jet), `bands` > 0 overrides the count.
+static func swirl_mat(c: Color, inner := false, twist := 1.6, bands := 0.0) -> ShaderMaterial:
+	var key := "swirl%s%s%.1f%.1f" % [c.to_html(), inner, twist, bands]
+	if not _mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = preload("res://shaders/swirl.gdshader")
+		m.set_shader_parameter("noise", Fx.NOISE)
+		# Deep but saturated: darkening alone turns pale green muddy grey.
+		var body := Color.from_hsv(c.h, 0.85, 0.6 if not inner else 0.85)
+		m.set_shader_parameter("body_color", Color(body, 0.62 if not inner else 0.4))
+		m.set_shader_parameter("streak_color", c.lerp(Color.WHITE, 0.6))
+		m.set_shader_parameter("speed", 2.2 if not inner else 3.5)
+		m.set_shader_parameter("bands", bands if bands > 0.0 else (3.0 if not inner else 2.0))
+		m.set_shader_parameter("twist", twist)
 		_mats[key] = m
 	return _mats[key]
 
@@ -262,14 +351,8 @@ static func gather(parent: Node, pos: Vector3, c: Color, radius := 3.0, amount :
 	fade.colors = PackedColorArray([Color(c, 0.0), c, Color(c.lightened(0.5), 1.0)])
 	p.color_ramp = fade
 	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 0.16
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.vertex_color_use_as_albedo = true
-	quad.material = mat
+	quad.size = Vector2.ONE * 0.32
+	quad.material = Fx.particle_mat("dot", true)  # soft round sprite
 	p.mesh = quad
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	p.position = parent.to_local(pos) if parent is Node3D else pos
@@ -304,23 +387,19 @@ static func pillar(parent: Node, pos: Vector3, el: String, height := 4.0, radius
 	root.global_position = Vector3(pos.x, 0.0, pos.z)
 	match el:
 		"wind":
-			for i in 5:
-				var t := TorusMesh.new()
-				var r := radius * (0.45 + 0.22 * i)
-				t.inner_radius = r * 0.8
-				t.outer_radius = r
-				var ring := _mi(t, glow(Color(c, 0.8 - i * 0.1), 1.4))
-				ring.position.y = 0.3 + i * height / 5.0
-				ring.rotation.z = 0.15 * (i % 2 * 2 - 1)
-				root.add_child(ring)
-			var core := CylinderMesh.new()
-			core.top_radius = radius * 0.9
-			core.bottom_radius = radius * 0.2
-			core.height = height
-			var cm := _mi(core, glow(Color(c, 0.25)))
-			cm.position.y = height * 0.5
-			root.add_child(cm)
-			root.create_tween().tween_property(root, "rotation:y", TAU * 3.0, life)
+			# Two nested swirling funnels, spinning against each other.
+			var outer := _mi(funnel(radius * 1.1, radius * 0.25, height), swirl_mat(c))
+			outer.position.y = height * 0.5
+			root.add_child(outer)
+			var inner := _mi(funnel(radius * 0.6, radius * 0.12, height * 0.85), swirl_mat(c, true))
+			inner.position.y = height * 0.425
+			root.add_child(inner)
+			var spin := root.create_tween().set_parallel()
+			spin.tween_property(outer, "rotation:y", TAU * 2.0, life)
+			spin.tween_property(inner, "rotation:y", -TAU * 3.0, life)
+			root.scale = Vector3(0.2, 0.6, 0.2)
+			spin.tween_property(root, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+			Fx.ring(parent, root.global_position, Color(c.darkened(0.25), 0.85), radius * 1.4, 0.3)
 			Fx.burst(parent, root.global_position + Vector3.UP * 0.5, c, 18, 9.0, 0.14, 0.5, Vector3.UP, 25.0, 4.0, radius * 0.6)
 		"earth":
 			var col := CylinderMesh.new()
@@ -359,14 +438,16 @@ static func pillar(parent: Node, pos: Vector3, el: String, height := 4.0, radius
 			col.top_radius = radius * 1.0
 			col.bottom_radius = radius * 0.55
 			col.height = height
-			var spout := _mi(col, glow(Color(c, 0.6), 1.2))
+			col.cap_top = false
+			col.cap_bottom = false
+			var spout := _mi(col, swirl_mat(c, true, 0.6, 5.0))  # a twisting jet of water bands (bright body: deep reads as metal)
 			spout.position.y = height * 0.5
 			root.add_child(spout)
 			var inner := CylinderMesh.new()
-			inner.top_radius = radius * 0.5
-			inner.bottom_radius = radius * 0.3
+			inner.top_radius = radius * 0.28
+			inner.bottom_radius = radius * 0.18
 			inner.height = height * 1.1
-			var core := _mi(inner, glow(Color(g, 0.7), 1.8))
+			var core := _mi(inner, glow(Color(g, 0.55), 1.6))  # thin: a fat white core hides the jet
 			core.position.y = height * 0.55
 			root.add_child(core)
 			root.scale = Vector3(1.0, 0.1, 1.0)
@@ -378,7 +459,9 @@ static func pillar(parent: Node, pos: Vector3, el: String, height := 4.0, radius
 			beam.top_radius = radius * 0.6
 			beam.bottom_radius = radius * 0.45
 			beam.height = height * 1.4
-			var outer := _mi(beam, glow(Color(c, 0.5), 1.3))
+			beam.cap_top = false
+			beam.cap_bottom = false
+			var outer := _mi(beam, swirl_mat(c, true, 3.0, 2.0))  # tight fast spiral round the core
 			outer.position.y = height * 0.7
 			root.add_child(outer)
 			var thin := CylinderMesh.new()
@@ -575,14 +658,8 @@ class Bolt extends Node3D:
 		fade.set_color(1, Color(look.color, 0.0))
 		_trail.color_ramp = fade
 		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * 0.14
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-		mat.vertex_color_use_as_albedo = true
-		quad.material = mat
+		quad.size = Vector2.ONE * 0.28
+		quad.material = Fx.particle_mat("dot", true)  # soft round sprite
 		_trail.mesh = quad
 		_trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(_trail)
@@ -707,14 +784,8 @@ static func meteor(parent: Node, pos: Vector3, time: float) -> void:
 	fade.set_color(1, Color(LOOK.earth.color, 0.0))
 	trail.color_ramp = fade
 	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 0.4
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.vertex_color_use_as_albedo = true
-	quad.material = mat
+	quad.size = Vector2.ONE * 0.8
+	quad.material = Fx.particle_mat("dot", true)  # soft round sprite
 	trail.mesh = quad
 	root.add_child(trail)
 	var tw := root.create_tween()

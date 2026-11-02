@@ -13,6 +13,7 @@ var camera: Camera3D
 var _zoom := 1.0
 var _zoom_to := 1.0
 var _zoom_until_ms := 0
+var _kick := Vector3.ZERO  # directional hit nudge (kick), springs back
 
 
 func _ready() -> void:
@@ -32,6 +33,15 @@ func punch(zoom: float, hold: float) -> void:
 	_zoom_until_ms = Time.get_ticks_msec() + int(hold * 1000.0)
 
 
+## Nudge the camera along `dir` (world, flattened) by `amount` m; it springs back
+## in real time. Heavy hits and combo enders (player._camera_hit).
+func kick(dir: Vector3, amount: float) -> void:
+	dir.y = 0.0
+	if dir.length_squared() < 0.0001 or Game.shake_scale <= 0.0:
+		return
+	_kick = (_kick + dir.normalized() * amount * Game.shake_scale).limit_length(0.8)
+
+
 func add_trauma(amount: float) -> void:
 	trauma = clampf(trauma + amount, 0.0, 1.0)
 
@@ -47,7 +57,8 @@ func _process(delta: float) -> void:
 		_zoom_to = 1.0
 	var real_delta := delta / maxf(Engine.time_scale, 0.01)  # slow-mo shouldn't slow the push-in
 	_zoom = lerpf(_zoom, _zoom_to, 1.0 - exp(-9.0 * real_delta))
-	camera.position = offset * _zoom
+	_kick = _kick.lerp(Vector3.ZERO, 1.0 - exp(-12.0 * real_delta))
+	camera.position = offset * _zoom + _kick
 	var s := trauma * trauma
 	camera.h_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
 	camera.v_offset = randf_range(-1.0, 1.0) * max_shake_offset * s

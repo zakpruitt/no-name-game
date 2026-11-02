@@ -366,7 +366,7 @@ func _state_windup(delta: float) -> void:
 	if attack_kind == "line":
 		_track_aim(k)
 	else:
-		_telegraph.scale = Vector3.ONE * lerpf(0.3, 1.0, k)
+		_scale_fill(lerpf(0.3, 1.0, k))
 	if _state_t >= attack_windup:
 		_telegraph.visible = false
 		if attack_kind == "line":
@@ -531,6 +531,10 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	Fx.damage_number(get_parent(), global_position, damage, big)
 	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
 	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
+	var hero := get_tree().get_first_node_in_group("player")
+	if hero != null and hero.has_method("_fx_color"):  # long strings escalate the sparks
+		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
+			knockback.normalized() + Vector3.UP * 0.5)
 	Fx.flash(model)
 	_telegraph.visible = false
 	_freeze_t = hit_freeze_big if big else hit_freeze
@@ -652,7 +656,7 @@ func _light_fuse() -> void:
 	_fuse = attack_windup
 	_spark.visible = true
 	_telegraph.visible = true
-	_telegraph.scale = Vector3.ONE
+	_scale_fill(1.0)
 	Game.sfx("swing", -10.0, 0.2)
 
 
@@ -731,12 +735,14 @@ func _die(knockback: Vector3) -> void:
 	collision_mask = 1
 	velocity = Vector3(knockback.x * 1.3, 4.0, knockback.z * 1.3)
 	_play("Death_A", 0.05, 1.4, true)
+	Fx.death(get_parent(), global_position, knockback, elite, Color(1.0, 0.85, 0.45) if elite else Color(0.93, 0.89, 0.78))
 	Game.add_awakening(4.0 + (ELITE_AWAKEN_BONUS if elite else 0.0))
 	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
 	Game.enemy_killed.emit(self)
 	var tw := create_tween()
 	tw.tween_interval(1.4)
+	tw.tween_callback(func() -> void: Fx.soul(get_parent(), global_position))
 	tw.tween_property(model, "position:y", -1.5, 0.6)
 	tw.tween_callback(queue_free)
 
@@ -817,6 +823,14 @@ const EDGE_PULSE_HZ := Vector2(3.0, 9.0)  # pulses/s at windup start, end
 func _build_edge(r: float) -> void:
 	_edge = Fx.edge_ring(r)
 	_telegraph.add_child(_edge)
+
+
+## Grow the telegraph's fill to `s` of the reach while the rim stays at full
+## reach the whole windup: the hit lands when the fill meets the rim.
+func _scale_fill(s: float) -> void:
+	_telegraph.scale = Vector3.ONE * s
+	if _edge:
+		_edge.scale = Vector3(1.0 / s, 0.3 / s, 1.0 / s)  # edge_ring's own scale is (1, 0.3, 1)
 
 
 ## Match the rim to a ring of radius r (boss.gd resizes its telegraph).
