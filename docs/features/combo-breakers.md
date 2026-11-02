@@ -21,6 +21,11 @@ The first one hangs off **L L H (Ground Breaker)**:
    **PERFECT**: more damage, more Awakening, a gold callout.
 5. Pressing too early **locks it out** (the cue greys), and with no press he
    floats back down. Either way the spikes fade and nothing more happens.
+   Two presses are forgiven: one in the first `BREAKER_SPILL` (0.12 s) after
+   take-off is the ender's own mashed heavy spilling over and is ignored,
+   and one within `BREAKER_EARLY` (0.08 s) before `open` is held and dives
+   the moment the window opens (a normal hit, not a perfect). Only a press
+   between the two locks out.
 6. Dash cancels anything, the hang included: a dash before the press calls
    the breaker off (`_leap_dash_out`: hovering axes cancelled, ancestor,
    cue and sawblade removed, slow motion ended; the prompt shows a miss)
@@ -52,6 +57,19 @@ he doesn't dive it vanishes. Flurry's wake axes grow by
 `BREAKER_AWAKENED_WAKE` instead, and Cyclone throws nine tomahawks, 30%
 bigger. The damage already rises with Awakening's
 damage multiplier.
+
+**It's barbaric.** As the window opens he roars a **war cry** in the slowed
+hang (`war_cry.wav` and a shockwave shell off his chest: `breaker_quake.war_cry`),
+so the window has a sound cue as well as the circle. He kicks off hard
+enough to crack the floor (a small `crater` without a rim), and every
+landing except the dash breaker's **breaks the floor**: glowing cracks in
+the element's colour split out and cool to soot, slabs heave up round the
+rim tilted outward (floor stone, magma rock for earth, ice for water),
+rubble flies and a `quake.wav` rumbles. On a **PERFECT** the element
+answers the blow: `ERUPT` (8) strikes sweep round a ring 1.35 times the
+crater (lightning, magma spikes, ice, spirit beams: `elements.storm_strike`),
+and Flurry's perfect marches them down the dash line instead. These are
+visual only.
 
 **The window plays in slow motion.** When it opens, the game drops to
 `BREAKER_FOCUS` speed (0.6), the camera pushes in and a heartbeat plays.
@@ -196,6 +214,11 @@ him, and a light shake.
   it sinks away after `life`.
   `blasted` is shared by one breaker's spikes, so each foe takes the
   detonation once.
+- `scripts/breaker_quake.gd`: the barbaric look. `war_cry()` (window opens),
+  `crater()` (take-off without the rim, every non-dash landing with it),
+  `eruption()` / `eruption_line()` (perfects). Visual only; `stone()` is
+  the slab material for spirit and wind, freed in `release()` from
+  `Game._exit_tree`. Sounds: `war_cry`, `quake` in `tools/gen_sfx.py`.
 - `scripts/breaker_cue.gd`: the floor rings. `lock()` greys them out (too
   early); `hit(perfect)` flashes them.
 - `scripts/breaker_prompt.gd`: the timing prompt. It's a circle affixed to
@@ -272,7 +295,7 @@ while he waits.
 | Group | Keys |
 |---|---|
 | Height and spacing | `height`, `back`, `zone`, `spread` |
-| Window (seconds) | `open`, `sweet`, `close`, `perfect` |
+| Window (seconds) | `open`, `sweet`, `close`, `perfect`; `BREAKER_SPILL`, `BREAKER_EARLY` (shared) |
 | Damage | `spike_damage` (landing), `detonate` (once per foe), `damage` + `radius` (the dive), `perfect_mult` |
 | Awakening gain | `awaken`, `awaken_perfect` |
 
@@ -306,7 +329,9 @@ such as a ground dash instead of a leap, branch in `_state_leap` on a
 
 - `godot --headless --path . -s tests/breaker_check.gd`: four cases (perfect,
   late, early lockout, no press) for every `BREAKERS` entry against a dummy,
-  PASS/FAIL, plus a dash out of the hang for each (Awakened, in the
+  PASS/FAIL, plus `spill` (a press at 0.03 s is ignored and a second at
+  the sweet spot still lands PERFECT) and `held` (a press 0.06 s before
+  `open` dives as it opens), plus a dash out of the hang for each (Awakened, in the
   slowed window: state DASH, full speed back, ancestor and volley gone,
   ended = miss). It also checks that `breaker_window()` is live inside the
   window while the combo guide shows nothing, that each case ends the right

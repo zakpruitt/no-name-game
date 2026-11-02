@@ -239,6 +239,13 @@ const BREAKER_PERFECT_STOP := 0.07
 # wake axes grow by BREAKER_AWAKENED_WAKE instead.
 const BREAKER_ANCESTOR := 4.0
 const BREAKER_AWAKENED_WAKE := 1.4
+# Forgiving presses: a heavy in the first BREAKER_SPILL s after take-off is the
+# ender's own mashed press spilling over and is ignored (no lockout), and one
+# within BREAKER_EARLY s before `open` is held and fires as the window opens
+# (a normal hit). Only a press between the two locks the breaker out.
+const BREAKER_SPILL := 0.12
+const BREAKER_EARLY := 0.08
+const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
 const BREAKER_SPIKE := preload("res://scripts/breaker_spike.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
@@ -416,6 +423,7 @@ var _brk_id := ""
 var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
 var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
 var _brk_locked := false
+var _brk_held := false  # pressed just before `open`: dives as the window opens (BREAKER_EARLY)
 var _brk_thrown := 0
 var _brk_zone := Vector3.ZERO
 var _brk_dir := Vector3.FORWARD
@@ -821,6 +829,7 @@ func _start_leap(id: String) -> void:
 	_brk_phase = 0
 	_brk_press = -1.0
 	_brk_locked = false
+	_brk_held = false
 	_brk_thrown = 0
 	_brk_spikes.clear()
 	_brk_blasted = {}
@@ -841,6 +850,8 @@ func _start_leap(id: String) -> void:
 	Game.sfx("dash", -4.0, 0.05)
 	Fx.dust(get_parent(), global_position, 10, 0.8)
 	Fx.ring(get_parent(), global_position, Color(_fx_color(), 0.8), 1.6, 0.25)
+	if not _brk.has("dash"):  # he kicks off hard enough to crack the floor
+		BREAKER_QUAKE.crater(get_parent(), global_position, element(), 1.4, false)
 
 
 ## Combo breaker, part 2: rise and hang, throw, wait for the timed press, then
@@ -891,10 +902,17 @@ func _state_leap(delta: float) -> void:
 			if Game.camera_rig:
 				Game.camera_rig.punch(BREAKER_FOCUS_ZOOM, (b.close - b.open) / BREAKER_FOCUS)
 			Game.sfx("heartbeat", -6.0, 0.0)
+			# The war cry marks the window: he roars in the slowed hang.
+			Game.sfx("war_cry", -3.0, 0.06)
+			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _fx_color())
 			if awakened and not b.has("dash") and not b.has("fan"):
 				_breaker_ancestor()
-		if not _brk_locked and _breaker_pressed(t):
-			if t < b.open:
+		if not _brk_locked and not _brk_held and _breaker_pressed(t):
+			if t < BREAKER_SPILL:
+				pass  # the ender's own press spilling over: ignored
+			elif t >= b.open - BREAKER_EARLY and t < b.open:
+				_brk_held = true  # a hair early: dives as the window opens
+			elif t < b.open:
 				_brk_locked = true  # too early: no breaker this time
 				_brk_ended = "lock"
 				if is_instance_valid(_brk_cue):
@@ -904,6 +922,10 @@ func _state_leap(delta: float) -> void:
 				_brk_press = t
 				_start_dive()
 				return
+		if _brk_held and t >= b.open:
+			_brk_press = t
+			_start_dive()
+			return
 		if t > b.close:
 			if _brk_ended == "":
 				_brk_ended = "miss"
@@ -1110,6 +1132,16 @@ func _breaker_impact() -> void:
 		ELEMENTS.sky_impact(get_parent(), at, el, b.radius)
 		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius * 0.9, _brk_dir)
 		_axe_fall(at, _brk_dir, 4.6 if perfect else 3.8)
+	# Barbaric landing: the floor breaks (the dash breaker's wake is its own
+	# crater), and a perfect makes the element answer the blow all round it.
+	if b.has("dash"):
+		if perfect:
+			BREAKER_QUAKE.eruption_line(get_parent(), _brk_dive_from, _brk_dir, (at - Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)).length(), el)
+	else:
+		BREAKER_QUAKE.crater(get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
+		if perfect:
+			BREAKER_QUAKE.eruption(get_parent(), at, el, maxf(b.radius, 2.4) * 1.35)
+		Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
 	for s in _brk_spikes:
 		if is_instance_valid(s):
 			s.detonate()
