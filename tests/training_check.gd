@@ -30,6 +30,14 @@ func _initialize() -> void:
 	game.combo_changed.emit(0, "D")
 	_check(main._last_string.y == 6.0 and main._best_string >= 2400.0 and main._string == Vector2.ZERO,
 		"a dropped combo records the string")
+	# A long juggle (a launcher every frame) never lifts it past MAX_HEIGHT.
+	var top := 0.0
+	for i in 60:
+		dummy.take_hit(1.0, Vector3.ZERO, 9.0, true)
+		await physics_frame
+		top = maxf(top, dummy.global_position.y)
+	_check(top <= dummy.MAX_HEIGHT + 0.2, "a juggle stays under %s m (%.2f)" % [dummy.MAX_HEIGHT, top])
+	await create_timer(1.5).timeout
 	# A launch, then it walks home and never winds up.
 	dummy.take_hit(5.0, Vector3(0, 0, -6), 9.0, true)
 	await create_timer(4.0).timeout
