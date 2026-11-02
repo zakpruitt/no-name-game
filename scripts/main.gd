@@ -289,6 +289,7 @@ var _hits := 0
 
 func _ready() -> void:
 	Game.reset()
+	Game.sync_comic()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	# One seed drives the global RNG (arena dressing, combat effects) and
 	# run_rng (doors, twists, spawn order, reward offers), which nothing else
@@ -1229,6 +1230,9 @@ func _end_run(victory: bool) -> void:
 # --- World ------------------------------------------------------------------
 
 func _build_environment() -> void:
+	if Game.comic_style:
+		ComicLook.build_environment(self)
+		return
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.05, 0.05, 0.09)
