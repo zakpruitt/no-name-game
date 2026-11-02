@@ -58,6 +58,7 @@ func _initialize() -> void:
 	await _lineup()
 	await _each_enemy()
 	await _boss()
+	await _hero()
 	await _dots()
 	await _ink_and_flash()
 	await _text()
@@ -164,6 +165,39 @@ func _boss() -> void:
 
 
 ## The same foe near and far: the dots must stay one size on screen.
+## Him, every Ab_ clip on its hit frame, and hero_look's Ascendancy gear on his rig.
+func _hero() -> void:
+	_clear_enemies()
+	var p: Node3D = _main.player
+	p.set_physics_process(false)
+	var was_rot: float = p.model.rotation.y
+	p.model.rotation.y = 0.0
+	p.anim.play("Idle", 0.0)
+	p.anim.seek(0.0, true)
+	p.anim.speed_scale = 0.0
+	_look(p.global_position + Vector3.UP * 1.2, CLOSE_VIEW)
+	await create_timer(SETTLE).timeout
+	_shot("hero_idle", "Compare comic_poc/out renders. His hair, mantle, feathers and two axes are the model's, nothing floats beside them. Toon tones, hull ink, no magenta. Head and cape aren't cut by the hull.")
+	for id: String in _look_script.HERO_MOVES:
+		var h: Dictionary = _look_script.HERO_MOVES[id]
+		p.anim.play(h.clip, 0.0)
+		p.anim.seek((h.hit - 1) / CLIP_FPS, true)
+		p.anim.speed_scale = 0.0
+		await create_timer(SETTLE).timeout
+		_shot("hero_%s" % h.clip, "%s at its hit frame: contact pose, axes in the hands." % h.clip)
+	p.anim.play("Idle", 0.0)
+	p.anim.speed_scale = 0.0
+	var hero_look: GDScript = load("res://scripts/hero_look.gd")
+	for path: String in hero_look.FORMS:
+		var form: Node3D = hero_look.add_form(p.model, path)
+		await create_timer(SETTLE).timeout
+		_shot("hero_form_%s" % path, "%s Ascendancy gear. Tuned on KayKit's head and upright bones, so expect it tilted or off the head: this says how far." % path)
+		form.queue_free()
+		await process_frame
+	p.model.rotation.y = was_rot
+	p.set_physics_process(true)
+
+
 func _dots() -> void:
 	_clear_enemies()
 	var e: Node3D = _main._spawn("minion", false, _at(Vector3(0.0, 0.0, 3.0)))
