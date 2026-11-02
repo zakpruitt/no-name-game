@@ -234,5 +234,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Elements in the breakers: the war cry's floor answers in his element, breaker dives come down as element comets, crater cracks vent the element (embers, frost, sparks, wisps), and Gale Waltz ends on a big crossed X blade
 - [x] Ascended heavies: every heavy lays down the element and the next heavy sets it off: earth wells up lava that erupts in geysers (Magma Burst), wind charges foes for a chained thunderclap, water soaks them for a flash freeze its own blows shatter; breaker landings set everything off
 - [x] Training dummy is heavier in the air: launches lift it about half as high and it never rises past 3 m, so long strings no longer juggle it out of reach
+- [x] Wiki on GitHub Pages: https://zakpruitt.github.io/no-name-game/ (a workflow deploys `docs/wiki/` on every push to dev that touches it)
 - [ ] Hand play-test: breaker windows and dive speeds, the timing circle's spacing (`breaker_prompt.OFFSET`), the air dash / homing / height cap, Flurry's afterimages (windowed only)
 - [ ] The autotest bot rarely uses L H H or the air string (bot routes live in `main.gd`), so they're covered only by the PASS/FAIL tests
