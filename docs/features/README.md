@@ -19,6 +19,7 @@ invariants and the gotchas.
 | Spirit casts (giant spectral axes / ancestor per move) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_*.gd`, `player._cast()`, `elements.CASTS` |
 | Combo breakers (timed aerial finishers) and strings that move (hops, weave, air string, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `player.BREAKERS`, `player._state_leap()`, `player._hop()`, `scripts/breaker_spike.gd`, `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd` |
 | Ascended heavies: lava wells / static charge / soak, set off by the next heavy | [element-rites.md](element-rites.md) | `scripts/element_rite.gd`, `player._rite_set_off()`, `player._rite_wells()` |
+| Comic art style behind `Game.comic_style` (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 
 ## Writing one
 

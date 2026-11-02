@@ -86,8 +86,18 @@ func _check_model(kind: String, asks: Array) -> bool:
 	for mat: String in Look.material_names(model):
 		_expect(Look.known_material(mat), "%s: material %s has tones" % [kind, mat])
 	_expect(_has_g(model), "%s: `g` imported into COLOR (run tools/comic_glb.py)" % kind)
+	_check_facing(model, kind)
 	model.free()
 	return true
+
+
+## Models must face +Z like KayKit's (facing yaw = atan2(dir.x, dir.z)): jaw ahead of head.
+func _check_facing(model: Node, kind: String) -> void:
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var head := skel.find_bone("head")
+	var jaw := skel.find_bone("jaw")
+	if head >= 0 and jaw >= 0:
+		_expect(skel.get_bone_global_rest(jaw).origin.z > skel.get_bone_global_rest(head).origin.z, "%s faces +Z" % kind)
 
 
 ## tools/comic_glb.py moved `g` to COLOR_0: some vertex must differ from white. If the
