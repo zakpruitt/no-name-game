@@ -99,6 +99,8 @@ var combo_guide := true
 var comic_style := false
 var comic_setting := false
 var _comic_cli := false
+## --comic-moves only: the comic hero's moves play his Ab_ clips (ComicLook.HERO_MOVES).
+var comic_moves := false
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
@@ -126,6 +128,7 @@ func _ready() -> void:
 	_setup_input()
 	_load_settings()
 	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
+	comic_moves = "--comic-moves" in OS.get_cmdline_user_args() or "--comic-moves" in OS.get_cmdline_args()
 	sync_comic()
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()

@@ -414,6 +414,8 @@ var _aura: CPUParticles3D
 var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _trails: Array = []
+var _comic_hero := false  # model is ComicLook.HERO, not the KayKit Barbarian
+static var _kaykit_axe: Mesh  # the spirit casts' axe under the comic hero (see _axe_mesh)
 var _orbit: Node3D
 var _ult_id := ""
 var _ult_from := Vector3.ZERO
@@ -484,22 +486,27 @@ func _ready() -> void:
 	shape.position.y = 0.9
 	add_child(shape)
 
-	model = MODEL.instantiate()
+	var comic := ComicLook.scene(ComicLook.HERO)
+	_comic_hero = comic != null
+	model = comic.instantiate() if _comic_hero else MODEL.instantiate()
 	add_child(model)
-	HERO_LOOK.dress(model)
+	if _comic_hero:
+		ComicLook.apply(model, ComicLook.HERO)
+	else:
+		HERO_LOOK.dress(model)
 	Fx.outline(model)
-	HERO_LOOK.add_kit(model)
+	if not _comic_hero:  # he's modelled with his hair, mantle, feathers and axes
+		HERO_LOOK.add_kit(model)
 	_meshes = model.find_children("*", "MeshInstance3D", true, false)
 	_awaken_rim = Fx.rim_material().duplicate()
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		if mi.name in HIDDEN_MESHES:
 			mi.visible = false
 		elif mi.name in TRAIL_MESHES:
-			var trail := TRAIL.new()
-			add_child(trail)
-			trail.setup(mi)
-			trail.color = _trail_rest_color()
-			_trails.append(trail)
+			_add_trail(mi)
+	if _comic_hero:
+		for blade in ComicLook.hero_blades(model):
+			_add_trail(blade)
 	anim = model.find_child("AnimationPlayer", true, false)
 	_coats = HERO_LOOK.coat_axes(model, element())  # after _meshes: coats are swapped on ascend
 	for a in LOOPING:
@@ -555,6 +562,44 @@ func _ready() -> void:
 
 	health_changed.emit(hp, max_hp)
 	_play("Idle")
+
+
+func _add_trail(weapon: MeshInstance3D) -> void:
+	var trail := TRAIL.new()
+	add_child(trail)
+	trail.setup(weapon)
+	trail.color = _trail_rest_color()
+	_trails.append(trail)
+
+
+## The mesh spirit casts ghost. The comic hero's axes are skinned in place, far from any
+## usable origin, so his spirits keep throwing KayKit's axe.
+func _axe_mesh() -> Mesh:
+	if not _comic_hero:
+		return (model.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
+	if _kaykit_axe == null:
+		var kaykit := MODEL.instantiate()
+		_kaykit_axe = (kaykit.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
+		kaykit.free()
+	return _kaykit_axe
+
+
+## What the rig calls a clip the game asks for.
+func _clip_name(wanted: String) -> String:
+	return ComicLook.clip(anim, ComicLook.HERO, wanted) if _comic_hero else wanted
+
+
+func _comic_moves_on() -> bool:
+	return _comic_hero and Game.comic_moves
+
+
+## A beat of an ultimate; under Game.comic_moves one Ab_ clip covers them all.
+func _ult_anim(clip: String, blend: float, seek_to := 0.0) -> void:
+	if _comic_moves_on():
+		return
+	_play(clip, blend, true)
+	if seek_to > 0.0:
+		anim.seek(anim.current_animation_length * seek_to, true)
 
 
 func _physics_process(delta: float) -> void:
@@ -828,7 +873,7 @@ func _state_attack(delta: float) -> void:
 				_facing().rotated(Vector3.UP, deg_to_rad(side)), _fx_color(), element(), 5.5 if last else 4.5, last)
 		if _move.has("weave"):  # each cut of the dance leaves a spectral copy of him behind
 			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.4))
-	if BREAKERS.has(_move_id) and _connected and t >= BREAKERS[_move_id].leap:  # (a whiff plays out normally)
+	if BREAKERS.has(_move_id) and _connected and t >= _move.get("leap", BREAKERS[_move_id].leap):  # (a whiff plays out normally)
 		_start_leap(_move_id)
 		return
 
@@ -1126,7 +1171,7 @@ func _throw_spike() -> void:
 	var i := _brk_thrown
 	_brk_thrown += 1
 	var s := BREAKER_SPIKE.new()
-	s.axe_mesh = (model.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
+	s.axe_mesh = _axe_mesh()
 	s.el = element()
 	s.color = _fx_color()
 	s.damage = b.spike_damage * _dmg_mult
@@ -1530,7 +1575,7 @@ func _start_attack(id: String) -> void:
 		_proc("crescendo")
 		Fx.flash(model)
 		Fx.burst(get_parent(), global_position + Vector3.UP, Upgrades.PATHS.heavy.color, 16, 5.0, 0.1, 0.3, Vector3.UP, 70.0)
-	_move_len = anim.get_animation(_move.anim).length
+	_move_len = anim.get_animation(_clip_name(_move.anim)).length
 	_hits_done = 0
 	_connected = false
 	_hop_y0 = model.position.y
@@ -1969,7 +2014,7 @@ func _cast(fwd: Vector3) -> void:
 ## colour, element, damage (scaled by the chain) and hit callback.
 func _spirit(node: Node3D, c: Dictionary, el: String) -> Node3D:
 	if "axe_mesh" in node:
-		node.axe_mesh = (model.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
+		node.axe_mesh = _axe_mesh()
 	node.color = _fx_color()
 	node.el = el
 	node.damage = c.damage * _dmg_mult * _cast_power()
@@ -2064,7 +2109,13 @@ func _start_ult(id: String) -> void:
 	_set_state(State.ULT)
 	_ult_begin(id)
 	attack_started.emit(id)
-	_play("Jump_Start" if id == "SKY" else "Spellcasting", 0.05, true)
+	if _comic_moves_on():
+		var clip: String = ComicLook.HERO_MOVES[id].clip
+		_play(clip, 0.05, true)
+		var hit_t: float = ULTIMATES.SKY.time * ULTIMATES.SKY.impact if id == "SKY" else ULTIMATES.RUSH.go
+		anim.speed_scale = ComicLook.ult_speed(id, anim.get_animation(clip).length, hit_t)
+	else:
+		_ult_anim("Jump_Start" if id == "SKY" else "Spellcasting", 0.05)
 
 
 func _state_ult(delta: float) -> void:
@@ -2098,7 +2149,7 @@ func _state_sky(u: Dictionary, t: float, el: String, c: Color, delta: float) -> 
 	model.position.y = rise * (1.0 - pow(1.0 - k / 0.7, 3.0)) if k < 0.7 else rise * (1.0 - pow((k - 0.7) / 0.3, 2.0))
 	if k >= 0.3 and _ult_phase == 0:
 		_ult_phase = 1
-		_play("Spellcast_Raise", 0.08, true)
+		_ult_anim("Spellcast_Raise", 0.08)
 		if el == "earth":
 			ELEMENTS.meteor(get_parent(), _ult_at, hit_t * 0.7)
 	if _ult_phase == 1:
@@ -2108,8 +2159,7 @@ func _state_sky(u: Dictionary, t: float, el: String, c: Color, delta: float) -> 
 			ELEMENTS.gather(get_parent(), global_position + Vector3.UP * (model.position.y + 2.4), c, 2.2, 14)
 	if k >= 0.72 and _ult_phase == 1:
 		_ult_phase = 2
-		_play("2H_Melee_Attack_Chop", 0.04, true)
-		anim.seek(anim.current_animation_length * 0.25, true)
+		_ult_anim("2H_Melee_Attack_Chop", 0.04, 0.25)
 	if k >= 1.0 and not _ult_fired:
 		_ult_fired = true
 		model.position.y = 0.0
@@ -2164,7 +2214,7 @@ func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
 	elif t < dash_end:
 		if _ult_phase == 0:
 			_ult_phase = 1
-			_play("Dodge_Forward", 0.03, true)
+			_ult_anim("Dodge_Forward", 0.03)
 			Game.sfx("dash", 0.0, 0.0)
 			if el == "water":
 				ELEMENTS.wave_wall(model, u.dash + 0.25)
@@ -2191,8 +2241,7 @@ func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, 80.0 * delta)
 		if _ult_phase == 1:
 			_ult_phase = 2
-			_play("2H_Melee_Attack_Slice", 0.04, true)
-			anim.seek(anim.current_animation_length * 0.3, true)
+			_ult_anim("2H_Melee_Attack_Slice", 0.04, 0.3)
 		if not _ult_fired and t >= dash_end + u.wake:
 			_ult_fired = true
 			var line := global_position - _ult_from
@@ -2541,6 +2590,9 @@ func _effective_move(id: String) -> Dictionary:
 	if id in LIGHT_MOVES and has_upgrade("flicker") and _since_dash <= upg("flicker", "time"):
 		m.damage *= 1.0 + upg("flicker", "bonus") / 100.0
 		_proc("flicker")
+	if _comic_moves_on() and ComicLook.HERO_MOVES.has(id):
+		var length := anim.get_animation(ComicLook.HERO_MOVES[id].clip).length
+		ComicLook.retime(id, m, length, MOVES[id].hits[0], BREAKERS.get(id, {}).get("leap", -1.0))
 	return m
 
 
@@ -3071,6 +3123,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 
 
 func _play(anim_name: String, blend := 0.1, restart := false) -> void:
+	anim_name = _clip_name(anim_name)
 	if anim.current_animation == anim_name and not restart:
 		return
 	anim.play(anim_name, blend, 1.0)

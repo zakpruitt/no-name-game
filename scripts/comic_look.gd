@@ -85,6 +85,7 @@ const KIND_TONES := {
 ## the clip already covers that beat). Only consulted when the model lacks the clip
 ## asked for, so a re-export that adds one wins by itself.
 const CLIPS := {
+	"shaman_comic": {"Throw": "Ab_L2"},
 	"necromancer": {"Running_A": "Walking_D_Skeletons", "Spawn_Ground_Skeletons": "Idle_Combat"},
 	"warden": {
 		"Spawn_Ground_Skeletons": "Idle_Combat",
@@ -96,6 +97,27 @@ const CLIPS := {
 		"Spellcast_Shoot": "",
 	},
 }
+const HERO := "shaman_comic"
+## Game.comic_moves: id in player.MOVES / ULTIMATES -> its Ab_ clip. hit and frames are
+## the kit's hit frame and clip length; old is the KayKit clip's length in s, the time
+## base MOVES' fractions were tuned against (ultimates are timed in s, so have none).
+const HERO_MOVES := {
+	"L1": {"clip": "Ab_L1", "hit": 8, "frames": 25, "old": 1.0},
+	"L2": {"clip": "Ab_L2", "hit": 11, "frames": 27, "old": 1.3667},
+	"L3": {"clip": "Ab_L3", "hit": 18, "frames": 45, "old": 1.2667},
+	"LH": {"clip": "Ab_LH", "hit": 12, "frames": 41, "old": 2.1},
+	"LLH": {"clip": "Ab_LLH", "hit": 16, "frames": 47, "old": 1.6},
+	"H": {"clip": "Ab_H", "hit": 12, "frames": 51, "old": 2.4},
+	"DL": {"clip": "Ab_DL", "hit": 9, "frames": 49, "old": 1.6},
+	"LHH": {"clip": "Ab_LHH", "hit": 21, "frames": 45, "old": 1.0667},
+	"CH": {"clip": "Ab_CH", "hit": 37, "frames": 67, "old": 1.6333},
+	"AF": {"clip": "Ab_AF", "hit": 40, "frames": 79, "old": 1.1},
+	"SKY": {"clip": "Ab_SKY", "hit": 32, "frames": 61},
+	"RUSH": {"clip": "Ab_RUSH", "hit": 9, "frames": 55},
+}
+## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
+## rig, so weapon trails need something that follows the hand (hero_blades).
+const HERO_AXES := {"hand.r": "axe_storm_ice", "hand.l": "axe_magma_rock"}
 ## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
 ## stone is 3 px). Floors and seam-core materials have none: their ink is geometry.
 const PIECE_INK_PX := {"comic_stone": 3.0, "comic_cap": 3.0, "comic_wood": 2.5, "comic_banner": 2.5,
@@ -164,6 +186,62 @@ static func clip(player: AnimationPlayer, kind: String, wanted: String) -> Strin
 	if player.has_animation(wanted):
 		return wanted
 	return CLIPS.get(kind, {}).get(wanted, wanted)
+
+
+## A MOVES entry moved onto its Ab_ clip, `length` s long: the first hit lands on the
+## hit frame, and everything after it (more hits, cancel, end) keeps its time after the
+## hit; whatever's before it stretches with the wind-up. `base_hit` is MOVES' own first
+## hit (an upgrade may have rewritten `hits`). `leap` (BREAKERS) lands in move.leap.
+static func retime(id: String, move: Dictionary, length: float, base_hit: float, leap := -1.0) -> void:
+	var h: Dictionary = HERO_MOVES[id]
+	var hit: float = float(h.hit) / h.frames
+	var at := func(x: float) -> float:
+		if x <= base_hit:
+			return x * hit / base_hit
+		return hit + (x - base_hit) * h.old / length
+	move.anim = h.clip
+	move.hits = move.hits.map(at)
+	move.cancel = at.call(move.cancel)
+	move.end = at.call(move.end)
+	if move.has("hop"):
+		move.hop = [at.call(move.hop[0]), at.call(move.hop[1]), move.hop[2]]
+	if leap >= 0.0:
+		move.leap = at.call(leap)
+
+
+## anim.speed_scale that brings an ultimate's clip, `length` s long, to its hit frame
+## `hit_time` s in: ultimates run on their own seconds, the clip follows them.
+static func ult_speed(id: String, length: float, hit_time: float) -> float:
+	var h: Dictionary = HERO_MOVES[id]
+	return length * h.hit / h.frames / hit_time
+
+
+## Invisible stand-ins riding the hero's hands, from the grip to the axe head, for
+## weapon_trail.gd (its longest axis is the blade). Never drawn: layers 0.
+static func hero_blades(model: Node3D) -> Array[MeshInstance3D]:
+	var made: Array[MeshInstance3D] = []
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	for bone: String in HERO_AXES:
+		var i := skel.find_bone(bone)
+		var head: MeshInstance3D = model.find_child(HERO_AXES[bone], true, false)
+		if i < 0 or head == null:
+			continue
+		var tip: Vector3 = skel.get_bone_global_rest(i).affine_inverse() * head.mesh.get_aabb().get_center()
+		var blade := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.02, tip.length(), 0.02)
+		blade.mesh = box
+		blade.layers = 0
+		blade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		blade.set_meta("no_ghost", true)
+		blade.position = tip * 0.5
+		blade.basis = Basis(Quaternion(Vector3.UP, tip.normalized()))
+		var hand := BoneAttachment3D.new()
+		hand.bone_name = bone
+		skel.add_child(hand)
+		hand.add_child(blade)
+		made.append(blade)
+	return made
 
 
 ## Scale the rig under the model's root (the root belongs to model_scale and _squash).
