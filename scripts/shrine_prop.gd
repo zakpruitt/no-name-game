@@ -3,7 +3,6 @@ extends Node3D
 ## a violet glow and drifting motes. Rises out of the floor, sinks after the
 ## trade (main._shrine).
 
-const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 const GLOW := Color(0.75, 0.45, 1.0)
 ## [piece, offset, yaw degrees]
 const PIECES := [
@@ -22,7 +21,7 @@ var _t := 0.0
 
 func _ready() -> void:
 	for p: Array in PIECES:
-		var n: Node3D = load(DUNGEON % p[0]).instantiate()
+		var n: Node3D = ComicLook.piece(p[0])
 		n.position = p[1]
 		n.rotation_degrees.y = p[2]
 		add_child(n)

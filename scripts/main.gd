@@ -34,7 +34,6 @@ const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
 const SHRINE_MENU := preload("res://scripts/shrine.gd")
 const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
-const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
 const ENEMY_TYPES := {
@@ -1303,6 +1302,8 @@ func _build_arena() -> void:
 	# Torches on the back wall, with real light.
 	for x in [-10.0, -2.0, 6.0]:
 		_place("torch_mounted", Vector3(x, 2.4, -ARENA_HALF + 0.5))
+		if Game.comic_style:
+			continue  # glow is drawn, not lit: the toon shader would only step its brightness
 		var l := OmniLight3D.new()
 		l.light_color = Color(1.0, 0.6, 0.3)
 		l.light_energy = 2.0
@@ -1321,8 +1322,7 @@ func _build_arena() -> void:
 
 
 func _place(piece: String, pos: Vector3, yaw_deg := 0.0) -> Node3D:
-	var scene: PackedScene = load(DUNGEON % piece)
-	var n: Node3D = scene.instantiate()
+	var n: Node3D = ComicLook.piece(piece)
 	n.position = pos
 	n.rotation_degrees.y = yaw_deg
 	add_child(n)

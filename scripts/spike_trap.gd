@@ -23,7 +23,9 @@ var _phase := "idle"
 
 
 func _ready() -> void:
-	var tile: Node3D = TILE.instantiate()
+	var tile: Node3D = ComicLook.comic_piece("floor_tile_big_spikes")
+	if tile == null:
+		tile = TILE.instantiate()
 	tile.position.y = 0.01  # sit just above the regular floor tile
 	add_child(tile)
 	_spikes = tile.find_child("spikes", true, false)
