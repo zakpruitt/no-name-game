@@ -57,6 +57,19 @@ const EMITS := {
 const FALLBACK_TONE := "P_Trousers"
 const INK := Color(0.012, 0.01, 0.02)
 
+# comic_lib.comic_scene, converted: Blender energy / PI (a sun of strength E gives
+# E / PI radiance), directions from its Euler angles, Blender (x, y, z) -> Godot
+# (x, z, -y), so shadows fall up and right on screen as in the renders.
+const BACKGROUND := Color(0.05, 0.05, 0.1)
+const AMBIENT := Color(0.3, 0.3, 0.5)
+const AMBIENT_ENERGY := 0.5
+const KEY_DIR := Vector3(0.291, -0.754, -0.589)
+const KEY_ENERGY := 1.146
+const KEY_COLOR := Color(1.0, 0.97, 0.9)  # linear, as Blender's
+const FILL_DIR := Vector3(-0.476, -0.309, 0.824)
+const FILL_ENERGY := 0.134
+const FILL_COLOR := Color(0.55, 0.62, 1.0)  # linear
+
 static var _mats := {}  # material name -> shared ShaderMaterial, so every enemy batches
 static var _warned := {}
 
@@ -120,6 +133,45 @@ static func material_names(root: Node) -> Array:
 
 static func known_material(mat_name: String) -> bool:
 	return TONES.has(mat_name) or EMITS.has(mat_name)
+
+
+## comic_lib.comic_scene: flat dark indigo, untonemapped, one hard sun with real
+## cast shadows and a weak blue fill. No glow: glow is drawn, not lit. Toon materials
+## ignore the ambient; it's only there so KayKit pieces under the flag stay readable.
+static func build_environment(parent: Node) -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = BACKGROUND
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = AMBIENT
+	env.ambient_light_energy = AMBIENT_ENERGY
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	env.glow_enabled = false
+	env.ssao_enabled = false
+	var we := WorldEnvironment.new()
+	we.environment = env
+	parent.add_child(we)
+	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
+	var key := DirectionalLight3D.new()
+	key.basis = Basis.looking_at(KEY_DIR, Vector3.UP)
+	key.light_energy = KEY_ENERGY
+	key.light_color = KEY_COLOR.linear_to_srgb()
+	key.shadow_enabled = true
+	key.shadow_blur = 0.0
+	key.directional_shadow_max_distance = 60.0
+	key.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	parent.add_child(key)
+	var fill := DirectionalLight3D.new()
+	fill.basis = Basis.looking_at(FILL_DIR, Vector3.UP)
+	fill.light_energy = FILL_ENERGY
+	fill.light_color = FILL_COLOR.linear_to_srgb()
+	parent.add_child(fill)
+
+
+## Undo build_environment's global shadow filter when the flag goes off.
+static func restore_shadows() -> void:
+	var path := "rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality"
+	RenderingServer.directional_soft_shadow_filter_set_quality(ProjectSettings.get_setting(path))
 
 
 ## Drop cached materials so nothing is left alive at exit.
