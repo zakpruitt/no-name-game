@@ -94,30 +94,29 @@ hero and is never saved: `_effective_move` passes each id in `ComicLook.HERO_MOV
 SKY and RUSH play one clip at the speed that reaches its hit frame at the impact or the dash.
 `MOVES` itself is never written.
 
-### The base hero's design: the darkness getting in
+### The base hero's design: the void arm
 
-The elemental shaman (magma arm, storm arm, ice leg, white hair) with a minor note of corruption worked into those
-elements. He is deliberately not Convergence, Corruption or Purity yet. An earlier, heavier take on this, a lopsided
-half-transformed body, was tried and rejected for losing the character: keep the corruption minor.
+One loud thing on him: his right arm is a purple void arm that shapes itself into his weapon. Earlier takes failed by
+having too much going on (a half-transformed lopsided body; two elemental arms plus two axes): keep him simple.
 
-- **Body script:** `tools/comic_art/build_tainted.py` (`build_comic.py`'s body, plus `taint()`). `K(mat, bones)` tags a
-  part with its bones; the rig reads those tags (`hint_of`) before its own rules. One bone pins, several bend like skin.
-- **His elements:** `P_LavaDark`, `P_FireDark`, `P_BoltDark` are his alone: the usual hot tones with violet-black as the
-  lowest. The arm's magma takes `g` from its height, so it is dark at the shoulder and hot at the fist.
-- **Veins:** `blight` (near-black, `P_Blight`, with the obsidian among the arm's rock and two black flames in his fire)
-  and `fracture` (the lit violet core, `P_Fracture`). Snapped to the surface they lie on, and routed where they show: the
-  shoulder rock, the side of the chest the beard leaves clear, the upper arm, inside the ice. An Ascendancy recolours
-  `fracture` and the axes' edges (`tint_fractures`, `infuse_axes`).
+- **Forms (planned):** axe by default, dragged, with storm along it. Hand to interact with the world. Hammer with lava and
+  earth, spear with ice and water, in combos. **Only the axe exists so far.** Stills of the others:
+  `tools/comic_art/unfinished_poc/concept_void.py`.
+- **Body script:** `tools/comic_art/build_void.py` (the void arm, the left arm), on `build_tainted.py` (the shared body and its
+  `K(mat, bones)` tags, read by the rig through `hint_of`: one bone pins, several bend as skin) and `build_comic.py`.
+- **Void arm:** `void_arm` skinned softly across the right arm's four bones, `void_surge` the green lightning on it. It has no
+  extra bones yet, so it bends where an arm bends rather than whipping. Storm is green (`P_StormGreen`).
+- **Left arm:** a normal arm with air rings (`left_rings`). Its joints moved, and it holds nothing: `arm('l', ...)` leaves
+  the hand alone and clips have no `drag.l`. Clips other than `Ab_L1` and `Ab_L2` still swing it as if it held an axe.
+- **Axe:** `axe_void_*` on `hand.r`, parts `haft`, `blade`, `edge`, `core`. `HERO_AXES` has the one entry, so the trail, aura
+  and floor mark are one each. Before an Ascendancy its aura and mark are wind's (`HERO_AURA_AS`), in its own materials.
 - **The voice:** a thin vein from the rock ear to the lava eye (too small to see at game size), and `Idle_Listen`, which
   does the work: he tips his head to that ear, goes still, nods twice.
-- **Axes:** `axe_storm_*` and `axe_magma_*`, parts `haft`, `leather`, `steel`, `blade`, `edge`, and `crack` on the magma
-  axe. The crack is its own mesh because the aura spaces its flames along every vertex of `edge`. Same reach and grip as
-  before. Before an Ascendancy the blade is plain iron (`AXE_INFUSIONS.spirit`).
-- **Budget:** about 54k tris, from 67k.
+- **Budget:** about 41k tris, from 67k.
 - **Look checks without Godot** (`tools/comic_art/unfinished_poc/`): `closeup_tight.py` each limb up close, at rest and
-  mid-move (a broken arm doesn't show at 130 px, so always look here too); `compare.py` + `sheet.py` old against new at the
-  game's camera; `clip_look.py` + `clip_sheet.py` one clip; `clearance.py` axes against body and floor on every clip. They
-  use stand-in materials, so only `comic_shots` confirms the real look.
+  mid-move (a broken arm doesn't show at 130 px, so always look here too); `clip_look.py` + `clip_sheet.py` one clip;
+  `clearance.py` the axe against body and floor on every clip. They use stand-in materials, so only `comic_shots`
+  confirms the real look.
 
 | Move | KayKit hit, end (s, at `anim_speed` 1) | Ab_ hit, end |
 |---|---|---|

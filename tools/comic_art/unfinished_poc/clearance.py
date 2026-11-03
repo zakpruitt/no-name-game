@@ -9,7 +9,7 @@ bpy.ops.import_scene.gltf(filepath=GLB)
 arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
 for t in arm.animation_data.nla_tracks: t.mute = True
 scn = bpy.context.scene
-AX = {'hand.r': 'axe_storm', 'hand.l': 'axe_magma'}
+AX = {'hand.r': 'axe_void'}
 pts = {}
 for bone, name in AX.items():
     o = next(x for x in bpy.data.objects if x.type == 'MESH' and x.name.startswith(name + '_blade'))

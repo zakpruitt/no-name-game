@@ -145,6 +145,7 @@ def arm(side, hand, along, edge, elbow):
     D_u = rot_to(t_q0[up], knee - pos(up)) @ t_q0[up].inverted()
     D_l = rot_to(D_u @ t_q0[lo], wrist - knee) @ t_q0[lo].inverted()
     D_h = (_frame(along, edge) @ _frame(*AXE_REST[side]).inverted()).to_quaternion()
+    if side == 'l': return {up: D_u, lo: D_u.inverted() @ D_l}   # nothing in that hand: it hangs off the wrist
     return {up: D_u, lo: D_u.inverted() @ D_l, 'hand.' + side: D_l.inverted() @ D_h}
 
 def _add(p, d, k=1.0):
@@ -154,7 +155,7 @@ def _add(p, d, k=1.0):
 # tip BLADE out from there.
 AXE_SIZE = 1.75
 REACH = .85 * AXE_SIZE
-BLADE = .56 * AXE_SIZE
+BLADE = .63 * AXE_SIZE
 TIP_Z = .02   # rig floor is 0; the game's floor stones top out at .05, so it bites in
 
 def drag_rotation(side, hand, head, tip_z):
@@ -181,7 +182,7 @@ def hauling(r_hand=(0, 0, 0), l_hand=(0, 0, 0), r_head=(0, 0, 0, 0), l_head=(0, 
         for bone, q in arm(side, _add(DRAG_HAND[side], hand), V((0, 1, 0)), V((1, 0, 0)), DRAG_ELBOW[side]).items():
             if not bone.startswith('hand'): o[bone] = q
         at = V(DRAG_HEAD[side]) + V(head[:3])
-        o['drag.' + side] = (at.x, at.y, at.z, TIP_Z + head[3])
+        if side == 'r': o['drag.r'] = (at.x, at.y, at.z, TIP_Z + head[3])
     return o
 
 # Low guard, axes out to the sides, after a fight.
@@ -237,15 +238,29 @@ ability('L1', 'Light 1', 'L', 'SHNK!', 'echo', 24, [
     (12, 'out', {'rm': -.32, 'hips': {'rot': (10, 0, 18), 'loc': (0, -.06, -.14)}, 'chest': (12, 0, 40), 'head': (-4, 0, -26), 'upperarm.r': (26, 0, 84), 'lowerarm.r': (8, 0, 50), 'upperarm.l': (16, 0, -6), 'L': (0, .06, 0), 'R': (0, -.1, 0)}),
     (24, 'smooth', P(READY, rm=-.32)),
 ])
-# L L: the magma axe comes back the other way, wider, a little hop onto it
-ability('L2', 'Light 2', 'L L', 'KRANG!', 'echo', 26, [
+# L L: the axe comes back the other way, a backhand across him, wider, a little hop onto it. Only the arms are solved here.
+ARM_KEY = ('upperarm.', 'lowerarm.', 'wrist.', 'hand.')
+LOOSE_L = dict(hand=(.6, .02, .88), along=(0, 0, -1), edge=(1, 0, 0), elbow=(.7, .3, -.4))
+BACK_R = {5: dict(hand=(.03, -.6, 1.24), along=(.85, -.45, .25), edge=(-.45, -.85, .1), elbow=(-.5, -.2, -.8)),
+          8: dict(hand=(-.1, -.62, 1.2), along=(.6, -.8, .1), edge=(-.8, -.6, 0), elbow=(-.6, -.1, -.8)),
+          11: dict(hand=(-.42, -.66, 1.12), along=(-.3, -.95, .02), edge=(-.95, .3, 0), elbow=(-.7, .1, -.7)),
+          15: dict(hand=(-.8, -.35, 1.1), along=(-.9, -.42, .05), edge=(-.42, .9, 0), elbow=(-.6, .4, -.7))}
+def backhand(keys):
+    out = []
+    for f, ease_, pose in keys:
+        if f in BACK_R:
+            pose = {k: v for k, v in pose.items() if not k.startswith(ARM_KEY)}
+            pose.update(carry(BACK_R[f], LOOSE_L))
+        out.append((f, ease_, pose))
+    return out
+ability('L2', 'Light 2', 'L L', 'KRANG!', 'echo', 26, backhand([
     (0, 'smooth', READY),
     (5, 'out', {'hips': {'rot': (0, 0, 16), 'loc': (0, .03, -.12)}, 'chest': (-8, 0, 36), 'head': (0, 0, -26), 'upperarm.l': (-110, 0, 54), 'lowerarm.l': (-16, 0, 20), 'upperarm.r': (10, 0, -26)}),
     (8, 'in', {'rm': -.24, 'hips': {'loc': (0, -.1, .2)}, 'chest': (-2, 0, 8), 'upperarm.l': (-108, 0, 8), 'lowerarm.l': (-12, 0, 0), 'upperarm.r': (10, 0, -20), 'L': (0, -.05, .16), 'R': (0, -.1, .1)}),
     (11, 'in', {'rm': -.46, 'hips': {'rot': (12, 0, -18), 'loc': (0, -.14, -.18)}, 'chest': (12, 0, -38), 'head': (-4, 0, 26), 'upperarm.l': (-74, 0, -72), 'lowerarm.l': (-4, 0, -36), 'upperarm.r': (-12, 0, 18), 'L': (0, -.1, 0), 'R': (0, .08, 0)}),
     (15, 'out', {'rm': -.5, 'hips': {'rot': (12, 0, -20), 'loc': (0, -.14, -.18)}, 'chest': (14, 0, -42), 'head': (-4, 0, 28), 'upperarm.l': (-66, 0, -78), 'lowerarm.l': (-2, 0, -40), 'upperarm.r': (-12, 0, 18), 'L': (0, -.1, 0), 'R': (0, .08, 0)}),
     (26, 'smooth', P(READY, rm=-.5)),
-])
+]))
 # L L L Triple Chop: leaps, both axes over his head, comes down hard. Two colossal axes slam into a V
 CHOP_TOP = {'chest': (-24, 0, 0), 'head': (20, 0, 0), 'upperarm.r': (-62, 0, -12), 'lowerarm.r': (-26, 0, 0), 'upperarm.l': (-130, 0, 8), 'lowerarm.l': (-22, 0, 0)}
 CHOP_DOWN = {'chest': (30, 0, 0), 'head': (-22, 0, 0), 'upperarm.r': (-14, 0, 14), 'lowerarm.r': (0, 0, 0), 'hand.r': (20, 0, 0), 'upperarm.l': (-100, 0, -14), 'lowerarm.l': (-10, 0, 0), 'hand.l': (6, 0, 0)}
@@ -434,7 +449,7 @@ ability('AL3', 'Gale Waltz', 'L H L L H L', 'SHK-SHK!', 'echo', 27, [
 # Rest stance is staggered and wide, the left ankle at (.262, 0) and the peg at (-.262, -.4): BASE_* brings both
 # under the hips. travel is in his own axes, as a pose's: (his left, his back).
 RUN_T = 16
-LOPSIDED = 6   # degrees the magma arm's weight pulls his chest toward it, in everything he does on his feet
+LOPSIDED = 6   # degrees he leans away from the axe he drags, in everything he does on his feet
 BASE_L = V((-.1, .0, 0))
 BASE_R = V((.1, .4, 0))
 

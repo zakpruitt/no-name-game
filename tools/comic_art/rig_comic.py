@@ -16,19 +16,21 @@ def rep(x, y, count=1):
     SRC = SRC.replace(x, y)
 
 rep('ns = {"__name__": "build"}\nexec(compile(open(D + r"\\build_poc.py").read(), "build_poc", "exec"), ns)\n', '''
-import build_tainted
-_cams, _J = build_tainted.build_all()
+import build_void
+_cams, _J = build_void.build_all()
 ns = {'JOINTS': _J}
 ''')
+# ---- his left arm is skin now
+rep("names = [n for n in CAPS if n not in LEGS and n != 'foot.l' and not n.endswith('.l')] + ['chest']", "names = [n for n in CAPS if n not in LEGS and n != 'foot.l']")
 rep("# smooth the skin weights across the mesh", '''# parts the body script tagged follow those bones: one is a pin, several bend as the skin does
-import build_tainted as _BT
+import build_tainted as _BT   # build_void adds its own parts to these tags
 for _o in list(scn.objects):
     _h = _BT.hint_of(_o.name) if _o.type == 'MESH' else None
     if not _h: continue
     for _i, _b in enumerate(_h):
         if _b is None: continue
         for _g in _o.vertex_groups: _g.remove([_i])
-        _ws = [(1, _b)] if isinstance(_b, str) else soft(_o.data.vertices[_i].co, _b, power=4, top=2)
+        _ws = [(1, _b)] if isinstance(_b, str) else soft(_o.data.vertices[_i].co, _b, power=2 if _o.name.startswith('void_') else 4, top=3 if _o.name.startswith('void_') else 2)
         for _w, _n in _ws:
             _g = _o.vertex_groups.get(_n) or _o.vertex_groups.new(name=_n)
             _g.add([_i], _w, 'REPLACE')
@@ -73,10 +75,10 @@ exec(compile(SRC, 'rig_poc', 'exec'), g)
 PR, SR, CLIPS, INFO, root, scn, CS, FWD, YAW = g['PR'], g['SR'], g['CLIPS'], g['INFO'], g['root'], g['scn'], g['CS'], g['FWD'], g['YAW']
 J = g['J']; t_rest = g['t_rest']
 
-# ------------------------------------------------------------------ the twin axes, on the hand bones
-# Same grip, directions and reach as before, so the solved carries still land. A real wedge of iron on a thick haft.
+# ------------------------------------------------------------------ the axe his void arm makes, on the right hand bone
+# Same grip, direction and reach as before, so the solved carries still land. The arm runs on into its own haft.
 mats_all = {m.name[2:].lower(): m for m in bpy.data.materials if m.name.startswith('P_') and m.name != 'P_Ink'}
-hd = J['hd']; mf = J['mf']
+hd = J['hd']
 AXE_SIZE = g['AXE_SIZE']  # abilities.py poses the blade tip on the floor from this
 def wedge(bag, top, fw, dv, side, prof, th, size):
     n = len(prof); cx = sum(p[0] for p in prof) / n; cy = sum(p[1] for p in prof) / n
@@ -89,36 +91,28 @@ def wedge(bag, top, fw, dv, side, prof, th, size):
         j = (i + 1) % n
         F.append((i, j, n + j, n + i)); F.append((j, i, 2 * n + i, 2 * n + j))
     bag.add(vs, F)
-def axe(name, grip, dirv, face, size, bone, chip):
+def axe(name, grip, dirv, face, size, bone):
     dv = V(dirv).normalized(); fw = V(face).normalized(); fw = (fw - dv * fw.dot(dv)).normalized(); side = dv.cross(fw).normalized()
-    Bg = {'haft': C.Bag('haft'), 'leather': C.Bag('leather'), 'steel': C.Bag('iron', sharp=40), 'blade': C.Bag('iron', smooth=False), 'edge': C.Bag('fracture', smooth=False), 'crack': C.Bag('fracture', smooth=False)}
+    Bg = {'haft': C.Bag('tendril'), 'blade': C.Bag('voidhard', smooth=False), 'edge': C.Bag('stormgreen', smooth=False), 'core': C.Bag('stormgreen')}
     top = grip + dv * (.85 * size)
-    C.tube(Bg['haft'], [grip - dv * .24 * size, grip, top + dv * .08 * size], [.05, .047, .058], sides=9, sub=1)
-    C.blob(Bg['steel'], grip - dv * .28 * size, (.07, .07, .085), seg=10, rings=6)
-    for t in (-.09, .03, .15):
-        C.tube(Bg['leather'], [grip + dv * (t * size - .035), grip + dv * (t * size + .035)], [.06, .06], sides=9, sub=1)
-    C.tube(Bg['steel'], [top - dv * .17 * size, top + dv * .13 * size], [.1, .1], sides=9, sub=1)
-    for t in (-.15, .11):
-        C.tube(Bg['steel'], [top + dv * (t * size - .015), top + dv * (t * size + .015)], [.112, .112], sides=9, sub=1)
-    C.tube(Bg['steel'], [top - fw * .04, top - fw * .28 * size, top - fw * .44 * size], [.09, .055, .003], sides=7, sub=1)
-    notch = [(.53, .1), (.45, .15), (.51, .21)] if chip else []
-    prof = [(0, -.07), (.14, -.08), (.3, -.26), (.47, -.5), (.53, -.3), (.56, 0)] + notch + [(.53, .24), (.47, .46), (.3, .22), (.14, .07), (0, .06)]
+    C.tube(Bg['haft'], [grip - dv * .05, grip + dv * (.4 * size), top + dv * (.06 * size)], [.076, .058, .07], sides=9, sub=2, tval=.5)
+    C.blob(Bg['haft'], top, (.105, .105, .105), seg=10, rings=7)
+    C.tube(Bg['haft'], [top, top - fw * (.2 * size), top - fw * (.36 * size) + dv * (.03 * size)], [.078, .048, .003], sides=8, sub=3, tval=.5)
+    prof = [(0, -.055), (.12, -.06), (.27, -.12), (.44, -.62), (.57, -.32), (.63, 0), (.57, .32), (.44, .62), (.27, .12), (.12, .06), (0, .055)]
     wedge(Bg['blade'], top, fw, dv, side, prof, .1, size)
-    if not chip:    # the other wear: a cracked cheek, lit from inside
-        for s_ in (1, -1):
-            C.tube(Bg['crack'], [top + fw * x * size + dv * y * size + side * (s_ * .104) for x, y in ((.13, .0), (.2, .07), (.24, .0), (.31, .09))], [.016, .014, .011, .003], sides=5, sub=1, tval=1.0)
-    e = [(.47, -.5), (.53, -.3), (.56, 0)] + notch + [(.53, .24), (.47, .46), (.45, .3), (.5, 0), (.45, -.32)]
+    outer = [(.44, -.62), (.57, -.32), (.63, 0), (.57, .32), (.44, .62)]
+    inner = [(.41, -.5), (.5, -.27), (.55, 0), (.5, .27), (.41, .5)]
+    pt = lambda x, y, s_: top + fw * x * size + dv * y * size + side * s_
     for s_ in (1, -1):
-        pts = [top + fw * x * size + dv * y * size + side * (s_ * .012) for x, y in e]
-        Bg['edge'].add(pts, [tuple(range(len(e))) if s_ > 0 else tuple(reversed(range(len(e))))])
+        vs = [pt(x, y, s_ * .012) for x, y in outer] + [pt(x, y, s_ * .058) for x, y in inner]
+        Bg['edge'].add(vs, [(i, i + 1, i + 6, i + 5) if s_ > 0 else (i + 5, i + 6, i + 1, i) for i in range(4)], [.55] * len(vs))
+    C.tube(Bg['core'], [pt(x, y, 0) for x, y in outer], [.012, .018, .02, .018, .012], sides=5, sub=4, tval=1.0)
     for k, bag in Bg.items():
-        if not bag.v: continue
-        o, _ = C.make_obj(name + '_' + k, bag, mats_all, scn.collection, outline=0 if k in ('edge', 'crack') else .007)
+        o, _ = C.make_obj(name + '_' + k, bag, mats_all, scn.collection, outline=0 if k in ('edge', 'core') else .007)
         grp = o.vertex_groups.new(name=bone); grp.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
         mod = o.modifiers.new('Skin', 'ARMATURE'); mod.object = PR; o.modifiers.move(o.modifiers.find('Skin'), 0)
         o.parent = PR
-axe('axe_storm', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), AXE_SIZE, 'hand.r', True)
-axe('axe_magma', mf + V((.02, -.1, -.04)), (.06, -.8, .42), (1, 0, .1), AXE_SIZE, 'hand.l', False)
+axe('axe_void', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), AXE_SIZE, 'hand.r')
 
 C.ink_pass()
 print('clips', CLIPS)

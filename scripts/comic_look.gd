@@ -23,9 +23,10 @@ const TONES := {
 	"P_Leather": {"shadow": Color(0.1, 0.03, 0.03), "mid": Color(0.34, 0.14, 0.08), "light": Color(0.6, 0.32, 0.15), "rim": Color(0.15, 0.07, 0.04), "brush": 0.2},
 	"P_Cloth": {"shadow": Color(0.02, 0.08, 0.16), "mid": Color(0.03, 0.32, 0.36), "light": Color(0.08, 0.6, 0.56), "hi": Color(0.34, 0.86, 0.72), "rim": Color(0.05, 0.24, 0.24), "brush": 0.28},
 	"P_Trousers": {"shadow": Color(0.06, 0.05, 0.13), "mid": Color(0.2, 0.17, 0.32), "light": Color(0.42, 0.36, 0.5), "rim": Color(0.1, 0.1, 0.2), "brush": 0.24},
-	# the hero: the black of his veins and obsidian, the axes' hafts
+	# the hero: the black of his veins, the void arm and what it forges
+	"P_Tendril": {"shadow": Color(0.1, 0.025, 0.22), "mid": Color(0.34, 0.1, 0.6), "light": Color(0.62, 0.34, 0.92), "rim": Color(0.5, 0.2, 0.8), "brush": 0.14},
+	"P_VoidHard": {"shadow": Color(0.04, 0.012, 0.1), "mid": Color(0.15, 0.05, 0.3), "light": Color(0.31, 0.15, 0.52), "rim": Color(0.5, 0.2, 0.8), "brush": 0.14},
 	"P_Blight": {"shadow": Color(0.015, 0.01, 0.03), "mid": Color(0.07, 0.035, 0.12), "light": Color(0.2, 0.12, 0.34), "rim": Color(0.3, 0.1, 0.5), "brush": 0.12},
-	"P_Haft": {"shadow": Color(0.08, 0.04, 0.04), "mid": Color(0.27, 0.14, 0.09), "light": Color(0.46, 0.28, 0.16), "rim": Color(0.08, 0.04, 0.03), "brush": 0.2},
 	"P_Rock": {"shadow": Color(0.05, 0.02, 0.05), "mid": Color(0.2, 0.12, 0.16), "light": Color(0.42, 0.28, 0.28), "hi": Color(0.72, 0.55, 0.44), "rim": Color(0.8, 0.28, 0.03), "brush": 0.14, "inner": 0.22},
 	# the axes' blades in the elements that have no blade of their own (AXE_INFUSIONS)
 	"P_AxeWind": {"shadow": Color(0.05, 0.25, 0.14), "mid": Color(0.2, 0.6, 0.34), "light": Color(0.55, 0.92, 0.6), "hi": Color(0.92, 1, 0.88), "rim": Color(0.5, 1, 0.55), "brush": 0.1, "inner": 0.14},
@@ -71,8 +72,7 @@ const EMITS := {
 	# the hero's own: the darkness in him is violet, and his elements fall to it in their lowest tone
 	"P_Fracture": [Color(0.34, 0.1, 0.62), Color(0.82, 0.55, 1)],
 	"P_LavaDark": [Color(0.2, 0.04, 0.28), Color(1, 0.86, 0.2), Color(1, 0.28, 0.02)],
-	"P_FireDark": [Color(0.14, 0.03, 0.2), Color(1, 0.9, 0.2), Color(0.95, 0.1, 0.02)],
-	"P_BoltDark": [Color(0.42, 0.16, 0.78), Color(0.98, 1, 0.92), Color(0.3, 0.6, 1)],
+	"P_StormGreen": [Color(0.02, 0.25, 0.16), Color(0.86, 1, 0.72), Color(0.16, 0.85, 0.38)],
 	"P_EyeWhite": [Color(0.965, 0.93, 0.82), Color(0.965, 0.93, 0.82)],
 	"P_EyeBlue": [Color(0.1, 0.45, 1), Color(0.7, 0.95, 1)],
 	"P_Pupil": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
@@ -136,11 +136,13 @@ const HERO_MOVES := {
 }
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).
-const HERO_AXES := {"hand.r": "axe_storm_blade", "hand.l": "axe_magma_blade"}
-const HERO_AXE_EDGES := {"hand.r": "axe_storm_edge", "hand.l": "axe_magma_edge"}
+const HERO_AXES := {"hand.r": "axe_void_blade"}
+const HERO_AXE_EDGES := {"hand.r": "axe_void_edge"}
+## Before an Ascendancy his axe is the storm: its aura and floor mark are wind's, in its own materials.
+const HERO_AURA_AS := {"spirit": "wind"}
 ## Element -> the blade and edge materials both axes take (infuse_axes).
 const AXE_INFUSIONS := {
-	"spirit": ["P_Iron", "P_Fracture"],
+	"spirit": ["P_VoidHard", "P_StormGreen"],
 	"wind": ["P_AxeWind", "P_Wind"],
 	"earth": ["P_Rock", "P_Lava"],
 	"water": ["P_Ice", "P_Bolt"],
@@ -152,7 +154,7 @@ const HERO_READY := "Idle_Ready"
 ## Of the motes circling him: at full size they outshine the veins they should echo.
 const HERO_ORBIT_SIZE := 0.5
 ## What an Ascendancy changes on his body: every lit vein takes its element's colour.
-const HERO_FRACTURES := ["fracture", "axe_magma_crack"]
+const HERO_FRACTURES := ["fracture"]
 const READY_HOLD := 3.0  # s in the guard after his last attack or hit
 const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets
 ## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
@@ -305,13 +307,14 @@ static func hero_blades(model: Node3D) -> Array[MeshInstance3D]:
 	return made
 
 
-## The element on both of the hero's axes: blade and edge recoloured, tongues along the edge, motes
+## The element on the hero's axe: blade and edge recoloured, tongues along the edge, motes
 ## behind the swing and a mark where the blade scrapes the floor. Returns the auras so the caller can
 ## swap them (player.ascend).
 static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 	var made: Array[Node3D] = []
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
-	var meshes := AXE_AURA.build_meshes(element)
+	var aura_as: String = HERO_AURA_AS.get(element, element)
+	var meshes := AXE_AURA.build_meshes(aura_as)
 	for bone: String in HERO_AXES:
 		var i := skel.find_bone(bone)
 		var bit: MeshInstance3D = model.find_child(HERO_AXES[bone], true, false)
@@ -324,7 +327,7 @@ static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 		var aura: BoneAttachment3D = AXE_AURA.new()
 		aura.bone_name = bone
 		skel.add_child(aura)
-		aura.setup(element, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
+		aura.setup(aura_as, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
 		made.append(aura)
 	return made
 

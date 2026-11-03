@@ -29,13 +29,13 @@ def set_emit3(m, low, mid, high, attr):
     cr.elements[0].position = 0; cr.elements[0].color = lin(low); cr.elements[1].position = .42; cr.elements[1].color = lin(mid); cr.elements.new(.72).color = lin(high)
     nt.links.new(a.outputs[0], r.inputs[0]); nt.links.new(r.outputs[0], e.inputs[0]); nt.links.new(e.outputs[0], o.inputs[0])
 # the materials whose stepped tones matter here, as comic_emit draws them along g
-EMIT3 = {'lavadark': ((.2, .04, .28), (1, .28, .02), (1, .86, .2)), 'firedark': ((.14, .03, .2), (.95, .1, .02), (1, .9, .2)), 'boltdark': ((.42, .16, .78), (.3, .6, 1), (.98, 1, .92))}
+EMIT3 = {'stormgreen': ((.02, .25, .16), (.16, .85, .38), (.86, 1, .72)), 'lavadark': ((.2, .04, .28), (1, .28, .02), (1, .86, .2)), 'firedark': ((.14, .03, .2), (.95, .1, .02), (1, .9, .2)), 'boltdark': ((.42, .16, .78), (.3, .6, 1), (.98, 1, .92))}
 def set_emit(m, c):
     m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
     e = nt.nodes.new('ShaderNodeEmission'); o = nt.nodes.new('ShaderNodeOutputMaterial')
     e.inputs[0].default_value = lin(c); nt.links.new(e.outputs[0], o.inputs[0])
 # comic_lib's own tones, so this is near what comic_toon will be given
-TONES = {'blight': ((.015, .01, .03), (.05, .025, .09), (.12, .07, .2)), 'skin': ((.36, .1, .14), (.86, .46, .28), (1, .75, .5)), 'hair': ((.2, .24, .5), (.62, .68, .86), (.95, .95, .92)), 'iron': ((.05, .06, .14), (.2, .25, .38), (.46, .54, .68)),
+TONES = {'tendril': ((.1, .025, .22), (.34, .1, .6), (.62, .34, .92)), 'voidhard': ((.04, .012, .1), (.15, .05, .3), (.31, .15, .52)), 'blight': ((.015, .01, .03), (.05, .025, .09), (.12, .07, .2)), 'skin': ((.36, .1, .14), (.86, .46, .28), (1, .75, .5)), 'hair': ((.2, .24, .5), (.62, .68, .86), (.95, .95, .92)), 'iron': ((.05, .06, .14), (.2, .25, .38), (.46, .54, .68)),
          'bronze': ((.2, .06, .02), (.68, .34, .08), (.98, .68, .18)), 'leather': ((.1, .03, .03), (.34, .14, .08), (.6, .32, .15)), 'cloth': ((.02, .08, .16), (.03, .32, .36), (.08, .6, .56)),
          'trousers': ((.06, .05, .13), (.2, .17, .32), (.42, .36, .5)), 'rock': ((.05, .02, .05), (.2, .12, .16), (.42, .28, .28)), 'bone': ((.36, .17, .1), (.8, .6, .36), (.98, .92, .72)),
          'ice': ((.08, .3, .72), (.26, .62, .96), (.6, .9, 1)), 'scar': ((.1, .05, .12), (.26, .14, .22), (.42, .24, .3)), 'fur': ((.07, .05, .07), (.2, .14, .13), (.36, .27, .22)),

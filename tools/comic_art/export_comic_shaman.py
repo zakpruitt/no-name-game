@@ -31,8 +31,8 @@ bpy.ops.object.select_all(action='DESELECT')
 parts = []
 for o in scn.objects:
     if o.type == 'MESH' and any(m.type == 'ARMATURE' and m.object is PR for m in o.modifiers):
-        # the flame and bolt frames are a flipbook; the game animates its own, so ship frame 0 only
-        if o.name[:4] in ('fire', 'bolt') and o.name[-1] != '0': continue
+        # the flipbook meshes are stubs for rig_poc's showcase code; he has no fire or bolts of his own
+        if o.name[:4] in ('fire', 'bolt'): continue
         o.hide_viewport = False; o.hide_render = False
         if o.animation_data: o.animation_data_clear()
         for m in list(o.modifiers):

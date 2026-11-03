@@ -197,7 +197,7 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 	_expect(comic.model.find_child("ShamanMantle", true, false) == null, "--comic: no added mantle")
 	_expect(comic.model.find_child("AwakenEyes", true, false) == null, "--comic: no added eyes")
 	_expect(comic.model.find_children("Coat", "Node3D", true, false).is_empty(), "--comic: no axe coats")
-	_expect(comic._trails.size() == 2, "--comic: a trail per axe")
+	_expect(comic._trails.size() == Look.HERO_AXES.size(), "--comic: a trail per axe")
 	_expect(comic._axe_mesh() != null, "--comic: spirit casts have an axe")
 	_expect(game.comic_moves, "the comic hero takes his Ab_ clips by default")
 	game.comic_moves = false  # --no-comic-moves
@@ -339,10 +339,10 @@ func _check_drag(comic: CharacterBody3D) -> void:
 
 ## The current element on both axes, for every element.
 func _check_axe_auras(comic: CharacterBody3D) -> void:
-	_expect(comic._coats.size() == 2, "--comic: he starts with his element on both axes")
+	_expect(comic._coats.size() == Look.HERO_AXES.size(), "--comic: he starts with his element on his axe")
 	for el: String in Look.AXE_INFUSIONS:
 		var auras: Array = Look.infuse_axes(comic.model, el)
-		_expect(auras.size() == 2, "%s: an aura per axe" % el)
+		_expect(auras.size() == Look.HERO_AXES.size(), "%s: an aura per axe" % el)
 		for aura: Node in auras:
 			_expect(aura.tongues.size() == aura.look.count, "%s: its tongues" % el)
 			_expect(aura.drip != null, "%s: sheds motes" % el)
@@ -362,7 +362,7 @@ func _check_axe_auras(comic: CharacterBody3D) -> void:
 			aura.free()
 	comic.ascendancy = "wind"
 	var after: Array = comic._coat_axes()
-	_expect(after.size() == 2 and after[0].look == after[0].LOOKS.wind, "his Ascendancy's element goes on the axes")
+	_expect(after.size() == Look.HERO_AXES.size() and after[0].look == after[0].LOOKS.wind, "his Ascendancy's element goes on the axe")
 	for aura: Node in after:
 		aura.free()
 	comic.ascendancy = ""
