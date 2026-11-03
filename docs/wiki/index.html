@@ -176,14 +176,19 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
 
     <section id="combat">
       <h2>Moves &amp; combos</h2>
-      <p>The moveset is fixed: a light chain, a heavy that changes with what came before it, a charged heavy, a dash attack and the Awakened finisher. Every move also summons the shaman's element (see <a href="#elements">Elements &amp; ultimates</a>). Landing a <b>named combo</b> plays a short sound for its tier and shows its name above the hero: <span class="t1">string</span>, <span class="t2">heavy route</span>, <span class="t3">finisher</span>. The pause menu lists the same moves.</p>
+      <p>The moveset is fixed: a light chain, a heavy that changes with what came before it, a charged heavy, dash attacks, an air string, timed combo breakers and the Awakened ultimates. Every move also summons the shaman's element (see <a href="#elements">Elements &amp; ultimates</a>). Landing a <b>named combo</b> plays a short sound for its tier and shows its name above the hero: <span class="t1">string</span>, <span class="t2">heavy route</span>, <span class="t3">finisher</span>.</p>
       <p id="combo-text"></p>
+      <h3>Every input</h3>
+      <p>L is light, H is heavy, and a comma or <span class="inp">&gt;</span> just separates steps. <span class="inp">Air:</span> means during any move of the air string. The pause menu's MOVES panel shows this same list with the names for your current element. Where a name changes with the element, this table reads spirit, then wind, earth and water.</p>
+      <div id="move-list"></div>
+      <h3>Move numbers</h3>
       <div id="moves"></div>
       <h3>Dash and the perfect dodge</h3>
       <p id="dash-text"></p>
       <h3>Combo breakers</h3>
       <p>Five enders turn into a timed aerial finisher when they connect: Ground Breaker (L L H), Charged Slam, Flurry, Cyclone and Spike. He leaps up, the game slows, and he roars a <b>war cry</b> as the window opens. The floor under him answers in his element: pebbles and embers for earth, frost for water, lightning for wind, wisps for spirit. Press <b>heavy</b> while the rings close on the circle by his head. Where they meet is a <b>PERFECT</b> (x1.5 damage). Too early locks it out, but the ender's own mashed press is ignored and a press a hair early is held for the window. No press and he floats down.</p>
       <p>The dive comes down like a comet in his element and breaks the floor. Glowing cracks split out and vent the element (embers, frost, sparks, wisps), slabs heave up round the rim, and rubble flies. On a PERFECT the element erupts in a ring round the crater (Flurry's dash erupts down its line instead).</p>
+      <div id="breaker-table"></div>
       <h3>The air string</h3>
       <p>L H L L is Sky Rend up in the air. Heavy there is the <b>Updraft</b>: a gale funnel roars up under him, carrying his element round it, and lifts him higher than he can normally climb. A spinning vortex holds him up until he lands. Light then is <b>Gale Waltz</b>: three cuts that fling wind blades raking down onto the floor, left, right, then a big crossed X dead ahead. Light after that is <b>Stormfall</b>, a Triple Chop from the very top that falls like a comet, cracks the floor into a crater under a shockwave dome and makes the element erupt round it.</p>
     </section>
@@ -192,7 +197,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
       <h2>The shaman</h2>
       <div class="split">
         <div style="display:grid;gap:12px;min-width:0">
-          <p>An enhancement shaman with twin rune-carved axes, a grey wolf-pelt hood, feathers and a bead-and-fang necklace. The axes shimmer teal at rest.</p>
+          <p>An enhancement shaman with twin rune-carved axes, a grey wolf-pelt hood, feathers and a bead-and-fang necklace. The axes shimmer teal at rest. Everything he can do is listed under <a href="#combat">Moves &amp; combos</a>.</p>
           <p>Awakening calls the ancestors: the shaman glows <b style="color:var(--gold)">gold</b> until reaching level <span id="lvmax"></span>, then takes on the chosen element's colour and power.</p>
           <p class="lede">Built on the KayKit Barbarian. The texture is recoloured by <code>tools/gen_shaman_texture.gd</code>, and the extra pieces come from <code>scripts/hero_look.gd</code>.</p>
         </div>
@@ -376,7 +381,7 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
   $("moves").innerHTML = table(["Input", "Move", "Dmg", "Reach", "Launch", "To cancel", "DPS", "What it does"], mrows);
   $("combo-text").innerHTML = "The <b>combo guide</b> beside the hero shows what each button does next mid-string, including the pause route (L L, wait, L for Flurry); once you've landed a combo " +
     H.guide_learned + " times in a run it stops hinting it (ultimates are always hinted). The first time a named combo lands in a run, the HUD says <b>New combo</b> with its input and how many of the " +
-    Object.keys(D.combos).length + " you've found. The pause menu's MOVES list counts each combo landed this run, dims the ones still to find, and lists under each the powers you own that hook it. " +
+    Object.keys(D.combos).length + " you've found. The pause menu's MOVES panel lists every input below, counts each combo landed this run, dims the ones still to find, and lists under each the powers you own that hook it. It scrolls with the mouse wheel, Page Up / Down or the right stick. " +
     "<b>To cancel</b> is how long a move takes before you can act again; <b>DPS</b> is its damage over that time, with no powers (the test suite fails any move far above the median).";
   $("dash-text").innerHTML = "The dash moves at " + n(H.dash_speed) + " m/s for " + n(H.dash_time) + "s (" + n(H.dash_cooldown) +
     "s cooldown), grants invulnerability, and cancels any attack once its first hit is out. Dash in the last " + n(H.perfect_dodge_window) +
@@ -435,6 +440,37 @@ footer { color: var(--bone-dim); font-size: 13px; border-top: 1px solid var(--li
   $("ult-table").innerHTML = table(["Input", "Spirit · Wind · Earth · Water", "What it does"], ["SKY", "RUSH", "AF"].map(function (id) {
     return ['<span class="inp">' + uinfo[id][0] + "</span>", elNames(id === "AF" ? afNames : U[id].names), uinfo[id][1]];
   }).concat([['<span class="inp">all three</span>', elNames(D.trinity.names), "The Trinity storm."]]));
+
+  // The full move list (scripts/move_list.gd), also the pause menu's MOVES panel.
+  function moveName(row) {
+    if (row.kind === "breaker") return elNames(D.breakers[row.id].names);
+    if (row.kind === "trinity") return elNames(D.trinity.names);
+    if (row.kind === "rite") return ELS.filter(function (el) { return D.rite_names[el]; }).map(function (el) {
+      return '<b style="color:#' + EC[el].color + '">' + esc(D.rite_names[el]) + "</b>"; }).join(" · ");
+    if (row.kind === "text") return row.tier ? '<span class="t' + row.tier + '"><b>' + esc(row.name) + "</b></span>" : esc(row.name);
+    if (row.id === "AF") return elNames(afNames);
+    if (U[row.id]) return elNames(U[row.id].names);
+    var c = D.combos[row.id];
+    return c ? '<span class="t' + c.tier + '"><b>' + esc(c.name) + "</b></span>" : esc(D.move_names[row.id] || row.id);
+  }
+  $("move-list").innerHTML = D.move_list.map(function (s) {
+    var title = s.title.charAt(0) + s.title.slice(1).toLowerCase();
+    return '<p style="margin-top:20px"><b>' + esc(title) + "</b>" + (s.hint ? ": " + esc(s.hint) : "") + "</p>" + table(["Input", "Name", "What it does"], s.rows.map(function (r) {
+      return ['<span class="inp">' + esc(r.input) + "</span>", moveName(r), esc(r.note)];
+    }));
+  }).join("");
+  // Combo breakers: what each dive deals on top of its ender.
+  var brkExtra = {
+    LLH: function (b) { return b.spikes + " spikes × " + n(b.spike_damage) + ", each detonates for " + n(b.detonate); },
+    CH: function (b) { return n(b.juggle_damage) + " a tick in the sawblade"; },
+    LPL: function (b) { return n(b.pass_damage) + " as he passes"; },
+    DH: function (b) { return n(b.juggle_damage) + " a tick in the sawblade; " + b.fan + " tomahawks × " + n(b.fan_damage) + " out, " + n(b.fan_back) + " back"; },
+    LHH: function (b) { return "up to " + b.volley_max + " axes × " + n(b.volley_damage); }};
+  $("breaker-table").innerHTML = table(["Ender", "Spirit · Wind · Earth · Water", "Dive", "Reach", "Also deals"], Object.keys(D.breakers).map(function (id) {
+    var b = D.breakers[id];
+    return ['<span class="inp">' + esc(D.combos[id].input) + "</span> " + esc(D.combos[id].name), elNames(b.names), {num: n(b.damage)},
+      {num: b.radius ? n(b.radius) + "m radius" : n(b.width) + "m line"}, brkExtra[id] ? brkExtra[id](b) : miss()];
+  })) + "<p>PERFECT multiplies the dive by " + n(D.breakers.LLH.perfect_mult) + ". Damage here is before powers and the Awakened multiplier.</p>";
 
   $("air-text").innerHTML = "Juggle milestones pay out bonus style and Awakening: " + Object.keys(D.air_milestones).map(function (k) {
     var a = D.air_milestones[k]; return "<b>" + a.text + "</b> at " + k + " air hits (+" + n(a.awaken) + ")"; }).join(", ") + ".";
