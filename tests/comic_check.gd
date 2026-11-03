@@ -148,7 +148,7 @@ func _check_hero_bones(model: Node3D) -> void:
 func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 	var kaykit: Node = hero_script.MODEL.instantiate()
 	var old_rig: AnimationPlayer = kaykit.find_child("AnimationPlayer", true, false)
-	_expect(Look.HERO_MOVES.size() == 12, "twelve Ab_ clips routed")
+	_expect(Look.HERO_MOVES.size() == 18, "eighteen Ab_ clips routed")
 	for id: String in Look.HERO_MOVES:
 		var h: Dictionary = Look.HERO_MOVES[id]
 		_expect(rig.has_animation(h.clip), "%s: clip %s" % [id, h.clip])
@@ -199,14 +199,16 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 	_expect(comic.model.find_children("Coat", "Node3D", true, false).is_empty(), "--comic: no axe coats")
 	_expect(comic._trails.size() == 2, "--comic: a trail per axe")
 	_expect(comic._axe_mesh() != null, "--comic: spirit casts have an axe")
-	_expect(comic._effective_move("L1").anim == hero_script.MOVES.L1.anim, "--comic alone: MOVES unchanged")
+	_expect(game.comic_moves, "the comic hero takes his Ab_ clips by default")
+	game.comic_moves = false  # --no-comic-moves
+	_expect(comic._effective_move("L1").anim == hero_script.MOVES.L1.anim, "--no-comic-moves: MOVES unchanged")
 	_check_run_clips(comic)
 	_check_stances(comic)
 	_check_drag(comic)
 	_check_axe_auras(comic)
 	comic._start_attack("L2")
-	_expect(comic.anim.current_animation == "Ab_L2", "--comic alone: L2 asks for Throw, gets Ab_L2")
-	_expect(is_equal_approx(comic._move.hits[0], hero_script.MOVES.L2.hits[0]), "--comic alone: L2 keeps its fractions")
+	_expect(comic.anim.current_animation == "Ab_L2", "--no-comic-moves: L2 asks for Throw, gets Ab_L2")
+	_expect(is_equal_approx(comic._move.hits[0], hero_script.MOVES.L2.hits[0]), "--no-comic-moves: L2 keeps its fractions")
 	game.comic_moves = true
 	for id: String in Look.HERO_MOVES:
 		comic._hop_y0 = 0.0
@@ -218,7 +220,6 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 			_expect(is_equal_approx(comic._move_len, comic.anim.get_animation(Look.HERO_MOVES[id].clip).length), "--comic-moves: %s times itself on its clip" % id)
 			_expect(absf(comic._move.hits[0] - float(Look.HERO_MOVES[id].hit) / Look.HERO_MOVES[id].frames) < 0.0001, "--comic-moves: %s hits on its frame" % id)
 	var dh: Dictionary = comic._effective_move("DH")
-	_expect(dh.anim == hero_script.MOVES.DH.anim and dh.hits == hero_script.MOVES.DH.hits, "--comic-moves: a move with no Ab_ clip is untouched")
 	comic._start_attack("SKY")
 	await create_timer(0.4).timeout
 	_expect(comic.anim.current_animation == Look.HERO_MOVES.SKY.clip, "--comic-moves: one clip through SKY's beats")

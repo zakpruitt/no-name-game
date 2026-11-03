@@ -11,7 +11,7 @@ const HERO_LOOK := preload("res://scripts/hero_look.gd")
 const MARK := preload("res://scripts/comic_drag_mark.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const LOOKS := {
-	"spirit": {"mode": "rise", "count": 7, "size": 0.52, "wiggle": 0.16, "r": 0.22},
+	"spirit": {"mode": "rise", "count": 5, "size": 0.36, "wiggle": 0.12, "r": 0.16},
 	"earth": {"mode": "rise", "count": 8, "size": 0.42, "wiggle": 0.12, "r": 0.26},
 	"wind": {"mode": "spin", "count": 5, "size": 0.72, "wiggle": 0.1, "r": 0.12},
 	"water": {"mode": "shard", "count": 7, "size": 0.44, "wiggle": 0.0, "r": 0.18},
@@ -72,13 +72,17 @@ func setup(element: String, meshes: Array[ArrayMesh], edge: PackedVector3Array, 
 
 ## The grip is at the bone, so the handle runs through the origin towards the blade's centre.
 static func _farthest_from_handle(edge: PackedVector3Array, centre: Vector3) -> Vector3:
-	var along := centre.normalized()
-	var best := centre
-	var far := -1.0
+	# out from the blade through the middle of the edge: on a crescent the horns are farther off the handle,
+	# but the middle of the edge is what the drag poses stand on the floor
+	var mid := Vector3.ZERO
 	for v in edge:
-		var off := (v - along * v.dot(along)).length()
-		if off > far:
-			far = off
+		mid += v
+	var out := (mid / edge.size() - centre).normalized()
+	var best := centre
+	var far := -INF
+	for v in edge:
+		if v.dot(out) > far:
+			far = v.dot(out)
 			best = v
 	return best
 

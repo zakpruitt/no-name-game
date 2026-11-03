@@ -23,9 +23,12 @@ const TONES := {
 	"P_Leather": {"shadow": Color(0.1, 0.03, 0.03), "mid": Color(0.34, 0.14, 0.08), "light": Color(0.6, 0.32, 0.15), "rim": Color(0.15, 0.07, 0.04), "brush": 0.2},
 	"P_Cloth": {"shadow": Color(0.02, 0.08, 0.16), "mid": Color(0.03, 0.32, 0.36), "light": Color(0.08, 0.6, 0.56), "hi": Color(0.34, 0.86, 0.72), "rim": Color(0.05, 0.24, 0.24), "brush": 0.28},
 	"P_Trousers": {"shadow": Color(0.06, 0.05, 0.13), "mid": Color(0.2, 0.17, 0.32), "light": Color(0.42, 0.36, 0.5), "rim": Color(0.1, 0.1, 0.2), "brush": 0.24},
+	# the Unfinished: the scar under his plates, the pelt on the shoulder still his, the axes' hafts
+	"P_Scar": {"shadow": Color(0.1, 0.05, 0.12), "mid": Color(0.26, 0.14, 0.22), "light": Color(0.42, 0.24, 0.3), "rim": Color(0.1, 0.05, 0.1), "brush": 0.2},
+	"P_Fur": {"shadow": Color(0.07, 0.05, 0.07), "mid": Color(0.2, 0.14, 0.13), "light": Color(0.36, 0.27, 0.22), "rim": Color(0.1, 0.1, 0.1), "brush": 0.25},
+	"P_Haft": {"shadow": Color(0.08, 0.04, 0.04), "mid": Color(0.27, 0.14, 0.09), "light": Color(0.46, 0.28, 0.16), "rim": Color(0.08, 0.04, 0.03), "brush": 0.2},
 	"P_Rock": {"shadow": Color(0.05, 0.02, 0.05), "mid": Color(0.2, 0.12, 0.16), "light": Color(0.42, 0.28, 0.28), "hi": Color(0.72, 0.55, 0.44), "rim": Color(0.8, 0.28, 0.03), "brush": 0.14, "inner": 0.22},
 	# the axes' blades in the elements that have no blade of their own (AXE_INFUSIONS)
-	"P_AxeSpirit": {"shadow": Color(0.03, 0.22, 0.28), "mid": Color(0.1, 0.55, 0.55), "light": Color(0.4, 0.9, 0.82), "hi": Color(0.9, 1, 0.92), "rim": Color(0.2, 0.9, 0.8), "brush": 0.1, "inner": 0.14},
 	"P_AxeWind": {"shadow": Color(0.05, 0.25, 0.14), "mid": Color(0.2, 0.6, 0.34), "light": Color(0.55, 0.92, 0.6), "hi": Color(0.92, 1, 0.88), "rim": Color(0.5, 1, 0.55), "brush": 0.1, "inner": 0.14},
 	"P_Bone": {"shadow": Color(0.36, 0.17, 0.1), "mid": Color(0.8, 0.6, 0.36), "light": Color(0.98, 0.92, 0.72), "rim": Color(0.2, 0.15, 0.1), "brush": 0.14},
 	"P_Ice": {"shadow": Color(0.08, 0.3, 0.72), "mid": Color(0.26, 0.62, 0.96), "light": Color(0.6, 0.9, 1), "hi": Color(0.98, 1, 1), "rim": Color(0.4, 0.7, 1), "brush": 0.08, "inner": 0.14},
@@ -66,6 +69,7 @@ const EMITS := {
 	"P_Bolt": [Color(0.2, 0.55, 1), Color(0.98, 1, 0.92)],
 	"P_Wind": [Color(0.2, 0.85, 0.5), Color(0.9, 1, 0.8)],
 	"P_Spirit": [Color(0.05, 0.75, 0.72), Color(0.86, 1, 0.86)],
+	"P_Fracture": [Color(0.08, 0.72, 0.68), Color(0.86, 1, 0.92)],
 	"P_EyeWhite": [Color(0.965, 0.93, 0.82), Color(0.965, 0.93, 0.82)],
 	"P_EyeBlue": [Color(0.1, 0.45, 1), Color(0.7, 0.95, 1)],
 	"P_Pupil": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
@@ -120,21 +124,27 @@ const HERO_MOVES := {
 	"AF": {"clip": "Ab_AF", "hit": 40, "frames": 79, "old": 1.1},
 	"SKY": {"clip": "Ab_SKY", "hit": 32, "frames": 61},
 	"RUSH": {"clip": "Ab_RUSH", "hit": 9, "frames": 55},
+	"LPL": {"clip": "Ab_LPL", "hit": 6, "frames": 30, "old": 1.1667},
+	"DH": {"clip": "Ab_DH", "hit": 5, "frames": 20, "old": 0.6667},
+	"AL1": {"clip": "Ab_AL1", "hit": 8, "frames": 24, "old": 1.0},
+	"AL2": {"clip": "Ab_AL2", "hit": 7, "frames": 26, "old": 1.1667},
+	"AH": {"clip": "Ab_AH", "hit": 8, "frames": 44, "old": 2.4},
+	"AL3": {"clip": "Ab_AL3", "hit": 6, "frames": 28, "old": 1.1667},
 }
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).
-const HERO_AXES := {"hand.r": "axe_storm_ice", "hand.l": "axe_magma_rock"}
-const HERO_AXE_EDGES := {"hand.r": "axe_storm_bolt", "hand.l": "axe_magma_lava"}
+const HERO_AXES := {"hand.r": "axe_storm_blade", "hand.l": "axe_magma_blade"}
+const HERO_AXE_EDGES := {"hand.r": "axe_storm_edge", "hand.l": "axe_magma_edge"}
 ## Element -> the blade and edge materials both axes take (infuse_axes).
 const AXE_INFUSIONS := {
-	"spirit": ["P_AxeSpirit", "P_Spirit"],
+	"spirit": ["P_Iron", "P_Fracture"],
 	"wind": ["P_AxeWind", "P_Wind"],
 	"earth": ["P_Rock", "P_Lava"],
 	"water": ["P_Ice", "P_Bolt"],
 }
 const AXE_AURA := preload("res://scripts/comic_axe_aura.gd")
 ## Fidgets he plays in turn when left standing, and the stance a fight keeps him in.
-const HERO_FIDGETS := ["Idle_Heft", "Idle_Swing"]
+const HERO_FIDGETS := ["Idle_Heft", "Idle_Listen", "Idle_Swing"]
 const HERO_READY := "Idle_Ready"
 const READY_HOLD := 3.0  # s in the guard after his last attack or hit
 const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets

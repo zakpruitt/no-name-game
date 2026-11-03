@@ -128,7 +128,7 @@ func _ready() -> void:
 	_setup_input()
 	_load_settings()
 	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
-	comic_moves = "--comic-moves" in OS.get_cmdline_user_args() or "--comic-moves" in OS.get_cmdline_args()
+	comic_moves = not ("--no-comic-moves" in OS.get_cmdline_user_args() or "--no-comic-moves" in OS.get_cmdline_args())
 	sync_comic()
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()

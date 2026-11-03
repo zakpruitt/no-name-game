@@ -185,7 +185,7 @@ def hauling(r_hand=(0, 0, 0), l_hand=(0, 0, 0), r_head=(0, 0, 0, 0), l_head=(0, 
     return o
 
 # Low guard, axes out to the sides, after a fight.
-GUARD_R = dict(hand=(-.76, -.2, .94), along=(-.6, .4, .7), edge=(-.3, -1, 0), elbow=(-.8, .35, -.45))
+GUARD_R = dict(hand=(-.76, -.2, .94), along=(-.6, .4, .7), edge=(-.8, -.6, 0), elbow=(-.8, .35, -.45))
 GUARD_L = dict(hand=(.74, -.3, .86), along=(.75, .35, .42), edge=(.1, -1, .3), elbow=(.8, .35, -.45))
 # Wound up, both axes drawn back.
 COILED_R = dict(hand=(-.66, .08, 1.06), along=(-.3, .8, .52), edge=(-.5, .2, .9), elbow=(-.75, .5, -.3))
@@ -194,7 +194,7 @@ COILED_L = dict(hand=(.66, .08, .98), along=(.3, .88, .36), edge=(.5, .2, .9), e
 STREAM_R = dict(hand=(-.72, .22, 1.14), along=(-.3, .94, .1), edge=(-.5, 0, 1), elbow=(-.6, .6, -.2))
 STREAM_L = dict(hand=(.72, .22, 1.04), along=(.3, .94, .06), edge=(.5, 0, 1), elbow=(.6, .6, -.2))
 # Arms flung wide from a blow or in the air.
-FLUNG_R = dict(hand=(-.86, -.1, 1.14), along=(-.75, .2, .55), edge=(-.3, -1, 0), elbow=(-.6, .4, -.7))
+FLUNG_R = dict(hand=(-.86, -.1, 1.14), along=(-.75, .34, .5), edge=(-.8, -.6, 0), elbow=(-.6, .4, -.7))
 FLUNG_L = dict(hand=(.86, -.08, 1.06), along=(.8, .25, .4), edge=(.2, -1, .2), elbow=(.6, .4, -.7))
 
 def nudged(spec, hand=(0, 0, 0), along=(0, 0, 0)):
@@ -251,7 +251,7 @@ CHOP_TOP = {'chest': (-24, 0, 0), 'head': (20, 0, 0), 'upperarm.r': (-62, 0, -12
 CHOP_DOWN = {'chest': (30, 0, 0), 'head': (-22, 0, 0), 'upperarm.r': (-14, 0, 14), 'lowerarm.r': (0, 0, 0), 'hand.r': (20, 0, 0), 'upperarm.l': (-100, 0, -14), 'lowerarm.l': (-10, 0, 0), 'hand.l': (6, 0, 0)}
 ability('L3', 'Triple Chop', 'L L L', 'KRAK!', 'cleave', 44, [
     (0, 'smooth', READY),
-    (7, 'out', P({'hips': {'rot': (22, 0, 0), 'loc': (0, .1, -.24)}, 'chest': (24, 0, 0), 'head': (-24, 0, 0), 'upperarm.r': (34, 0, -24), 'upperarm.l': (40, 0, 24)})),
+    (7, 'out', P({'hips': {'rot': (22, 0, 0), 'loc': (0, .1, -.24)}, 'chest': (24, 0, 0), 'head': (-24, 0, 0), 'upperarm.r': (22, 0, -24), 'upperarm.l': (-22, 0, 24)})),
     (12, 'smooth', P(CHOP_TOP, {'rm': -.5, 'hips': {'rot': (-12, 0, 0), 'loc': (0, 0, .62)}, 'L': (0, .05, .5), 'R': (0, .1, .36)})),
     (15, 'smooth', P(CHOP_TOP, {'rm': -.9, 'hips': {'rot': (-16, 0, 0), 'loc': (0, 0, .78)}, 'L': (0, .08, .6), 'R': (0, .12, .46)})),
     (18, 'in', P(CHOP_DOWN, {'rm': -1.3, 'hips': {'rot': (24, 0, 0), 'loc': (0, -.1, -.26)}, 'L': (0, .14, 0), 'R': (0, -.16, 0)})),
@@ -289,9 +289,9 @@ ability('H', 'Whirlwind', 'H', 'VRRRSH!', 'wheel', 50, [
 # Dash L Tomahawk: skids in, hurls the storm axe, catches it on the way back
 ability('DL', 'Dash Stab', 'Dash > L', 'SHIIING!', 'tomahawk', 48, [
     (0, 'smooth', P(READY, rm=0)),
-    (6, 'smooth', {'rm': -1.5, 'hips': {'rot': (24, 0, 0), 'loc': (0, 0, -.2)}, 'chest': (26, 0, -30), 'head': (-30, 0, 24), 'upperarm.r': (-150, 0, -30), 'lowerarm.r': (-46, 0, 0), 'upperarm.l': (40, 0, 40), 'L': (0, .2, 0), 'R': (0, -.2, 0)}),
-    (9, 'in', {'rm': -1.75, 'hips': {'rot': (28, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (30, 0, 26), 'head': (-28, 0, -18), 'upperarm.r': (-50, 0, 30), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (46, 0, 30), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
-    (14, 'out', {'rm': -1.75, 'hips': {'rot': (28, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (32, 0, 28), 'head': (-28, 0, -20), 'upperarm.r': (-44, 0, 34), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (46, 0, 30), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
+    (6, 'smooth', {'rm': -1.5, 'hips': {'rot': (24, 0, 0), 'loc': (0, 0, -.2)}, 'chest': (26, 0, -30), 'head': (-30, 0, 24), 'upperarm.r': (-150, 0, -30), 'lowerarm.r': (-46, 0, 0), 'upperarm.l': (-40, 0, 44), 'L': (0, .2, 0), 'R': (0, -.2, 0)}),
+    (9, 'in', {'rm': -1.75, 'hips': {'rot': (28, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (30, 0, 26), 'head': (-28, 0, -18), 'upperarm.r': (-50, 0, 30), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (-30, 0, 36), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
+    (14, 'out', {'rm': -1.75, 'hips': {'rot': (28, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (32, 0, 28), 'head': (-28, 0, -20), 'upperarm.r': (-44, 0, 34), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (-30, 0, 36), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
     (38, 'smooth', {'rm': -1.75, 'hips': {'rot': (6, 0, 0), 'loc': (0, 0, -.08)}, 'chest': (0, 0, -10), 'upperarm.r': (-60, 0, -20), 'lowerarm.r': (-30, 0, 0)}),
     (41, 'in', {'rm': -1.75, 'hips': {'rot': (0, 0, 0), 'loc': (0, .08, -.1)}, 'chest': (-10, 0, -16), 'upperarm.r': (-80, 0, -40), 'lowerarm.r': (-46, 0, 0)}),
     (48, 'smooth', P(READY, rm=-1.75)),
@@ -299,7 +299,7 @@ ability('DL', 'Dash Stab', 'Dash > L', 'SHIIING!', 'tomahawk', 48, [
 # L H H Spike: flung high, points at the target, a colossal axe follows his dive down
 ability('LHH', 'Spike', 'L H H', 'CHUNK!', 'guillotine', 44, [
     (0, 'smooth', READY),
-    (6, 'out', {'hips': {'rot': (18, 0, 0), 'loc': (0, .05, -.26)}, 'chest': (20, 0, 0), 'head': (-16, 0, 0), 'upperarm.r': (30, 0, -20), 'upperarm.l': (30, 0, 20)}),
+    (6, 'out', {'hips': {'rot': (18, 0, 0), 'loc': (0, .05, -.26)}, 'chest': (20, 0, 0), 'head': (-16, 0, 0), 'upperarm.r': (18, 0, -20), 'upperarm.l': (-14, 0, 20)}),
     (12, 'smooth', {'rm': -.4, 'hips': {'rot': (-10, 0, 0), 'loc': (0, 0, 1.05)}, 'chest': (-14, 0, 8), 'head': (12, 0, 0), 'upperarm.r': (-78, 0, -8), 'lowerarm.r': (-8, 0, 0), 'upperarm.l': (20, 0, 26), 'L': (0, .1, .9), 'R': (0, .14, .78)}),
     (18, 'smooth', {'rm': -.7, 'hips': {'rot': (-14, 0, 0), 'loc': (0, 0, 1.25)}, 'chest': (-18, 0, 10), 'head': (16, 0, 0), 'upperarm.r': (-80, 0, -8), 'lowerarm.r': (-6, 0, 0), 'upperarm.l': (24, 0, 26), 'L': (0, .14, 1.08), 'R': (0, .18, .96)}),
     (21, 'in', P(CHOP_DOWN, {'rm': -1.1, 'hips': {'rot': (26, 0, 0), 'loc': (0, -.1, -.28)}, 'L': (0, .14, 0), 'R': (0, -.16, 0)})),
@@ -323,7 +323,7 @@ ability('CH', 'Charged Slam', 'hold H', 'BOOOOM!', 'avatar', 66, [
 # Awakened L H H, Ancestor's Fall: a huge leap, a comet down, a 5x ancestor swings behind him
 ability('SKY', "Ancestor's Fall", 'L H H (Awakened)', 'KA-THOOM!', 'sky', 60, [
     (0, 'smooth', READY),
-    (10, 'out', {'hips': {'rot': (24, 0, 0), 'loc': (0, .1, -.32)}, 'chest': (34, 0, 0), 'head': (-36, 0, 0), 'upperarm.r': (46, 0, -30), 'upperarm.l': (46, 0, 30)}),
+    (10, 'out', {'hips': {'rot': (24, 0, 0), 'loc': (0, .1, -.32)}, 'chest': (34, 0, 0), 'head': (-36, 0, 0), 'upperarm.r': (26, 0, -30), 'upperarm.l': (-36, 0, 30)}),
     (18, 'smooth', P(CHOP_TOP, {'rm': -1.2, 'hips': {'rot': (-20, 0, 0), 'loc': (0, 0, 2.4)}, 'L': (0, .14, 2.2), 'R': (0, .2, 2.05)})),
     (28, 'smooth', P(CHOP_TOP, {'rm': -2.2, 'hips': {'rot': (-30, 0, 0), 'loc': (0, 0, 3.1)}, 'L': (0, .2, 2.85), 'R': (0, .26, 2.72)})),
     (32, 'in', P(CHOP_DOWN, {'rm': -3, 'hips': {'rot': (30, 0, 0), 'loc': (0, -.1, -.34)}, 'L': (0, .2, 0), 'R': (0, -.22, 0)})),
@@ -347,9 +347,85 @@ ability('AF', 'Cataclysm', 'L L L H (Awakened)', 'KRRAKA-BOOM!', 'cataclysm', 78
     (10, 'out', {'hips': {'rot': (20, 0, 0), 'loc': (0, .06, -.28)}, 'chest': (34, 0, 0), 'head': (-30, 0, 0), 'upperarm.l': (20, 0, -34), 'lowerarm.l': (-60, 0, 0), 'upperarm.r': (50, 0, 30), 'lowerarm.r': (-60, 0, 0)}),
     (20, 'smooth', {'hips': {'rot': (-16, 0, 0), 'loc': (0, 0, .26)}, 'chest': (-30, 0, 0), 'head': (34, 0, 0), 'upperarm.l': (-125, 0, 30), 'lowerarm.l': (-6, 0, 0), 'upperarm.r': (-50, 0, -24), 'lowerarm.r': (-8, 0, 0), 'R': (0, 0, .1)}),
     (36, 'smooth', {'hips': {'rot': (-20, 0, 0), 'loc': (0, 0, .34)}, 'chest': (-34, 0, 0), 'head': (38, 0, 0), 'upperarm.l': (-126, 0, 30), 'lowerarm.l': (-4, 0, 0), 'upperarm.r': (-52, 0, -24), 'lowerarm.r': (-6, 0, 0), 'R': (0, 0, .14)}),
-    (40, 'in', {'hips': {'rot': (34, 0, 0), 'loc': (0, -.06, -.4)}, 'chest': (40, 0, 0), 'head': (-34, 0, 0), 'upperarm.l': (-80, 0, -8), 'lowerarm.l': (-10, 0, 0), 'upperarm.r': (-20, 0, 30), 'lowerarm.r': (-4, 0, 0), 'L': (.08, .14, 0), 'R': (-.08, -.12, 0)}),
-    (54, 'out', {'hips': {'rot': (36, 0, 0), 'loc': (0, -.06, -.42)}, 'chest': (42, 0, 0), 'head': (-36, 0, 0), 'upperarm.l': (-82, 0, -8), 'lowerarm.l': (-10, 0, 0), 'upperarm.r': (-18, 0, 30), 'lowerarm.r': (-4, 0, 0), 'L': (.08, .14, 0), 'R': (-.08, -.12, 0)}),
+    (40, 'in', {'hips': {'rot': (34, 0, 0), 'loc': (0, -.06, -.4)}, 'chest': (40, 0, 0), 'head': (-34, 0, 0), 'upperarm.l': (-80, 0, -8), 'lowerarm.l': (-10, 0, 0), 'upperarm.r': (-46, 0, 30), 'lowerarm.r': (-4, 0, 0), 'L': (.08, .14, 0), 'R': (-.08, -.12, 0)}),
+    (54, 'out', {'hips': {'rot': (36, 0, 0), 'loc': (0, -.06, -.42)}, 'chest': (42, 0, 0), 'head': (-36, 0, 0), 'upperarm.l': (-82, 0, -8), 'lowerarm.l': (-10, 0, 0), 'upperarm.r': (-44, 0, 30), 'lowerarm.r': (-4, 0, 0), 'L': (.08, .14, 0), 'R': (-.08, -.12, 0)}),
     (78, 'smooth', READY),
+])
+
+# ---------------------------------------------------------------- the moves that had no clip of their own
+# Hit frames here match what MOVES' spacing works out to on these lengths at 24 fps (comic_look.retime keeps time after
+# the first hit), so the later cuts land on the later hits. Both axes take turns; each cut is the weight of the last
+# thrown the other way, not a fresh swing.
+CUT_R = {'hips': {'rot': (8, 0, 14), 'loc': (0, -.04, -.12)}, 'chest': (8, 0, 32), 'head': (-4, 0, -22), 'upperarm.r': (22, 0, 72), 'lowerarm.r': (6, 0, 42), 'upperarm.l': (-30, 0, 20)}
+CUT_L = {'hips': {'rot': (8, 0, -14), 'loc': (0, -.04, -.12)}, 'chest': (8, 0, -34), 'head': (-4, 0, 22), 'upperarm.l': (-74, 0, -66), 'lowerarm.l': (-4, 0, -32), 'upperarm.r': (-12, 0, 18)}
+WIND_R = {'hips': {'rot': (4, 0, -12), 'loc': (0, .04, -.1)}, 'chest': (-4, 0, -30), 'head': (0, 0, 20), 'upperarm.r': (-34, 0, -48), 'lowerarm.r': (-12, 0, -26), 'upperarm.l': (-26, 0, 20)}
+WIND_L = {'hips': {'rot': (0, 0, 14), 'loc': (0, .03, -.1)}, 'chest': (-6, 0, 32), 'head': (0, 0, -22), 'upperarm.l': (-106, 0, 50), 'lowerarm.l': (-14, 0, 18), 'upperarm.r': (10, 0, -24)}
+STEP_A = {'L': (0, .08, 0), 'R': (0, -.08, 0)}
+STEP_B = {'L': (0, -.08, 0), 'R': (0, .08, 0)}
+# Off the floor: knees tucked, hips up, as Hero_Jump_Idle hangs.
+AIR = {'L': (-.05, .08, .26), 'R': (.07, .12, .44)}
+def aloft(p, rot=(3, 0, 0)):
+    h = p.get('hips', {})
+    return P(p, AIR, hips={'rot': h.get('rot', rot), 'loc': (0, 0, .04)})
+AIR_READY = aloft(READY)
+
+# L L, pause, L Flurry: five quick cuts, right, left, right, left, then both together
+ability('LPL', 'Flurry', 'L L, pause, L', 'SHK-SHK-SHK!', 'tomahawk', 29, [
+    (0, 'smooth', READY),
+    (4, 'out', P(WIND_R, STEP_A)),
+    (6, 'in', P(CUT_R, STEP_B)),
+    (9, 'in', P(CUT_L, STEP_A)),
+    (12, 'in', P(CUT_R, STEP_B)),
+    (14, 'in', P(CUT_L, STEP_A)),
+    (17, 'in', P(CHOP_DOWN, {'hips': {'rot': (20, 0, 0), 'loc': (0, -.08, -.22)}, 'L': (0, .1, 0), 'R': (0, -.12, 0)})),
+    (22, 'out', P(CHOP_DOWN, {'hips': {'rot': (22, 0, 0), 'loc': (0, -.08, -.24)}, 'L': (0, .1, 0), 'R': (0, -.12, 0)})),
+    (29, 'smooth', READY),
+])
+# Dash H Cyclone: drops low and goes round twice, arms wide, the axes dragging the body after them
+ability('DH', 'Cyclone', 'Dash > H', 'VWOOM!', 'wheel', 19, [
+    (0, 'smooth', READY),
+    (3, 'out', {'spin': 30, 'hips': {'rot': (12, 0, 0), 'loc': (0, 0, -.24)}, 'chest': (12, 0, 26), 'head': (0, 0, -20), 'upperarm.l': (-40, 0, 76), 'upperarm.r': (10, 0, 28), 'L': (.06, 0, 0), 'R': (-.06, 0, 0)}),
+    (5, 'in', P(SPREAD, {'spin': -90, 'hips': {'rot': (8, 0, 0), 'loc': (0, 0, -.2)}, 'L': (.06, 0, 0), 'R': (-.06, 0, 0)})),
+    (15, 'smooth', P(SPREAD, {'spin': -700, 'hips': {'rot': (8, 0, 0), 'loc': (0, 0, -.2)}, 'L': (.06, 0, 0), 'R': (-.06, 0, 0)})),
+    (19, 'smooth', P(READY, spin=-720)),
+])
+# L H L Air Slash: one hard cut hanging in the air
+ability('AL1', 'Air Slash', 'L H L', 'SHNK!', 'echo', 23, [
+    (0, 'smooth', AIR_READY),
+    (5, 'out', aloft(WIND_R)),
+    (8, 'in', aloft(CUT_R)),
+    (12, 'out', aloft(CUT_R)),
+    (23, 'smooth', AIR_READY),
+])
+# L H L L Sky Rend: back the other way with the magma axe, and the storm axe straight after it
+ability('AL2', 'Sky Rend', 'L H L L', 'KRANG!', 'echo', 25, [
+    (0, 'smooth', aloft(CUT_R)),
+    (4, 'out', aloft(WIND_L)),
+    (7, 'in', aloft(CUT_L)),
+    (11, 'in', aloft(CUT_R)),
+    (15, 'out', aloft(CUT_R)),
+    (25, 'smooth', AIR_READY),
+])
+# L H L L H Updraft: the gale takes his feet; he opens his arms and it turns him
+GALE = {'hips': {'rot': (-6, 0, 0), 'loc': (0, 0, .1)}, 'L': (-.05, .14, .1), 'R': (.07, .22, .2)}
+ability('AH', 'Updraft', 'L H L L H', 'FWOOSH!', 'wheel', 43, [
+    (0, 'smooth', AIR_READY),
+    (5, 'out', aloft(dict(WIND_R, spin=30))),
+    (8, 'in', P(SPREAD, GALE, spin=-140)),
+    (18, 'smooth', P(SPREAD, GALE, spin=-620)),
+    (28, 'smooth', P(SPREAD, GALE, spin=-980)),
+    (34, 'smooth', aloft(dict(READY, spin=-1060))),
+    (43, 'smooth', P(AIR_READY, spin=-1080)),
+])
+# L H L L H L Gale Waltz: three cuts on one turn
+ability('AL3', 'Gale Waltz', 'L H L L H L', 'SHK-SHK!', 'echo', 27, [
+    (0, 'smooth', AIR_READY),
+    (3, 'out', aloft(dict(WIND_R, spin=20))),
+    (6, 'in', aloft(dict(CUT_R, spin=-90))),
+    (10, 'in', aloft(dict(CUT_L, spin=-220))),
+    (14, 'in', aloft(dict(CUT_R, spin=-340))),
+    (19, 'out', aloft(dict(CUT_R, spin=-360))),
+    (27, 'smooth', P(AIR_READY, spin=-360)),
 ])
 
 # ---------------------------------------------------------------- locomotion, four directions off one cycle
@@ -358,6 +434,7 @@ ability('AF', 'Cataclysm', 'L L L H (Awakened)', 'KRRAKA-BOOM!', 'cataclysm', 78
 # Rest stance is staggered and wide, the left ankle at (.262, 0) and the peg at (-.262, -.4): BASE_* brings both
 # under the hips. travel is in his own axes, as a pose's: (his left, his back).
 RUN_T = 16
+LOPSIDED = 6   # degrees the hump pulls his chest toward it, in everything he does on his feet
 BASE_L = V((-.1, .0, 0))
 BASE_R = V((.1, .4, 0))
 
@@ -384,9 +461,9 @@ def run_pose(phase, travel, reach, lift, lean, width=0.0):
     r_head = (behind[0], behind[1] + .07 * pump, 0, scrape)
     l_head = (behind[0], behind[1] - .07 * pump, 0, scrape)
     return dict(hauling(r_hand=(0, -.05 * pump, .02 * two), l_hand=(0, .05 * pump, .02 * two), r_head=r_head, l_head=l_head),
-        hips={'rot': (pitch * .6, roll * .6, -7 * twist), 'loc': (0, 0, -.08 - .035 * two)},
-        chest=(pitch * .5, roll * .5, 15 * twist),
-        head=(-pitch * .9, -roll * .8, -8 * twist),
+        hips={'rot': (pitch * .6, roll * .6 - LOPSIDED * .4, -7 * twist), 'loc': (LOPSIDED * .004, 0, -.08 - .035 * two)},
+        chest=(pitch * .5, roll * .5 + LOPSIDED, 15 * twist),
+        head=(-pitch * .9, -roll * .8 - LOPSIDED * .5, -8 * twist),
         L=tuple(BASE_L + wide + tr * sl + V((0, 0, zl))),
         R=tuple(BASE_R - wide + tr * sr + V((0, 0, zr))))
 
@@ -416,9 +493,9 @@ def idle_pose(p, r_hand=(0, 0, 0), r_head=(0, 0, 0, 0), l_hand=(0, 0, 0), l_head
     glance = math.sin(p * TAU * 2 + 1)
     # the heads stay put on the floor; the hands ride his breath and weight
     return dict(hauling(r_hand=_add(r_hand, (.012 * drift, 0, .012 * breath)), l_hand=_add(l_hand, (.012 * drift, 0, .012 * breath)), r_head=r_head, l_head=l_head),
-        hips={'rot': (4, 2.5 * drift, 2 * drift), 'loc': (.035 * drift, 0, -.09 + .012 * breath)},
-        chest=(3 - 1.6 * breath + chest[0], -1.5 * drift + chest[1], -2.5 * drift + chest[2]),
-        head=(-4 + 1.2 * breath + head[0], .8 * drift + head[1], 6 * glance + head[2]),
+        hips={'rot': (4, 2.5 * drift - LOPSIDED * .4, 2 * drift), 'loc': (.035 * drift + .03, 0, -.09 + .012 * breath)},
+        chest=(3 - 1.6 * breath + chest[0], -1.5 * drift + LOPSIDED + chest[1], -2.5 * drift + chest[2]),
+        head=(-4 + 1.2 * breath + head[0], .8 * drift - LOPSIDED * .5 + head[1], 6 * glance + head[2]),
         L=tuple(STAND_L), R=tuple(STAND_R))
 
 loop_clip('Hero_Idle', IDLE_T, idle_pose)
@@ -428,7 +505,7 @@ def ready_pose(p):
     beat = math.sin(p * TAU)
     two = math.sin(p * TAU * 2)
     o = dict(carry(nudged(GUARD_R, hand=(0, .02 * beat, .025 * beat), along=(0, .04 * two, 0)), nudged(GUARD_L, hand=(0, -.02 * beat, .025 * beat), along=(0, -.04 * two, 0))))
-    o.update(hips={'rot': (9, 1.5 * beat, 6), 'loc': (.018 * beat, -.02, -.14 + .022 * two)}, chest=(7 + 1.5 * two, 0, -6 + 3 * beat), head=(-8 - 1.2 * two, 0, 4 - 3 * beat), L=GUARD_POSE['L'], R=GUARD_POSE['R'])
+    o.update(hips={'rot': (9, 1.5 * beat - LOPSIDED * .4, 6), 'loc': (.018 * beat + .02, -.02, -.14 + .022 * two)}, chest=(7 + 1.5 * two, LOPSIDED, -6 + 3 * beat), head=(-8 - 1.2 * two, -LOPSIDED * .5, 4 - 3 * beat), L=GUARD_POSE['L'], R=GUARD_POSE['R'])
     return o
 loop_clip('Idle_Ready', 32, ready_pose)
 
@@ -457,6 +534,22 @@ def swing_pose(f):
     return idle_pose(0, l_hand=(.05 * w, -.28 * w, .16 * w), l_head=(head.x, head.y, head.z, .55 * w), chest=(2 * w, 0, 10 * w), head=(3 * w, 0, 20 * w))
 keys = [(f, 'smooth', swing_pose(f)) for f in range(SWING_T + 1)]
 AB['Idle_Swing'] = keyed('Idle_Swing', SWING_T, keys, drag=.1)
+
+# Something speaks at the rock ear. He stops, tips his head over to it and goes still, breath and all; then two small
+# nods, answering; then a beat before he comes back. The head reads at 130 px only if it moves a lot and nothing else does.
+LISTEN_T = 76
+def _ramp(f, a, b):
+    k = max(min((f - a) / (b - a), 1), 0)
+    return k * k * (3 - 2 * k)
+def listen_pose(f):
+    w = _ramp(f, 8, 20) * (1 - _ramp(f, 60, 74))
+    nod = _bump(f, 38, 44) + .75 * _bump(f, 45, 51)
+    hush = 1 - .8 * w      # the idle's breathing and glance all but stop while he listens
+    o = idle_pose(0, chest=(1.5 * w, 3 * w, 5 * w), head=(4 * w + 13 * nod, 24 * w, -18 * w))
+    o['hips'] = dict(o['hips'], loc=(o['hips']['loc'][0], 0, -.09 + .012 * hush * math.sin(f / LISTEN_T * TAU)))
+    return o
+keys = [(f, 'smooth', listen_pose(f)) for f in range(LISTEN_T + 1)]
+AB['Idle_Listen'] = keyed('Idle_Listen', LISTEN_T, keys, drag=.1)
 
 # ---------------------------------------------------------------- the rest of what he does between moves
 # Holding a charge: coiled low, shaking harder at the top of each breath. Also his hang in the air on some breakers.

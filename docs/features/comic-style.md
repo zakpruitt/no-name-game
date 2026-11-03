@@ -88,10 +88,31 @@ skeleton is turned in its model, which bone positions alone can't show.
 The hero is `assets/comic/shaman_comic.glb` when flagged. He skips `HERO_LOOK.dress`/`add_kit`
 (hair, mantle, feathers, axes and eyes are all modelled), so `coat_axes` finds no `1H_Axe` and
 gives him no element coats. `HERO_LOOK.add_form` still runs on Ascending. `L2`'s `Throw` is his
-`Ab_L2` (`CLIPS`). `--comic-moves` adds `Game.comic_moves`, which needs the comic hero and is
-never saved: `_effective_move` passes each id in `ComicLook.HERO_MOVES` through `retime`, and
+`Ab_L2` (`CLIPS`). `Game.comic_moves` is on unless `--no-comic-moves` is passed; it needs the comic
+hero and is never saved: `_effective_move` passes each id in `ComicLook.HERO_MOVES` through `retime`, and
 SKY and RUSH play one clip at the speed that reaches its hit frame at the impact or the dash.
 `MOVES` itself is never written.
+
+### The Unfinished (the base hero's design)
+
+A shaman being overtaken from his left shoulder down, and enjoying it. His right side is still a man. Three shapes
+carry him at 130 px: the lopsided hump and overlong left arm against a wiry right arm, white hair blown one way, and
+two axe heads dragging wide behind him. He is deliberately not Convergence, Corruption or Purity yet.
+
+- **Body script:** `tools/comic_art/build_unfinished.py` (replaces `build_comic.py` for the hero, same `build_all()`).
+  Only the right ankle's joint moved, so the clips and `AXE_REST` survive. `K(mat, bone)` tags a part to one bone; the
+  rig reads those tags (`hint_of`) before its own rules.
+- **Fractures:** `P_Fracture` on one connected mesh (`fracture`), hump to sternum and down the arm. An Ascendancy can
+  recolour him by swapping that material. Glow is about 5-8% of his silhouette at game size, counting the axe edges.
+- **The voice:** the `black` crack from the rock ear to the lava eye (too small to see at game size), and `Idle_Listen`,
+  which does the work: he tips his head to that ear, goes still, nods twice.
+- **Axes:** `axe_storm_*` and `axe_magma_*`, parts `haft`, `leather`, `steel`, `blade`, `edge`, and `crack` on the magma
+  axe. The crack is its own mesh because the aura spaces its flames along every vertex of `edge`. Same reach and grip as
+  before. Before an Ascendancy the blade is plain iron (`AXE_INFUSIONS.spirit`).
+- **Budget:** about 31k tris, from 67k.
+- **Look checks without Godot** (`tools/comic_art/unfinished_poc/`): `compare.py` + `sheet.py` old against new at the game's
+  camera, `clip_look.py` + `clip_sheet.py` one clip, `clearance.py` axes against body and floor on every clip. They use
+  stand-in materials, so only `comic_shots` confirms the real look.
 
 | Move | KayKit hit, end (s, at `anim_speed` 1) | Ab_ hit, end |
 |---|---|---|
@@ -180,7 +201,7 @@ role lists (its source scan fails until you do), then to `CLIPS` for models lack
 - `godot --headless --path . -s tests/comic_check.gd`: every clip each type asks for resolves
   after mapping, tones, `g` imported, jaw ahead of head (+Z facing), fallback, and the text
   layer's logic. Part of `agent.sh check`. Proves no pixels.
-- `... -- --autotest --comic --comic-moves`: the same with the hero's Ab_ clips.
+- `... -- --autotest --comic --no-comic-moves`: the same with the retargeted clips instead of Ab_.
 - `godot --headless --path . -- --autotest --comic [--start-room=8 --boss-attack=slam]`: runs the
   comic code paths in play, without the materials or outline (both skip headless).
 - `godot --path . -s tests/comic_shots.gd`: **the one windowed run that checks the look, never yet
