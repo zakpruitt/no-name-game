@@ -4,8 +4,9 @@
 
 A default-off art style behind `Game.comic_style`, ported from the Blender kit in
 `vendor_src/shaman_redesign/comic_poc`: comic hero and enemy models, cut-tone shading with
-halftone and hatching, thick ink, dark indigo hard-shadow lighting, onomatopoeia on
-hits and a panel cut-in naming each combo. With the flag off nothing changes.
+halftone and hatching, ink lines, dark indigo hard-shadow lighting, onomatopoeia on
+hits. Combos keep the game's floating name label. The comic hero also faces the mouse and
+has a run for each direction. With the flag off nothing changes.
 
 **None of the rendering has ever been seen.** It was built with `--headless` only, and
 headless Godot neither compiles shaders nor draws. Run `tests/comic_shots.gd` first.
@@ -27,7 +28,7 @@ On with `--comic` (never saved), or Settings → Comic style (next run), saved a
 | `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
 | `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` when flagged |
 | `scripts/shrine_prop.gd`, `vault_prop.gd`, `spike_trap.gd` | Their pieces via `ComicLook.piece` / `comic_piece` |
-| `scripts/player.gd` | `_comic_callout`, one line from `_combo_callout`; `_comic_hero` and the branch in `_ready`, `_clip_name`, `_comic_moves_on`, `_ult_anim`, `_axe_mesh` |
+| `scripts/player.gd` | `_comic_hero` and the branch in `_ready`, `_clip_name`, `_comic_moves_on`, `_ult_anim`, `_axe_mesh`; mouse aim: `_mouse_aiming`, `_mouse_dir`, `_turned`, `_aim_want`, `_play_locomotion` |
 | `tools/comic_glb.py` | Copies GLBs into `assets/comic`, moving `g` to `COLOR_0` |
 | `assets/fonts/` | Bangers + `OFL.txt` (see `CREDITS.md`) |
 
@@ -37,10 +38,52 @@ On with `--comic` (never saved), or Settings → Comic style (next run), saved a
 folder is a snapshot: the live copy is `vendor_src/shaman_redesign/comic_poc`, which is gitignored,
 and the scripts hardcode that path. If you change the live scripts, copy them back into
 `tools/comic_art/` in the same commit. The effects and reels in `comic_vfx.py` and `ability_vfx.py`
-are Blender only; the game has just the words and panel from `ComicFx`, and its casts keep their
+are Blender only; the game has just the words from `ComicFx`, and its casts keep their
 existing look.
 
 ## How it works
+
+**Stances.** The rig's rest pose is the hero pose, axe overhead and axe straight out, and offsets from it
+kept that, so `abilities.py` now solves carries: `arm()` takes where the hand goes and where the axe points.
+Both axes are `AXE_SIZE` and he drags them. Idle and the runs carry a `drag.l`/`drag.r` key instead of a hand
+rotation: `keyed` aims the handle from where the hand really is that frame and `drag_rotation` leans the blade
+so its tip lands on `TIP_Z`, so torso motion can't lift it off the floor (`comic_check` holds it within
+`TIP_ON_FLOOR`). `Idle` is a 4 s loop of breath, weight drift and glances. `player._comic_stand` holds `Idle_Ready`, a low guard, for
+`READY_HOLD` after an attack or hit, then relaxes, and plays `HERO_FIDGETS` in turn every `FIDGET_EVERY`.
+A clip named `Hero_X` replaces the retargeted `X` at export: `Idle`, `2H_Melee_Idle`, `Hit_A`,
+`Dodge_Forward`, `Jump_Start`, `Jump_Idle` are hand-keyed at their old lengths. The runs use the same carry.
+`into_guard` eases each `Ab_` clip's arms from and to the guard over its first 4 frames and last quarter,
+so hits must fall before that (`comic_check`). The old KayKit attacks, `Death_A` and the `Spellcast_` clips
+still have retargeted arms.
+
+**Element on the axes.** `ComicLook.infuse_axes` replaces `hero_look.coat_axes` on the comic hero, and
+`player.ascend` swaps it. Both axes take `AXE_INFUSIONS`' blade and edge materials: spirit teal, wind green,
+earth rock and lava, water ice and bolt, so before an Ascendancy neither shows its modelled ice or magma
+colours. `comic_axe_aura.gd` adds tongues along the edge, geometry stepped at 12 fps: `rise` flames stand up
+in the world and stream behind a swing, `spin` gusts whirl round the blade, `shard` crystals stay fixed. Each
+tongue is an outer colour on back faces round a hot core on front faces, so the core shows from any side.
+Motes come from `hero_look._drip`. `charge` grows them while Awakened, through `charge_coats`.
+
+**Drag marks.** Each aura has a `comic_drag_mark.gd` it feeds the blade's tip every frame. Within `LIFTED` of
+the floor the tip lays a point every `STEP_M`, and the points make a ribbon, an outer colour with a hot inner
+line, in world space. It steps through the element's `stages` and thins as it ages: earth is magma cooling to
+crust, wind a jagged electric cut that crackles while fresh (Tempest is the lightning path), water frost,
+spirit a pale line. Lifting the blade or a jump over `JUMP` starts a new line. Attacks that touch the floor
+leave marks too. The mesh is rebuilt every frame, capped at `MAX_POINTS` per axe.
+
+**Mouse aim.** Only for the comic hero, and off for the bot, headless runs and once a gamepad was
+the last device touched (then he faces the way he runs, as before). Free or charging, he faces the
+cursor, read on a plane at `AIM_HEIGHT`. An attack from free snaps to it. A chained move turns at most
+`COMBO_REDIRECT` as it starts, then keeps turning at `COMBO_TURN_WINDUP` until its first hit and
+`COMBO_TURN_ACTIVE` after, which also steers its lunge. Moves started in the air and `AF` don't steer.
+`ComicLook.run_clip` picks `Run_F`, `Run_B`, `Strafe_L` or `Strafe_R` from his travel relative to his
+facing (`RUN_STICK` stops a flicker on diagonals). They share one 16-frame cycle, so a change of clip
+keeps the step. They come from `run_clip` at the end of `tools/comic_art/abilities.py`; the retargeted
+`Running_A` kept the hero pose's arms out about 2 m wide and is no longer played by him.
+
+His rig must sit square in the GLB. The Blender reel keys the rig object to 78 degrees and clearing
+its action leaves that behind, so `export_comic_shaman.py` zeroes it. `comic_check` fails if a
+skeleton is turned in its model, which bone positions alone can't show.
 
 The hero is `assets/comic/shaman_comic.glb` when flagged. He skips `HERO_LOOK.dress`/`add_kit`
 (hair, mantle, feathers, axes and eyes are all modelled), so `coat_axes` finds no `1H_Axe` and
@@ -98,6 +141,11 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 - Every GLB goes through `tools/comic_glb.py`. Godot only reads `COLOR_0`, and the exports
   keep `g` in `COLOR_1`, so a plain copy pins every glow to its top tone. `comic_check`
   fails on this.
+- Characters don't receive the sun's cast shadows (`receive_shadow` 0, set for non-`comic_*`
+  materials): they still cast on the floor, but self-shadow on a small model reads as black blotches.
+- Open flat patches must face the camera, because the game culls and Blender doesn't, so a wrong
+  side never shows in a Blender render. `env_kit.face_out` sets them; `comic_check` fails on a
+  floor stone facing down.
 - `comic_*` material names are what `env_kit._export_mat` writes; the tones come from its
   `E_*` originals. `tone_by_g` must stay 0 on enemies, whose `g` isn't a tone.
 - A material with no tones renders in `FALLBACK_TONE` with a warning, and fails `comic_check`.
@@ -107,8 +155,18 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 - `ComicLook.TONES`, `EMITS`: palette, copied by hand from `comic_lib.py` and `enemy_*.py`.
 - `ComicLook.KEY_*`, `FILL_*`, `AMBIENT*`: lights. The shader's bands are on the POC's scale,
   so changing `KEY_ENERGY` moves every band. `AMBIENT` isn't from the POC; it only lights KayKit.
-- `comic_toon`: `DOTS`, `HATCH`, `rim_width`, band constants. `Fx.COMIC_INK_PX`, `COMIC_INK_WOBBLE`.
-- `ComicFx`: `WORDS`, `WORD_SCALE`, `WORD_GAP_MS`, `PANEL_FRAMES`, `CAPTION_*`.
+- `comic_toon`: `DOTS`, `HATCH`, `rim_width`, band constants.
+- Shadow texture, how heavy dots and lines are: `DOT_COVER`, `DOT_STRENGTH`, `HATCH_COVER`, `HATCH_STRENGTH` in `comic_toon`. Line and solid-black colour: `ComicLook.INK` (not `comic_ink`, a separate entry in `EMITS` set to match).
+- Axe size: `AXE_SIZE` in `abilities.py`, then re-export. Marks: `LOOKS` in `comic_drag_mark.gd`.
+- Carries: `DRAG_HAND`, `DRAG_HEAD`, `GUARD_*`, `COILED_*`, `STREAM_*`, `FLUNG_*` in `abilities.py`, then re-export.
+- Stance timing: `READY_HOLD`, `FIDGET_EVERY` in `comic_look.gd`. Axe effects: `LOOKS` in `comic_axe_aura.gd`, `AXE_INFUSIONS` in `comic_look.gd`.
+- Mouse aim: `AIM_HEIGHT`, `AIM_DEAD_ZONE`, `AIM_ASSIST_MOUSE_ANGLE`, `COMBO_REDIRECT`, `COMBO_TURN_WINDUP`, `COMBO_TURN_ACTIVE` in `player.gd`.
+- Ink at the game's camera, where the hero is about 130 px tall: `Fx.COMIC_INK_PX`, `COMIC_INK_WOBBLE`,
+  `COMIC_INK_PUSH`, `ComicLook.PIECE_INK_PX`, `PIECE_INK_PUSH`, `INNER_SCALE`. Models are built from many
+  parts with a hull each, so a wide hull with no push covers the model in black. The POC's own widths
+  and `inner` values suit close-up renders only.
+- `FILL_ENERGY` is above the POC's: below about 0.2, shadow sides drop under `spot` and go solid black.
+- `ComicFx`: `WORDS`, `WORD_SCALE`, `WORD_GAP_MS`.
 
 ## Extending
 

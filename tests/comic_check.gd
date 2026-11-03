@@ -17,6 +17,9 @@ const BY_ROLE := {
 	"shield": ["Block_Hit", "1H_Melee_Attack_Chop"],
 }
 const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
+const TIP_ON_FLOOR := 0.2  # m either way, a dragged blade's tip
+const AXE_AHEAD_MAX := 0.45  # m in front of him, axe head, in anything he holds
+const MOVE_TAIL_FROM := 0.75  # abilities.into_guard: from here a move's arms ease into the guard
 const BOSS_ONLY := ["Enrage", "Jump_Idle", "Jump_Land", "Spellcast_Shoot"]
 
 # Loaded at run time: a preload here compiles them before the Game autoload exists.
@@ -55,6 +58,7 @@ func _initialize() -> void:
 	else:
 		absent.append("warden")
 	_check_dungeon()
+	_check_floors_face_up()
 	await _check_fx(game)
 	await _check_hero(game)
 	game.comic_style = false
@@ -107,8 +111,21 @@ func _hero_clips(hero_script: GDScript) -> Array:
 	return found.keys()
 
 
+## The hero has no jaw bone, so his face is read off the eyes, which are ahead of the head.
+func _check_hero_face(model: Node3D) -> void:
+	_check_facing(model, "hero")
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var head: Vector3 = skel.get_bone_global_rest(skel.find_bone("head")).origin
+	var eye: MeshInstance3D = model.find_child("pupil", true, false)
+	_expect(eye != null, "hero: has pupils")
+	if eye != null:
+		var c: Vector3 = eye.mesh.get_aabb().get_center() - head
+		_expect(c.z > absf(c.x), "hero: eyes look down +Z (they sit at %s from the head)" % c)
+
+
 ## Everything hero_look can attach: a bone name that misses puts the gear at the origin.
 func _check_hero_bones(model: Node3D) -> void:
+	_check_hero_face(model)
 	var look: GDScript = load("res://scripts/hero_look.gd")
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	for bone: String in ["head", "chest", "upperarm.l", "upperarm.r", "hand.l", "hand.r"]:
@@ -183,6 +200,10 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 	_expect(comic._trails.size() == 2, "--comic: a trail per axe")
 	_expect(comic._axe_mesh() != null, "--comic: spirit casts have an axe")
 	_expect(comic._effective_move("L1").anim == hero_script.MOVES.L1.anim, "--comic alone: MOVES unchanged")
+	_check_run_clips(comic)
+	_check_stances(comic)
+	_check_drag(comic)
+	_check_axe_auras(comic)
 	comic._start_attack("L2")
 	_expect(comic.anim.current_animation == "Ab_L2", "--comic alone: L2 asks for Throw, gets Ab_L2")
 	_expect(is_equal_approx(comic._move.hits[0], hero_script.MOVES.L2.hits[0]), "--comic alone: L2 keeps its fractions")
@@ -219,6 +240,133 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 	await process_frame
 
 
+## Which run plays for a direction of travel, relative to where he faces (+Z, his left is +X).
+func _check_run_clips(comic: CharacterBody3D) -> void:
+	var look := Vector3(0, 0, 1)
+	var cases := [[Vector3(0, 0, 1), "Run_F"], [Vector3(0, 0, -1), "Run_B"], [Vector3(1, 0, 0), "Strafe_L"], [Vector3(-1, 0, 0), "Strafe_R"]]
+	for c: Array in cases:
+		_expect(Look.run_clip(c[0], look, "") == c[1], "travel %s while facing +Z is %s" % [c[0], c[1]])
+		_expect(comic.anim.has_animation(c[1]), "he has %s" % c[1])
+		_expect(comic.anim.get_animation(c[1]).loop_mode == Animation.LOOP_LINEAR, "%s loops" % c[1])
+		_expect(is_equal_approx(comic.anim.get_animation(c[1]).length, comic.anim.get_animation("Run_F").length), "%s shares the cycle" % c[1])
+	var near := Vector3(1.0, 0, 1.1).normalized()  # just past the diagonal, on the run's side
+	_expect(Look.run_clip(near, look, "Strafe_L") == "Strafe_L", "a strafe holds near the diagonal")
+	_expect(Look.run_clip(Vector3(1.1, 0, 1.0).normalized(), look, "Run_F") == "Run_F", "a run holds near the diagonal")
+	comic._facing_yaw = 0.0
+	_expect(comic._turned(Vector3(1, 0, 0), 45.0).is_equal_approx(Vector3(sin(PI / 4.0), 0, cos(PI / 4.0))), "a turn stops at its limit")
+	_expect(comic._turned(Vector3(1, 0, 0), 180.0).is_equal_approx(Vector3(1, 0, 0)), "a turn doesn't overshoot")
+	_expect(not comic._mouse_aiming(), "headless: no mouse aim, so the checks and bot aim as before")
+
+
+## He carries the axes: their heads aren't out in front of him in anything he holds.
+func _check_stances(comic: CharacterBody3D) -> void:
+	var skel: Skeleton3D = comic.model.find_children("*", "Skeleton3D", true, false)[0]
+	for clip: String in ["Idle", "Idle_Ready", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "2H_Melee_Idle", "Jump_Idle"]:
+		comic.anim.play(clip, 0.0)
+		for at: float in [0.0, 0.5]:
+			comic.anim.seek(comic.anim.current_animation_length * at, true)
+			for bone: String in Look.HERO_AXES:
+				var i := skel.find_bone(bone)
+				var mesh: Mesh = comic.model.find_child(Look.HERO_AXES[bone], true, false).mesh
+				var head: Vector3 = skel.get_bone_global_pose(i) * skel.get_bone_global_rest(i).affine_inverse() * mesh.get_aabb().get_center()
+				_expect(head.z < AXE_AHEAD_MAX, "%s: %s's axe isn't held out in front (%.2f m ahead at %.1f)" % [clip, bone, head.z, at])
+	_expect(comic.anim.get_animation("Idle").loop_mode == Animation.LOOP_LINEAR, "Idle loops")
+	_expect(comic.anim.get_animation(Look.HERO_READY).loop_mode == Animation.LOOP_LINEAR, "the guard loops")
+	for clip: String in Look.HERO_FIDGETS:
+		_expect(comic.anim.has_animation(clip), "he has %s" % clip)
+		_expect(comic.anim.get_animation(clip).loop_mode == Animation.LOOP_NONE, "%s plays once" % clip)
+	for id: String in Look.HERO_MOVES:
+		var h: Dictionary = Look.HERO_MOVES[id]
+		_expect(float(h.hit) / h.frames < MOVE_TAIL_FROM, "%s hits before its arms ease into the guard" % id)
+	comic._ready_t = 1.0
+	comic._comic_stand()
+	_expect(comic.anim.current_animation == Look.HERO_READY, "after a fight he stands on guard")
+	comic._ready_t = 0.0
+	comic._fidget_t = 1.0
+	comic._comic_stand()
+	_expect(comic.anim.current_animation == "Idle", "then at ease")
+	comic._fidget_t = 0.0
+	comic._comic_stand()
+	var fidget: String = comic.anim.current_animation
+	_expect(fidget in Look.HERO_FIDGETS, "left standing, he fidgets")
+	comic._comic_stand()
+	_expect(comic.anim.current_animation == fidget, "a fidget plays out")
+	comic.anim.stop()
+	comic._comic_stand()
+	_expect(comic.anim.current_animation == "Idle", "and he goes back to the idle")
+	comic._start_attack("L1")
+	_expect(comic._ready_t > 0.0, "an attack puts him on guard")
+	comic._set_state(comic.State.MOVE)
+
+
+## Standing or running, both blades' tips are on the floor, and they draw on it when they move.
+func _check_drag(comic: CharacterBody3D) -> void:
+	var skel: Skeleton3D = comic.model.find_children("*", "Skeleton3D", true, false)[0]
+	for clip: String in ["Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R"]:
+		comic.anim.play(clip, 0.0)
+		for at: float in [0.0, 0.25, 0.5, 0.75]:
+			comic.anim.seek(comic.anim.current_animation_length * at, true)
+			for aura: Node in comic._coats:  # off the skeleton: attachments only follow it on a frame
+				var bone: Transform3D = skel.get_bone_global_pose(skel.find_bone(aura.bone_name))
+				var h: float = (skel.global_transform * bone * aura._tip).y - comic.global_position.y
+				_expect(absf(h) < TIP_ON_FLOOR, "%s: %s's blade tip is on the floor (%.2f m at %.2f)" % [clip, aura.bone_name, h, at])
+	comic.anim.play("Idle", 0.0)
+	comic.anim.seek(0.0, true)
+	for el: String in Look.AXE_INFUSIONS:
+		var auras: Array = Look.infuse_axes(comic.model, el)
+		var m: Node = auras[0].mark
+		var y: float = comic.global_position.y
+		var start := Vector3(0.0, y, 0.0)
+		_expect(m.points.is_empty(), "%s: no mark yet" % el)
+		m.track(start, y)
+		m.track(start + Vector3(0.02, 0, 0), y)
+		_expect(m.points.size() == 1, "%s: a still blade adds nothing" % el)
+		m.track(start + Vector3(0.6, 0, 0), y)
+		m.track(start + Vector3(1.2, 0, 0), y)
+		_expect(m.points.size() == 3, "%s: a moving blade draws" % el)
+		m.track(start + Vector3(1.8, 2.0, 0), y)
+		_expect(m.points.size() == 3, "%s: a lifted blade doesn't" % el)
+		m.track(start + Vector3(2.4, 0, 0), y)
+		_expect(m.points[3].fresh, "%s: and starts a new line when it lands" % el)
+		m.tick(0.01)
+		_expect(m.points.size() == 4, "%s: the mark stays a while" % el)
+		m.tick(m.look.life + 0.1)
+		_expect(m.points.is_empty(), "%s: then it's gone" % el)
+		for aura: Node in auras:
+			aura.free()
+
+
+## The current element on both axes, for every element.
+func _check_axe_auras(comic: CharacterBody3D) -> void:
+	_expect(comic._coats.size() == 2, "--comic: he starts with his element on both axes")
+	for el: String in Look.AXE_INFUSIONS:
+		var auras: Array = Look.infuse_axes(comic.model, el)
+		_expect(auras.size() == 2, "%s: an aura per axe" % el)
+		for aura: Node in auras:
+			_expect(aura.tongues.size() == aura.look.count, "%s: its tongues" % el)
+			_expect(aura.drip != null, "%s: sheds motes" % el)
+			var blade: float = aura._centre.length()
+			for t: MeshInstance3D in aura.tongues:
+				_expect(t.position.length() > blade * 0.4, "%s: a tongue sits out on the blade" % el)
+			aura._process(0.1)
+			aura._process(0.1)
+			if aura.look.mode == "rise":
+				var t: MeshInstance3D = aura.tongues[0]
+				_expect(t.global_basis.y.normalized().y > 0.9, "%s: a still blade's flame stands up" % el)
+			var small: float = aura.tongues[0].global_basis.y.length()
+			aura.charge(true)
+			aura._process(0.1)
+			_expect(aura.tongues[0].global_basis.y.length() > small, "%s: bigger while Awakened" % el)
+			aura.charge(false)
+			aura.free()
+	comic.ascendancy = "wind"
+	var after: Array = comic._coat_axes()
+	_expect(after.size() == 2 and after[0].look == after[0].LOOKS.wind, "his Ascendancy's element goes on the axes")
+	for aura: Node in after:
+		aura.free()
+	comic.ascendancy = ""
+
+
 func _role_clips(spec: Dictionary) -> Array:
 	var kind: String = spec.get("attack_kind", "melee")
 	var clips: Array = BY_ROLE[kind].duplicate()
@@ -252,6 +400,14 @@ func _check_model(kind: String, asks: Array) -> bool:
 ## Models must face +Z like KayKit's (facing yaw = atan2(dir.x, dir.z)): jaw ahead of head.
 func _check_facing(model: Node, kind: String) -> void:
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	# Bone positions can't show a turned skeleton node: they're all relative to it.
+	var ahead := Vector3(0, 0, 1)
+	var node: Node = skel
+	while node != null:
+		if node is Node3D:
+			ahead = node.basis * ahead
+		node = node.get_parent()
+	_expect(ahead.z > 0.99, "%s: skeleton sits square in the model (its +Z goes to %s)" % [kind, ahead])
 	var head := skel.find_bone("head")
 	var jaw := skel.find_bone("jaw")
 	if head >= 0 and jaw >= 0:
@@ -335,8 +491,30 @@ func _bounds(root: Node3D) -> AABB:
 	return ab
 
 
-## The text layer's logic: words escalate by tier, the panel names the combo, reduced
-## flashing drops the pop and the second word in a burst. Nothing here sees a pixel.
+## The game culls and Blender doesn't, so a stone facing down never shows in a Blender render:
+## the floor just turns into a checker of dark grout.
+func _check_floors_face_up() -> void:
+	for piece: String in ["floor_tile_large", "floor_tile_large_rocks", "floor_tile_big_grate", "floor_tile_big_spikes"]:
+		var n: Node = load("res://assets/comic/dungeon/%s.glb" % piece).instantiate()
+		var stones := 0
+		var down := 0
+		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+			for i in mi.mesh.get_surface_count():
+				var mat := mi.mesh.surface_get_material(i)
+				if mat == null or mat.resource_name != "comic_floor":
+					continue
+				var normals: PackedVector3Array = mi.mesh.surface_get_arrays(i)[Mesh.ARRAY_NORMAL]
+				stones += normals.size()
+				for v in normals:
+					if v.y < -0.5:  # the grate's stones have upright sides
+						down += 1
+		_expect(stones > 0, "%s has floor stones" % piece)
+		_expect(down == 0, "%s: no floor stone faces down (%d vertices do)" % [piece, down])
+		n.free()
+
+
+## The text layer's logic: words escalate by tier, reduced flashing drops the pop and the
+## second word in a burst. Nothing here sees a pixel.
 func _check_fx(game: Node) -> void:
 	var Comic: GDScript = load("res://scripts/comic_fx.gd")
 	var fx: CanvasLayer = Comic.new()
@@ -363,17 +541,9 @@ func _check_fx(game: Node) -> void:
 	game.combo_count = 0
 	_expect(Comic.word_scale(2, false) > 1.0, "normal words pop")
 	_expect(Comic.word_scale(2, true) == 1.0, "reduced flashing: no pop")
-	Comic.combo("Triple Chop", 1)
-	_expect(fx._bars.visible and fx._caption.text == "TRIPLE CHOP!", "panel names the combo")
-	_expect(fx._caption.scale.x > Comic.CAPTION_SCALE[0], "panel caption pops")
-	game.reduce_flashing = true
-	Comic.combo("Stormfall", 3)
-	_expect(fx._bars.big and fx._bars.modulate.a == 0.0, "reduced flashing: bars fade in, don't cut")
-	_expect(is_equal_approx(fx._caption.scale.x, Comic.CAPTION_SCALE[2]), "reduced flashing: no caption pop")
 	game.reduce_flashing = saved_reduce
 	fx.free()
 	Comic.hit(Vector3.ZERO, false)
-	Comic.combo("Nothing", 1)
 	_expect(true, "no instance: calls do nothing")
 
 

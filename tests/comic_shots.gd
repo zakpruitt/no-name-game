@@ -237,7 +237,7 @@ func _text() -> void:
 	_use_game_camera()
 	var fx: Node = null
 	for n in _main.get_children():
-		if n is CanvasLayer and n.has_method("_panel"):
+		if n is CanvasLayer and n.has_method("_word"):
 			fx = n
 	var hero: Vector3 = _main.player.global_position
 	for tier in 4:
@@ -246,21 +246,12 @@ func _text() -> void:
 	await create_timer(0.2).timeout
 	_shot("words_tiers", "Bangers. Four words growing left to right, yellow with a hard red offset and ink outline.")
 	await create_timer(1.0).timeout
-	fx._panel("Triple Chop", 1)
-	await create_timer(0.25).timeout
-	_shot("panel_tier1", "Two slanted ink bars closing toward the left, paper gutters, caption upper left, HUD on top of the bars.")
-	await create_timer(1.0).timeout
-	fx._panel("Stormfall", 3)
-	await create_timer(0.25).timeout
-	_shot("panel_tier3", "Taller bars, bigger caption.")
-	await create_timer(1.3).timeout
 	var saved: bool = _game.reduce_flashing
 	_game.reduce_flashing = true  # in memory only
-	fx._panel("Stormfall", 3)
 	fx._last_word_ms = -100000
 	fx._word(hero + Vector3(0.0, 0.0, 2.0), 3)
 	await create_timer(0.25).timeout
-	_shot("reduced_flashing", "Setting on: bars and caption dimmer, nothing popping.")
+	_shot("reduced_flashing", "Setting on: word dimmer, not popping.")
 	_game.reduce_flashing = saved
 	await create_timer(1.0).timeout
 

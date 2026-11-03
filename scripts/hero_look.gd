@@ -563,6 +563,9 @@ static func _drip(element: String, c: Color) -> CPUParticles3D:
 ## Awakened: coats and gems glow harder, the blades shed twice the motes.
 static func charge_coats(coats: Array, on: bool) -> void:
 	for coat: Node in coats:
+		if is_instance_valid(coat) and coat.has_method("charge"):  # ComicLook.infuse_axes
+			coat.charge(on)
+			continue
 		if not is_instance_valid(coat) or not coat.has_meta("drip"):
 			continue
 		var shell: StandardMaterial3D = coat.get_meta("shell_mat")
