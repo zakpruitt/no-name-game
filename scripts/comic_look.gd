@@ -146,6 +146,10 @@ const AXE_AURA := preload("res://scripts/comic_axe_aura.gd")
 ## Fidgets he plays in turn when left standing, and the stance a fight keeps him in.
 const HERO_FIDGETS := ["Idle_Heft", "Idle_Listen", "Idle_Swing"]
 const HERO_READY := "Idle_Ready"
+## Of the motes circling him: at full size they outshine the cracks they should echo.
+const HERO_ORBIT_SIZE := 0.5
+## What an Ascendancy changes on his body: every crack takes its element's colour.
+const HERO_FRACTURES := ["fracture", "axe_magma_crack"]
 const READY_HOLD := 3.0  # s in the guard after his last attack or hit
 const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets
 ## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
@@ -320,6 +324,14 @@ static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 		aura.setup(element, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
 		made.append(aura)
 	return made
+
+
+## His cracks in an element's colour (AXE_INFUSIONS). The body stays as it is: same mesh, new material.
+static func tint_fractures(model: Node3D, element: String) -> void:
+	for mesh_name: String in HERO_FRACTURES:
+		var mi: MeshInstance3D = model.find_child(mesh_name, true, false)
+		if mi != null:
+			_axe_material(mi, AXE_INFUSIONS[element][1])
 
 
 ## A skinned mesh's vertices in the hand's space, ordered along the edge.

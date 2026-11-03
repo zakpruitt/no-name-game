@@ -14,6 +14,7 @@ const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
 const CLOSE_VIEW := GAME_VIEW * 0.42
 const FAR_VIEW := GAME_VIEW * 1.5
 const SETTLE := 0.15
+const ASCEND_SETTLE := 2.5
 const RISE := 1.2  # enemies are in State.SPAWN for 1 s
 const CLIP_FPS := 24.0
 ## A clip worth seeing per kind, besides idle: [clip, frame].
@@ -187,13 +188,14 @@ func _hero() -> void:
 		_shot("hero_%s" % h.clip, "%s at its hit frame: contact pose, axes in the hands." % h.clip)
 	p.anim.play("Idle", 0.0)
 	p.anim.speed_scale = 0.0
-	var hero_look: GDScript = load("res://scripts/hero_look.gd")
-	for path: String in hero_look.FORMS:
-		var form: Node3D = hero_look.add_form(p.model, path)
-		await create_timer(SETTLE).timeout
-		_shot("hero_form_%s" % path, "%s Ascendancy gear. Tuned on KayKit's head and upright bones, so expect it tilted or off the head: this says how far." % path)
-		form.queue_free()
-		await process_frame
+	for path: String in ["wind", "earth", "water"]:
+		p.ascend(path)
+		await create_timer(ASCEND_SETTLE).timeout  # past its burst, to the look he keeps
+		_shot("hero_ascend_%s" % path, "%s Ascendancy on the base body: cracks and axes in its colour, no added gear." % path)
+	p.ascendancy = ""
+	_look_script.tint_fractures(p.model, "spirit")
+	p._asc_aura.queue_free()
+	p._asc_aura = null
 	p.model.rotation.y = was_rot
 	p.set_physics_process(true)
 

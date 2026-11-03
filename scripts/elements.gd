@@ -700,6 +700,7 @@ class Orbit extends Node3D:
 	var _t := 0.0
 	var _radius := 0.9
 	var _spin := 2.0
+	var piece_size := 1.0
 
 	func setup(el: String, awakened: bool) -> void:
 		for c in get_children():
@@ -709,7 +710,7 @@ class Orbit extends Node3D:
 		_radius = 1.25 if awakened else 0.85
 		_spin = 3.2 if awakened else 1.6
 		for i in n:
-			add_child(E.piece(el, 1.3 if awakened else 0.9))
+			add_child(E.piece(el, (1.3 if awakened else 0.9) * piece_size))
 
 	func _process(delta: float) -> void:
 		_t += delta

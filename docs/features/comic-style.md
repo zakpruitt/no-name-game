@@ -87,7 +87,8 @@ skeleton is turned in its model, which bone positions alone can't show.
 
 The hero is `assets/comic/shaman_comic.glb` when flagged. He skips `HERO_LOOK.dress`/`add_kit`
 (hair, mantle, feathers, axes and eyes are all modelled), so `coat_axes` finds no `1H_Axe` and
-gives him no element coats. `HERO_LOOK.add_form` still runs on Ascending. `L2`'s `Throw` is his
+gives him no element coats. Ascending adds no gear: `ComicLook.tint_fractures` turns his cracks the element's colour and
+`infuse_axes` does his axes (`HERO_LOOK.add_form` is the KayKit hero's). `L2`'s `Throw` is his
 `Ab_L2` (`CLIPS`). `Game.comic_moves` is on unless `--no-comic-moves` is passed; it needs the comic
 hero and is never saved: `_effective_move` passes each id in `ComicLook.HERO_MOVES` through `retime`, and
 SKY and RUSH play one clip at the speed that reaches its hit frame at the impact or the dash.
@@ -241,9 +242,8 @@ KayKit assumptions the comic hero runs into:
 - `tools/comic_glb.py` renames a mesh node sharing a joint's name: Godot gave the name to the mesh
   and imported the bone as `head_2`, so every `head` attachment would have silently landed at the
   origin. `comic_check` now resolves every attachment.
-- `HERO_LOOK.FORMS` (Ascendancy gear): positions tuned to KayKit's identity-rotation head and chest
-  bones and its 0.95 m head. His head bone is tilted 30 degrees and sized differently, so the bones
-  resolve but the gear is likely off. `hero_form_*` shots show how far.
+- `HERO_LOOK.FORMS` (Ascendancy gear) is not used on him: it was tuned to KayKit's bones and speared through his hair
+  in the `comic_shots` run. Each Ascendancy's own add-ons come with its phase of the plan.
 - `spirit_avatar.gd` and the spirit casts' `axe_mesh` stay KayKit Barbarian. His axes are skinned in
   place and can't be ghosted from an origin, hence `_axe_mesh`.
 - `weapon_trail.gd` follows a mesh's transform; skinned axes never move theirs, so

@@ -569,6 +569,8 @@ func _ready() -> void:
 	_callout.visible = false
 	add_child(_callout)
 	_orbit = ELEMENTS.Orbit.new()
+	if _comic_hero:
+		_orbit.piece_size = ComicLook.HERO_ORBIT_SIZE
 	add_child(_orbit)
 	_orbit.setup(element(), false)
 
@@ -2900,7 +2902,10 @@ func ascend(path: String) -> void:
 	ascendancy = path
 	if _form != null:
 		_form.queue_free()
-	_form = HERO_LOOK.add_form(model, path)
+	if _comic_hero:
+		ComicLook.tint_fractures(model, path)
+	else:
+		_form = HERO_LOOK.add_form(model, path)
 	for c in _coats:
 		c.queue_free()
 	_coats = _coat_axes()
