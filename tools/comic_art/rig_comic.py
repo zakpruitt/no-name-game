@@ -16,25 +16,19 @@ def rep(x, y, count=1):
     SRC = SRC.replace(x, y)
 
 rep('ns = {"__name__": "build"}\nexec(compile(open(D + r"\\build_poc.py").read(), "build_poc", "exec"), ns)\n', '''
-import build_unfinished
-_cams, _J = build_unfinished.build_all()
+import build_tainted
+_cams, _J = build_tainted.build_all()
 ns = {'JOINTS': _J}
 ''')
-# ---- The Unfinished: both arms are flesh now, the right leg is a leg with a foot.
-rep("'foot.r': (J['tr'], J['tr'] + V((0, -.03, .03))), 'toes.r': (J['tr'] + V((0, -.03, .03)), J['tr'] + V((0, -.06, .03))),", "'foot.r': (J['tr'], ft(J['tr'])), 'toes.r': (ft(J['tr']), ft(J['tr']) + V((0, -.13, 0))),")
-rep("'toes.l', 'toes.r', 'foot.r')]", "'toes.l', 'toes.r')]")
-rep("'upperleg.r': .1, 'lowerleg.r': .06}", "'upperleg.r': .13, 'lowerleg.r': .09, 'foot.r': .08}")
-rep("names = [n for n in CAPS if n not in LEGS and n != 'foot.l' and not n.endswith('.l')] + ['chest']", "names = [n for n in CAPS if n not in LEGS and n not in ('foot.l', 'foot.r')]")
-rep("for i, p in enumerate(co): weights[i] = soft(p, ('hips', 'upperleg.l', 'lowerleg.l'), power=5, top=2)", "for i, p in enumerate(co): weights[i] = soft(p, ('hips', 'upperleg.l', 'lowerleg.l') if p.x > 0 else ('hips', 'upperleg.r', 'lowerleg.r'), power=5, top=2)")
-rep("# smooth the skin weights across the mesh", '''# parts the body script tagged with a bone are pinned to it; the breastplate bends with the torso
-import build_unfinished as _BU
+rep("# smooth the skin weights across the mesh", '''# parts the body script tagged follow those bones: one is a pin, several bend as the skin does
+import build_tainted as _BT
 for _o in list(scn.objects):
-    _h = _BU.hint_of(_o.name) if _o.type == 'MESH' else None
+    _h = _BT.hint_of(_o.name) if _o.type == 'MESH' else None
     if not _h: continue
     for _i, _b in enumerate(_h):
         if _b is None: continue
         for _g in _o.vertex_groups: _g.remove([_i])
-        _ws = [(1, _b)] if _b != 'SOFT_TORSO' else soft(_o.data.vertices[_i].co, ('hips', 'spine', 'chest'), power=3, top=2)
+        _ws = [(1, _b)] if isinstance(_b, str) else soft(_o.data.vertices[_i].co, _b, power=4, top=2)
         for _w, _n in _ws:
             _g = _o.vertex_groups.get(_n) or _o.vertex_groups.new(name=_n)
             _g.add([_i], _w, 'REPLACE')

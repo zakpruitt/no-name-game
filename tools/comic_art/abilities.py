@@ -434,7 +434,7 @@ ability('AL3', 'Gale Waltz', 'L H L L H L', 'SHK-SHK!', 'echo', 27, [
 # Rest stance is staggered and wide, the left ankle at (.262, 0) and the peg at (-.262, -.4): BASE_* brings both
 # under the hips. travel is in his own axes, as a pose's: (his left, his back).
 RUN_T = 16
-LOPSIDED = 6   # degrees the hump pulls his chest toward it, in everything he does on his feet
+LOPSIDED = 6   # degrees the magma arm's weight pulls his chest toward it, in everything he does on his feet
 BASE_L = V((-.1, .0, 0))
 BASE_R = V((.1, .4, 0))
 

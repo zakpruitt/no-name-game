@@ -37,7 +37,7 @@ for act in bpy.data.actions:
         at = lambda b: B[b].to_translation()
         tail = lambda b: arm.matrix_world @ arm.pose.bones[b].tail
         hump = B['chest'] @ (arm.data.bones['chest'].matrix_local.inverted() @ V((.47, -.12, 1.64)))
-        vols = [('torso', at('hips'), at('chest'), .24), ('chest', at('chest'), tail('chest'), .27), ('head', at('head'), tail('head'), .19), ('hump', hump, hump, .3)]
+        vols = [('torso', at('hips'), at('chest'), .24), ('chest', at('chest'), tail('chest'), .27), ('head', at('head'), tail('head'), .19), ('shoulder', hump, hump, .3)]
         deep = -9; who = None
         for bone in AX:
             m = B[bone] @ arm.data.bones[bone].matrix_local.inverted() @ arm.data.bones[bone].matrix_local

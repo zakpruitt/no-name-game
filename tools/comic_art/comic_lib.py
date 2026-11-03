@@ -90,14 +90,14 @@ def toon(name, shadow, mid, light, hi=None, rim=(0, 0, 0), brush=.3, extra=None,
     nt.links.new(em.outputs[0], out.inputs[0])
     return m
 
-def emit(name, low, high, strength=1.0, core=None):
+def emit(name, low, high, strength=1.0, core=None, mid=None):
     """Flat FX colour: three cut tones along attribute g, no glow. Glow is drawn, not lit."""
     m, nt = new_mat(name)
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     at = nt.nodes.new('ShaderNodeAttribute'); at.attribute_name = 'g'
     r = nt.nodes.new('ShaderNodeValToRGB'); r.color_ramp.interpolation = 'CONSTANT'
     nt.links.new(at.outputs['Fac'], r.inputs[0])
-    midc = tuple(low[i] + (high[i] - low[i]) * .55 for i in range(3))
+    midc = mid or tuple(low[i] + (high[i] - low[i]) * .55 for i in range(3))
     cr = r.color_ramp
     cr.elements[0].position = 0; cr.elements[0].color = srgb(low)
     cr.elements[1].position = .42; cr.elements[1].color = srgb(midc)

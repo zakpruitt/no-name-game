@@ -21,17 +21,26 @@ def set_toon(m, sh, mi, li, hi=None):
     r.color_ramp.elements[0].color = lin(sh); r.color_ramp.elements[1].position = .22; r.color_ramp.elements[1].color = lin(mi)
     r.color_ramp.elements.new(.62).color = lin(li)
     nt.links.new(d.outputs[0], s.inputs[0]); nt.links.new(s.outputs[0], r.inputs[0]); nt.links.new(r.outputs[0], e.inputs[0]); nt.links.new(e.outputs[0], o.inputs[0])
+def set_emit3(m, low, mid, high, attr):
+    m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+    a = nt.nodes.new('ShaderNodeVertexColor'); a.layer_name = attr
+    r = nt.nodes.new('ShaderNodeValToRGB'); e = nt.nodes.new('ShaderNodeEmission'); o = nt.nodes.new('ShaderNodeOutputMaterial')
+    cr = r.color_ramp; cr.interpolation = 'CONSTANT'
+    cr.elements[0].position = 0; cr.elements[0].color = lin(low); cr.elements[1].position = .42; cr.elements[1].color = lin(mid); cr.elements.new(.72).color = lin(high)
+    nt.links.new(a.outputs[0], r.inputs[0]); nt.links.new(r.outputs[0], e.inputs[0]); nt.links.new(e.outputs[0], o.inputs[0])
+# the materials whose stepped tones matter here, as comic_emit draws them along g
+EMIT3 = {'lavadark': ((.2, .04, .28), (1, .28, .02), (1, .86, .2)), 'firedark': ((.14, .03, .2), (.95, .1, .02), (1, .9, .2)), 'boltdark': ((.42, .16, .78), (.3, .6, 1), (.98, 1, .92))}
 def set_emit(m, c):
     m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
     e = nt.nodes.new('ShaderNodeEmission'); o = nt.nodes.new('ShaderNodeOutputMaterial')
     e.inputs[0].default_value = lin(c); nt.links.new(e.outputs[0], o.inputs[0])
 # comic_lib's own tones, so this is near what comic_toon will be given
-TONES = {'skin': ((.36, .1, .14), (.86, .46, .28), (1, .75, .5)), 'hair': ((.2, .24, .5), (.62, .68, .86), (.95, .95, .92)), 'iron': ((.05, .06, .14), (.2, .25, .38), (.46, .54, .68)),
+TONES = {'blight': ((.015, .01, .03), (.05, .025, .09), (.12, .07, .2)), 'skin': ((.36, .1, .14), (.86, .46, .28), (1, .75, .5)), 'hair': ((.2, .24, .5), (.62, .68, .86), (.95, .95, .92)), 'iron': ((.05, .06, .14), (.2, .25, .38), (.46, .54, .68)),
          'bronze': ((.2, .06, .02), (.68, .34, .08), (.98, .68, .18)), 'leather': ((.1, .03, .03), (.34, .14, .08), (.6, .32, .15)), 'cloth': ((.02, .08, .16), (.03, .32, .36), (.08, .6, .56)),
          'trousers': ((.06, .05, .13), (.2, .17, .32), (.42, .36, .5)), 'rock': ((.05, .02, .05), (.2, .12, .16), (.42, .28, .28)), 'bone': ((.36, .17, .1), (.8, .6, .36), (.98, .92, .72)),
          'ice': ((.08, .3, .72), (.26, .62, .96), (.6, .9, 1)), 'scar': ((.1, .05, .12), (.26, .14, .22), (.42, .24, .3)), 'fur': ((.07, .05, .07), (.2, .14, .13), (.36, .27, .22)),
          'haft': ((.08, .04, .04), (.27, .14, .09), (.46, .28, .16)), 'teeth': ((.4, .28, .16), (.8, .7, .44), (.96, .9, .68)), 'socket': ((.012, .01, .02), (.1, .03, .05), (.18, .06, .07)), 'black': ((.012, .01, .02), (.03, .02, .03), (.06, .05, .06))}
-EMITS = {'lava': (1, .55, .1), 'fire': (1, .6, .1), 'bolt': (.6, .8, 1), 'wind': (.6, 1, .7), 'fracture': (.5, 1, .86), 'spirit': (.5, 1, .86), 'eyewhite': (.965, .93, .82), 'eyeblue': (.3, .65, 1), 'pupil': (.012, .01, .02)}
+EMITS = {'lava': (1, .55, .1), 'fire': (1, .6, .1), 'bolt': (.6, .8, 1), 'wind': (.6, 1, .7), 'fracture': (.62, .36, .98), 'spirit': (.5, 1, .86), 'eyewhite': (.965, .93, .82), 'eyeblue': (.3, .65, 1), 'pupil': (.012, .01, .02)}
 INK = bpy.data.materials.new('Ink'); set_emit(INK, (.035, .032, .07)); INK.use_backface_culling = True; INK.use_backface_culling_shadow = True
 AXE_TEAL = bpy.data.materials.new('AxeTeal'); set_toon(AXE_TEAL, (.03, .22, .28), (.1, .55, .55), (.4, .9, .82))
 CRK = bpy.data.materials.new('Crk'); set_emit(CRK, EMITS['fracture'])
@@ -48,6 +57,9 @@ def load(path):
         if k in TONES: set_toon(m, *TONES[k])
         elif k in EMITS: set_emit(m, EMITS[k])
     for o in meshes:
+        for m in o.data.materials:
+            k = m.name.split('.')[0][2:].lower() if m else ''
+            if k in EMIT3 and len(o.data.color_attributes): set_emit3(m, *EMIT3[k], o.data.color_attributes[-1].name)
         if o.name.startswith('axe_storm_ice') or o.name.startswith('axe_magma_rock'): o.data.materials[0] = AXE_TEAL
         if o.name.startswith('axe_storm_bolt') or o.name.startswith('axe_magma_lava'): o.data.materials[0] = CRK
         o.data.materials.append(INK)

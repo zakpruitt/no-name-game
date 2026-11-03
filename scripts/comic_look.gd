@@ -23,9 +23,8 @@ const TONES := {
 	"P_Leather": {"shadow": Color(0.1, 0.03, 0.03), "mid": Color(0.34, 0.14, 0.08), "light": Color(0.6, 0.32, 0.15), "rim": Color(0.15, 0.07, 0.04), "brush": 0.2},
 	"P_Cloth": {"shadow": Color(0.02, 0.08, 0.16), "mid": Color(0.03, 0.32, 0.36), "light": Color(0.08, 0.6, 0.56), "hi": Color(0.34, 0.86, 0.72), "rim": Color(0.05, 0.24, 0.24), "brush": 0.28},
 	"P_Trousers": {"shadow": Color(0.06, 0.05, 0.13), "mid": Color(0.2, 0.17, 0.32), "light": Color(0.42, 0.36, 0.5), "rim": Color(0.1, 0.1, 0.2), "brush": 0.24},
-	# the Unfinished: the scar under his plates, the pelt on the shoulder still his, the axes' hafts
-	"P_Scar": {"shadow": Color(0.1, 0.05, 0.12), "mid": Color(0.26, 0.14, 0.22), "light": Color(0.42, 0.24, 0.3), "rim": Color(0.1, 0.05, 0.1), "brush": 0.2},
-	"P_Fur": {"shadow": Color(0.07, 0.05, 0.07), "mid": Color(0.2, 0.14, 0.13), "light": Color(0.36, 0.27, 0.22), "rim": Color(0.1, 0.1, 0.1), "brush": 0.25},
+	# the hero: the black of his veins and obsidian, the axes' hafts
+	"P_Blight": {"shadow": Color(0.015, 0.01, 0.03), "mid": Color(0.07, 0.035, 0.12), "light": Color(0.2, 0.12, 0.34), "rim": Color(0.3, 0.1, 0.5), "brush": 0.12},
 	"P_Haft": {"shadow": Color(0.08, 0.04, 0.04), "mid": Color(0.27, 0.14, 0.09), "light": Color(0.46, 0.28, 0.16), "rim": Color(0.08, 0.04, 0.03), "brush": 0.2},
 	"P_Rock": {"shadow": Color(0.05, 0.02, 0.05), "mid": Color(0.2, 0.12, 0.16), "light": Color(0.42, 0.28, 0.28), "hi": Color(0.72, 0.55, 0.44), "rim": Color(0.8, 0.28, 0.03), "brush": 0.14, "inner": 0.22},
 	# the axes' blades in the elements that have no blade of their own (AXE_INFUSIONS)
@@ -62,14 +61,18 @@ const TONES := {
 	"P_Forest": {"shadow": Color(0.03, 0.16, 0.1), "mid": Color(0.07, 0.36, 0.16), "light": Color(0.17, 0.6, 0.22), "hi": Color(0.48, 0.86, 0.38), "rim": Color(0.1, 0.3, 0.12), "brush": 0.2, "spot": 0.02},
 	"P_Lining": {"shadow": Color(0.08, 0.01, 0.14), "mid": Color(0.28, 0.05, 0.34), "light": Color(0.5, 0.12, 0.5), "rim": Color(0.2, 0.05, 0.2), "brush": 0.2},
 }
-## Material name -> flat stepped colour [low, high] (comic_lib.emit, sRGB).
+## Material name -> flat stepped colour [low, high, mid] (comic_lib.emit, sRGB). Without a mid it sits between them.
 const EMITS := {
 	"P_Fire": [Color(0.95, 0.1, 0.02), Color(1, 0.9, 0.2)],
 	"P_Lava": [Color(1, 0.28, 0.02), Color(1, 0.86, 0.2)],
 	"P_Bolt": [Color(0.2, 0.55, 1), Color(0.98, 1, 0.92)],
 	"P_Wind": [Color(0.2, 0.85, 0.5), Color(0.9, 1, 0.8)],
 	"P_Spirit": [Color(0.05, 0.75, 0.72), Color(0.86, 1, 0.86)],
-	"P_Fracture": [Color(0.08, 0.72, 0.68), Color(0.86, 1, 0.92)],
+	# the hero's own: the darkness in him is violet, and his elements fall to it in their lowest tone
+	"P_Fracture": [Color(0.34, 0.1, 0.62), Color(0.82, 0.55, 1)],
+	"P_LavaDark": [Color(0.2, 0.04, 0.28), Color(1, 0.86, 0.2), Color(1, 0.28, 0.02)],
+	"P_FireDark": [Color(0.14, 0.03, 0.2), Color(1, 0.9, 0.2), Color(0.95, 0.1, 0.02)],
+	"P_BoltDark": [Color(0.42, 0.16, 0.78), Color(0.98, 1, 0.92), Color(0.3, 0.6, 1)],
 	"P_EyeWhite": [Color(0.965, 0.93, 0.82), Color(0.965, 0.93, 0.82)],
 	"P_EyeBlue": [Color(0.1, 0.45, 1), Color(0.7, 0.95, 1)],
 	"P_Pupil": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
@@ -146,9 +149,9 @@ const AXE_AURA := preload("res://scripts/comic_axe_aura.gd")
 ## Fidgets he plays in turn when left standing, and the stance a fight keeps him in.
 const HERO_FIDGETS := ["Idle_Heft", "Idle_Listen", "Idle_Swing"]
 const HERO_READY := "Idle_Ready"
-## Of the motes circling him: at full size they outshine the cracks they should echo.
+## Of the motes circling him: at full size they outshine the veins they should echo.
 const HERO_ORBIT_SIZE := 0.5
-## What an Ascendancy changes on his body: every crack takes its element's colour.
+## What an Ascendancy changes on his body: every lit vein takes its element's colour.
 const HERO_FRACTURES := ["fracture", "axe_magma_crack"]
 const READY_HOLD := 3.0  # s in the guard after his last attack or hit
 const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets
@@ -326,7 +329,7 @@ static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 	return made
 
 
-## His cracks in an element's colour (AXE_INFUSIONS). The body stays as it is: same mesh, new material.
+## His veins in an element's colour (AXE_INFUSIONS). The body stays as it is: same mesh, new material.
 static func tint_fractures(model: Node3D, element: String) -> void:
 	for mesh_name: String in HERO_FRACTURES:
 		var mi: MeshInstance3D = model.find_child(mesh_name, true, false)
@@ -374,7 +377,7 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		var c: Array = EMITS[mat_name]
 		m.shader = load(EMIT_SHADER)
 		m.set_shader_parameter("low_color", c[0])
-		m.set_shader_parameter("mid_color", (c[0] as Color).lerp(c[1], 0.55))
+		m.set_shader_parameter("mid_color", c[2] if c.size() > 2 else (c[0] as Color).lerp(c[1], 0.55))
 		m.set_shader_parameter("high_color", c[1])
 	else:
 		if not known_material(mat_name) and not _warned.has(mat_name):

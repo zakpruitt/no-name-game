@@ -94,26 +94,30 @@ hero and is never saved: `_effective_move` passes each id in `ComicLook.HERO_MOV
 SKY and RUSH play one clip at the speed that reaches its hit frame at the impact or the dash.
 `MOVES` itself is never written.
 
-### The Unfinished (the base hero's design)
+### The base hero's design: the darkness getting in
 
-A shaman being overtaken from his left shoulder down, and enjoying it. His right side is still a man. Three shapes
-carry him at 130 px: the lopsided hump and overlong left arm against a wiry right arm, white hair blown one way, and
-two axe heads dragging wide behind him. He is deliberately not Convergence, Corruption or Purity yet.
+The elemental shaman (magma arm, storm arm, ice leg, white hair) with a minor note of corruption worked into those
+elements. He is deliberately not Convergence, Corruption or Purity yet. An earlier, heavier take on this, a lopsided
+half-transformed body, was tried and rejected for losing the character: keep the corruption minor.
 
-- **Body script:** `tools/comic_art/build_unfinished.py` (replaces `build_comic.py` for the hero, same `build_all()`).
-  Only the right ankle's joint moved, so the clips and `AXE_REST` survive. `K(mat, bone)` tags a part to one bone; the
-  rig reads those tags (`hint_of`) before its own rules.
-- **Fractures:** `P_Fracture` on one connected mesh (`fracture`), hump to sternum and down the arm. An Ascendancy can
-  recolour him by swapping that material. Glow is about 5-8% of his silhouette at game size, counting the axe edges.
-- **The voice:** the `black` crack from the rock ear to the lava eye (too small to see at game size), and `Idle_Listen`,
-  which does the work: he tips his head to that ear, goes still, nods twice.
+- **Body script:** `tools/comic_art/build_tainted.py` (`build_comic.py`'s body, plus `taint()`). `K(mat, bones)` tags a
+  part with its bones; the rig reads those tags (`hint_of`) before its own rules. One bone pins, several bend like skin.
+- **His elements:** `P_LavaDark`, `P_FireDark`, `P_BoltDark` are his alone: the usual hot tones with violet-black as the
+  lowest. The arm's magma takes `g` from its height, so it is dark at the shoulder and hot at the fist.
+- **Veins:** `blight` (near-black, `P_Blight`, with the obsidian among the arm's rock and two black flames in his fire)
+  and `fracture` (the lit violet core, `P_Fracture`). Snapped to the surface they lie on, and routed where they show: the
+  shoulder rock, the side of the chest the beard leaves clear, the upper arm, inside the ice. An Ascendancy recolours
+  `fracture` and the axes' edges (`tint_fractures`, `infuse_axes`).
+- **The voice:** a thin vein from the rock ear to the lava eye (too small to see at game size), and `Idle_Listen`, which
+  does the work: he tips his head to that ear, goes still, nods twice.
 - **Axes:** `axe_storm_*` and `axe_magma_*`, parts `haft`, `leather`, `steel`, `blade`, `edge`, and `crack` on the magma
   axe. The crack is its own mesh because the aura spaces its flames along every vertex of `edge`. Same reach and grip as
   before. Before an Ascendancy the blade is plain iron (`AXE_INFUSIONS.spirit`).
-- **Budget:** about 31k tris, from 67k.
-- **Look checks without Godot** (`tools/comic_art/unfinished_poc/`): `compare.py` + `sheet.py` old against new at the game's
-  camera, `clip_look.py` + `clip_sheet.py` one clip, `clearance.py` axes against body and floor on every clip. They use
-  stand-in materials, so only `comic_shots` confirms the real look.
+- **Budget:** about 54k tris, from 67k.
+- **Look checks without Godot** (`tools/comic_art/unfinished_poc/`): `closeup_tight.py` each limb up close, at rest and
+  mid-move (a broken arm doesn't show at 130 px, so always look here too); `compare.py` + `sheet.py` old against new at the
+  game's camera; `clip_look.py` + `clip_sheet.py` one clip; `clearance.py` axes against body and floor on every clip. They
+  use stand-in materials, so only `comic_shots` confirms the real look.
 
 | Move | KayKit hit, end (s, at `anim_speed` 1) | Ab_ hit, end |
 |---|---|---|
