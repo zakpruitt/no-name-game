@@ -7,6 +7,7 @@
 #   'hips': {'rot': .., 'loc': ..}   'L', 'R': foot/peg target offset in metres (feet stay planted by IK, so a crouch
 #   is just hips loc). 'rm': forward travel so far, in metres (root motion, moves spirit and camera too).
 #   'spin': whole-body yaw in degrees, not limited to the short way round.
+#   A bone's value can also be a Quaternion, as arm() solves them.
 # Keys: [(frame, ease, pose), ...]; ease: 'in' arrives fast (the swing), 'out' settles slowly, 'hold' snaps, 'smooth'.
 # Timing rule: long enough anticipation to read, 2-4 frames to contact, a hold on contact, a slow settle.
 
@@ -17,6 +18,7 @@ def _ease(k, kind):
     return k * k * (3 - 2 * k)
 
 def _rq(rot):
+    if isinstance(rot, Q): return rot   # a solved rotation (arm), not offsets
     e = [math.radians(a) for a in rot]
     return Q((1, 0, 0), e[0]) @ Q((0, 1, 0), e[1]) @ Q((0, 0, 1), e[2])
 
@@ -52,6 +54,12 @@ def keyed(name, length, keys, drag=0.0):
             return pa.get(key, 0.0) + (pb.get(key, 0.0) - pa.get(key, 0.0)) * k
         def vec(key):
             return V(pa.get(key, (0, 0, 0))).lerp(V(pb.get(key, (0, 0, 0))), k)
+        def dragged(n):
+            # a hand with a 'drag.l' key: its axe is aimed from where the hand really is, whatever the torso did
+            if n not in ('hand.l', 'hand.r') or 'drag.' + n[-1] not in pa: return None
+            key = 'drag.' + n[-1]
+            v = V(pa[key]).lerp(V(pb.get(key, pa[key])), k)
+            return drag_rotation(n[-1], P[n], V(v[:3]), v[3])
         RM.append(num('rm'))
         spin = Q((0, 0, 1), math.radians(num('spin')))
         D, P, basis = {}, {}, {}
@@ -91,7 +99,8 @@ def keyed(name, length, keys, drag=0.0):
                 basis[n] = ((t_q0[n].inverted() @ t_q0[pn] @ (D[pn] @ t_q0[pn]).inverted() @ W).normalized(), V())
                 D[n] = spin
             else:
-                e = rot_of(n)
+                held = dragged(n)
+                e = D[pn].inverted() @ held if held else rot_of(n)
                 basis[n] = ((t_q0[n].inverted() @ e @ t_q0[n]).normalized(), V())
                 D[n] = D[pn] @ e
         frames.append(basis)
@@ -117,10 +126,106 @@ def P(*ds, **kw):
     for d in ds: o.update(d)
     o.update(kw); return o
 
+# ---------------------------------------------------------------- carrying the axes
+# The rest pose is the hero pose: storm axe overhead, magma axe straight out. Offsets from it can't lose that, so
+# these poses say where the hand goes and where the axe points, and solve the arm. Positions and directions are in
+# his body's frame at rest (his left +X, his back +Y, up +Z). The torso carries the arms from there.
+AXE_REST = {'r': (V((-.22, -.28, 1)), V((-1, -.3, .1))), 'l': (V((.06, -.8, .42)), V((1, 0, .1)))}
+
+def _frame(along, edge):
+    a = V(along).normalized(); e = V(edge); e = (e - a * e.dot(a)).normalized()
+    return Matrix((a, e, a.cross(e))).transposed()
+
+def arm(side, hand, along, edge, elbow):
+    # hand: where the wrist goes. along: grip to axe head. edge: which way the blade faces. elbow: which way it bends.
+    up, lo, wr = 'upperarm.' + side, 'lowerarm.' + side, 'wrist.' + side
+    pos = lambda n: t_rest[n].to_translation()
+    a, b = (pos(lo) - pos(up)).length, (pos(wr) - pos(lo)).length
+    knee, wrist = ik(pos(up), V(hand), a, b, V(elbow))
+    D_u = rot_to(t_q0[up], knee - pos(up)) @ t_q0[up].inverted()
+    D_l = rot_to(D_u @ t_q0[lo], wrist - knee) @ t_q0[lo].inverted()
+    D_h = (_frame(along, edge) @ _frame(*AXE_REST[side]).inverted()).to_quaternion()
+    return {up: D_u, lo: D_u.inverted() @ D_l, 'hand.' + side: D_l.inverted() @ D_h}
+
+def _add(p, d, k=1.0):
+    return tuple(V(p) + V(d) * k)
+
+# Both axes are huge and he drags them. axe() in rig_comic.py builds the head on the handle at REACH and the blade's
+# tip BLADE out from there.
+AXE_SIZE = 1.75
+REACH = .85 * AXE_SIZE
+BLADE = .56 * AXE_SIZE
+TIP_Z = .02   # rig floor is 0; the game's floor stones top out at .05, so it bites in
+
+def drag_rotation(side, hand, head, tip_z):
+    # Handle from the hand towards `head`; the blade leans out to his side and down just far enough to reach tip_z.
+    along = (head - hand).normalized()
+    top = hand + along * REACH
+    sgn = 1 if side == 'l' else -1
+    out = V((0, 0, 1)).cross(along).normalized() * -sgn
+    if out.x * sgn < 0: out = -out
+    down = V((0, 0, -1)); down = (down - along * down.dot(along)).normalized()
+    s = max(min((top.z - tip_z) / (BLADE * max(-down.z, .2)), 1), -.3)
+    edge = out * math.sqrt(1 - s * s) + down * s
+    return (_frame(along, edge) @ _frame(*AXE_REST[side]).inverted()).to_quaternion()
+
+# Hands low at his sides, arms drawn back with the weight; axe heads far behind, on the floor either side of his line.
+DRAG_HAND = {'r': (-.64, .06, .88), 'l': (.64, .06, .88)}
+DRAG_ELBOW = {'r': (-.7, .5, -.3), 'l': (.7, .5, -.3)}
+DRAG_HEAD = {'r': (-1.05, 1.5, .68), 'l': (1.05, 1.5, .68)}   # high enough that the blade stands on its edge
+
+def hauling(r_hand=(0, 0, 0), l_hand=(0, 0, 0), r_head=(0, 0, 0, 0), l_head=(0, 0, 0, 0)):
+    # r_head, l_head: (x, y, z, tip lift) off the resting drag; the arms are solved to the hands, the hands to the heads
+    o = {}
+    for side, hand, head in (('r', r_hand, r_head), ('l', l_hand, l_head)):
+        for bone, q in arm(side, _add(DRAG_HAND[side], hand), V((0, 1, 0)), V((1, 0, 0)), DRAG_ELBOW[side]).items():
+            if not bone.startswith('hand'): o[bone] = q
+        at = V(DRAG_HEAD[side]) + V(head[:3])
+        o['drag.' + side] = (at.x, at.y, at.z, TIP_Z + head[3])
+    return o
+
+# Low guard, axes out to the sides, after a fight.
+GUARD_R = dict(hand=(-.76, -.2, .94), along=(-.6, .4, .7), edge=(-.3, -1, 0), elbow=(-.8, .35, -.45))
+GUARD_L = dict(hand=(.74, -.3, .86), along=(.75, .35, .42), edge=(.1, -1, .3), elbow=(.8, .35, -.45))
+# Wound up, both axes drawn back.
+COILED_R = dict(hand=(-.66, .08, 1.06), along=(-.3, .8, .52), edge=(-.5, .2, .9), elbow=(-.75, .5, -.3))
+COILED_L = dict(hand=(.66, .08, .98), along=(.3, .88, .36), edge=(.5, .2, .9), elbow=(.75, .5, -.3))
+# Thrown back, axes streaming behind.
+STREAM_R = dict(hand=(-.72, .22, 1.14), along=(-.3, .94, .1), edge=(-.5, 0, 1), elbow=(-.6, .6, -.2))
+STREAM_L = dict(hand=(.72, .22, 1.04), along=(.3, .94, .06), edge=(.5, 0, 1), elbow=(.6, .6, -.2))
+# Arms flung wide from a blow or in the air.
+FLUNG_R = dict(hand=(-.86, -.1, 1.14), along=(-.75, .2, .55), edge=(-.3, -1, 0), elbow=(-.6, .4, -.7))
+FLUNG_L = dict(hand=(.86, -.08, 1.06), along=(.8, .25, .4), edge=(.2, -1, .2), elbow=(.6, .4, -.7))
+
+def nudged(spec, hand=(0, 0, 0), along=(0, 0, 0)):
+    return dict(spec, hand=_add(spec['hand'], hand), along=_add(spec['along'], along))
+
+def carry(r, l):
+    o = arm('r', **r); o.update(arm('l', **l)); return o
+
+STAND_L = V((-.05, 0, 0))
+STAND_R = V((.07, .26, 0))
+GUARD_POSE = dict(carry(GUARD_R, GUARD_L), hips={'rot': (9, 0, 6), 'loc': (0, -.02, -.14)}, chest=(7, 0, -6), head=(-8, 0, 4), L=(-.02, .02, 0), R=(.06, .24, 0))
+ARM_BONES = ('upperarm.l', 'lowerarm.l', 'wrist.l', 'hand.l', 'upperarm.r', 'lowerarm.r', 'wrist.r', 'hand.r')
+
+def into_guard(frames, head=4, tail=.25):
+    # A move's first and last frames carry the hero-pose arms; ease them from and to the guard so a move starts and
+    # ends with the axes where the stances hold them. Hits are all before the tail (comic_check holds the timing).
+    guard = keyed('_guard', 0, [(0, 'smooth', GUARD_POSE)])[0][0]
+    n = len(frames)
+    t0 = int(n * (1 - tail))
+    for i, fr in enumerate(frames):
+        w = max(1 - i / head, (i - t0) / max(n - 1 - t0, 1))
+        if w <= 0: continue
+        w = w * w * (3 - 2 * w)
+        for b in ARM_BONES:
+            fr[b] = (fr[b][0].slerp(guard[b][0], w), fr[b][1])
+
 AB = {}
 INFO = {}
 def ability(key, name, input_, word, cast, length, keys):
     frames, rm = keyed('Ab_' + key, length, keys)
+    into_guard(frames)
     AB['Ab_' + key] = (frames, rm)
     INFO[key] = dict(name=name, input=input_, word=word, cast=cast, length=length)
 
@@ -246,3 +351,152 @@ ability('AF', 'Cataclysm', 'L L L H (Awakened)', 'KRRAKA-BOOM!', 'cataclysm', 78
     (54, 'out', {'hips': {'rot': (36, 0, 0), 'loc': (0, -.06, -.42)}, 'chest': (42, 0, 0), 'head': (-36, 0, 0), 'upperarm.l': (-82, 0, -8), 'lowerarm.l': (-10, 0, 0), 'upperarm.r': (-18, 0, 30), 'lowerarm.r': (-4, 0, 0), 'L': (.08, .14, 0), 'R': (-.08, -.12, 0)}),
     (78, 'smooth', READY),
 ])
+
+# ---------------------------------------------------------------- locomotion, four directions off one cycle
+# The game turns him to the mouse and picks a clip from which way he travels relative to that, so a sidestep has
+# to read as a sidestep. The retargeted Running_A keeps the hero pose's arms out wide and doesn't swing them.
+# Rest stance is staggered and wide, the left ankle at (.262, 0) and the peg at (-.262, -.4): BASE_* brings both
+# under the hips. travel is in his own axes, as a pose's: (his left, his back).
+RUN_T = 16
+BASE_L = V((-.1, .0, 0))
+BASE_R = V((.1, .4, 0))
+
+def _foot(phase, reach, lift):
+    # phase 0 = front of the stride; the first half is on the floor going back, the second is the swing forward
+    a = phase * 2 * math.pi
+    return reach * math.cos(a), (lift * math.sin((phase - .5) * 2 * math.pi) if phase > .5 else 0.0)
+
+def run_pose(phase, travel, reach, lift, lean, width=0.0):
+    tr = V((travel[0], travel[1], 0))
+    sl, zl = _foot(phase, reach, lift)
+    sr, zr = _foot((phase + .5) % 1, reach, lift)
+    wide = V((width, 0, 0))
+    swing = math.cos(phase * 2 * math.pi)   # +1: left foot leading along travel
+    two = math.cos(phase * 4 * math.pi)     # low at each contact, high in the air
+    forward = -travel[1]                    # +1 running forward, -1 back
+    side = travel[0]
+    pitch, roll = lean * forward, lean * side
+    twist = swing * forward                 # shoulders counter the hips on a straight run only
+    pump = swing * (1 if forward >= 0 else -1) * (abs(forward) + .35 * abs(side))
+    # the hands haul on each step, the heads scrape after him: closer in going backwards, off to one side on a strafe
+    behind = (-side * .5, -.25 if forward < 0 else 0)
+    scrape = .03 * max(two, 0)
+    r_head = (behind[0], behind[1] + .07 * pump, 0, scrape)
+    l_head = (behind[0], behind[1] - .07 * pump, 0, scrape)
+    return dict(hauling(r_hand=(0, -.05 * pump, .02 * two), l_hand=(0, .05 * pump, .02 * two), r_head=r_head, l_head=l_head),
+        hips={'rot': (pitch * .6, roll * .6, -7 * twist), 'loc': (0, 0, -.08 - .035 * two)},
+        chest=(pitch * .5, roll * .5, 15 * twist),
+        head=(-pitch * .9, -roll * .8, -8 * twist),
+        L=tuple(BASE_L + wide + tr * sl + V((0, 0, zl))),
+        R=tuple(BASE_R - wide + tr * sr + V((0, 0, zr))))
+
+def loop_clip(name, length, pose_at, drag=.1):
+    # two cycles and keep the second, so the hair's and cape's springs have settled and the loop closes
+    keys = [(f, 'smooth', pose_at((f % length) / length)) for f in range(2 * length + 1)]
+    frames, rm = keyed(name, 2 * length, keys, drag=drag)
+    AB[name] = (frames[length:], rm[length:])
+
+def run_clip(name, travel, reach, lift, lean, width=0.0, drag=.3):
+    loop_clip(name, RUN_T, lambda p: run_pose(p, travel, reach, lift, lean, width), drag)
+
+run_clip('Run_F', (0, -1), .52, .24, 13)
+run_clip('Run_B', (0, 1), .36, .16, 8, drag=.1)
+run_clip('Strafe_L', (1, 0), .2, .15, 9, width=.09, drag=.1)
+run_clip('Strafe_R', (-1, 0), .2, .15, 9, width=.09, drag=.1)
+
+# ---------------------------------------------------------------- standing around
+# A Hero_X clip replaces the retargeted X at export. These give him weight and let the axes hang: he breathes, his
+# weight drifts between his feet on a slower beat than his breath, and his head isn't locked to his chest.
+TAU = 2 * math.pi
+IDLE_T = 96
+
+def idle_pose(p, r_hand=(0, 0, 0), r_head=(0, 0, 0, 0), l_hand=(0, 0, 0), l_head=(0, 0, 0, 0), chest=(0, 0, 0), head=(0, 0, 0)):
+    breath = math.sin(p * TAU * 3)
+    drift = math.sin(p * TAU)
+    glance = math.sin(p * TAU * 2 + 1)
+    # the heads stay put on the floor; the hands ride his breath and weight
+    return dict(hauling(r_hand=_add(r_hand, (.012 * drift, 0, .012 * breath)), l_hand=_add(l_hand, (.012 * drift, 0, .012 * breath)), r_head=r_head, l_head=l_head),
+        hips={'rot': (4, 2.5 * drift, 2 * drift), 'loc': (.035 * drift, 0, -.09 + .012 * breath)},
+        chest=(3 - 1.6 * breath + chest[0], -1.5 * drift + chest[1], -2.5 * drift + chest[2]),
+        head=(-4 + 1.2 * breath + head[0], .8 * drift + head[1], 6 * glance + head[2]),
+        L=tuple(STAND_L), R=tuple(STAND_R))
+
+loop_clip('Hero_Idle', IDLE_T, idle_pose)
+
+# Fired up: bounces in a low guard while a fight is on.
+def ready_pose(p):
+    beat = math.sin(p * TAU)
+    two = math.sin(p * TAU * 2)
+    o = dict(carry(nudged(GUARD_R, hand=(0, .02 * beat, .025 * beat), along=(0, .04 * two, 0)), nudged(GUARD_L, hand=(0, -.02 * beat, .025 * beat), along=(0, -.04 * two, 0))))
+    o.update(hips={'rot': (9, 1.5 * beat, 6), 'loc': (.018 * beat, -.02, -.14 + .022 * two)}, chest=(7 + 1.5 * two, 0, -6 + 3 * beat), head=(-8 - 1.2 * two, 0, 4 - 3 * beat), L=GUARD_POSE['L'], R=GUARD_POSE['R'])
+    return o
+loop_clip('Idle_Ready', 32, ready_pose)
+
+# Fidgets, from and back to the idle's first frame so they drop in anywhere near it.
+def _bump(f, a, b):   # 0 outside a..b, up to 1 and back down inside it
+    if f <= a or f >= b: return 0.0
+    k = (f - a) / (b - a)
+    return math.sin(k * math.pi) ** 2
+
+# Heaves the storm axe's head off the floor and lets it thump back down, rolling the shoulder.
+def heft_pose(f):
+    lift = _bump(f, 4, 26)
+    drop = _bump(f, 24, 38)
+    return idle_pose(0, r_hand=(.02 * lift, -.04 * lift, .14 * lift - .05 * drop), r_head=(0, -.1 * lift, .55 * lift, .55 * lift), chest=(-5 * lift + 3 * drop, 3 * lift, -9 * lift + 4 * drop), head=(-5 * lift + 3 * drop, -5 * lift, 12 * lift))
+keys = [(f, 'smooth', heft_pose(f)) for f in range(49)]
+AB['Idle_Heft'] = keyed('Idle_Heft', 48, keys, drag=.1)
+
+# Heaves the magma axe up and round beside him, one-handed, then lets it fall back behind him.
+SWING_T = 56
+def swing_pose(f):
+    w = _bump(f, 0, SWING_T)
+    a = math.radians(74 - 96 * w)       # the head's bearing from his hand: behind him, then round to his side
+    rest = V(DRAG_HEAD['l']) - V(DRAG_HAND['l'])
+    round_ = V((math.cos(a), math.sin(a), 0)) * rest.length + V((0, 0, .5))
+    head = (round_ - rest) * w
+    return idle_pose(0, l_hand=(.05 * w, -.28 * w, .16 * w), l_head=(head.x, head.y, head.z, .55 * w), chest=(2 * w, 0, 10 * w), head=(3 * w, 0, 20 * w))
+keys = [(f, 'smooth', swing_pose(f)) for f in range(SWING_T + 1)]
+AB['Idle_Swing'] = keyed('Idle_Swing', SWING_T, keys, drag=.1)
+
+# ---------------------------------------------------------------- the rest of what he does between moves
+# Holding a charge: coiled low, shaking harder at the top of each breath. Also his hang in the air on some breakers.
+def coil_pose(p):
+    beat = math.sin(p * TAU * 2)
+    jit = math.sin(p * TAU * 7)
+    return dict(carry(nudged(COILED_R, hand=(.006 * jit, 0, .012 * beat)), nudged(COILED_L, hand=(-.006 * jit, 0, .012 * beat))),
+        hips={'rot': (16, 0, 6), 'loc': (.006 * jit, .06, -.26 + .012 * beat)}, chest=(16 + 1.5 * beat, 0, 12), head=(-16, 0, -7),
+        L=(-.02, .06, 0), R=(.06, .34, 0))
+loop_clip('Hero_2H_Melee_Idle', 24, coil_pose)
+
+_flung = carry(FLUNG_R, FLUNG_L)
+keys = [
+    (0, 'smooth', GUARD_POSE),
+    (3, 'in', dict(carry(nudged(FLUNG_R, hand=(0, .1, 0)), nudged(FLUNG_L, hand=(0, .1, 0))), hips={'rot': (-9, 0, -7), 'loc': (0, .14, -.1)}, chest=(-16, 4, 10), head=(14, 0, -8), L=(-.02, .12, 0), R=(.06, .3, 0))),
+    (6, 'out', dict(_flung, hips={'rot': (-5, 0, -4), 'loc': (0, .1, -.14)}, chest=(-9, 2, 6), head=(9, 0, -5), L=(-.02, .12, 0), R=(.06, .3, 0))),
+    (16, 'smooth', GUARD_POSE),
+]
+AB['Hero_Hit_A'] = keyed('Hero_Hit_A', 16, keys, drag=.1)
+
+# A dash: bent over, axes streaming. A short clip that lands in a stride, as it's only 10 frames.
+_dash = carry(STREAM_R, STREAM_L)
+keys = [
+    (0, 'smooth', dict(_dash, hips={'rot': (20, 0, 0), 'loc': (0, -.02, -.2)}, chest=(18, 0, 0), head=(-18, 0, 0), L=(-.08, -.22, .02), R=(.08, .66, .06))),
+    (5, 'smooth', dict(_dash, hips={'rot': (28, 0, 0), 'loc': (0, -.06, -.24)}, chest=(22, 0, 0), head=(-26, 0, 0), L=(-.08, .3, .12), R=(.08, .06, .16))),
+    (10, 'smooth', dict(_dash, hips={'rot': (24, 0, 0), 'loc': (0, -.04, -.22)}, chest=(20, 0, 0), head=(-22, 0, 0), L=(-.08, .4, .02), R=(.08, -.08, .06))),
+]
+AB['Hero_Dodge_Forward'] = keyed('Hero_Dodge_Forward', 10, keys, drag=.2)
+
+# Jump: crouches, then pushes off with the arms coming up and out.
+keys = [
+    (0, 'smooth', dict(carry(COILED_R, COILED_L), hips={'rot': (16, 0, 0), 'loc': (0, .06, -.3)}, chest=(14, 0, 0), head=(-12, 0, 0), L=(-.02, .06, 0), R=(.06, .3, 0))),
+    (6, 'in', dict(_flung, hips={'rot': (-6, 0, 0), 'loc': (0, 0, .04)}, chest=(-8, 0, 0), head=(4, 0, 0), L=(-.05, .1, .1), R=(.07, .22, .26))),
+    (15, 'out', dict(_flung, hips={'rot': (-2, 0, 0), 'loc': (0, 0, .04)}, chest=(-3, 0, 0), head=(0, 0, 0), L=(-.05, .1, .26), R=(.07, .12, .44))),
+]
+AB['Hero_Jump_Start'] = keyed('Hero_Jump_Start', 15, keys, drag=.2)
+
+# In the air: knees tucked, arms out for balance, drifting.
+def air_pose(p):
+    b = math.sin(p * TAU)
+    return dict(carry(nudged(FLUNG_R, hand=(0, 0, .03 * b), along=(0, .04 * b, 0)), nudged(FLUNG_L, hand=(0, 0, -.03 * b), along=(0, -.04 * b, 0))),
+        hips={'rot': (3 + 2 * b, 0, 2 * b), 'loc': (0, 0, .04)}, chest=(2, 0, -3 * b), head=(-3, 0, 3 * b), L=(-.05, .08 + .02 * b, .26), R=(.07, .12 - .02 * b, .44))
+loop_clip('Hero_Jump_Idle', 26, air_pose, drag=.2)

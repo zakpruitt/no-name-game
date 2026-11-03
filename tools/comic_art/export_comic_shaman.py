@@ -8,6 +8,11 @@ exec(compile(open(os.path.join(D, 'rig_comic.py')).read(), 'rig_comic', 'exec'))
 OUT = os.path.join(D, 'out', 'shaman_comic.glb')
 ad = PR.animation_data
 for t in list(ad.nla_tracks): ad.nla_tracks.remove(t)
+# A hand-keyed P_Hero_X takes the place of the retargeted P_X
+for a in [a for a in bpy.data.actions if a.name.startswith('P_Hero_')]:
+    old = bpy.data.actions.get('P_' + a.name[7:])
+    if old: bpy.data.actions.remove(old)
+    a.name = 'P_' + a.name[7:]
 names = []
 for a in bpy.data.actions:
     if not a.name.startswith('P_') or a is ad.action or '.' in a.name or a.name == 'P_Showcase': continue
@@ -15,6 +20,11 @@ for a in bpy.data.actions:
     st = tr.strips.new(a.name, 0, a); names.append(a.name)
     if a.slots: st.action_slot = a.slots[0]
 ad.action = None  # the reel has root motion and no place in the game file
+# Clearing the action leaves the rig where the reel's first frame put it, turned 78 degrees for the camera.
+# The game turns the model to face a direction, so the rig must sit square in it, facing front.
+PR.location = (0, 0, 0)
+PR.rotation_euler = (0, 0, 0)
+bpy.context.view_layer.update()
 for a in list(bpy.data.actions):   # the exporter takes every compatible action in the file, not only these
     if a.name not in names: bpy.data.actions.remove(a)
 bpy.ops.object.select_all(action='DESELECT')

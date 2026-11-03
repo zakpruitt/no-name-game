@@ -24,6 +24,9 @@ const TONES := {
 	"P_Cloth": {"shadow": Color(0.02, 0.08, 0.16), "mid": Color(0.03, 0.32, 0.36), "light": Color(0.08, 0.6, 0.56), "hi": Color(0.34, 0.86, 0.72), "rim": Color(0.05, 0.24, 0.24), "brush": 0.28},
 	"P_Trousers": {"shadow": Color(0.06, 0.05, 0.13), "mid": Color(0.2, 0.17, 0.32), "light": Color(0.42, 0.36, 0.5), "rim": Color(0.1, 0.1, 0.2), "brush": 0.24},
 	"P_Rock": {"shadow": Color(0.05, 0.02, 0.05), "mid": Color(0.2, 0.12, 0.16), "light": Color(0.42, 0.28, 0.28), "hi": Color(0.72, 0.55, 0.44), "rim": Color(0.8, 0.28, 0.03), "brush": 0.14, "inner": 0.22},
+	# the axes' blades in the elements that have no blade of their own (AXE_INFUSIONS)
+	"P_AxeSpirit": {"shadow": Color(0.03, 0.22, 0.28), "mid": Color(0.1, 0.55, 0.55), "light": Color(0.4, 0.9, 0.82), "hi": Color(0.9, 1, 0.92), "rim": Color(0.2, 0.9, 0.8), "brush": 0.1, "inner": 0.14},
+	"P_AxeWind": {"shadow": Color(0.05, 0.25, 0.14), "mid": Color(0.2, 0.6, 0.34), "light": Color(0.55, 0.92, 0.6), "hi": Color(0.92, 1, 0.88), "rim": Color(0.5, 1, 0.55), "brush": 0.1, "inner": 0.14},
 	"P_Bone": {"shadow": Color(0.36, 0.17, 0.1), "mid": Color(0.8, 0.6, 0.36), "light": Color(0.98, 0.92, 0.72), "rim": Color(0.2, 0.15, 0.1), "brush": 0.14},
 	"P_Ice": {"shadow": Color(0.08, 0.3, 0.72), "mid": Color(0.26, 0.62, 0.96), "light": Color(0.6, 0.9, 1), "hi": Color(0.98, 1, 1), "rim": Color(0.4, 0.7, 1), "brush": 0.08, "inner": 0.14},
 	"P_Teeth": {"shadow": Color(0.4, 0.28, 0.16), "mid": Color(0.8, 0.7, 0.44), "light": Color(0.96, 0.9, 0.68), "brush": 0.08, "inner": 0.0},
@@ -74,7 +77,7 @@ const EMITS := {
 	"P_String": [Color(0.96, 0.92, 0.74), Color(0.96, 0.92, 0.74)],
 	"P_Under": [Color(0.13, 0.05, 0.3), Color(0.13, 0.05, 0.3)],
 	"comic_fire": [Color(0.95, 0.16, 0.03), Color(1, 0.88, 0.28)],
-	"comic_ink": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
+	"comic_ink": [Color(0.035, 0.032, 0.07), Color(0.035, 0.032, 0.07)],
 	"comic_wash": [Color(0.028, 0.027, 0.06), Color(0.028, 0.027, 0.06)],
 }
 ## A kind whose script defines a shared material name differently.
@@ -98,6 +101,9 @@ const CLIPS := {
 	},
 }
 const HERO := "shaman_comic"
+## How much further one axis must lead before the run changes clip: on a diagonal a cursor
+## nudge would otherwise flip between two clips every frame.
+const RUN_STICK := 1.25
 ## Game.comic_moves: id in player.MOVES / ULTIMATES -> its Ab_ clip. hit and frames are
 ## the kit's hit frame and clip length; old is the KayKit clip's length in s, the time
 ## base MOVES' fractions were tuned against (ultimates are timed in s, so have none).
@@ -118,17 +124,37 @@ const HERO_MOVES := {
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).
 const HERO_AXES := {"hand.r": "axe_storm_ice", "hand.l": "axe_magma_rock"}
+const HERO_AXE_EDGES := {"hand.r": "axe_storm_bolt", "hand.l": "axe_magma_lava"}
+## Element -> the blade and edge materials both axes take (infuse_axes).
+const AXE_INFUSIONS := {
+	"spirit": ["P_AxeSpirit", "P_Spirit"],
+	"wind": ["P_AxeWind", "P_Wind"],
+	"earth": ["P_Rock", "P_Lava"],
+	"water": ["P_Ice", "P_Bolt"],
+}
+const AXE_AURA := preload("res://scripts/comic_axe_aura.gd")
+## Fidgets he plays in turn when left standing, and the stance a fight keeps him in.
+const HERO_FIDGETS := ["Idle_Heft", "Idle_Swing"]
+const HERO_READY := "Idle_Ready"
+const READY_HOLD := 3.0  # s in the guard after his last attack or hit
+const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets
 ## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
-## stone is 3 px). Floors and seam-core materials have none: their ink is geometry.
-const PIECE_INK_PX := {"comic_stone": 3.0, "comic_cap": 3.0, "comic_wood": 2.5, "comic_banner": 2.5,
-	"comic_gold": 2.2, "comic_iron": 2.0, "comic_bone": 2.0, "comic_fire": 1.6}
+## stone is 1.5 px). Floors and seam-core materials have none: their ink is geometry.
+const PIECE_INK_PX := {"comic_stone": 1.5, "comic_cap": 1.5, "comic_wood": 1.2, "comic_banner": 1.2,
+	"comic_gold": 1.2, "comic_iron": 1.0, "comic_bone": 1.0, "comic_fire": 1.0}
+const PIECE_INK_PUSH := 0.04  # m, as Fx.COMIC_INK_PUSH
+## On every table's `inner`. The POC's values were chosen for close-up renders; at the game's
+## camera the same facing ratio covers most of a small model in ink.
+const INNER_SCALE := 0.5
 ## Model name -> scale on its rig node. enemy.gd's model_scale also sizes collision, so
 ## it stays as tuned; the Warden is modelled at full size (3.2 m) where the KayKit boss
 ## relied on model_scale 1.8. The others match KayKit's height (~2.2 m bounds) as built.
 const RIG_SCALE := {"warden": 1.0 / 1.8}
 ## Used (with a warning) for a material the tables don't know yet.
 const FALLBACK_TONE := "P_Trousers"
-const INK := Color(0.012, 0.01, 0.02)
+## Every line and solid black. Near the floor's own shadow tone rather than true black:
+## at the game's camera black lines read as heavy and clunky.
+const INK := Color(0.035, 0.032, 0.07)
 
 # comic_lib.comic_scene, converted: Blender energy / PI (a sun of strength E gives
 # E / PI radiance), directions from its Euler angles, Blender (x, y, z) -> Godot
@@ -140,7 +166,7 @@ const KEY_DIR := Vector3(0.291, -0.754, -0.589)
 const KEY_ENERGY := 1.146
 const KEY_COLOR := Color(1.0, 0.97, 0.9)  # linear, as Blender's
 const FILL_DIR := Vector3(-0.476, -0.309, 0.824)
-const FILL_ENERGY := 0.134
+const FILL_ENERGY := 0.3  # the POC's 0.134 drops under `spot` in Godot: shadow sides went solid black
 const FILL_COLOR := Color(0.55, 0.62, 1.0)  # linear
 
 static var _mats := {}  # material name -> shared ShaderMaterial, so every enemy batches
@@ -186,6 +212,24 @@ static func clip(player: AnimationPlayer, kind: String, wanted: String) -> Strin
 	if player.has_animation(wanted):
 		return wanted
 	return CLIPS.get(kind, {}).get(wanted, wanted)
+
+
+## The hero's run for travelling along `dir` while facing `facing`. `playing` is kept near a diagonal.
+static func run_clip(dir: Vector3, facing: Vector3, playing: String) -> String:
+	var ahead := dir.dot(facing)
+	var left := dir.dot(Vector3.UP.cross(facing))
+	var along := absf(ahead) > absf(left)
+	if playing in ["Run_F", "Run_B"]:
+		along = absf(ahead) * RUN_STICK > absf(left)
+	elif playing in ["Strafe_L", "Strafe_R"]:
+		along = absf(ahead) > absf(left) * RUN_STICK
+	if along:
+		return "Run_F" if ahead >= 0.0 else "Run_B"
+	return "Strafe_L" if left >= 0.0 else "Strafe_R"
+
+
+static func is_run_clip(clip: String) -> bool:
+	return clip in ["Run_F", "Run_B", "Strafe_L", "Strafe_R"]
 
 
 ## A MOVES entry moved onto its Ab_ clip, `length` s long: the first hit lands on the
@@ -244,6 +288,51 @@ static func hero_blades(model: Node3D) -> Array[MeshInstance3D]:
 	return made
 
 
+## The element on both of the hero's axes: blade and edge recoloured, tongues along the edge, motes
+## behind the swing and a mark where the blade scrapes the floor. Returns the auras so the caller can
+## swap them (player.ascend).
+static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
+	var made: Array[Node3D] = []
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var meshes := AXE_AURA.build_meshes(element)
+	for bone: String in HERO_AXES:
+		var i := skel.find_bone(bone)
+		var bit: MeshInstance3D = model.find_child(HERO_AXES[bone], true, false)
+		var edge: MeshInstance3D = model.find_child(HERO_AXE_EDGES[bone], true, false)
+		if i < 0 or bit == null or edge == null:
+			continue
+		_axe_material(bit, AXE_INFUSIONS[element][0])
+		_axe_material(edge, AXE_INFUSIONS[element][1])
+		var to_hand := skel.get_bone_global_rest(i).affine_inverse()
+		var aura: BoneAttachment3D = AXE_AURA.new()
+		aura.bone_name = bone
+		skel.add_child(aura)
+		aura.setup(element, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
+		made.append(aura)
+	return made
+
+
+## A skinned mesh's vertices in the hand's space, ordered along the edge.
+static func _along_edge(mesh: Mesh, to_hand: Transform3D) -> PackedVector3Array:
+	var verts: Array = Array(mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
+	var axis := mesh.get_aabb().get_longest_axis_index()
+	verts.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a[axis] < b[axis])
+	var out := PackedVector3Array()
+	for v: Vector3 in verts:
+		out.append(to_hand * v)
+	return out
+
+
+## Swap a surface's comic material, keeping its ink hull. Headless has neither (see apply).
+static func _axe_material(mi: MeshInstance3D, mat_name: String) -> void:
+	var was := mi.get_surface_override_material(0)
+	if was == null:
+		return
+	var mat: ShaderMaterial = material(mat_name).duplicate()
+	mat.next_pass = was.next_pass
+	mi.set_surface_override_material(0, mat)
+
+
 ## Scale the rig under the model's root (the root belongs to model_scale and _squash).
 static func fit(model: Node3D, kind: String) -> void:
 	if RIG_SCALE.has(kind):
@@ -279,8 +368,10 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		m.set_shader_parameter("rim_color", t.get("rim", Color.BLACK))
 		m.set_shader_parameter("brush", t.brush)
 		m.set_shader_parameter("spot", t.get("spot", 0.075))
-		m.set_shader_parameter("inner", t.get("inner", 0.17))
-		m.set_shader_parameter("tone_by_g", 1.0 if mat_name.begins_with("comic_") else 0.0)
+		m.set_shader_parameter("inner", t.get("inner", 0.17) * INNER_SCALE)
+		var is_piece := mat_name.begins_with("comic_")
+		m.set_shader_parameter("tone_by_g", 1.0 if is_piece else 0.0)
+		m.set_shader_parameter("receive_shadow", 1.0 if is_piece else 0.0)
 	if PIECE_INK_PX.has(mat_name):
 		m.next_pass = _piece_outline(PIECE_INK_PX[mat_name])
 	_mats[key] = m
@@ -293,6 +384,7 @@ static func _piece_outline(width: float) -> ShaderMaterial:
 		o.shader = load(OUTLINE_SHADER)
 		o.set_shader_parameter("width_px", width)
 		o.set_shader_parameter("outline_color", INK)
+		o.set_shader_parameter("depth_push", PIECE_INK_PUSH)
 		_piece_ink[width] = o
 	return _piece_ink[width]
 
@@ -351,7 +443,7 @@ static func build_environment(parent: Node) -> void:
 	key.light_color = KEY_COLOR.linear_to_srgb()
 	key.shadow_enabled = true
 	key.shadow_blur = 0.0
-	key.directional_shadow_max_distance = 60.0
+	key.directional_shadow_max_distance = 40.0
 	key.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	parent.add_child(key)
 	var fill := DirectionalLight3D.new()

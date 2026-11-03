@@ -27,7 +27,7 @@ const SPIRIT_GUILLOTINE := preload("res://scripts/spirit_guillotine.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
 const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug", "Barbarian_Hat", "Barbarian_Cape"]
-const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle"]
+const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Idle_Ready"]
 
 @export var move_speed := 7.5
 @export var accel := 70.0
@@ -333,6 +333,14 @@ const PLUNGE_AXES_SPREAD := 32.0
 # reach it (`_air_home`), so a launched foe that drifted doesn't make the
 # string whiff. AIR_HOME_MAX caps the lunge speed.
 const AIR_HOME_RANGE := 5.5
+## Mouse aim, the comic hero only (_mouse_aiming). He faces the cursor while free and turns toward
+## it at a limited rate through a combo, so a string can be redirected but not spun on the spot.
+const AIM_HEIGHT := 0.8  # m: the cursor is read on this plane, about where a foe's body is
+const AIM_DEAD_ZONE := 0.35  # m round him where the cursor stops steering, or he'd spin
+const AIM_ASSIST_MOUSE_ANGLE := 25.0  # deg: the cursor says where, so the soft lock is narrower
+const COMBO_REDIRECT := 55.0  # deg a chained move may turn as it starts
+const COMBO_TURN_WINDUP := 420.0  # deg/s before a move's first hit
+const COMBO_TURN_ACTIVE := 140.0  # deg/s from then on
 const AIR_HOME_MAX := 22.0
 # Air dash: dashing out of the launcher or an air slash while at least
 # AIR_DASH_MIN up keeps him at that height, and the press after it carries
@@ -368,6 +376,7 @@ var _gusted := false  # the Updraft's gale has lifted him this trip up (one per 
 var _gust_cloud: Node3D  # the gale under his feet while he's up there (air_gust.cloud)
 var _awaken_t := 0.0
 var _facing_yaw := 0.0
+var _mouse_active := true  # false once a gamepad is the last thing touched
 var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
@@ -415,6 +424,9 @@ var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _trails: Array = []
 var _comic_hero := false  # model is ComicLook.HERO, not the KayKit Barbarian
+var _ready_t := 0.0  # comic hero: s left in the guard after a fight
+var _fidget_t: float = ComicLook.FIDGET_EVERY  # comic hero: s until he next fidgets
+var _fidget_i := 0
 static var _kaykit_axe: Mesh  # the spirit casts' axe under the comic hero (see _axe_mesh)
 var _orbit: Node3D
 var _ult_id := ""
@@ -508,7 +520,7 @@ func _ready() -> void:
 		for blade in ComicLook.hero_blades(model):
 			_add_trail(blade)
 	anim = model.find_child("AnimationPlayer", true, false)
-	_coats = HERO_LOOK.coat_axes(model, element())  # after _meshes: coats are swapped on ascend
+	_coats = _coat_axes()  # after _meshes: coats are swapped on ascend
 	for a in LOOPING:
 		if anim.has_animation(a):
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -584,6 +596,12 @@ func _axe_mesh() -> Mesh:
 	return _kaykit_axe
 
 
+func _coat_axes() -> Array[Node3D]:
+	if _comic_hero:
+		return ComicLook.infuse_axes(model, element())
+	return HERO_LOOK.coat_axes(model, element())
+
+
 ## What the rig calls a clip the game asks for.
 func _clip_name(wanted: String) -> String:
 	return ComicLook.clip(anim, ComicLook.HERO, wanted) if _comic_hero else wanted
@@ -648,6 +666,8 @@ func _physics_process(delta: float) -> void:
 
 func _tick_timers(delta: float) -> void:
 	_state_t += delta
+	_ready_t -= delta
+	_fidget_t -= delta
 	_since_dash += delta
 	_buffer_t -= delta
 	_dash_buffer_t -= delta
@@ -681,6 +701,40 @@ func _read_input() -> void:
 		try_awaken()
 
 
+## The last device touched decides, so a gamepad goes back to facing the way he runs.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_mouse_active = true
+	elif event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.4):
+		_mouse_active = false
+
+
+func _mouse_aiming() -> bool:
+	return _comic_hero and _mouse_active and not bot_enabled and DisplayServer.get_name() != "headless"
+
+
+## Flat direction from him to the cursor; zero with no camera or a cursor on top of him.
+func _mouse_dir() -> Vector3:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return Vector3.ZERO
+	var at := get_viewport().get_mouse_position()
+	var ray := cam.project_ray_normal(at)
+	if absf(ray.y) < 0.001:
+		return Vector3.ZERO
+	var from := cam.project_ray_origin(at)
+	var hit := from + ray * ((global_position.y + AIM_HEIGHT - from.y) / ray.y)
+	var to := hit - global_position
+	to.y = 0.0
+	return to.normalized() if to.length() > AIM_DEAD_ZONE else Vector3.ZERO
+
+
+## _facing turned at most `max_deg` toward `want`.
+func _turned(want: Vector3, max_deg: float) -> Vector3:
+	var yaw := rotate_toward(_facing_yaw, atan2(want.x, want.z), deg_to_rad(max_deg))
+	return Vector3(sin(yaw), 0.0, cos(yaw))
+
+
 func _input_dir() -> Vector3:
 	if bot_enabled:
 		return bot_move
@@ -709,8 +763,8 @@ func _state_move(delta: float) -> void:
 	var target := dir * speed
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)
-	_face(dir)
-	_play("Running_A" if dir.length() > 0.1 else "Idle", 0.12)
+	_face(_mouse_dir() if _mouse_aiming() else dir)
+	_play_locomotion(dir)
 
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0:
 		_start_dash()
@@ -718,6 +772,41 @@ func _state_move(delta: float) -> void:
 		_start_charge()
 	elif _buffered != "":
 		_start_attack(_next_move(_buffered))
+
+
+## Idle or a run. The comic hero has a clip per direction relative to where he faces; they share
+## one cycle, so a change of clip carries on from the same step.
+func _play_locomotion(dir: Vector3) -> void:
+	if dir.length() <= 0.1:
+		if _comic_hero:
+			_comic_stand()
+		else:
+			_play("Idle", 0.12)
+	elif not _comic_hero:
+		_play("Running_A", 0.12)
+	else:
+		_fidget_t = ComicLook.FIDGET_EVERY
+		var clip := ComicLook.run_clip(dir, _facing(), anim.current_animation)
+		if clip == anim.current_animation:
+			return
+		var step := anim.current_animation_position if ComicLook.is_run_clip(anim.current_animation) else 0.0
+		_play(clip, 0.12)
+		anim.seek(step, true)
+
+
+## Standing still: on guard for a moment after a fight, then at ease, fidgeting now and then.
+func _comic_stand() -> void:
+	if _ready_t > 0.0:
+		_fidget_t = ComicLook.FIDGET_EVERY
+		_play(ComicLook.HERO_READY, 0.15)
+	elif anim.current_animation in ComicLook.HERO_FIDGETS:
+		return  # plays out; when it ends current_animation clears
+	elif _fidget_t <= 0.0:
+		_fidget_t = ComicLook.FIDGET_EVERY
+		_play(ComicLook.HERO_FIDGETS[_fidget_i], 0.25)
+		_fidget_i = (_fidget_i + 1) % ComicLook.HERO_FIDGETS.size()
+	else:
+		_play("Idle", 0.3)
 
 
 func _start_charge() -> void:
@@ -733,7 +822,7 @@ func _state_charge(delta: float) -> void:
 	var target := dir * move_speed * CHARGE_MOVE_MULT
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)
-	_face(dir)
+	_face(_mouse_dir() if _mouse_aiming() else dir)
 	var k := clampf(_state_t / CHARGE_TIME, 0.0, 1.0)
 	_charge_light.light_energy = k * 2.5
 	_charge_fx_t -= delta
@@ -849,6 +938,8 @@ func _stormfall() -> void:
 
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
+	if _mouse_aiming() and not _hop_air and _move_id != "AF":  # (in the air _air_home has him; AF has its spot)
+		_face(_turned(_aim_want(), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
 	# Lunge decays quickly so attacks feel snappy, not slidey.
 	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
 	var fwd := _facing()
@@ -1559,6 +1650,7 @@ func combo_window() -> Dictionary:
 
 func _start_attack(id: String) -> void:
 	_buffered = ""
+	_ready_t = ComicLook.READY_HOLD
 	if ULTIMATES.has(id):
 		_start_ult(id)
 		return
@@ -1585,7 +1677,7 @@ func _start_attack(id: String) -> void:
 	_chain_i = chain_after(id)
 	_post_dash_t = 0.0
 	_air_dash = false
-	_aim()
+	_aim(state == State.ATTACK)
 	if _hop_air:
 		_air_home()
 	if is_instance_valid(_gust_cloud) and not _move.get("air", false):
@@ -1631,10 +1723,23 @@ func _start_dash() -> void:
 	Game.sfx("dash", -4.0)
 
 
-## Soft lock-on: rotate toward the best enemy roughly in front of us.
-func _aim() -> void:
-	var dir := _input_dir()
+## Soft lock-on: rotate toward the best enemy roughly in front of us. `chained`: this move
+## follows another, so under mouse aim it only turns part of the way (see COMBO_REDIRECT).
+func _aim(chained := false) -> void:
+	var want := _aim_want()
+	if chained and _mouse_aiming():
+		_face(_turned(want, COMBO_REDIRECT))
+		return
+	_face(want)
+	model.rotation.y = _facing_yaw  # snap: attacks must point where they hit
+
+
+## Where an attack wants to point: the cursor (else the stick, else ahead), pulled onto a foe near that line.
+func _aim_want() -> Vector3:
+	var mouse := _mouse_aiming()
+	var dir := _mouse_dir() if mouse else _input_dir()
 	var want := dir.normalized() if dir.length() > 0.1 else _facing()
+	var max_angle := AIM_ASSIST_MOUSE_ANGLE if mouse else aim_assist_angle
 	var best: Node3D = null
 	var best_score := INF
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -1646,7 +1751,7 @@ func _aim() -> void:
 		if d > aim_assist_range or d < 0.01:
 			continue
 		var ang := rad_to_deg(want.angle_to(to / d))
-		if ang > aim_assist_angle:
+		if ang > max_angle:
 			continue
 		var score := d + ang * 0.05
 		if score < best_score:
@@ -1655,8 +1760,7 @@ func _aim() -> void:
 	if best:
 		want = best.global_position - global_position
 		want.y = 0.0
-	_face(want)
-	model.rotation.y = _facing_yaw  # snap: attacks must point where they hit
+	return want
 
 
 ## Juggle tracking (AIR_HOME_*): face the nearest airborne foe and lunge to
@@ -1851,14 +1955,6 @@ func _combo_callout(id: String) -> void:
 	_callout_tw.parallel().tween_property(_callout, "position:y", 3.2, 0.6).set_ease(Tween.EASE_OUT)
 	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.35)
 	_callout_tw.tween_callback(_callout.hide)
-	_comic_callout(id, tier)
-
-
-## Under Game.comic_style the panel cut-in names the combo, not the floating label.
-func _comic_callout(id: String, tier: int) -> void:
-	if Game.comic_style:
-		_callout.visible = false
-		ComicFx.combo(combo_name(id), tier)
 
 
 # --- Elements and ultimates ---------------------------------------------------
@@ -2807,7 +2903,7 @@ func ascend(path: String) -> void:
 	_form = HERO_LOOK.add_form(model, path)
 	for c in _coats:
 		c.queue_free()
-	_coats = HERO_LOOK.coat_axes(model, element())
+	_coats = _coat_axes()
 	HERO_LOOK.charge_coats(_coats, awakened)
 	if _asc_aura != null:
 		_asc_aura.queue_free()
@@ -3119,6 +3215,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 	# Awakened hero has super armor: takes damage but isn't staggered.
 	if not awakened:
 		_set_state(State.HURT)
+		_ready_t = ComicLook.READY_HOLD
 		_play("Hit_A", 0.05, true)
 
 
@@ -3130,4 +3227,4 @@ func _play(anim_name: String, blend := 0.1, restart := false) -> void:
 	if restart:
 		anim.seek(0.0, true)
 	# Locomotion plays at natural speed; actions are sped up for snappiness.
-	anim.speed_scale = 1.1 if anim_name in LOOPING else anim_speed * _anim_mult
+	anim.speed_scale = 1.1 if anim_name in LOOPING or anim_name in ComicLook.HERO_FIDGETS else anim_speed * _anim_mult

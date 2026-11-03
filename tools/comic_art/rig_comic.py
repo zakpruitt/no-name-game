@@ -98,8 +98,9 @@ def axe(name, grip, dirv, face, bit_mat, edge_mat, size, bone):
     return out
 mats_all = {m.name[2:].lower(): m for m in bpy.data.materials if m.name.startswith('P_') and m.name != 'P_Ink'}
 hd = J['hd']; mf = J['mf']
-axe('axe_storm', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), 'ice', 'bolt', .92, 'hand.r')
-axe('axe_magma', mf + V((.02, -.1, -.04)), (.06, -.8, .42), (1, 0, .1), 'rock', 'lava', 1.15, 'hand.l')
+AXE_SIZE = g['AXE_SIZE']  # abilities.py poses the blade tip on the floor from this
+axe('axe_storm', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), 'ice', 'bolt', AXE_SIZE, 'hand.r')
+axe('axe_magma', mf + V((.02, -.1, -.04)), (.06, -.8, .42), (1, 0, .1), 'rock', 'lava', AXE_SIZE, 'hand.l')
 
 C.ink_pass()
 print('clips', CLIPS)

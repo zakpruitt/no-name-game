@@ -1,11 +1,10 @@
 extends SceneTree
 ## Windowed look check for Game.comic_style, written before anyone could run it:
 ## one of each enemy type plus the Warden in the real room, camera and lighting,
-## then combat text at each chain tier and the panel cut-in. Compare with
+## then combat text at each chain tier. Compare with
 ## vendor_src/shaman_redesign/comic_poc/out/enemies/lineup_game.png.
 ##   godot --path . -s tests/comic_preview.gd
-## Saves user://comic_lineup.png, comic_words.png, comic_panel.png and, with
-## reduced flashing on (not saved), comic_panel_reduced.png.
+## Saves user://comic_lineup.png and comic_words.png.
 ## Check: hard cut tones, fixed-size dots at any distance, hatching in shadow, stepped
 ## glow, thick ink, hard cast shadows up and right, enemies facing the camera.
 
@@ -67,16 +66,6 @@ func _text(main: Node, game: Node) -> void:
 		fx._word(main.player.global_position + Vector3((tier - 1.5) * 4.0, 0.0, 2.0), tier)
 	await create_timer(0.2).timeout
 	_shot("user://comic_words.png")
-	fx._panel("Stormfall", 3)
-	await create_timer(0.25).timeout
-	_shot("user://comic_panel.png")
-	await create_timer(1.3).timeout
-	var saved: bool = game.reduce_flashing
-	game.reduce_flashing = true
-	fx._panel("Triple Chop", 1)
-	await create_timer(0.25).timeout
-	_shot("user://comic_panel_reduced.png")
-	game.reduce_flashing = saved
 
 
 func _shot(path: String) -> void:
