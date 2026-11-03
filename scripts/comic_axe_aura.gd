@@ -103,7 +103,7 @@ func charge(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	if _body != null:
+	if _body != null and is_visible_in_tree():  # (hidden: the arm is some other shape, with no blade to drag)
 		mark.track(tip_position(), _body.global_position.y)
 	mark.tick(delta)
 	var step := int(_t * STEPS_PER_S)

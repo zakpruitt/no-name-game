@@ -488,6 +488,7 @@ func _setup_input() -> void:
 	_bind("attack_heavy", [KEY_K], [MOUSE_BUTTON_RIGHT], [JOY_BUTTON_Y])
 	_bind("dash", [KEY_SPACE, KEY_SHIFT], [], [JOY_BUTTON_A])
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
+	_bind("special", [KEY_E], [], [JOY_BUTTON_LEFT_SHOULDER])
 	_bind("restart", [KEY_ENTER], [], [])
 	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
 

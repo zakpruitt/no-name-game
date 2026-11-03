@@ -78,7 +78,7 @@ def build_all():
     C.emit('P_StormGreen', (.02, .25, .16), (.86, 1, .72), mid=(.16, .85, .38))
     mats = {m.name[2:].lower(): m for m in bpy.data.materials if m.name.startswith('P_') and m.name != 'P_Ink'}
     bags = T.bags
-    for k, mat, smooth in (('void_arm', 'tendril', True), ('void_root', 'blight', True), ('void_surge', 'stormgreen', True), ('void_surge_core', 'stormgreen', True), ('left_rings', 'wind', True)):
+    for k, mat, smooth in (('void_arm', 'tendril', True), ('void_root', 'blight', True), ('void_surge', 'stormgreen', True), ('void_surge_core', 'stormgreen', True), ('left_rings', 'wind', True), ('void_seep', 'lava', True), ('void_frost', 'ice', False)):
         bags[k] = C.Bag(mat, smooth=smooth)
     # ---- the void arm, on the right arm's bones: thick at the shoulder, soft bends in it, thinning to the hand where the haft goes on
     sh, el, wr, hd = J['sh'], J['el'], J['wr'], J['hd']
@@ -104,13 +104,32 @@ def build_all():
             on.append(p + o * (r + .004)); top.append(p + o * (r + .004 + w * .7)); rs.append(w * (.5 + .5 * math.sin(math.pi * f)))
         C.tube(T.K('void_surge', T.ARM_R), on, rs, sides=4, sub=1, tval=.55)
         C.tube(T.K('void_surge_core', T.ARM_R), top, [x * .45 for x in rs], sides=4, sub=1, tval=1.0)
+    # the hammer's lava seeping down the arm, the spear's ice grown out of it. A few of each: the arm stays the loud thing, not these
+    def along(f):
+        k = min(int(f * (N - 1)), N - 2); p = path[k]; d = (path[k + 1] - p).normalized()
+        u = d.cross(V((0, 0, 1))).normalized(); v = d.cross(u)
+        x = f * (len(R) - 1); i = min(int(x), len(R) - 2)
+        return p, d, u, v, R[i] + (R[i + 1] - R[i]) * (x - i)
+    for a0, f0, f1 in ((.8, .1, .5), (3.5, .3, .7), (5.2, .55, .94)):
+        pts = []
+        for k in range(9):
+            p, d, u, v, r = along(f0 + (f1 - f0) * k / 8)
+            a = a0 + C.rng.uniform(-.28, .28)
+            pts.append(p + (u * math.cos(a) + v * math.sin(a)) * (r + .002))
+        C.tube(T.K('void_seep', T.ARM_R), pts, [.008, .022, .02, .018, .007], sides=5, sub=1, tval=.55)
+    for i, f in enumerate((.14, .3, .46, .62, .78, .9)):
+        p, d, u, v, r = along(f)
+        a = i * 2.1
+        o = u * math.cos(a) + v * math.sin(a)
+        L = .13 + .05 * (i % 3)
+        C.tube(T.K('void_frost', T.ARM_R), [p + o * (r * .6), p + o * (r + L * .5) + d * .025, p + o * (r + L) + d * .05], [.048, .038, .002], sides=4, sub=1, tval=.5)
     # ---- the left arm's air rings
     ms, me_, mw = J['ms'], J['me'], J['mw']
     la = ms + V((-.02, 0, -.01))
     _ring(T.K('left_rings', 'upperarm.l'), la.lerp(me_, .5), me_ - la, .155, .012, .4, .2)
     _ring(T.K('left_rings', 'lowerarm.l'), me_.lerp(mw, .3), mw - me_, .14, .011, 2.4, -.2)
     _ring(T.K('left_rings', 'lowerarm.l'), me_.lerp(mw, .85), mw - me_, .105, .009, 4.6, .22)
-    for k, ol in (('void_arm', .006), ('void_root', .004), ('void_surge', 0), ('void_surge_core', 0), ('left_rings', .003)):
+    for k, ol in (('void_arm', .006), ('void_root', .004), ('void_surge', 0), ('void_surge_core', 0), ('left_rings', .003), ('void_seep', 0), ('void_frost', .005)):
         C.make_obj(k, bags[k], mats, col, outline=ol)
     # rig_poc's flipbook code wants these to exist; export_comic_shaman leaves them out
     for i in range(3):

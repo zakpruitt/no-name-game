@@ -517,6 +517,11 @@ const COMIC_INK_WOBBLE := 0.25  # how much of the width varies over the form
 const COMIC_INK_PUSH := 0.08  # m behind the model, so a part's hull doesn't cover its neighbours
 
 ## Give every mesh under `root` a dark toon outline (inverted hull pass).
+## The outline material Fx.outline puts on the hero, for something built later (void_tendril.gd).
+static func ink_material() -> Material:
+	return _outline_mat
+
+
 static func outline(root: Node) -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # the dummy renderer errors on the shared override materials at exit

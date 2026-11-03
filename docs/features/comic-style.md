@@ -99,8 +99,8 @@ SKY and RUSH play one clip at the speed that reaches its hit frame at the impact
 One loud thing on him: his right arm is a purple void arm that shapes itself into his weapon. Earlier takes failed by
 having too much going on (a half-transformed lopsided body; two elemental arms plus two axes): keep him simple.
 
-- **Forms (planned):** axe by default, dragged, with storm along it. Hand to interact with the world. Hammer with lava and
-  earth, spear with ice and water, in combos. **Only the axe exists so far.** Stills of the others:
+- **Forms:** axe by default, dragged, with storm along it; hammer with lava and earth; spear with ice. They, E, and his
+  smaller moveset are in [void-arm.md](void-arm.md). The hand for interacting with the world is still only a still:
   `tools/comic_art/unfinished_poc/concept_void.py`.
 - **Body script:** `tools/comic_art/build_void.py` (the void arm, the left arm), on `build_tainted.py` (the shared body and its
   `K(mat, bones)` tags, read by the rig through `hint_of`: one bone pins, several bend as skin) and `build_comic.py`.

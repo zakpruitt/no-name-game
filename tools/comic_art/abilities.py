@@ -253,14 +253,26 @@ def backhand(keys):
             pose.update(carry(BACK_R[f], LOOSE_L))
         out.append((f, ease_, pose))
     return out
-ability('L2', 'Light 2', 'L L', 'KRANG!', 'echo', 26, backhand([
+# L L: the arm draws out into the spear and drives it straight ahead. (The axe's backhand was here: see git history in tools/comic_art.)
+THRUST_R = {5: dict(hand=(-.66, .28, 1.14), along=(.1, -.98, .12), edge=(-1, 0, 0), elbow=(-.7, .5, -.3)),
+            9: dict(hand=(-.36, -.62, 1.14), along=(.04, -1, .02), edge=(-1, 0, 0), elbow=(-.7, .05, -.6)),
+            14: dict(hand=(-.36, -.6, 1.12), along=(.04, -1, 0), edge=(-1, 0, 0), elbow=(-.7, .05, -.6))}
+BRACE_L = dict(hand=(.62, .22, .96), along=(0, 0, -1), edge=(1, 0, 0), elbow=(.7, .4, -.3))
+def thrust(keys, table):
+    out = []
+    for f, ease_, pose in keys:
+        if f in table:
+            pose = {k: v for k, v in pose.items() if not k.startswith(ARM_KEY)}
+            pose.update(carry(table[f], BRACE_L))
+        out.append((f, ease_, pose))
+    return out
+ability('L2', 'Light 2', 'L L', 'SHIING!', 'echo', 26, thrust([
     (0, 'smooth', READY),
-    (5, 'out', {'hips': {'rot': (0, 0, 16), 'loc': (0, .03, -.12)}, 'chest': (-8, 0, 36), 'head': (0, 0, -26), 'upperarm.l': (-110, 0, 54), 'lowerarm.l': (-16, 0, 20), 'upperarm.r': (10, 0, -26)}),
-    (8, 'in', {'rm': -.24, 'hips': {'loc': (0, -.1, .2)}, 'chest': (-2, 0, 8), 'upperarm.l': (-108, 0, 8), 'lowerarm.l': (-12, 0, 0), 'upperarm.r': (10, 0, -20), 'L': (0, -.05, .16), 'R': (0, -.1, .1)}),
-    (11, 'in', {'rm': -.46, 'hips': {'rot': (12, 0, -18), 'loc': (0, -.14, -.18)}, 'chest': (12, 0, -38), 'head': (-4, 0, 26), 'upperarm.l': (-74, 0, -72), 'lowerarm.l': (-4, 0, -36), 'upperarm.r': (-12, 0, 18), 'L': (0, -.1, 0), 'R': (0, .08, 0)}),
-    (15, 'out', {'rm': -.5, 'hips': {'rot': (12, 0, -20), 'loc': (0, -.14, -.18)}, 'chest': (14, 0, -42), 'head': (-4, 0, 28), 'upperarm.l': (-66, 0, -78), 'lowerarm.l': (-2, 0, -40), 'upperarm.r': (-12, 0, 18), 'L': (0, -.1, 0), 'R': (0, .08, 0)}),
-    (26, 'smooth', P(READY, rm=-.5)),
-]))
+    (5, 'out', {'hips': {'rot': (0, 0, -12), 'loc': (0, .08, -.12)}, 'chest': (-6, 0, -22), 'head': (-2, 0, 18)}),
+    (9, 'in', {'rm': -.5, 'hips': {'rot': (10, 0, 4), 'loc': (0, -.14, -.2)}, 'chest': (12, 0, 6), 'head': (-8, 0, -6), 'L': (0, .14, 0), 'R': (0, -.16, 0)}),
+    (14, 'out', {'rm': -.55, 'hips': {'rot': (11, 0, 5), 'loc': (0, -.14, -.2)}, 'chest': (13, 0, 7), 'head': (-8, 0, -6), 'L': (0, .14, 0), 'R': (0, -.16, 0)}),
+    (26, 'smooth', P(READY, rm=-.55)),
+], THRUST_R))
 # L L L Triple Chop: leaps, both axes over his head, comes down hard. Two colossal axes slam into a V
 CHOP_TOP = {'chest': (-24, 0, 0), 'head': (20, 0, 0), 'upperarm.r': (-62, 0, -12), 'lowerarm.r': (-26, 0, 0), 'upperarm.l': (-130, 0, 8), 'lowerarm.l': (-22, 0, 0)}
 CHOP_DOWN = {'chest': (30, 0, 0), 'head': (-22, 0, 0), 'upperarm.r': (-14, 0, 14), 'lowerarm.r': (0, 0, 0), 'hand.r': (20, 0, 0), 'upperarm.l': (-100, 0, -14), 'lowerarm.l': (-10, 0, 0), 'hand.l': (6, 0, 0)}
@@ -302,15 +314,18 @@ ability('H', 'Whirlwind', 'H', 'VRRRSH!', 'wheel', 50, [
     (50, 'smooth', P(READY, spin=-1080)),
 ])
 # Dash L Tomahawk: skids in, hurls the storm axe, catches it on the way back
-ability('DL', 'Dash Stab', 'Dash > L', 'SHIIING!', 'tomahawk', 48, [
+DASH_R = {6: dict(hand=(-.66, .3, 1.1), along=(.08, -.98, .1), edge=(-1, 0, 0), elbow=(-.7, .5, -.3)),
+          9: dict(hand=(-.36, -.62, 1.12), along=(.03, -1, .3), edge=(-1, 0, 0), elbow=(-.7, .05, -.6)),
+          14: dict(hand=(-.36, -.6, 1.12), along=(.03, -1, .3), edge=(-1, 0, 0), elbow=(-.7, .05, -.6))}
+ability('DL', 'Dash Stab', 'Dash > L', 'SHIIING!', 'tomahawk', 48, thrust([
     (0, 'smooth', P(READY, rm=0)),
-    (6, 'smooth', {'rm': -1.5, 'hips': {'rot': (24, 0, 0), 'loc': (0, 0, -.2)}, 'chest': (26, 0, -30), 'head': (-30, 0, 24), 'upperarm.r': (-150, 0, -30), 'lowerarm.r': (-46, 0, 0), 'upperarm.l': (-40, 0, 44), 'L': (0, .2, 0), 'R': (0, -.2, 0)}),
-    (9, 'in', {'rm': -1.75, 'hips': {'rot': (28, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (30, 0, 26), 'head': (-28, 0, -18), 'upperarm.r': (-50, 0, 30), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (-30, 0, 36), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
-    (14, 'out', {'rm': -1.75, 'hips': {'rot': (28, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (32, 0, 28), 'head': (-28, 0, -20), 'upperarm.r': (-44, 0, 34), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (-30, 0, 36), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
+    (6, 'smooth', {'rm': -1.5, 'hips': {'rot': (24, 0, 0), 'loc': (0, 0, -.2)}, 'chest': (20, 0, -18), 'head': (-24, 0, 14), 'upperarm.r': (-150, 0, -30), 'lowerarm.r': (-46, 0, 0), 'upperarm.l': (-40, 0, 44), 'L': (0, .2, 0), 'R': (0, -.2, 0)}),
+    (9, 'in', {'rm': -1.75, 'hips': {'rot': (14, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (10, 0, 5), 'head': (-12, 0, -4), 'upperarm.r': (-50, 0, 30), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (-30, 0, 36), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
+    (14, 'out', {'rm': -1.75, 'hips': {'rot': (15, 0, 0), 'loc': (0, -.1, -.26)}, 'chest': (11, 0, 6), 'head': (-12, 0, -4), 'upperarm.r': (-44, 0, 34), 'lowerarm.r': (6, 0, 0), 'upperarm.l': (-30, 0, 36), 'L': (0, .2, 0), 'R': (0, -.26, 0)}),
     (38, 'smooth', {'rm': -1.75, 'hips': {'rot': (6, 0, 0), 'loc': (0, 0, -.08)}, 'chest': (0, 0, -10), 'upperarm.r': (-60, 0, -20), 'lowerarm.r': (-30, 0, 0)}),
     (41, 'in', {'rm': -1.75, 'hips': {'rot': (0, 0, 0), 'loc': (0, .08, -.1)}, 'chest': (-10, 0, -16), 'upperarm.r': (-80, 0, -40), 'lowerarm.r': (-46, 0, 0)}),
     (48, 'smooth', P(READY, rm=-1.75)),
-])
+], DASH_R))
 # L H H Spike: flung high, points at the target, a colossal axe follows his dive down
 ability('LHH', 'Spike', 'L H H', 'CHUNK!', 'guillotine', 44, [
     (0, 'smooth', READY),
@@ -564,6 +579,34 @@ def listen_pose(f):
     o['hips'] = dict(o['hips'], loc=(o['hips']['loc'][0], 0, -.09 + .012 * hush * math.sin(f / LISTEN_T * TAU)))
     return o
 keys = [(f, 'smooth', listen_pose(f)) for f in range(LISTEN_T + 1)]
+# E: the arm lets go of its shape and shoots out; the game draws the tentacle from the hand (void_tendril.gd)
+REACH_R = {4: dict(hand=(-.7, .2, 1.2), along=(.1, -.9, .3), edge=(-1, 0, 0), elbow=(-.7, .5, -.3)),
+           7: dict(hand=(-.34, -.62, 1.22), along=(0, -1, .1), edge=(-1, 0, 0), elbow=(-.7, .05, -.6)),
+           13: dict(hand=(-.36, -.58, 1.2), along=(0, -1, .1), edge=(-1, 0, 0), elbow=(-.7, .05, -.6))}
+ability('GR', 'Tendril Grab', 'E', 'SNAP!', '', 24, thrust([
+    (0, 'smooth', READY),
+    (4, 'out', {'hips': {'rot': (0, 0, -14), 'loc': (0, .06, -.1)}, 'chest': (-4, 0, -24), 'head': (-4, 0, 18)}),
+    (7, 'in', {'rm': -.2, 'hips': {'rot': (8, 0, 14), 'loc': (0, -.1, -.16)}, 'chest': (10, 0, 28), 'head': (-8, 0, -20), 'L': (0, .1, 0), 'R': (0, -.12, 0)}),
+    (13, 'out', {'rm': -.2, 'hips': {'rot': (2, 0, 10), 'loc': (0, .02, -.14)}, 'chest': (-2, 0, 22), 'head': (-4, 0, -16), 'L': (0, .1, 0), 'R': (0, -.12, 0)}),
+    (24, 'smooth', P(READY, rm=-.2)),
+], REACH_R))
+# E off a string: the tentacle heaves what it holds over him and brings it down in front of him
+SLAM_R = {4: dict(hand=(-.7, .28, .98), along=(-.1, .6, -.7), edge=(-1, 0, 0), elbow=(-.7, .5, -.2)),
+          10: dict(hand=(-.5, -.1, 1.86), along=(-.1, .1, 1), edge=(-1, 0, 0), elbow=(-.8, .2, .1)),
+          14: dict(hand=(-.44, -.56, .82), along=(0, -.8, -.6), edge=(-1, 0, 0), elbow=(-.7, .1, -.6)),
+          22: dict(hand=(-.44, -.54, .78), along=(0, -.8, -.6), edge=(-1, 0, 0), elbow=(-.7, .1, -.6))}
+ability('VS', 'Tendril Slam', 'E', 'WHAM!', '', 36, thrust([
+    (0, 'smooth', READY),
+    (4, 'out', {'hips': {'rot': (14, 0, -8), 'loc': (0, .08, -.24)}, 'chest': (18, 0, -14), 'head': (-20, 0, 8)}),
+    (10, 'smooth', {'hips': {'rot': (-12, 0, -6), 'loc': (0, .02, .1)}, 'chest': (-26, 0, -12), 'head': (20, 0, 6), 'L': (0, .04, .08), 'R': (0, .06, .04)}),
+    (14, 'in', {'rm': -.3, 'hips': {'rot': (28, 0, 8), 'loc': (0, -.12, -.34)}, 'chest': (38, 0, 12), 'head': (-30, 0, -8), 'L': (0, .14, 0), 'R': (0, -.16, 0)}),
+    (22, 'out', {'rm': -.3, 'hips': {'rot': (30, 0, 8), 'loc': (0, -.12, -.36)}, 'chest': (40, 0, 12), 'head': (-32, 0, -8), 'L': (0, .14, 0), 'R': (0, -.16, 0)}),
+    (36, 'smooth', P(READY, rm=-.3)),
+], SLAM_R))
+# Swinging on the tentacle: the arm up to it, legs trailing. Held, not a cycle.
+HANG = dict(carry(dict(hand=(-.46, -.12, 1.9), along=(-.1, -.1, 1), edge=(-1, 0, 0), elbow=(-.8, .2, .1)), dict(hand=(.66, .3, 1.0), along=(0, 0, -1), edge=(1, 0, 0), elbow=(.7, .4, -.2))),
+            hips={'rot': (-16, 0, 8), 'loc': (0, 0, .1)}, chest=(-14, 0, -10), head=(12, 0, 6), L=(-.05, .24, .3), R=(.07, .36, .16))
+AB['Ab_Swing'] = keyed('Ab_Swing', 8, [(0, 'smooth', HANG), (8, 'smooth', HANG)])
 AB['Idle_Listen'] = keyed('Idle_Listen', LISTEN_T, keys, drag=.1)
 
 # ---------------------------------------------------------------- the rest of what he does between moves

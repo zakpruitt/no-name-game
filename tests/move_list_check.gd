@@ -47,6 +47,8 @@ func _check_rows() -> void:
 
 func _check_combo_inputs() -> void:
 	for id: String in PLAYER.COMBOS:
+		if id in LIST.VOID_ONLY:
+			continue
 		var input: String = PLAYER.COMBOS[id].input
 		var got := _press(input.replace(" (Awakened)", ""), "(Awakened)" in input)
 		_check(got == PLAYS_AS.get(id, id), "COMBOS %s input '%s' starts %s" % [id, input, got])
@@ -54,6 +56,8 @@ func _check_combo_inputs() -> void:
 
 func _check_all_listed() -> void:
 	for id: String in PLAYER.MOVES.keys() + PLAYER.COMBOS.keys() + PLAYER.ULTIMATES.keys():
+		if id in LIST.VOID_ONLY:
+			continue
 		_check(_listed(id, "move"), "%s isn't on the move list" % id)
 	for id: String in PLAYER.BREAKERS:
 		_check(_listed(id, "breaker"), "breaker %s isn't on the move list" % id)

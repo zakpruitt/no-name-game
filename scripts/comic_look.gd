@@ -116,7 +116,7 @@ const RUN_STICK := 1.25
 ## base MOVES' fractions were tuned against (ultimates are timed in s, so have none).
 const HERO_MOVES := {
 	"L1": {"clip": "Ab_L1", "hit": 8, "frames": 25, "old": 1.0},
-	"L2": {"clip": "Ab_L2", "hit": 11, "frames": 27, "old": 1.3667},
+	"L2": {"clip": "Ab_L2", "hit": 9, "frames": 27, "old": 1.3667},
 	"L3": {"clip": "Ab_L3", "hit": 18, "frames": 45, "old": 1.2667},
 	"LH": {"clip": "Ab_LH", "hit": 12, "frames": 41, "old": 2.1},
 	"LLH": {"clip": "Ab_LLH", "hit": 16, "frames": 47, "old": 1.6},
@@ -136,6 +136,16 @@ const HERO_MOVES := {
 }
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).
+## The void arm's shapes: the meshes each shows, the axe's and the others' own element on the arm with them.
+const HERO_FORMS := {
+	"axe": ["axe_void_haft", "axe_void_blade", "axe_void_edge", "axe_void_core", "void_surge", "void_surge_core"],
+	"hammer": ["hammer_void_haft", "hammer_void_head", "hammer_void_rock", "hammer_void_lava", "void_seep"],
+	"spear": ["spear_void_haft", "spear_void_collar", "spear_void_ice", "void_frost"],
+	"hand": [],
+}
+## The shape each move asks for; anything not here is the axe.
+const HERO_MOVE_FORMS := {"L2": "spear", "DL": "spear", "L3": "hammer", "CH": "hammer", "GR": "hand", "VS": "hand"}
+const VOID_COLOR := Color(0.62, 0.34, 0.92)
 const HERO_AXES := {"hand.r": "axe_void_blade"}
 const HERO_AXE_EDGES := {"hand.r": "axe_void_edge"}
 ## Before an Ascendancy his axe is the storm: its aura and floor mark are wind's, in its own materials.

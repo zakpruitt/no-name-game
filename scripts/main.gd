@@ -1371,6 +1371,7 @@ func _apply_layout(index: int) -> void:
 	_traps.clear()
 	for p: Vector3 in layout.pillars:
 		var pillar := _place("pillar_decorated", p)
+		pillar.add_to_group("grab_anchors")  # the void arm swings on them (void_grab.gd)
 		_cyl_collider(pillar, 0.75, 4.0)
 		_occluders.append(pillar)
 		if first:

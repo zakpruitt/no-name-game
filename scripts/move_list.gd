@@ -16,6 +16,35 @@ extends RefCounted
 
 const RITES := preload("res://scripts/element_rite.gd")
 
+## The comic hero's moves while the void arm is being worked out (player.void_route()).
+const VOID_SECTIONS := [
+	{"title": "WEAPONS", "rows": [
+		{"input": "L", "kind": "move", "id": "L1", "note": "Axe: the arm's resting shape, chopped across."},
+		{"input": "L L", "kind": "move", "id": "L2", "note": "Spear: the arm draws out and drives ahead."},
+		{"input": "L L L", "kind": "move", "id": "L3", "note": "Hammer: a leap, then down with lava."},
+		{"input": "H", "kind": "move", "id": "H", "note": "Axe spin for crowds."},
+		{"input": "hold H", "kind": "move", "id": "CH", "note": "Hammer: a charged slam."},
+		{"input": "Dash L", "kind": "move", "id": "DL", "note": "Spear: a lunge off a dash, or off a swing."},
+		{"input": "Dash H", "kind": "move", "id": "DH", "note": "Axe: a spinning dash."},
+	]},
+	{"title": "TENTACLE", "rows": [
+		{"input": "E", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
+		{"input": "E at a pillar", "kind": "text", "name": "Swing", "note": "Swings round it and flings him off the way he was going. Hold E to go round longer."},
+		{"input": "E off any move", "kind": "move", "id": "VS", "note": "Heaves the foe overhead and slams it into the floor."},
+		{"input": "L L L E", "kind": "move", "id": "SHAPEBREAKER", "note": "Axe, spear, hammer, then the slam, at full power."},
+	]},
+]
+
+
+## Only the comic hero has these, so route() and SECTIONS never see them (tests/void_arm_check.gd walks them).
+const VOID_ONLY := ["GR", "VS", "SHAPEBREAKER"]
+
+
+## What the pause menu lists for this hero.
+static func sections_for(player: Node) -> Array:
+	return VOID_SECTIONS if player != null and player.get("_void") != null else SECTIONS
+
+
 const SECTIONS := [
 	{"title": "BASICS", "rows": [
 		{"input": "L", "kind": "move", "id": "L1", "note": "Opens the light chain."},

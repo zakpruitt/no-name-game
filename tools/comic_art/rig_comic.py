@@ -112,7 +112,48 @@ def axe(name, grip, dirv, face, size, bone):
         grp = o.vertex_groups.new(name=bone); grp.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
         mod = o.modifiers.new('Skin', 'ARMATURE'); mod.object = PR; o.modifiers.move(o.modifiers.find('Skin'), 0)
         o.parent = PR
+def _skin_form(name, Bg, outlines, bone):
+    for k, bag in Bg.items():
+        o, _ = C.make_obj(name + '_' + k, bag, mats_all, scn.collection, outline=outlines.get(k, .007))
+        grp = o.vertex_groups.new(name=bone); grp.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+        mod = o.modifiers.new('Skin', 'ARMATURE'); mod.object = PR; o.modifiers.move(o.modifiers.find('Skin'), 0)
+        o.parent = PR
+
+def hammer(name, grip, dirv, face, size, bone):
+    # the arm thickens to a six-sided block, one face a rock ring round a pool of lava: `face` is the end that lands
+    dv = V(dirv).normalized(); fw = V(face).normalized(); fw = (fw - dv * fw.dot(dv)).normalized(); side = dv.cross(fw).normalized()
+    Bg = {'haft': C.Bag('tendril'), 'head': C.Bag('voidhard', smooth=False), 'rock': C.Bag('rock', smooth=False), 'lava': C.Bag('lava')}
+    top = grip + dv * (.78 * size)
+    C.tube(Bg['haft'], [grip - dv * .05, grip + dv * (.4 * size), top], [.076, .062, .08], sides=9, sub=2, tval=.5)
+    c = top + dv * .12
+    C.tube(Bg['head'], [c - fw * .46, c - fw * .36, c + fw * .36, c + fw * .46], [.2, .27, .27, .2], sides=6, sub=1, tval=.5)
+    C.tube(Bg['lava'], [c + fw * .43, c + fw * .495, c + fw * .505], [.2, .17, .002], sides=6, sub=1, tval=.55)
+    C.blob(Bg['lava'], c + fw * .508, (.07, .07, .07), seg=8, rings=6, t=.9)
+    for i in range(6):
+        a = i / 6 * 6.283 + .3
+        o_ = side * math.cos(a) + dv * math.sin(a)
+        C.rock(Bg['rock'], c + fw * .43 + o_ * .235, (.1, .1, .1), sub=1, jit=.12)
+        if i % 2 == 0:   # lava runs back down the block from the face
+            o2 = side * math.cos(a + .5) + dv * math.sin(a + .5)
+            C.tube(Bg['lava'], [c + fw * .39 + o2 * .27, c + fw * .21 + o2 * .275, c + fw * .04 + o2 * .272], [.018, .012, .002], sides=4, sub=1, tval=.55)
+    _skin_form(name, Bg, {'lava': 0}, bone)
+
+def spear(name, grip, dirv, face, size, bone):
+    # the arm drawn out straight, a hard collar, then a long ice point past the collar with two barbs
+    dv = V(dirv).normalized(); fw = V(face).normalized(); fw = (fw - dv * fw.dot(dv)).normalized(); side = dv.cross(fw).normalized()
+    Bg = {'haft': C.Bag('tendril'), 'collar': C.Bag('voidhard', smooth=False), 'ice': C.Bag('ice', smooth=False)}
+    end = grip + dv * (.82 * size)
+    C.tube(Bg['haft'], [grip - dv * .05, grip + dv * (.4 * size), end], [.076, .056, .05], sides=8, sub=2, tval=.5)
+    C.tube(Bg['collar'], [end - dv * .05, end + dv * .14, end + dv * .34], [(.1, .04), (.125, .045), (.07, .03)], sides=4, sub=1, side=fw, tval=.5)
+    C.tube(Bg['ice'], [end + dv * .24, end + dv * .42, end + dv * .78, end + dv * 1.2], [(.075, .04), (.135, .06), (.08, .036), (.002, .002)], sides=4, sub=1, side=fw, tval=.6)
+    for sgn in (1, -1):
+        b0 = end + dv * .3 + fw * (sgn * .06)
+        C.tube(Bg['ice'], [b0, b0 + fw * (sgn * .1) - dv * .08, b0 + fw * (sgn * .2) - dv * .22], [.04, .026, .002], sides=4, sub=1, tval=.5)
+    _skin_form(name, Bg, {}, bone)
+
 axe('axe_void', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), AXE_SIZE, 'hand.r')
+hammer('hammer_void', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), AXE_SIZE, 'hand.r')
+spear('spear_void', hd + V((-.03, -.05, .03)), (-.22, -.28, 1), (-1, -.3, .1), AXE_SIZE, 'hand.r')
 
 C.ink_pass()
 print('clips', CLIPS)

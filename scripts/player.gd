@@ -9,7 +9,7 @@ signal died
 signal attack_started(move_id: String)
 signal combo_found(id: String)  # a named combo landed for the first time this run
 
-enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD, LEAP }
+enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD, LEAP, SWING }
 
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
@@ -72,6 +72,10 @@ const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
 		"stop": 0.045, "shake": 0.12},
+	"GR": {"anim": "Ab_GR", "damage": 6.0, "range": 9.0, "arc": 360.0, "hits": [0.24], "cancel": 0.42, "end": 0.66,
+		"lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.14},
+	"VS": {"anim": "Ab_VS", "damage": 24.0, "range": 3.8, "arc": 150.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
+		"lunge": 1.5, "knockback": 3.0, "launch": 6.0, "big": true, "stop": 0.09, "shake": 0.42},
 	"L2": {"anim": "Throw", "damage": 9.0, "range": 2.5, "arc": 160.0,
 		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
 		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6]},
@@ -151,6 +155,8 @@ const MOVES := {
 # pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
 const COMBOS := {
 	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
+	"VS": {"name": "Tendril Slam", "input": "E E", "tier": 1},
+	"SHAPEBREAKER": {"name": "Shapebreaker", "input": "L L L E", "tier": 3},
 	"LPL": {"name": "Flurry", "input": "L L, pause, L", "tier": 1},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
 	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
@@ -284,6 +290,11 @@ const RANK_COLORS: Dictionary = preload("res://scripts/hud.gd").RANK_COLORS
 const LAST_KILL_SLOWMO := 0.55  # real seconds of slow motion on the fight's final blow
 const COMBO_SFX_DB := -9.0
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
+const VOID_GRAB := preload("res://scripts/void_grab.gd")
+const VOID_ARM := preload("res://scripts/void_arm.gd")
+const SWING_INVULN := 1.4  # s, on the tentacle (void_grab.gd)
+const PULL_INVULN := 0.8
+const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
 # Charging (hold heavy from neutral): release before CHARGE_TIME for the
 # normal spin (H), after it for the charged slam (CH). You can creep while
 # charging at CHARGE_MOVE_MULT speed; dash cancels the charge.
@@ -424,6 +435,8 @@ var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _trails: Array = []
 var _comic_hero := false  # model is ComicLook.HERO, not the KayKit Barbarian
+var _void: Node  # his grab and slam (void_grab.gd), the comic hero only
+var _fling_t := 0.0  # s left flying off a swing
 var _ready_t := 0.0  # comic hero: s left in the guard after a fight
 var _fidget_t: float = ComicLook.FIDGET_EVERY  # comic hero: s until he next fidgets
 var _fidget_i := 0
@@ -521,6 +534,13 @@ func _ready() -> void:
 			_add_trail(blade)
 	anim = model.find_child("AnimationPlayer", true, false)
 	_coats = _coat_axes()  # after _meshes: coats are swapped on ascend
+	if _comic_hero:
+		var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+		var void_arm := VOID_ARM.new()
+		void_arm.setup(self, model, skel)
+		_void = VOID_GRAB.new()
+		add_child(_void)
+		_void.setup(self, void_arm, skel)
 	for a in LOOPING:
 		if anim.has_animation(a):
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -643,6 +663,7 @@ func _physics_process(delta: float) -> void:
 		State.CHARGE: _state_charge(delta)
 		State.ULT: _state_ult(delta)
 		State.LEAP: _state_leap(delta)
+		State.SWING: _void.travel_tick(delta)
 		State.DEAD:
 			velocity.x = move_toward(velocity.x, 0.0, 40.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 40.0 * delta)
@@ -675,6 +696,7 @@ func _tick_timers(delta: float) -> void:
 	_dash_buffer_t -= delta
 	_dash_cd -= delta
 	_post_dash_t -= delta
+	_fling_t -= delta
 	_invuln_t -= delta
 	_chain_reset_t -= delta
 	if _buffer_t <= 0.0:
@@ -696,6 +718,9 @@ func _read_input() -> void:
 		_buffer_t = input_buffer
 	elif Input.is_action_just_pressed("attack_heavy"):
 		_buffered = "heavy"
+		_buffer_t = input_buffer
+	elif _void != null and Input.is_action_just_pressed("special"):
+		_buffered = "special"
 		_buffer_t = input_buffer
 	if Input.is_action_just_pressed("dash"):
 		_dash_buffer_t = input_buffer
@@ -763,8 +788,9 @@ func _state_move(delta: float) -> void:
 	var dir := _input_dir()
 	var speed := move_speed * (1.2 * _path("speed", 1.0) if awakened else 1.0)
 	var target := dir * speed
-	velocity.x = move_toward(velocity.x, target.x, accel * delta)
-	velocity.z = move_toward(velocity.z, target.z, accel * delta)
+	var grip := accel * (FLING_ACCEL_MULT if _fling_t > 0.0 else 1.0)
+	velocity.x = move_toward(velocity.x, target.x, grip * delta)
+	velocity.z = move_toward(velocity.z, target.z, grip * delta)
 	_face(_mouse_dir() if _mouse_aiming() else dir)
 	_play_locomotion(dir)
 
@@ -940,6 +966,8 @@ func _stormfall() -> void:
 
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
+	if _void != null:
+		_void.attack_tick(t, delta)
 	if _mouse_aiming() and not _hop_air and _move_id != "AF":  # (in the air _air_home has him; AF has its spot)
 		_face(_turned(_aim_want(), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
 	# Lunge decays quickly so attacks feel snappy, not slidey.
@@ -1015,6 +1043,8 @@ func _state_hurt(delta: float) -> void:
 func _set_state(s: State) -> void:
 	state = s
 	_state_t = 0.0
+	if _void != null:
+		_void.on_state(s)
 	if s != State.CHARGE:
 		_charge_light.light_energy = 0.0
 
@@ -1472,7 +1502,25 @@ func _end_leap() -> void:
 # --- Actions ----------------------------------------------------------------
 
 func _next_move(kind: String) -> String:
-	return route(kind, _route_from(), state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened, _gusted)
+	return _routed(kind, _route_from(), state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened, _gusted)
+
+
+## route() for the hero he is: the comic hero has his own, smaller move set for now.
+func _routed(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool, gusted: bool) -> String:
+	if _comic_hero:
+		return void_route(kind, from, attacking, chain, post_dash)
+	return route(kind, from, attacking, chain, post_dash, awake, gusted)
+
+
+## The comic hero's presses. Lights run the weapons: axe, spear, hammer. E off anything is the slam
+## (so L L L E is the whole string into it), from neutral the grab. No air string or ultimates while
+## the void arm's moves are worked out; route() below is untouched for them to come back to.
+static func void_route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
+	if kind == "special":
+		return "VS" if attacking and from != "VS" else "GR"
+	if kind == "light":
+		return "DL" if post_dash else LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
+	return "DH" if post_dash and not attacking else "H"
 
 
 ## The `from` route() sees: "AD" just out of an air dash, else the last move.
@@ -1570,8 +1618,13 @@ func combo_options() -> Array:
 	if state == State.CHARGE:
 		return [_option("heavy", "CH", true)]
 	var rows := []
-	for kind: String in ["light", "heavy"]:
-		var id := route(kind, _route_from(), attacking, _chain_i, dashing, awakened, _gusted)
+	var kinds: Array[String] = ["light", "heavy"]
+	if _comic_hero:
+		kinds.append("special")
+	for kind: String in kinds:
+		var id := _routed(kind, _route_from(), attacking, _chain_i, dashing, awakened, _gusted)
+		if kind == "special" and id != "VS":
+			continue  # the grab isn't a continuation
 		if kind == "heavy" and id == "H":
 			continue  # the plain spin isn't a continuation
 		var o := _option(kind, id)
@@ -1580,7 +1633,7 @@ func combo_options() -> Array:
 			o.name = combo_name(fall)  # from up here it plunges as Skyfall / Stormfall (named_id())
 			o.tier = COMBOS[fall].tier
 		if attacking:
-			var wait := route(kind, _move_id, false, _chain_i, false, awakened, _gusted)
+			var wait := _routed(kind, _move_id, false, _chain_i, false, awakened, _gusted)
 			if wait != id and COMBOS.has(wait):
 				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
 		rows.append(o)
@@ -1621,8 +1674,8 @@ func _option(kind: String, id: String, hold := false) -> Dictionary:
 		"ult": ULTIMATES.has(id) or id == "AF", "hold": hold, "next": {}}
 	if o.tier < 3 and not hold:
 		var best := 0
-		for k: String in ["heavy", "light"]:  # heavy first: wins ties
-			var n := route(k, id, true, chain_after(id), false, awakened, _gusted or id == "AH")
+		for k: String in (["special", "heavy", "light"] if _comic_hero else ["heavy", "light"]):  # heavy first: wins ties
+			var n := _routed(k, id, true, chain_after(id), false, awakened, _gusted or id == "AH")
 			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
 			if combos_landed.get(n, 0) >= GUIDE_LEARNED and not (ULTIMATES.has(n) or n == "AF"):
 				tier = 0  # learned: no need to hint it any more
@@ -1656,6 +1709,9 @@ func _start_attack(id: String) -> void:
 	if ULTIMATES.has(id):
 		_start_ult(id)
 		return
+	if id == "GR" and _void.begin():
+		return
+	var prev_id := _move_id
 	_move_id = id
 	_move = _effective_move(id)
 	_anim_mult = _base_anim_mult() * _move.get("speed", 1.0)
@@ -1692,6 +1748,8 @@ func _start_attack(id: String) -> void:
 		if not is_instance_valid(_gust_cloud):
 			_gust_cloud = AIR_GUST.cloud(model, _fx_color())
 	_set_state(State.ATTACK)
+	if _void != null:
+		_void.on_move(id, prev_id)
 	attack_started.emit(id)
 	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH", "AH"] else "swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
@@ -1796,6 +1854,11 @@ func _air_home() -> void:
 
 
 func _do_hit() -> void:
+	if _move_id == "GR":
+		_void.strike()
+		return
+	if _move_id == "VS":
+		_void.slam_lands()
 	var fwd := _facing()
 	var named_before := _callout_done  # a combo ender lands its extra punch once
 	_swoosh(fwd)
@@ -1896,6 +1959,8 @@ func _do_hit() -> void:
 				if e.is_alive() and not e.is_airborne() and to.length() < r:
 					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
 					Game.register_hit("skybreaker")
+	if _move_id == "VS":
+		_void.slam_landed()
 	if _move_id == "LPL" and _hits_done == _move.hits.size() and has_upgrade("razor_gale"):
 		_razor_gale(fwd)
 	if _move_id == "DH" and has_upgrade("eye_of_storm"):
@@ -2883,6 +2948,8 @@ func _path(key: String, fallback: float) -> float:
 ## The COMBOS id the current move lands as: Triple Chop from the top of the
 ## air string is Skyfall, otherwise the move itself.
 func named_id() -> String:
+	if _move_id == "VS" and _void.after_string:
+		return "SHAPEBREAKER"
 	if _move_id == "L3" and _hop_y0 >= STORMFALL_FROM:
 		return "STORMFALL"
 	if _move_id == "L3" and _hop_y0 >= PLUNGE_AXES_FROM:
