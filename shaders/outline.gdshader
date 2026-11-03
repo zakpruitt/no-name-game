@@ -9,9 +9,14 @@ uniform float width_px = 3.5;
 // 0 = even line. Above 0 the width swells and thins over the form (comic_lib.ink_pass),
 // heavier underneath, like a brush.
 uniform float wobble = 0.0;
+// Metres to push the hull away from the camera. A model built of many parts draws a hull per
+// part; pushed back, a hull only shows past a neighbour when the two are really apart in depth.
+uniform float depth_push = 0.0;
 
 void vertex() {
-	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	view.z -= depth_push;
+	vec4 clip = PROJECTION_MATRIX * view;
 	vec3 view_normal = normalize(MODELVIEW_NORMAL_MATRIX * NORMAL);
 	vec2 dir = (PROJECTION_MATRIX * vec4(view_normal, 0.0)).xy;
 	if (length(dir) > 0.0001) {
