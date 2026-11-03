@@ -6,6 +6,9 @@
 # Ink is geometry: seams are real gaps over a black core, cracks and hatching are thin tapered strips, so the
 # line work survives any export and needs no texture. Vertex attribute 'g' is a per-stone tone (0.5 = neutral).
 import bpy, sys, os, math, random
+import bmesh
+from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 sys.path.insert(0, r"C:\Users\pruit\Desktop\dev\awaken\vendor_src\shaman_redesign\comic_poc")
 import comic_lib as C
 from mathutils import Vector as V
@@ -85,16 +88,60 @@ def fit(p):
                 d = hi[i] - lo[i]
                 v[i] = lo0[i] + (v[i] - lo[i]) * (hi0[i] - lo0[i]) / d if d > 1e-6 else lo0[i]
 
+def face_out(objs):
+    """recalc_face_normals can only guess which way an open patch faces, and Blender draws both
+    sides so it never shows, but the game culls: about a fifth of the floor stones came out facing
+    down, showing the grout slab. Level patches face up (the camera is above). Any other flat patch
+    with a surface closer in front than behind it is turned round. Closed shapes are already right."""
+    verts, polys = [], []
+    for o in objs:
+        n = len(verts)
+        verts += [tuple(v.co) for v in o.data.vertices]
+        polys += [[n + i for i in q.vertices] for q in o.data.polygons]
+    bvh = BVHTree.FromPolygons(verts, polys)
+    flipped = 0
+    for o in objs:
+        bm = bmesh.new(); bm.from_mesh(o.data); seen = set()
+        for start in bm.faces:
+            if start.index in seen: continue
+            island, todo = [], [start]; seen.add(start.index)
+            while todo:
+                f = todo.pop(); island.append(f)
+                for e in f.edges:
+                    for g in e.link_faces:
+                        if g.index not in seen: seen.add(g.index); todo.append(g)
+            if not any(e.is_boundary for f in island for e in f.edges): continue
+            area = sum(f.calc_area() for f in island)
+            if area < 1e-6: continue
+            mean = sum((f.normal * f.calc_area() for f in island), Vector()) / area
+            if mean.length < .98: continue
+            mean.normalize()
+            if abs(mean.z) > .98:
+                flip = mean.z < 0
+            else:
+                at = sum((f.calc_center_median() * f.calc_area() for f in island), Vector()) / area
+                front = bvh.ray_cast(at + mean * 1e-3, mean, .2)[3]
+                back = bvh.ray_cast(at - mean * 1e-3, -mean, .2)[3]
+                flip = front is not None and (back is None or front < back)
+            if flip:
+                bmesh.ops.reverse_faces(bm, faces=island); flipped += 1
+        bm.to_mesh(o.data); bm.free(); o.data.update()
+    return flipped
+
 def finish(p, col=None):
     """Bags to objects under an empty named after the piece. Returns the empty."""
     M = env_materials(); col = col or bpy.context.scene.collection
     fit(p)
     root = bpy.data.objects.new(p.name, None); col.objects.link(root)
+    objs = []
     for (node, mat, smooth), b in p.bags.items():
         if not b.v: continue
         o, _ = C.make_obj('%s~%s~%s' % (p.name, node, mat), b, M, col, outline=HULL.get(mat, 0))
         o.parent = root; o['env_node'] = node; o['env_mat'] = mat
-        if HULL.get(mat): C.ink_pass(scale=1.0, min_w=.5, objs=[o])
+        objs.append(o)
+    face_out(objs)
+    for o in objs:
+        if HULL.get(o['env_mat']): C.ink_pass(scale=1.0, min_w=.5, objs=[o])
     return root
 
 # ------------------------------------------------------------------ primitives
