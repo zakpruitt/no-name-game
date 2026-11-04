@@ -33,6 +33,28 @@ const WORD_HEAD := 1.6  # metres above the foe's feet
 const WORD_JITTER := 34.0
 const WORD_TILT := 0.11
 const WORD_ALPHA_REDUCED := 0.8
+## The signature moves' own words (by move id), said on the move's first hit instead of a generic one,
+## sized by its combo tier (player.COMBOS) plus the chain; the breakers' words on landing, biggest of all.
+const MOVE_WORDS := {
+	"EC": "FWOOSH!", "EE": "ZZZAKT!", "EW": "KZZRAAK!",  # wind
+	"EF": "THUNK!", "EA": "KLONK!", "IP": "SHKKT!", "IS": "KRRSSH!",  # water
+	"EM": "KA-POW!", "EV": "GLORP!",  # earth
+	"VS": "VWOOM!", "VR": "SHUNK!", "VD": "SPLOOSH!", "OW": "SKRONCH!", "TW": "YOINK!",  # dark
+}
+const BREAKER_WORDS := {
+	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
+	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
+}
+const BREAKER_SCALE := 1.0
+## Words go ahead of the hero, in the emptiest of these directions (degrees off the way to the hit).
+const SPOT_ANGLES := [0.0, -35.0, 35.0, -70.0, 70.0, -110.0, 110.0, 180.0]
+const SPOT_TURN_COST := 0.5  # px of clearance a degree of turning away from ahead costs
+const SPOT_RINGS := [75.0, 170.0]  # px from the hero's middle to the word's edge
+const SPOT_FAR_COST := 30.0  # px of clearance the outer ring costs
+const SPOT_ENOUGH := 220.0  # px of clearance that's as good as any more
+const HERO_PAD_PX := 55.0
+const FOE_PAD_PX := 40.0  # a foe counts as this big round its chest
+const SAME_FRAME_MS := 60  # a signature word replaces a generic one born this recently
 # Keeps a word on the page, as comic_vfx._on_page: side margin, top and bottom bands.
 const PAGE_MARGIN := Vector2(0.1, 0.14)
 
@@ -43,6 +65,8 @@ var _words: Array[Label] = []
 var _born: Array[int] = []  # ms, per word; 0 = free
 var _next := 0
 var _last_word_ms := -100000
+var _move_seen := ""  # the hero's move whose word has been said
+var _breakers_seen := 0
 
 
 ## A hit landed at `world`.
@@ -110,16 +134,105 @@ func _word(world: Vector3, tier: int) -> void:
 	l.text = options.pick_random()
 	l.reset_size()
 	l.pivot_offset = l.size * 0.5
-	var at := _on_page(_to_screen(world) + Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * WORD_JITTER, l.size * WORD_SCALE[tier])
+	_show(i, world, WORD_SCALE[tier])
+
+
+## Puts word `i` up at `base` scale, in empty space near the hero on the way to `world`.
+func _show(i: int, world: Vector3, base: float) -> void:
+	var l := _words[i]
+	var reduced := Game.reduce_flashing
+	l.reset_size()
+	l.pivot_offset = l.size * 0.5
+	var at := _place(world, l.size * base, i)
 	l.position = at - l.size * 0.5
 	l.rotation = WORD_TILT * (1.0 if randf() < 0.5 else -1.0)
 	l.modulate.a = WORD_ALPHA_REDUCED if reduced else 1.0
-	l.set_meta("base", WORD_SCALE[tier])
+	l.set_meta("base", base)
 	l.set_meta("y", l.position.y)
 	l.set_meta("reduced", reduced)
-	l.scale = Vector2.ONE * WORD_SCALE[tier] * word_scale(0, reduced)
+	l.scale = Vector2.ONE * base * word_scale(0, reduced)
 	l.visible = true
-	_born[i] = maxi(now, 1)
+	_born[i] = maxi(Time.get_ticks_msec(), 1)
+
+
+## Where a word of `size_px` goes: beside the hero, turned from the way to the hit towards whichever
+## side has the most room, clear of the foes and the other words. With no hero, over the hit.
+func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
+	var hit := _to_screen(world)
+	var cam := get_viewport().get_camera_3d()
+	var hero := get_tree().get_first_node_in_group("player") as Node3D if is_inside_tree() else null
+	if cam == null or hero == null:
+		return _on_page(hit + Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * WORD_JITTER, size_px)
+	var body: Node3D = hero.model if "model" in hero and is_instance_valid(hero.model) else hero
+	var h := _screen_of(cam, body.global_position + Vector3.UP * 1.0)
+	var toward := hit - h
+	if toward.length() < 20.0:  # a hit on top of him: the way he faces
+		var f: Vector3 = hero._facing() if hero.has_method("_facing") else hero.global_basis.z
+		toward = _screen_of(cam, hero.global_position + Vector3.UP * 1.0 + f) - h
+	toward = toward.normalized() if toward.length() > 0.01 else Vector2.UP
+	var blocks: Array[Vector2] = [h]  # (the hero first: HERO_PAD_PX, not FOE_PAD_PX)
+	for e: Node3D in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(e) and not cam.is_position_behind(e.global_position):
+			blocks.append(cam.unproject_position(e.global_position + Vector3.UP * 1.0))
+	for k in POOL:
+		if k != me and _born[k] != 0:
+			blocks.append(_words[k].position + _words[k].size * 0.5)
+	var best := Vector2.ZERO
+	var best_score := -INF
+	var half := size_px * 0.5
+	for ring in SPOT_RINGS.size():
+		for deg: float in SPOT_ANGLES:
+			var v := toward.rotated(deg_to_rad(deg))
+			var c := _on_page(h + v * (SPOT_RINGS[ring] + absf(v.x) * half.x + absf(v.y) * half.y), size_px)
+			var clear := SPOT_ENOUGH
+			for k in blocks.size():
+				var dx := maxf(absf(blocks[k].x - c.x) - half.x, 0.0)
+				var dy := maxf(absf(blocks[k].y - c.y) - half.y, 0.0)
+				clear = minf(clear, Vector2(dx, dy).length() - (HERO_PAD_PX if k == 0 else FOE_PAD_PX))
+			var score := clear - absf(deg) * SPOT_TURN_COST - ring * SPOT_FAR_COST
+			if score > best_score:
+				best_score = score
+				best = c
+	return best
+
+
+func _screen_of(cam: Camera3D, p: Vector3) -> Vector2:
+	return get_viewport().get_visible_rect().size * 0.5 if cam.is_position_behind(p) else cam.unproject_position(p)
+
+
+## A signature move's or breaker's word, replacing a generic word that came up with the same hit.
+func _say(text: String, world: Vector3, base: float) -> void:
+	var now := Time.get_ticks_msec()
+	for k in POOL:
+		if _born[k] != 0 and now - _born[k] <= SAME_FRAME_MS and _words[k].get_meta("base", 0.0) < base:
+			_words[k].visible = false
+			_born[k] = 0
+	_last_word_ms = now
+	var i := _next
+	_next = (_next + 1) % POOL
+	_words[i].text = text
+	_show(i, world, base)
+
+
+## Watches the hero (read only): a signature move's first hit, a breaker landing.
+func _watch_hero() -> void:
+	var hero := get_tree().get_first_node_in_group("player")
+	if hero == null or not "_move_id" in hero:
+		return
+	var id: String = hero._move_id
+	if hero._hits_done == 0:
+		_move_seen = ""
+	elif id != _move_seen:
+		_move_seen = id
+		if MOVE_WORDS.has(id):
+			var tier: int = hero.COMBOS[id].tier if hero.COMBOS.has(id) else 1
+			tier = mini(tier + (1 if Fx.chain_tier(Game.combo_count) >= 2 else 0), WORD_SCALE.size() - 1)
+			_say(MOVE_WORDS[id], hero.global_position + hero._facing() * 2.0, WORD_SCALE[tier])
+	if hero.breakers_landed > _breakers_seen:
+		_breakers_seen = hero.breakers_landed
+		var word: String = BREAKER_WORDS.get(hero.breaker_name(), "")
+		if word != "":
+			_say(word, hero.global_position, BREAKER_SCALE)
 
 
 func _to_screen(world: Vector3) -> Vector2:
@@ -140,6 +253,7 @@ func _on_page(p: Vector2, size_px: Vector2) -> Vector2:
 
 
 func _process(_delta: float) -> void:
+	_watch_hero()
 	var now := Time.get_ticks_msec()
 	for i in POOL:
 		if _born[i] == 0:
