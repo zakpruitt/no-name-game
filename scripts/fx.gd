@@ -24,6 +24,12 @@ const COMIC_INK_PUSH := 0.08  # m behind the model, so a part's hull doesn't cov
 ## Telegraph rim (edge_ring): a light ring just inside the radius with a dark outline just outside it.
 const EDGE_WIDTH := 0.16  # m, light rim
 const EDGE_OUTLINE := 0.07  # m, dark outline
+## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
+## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
+const COMIC_POP := preload("res://scripts/comic_pop.gd")
+## Flat two-tone chip colour off the axes per element (element_hit).
+const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
+	"spirit": Color(0.2, 0.85, 0.78)}
 
 static var _flash_mat: StandardMaterial3D
 static var _tint_mats := {}  # flash_tint() overlays, one per colour
@@ -116,6 +122,9 @@ static func damage_number(parent: Node, pos: Vector3, amount: float, big := fals
 
 static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := 0.9) -> void:
 	var at := pos + Vector3.UP * 1.1
+	if Game.comic_style:  # the hot inked star; impact() adds the strokes
+		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3})
+		return
 	# Pale colours vanish on the light floor tiles: push the flare's saturation up.
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.75), 1.0, color.a)
 	flare(parent, at, vivid, size * 3.0, 0.16, "flare")
@@ -137,6 +146,12 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 	if tier <= 0:
 		return
 	var at := pos + Vector3.UP * 1.1
+	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
+		COMIC_POP.spawn(parent, at, {"star": 0.42 + 0.1 * tier, "star_color": color, "star_core": color.lightened(0.5),
+			"star_ring": color if tier >= 3 else Color(0, 0, 0, 0), "spikes": 7 + tier, "layer": -0.5, "steps": 3,
+			"strokes": 0 if tier < 2 else 2 + tier, "dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35),
+			"stroke_len": 0.5 + 0.1 * tier})
+		return
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.8), 1.0)
 	flare(parent, at, vivid, 1.6 + tier * 0.6, 0.14, "star8")
 	if tier >= 2:
@@ -150,6 +165,10 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector3, big := false) -> void:
 	var at := pos + Vector3.UP * 1.0
 	var k := 1.5 if big else 1.0
+	if Game.comic_style:  # chunky chips of the element, flung along the blow
+		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": COMIC_CHIP.get(element, COMIC_CHIP.spirit),
+			"chip_size": 0.11 * k, "chip_speed": 6.0, "dir": dir, "spread": 0.6, "steps": 3})
+		return
 	match element:
 		"wind":
 			burst(parent, at, Color(0.45, 1.0, 0.55), int(6 * k), 12.0, 0.15, 0.2, dir, 40.0, 0.0, 0.0, "spark")
@@ -168,6 +187,11 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> void:
 	var at := pos + Vector3.UP * 1.2
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.7), 1.0)
+	if Game.comic_style:  # strokes bursting out all round him, never a star over him
+		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
+			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
+			"hold": 2 if tier >= 3 else 1, "steps": 3})
+		return
 	flare(parent, at, vivid, 2.2 + tier * 1.0, 0.18, "star8")
 	flare(parent, at, Color(1, 1, 1, 0.9), 0.9 + tier * 0.3, 0.1, "dot", true)
 	ring(parent, pos, Color(vivid, 0.85), 1.6 + tier * 0.7, 0.3)
@@ -254,6 +278,11 @@ static func particle_mat(tex: String, add: bool) -> StandardMaterial3D:
 ## Shaded, not glowing: debris should read as stuff, not light.
 static func shards(parent: Node, pos: Vector3, color: Color, amount := 10, dir := Vector3.UP,
 		speed := 8.0, size := 0.18, lifetime := 0.7) -> void:
+	if Game.comic_style:  # flat inked two-tone chips, not shaded boxes
+		COMIC_POP.spawn(parent, pos, {"chips": clampi(int(amount * 0.6), 2, 14), "chip": color,
+			"chip_size": size * 0.85, "chip_speed": speed * 0.7, "dir": dir, "spread": 1.2,
+			"steps": clampi(int(lifetime * 10.0), 4, 7)})
+		return
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.explosiveness = 1.0
@@ -303,6 +332,11 @@ static func shard_mat() -> StandardMaterial3D:
 static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 		color := Color(0.93, 0.89, 0.78)) -> void:
 	var at := pos + Vector3.UP * 0.9
+	if Game.comic_style:  # a held kill star, strokes all round, bone chips; no smoke, no soft ring
+		COMIC_POP.spawn(parent, at, {"star": 1.15 if big else 0.9, "spikes": 11, "hold": 2, "steps": 3,
+			"strokes": 8, "radial": true, "gap": 0.7, "stroke_len": 0.6, "stroke_w": 0.18,
+			"chips": 7 if big else 5, "chip": color, "chip_size": 0.17, "chip_speed": 6.5, "chip_ink": 4, "dir": dir, "spread": 1.3})
+		return
 	# Saturated gold: cream and white vanish on the light floor tiles.
 	flare(parent, at, Color(1.0, 0.62, 0.15), 4.4 if big else 3.4, 0.22, "flare")
 	flare(parent, at, Color(1.0, 1.0, 1.0), 1.6 if big else 1.2, 0.1, "dot", true)
@@ -390,16 +424,23 @@ static func soul(parent: Node, pos: Vector3, color := Color(0.3, 0.75, 1.0, 0.9)
 
 static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> void:
 	var at := pos + Vector3.UP * 1.1
+	if big:
+		last_big_hit_ms = Time.get_ticks_msec()
+	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
+		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
+			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
+			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
+		return
 	flare(parent, at, Color(1.0, 0.5, 0.08), 3.6 if big else 2.4, 0.15, "flare")
 	flare(parent, at, Color(1.0, 0.97, 0.85), 1.2 if big else 0.8, 0.08, "dot", true)
 	flare(parent, at, Color(1.0, 0.6, 0.2, 0.9), 2.2 if big else 1.4, 0.2, "ring")
 	burst(parent, at, Color(1.0, 0.6, 0.15), 24 if big else 14, 14.0 if big else 10.0, 0.22, 0.35, dir, 50.0)
 	burst(parent, at, Color(1.0, 0.97, 0.85), 8 if big else 4, 18.0, 0.18, 0.2, dir, 30.0, 0.0, 0.0, "dot", true)
-	if big:
-		last_big_hit_ms = Time.get_ticks_msec()
 
 
 static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void:
+	if Game.comic_style:
+		return  # no smoke in the comic look: the landing's ring and cracks carry it
 	burst(parent, pos + Vector3.UP * 0.2, Color(0.62, 0.57, 0.5, 0.6), amount, 4.0, size, 0.55, Vector3.UP, 80.0, 1.0, 0.45, "smoke")
 
 
