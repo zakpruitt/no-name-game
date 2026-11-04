@@ -155,6 +155,16 @@ fast-forward, so no agent edits another's files or index.
 - **Facing in a shot:** comic and KayKit models face +Z, which is towards the game camera, so `model.rotation.y = PI` turns them away (`tests/enemy_lineup.gd` did this until round 29; from above you can't tell, from the front you see their backs). Leave it at 0 to face the camera.
 - **Swapping a model the game spawns:** tests that build their own copy (`enemy_feel_check`, `enemy_feel_preview` built dummies from `Skeleton_Warrior`) keep the old model silently. Grep `tests/` for the old model name when you change what `main.gd` spawns.
 
+- **Backslashes in heredocs reach Python halved here** (`'\1'` in a quoted `<<'EOF'` patch arrived as ``, i.e.
+  a `` byte in agent.sh): write regex backreferences with the Edit tool or build them with `bytes([92])`.
+- **`sed -i` rewrites a CRLF file as LF** on this machine; harmless for git (autocrlf), but mixed endings follow
+  if a Python patch later writes `
+`. Patch with Python reading in text mode and writing `newline='
+'`.
+- **A parse error in an autoload-free script the main scene preloads hangs `--autotest`** until `timeout` (no quit, no
+  `done` line): check a changed bot with `godot --headless --check-only -s scripts/training_bot.gd` first (an
+  "Identifier not found: Game" there is fine).
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes

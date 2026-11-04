@@ -94,3 +94,12 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   the clutter; per-string sheets that start at the string's first press show it, stills of one move don't.
 - **Zoom before judging.** At 400 px thumbnails the 1.85 m chibi is a few pixels; crop the middle 60% at 600 px
   (scratchpad `feelaudit_keys.py`) for the hero, and use the full sheet for timing.
+- Tentacle moves play their Ab_ clips raw: their `hits` are `void_element.gd` `*_HIT` (contact frame / clip frames,
+  `tests/contact_frames.gd` `VOID_CLIPS`), and cancel / end / leap are written as `*_HIT + offset` so they keep their
+  time after the hit. The 40% hand-speed rule finds Ab_GR's yank home, not the grab: grab clips use the claw-snap rule.
+- Measure contact on the model the clips were keyed for (the chibi); the round-28 heretic's shaman clips contact 1-27
+  frames later, which is where round 1's "GR 0.32 / VS 0.41" came from.
+- The autotest bot is repeatable only from fixed spots (`training_bot.BOT_SPOT`, dummies reset home): before that,
+  breakers varied 5-7 per run from where the last string threw the foes. Read `breakers=N/N` before trusting a timing change.
+- A bot that presses at `combo_window().ready` (the full BUFFER_MS early) can lose the press when hit-stop and
+  Awakening shift the cancel; it presses `BOT_LEAD` (0.15 s) early instead, still well inside the buffer.
