@@ -46,6 +46,8 @@ const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
 const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
 const STRIKE_STAR := 1.1  # m, the impact star at its foot
 const COMIC_SPIKE_FAT := 1.35  # comic spikes are chunkier
+const NOVA_HOOP_R := 0.9  # of the nova's radius: its one comic hoop
+const NOVA_HOOP_THIN := 0.035  # of the hoop's radius: about 0.1 m on a Live Wire nova
 const ORBIT_REST := 3
 const ORBIT_AWAKENED := 7
 
@@ -513,8 +515,8 @@ static func nova(parent: Node, pos: Vector3, el: String, radius: float, count: i
 	var c: Color = LOOK[el].color
 	var comic := Game.comic_style
 	if comic:  # hard thin hoops: the soft ring texture read as a blue glow pooled under the foes
-		DARK_FX.hoop_run(parent, pos, 0.4, radius * 1.1, 0.25, c, 0.08)
-		DARK_FX.hoop_run(parent, pos, 0.3, radius * 0.7, 0.2, LOOK[el].glow, 0.05)
+		# (0.08 of a 3.5 m hoop plus a pale one inside was a fat green ring round every Live Wire frame)
+		DARK_FX.hoop_run(parent, pos, 0.4, radius * NOVA_HOOP_R, 0.22, c, NOVA_HOOP_THIN)
 	else:
 		Fx.ring(parent, pos, Color(c, 0.95), radius, 0.35)
 		Fx.ring(parent, pos, Color(LOOK[el].glow, 0.8), radius * 0.55, 0.25)

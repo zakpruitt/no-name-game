@@ -179,19 +179,7 @@ func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
 	for e: Node3D in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and not cam.is_position_behind(e.global_position):
 			blocks.append(_pad_rect(cam.unproject_position(e.global_position + Vector3.UP * 1.0), FOE_PAD_PX))
-	for k in POOL:
-		if k != me and _born[k] != 0:
-			var ws: Vector2 = _words[k].size * float(_words[k].get_meta("base", 1.0))
-			blocks.append(Rect2(_words[k].position + _words[k].size * 0.5 - ws * 0.5, ws))
-	var callout: Variant = hero.get("_callout")
-	if callout is Label3D and callout.is_visible_in_tree() and not cam.is_position_behind(callout.global_position):
-		var half_m: float = callout.get_aabb().size.x * 0.5 * callout.global_basis.get_scale().x
-		var mid := cam.unproject_position(callout.global_position)
-		var half_px := absf(cam.unproject_position(callout.global_position + cam.global_basis.x * half_m).x - mid.x)
-		blocks.append(Rect2(mid - Vector2(half_px, CALLOUT_HALF_H_PX), Vector2(half_px, CALLOUT_HALF_H_PX) * 2.0))
-	var prompt: Variant = hero.get("_brk_prompt")
-	if prompt is Control and is_instance_valid(prompt) and prompt.get("_shown") == true:
-		blocks.append(Rect2(prompt.center - PROMPT_HALF_PX * Vector2(1.0, 0.8), PROMPT_HALF_PX * 2.0))
+	blocks.append_array(_text_blocks(cam, hero, me))
 	var best := Vector2.ZERO
 	var best_score := -INF
 	var half := size_px * 0.5
@@ -210,6 +198,39 @@ func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
 				best_score = score
 				best = c
 	return best
+
+
+## The screen rects of the text a word or a damage number must keep off: the live words (but `me`), the
+## hero's combo-name callout (a line per line of it, so a "PERFECT" under the name counts) and the breaker prompt.
+func _text_blocks(cam: Camera3D, hero: Node, me := -1) -> Array[Rect2]:
+	var blocks: Array[Rect2] = []
+	for k in POOL:
+		if k != me and _born[k] != 0:
+			var ws: Vector2 = _words[k].size * float(_words[k].get_meta("base", 1.0))
+			blocks.append(Rect2(_words[k].position + _words[k].size * 0.5 - ws * 0.5, ws))
+	if hero == null:
+		return blocks
+	var callout: Variant = hero.get("_callout")
+	if callout is Label3D and callout.is_visible_in_tree() and not cam.is_position_behind(callout.global_position):
+		var half_m: float = callout.get_aabb().size.x * 0.5 * callout.global_basis.get_scale().x
+		var mid := cam.unproject_position(callout.global_position)
+		var half_px := absf(cam.unproject_position(callout.global_position + cam.global_basis.x * half_m).x - mid.x)
+		var half_h := CALLOUT_HALF_H_PX * float(callout.text.count("\n") + 1)
+		blocks.append(Rect2(mid - Vector2(half_px, half_h), Vector2(half_px, half_h) * 2.0))
+	var prompt: Variant = hero.get("_brk_prompt")
+	if prompt is Control and is_instance_valid(prompt) and prompt.get("_shown") == true:
+		blocks.append(Rect2(prompt.center - PROMPT_HALF_PX * Vector2(1.0, 0.8), PROMPT_HALF_PX * 2.0))
+	return blocks
+
+
+## _text_blocks for anyone else (ComicNumber), [] with the comic style off.
+static func text_blocks() -> Array[Rect2]:
+	if _inst == null or not _inst.is_inside_tree():
+		return []
+	var cam := _inst.get_viewport().get_camera_3d()
+	if cam == null:
+		return []
+	return _inst._text_blocks(cam, _inst.get_tree().get_first_node_in_group("player"))
 
 
 func _pad_rect(p: Vector2, pad: float) -> Rect2:

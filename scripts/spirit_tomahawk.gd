@@ -10,6 +10,7 @@ const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const SPIN := 22.0  # rad/s
 const HEIGHT := 0.9
 const CENTER := Vector3(-0.15, 0.4, 0.0)  # axe-local balance point it spins round
+const COMIC_ALPHA := 0.3
 
 var axe_mesh: Mesh
 var color := Color(0.3, 0.95, 0.85)
@@ -43,13 +44,39 @@ func _ready() -> void:
 	_axe.transform = Transform3D(b, -(b * CENTER))
 	_spinner.add_child(_axe)
 	_axe.material_override.albedo_color.a = 0.6
+	var comic := Game.comic_style
+	if comic:  # a flat inked axe you see the foes through; the 60% rim-lit glass was a cyan slab over the pile
+		_axe.material_overlay = null
+		_axe.material_override = comic_material(color)
 	var tw := create_tween()
 	tw.tween_method(_fly_out, 0.0, 1.0, out_time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(_turn)
 	tw.tween_method(_fly_back, 0.0, 1.0, back_time).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	if comic:
+		tw.tween_callback(queue_free)
+		return
 	tw.tween_property(_axe.material_override, "albedo_color:a", 0.0, 0.08)
 	tw.parallel().tween_property(_axe.material_overlay, "shader_parameter/intensity", 0.0, 0.08)
 	tw.tween_callback(queue_free)
+
+
+static var _comic_mats := {}  # colour -> material
+
+
+## The comic axe: unshaded, COMIC_ALPHA of a light tone of its colour, with the hero's ink round it.
+static func comic_material(c: Color) -> StandardMaterial3D:
+	var key := c.to_rgba32()
+	if not _comic_mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# Depth pre-pass: only the nearest layer of the axe's many faces draws, so 30% stays 30% (plain
+		# alpha stacked its overlapping faces into a solid slab).
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+		m.albedo_color = Color(c.lerp(Color.WHITE, 0.35), COMIC_ALPHA)
+		if DisplayServer.get_name() != "headless":
+			m.next_pass = Fx.ink_material()
+		_comic_mats[key] = m
+	return _comic_mats[key]
 
 
 func _process(delta: float) -> void:

@@ -22,6 +22,14 @@ const CUBE_NAME := "ThrownCube"
 const CUBE_COLOR := Color(0.62, 0.9, 1.0)
 const CUBE_HIGH := 1.5  # m
 const CUBE_SPIN := 9.0  # radians/s
+# The comic cube: two-tone flat ice (a pale top, thin blue sides) with the ink edge, clear enough to show the
+# foe inside. The old 55% cyan box hid the foe and was the loudest thing in every ice frame.
+const CUBE_TOP := Color(0.86, 0.97, 1.0, 0.42)
+const CUBE_SIDE := Color(0.34, 0.68, 1.0, 0.15)
+const CUBE_GLINT := Color(1.0, 1.0, 1.0, 0.85)
+
+static var _cube_mat: StandardMaterial3D
+static var _cube_meshes := {}  # (radius, height) in cm -> mesh
 const WALL_MARGIN := 0.5  # m short of a wall
 const FLYING := "thrown_foe_flying"  # meta on a foe in flight: nothing else may move it
 
@@ -82,20 +90,73 @@ static func cube_on(e: Node3D) -> void:
 	if e.get_node_or_null(CUBE_NAME) != null:
 		return
 	var r: float = float(e.get("radius")) + 0.1
-	var box := BoxMesh.new()
-	box.size = Vector3(r * 2.0, CUBE_HIGH, r * 2.0)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(CUBE_COLOR, 0.55)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	if DisplayServer.get_name() != "headless":
-		mat.next_pass = Fx.ink_material()
 	var cube := MeshInstance3D.new()
 	cube.name = CUBE_NAME
-	cube.mesh = box
-	cube.material_override = mat
+	if Game.comic_style:
+		cube.mesh = comic_cube(r)
+		cube.material_override = cube_material()
+	else:
+		var box := BoxMesh.new()
+		box.size = Vector3(r * 2.0, CUBE_HIGH, r * 2.0)
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_color = Color(CUBE_COLOR, 0.55)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		if DisplayServer.get_name() != "headless":
+			mat.next_pass = Fx.ink_material()
+		cube.mesh = box
+		cube.material_override = mat
+	cube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	e.add_child(cube)
 	cube.position.y = CUBE_HIGH * 0.5
+
+
+## One shared material for every comic cube: unshaded vertex colour, see-through, the hero's ink round it.
+static func cube_material() -> StandardMaterial3D:
+	if _cube_mat == null:
+		_cube_mat = StandardMaterial3D.new()
+		_cube_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_cube_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_cube_mat.vertex_color_use_as_albedo = true
+		_cube_mat.vertex_color_is_srgb = true
+		_cube_mat.cull_mode = BaseMaterial3D.CULL_DISABLED  # (both sides of the thin walls: the far ones show through)
+		if DisplayServer.get_name() != "headless":
+			_cube_mat.next_pass = Fx.ink_material()
+	return _cube_mat
+
+
+## A frozen foe's ice (enemy.freeze, comic style): the same flat two-tone block, `r` round and `high` tall.
+static func comic_ice(ice: MeshInstance3D, r: float, high: float) -> void:
+	ice.mesh = comic_cube(r, high)
+	ice.material_override = cube_material()
+	ice.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## A box `r` round and `high` tall, its top pale and its sides thin blue, with a white glint across the top.
+static func comic_cube(r: float, high := CUBE_HIGH) -> ArrayMesh:
+	var key := Vector2i(roundi(r * 100.0), roundi(high * 100.0))
+	if _cube_meshes.has(key):
+		return _cube_meshes[key]
+	var h := high * 0.5
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var quad := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color) -> void:
+		st.set_color(col)
+		for v: Vector3 in [a, b, c, a, c, d]:
+			st.add_vertex(v)
+	var top := [Vector3(-r, h, -r), Vector3(r, h, -r), Vector3(r, h, r), Vector3(-r, h, r)]
+	var bot := [Vector3(-r, -h, -r), Vector3(r, -h, -r), Vector3(r, -h, r), Vector3(-r, -h, r)]
+	quad.call(top[0], top[1], top[2], top[3], CUBE_TOP)
+	quad.call(bot[3], bot[2], bot[1], bot[0], CUBE_SIDE)
+	for i in 4:
+		var j := (i + 1) % 4
+		quad.call(bot[i], bot[j], top[j], top[i], CUBE_SIDE)
+	# A glint: a fat white stroke across a corner of the top, just above it.
+	var g := h + 0.01
+	quad.call(Vector3(-r * 0.75, g, r * 0.15), Vector3(-r * 0.15, g, r * 0.75), Vector3(-r * 0.0, g, r * 0.6), Vector3(-r * 0.6, g, r * 0.0), CUBE_GLINT)
+	var mesh := st.commit()
+	_cube_meshes[key] = mesh
+	return mesh
 
 
 static func remove_cube(e: Variant) -> void:

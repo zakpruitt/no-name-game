@@ -63,8 +63,10 @@ Moves can leave the floor (`MOVES` keys, `player._hop()`; only the model lifts, 
 ### Look
 
 The breaker draws flat and inked: the cue is always `crisp` (a paper target ring that turns gold in the
-window and a fat closing ring in the breaker's colour, each between two ink bands, rebuilt every frame so
-the band keeps its width as it closes), the war cry is radial speed strokes round him and one inked hoop
+window and a closing ring in the breaker's colour, each between two ink bands, rebuilt every frame so
+the band keeps its width as it closes: `CRISP_TARGET_W` 0.12 m, `CRISP_CLOSING_W` 0.15, `CRISP_INK` 0.055; at
+0.16 / 0.24 / 0.07 the closing ring was a fat green hoop over every Live Wire frame), the war cry is radial
+speed strokes round him and one thin inked hoop (`WAR_CRY_RING_W` 0.08 m)
 under him (no shell, no glow dots, no smoke), and the dive is `scripts/comic_comet.gd`: one fat streak back
 along his path (ink, element colour, hot core, at least `MIN_TAIL` m long because a tentacle breaker barely
 moves him) that ends, when `comet()` stops being called, in a held-frame impact star at his feet

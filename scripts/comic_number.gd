@@ -24,6 +24,8 @@ const OUT := 0.7  # m off the pile it starts
 const DRIFT := 0.9  # m/s away from the pile
 const RISE := 0.45  # m/s
 const PILE_R := 3.0  # m: foes this close make the pile it leaves
+const DODGE_PAD_PX := 6.0  # clear of the combo-name callout, PERFECT, the words and the breaker prompt by this
+const DODGE_TRIES := 3
 const INK := Color(0.012, 0.01, 0.02)
 const PAPER := Color(1.0, 0.96, 0.84)
 const PRINT := Color(0.9, 0.12, 0.04)  # the offset shadow (ComicFx.WORD_LOW)
@@ -41,6 +43,7 @@ var _step := -1
 var _pop_from := 0  # step of the last add
 var _base := Vector3.ZERO  # where it started
 var _away := Vector3.RIGHT
+var _dodge := Vector3.ZERO  # how far it has stepped aside off the callout and the words, kept as it drifts
 var _reduced := false
 var _front: Label3D
 var _shadow: Label3D
@@ -162,7 +165,6 @@ func tick(delta: float) -> void:
 func _draw(step: int) -> void:
 	_step = step
 	var s := float(step) / STEPS_PER_S
-	global_position = _base + _away * DRIFT * s + Vector3.UP * RISE * s
 	var size := minf(1.0 + total * GROW_PER, GROW_MAX) * (BIG_SCALE if big else 1.0)
 	var since := step - _pop_from
 	if not _reduced and since >= 0 and since < POP.size():
@@ -171,3 +173,39 @@ func _draw(step: int) -> void:
 	if step >= end_step:
 		size *= 0.7 if step == end_step else 0.4
 	scale = Vector3.ONE * size
+	var at := _base + _away * DRIFT * s + Vector3.UP * RISE * s
+	_dodge += dodge(at + _dodge, size, _front.text.length(), ComicFx.text_blocks())
+	global_position = at + _dodge
+
+
+## How far to step a number at `at` (world) aside, in the screen plane, so its rect clears `blocks`:
+## each try pushes it out of the block it overlaps most along the shorter way. Zero with no camera.
+func dodge(at: Vector3, size: float, chars: int, blocks: Array[Rect2]) -> Vector3:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null or blocks.is_empty() or cam.is_position_behind(at):
+		return Vector3.ZERO
+	var h_m := FONT_SIZE * PIXEL * size
+	var half_m := Vector2((0.25 * chars + 0.2) * h_m, 0.5 * h_m)
+	var px_per_m := (cam.unproject_position(at + cam.global_basis.x) - cam.unproject_position(at)).length()
+	if px_per_m < 0.01:
+		return Vector3.ZERO
+	var c := cam.unproject_position(at)
+	var half := half_m * px_per_m + Vector2.ONE * DODGE_PAD_PX
+	var moved := Vector2.ZERO
+	for i in DODGE_TRIES:
+		var best := Vector2.ZERO
+		for b: Rect2 in blocks:
+			var d := c + moved - b.get_center()
+			var over := half + b.size * 0.5 - d.abs()
+			if over.x <= 0.0 or over.y <= 0.0:
+				continue
+			var push := Vector2(0.0, over.y * signf(d.y if d.y != 0.0 else 1.0))
+			if over.x < over.y:
+				push = Vector2(over.x * signf(d.x if d.x != 0.0 else 1.0), 0.0)
+			if push.length() > best.length():
+				best = push
+		if best == Vector2.ZERO:
+			break
+		moved += best
+	# Screen +y is down; the camera's up is world.
+	return (cam.global_basis.x * moved.x - cam.global_basis.y * moved.y) / px_per_m

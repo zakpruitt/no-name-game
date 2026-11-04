@@ -590,6 +590,8 @@ func freeze(time: float, mult: float) -> void:
 		mat.emission_enabled = true
 		mat.emission = Color(0.2, 0.45, 0.6)
 		_ice.material_override = mat
+		if Game.comic_style:  # flat two-tone ice the foe shows through (the shaded teal glass hid it)
+			preload("res://scripts/thrown_foe.gd").comic_ice(_ice, radius + 0.2, m.height)
 		add_child(_ice)
 		_ice.position.y = m.height * 0.5
 	_ice.visible = true

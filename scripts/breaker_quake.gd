@@ -33,6 +33,10 @@ static func release() -> void:
 	_stone = null
 
 
+const WAR_CRY_RING := 3.0  # m
+const WAR_CRY_RING_W := 0.08  # m of colour band (Fx.ring's is 0.2)
+
+
 ## The roar at `pos` (his chest): a see-through shell in `c` bursts outward
 ## and fades, with two floor rings under him, and the floor answers in `el`
 ## (pebbles and embers jump, frost blows out, lightning cracks down on him,
@@ -41,7 +45,8 @@ static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble
 	if Game.comic_style:  # strokes bursting out round him and one inked hoop under him; no glow
 		Fx.COMIC_POP.spawn(parent, pos, {"strokes": 12, "radial": true, "gap": 1.1, "stroke_len": 0.75,
 			"stroke_w": 0.22, "stroke_color": c.lightened(0.3), "hold": 2, "steps": 3})
-		Fx.ring(parent, Vector3(pos.x, 0.0, pos.z), c, 3.0, 0.3)
+		# A thin hoop: Fx.ring's 0.2 m band plus ink was a fat green ring round every Live Wire rise.
+		Fx.COMIC_POP.spawn(parent, Vector3(pos.x, 0.0, pos.z), {"ring": WAR_CRY_RING, "ring_color": c, "ring_w": WAR_CRY_RING_W, "steps": 4})
 		return
 	if bubble:
 		var s := SphereMesh.new()
