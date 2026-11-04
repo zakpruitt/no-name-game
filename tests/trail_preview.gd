@@ -1,7 +1,8 @@
 extends SceneTree
 ## The hero's weapon trail mid-swing, from the game's camera angle (zoomed in):
 ## one shot per move in SWINGS, tiled into user://trail_preview.png.
-## Run: godot --path . -s tests/trail_preview.gd [-- --awakened]
+## Run: godot --path . -s tests/trail_preview.gd [-- --awakened] [-- --swell]
+## (--swell: the ribbon as it is deep in a chain right after a heavy hit.)
 
 const SWINGS := [
 	["1H_Melee_Attack_Slice_Diagonal", 0.45],
@@ -13,8 +14,13 @@ const SWINGS := [
 
 func _initialize() -> void:
 	await process_frame
-	get_root().get_node("Game").save_hints = false
+	var game: Node = get_root().get_node("Game")
+	game.save_hints = false
 	var awakened := "--awakened" in OS.get_cmdline_user_args()
+	var swell := "--swell" in OS.get_cmdline_user_args()
+	if swell:
+		game.combo_count = 40
+		game._combo_timer = 1000.0
 	var shots: Array[Image] = []
 	for swing: Array in SWINGS:
 		var root3d := _stage()
@@ -30,6 +36,8 @@ func _initialize() -> void:
 		# Step the swing in real frames so the trail samples the motion.
 		var t := 0.0
 		while t < swing[1]:
+			if swell:
+				game.hit_weight = 1.0
 			await process_frame
 			t += 1.0 / 60.0
 		player.anim.speed_scale = 0.0

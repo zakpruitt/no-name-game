@@ -34,7 +34,6 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = root.get_node("Game")
 	game.comic_style = true
-	game.comic_moves = true
 	GRAB = load("res://scripts/void_grab.gd")
 	world = Node3D.new()
 	root.add_child(world)
@@ -105,11 +104,10 @@ func _routing() -> void:
 	_check(r.call("heavy", "DL", true, 1, false) == "EF", "dash L H: Harpoon")
 	for id: String in ["GR", "VS", "EC", "EE", "EW", "EF", "IP", "IJ", "IS", "EA", "EM", "EV", "VR", "VD", "OW", "TW"]:
 		_check(hero.anim.has_animation(hero._clip_name(hero.MOVES[id].anim)), "%s has its clip" % id)
-		_check(load("res://scripts/move_list.gd").VOID_ONLY.has(id), "%s is marked as his" % id)
 	# The pause menu lists every move he can reach, and only real ones.
 	var list: GDScript = load("res://scripts/move_list.gd")
 	var listed := {}
-	for section: Dictionary in list.VOID_SECTIONS:
+	for section: Dictionary in list.SECTIONS:
 		for row: Dictionary in section.rows:
 			_check(not row.input.contains("E"), "no E on the menu: %s" % row.input)
 			if row.kind == "move":
@@ -117,7 +115,6 @@ func _routing() -> void:
 				_check(hero.MOVES.has(row.id) or hero.COMBOS.has(row.id), "listed move %s exists" % row.id)
 	for id: String in ["L1", "L2", "L3", "DL", "VS", "EC", "EE", "AL1", "EW", "EF", "IP", "IS", "EA", "EM", "EV", "VR", "VD", "OW", "TW"]:
 		_check(listed.has(id), "%s is on his move list" % id)
-	_check(list.sections_for(hero) == list.VOID_SECTIONS, "the menu shows him his own list")
 	_check(hero.COMBOS.EW.tier == 3, "the showcase is top tier")
 
 
@@ -150,14 +147,14 @@ func _picking() -> void:
 
 func _shapes_at_rest() -> void:
 	var arm: Node = hero._void.arm
-	_check(arm.form == "axe", "he rests with the axe")
+	_check(arm.form == "hand", "he rests with a free tentacle")
 	var look: GDScript = load("res://scripts/comic_look.gd")
 	for form: String in look.HERO_FORMS:
 		for part: String in look.HERO_FORMS[form]:
 			var mi: MeshInstance3D = hero.model.find_child(part, true, false)
 			_check(mi != null, "%s: mesh %s" % [form, part])
 			if mi != null:
-				_check(mi.visible == (form == "axe"), "%s shown only with its form" % part)
+				_check(not mi.visible, "%s hidden at rest" % part)
 	for id: String in ["L1", "L2", "L3"]:
 		hero._start_attack(id)
 		var want: String = look.HERO_MOVE_FORMS.get(id, "axe")
@@ -166,7 +163,7 @@ func _shapes_at_rest() -> void:
 		var head: MeshInstance3D = hero.model.find_child(look.HERO_FORMS[want][0], true, false)
 		_check(head.visible, "%s: its form is showing" % id)
 	hero._set_state(hero.State.MOVE)
-	_check(arm.form == "axe", "back to moving: the axe")
+	_check(arm.form == "hand", "back to moving: the tentacle")
 
 
 func _grab() -> void:

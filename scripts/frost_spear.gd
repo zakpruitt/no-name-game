@@ -3,6 +3,7 @@ extends Node3D
 ## on it, and that's all it does until he slams down onto it (void_element._deep_freeze). Only one at
 ## a time. See docs/features/void-element.md.
 
+const FOES := preload("res://scripts/foes.gd")
 const GROUP := "frost_spear"
 const RADIUS := 6.0  # m the frost reaches
 const GROW := 0.6  # s to get there
@@ -17,12 +18,15 @@ const SHAFT_HIGH := 2.3  # m
 const SHAFT_R := 0.13  # m
 const TILT := 0.2  # radians
 const CRYSTALS := 6
-const CRYSTAL_HIGH := 1.0  # m
+const CRYSTAL_HIGH := 1.4  # m
 const CRYSTAL_OUT := 0.32  # m from the shaft
 const ICE := Color(0.62, 0.9, 1.0)
 const ICE_LIGHT := Color(0.88, 0.98, 1.0)
 const SHAFT := Color(0.36, 0.1, 0.42)
-const FROST_ALPHA := 0.3
+const FROST_INK := Color(0.03, 0.05, 0.12)
+const FROST_CRACKS := 11  # inked ice cracks running out from the spear
+const FROST_TEETH := 26  # the frost's jagged edge
+const FROST_PATCHES := 7  # chunky ice plates scattered between the cracks
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -54,13 +58,8 @@ static func current(tree: SceneTree) -> Node3D:
 func _ready() -> void:
 	add_to_group(GROUP)
 	_frost = MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.0
-	disc.bottom_radius = 1.0
-	disc.height = 0.02
-	disc.radial_segments = 32
-	_frost.mesh = disc
-	_frost.material_override = _flat(Color(ICE, FROST_ALPHA))
+	_frost.mesh = frost_mesh(RandomNumberGenerator.new())
+	_frost.material_override = frost_material()
 	_frost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_frost.position.y = 0.05
 	_frost.scale = Vector3(0.01, 1.0, 0.01)
@@ -93,7 +92,7 @@ func _ready() -> void:
 		var high := CRYSTAL_HIGH * randf_range(0.6, 1.1)
 		var prism := CylinderMesh.new()
 		prism.top_radius = 0.0
-		prism.bottom_radius = 0.17
+		prism.bottom_radius = 0.26
 		prism.height = high
 		prism.radial_segments = 4
 		var c := _part(prism, ICE if i % 2 == 0 else ICE_LIGHT)
@@ -102,6 +101,73 @@ func _ready() -> void:
 	_stuck.scale = Vector3(1.0, 0.1, 1.0)
 	create_tween().tween_property(_stuck, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	Fx.shards(get_parent(), global_position + Vector3.UP * 0.3, ICE_LIGHT, 12, Vector3.UP, 7.0, 0.12, 0.5)
+
+
+## The frost on the floor at radius 1 (scaled to how far it has spread): inked cracks out from the spear,
+## a ring of ice teeth for its edge and a few chunky plates, with bare floor between. A flat 30% disc
+## here read as a grey slab 12 m across that washed out everything standing on it.
+static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
+	rng.randomize()
+	var st := SurfaceTool.new()  # (an object: a lambda captures packed arrays by value)
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tri := func(a: Vector2, b: Vector2, d: Vector2, col: Color, y: float) -> void:
+		st.set_color(col)
+		for p: Vector2 in [a, b, d]:
+			st.add_vertex(Vector3(p.x, y, p.y))
+	for i in FROST_CRACKS:  # a jagged crack: three kinked spans, wide at the spear, to a point
+		var a := TAU * (i + rng.randf_range(-0.3, 0.3)) / FROST_CRACKS
+		var reach := rng.randf_range(0.7, 1.0)
+		var pts := [Vector2.ZERO]
+		for k in 3:
+			var r := reach * (k + 1) / 3.0
+			var b := a + rng.randf_range(-0.22, 0.22)
+			pts.append(Vector2(cos(b), sin(b)) * r)
+		for layer: Array in [[0.1, FROST_INK, 0.0], [0.055, ICE, 0.004], [0.016, ICE_LIGHT, 0.008]]:
+			for k in 3:
+				var p: Vector2 = pts[k]
+				var q: Vector2 = pts[k + 1]
+				var side := (q - p).orthogonal().normalized()
+				var wp: float = layer[0] * (1.0 - k / 3.0)
+				var wq: float = layer[0] * (1.0 - (k + 1) / 3.0)
+				tri.call(p + side * wp, p - side * wp, q + side * wq, layer[1], layer[2])
+				tri.call(q + side * wq, p - side * wp, q - side * wq, layer[1], layer[2])
+	for i in FROST_TEETH:  # the edge: ice teeth pointing in, each on an ink tooth
+		var a0 := TAU * i / FROST_TEETH
+		var a1 := TAU * (i + 1) / FROST_TEETH
+		var am := (a0 + a1) * 0.5
+		var depth := rng.randf_range(0.1, 0.2)
+		var o0 := Vector2(cos(a0), sin(a0))
+		var o1 := Vector2(cos(a1), sin(a1))
+		var tip := Vector2(cos(am), sin(am)) * (1.0 - depth)
+		tri.call(o0 * 1.03, o1 * 1.03, tip * 0.96, FROST_INK, 0.0)
+		tri.call(o0, o1, tip, ICE if i % 2 == 0 else ICE_LIGHT, 0.004)
+	for i in FROST_PATCHES:  # chunky plates of ice between the cracks
+		var a := TAU * (i + 0.5) / FROST_PATCHES + rng.randf_range(-0.2, 0.2)
+		var at := Vector2(cos(a), sin(a)) * rng.randf_range(0.35, 0.75)
+		var size := rng.randf_range(0.06, 0.11)
+		var ring := []
+		for k in 5:
+			var b := TAU * k / 5.0 + rng.randf()
+			ring.append(Vector2(cos(b), sin(b)) * size * rng.randf_range(0.7, 1.2))
+		for k in 5:
+			tri.call(at, at + ring[k] * 1.35, at + ring[(k + 1) % 5] * 1.35, FROST_INK, 0.0)
+		for k in 5:
+			tri.call(at, at + ring[k], at + ring[(k + 1) % 5], ICE_LIGHT if k < 2 else ICE, 0.004)
+	return st.commit()
+
+
+static var _frost_mat: StandardMaterial3D
+
+
+## Flat vertex colours, depth tested so foes stand on it. Shared, and drawn in elements.prewarm().
+static func frost_material() -> StandardMaterial3D:
+	if _frost_mat == null:
+		_frost_mat = StandardMaterial3D.new()
+		_frost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_frost_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_frost_mat.vertex_color_use_as_albedo = true
+		_frost_mat.vertex_color_is_srgb = true
+	return _frost_mat
 
 
 func _part(mesh: Mesh, color: Color) -> MeshInstance3D:
@@ -132,7 +198,7 @@ func _physics_process(delta: float) -> void:
 	_frost.scale = Vector3(maxf(_r, 0.01), 1.0, maxf(_r, 0.01))
 	if _t >= _next_tick:
 		_next_tick += TICK
-		for e: Node3D in Ascendancy.enemies_near(get_tree(), global_position, _r):
+		for e: Node3D in FOES.near(get_tree(), global_position, _r):
 			if e.has_method("chill"):
 				e.chill(SLOW_TIME, SLOW)
 	if _t >= _next_pulse:

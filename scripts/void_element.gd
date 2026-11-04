@@ -5,8 +5,8 @@ extends RefCounted
 ## player.gd routes (void_route) and calls fire() on a move's first hit; void_grab.gd holds the seized
 ## foes and calls zap() and breaker_impact().
 
+const FOES := preload("res://scripts/foes.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
-const RITE := preload("res://scripts/element_rite.gd")
 const QUAKE := preload("res://scripts/breaker_quake.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
@@ -216,7 +216,7 @@ static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 			if n == 0:  # nobody to latch onto: it crackles out ahead
 				var from := at + Vector3.UP * 1.3 + fwd * 0.6
 				for k: float in [3.0, 6.0]:
-					RITE.arc(parent, from, at + fwd * k + Vector3.UP, ELEMENTS.LOOK.wind.color)
+					ELEMENTS.arc(parent, from, at + fwd * k + Vector3.UP, ELEMENTS.LOOK.wind.color)
 			return n
 		"EF":
 			return _harpoon(hero, at, fwd, HARPOON_LENGTH * grow, HARPOON_DAMAGE * power)
@@ -255,11 +255,10 @@ static func zap(hero: CharacterBody3D, foes: Array, hand: Vector3) -> void:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
 		var to := e.global_position + Vector3.UP
-		RITE.arc(parent, last, to, color)
+		ELEMENTS.arc(parent, last, to, color)
 		Fx.burst(parent, to, ELEMENTS.LOOK.wind.glow, 6, 7.0, 0.07, 0.16, Vector3.UP, 180.0, 0.0, 0.3, "spark", true)
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		last = to
 	Game.sfx("hit_big", -8.0, 0.15)
 
@@ -269,7 +268,7 @@ static func _plant(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> int:
 	var spot: Vector3 = at + fwd * minf(SPEAR_AHEAD, hero._clear_ahead(fwd, SPEAR_AHEAD))
 	SPEAR.plant(hero.get_parent(), spot)
 	_pop(hero.get_parent(), spot, "spear")
-	return Ascendancy.enemies_near(hero.get_tree(), spot, SPEAR.RADIUS).size()
+	return FOES.near(hero.get_tree(), spot, SPEAR.RADIUS).size()
 
 
 ## Takes him to the spear while a SPEAR_RUN move plays. With none standing he stays on his line.
@@ -302,11 +301,10 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 		var a := TAU * i / DEEP_FREEZE_SPIKES
 		ELEMENTS.spikes(parent, spot + Vector3(sin(a), 0.0, cos(a)) * DEEP_FREEZE_SPIKE_OUT, "water", 1.0, 2)
 	Game.shake(0.5)
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), spot, DEEP_FREEZE_RADIUS)
+	var foes: Array = FOES.near(hero.get_tree(), spot, DEEP_FREEZE_RADIUS)
 	for e: Node3D in foes:
 		e.take_hit(damage, Vector3.ZERO, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		encase(e)
 	return foes.size()
 
@@ -325,7 +323,6 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: f
 	for e: Node3D in foes:
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		encase(e)
 		if hero._void.is_heavy(e):
 			continue
@@ -367,7 +364,6 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	for e: Node3D in foes:
 		e.take_hit(PALM_DAMAGE * power, fwd * 4.0, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		if not hero._void.is_heavy(e) and e.is_alive():
 			THROWN.launch(hero, e, e.global_position + fwd * PALM_SHOVE, PALM_SPLAT * power,
 				{"quiet": true, "solid": false, "el": "earth", "speed": PALM_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
@@ -376,6 +372,7 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 
 ## A fist of the arm's own stuff, flying out along `fwd`.
 static func _fist(parent: Node, at: Vector3, fwd: Vector3, length: float) -> Node3D:
+	if Game.comic_style: return load("res://scripts/comic_fist.gd").spawn(parent, at, fwd, length, FIST_TIME)  # the flat inked fist
 	var root := Node3D.new()
 	parent.add_child(root)
 	var from := at + fwd * 1.0 + Vector3.UP * 1.0
@@ -413,7 +410,7 @@ static func _fist(parent: Node, at: Vector3, fwd: Vector3, length: float) -> Nod
 
 ## Tendrils up through the floor take everyone near him down into lava, where they stay and burn.
 static func _undertow(hero: CharacterBody3D, at: Vector3, power: float) -> int:
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), at, UNDERTOW_RADIUS)
+	var foes: Array = FOES.near(hero.get_tree(), at, UNDERTOW_RADIUS)
 	for e: Variant in hero._void.shoved:  # (it follows them, however far they went)
 		if is_instance_valid(e) and e.is_alive() and not e in foes and _flat(e.global_position - at).length() <= UNDERTOW_CHASE:
 			foes.append(e)
@@ -485,7 +482,7 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	var spot: Vector3 = at + fwd * minf(OVERWHELM_AHEAD, hero._clear_ahead(fwd, OVERWHELM_AHEAD))
 	var aim: Node3D = null
 	var best := INF
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), at, OVERWHELM_REACH):
+	for e: Node3D in FOES.near(hero.get_tree(), at, OVERWHELM_REACH):
 		var to := _flat(e.global_position - at)
 		if to.length() > 0.01 and rad_to_deg(fwd.angle_to(to.normalized())) > hero._void.CONE:
 			continue
@@ -497,7 +494,7 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	hero._void.dark_spot = spot
 	DARK.pool(parent, spot, OVERWHELM_RADIUS, OVERWHELM_TIME)
 	DARK.burst(parent, spot, 1.4)
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), spot, OVERWHELM_RADIUS).filter(func(e: Node3D) -> bool:
+	var foes: Array = FOES.near(hero.get_tree(), spot, OVERWHELM_RADIUS).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e))
 	hero._void.dark_bind = null
 	if not foes.is_empty():
@@ -516,20 +513,19 @@ static func _singularity(hero: CharacterBody3D, power: float) -> int:
 	hero.get_parent().add_child(hole)
 	hole.global_position = spot + Vector3.UP * 0.05
 	hero._void.hole = hole
-	return Ascendancy.enemies_near(hero.get_tree(), spot, DARK.Hole.RADIUS).size()
+	return FOES.near(hero.get_tree(), spot, DARK.Hole.RADIUS).size()
 
 
 ## H L: a crescent of darkness through everyone in front of him, and it leaves a mark on them.
 static func _reap(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float) -> int:
 	DARK.reap(hero.get_parent(), at, fwd, REAP_REACH, REAP_HALF_ANGLE)
 	var n := 0
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), at, REAP_REACH):
+	for e: Node3D in FOES.near(hero.get_tree(), at, REAP_REACH):
 		var to := _flat(e.global_position - at)
 		if to.length() > 0.3 and fwd.angle_to(to.normalized()) > REAP_HALF_ANGLE:
 			continue
 		e.take_hit(damage, to.normalized() * 3.0 if to.length() > 0.01 else Vector3.ZERO, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		DARK.mark(e)
 		n += 1
 	return n
@@ -540,10 +536,10 @@ static func _reap(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: floa
 static func _black_tide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = at + fwd * minf(TIDE_AHEAD, hero._clear_ahead(fwd, TIDE_AHEAD))
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), at, TIDE_REACH).filter(func(e: Node3D) -> bool:
+	var foes: Array = FOES.near(hero.get_tree(), at, TIDE_REACH).filter(func(e: Node3D) -> bool:
 		return DARK.marked(e) and not THROWN.flying(e))
 	if foes.is_empty():
-		foes = Ascendancy.enemies_near(hero.get_tree(), at, TIDE_NEAR).filter(func(e: Node3D) -> bool:
+		foes = FOES.near(hero.get_tree(), at, TIDE_NEAR).filter(func(e: Node3D) -> bool:
 			return not THROWN.flying(e))
 	hero._void.dark_spot = spot
 	DARK.pool(parent, spot, TIDE_POOL_R, TIDE_TIME)
@@ -552,7 +548,6 @@ static func _black_tide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 		DARK.unmark(e)
 		e.take_hit(TIDE_DAMAGE * power, Vector3.ZERO, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		if hero._void.is_heavy(e):
 			continue
 		var a := TAU * i / maxf(foes.size(), 1.0)
@@ -572,14 +567,13 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 	if line.length() > 0.5:
 		foes = _ahead(hero, from, line.normalized(), line.length() + 1.5, TOW_HALF_WIDTH)
 	if foes.is_empty():
-		foes = Ascendancy.enemies_near(hero.get_tree(), at, TOW_NEAR)
+		foes = FOES.near(hero.get_tree(), at, TOW_NEAR)
 	var to := at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD))
 	var n := 0
 	for e: Node3D in foes:
 		if hero._void.is_heavy(e):
 			e.take_hit(damage * 0.5, Vector3.ZERO, 0.0, true)
 			Game.register_hit("cast")
-			hero._cast_hit(e)
 		else:
 			THROWN.launch(hero, e, to, damage, {"el": "void", "tether": true, "speed": TOW_SPEED, "land_y": 0.0})
 		n += 1
@@ -619,15 +613,13 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		var spot := _flat(e.global_position)
 		e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 		under(parent, spot, b.erupt)
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), at, BREAK_AREA):
+	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if struck.has(e):
 			continue
 		var from := _flat(e.global_position - at)
 		e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	under(parent, at, b.erupt)
 	_pop(parent, at, {"wind": "axe", "water": "spear", "earth": "hammer"}[b.erupt])
 
@@ -657,11 +649,10 @@ static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 	else:
 		spot = at
 		DARK.burst(hero.get_parent(), spot, 2.0)
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), spot, COLLAPSE_RADIUS):
+	for e: Node3D in FOES.near(hero.get_tree(), spot, COLLAPSE_RADIUS):
 		var from := _flat(e.global_position - spot)
 		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	Game.shake(0.6)
 
 
@@ -673,10 +664,9 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	if not is_instance_valid(jaws):
 		jaws = DARK.maw(hero.get_parent(), spot, MAW_RADIUS)
 	jaws.bite()
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), spot, MAW_RADIUS):
+	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS):
 		DARK.quiet_hit(e, damage, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)  # one word for the one bite
 	Game.shake(0.6)
 
@@ -688,12 +678,11 @@ static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	if is_instance_valid(hero._void.dark_bind):
 		hero._void.dark_bind._let_go()
 	var parent: Node = hero.get_parent()
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), spot, ABYSS_RADIUS)
+	var foes: Array = FOES.near(hero.get_tree(), spot, ABYSS_RADIUS)
 	for e: Node3D in foes:
 		DARK.spout(parent, e.global_position)
 		e.take_hit(damage, Vector3.ZERO, ABYSS_LAUNCH, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	if foes.is_empty():
 		DARK.spout(parent, spot)
 	Game.shake(0.6)
@@ -736,12 +725,10 @@ static func _avalanche(hero: CharacterBody3D, b: Dictionary, cubes: Array, mult:
 		Fx.shards(parent, e.global_position + Vector3.UP * 0.8, THROWN.CUBE_COLOR, 8, Vector3.UP, 7.0, 0.16, 0.5)
 		DARK.quiet_hit(e, damage, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), mid, CRUSH_RADIUS):
+	for e: Node3D in FOES.near(hero.get_tree(), mid, CRUSH_RADIUS):
 		if not e in cubes:
 			DARK.quiet_hit(e, damage * PRESS_NO_CUBE, true)
 			Game.register_hit("breaker")
-			hero._cast_hit(e)
 	ComicFx.hit(mid + Vector3.UP * 1.5, true)  # one word for the one crash
 
 
@@ -758,21 +745,19 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 			e.rip_shield()
 		e.take_hit(damage * (1.0 if hero._void.is_heavy(e) else RIP_SMALL_MULT), Vector3.ZERO, 0.0, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 		under(parent, spot, "earth")
 		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 22, Vector3.UP, 12.0, 0.2, 0.8)
 		_pop(parent, spot, "hammer")
-		for o: Node3D in Ascendancy.enemies_near(hero.get_tree(), spot, RIP_SPLASH):
+		for o: Node3D in FOES.near(hero.get_tree(), spot, RIP_SPLASH):
 			if o == e:
 				continue
 			var from := _flat(o.global_position - spot)
 			o.take_hit(damage * 0.4, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 8.0, 0.0, true)
 			Game.register_hit("breaker")
-			hero._cast_hit(o)
 	var at := _flat(hero.global_position)
 	for i in METEOR_GEYSERS:
 		var a := TAU * i / METEOR_GEYSERS
-		RITE.geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
+		ELEMENTS.geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
 	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, METEOR_GEYSER_OUT * 1.6, 1.6)
 	Game.shake(0.7)
 
@@ -799,7 +784,7 @@ static func cube_target(e: Node3D, seized: Array, at: Vector3, all: Array, facin
 static func under(parent: Node, spot: Vector3, el: String) -> void:
 	match el:
 		"earth":
-			RITE.geyser(parent, spot, GEYSER_RADIUS, GEYSER_HIGH, false)
+			ELEMENTS.geyser(parent, spot, GEYSER_RADIUS, GEYSER_HIGH, false)
 			ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 5, 1.0)
 		"water":
 			ELEMENTS.spikes(parent, spot, "water", CRYSTAL_SIZE, 6, 1.0)
@@ -822,23 +807,21 @@ static func _ahead(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: flo
 
 ## Everything near `at` is hit and dragged towards it.
 static func _pull(hero: CharacterBody3D, at: Vector3, radius: float, damage: float, strength: float, launch: float) -> int:
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), at, radius)
+	var foes: Array = FOES.near(hero.get_tree(), at, radius)
 	for e: Node3D in foes:
 		var to := _flat(at - e.global_position)
 		e.take_hit(damage, (to.normalized() if to.length() > 0.01 else Vector3.ZERO) * strength, launch, false)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 	return foes.size()
 
 
 ## Everything near `at` is hit and thrown out from it. Returns who.
 static func _strike(hero: CharacterBody3D, at: Vector3, radius: float, damage: float, launch: float, big: bool) -> Array:
-	var foes: Array = Ascendancy.enemies_near(hero.get_tree(), at, radius)
+	var foes: Array = FOES.near(hero.get_tree(), at, radius)
 	for e: Node3D in foes:
 		var from := _flat(e.global_position - at)
 		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 4.0, launch, big)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 	return foes
 
 

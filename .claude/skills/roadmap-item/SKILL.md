@@ -1,6 +1,6 @@
 ---
 name: roadmap-item
-description: Implement one Awaken change end to end — pick the top unchecked ROADMAP.md item (or the feature the user named), build it, verify with the autotest and screenshots, check it off, refresh the wiki if needed, and make one Conventional Commit on dev. Use for "do the next roadmap item", "/loop" rounds, or any gameplay/feature request in this repo.
+description: Implement one Awaken change end to end — pick the top unchecked ROADMAP.md item (or the feature the user named), build it, verify with the autotest and screenshots, check it off, and make one Conventional Commit on dev. Use for "do the next roadmap item", "/loop" rounds, or any gameplay/feature request in this repo.
 ---
 
 # One roadmap item, end to end
@@ -23,17 +23,16 @@ Read `CLAUDE.md` (layout, test flags) and `ROADMAP.md` first.
   - Filter noise with `grep -v "RID\|PagedAllocator\|Leaked instance\|instance_notify\|utilities.cpp"`.
   - A parse error makes Godot hang, so always wrap the call in `timeout 120`.
 - Visual change: run `godot --path . -- --autotest` (plus the relevant flags), then Read the screenshot from `%APPDATA%/Godot/app_userdata/Awaken/` and look at it.
-- Menus: `godot --path . -s tests/menu_check.gd`.
-- Balance or pacing: `--pace` over seeds 1–3; note the numbers in ROADMAP.
+- Menus: open the pause menu in a windowed run (`tests/training_check.gd` windowed saves `training_pause.png`).
+- All checks: `bash tools/agent.sh check`.
 - **Save data:** never create or touch `settings.cfg`, `records.cfg` or `altar.cfg`.
   - The autotest already disables saving.
-  - New test scripts must set `Game.save_hints = false` and keep records and altar disabled.
+  - New test scripts must set `Game.save_hints = false`.
 
 ## 4. Record
 - Check the item off in ROADMAP.md with a one-line note of what was done, including the numbers if any. Add follow-ups you discovered as new `- [ ]` items.
 - Update CLAUDE.md if you added a flag, script, table or workflow.
 - Add or update the feature's doc in `docs/features/` (template and index in its README): how it works, files, invariants, tuning, extending, tests. Do this for any feature that spans several files or has its own test.
-- If players would see the change (new move, enemy, power, menu, numbers), run the `update-wiki` skill. `python tools/wiki.py` is enough when only numbers or ids changed.
 
 ## 5. Commit and report
 - One Conventional Commit on `dev` (feat/fix/perf/docs/test/chore…).

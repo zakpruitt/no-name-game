@@ -5,23 +5,9 @@ extends Node3D
 ## each enemy in its arc once and leaving a swoosh. Spawned by player._cast
 ## for casts of kind "echo" (elements.CASTS).
 
-const HERO_LOOK := preload("res://scripts/hero_look.gd")
-# Ascendancy forms of a spirit axe (ghost(el)): [radius, length, sides, axe-local
-# base, z rotation (deg; 90 = out of the blade edge toward -X)].
-const FORMS := {
-	"earth": [[0.09, 0.45, 5, Vector3(-0.5, 0.38, 0), 62.0], [0.1, 0.62, 5, Vector3(-0.58, 0.62, 0), 90.0],
-		[0.09, 0.45, 5, Vector3(-0.52, 0.84, 0), 118.0], [0.08, 0.38, 5, Vector3(0, -0.25, 0), 180.0],
-		[0.08, 0.32, 5, Vector3(0.08, 0.7, 0), -80.0]],
-	"water": [[0.07, 0.5, 4, Vector3(-0.5, 0.38, 0), 50.0], [0.08, 0.72, 4, Vector3(-0.58, 0.62, 0), 80.0],
-		[0.07, 0.5, 4, Vector3(-0.52, 0.84, 0), 110.0], [0.08, 0.55, 4, Vector3(0, 0.93, 0), 0.0]],
-	"wind": [[0.11, 0.85, 3, Vector3(0.06, 0.82, 0), -55.0], [0.1, 0.7, 3, Vector3(0.06, 0.62, 0), -95.0],
-		[0.08, 0.5, 3, Vector3(0.04, 0.44, 0), -125.0]],
-}
 const FADE_IN := 0.04
 const FADE_OUT := 0.14
 const HEIGHT := 1.0  # sweep height above the floor
-
-static var _form_meshes := {}
 
 var axe_mesh: Mesh
 var color := Color(0.3, 0.95, 0.85)
@@ -37,7 +23,7 @@ var el := "spirit"  # element of the hit debris (Fx.element_hit)
 
 var _pivot: Node3D
 var _mat: StandardMaterial3D
-var _hit: Array = []
+var _hit: Array[Node] = []
 var _scale := 1.0
 
 
@@ -46,7 +32,7 @@ func _ready() -> void:
 	_pivot = Node3D.new()
 	_pivot.position.y = HEIGHT
 	add_child(_pivot)
-	var axe := ghost(axe_mesh, color, el)
+	var axe := ghost(axe_mesh, color)
 	_mat = axe.material_override
 	var rim: ShaderMaterial = axe.material_overlay
 	# Axe-local: handle +Y, blade toward -X, thin in Z. Lay it flat: handle points
@@ -67,12 +53,8 @@ func _ready() -> void:
 
 
 ## A spectral copy of `mesh`: translucent unshaded body (starts invisible:
-## tween material_override's albedo alpha) with a bright rim overlay. With an
-## Ascendancy element (`el` wind / earth / water) the axe takes that form:
-## extra blades sharing the body's materials (so they fade with it) and a body
-## tint: earth = dark molten with spikes off the edge and butt, water = pale
-## ice with icicles and a point, wind = swept wing blades off the back.
-static func ghost(mesh: Mesh, c: Color, el := "") -> MeshInstance3D:
+## tween material_override's albedo alpha) with a bright rim overlay.
+static func ghost(mesh: Mesh, c: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	var mat := StandardMaterial3D.new()
@@ -80,11 +62,6 @@ static func ghost(mesh: Mesh, c: Color, el := "") -> MeshInstance3D:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var body := Color.from_hsv(c.h, 0.85, 0.85)
-	match el:
-		"earth":
-			body = Color.from_hsv(c.h, 0.95, 0.6)
-		"water":
-			body = Color.from_hsv(c.h, 0.35, 1.0)
 	mat.albedo_color = Color(body, 0.0)
 	mi.material_override = mat
 	var rim: ShaderMaterial = Fx.rim_material().duplicate()
@@ -92,25 +69,27 @@ static func ghost(mesh: Mesh, c: Color, el := "") -> MeshInstance3D:
 	rim.set_shader_parameter("intensity", 2.0)
 	mi.material_overlay = rim
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	for o: Array in FORMS.get(el, []):
-		var part := MeshInstance3D.new()
-		part.mesh = _form_mesh(o[0], o[1], o[2])
-		part.material_override = mat
-		part.material_overlay = rim
-		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		part.position = o[3]
-		part.rotation_degrees = Vector3(0, 0, o[4])
-		part.scale = Vector3(1, 1, 0.5)  # flat like the blade
-		mi.add_child(part)
 	return mi
 
 
-## Faceted spike `radius` x `length` with `sides`, base at the origin pointing +Y (cached).
-static func _form_mesh(radius: float, length: float, sides: int) -> Mesh:
-	var key := Vector3(radius, length, sides)
-	if not _form_meshes.has(key):
-		_form_meshes[key] = HERO_LOOK._flat_mesh(HERO_LOOK._prism(radius, length, sides))
-	return _form_meshes[key]
+## Fade every ghost at once: `body_a` on the bodies, `rim` intensity on the
+## rims (each cast's _fade, with its own full-strength numbers).
+static func fade_ghosts(mats: Array[StandardMaterial3D], rims: Array[ShaderMaterial],
+		body_a: float, rim: float) -> void:
+	for i in mats.size():
+		mats[i].albedo_color.a = body_a
+		rims[i].set_shader_parameter("intensity", rim)
+
+
+## One foe struck by a spirit cast: the hit, the combo counter, element debris
+## at the foe (`debris_dir`, `big`) under `fx_parent`, then the caller's hook.
+static func strike(e: Node, damage: float, knockback: Vector3, launch: float, heavy: bool,
+		fx_parent: Node, el: String, debris_dir: Vector3, big: bool, on_hit: Callable) -> void:
+	e.take_hit(damage, knockback, launch, heavy)
+	Game.register_hit("cast")
+	Fx.element_hit(fx_parent, e.global_position, el, debris_dir, big)
+	if on_hit.is_valid():
+		on_hit.call(e)
 
 
 ## Sweep position `t` (0 start .. 1 end of the arc); also hits enemies it passes.
@@ -146,8 +125,4 @@ func _hit_swept(angle: float) -> void:
 		if bearing * side < start * side or bearing * side > angle * side:
 			continue
 		_hit.append(e)
-		e.take_hit(damage, to.normalized() * 5.0, 0.0, false)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent(), e.global_position, el, to.normalized())
-		if on_hit.is_valid():
-			on_hit.call(e)
+		strike(e, damage, to.normalized() * 5.0, 0.0, false, get_parent(), el, to.normalized(), false, on_hit)

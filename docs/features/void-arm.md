@@ -1,6 +1,6 @@
 # The void arm: right click, R, weapon shapes, grab, swing, slam
 
-The comic hero's right arm is a purple tentacle that shapes itself into his weapons. Right click sends it out, and R swings him on it (pad: left bumper). All of this is the comic hero only: `player._void` is null on the KayKit hero, and `route()` and the checks that walk it are untouched. There is no E any more.
+The heretic's right arm is a purple tentacle that shapes itself into his weapons. Right click sends it out, and R swings him on it (pad: left bumper). He is the only hero, so `player._void` is always set and `player.void_route()` is the only routing. There is no E any more.
 
 ## His moves
 
@@ -20,7 +20,7 @@ The comic hero's right arm is a purple tentacle that shapes itself into his weap
 | Dash H | `TW` | bare |
 | R | swing, below | bare |
 
-Unreachable for him until they're brought back: `LH`, `LHH`, `AL2`, `AH`, `AL3`, `LLH`, `LPL`, the Awakened ultimates (`SKY`, `RUSH`, `AF`), the breakers on those moves, and any power hooked only to them. Q still Awakens. The pause menu lists `move_list.VOID_SECTIONS` for him (`sections_for()`).
+The KayKit hero's moves (`LH`, `LHH`, `AL2`, `AH`, `AL3`, `LLH`, `LPL`, `H`, `CH`, `DH`), the ultimates and their breakers were removed in round 28. Q still Awakens. The pause menu lists `move_list.SECTIONS`.
 
 ## Right click from neutral
 
@@ -66,7 +66,7 @@ A reach this long can't be baked, so `void_tendril.gd` rebuilds a tube each fram
 - The weapon trail follows the axe head's position for every form.
 - The baked arm still bends like an arm: no tendril bones.
 - Hand form for interactions, element movement (air gust, lava launch, ice slide), wind off the whole arm.
-- The bot never presses R, so `--autotest --comic` doesn't exercise it; `void_arm_check` does.
+- The bot never presses R, so `--autotest` doesn't exercise it; `void_arm_check` does.
 
 ## Checks
 

@@ -84,12 +84,8 @@ func _pop() -> void:
 
 ## Soft glow sprite in the shot's colour (a danger colour that reads on the light floor).
 func _add_halo(size: float) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var mat := Fx.unshaded_mat(Color(color, 0.9), "dot")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_texture = Fx.TEX.dot
-	mat.albedo_color = Color(color, 0.9)
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE * size
 	quad.material = mat

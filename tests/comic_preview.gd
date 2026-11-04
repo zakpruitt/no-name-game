@@ -16,14 +16,12 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false  # don't use up the player's first-run hints
-	game.skip_title = true
-	game._comic_cli = true  # as --comic: never saved
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
-	main._queue.clear()
+	main.clear_room()
 	await _lineup(main)
 	await _text(main, game)
 	game.stop_all_sfx()

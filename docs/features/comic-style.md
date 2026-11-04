@@ -2,17 +2,18 @@
 
 ## What it does
 
-A default-off art style behind `Game.comic_style`, ported from the Blender kit in
+The game's art style (always on: `Game.comic_style` stays true as the flag the art code reads), ported from the Blender kit in
 `vendor_src/shaman_redesign/comic_poc`: comic hero and enemy models, cut-tone shading with
 halftone and hatching, ink lines, dark indigo hard-shadow lighting, onomatopoeia on
-hits. Combos keep the game's floating name label. The comic hero also faces the mouse and
-has a run for each direction. With the flag off nothing changes.
+hits. Combos keep the game's floating name label. The hero (the heretic, [heretic-hero.md](heretic-hero.md))
+also faces the mouse and has a run for each direction. Enemies and dungeon pieces still fall back to
+KayKit per model when their comic GLB is missing.
 
 **None of the rendering has ever been seen.** It was built with `--headless` only, and
 headless Godot neither compiles shaders nor draws. Run `tests/comic_shots.gd` first.
 
-On with `--comic` (never saved), or Settings → Comic style (next run), saved as
-`video/comic_style` only when on.
+There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Settings toggle are gone
+(ROADMAP round 28), and the old `video/comic_style` key in `settings.cfg` is ignored.
 
 ## Files
 
@@ -20,15 +21,14 @@ On with `--comic` (never saved), or Settings → Comic style (next run), saved a
 |---|---|
 | `shaders/comic_toon.gdshader` | `light()`: ink / hatched shadow / halftoned mid / light / hi; inner ink and hard rim in `fragment()` |
 | `shaders/comic_emit.gdshader` | Unshaded three cut tones along `g`, for glowing materials and `C.flat` |
-| `shaders/outline.gdshader` | The existing hull; new `wobble` uniform, 0 unless flagged |
+| `shaders/outline.gdshader` | The existing hull; `wobble` uniform |
 | `scripts/comic_look.gd` | `ComicLook`: `TONES`/`EMITS`/`KIND_TONES`, `apply()`, `scene()`, `clip()` + `CLIPS`, `fit()` + `RIG_SCALE`, `build_environment()` |
-| `scripts/comic_fx.gd` | `ComicFx` CanvasLayer: `hit()`, `combo()`, added by `main._ready` only when flagged |
-| `scripts/game.gd` | `comic_style`, `comic_setting`, `sync_comic()`, `toggle_comic()` |
+| `scripts/comic_fx.gd` | `ComicFx` CanvasLayer: `hit()`, `combo()`, added by `main._ready` |
+| `scripts/game.gd` | `comic_style` (always true) |
 | `scripts/enemy.gd` | `comic_kind`, the mapping in `_play`, `_hold_clip`, `_clip_speed`, `_attach_comic_spark` |
 | `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
-| `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` when flagged |
-| `scripts/shrine_prop.gd`, `vault_prop.gd`, `spike_trap.gd` | Their pieces via `ComicLook.piece` / `comic_piece` |
-| `scripts/player.gd` | `_comic_hero` and the branch in `_ready`, `_clip_name`, `_comic_moves_on`, `_ult_anim`, `_axe_mesh`; mouse aim: `_mouse_aiming`, `_mouse_dir`, `_turned`, `_aim_want`, `_play_locomotion` |
+| `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` |
+| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move`, `_axe_mesh`; mouse aim: `_mouse_aiming`, `_mouse_dir`, `_turned`, `_aim_want`, `_play_locomotion` |
 | `tools/comic_glb.py` | Copies GLBs into `assets/comic`, moving `g` to `COLOR_0` |
 | `assets/fonts/` | Bangers + `OFL.txt` (see `CREDITS.md`) |
 
@@ -58,13 +58,11 @@ A clip named `Hero_X` replaces the retargeted `X` at export: `Idle`, `2H_Melee_I
 so hits must fall before that (`comic_check`). The old KayKit attacks, `Death_A` and the `Spellcast_` clips
 still have retargeted arms.
 
-**Element on the axes.** `ComicLook.infuse_axes` replaces `hero_look.coat_axes` on the comic hero, and
-`player.ascend` swaps it. Both axes take `AXE_INFUSIONS`' blade and edge materials: spirit teal, wind green,
-earth rock and lava, water ice and bolt, so before an Ascendancy neither shows its modelled ice or magma
-colours. `comic_axe_aura.gd` adds tongues along the edge, geometry stepped at 12 fps: `rise` flames stand up
+**Element on the axes.** `ComicLook.infuse_axes` dresses the axe in `AXE_INFUSIONS`' blade and edge materials
+(the hero's element is spirit, shown as wind's look through `HERO_AURA_AS`). `comic_axe_aura.gd` adds tongues along the edge, geometry stepped at 12 fps: `rise` flames stand up
 in the world and stream behind a swing, `spin` gusts whirl round the blade, `shard` crystals stay fixed. Each
 tongue is an outer colour on back faces round a hot core on front faces, so the core shows from any side.
-Motes come from `hero_look._drip`. `charge` grows them while Awakened, through `charge_coats`.
+Motes come from `comic_axe_aura._drip` (`DRIP_AMOUNT`). `charge` grows them while Awakened (`player._set_awakened`).
 
 **Drag marks.** Each aura has a `comic_drag_mark.gd` it feeds the blade's tip every frame. Within `LIFTED` of
 the floor the tip lays a point every `STEP_M`, and the points make a ribbon, an outer colour with a hot inner
@@ -87,16 +85,15 @@ His rig must sit square in the GLB. The Blender reel keys the rig object to 78 d
 its action leaves that behind, so `export_comic_shaman.py` zeroes it. `comic_check` fails if a
 skeleton is turned in its model, which bone positions alone can't show.
 
-The hero is `assets/comic/shaman_comic.glb` when flagged. He skips `HERO_LOOK.dress`/`add_kit`
-(hair, mantle, feathers, axes and eyes are all modelled), so `coat_axes` finds no `1H_Axe` and
-gives him no element coats. Ascending adds no gear: `ComicLook.tint_fractures` turns his cracks the element's colour and
-`infuse_axes` does his axes (`HERO_LOOK.add_form` is the KayKit hero's). `L2`'s `Throw` is his
-`Ab_L2` (`CLIPS`). `Game.comic_moves` is on unless `--no-comic-moves` is passed; it needs the comic
-hero and is never saved: `_effective_move` passes each id in `ComicLook.HERO_MOVES` through `retime`, and
-SKY and RUSH play one clip at the speed that reaches its hit frame at the impact or the dash.
-`MOVES` itself is never written.
+The hero is `assets/comic/heretic.glb` (`ComicLook.HERETIC`; see [heretic-hero.md](heretic-hero.md)). The shaman model
+`assets/comic/shaman_comic.glb` is no longer loaded by the game: it stays as the clip and weapon source
+`tools/meshy_rig/heretic_bake.py` copies onto the heretic's rig. `L2`'s `Throw` is his `Ab_L2` (`CLIPS`).
+`_effective_move` passes each id in `ComicLook.HERO_MOVES` (L1, L2, L3, DL, AL1) through `retime`, so its
+hit lands on the clip's hit frame and the time after it stays as tuned. `MOVES` itself is never written.
 
 ### The base hero's design: the void arm
+
+(Written for the shaman model the heretic replaced; the void arm's design carried over.)
 
 One loud thing on him: his right arm is a purple void arm that shapes itself into his weapon. Earlier takes failed by
 having too much going on (a half-transformed lopsided body; two elemental arms plus two axes): keep him simple.
@@ -111,7 +108,7 @@ having too much going on (a half-transformed lopsided body; two elemental arms p
 - **Left arm:** a normal arm with air rings (`left_rings`). Its joints moved, and it holds nothing: `arm('l', ...)` leaves
   the hand alone and clips have no `drag.l`. Clips other than `Ab_L1` and `Ab_L2` still swing it as if it held an axe.
 - **Axe:** `axe_void_*` on `hand.r`, parts `haft`, `blade`, `edge`, `core`. `HERO_AXES` has the one entry, so the trail, aura
-  and floor mark are one each. Before an Ascendancy its aura and mark are wind's (`HERO_AURA_AS`), in its own materials.
+  and floor mark are one each. Its aura and mark are wind's (`HERO_AURA_AS`), in its own materials.
 - **The voice:** a thin vein from the rock ear to the lava eye (too small to see at game size), and `Idle_Listen`, which
   does the work: he tips his head to that ear, goes still, nods twice.
 - **Budget:** about 41k tris, from 67k.
@@ -125,31 +122,23 @@ having too much going on (a half-transformed lopsided body; two elemental arms p
 | L1 | 0.35, 0.75 | 0.32, 0.72 |
 | L2 | 0.57, 0.96 | 0.44, 0.82 |
 | L3 | 0.51, 1.08 | 0.73, 1.30 |
-| LH | 0.63, 1.22 | 0.49, 1.08 |
-| LLH | 0.64, 1.36 | 0.65, 1.37 |
-| H | 0.72, 2.04 | 0.49, 1.81 |
 | DL | 0.48, 1.12 | 0.37, 1.01 |
-| LHH | 0.41, 0.85 | 0.86, 1.30 |
-| CH | 0.65, 1.39 | 1.52, 2.25 |
-| AF | 0.50, 0.99 | 1.65, 2.14 |
 
-Time after the hit is the same by construction; **the wind-up isn't**. LHH, CH and AF hit two to
-three times later, which changes how the combos feel. Unjudged: nobody has played it.
+Time after the hit is the same by construction; **the wind-up isn't**.
 
-1. `main._ready` calls `Game.sync_comic()`, so one run never mixes the looks.
-2. `main._set_model` asks `ComicLook.scene(kind)`: the GLB if flagged and present, else
+1. `main._set_model` asks `ComicLook.scene(kind)`: the GLB if present, else
    null and the KayKit model, per kind. A comic model sets `enemy.comic_kind`.
-3. `enemy._ready`, for a comic model: `fit`, `apply`, and no KayKit shield, crossbow,
+2. `enemy._ready`, for a comic model: `fit`, `apply`, and no KayKit shield, crossbow,
    bomb or tints, since the GLBs carry their own. Then `Fx.outline` as always.
-4. `_play` runs each clip name through `ComicLook.clip`: the model's own clip if it has
+3. `_play` runs each clip name through `ComicLook.clip`: the model's own clip if it has
    one, else `CLIPS`, where `""` means keep what's playing. The Warden's `Attack_Slam`
    contains the leap and landing, so `Jump_Idle` and `Jump_Land` map to `""`.
-5. `_windup_anim` picks the Warden's clip per attack and sets its speed so the hit frame
+4. `_windup_anim` picks the Warden's clip per attack and sets its speed so the hit frame
    lands on the windup's end. `Block_Hit`, `Enrage` and `Bomb_Windup` use `_hold_clip`,
    since chase would otherwise replace them with run or idle next frame.
 
 Dungeon pieces (`assets/comic/dungeon/`, built by `env_kit.py` to KayKit's names, sizes and
-pivots) load through `ComicLook.piece`: comic if flagged and present, else KayKit, per piece.
+pivots) load through `ComicLook.piece`: comic if present, else KayKit, per piece.
 `comic_*` materials set `tone_by_g`, so each stone's `g` multiplies its tone, and those in
 `PIECE_INK_PX` carry a thin hull as `next_pass`. Floors and seams have none: their ink is geometry.
 
@@ -161,9 +150,7 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 
 ## Invariants
 
-- Flag off: `comic_kind == ""`, `ComicFx` has no instance, `outline.wobble` is 0, and
-  `settings.cfg` gains no key.
-- `--comic` is never saved: `_save_settings` writes `comic_setting` only.
+- `settings.cfg` never gains a comic key.
 - `enemy.model_scale` stays as tuned, because it sizes collision. Resize art in `RIG_SCALE`.
 - Every GLB goes through `tools/comic_glb.py`. Godot only reads `COLOR_0`, and the exports
   keep `g` in `COLOR_1`, so a plain copy pins every glow to its top tone. `comic_check`
@@ -207,9 +194,8 @@ role lists (its source scan fails until you do), then to `CLIPS` for models lack
 - `godot --headless --path . -s tests/comic_check.gd`: every clip each type asks for resolves
   after mapping, tones, `g` imported, jaw ahead of head (+Z facing), fallback, and the text
   layer's logic. Part of `agent.sh check`. Proves no pixels.
-- `... -- --autotest --comic --no-comic-moves`: the same with the retargeted clips instead of Ab_.
-- `godot --headless --path . -- --autotest --comic [--start-room=8 --boss-attack=slam]`: runs the
-  comic code paths in play, without the materials or outline (both skip headless).
+- `godot --headless --path . -- --autotest`: runs the comic code paths in play, without the
+  materials or outline (both skip headless).
 - `godot --path . -s tests/comic_shots.gd`: **the one windowed run that checks the look, never yet
   run.** Saves `user://comic_shots/NN_*.png` and `INDEX.txt`, saying what each should show. Under
   `--headless` its stages run without saving, which only proves they don't error.
@@ -228,12 +214,12 @@ Assumptions only a windowed run can confirm:
 - The hull is a next pass; under a hard sun it may self-shadow into blotches (the POC hit this).
 - First-use shader hitch: comic materials are not in `elements.prewarm` yet.
 
-Lights and floor effects under the flag (read from the code, none of it seen):
+Lights and floor effects (read from the code, none of it seen):
 
-- Torch `OmniLight3D`s are off when flagged. Toon tones take only a light's brightness, so a torch
+- Torch `OmniLight3D`s are off. Toon tones take only a light's brightness, so a torch
   could only step the wall's tone, not warm it, and six lights cost every wall and floor pixel.
   Dropped rather than judged. `env_room.py`'s drawn warm shapes round each torch are not ported.
-- Kept, can't judge headless: coloured lights from shrine, vault, elites, projectiles, Awakening
+- Kept, can't judge headless: coloured lights from elites, projectiles, Awakening
   and casts. On toon they become a stepped brighter pool with no tint; on KayKit they still tint.
 - The game has no `Decal` nodes. Scorch, telegraphs, rings and dust are unshaded alpha meshes, so
   they ignore the lights. Pieces match KayKit's floor height (y 0.05), so their offsets still clear
@@ -247,14 +233,11 @@ KayKit assumptions the comic hero runs into:
 - `tools/comic_glb.py` renames a mesh node sharing a joint's name: Godot gave the name to the mesh
   and imported the bone as `head_2`, so every `head` attachment would have silently landed at the
   origin. `comic_check` now resolves every attachment.
-- `HERO_LOOK.FORMS` (Ascendancy gear) is not used on him: it was tuned to KayKit's bones and speared through his hair
-  in the `comic_shots` run. Each Ascendancy's own add-ons come with its phase of the plan.
-- `spirit_avatar.gd` and the spirit casts' `axe_mesh` stay KayKit Barbarian. His axes are skinned in
+- The spirit casts' `axe_mesh` stays the KayKit Barbarian's `1H_Axe`. His weapons are skinned in
   place and can't be ghosted from an origin, hence `_axe_mesh`.
 - `weapon_trail.gd` follows a mesh's transform; skinned axes never move theirs, so
   `ComicLook.hero_blades` rides invisible boxes on the hands. Direction from the axe head's bounds.
-- `HERO_LOOK.set_eyes`: no `AwakenEyes` on him, so Awakening no longer lights his eyes.
-- `Fx.afterimage` bakes every skinned mesh. He's 67k tris in 29 meshes, so dash and ult ghosts may
+- `Fx.afterimage` bakes every skinned mesh. He's 67k tris in 29 meshes, so dash ghosts may
   cost far more than on KayKit. Unmeasured. He is also about 2.45 m to KayKit's 2.18 m, unscaled.
 
 Known gaps:

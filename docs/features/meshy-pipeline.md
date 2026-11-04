@@ -65,6 +65,30 @@ Commands are in [heretic-hero.md](heretic-hero.md). The agent skill `meshy-asset
 - Cloth simulation doesn't suit a thick, fused shell.
 - `heretic_bake.py` has the old hero's bone and weapon names written in, so a character with other clips needs those changed.
 
+## Refining without a new model
+
+A model that is nearly right can be refined on its rig blend without rebuilding the rig: `heretic_refine.py` swaps the texture pixels and moves vertices (thicken a limb along its normals, grow the head or a hand about a joint by skin weight). Bones and weights stay, so the bake runs as before. Commands: [heretic-hero.md](heretic-hero.md).
+
+Flatten a Meshy texture before it goes under the cut tones (`flatten_texture.py`): its baked light and speckle fight the shader. The atlas is hundreds of small islands, so filter inside islands found from the UVs and pad each one for mipmaps.
+
+## Generating, round 29
+
+- `generate_3d` with a text prompt runs a preview (20 credits) and a refine (10): 30 credits per textured model. The balance is at `GET https://api.meshy.ai/openapi/v1/balance` with the key from the Blender add-on preferences; check it before and after each call.
+- Meshy 7.1 returns 0.9-1.2 M triangles. Decimate before rigging.
+- `pose_mode="a-pose"` dropped the tentacle arm completely. Without it, and "arms held out away from the sides" in the text, the tentacles came through.
+- The chibi prompt gave the right proportions but a patchwork texture (wrong-coloured blotches on the hood and clothes). Look at the texture before paying for anything else on a model.
+- A generated model has no rig. `heretic_rig.py` needs Meshy's auto-rigged FBX for body joints and weights, so budget its rigging too (not tried yet), or a new joint-placement step.
+
+## Retexture and auto-rig through the REST API (round 29)
+
+Both work with the add-on's key (`bpy.context.preferences.addons['blender_mcp'].preferences.meshy_api_key`; call from inside Blender with `urllib` so the key never leaves it). Commands and values: [heretic-hero.md](heretic-hero.md), "The chibi heretic".
+
+- `POST https://api.meshy.ai/openapi/v1/retexture` with `model_url` as a `data:model/gltf-binary;base64,...` URI (up to 100 MB) or `input_task_id`, plus `text_style_prompt` (800 chars). 10 credits, about 2 minutes. Poll `GET /openapi/v1/retexture/<id>`; `model_urls.glb` and `texture_urls[0].base_color` are signed URLs that need no key.
+- `POST https://api.meshy.ai/openapi/v1/rigging` with `input_task_id` (a retexture task works) and `height_meters`. 5 credits, about 12 s. Max 380k tris, so decimate first. Gives `rigged_character_fbx_url`, `rigged_character_glb_url` and walking/running clips.
+- The REST rig is not the Mixamo one the first model had: 24 bones (`Hips`, `Spine02` lowest, `Spine01`, `Spine`, `neck`, `Head`, `head_end`, `headfront`, arms, legs, `*ToeBase`), no fingers. `heretic_rig.py` aliases them.
+- Decimate before both calls: retexturing a 22k model keeps its geometry exactly (and the rig gets a body that fits), but Meshy rescales it to 2 m tall and recentres it.
+- Mirror before retexturing if a limb is on the wrong side: the texture then follows.
+
 ## Open questions
 
 - Whether prompting can stop Meshy fusing parts.

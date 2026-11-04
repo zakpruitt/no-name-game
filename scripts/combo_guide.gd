@@ -9,6 +9,7 @@ extends Control
 ## so hitstop and slow motion don't stall it. Off in Settings (Game.combo_guide).
 
 const FADE_IN := 0.05
+const KEY_COLORS := {"light": Color(0.35, 0.62, 1.0), "heavy": Color(1.0, 0.78, 0.2), "dash": Color(0.35, 0.88, 0.45)}  # each button's key rim
 const FADE_OUT := 0.14
 const SWAP_TIME := 0.09  # rows slide in when the options change
 const SWAP_STAGGER := 0.018
@@ -82,7 +83,7 @@ func _notification(what: int) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Real time: hitstop and ultimate slow motion scale delta down.
+	# Real time: hitstop and breaker slow motion scale delta down.
 	var now := Time.get_ticks_usec()
 	var dt := minf((now - _last_us) / 1000000.0, 0.1)
 	_last_us = now
@@ -150,8 +151,6 @@ func _row_pos(i: int) -> Vector2:
 
 
 func _row_color(row: Dictionary) -> Color:
-	if row.ult:
-		return Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25)
 	return player.COMBO_TIER_COLORS[row.tier - 1] if row.tier > 0 else PLAIN_COLOR
 
 
@@ -201,12 +200,7 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 	var x0 := pos.x if _side > 0.0 else pos.x - width
 	var base := _anchor + Vector2(x0, pos.y)
 
-	# Backing pill; ultimates glow, a press flashes it.
-	var glow := 0.0
-	if row.ult:
-		glow = 0.6 + 0.3 * sin(t * 9.0) if usable else 0.25
-	if glow > 0.0:
-		_pill(Rect2(base + Vector2(-4.0, -ROW_H * 0.5 - 4.0), Vector2(width + 8.0, ROW_H + 8.0)), Color(col, glow * 0.45 * alpha))
+	# Backing pill; a press flashes it.
 	_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(BACK_COLOR, BACK_COLOR.a * alpha))
 	if pressed > 0.0:
 		_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(col, 0.45 * pressed * alpha))
@@ -237,8 +231,7 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 				var a := Vector2(px, base.y)
 				draw_polyline([a + Vector2(0, -5), a + Vector2(5, 0), a + Vector2(0, 5)], Color(1, 1, 1, 0.45 * alpha), 2.0, true)
 			"next":
-				var nc: Color = Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25) if row.next.ult \
-					else player.COMBO_TIER_COLORS[row.next.tier - 1]
+				var nc: Color = player.COMBO_TIER_COLORS[row.next.tier - 1]
 				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(nc, 0.9 * alpha * lit))
 			"pause":
 				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(player.COMBO_TIER_COLORS[row.pause.tier - 1], 0.6 * alpha * lit))
@@ -255,7 +248,7 @@ func _glyph(c: Vector2, kind: String, h: float, alpha: float) -> void:
 	var size := int(KEY_SIZE * h / GLYPH_H)
 	var w := maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + h * 0.6)
 	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
-	var kc: Color = Upgrades.PATHS[kind].color if Upgrades.PATHS.has(kind) else ComicLook.VOID_COLOR  # the colour of that path's powers
+	var kc: Color = KEY_COLORS.get(kind, ComicLook.VOID_COLOR)
 	_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, alpha))

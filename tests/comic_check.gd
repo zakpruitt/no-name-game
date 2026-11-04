@@ -35,9 +35,7 @@ func _initialize() -> void:
 	MAIN = load("res://scripts/main.gd")
 	BOSS = load("res://scripts/boss.gd")
 	var game: Node = get_root().get_node("Game")
-	_expect(not game.comic_style, "flag defaults off")
-	_expect(Look.scene("minion") == null, "flag off: no comic model")
-	game.comic_style = true
+	_expect(game.comic_style, "comic style is always on")
 	_expect(Look.scene("no_such_enemy") == null, "absent GLB: null, caller keeps KayKit")
 	_scan_sources()
 	var with_glb := []
@@ -68,11 +66,11 @@ func _initialize() -> void:
 	quit(1 if _fails > 0 else 0)
 
 
-## The hero model, the Ab_ overlay's numbers, then a real player with each flag.
+## The hero model (the heretic), the Ab_ overlay's numbers, then a real player.
 func _check_hero(game: Node) -> void:
 	game.comic_style = true
 	var hero_script: GDScript = load("res://scripts/player.gd")
-	var packed: PackedScene = Look.scene(Look.HERO)
+	var packed: PackedScene = Look.scene(Look.HERETIC)
 	_expect(packed != null, "hero GLB present")
 	if packed == null:
 		return
@@ -84,7 +82,7 @@ func _check_hero(game: Node) -> void:
 	var asks := _hero_clips(hero_script)
 	_expect(asks.size() > 20, "scan found the hero's clips (%d)" % asks.size())
 	for wanted: String in asks:
-		var got: String = Look.clip(rig, Look.HERO, wanted)
+		var got: String = Look.clip(rig, Look.HERETIC, wanted)
 		_expect(rig.has_animation(got), "hero: %s -> %s" % [wanted, got])
 	_check_hero_bones(model)
 	_check_overlay(hero_script, rig)
@@ -97,13 +95,12 @@ func _hero_clips(hero_script: GDScript) -> Array:
 	var found := {}
 	var quoted := RegEx.create_from_string("\"([A-Za-z0-9_]+)\"")
 	for line: String in FileAccess.get_file_as_string("res://scripts/player.gd").split("\n"):
-		if "_play(" in line or "_ult_anim(" in line:
+		if "_play(" in line:
 			for m in quoted.search_all(line):
-				if not hero_script.ULTIMATES.has(m.get_string(1)):  # `if id == "SKY"`
-					found[m.get_string(1)] = true
+				found[m.get_string(1)] = true
 	for move: Dictionary in hero_script.MOVES.values():
 		found[move.anim] = true
-	for b: Dictionary in hero_script.BREAKERS.values():
+	for b: Dictionary in load("res://scripts/void_element.gd").BREAKERS.values():
 		if b.has("hang_anim"):
 			found[b.hang_anim] = true
 	for loop: String in hero_script.LOOPING:
@@ -111,56 +108,40 @@ func _hero_clips(hero_script: GDScript) -> Array:
 	return found.keys()
 
 
-## The hero has no jaw bone, so his face is read off the eyes, which are ahead of the head.
+## The hero faces +Z like everything else.
 func _check_hero_face(model: Node3D) -> void:
 	_check_facing(model, "hero")
-	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
-	var head: Vector3 = skel.get_bone_global_rest(skel.find_bone("head")).origin
-	var eye: MeshInstance3D = model.find_child("pupil", true, false)
-	_expect(eye != null, "hero: has pupils")
-	if eye != null:
-		var c: Vector3 = eye.mesh.get_aabb().get_center() - head
-		_expect(c.z > absf(c.x), "hero: eyes look down +Z (they sit at %s from the head)" % c)
 
 
-## Everything hero_look can attach: a bone name that misses puts the gear at the origin.
+## The bones the trails and the void arm hang off.
 func _check_hero_bones(model: Node3D) -> void:
 	_check_hero_face(model)
-	var look: GDScript = load("res://scripts/hero_look.gd")
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	for bone: String in ["head", "chest", "upperarm.l", "upperarm.r", "hand.l", "hand.r"]:
 		_expect(skel.find_bone(bone) >= 0, "hero has bone %s (tools/comic_glb.py renames clashing meshes)" % bone)
-	look.add_kit(model)
-	for path: String in look.FORMS:
-		look.add_form(model, path)
 	var blades: Array = Look.hero_blades(model)
 	_expect(blades.size() == Look.HERO_AXES.size(), "a weapon-trail blade per hand")
 	for blade: MeshInstance3D in blades:
 		_expect(blade.mesh.size.y > 0.4 and blade.mesh.size.y < 2.0, "blade reaches the axe head (%.2f m)" % blade.mesh.size.y)
 		_expect(blade.layers == 0 and blade.has_meta("no_ghost"), "blade is never drawn or ghosted")
-	var attached: Array = model.find_children("*", "BoneAttachment3D", true, false)
-	_expect(attached.size() > 10, "hero_look attached its gear (%d)" % attached.size())
-	for at: BoneAttachment3D in attached:
-		_expect(skel.find_bone(at.bone_name) >= 0, "attachment bone %s resolves" % at.bone_name)
 
 
 ## The numbers: hit = frame / length, and the time after the hit unchanged.
 func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
-	var kaykit: Node = hero_script.MODEL.instantiate()
+	var kaykit: Node = load(hero_script.AXE_SOURCE).instantiate()  # the old timings are its clips
 	var old_rig: AnimationPlayer = kaykit.find_child("AnimationPlayer", true, false)
-	_expect(Look.HERO_MOVES.size() == 18, "eighteen Ab_ clips routed")
+	_expect(Look.HERO_MOVES.size() == 5, "five Ab_ clips routed")
 	for id: String in Look.HERO_MOVES:
 		var h: Dictionary = Look.HERO_MOVES[id]
 		_expect(rig.has_animation(h.clip), "%s: clip %s" % [id, h.clip])
 		var length: float = rig.get_animation(h.clip).length
-		_expect(absf(length - (h.frames - 1) / 24.0) < 0.001, "%s: %d frames match the clip's %.3f s" % [id, h.frames, length])
-		if not h.has("old"):
-			_expect(hero_script.ULTIMATES.has(id), "%s is an ultimate" % id)
-			continue
+		# frames / hit are the shaman's 24 fps counts; the heretic's clips run their own lengths,
+		# and only the hit fraction (hit / frames) is used.
+		_expect(h.hit > 0 and h.hit < h.frames, "%s: hit frame %d inside its %d" % [id, h.hit, h.frames])
 		var base: Dictionary = hero_script.MOVES[id]
 		var old_len: float = old_rig.get_animation(base.anim).length
 		_expect(absf(old_len - h.old) < 0.001, "%s: old length is %s's %.4f" % [id, base.anim, old_len])
-		var leap: float = hero_script.BREAKERS.get(id, {}).get("leap", -1.0)
+		var leap: float = load("res://scripts/void_element.gd").BREAKERS.get(id, {}).get("leap", -1.0)
 		var before := base.hash()
 		var m: Dictionary = base.duplicate(true)
 		Look.retime(id, m, length, base.hits[0], leap)
@@ -177,66 +158,35 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 		if leap >= 0.0:
 			_expect(m.leap >= hit and m.leap < m.end, what + " breaker leaps after the hit")
 		_expect(base.hash() == before, what + " left MOVES itself alone")
-	var sky: Dictionary = Look.HERO_MOVES.SKY
-	var sky_len: float = rig.get_animation(sky.clip).length
-	var impact: float = hero_script.ULTIMATES.SKY.time * hero_script.ULTIMATES.SKY.impact
-	_expect(absf(Look.ult_speed("SKY", sky_len, impact) * impact - sky_len * sky.hit / sky.frames) < 0.0001, "SKY's hit frame meets its impact")
 	kaykit.free()
 
 
-## A real player under each flag: flags off must be untouched, however the other is set.
+## A real player: the heretic, on his Ab_ clips.
 func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> void:
 	var stage := Node3D.new()
 	get_root().add_child(stage)
 	var comic: CharacterBody3D = hero_script.new()
 	stage.add_child(comic)
 	await process_frame
-	_expect(comic._comic_hero, "--comic: he is the comic model")
-	_expect(comic.anim.has_animation("Ab_L1"), "--comic: with his clips")
-	_expect(comic.model.find_child("ShamanHair", true, false) == null, "--comic: no added hair")
-	_expect(comic.model.find_child("ShamanMantle", true, false) == null, "--comic: no added mantle")
-	_expect(comic.model.find_child("AwakenEyes", true, false) == null, "--comic: no added eyes")
-	_expect(comic.model.find_children("Coat", "Node3D", true, false).is_empty(), "--comic: no axe coats")
-	_expect(comic._trails.size() == Look.HERO_AXES.size(), "--comic: a trail per axe")
-	_expect(comic._axe_mesh() != null, "--comic: spirit casts have an axe")
-	_expect(game.comic_moves, "the comic hero takes his Ab_ clips by default")
-	game.comic_moves = false  # --no-comic-moves
-	_expect(comic._effective_move("L1").anim == hero_script.MOVES.L1.anim, "--no-comic-moves: MOVES unchanged")
+	_expect(comic.anim.has_animation("Ab_L1"), "the hero has his clips")
+	_expect(comic.model.find_child("ShamanHair", true, false) == null, "no added hair")
+	_expect(comic.model.find_child("ShamanMantle", true, false) == null, "no added mantle")
+	_expect(comic.model.find_child("AwakenEyes", true, false) == null, "no added eyes")
+	_expect(comic.model.find_children("Coat", "Node3D", true, false).is_empty(), "no axe coats")
+	_expect(comic._trails.size() == Look.HERO_AXES.size(), "a trail per axe")
+	_expect(comic._axe_mesh() != null, "spirit casts have an axe")
 	_check_run_clips(comic)
 	_check_stances(comic)
 	_check_drag(comic)
 	_check_axe_auras(comic)
-	comic._start_attack("L2")
-	_expect(comic.anim.current_animation == "Ab_L2", "--no-comic-moves: L2 asks for Throw, gets Ab_L2")
-	_expect(is_equal_approx(comic._move.hits[0], hero_script.MOVES.L2.hits[0]), "--no-comic-moves: L2 keeps its fractions")
-	game.comic_moves = true
 	for id: String in Look.HERO_MOVES:
 		comic._hop_y0 = 0.0
 		comic._start_attack(id)
-		_expect(comic.anim.current_animation == Look.HERO_MOVES[id].clip, "--comic-moves: %s plays %s" % [id, Look.HERO_MOVES[id].clip])
-		if hero_script.ULTIMATES.has(id):
-			_expect(comic.anim.speed_scale > 0.5, "--comic-moves: %s clip sped to its hit" % id)
-		else:
-			_expect(is_equal_approx(comic._move_len, comic.anim.get_animation(Look.HERO_MOVES[id].clip).length), "--comic-moves: %s times itself on its clip" % id)
-			_expect(absf(comic._move.hits[0] - float(Look.HERO_MOVES[id].hit) / Look.HERO_MOVES[id].frames) < 0.0001, "--comic-moves: %s hits on its frame" % id)
-	var dh: Dictionary = comic._effective_move("DH")
-	comic._start_attack("SKY")
-	await create_timer(0.4).timeout
-	_expect(comic.anim.current_animation == Look.HERO_MOVES.SKY.clip, "--comic-moves: one clip through SKY's beats")
+		_expect(comic.anim.current_animation == Look.HERO_MOVES[id].clip, "%s plays %s" % [id, Look.HERO_MOVES[id].clip])
+		_expect(is_equal_approx(comic._move_len, comic.anim.get_animation(Look.HERO_MOVES[id].clip).length), "%s times itself on its clip" % id)
+		_expect(absf(comic._move.hits[0] - float(Look.HERO_MOVES[id].hit) / Look.HERO_MOVES[id].frames) < 0.0001, "%s hits on its frame" % id)
 	comic.queue_free()
 	await process_frame
-	game.comic_style = false
-	var plain: CharacterBody3D = hero_script.new()
-	stage.add_child(plain)
-	await process_frame
-	_expect(not plain._comic_hero, "flags off: KayKit hero, even with --comic-moves alone")
-	_expect(plain.model.find_child("1H_Axe", true, false) != null, "flags off: his axes")
-	_expect(plain.model.find_child("ShamanHair", true, false) != null, "flags off: hero_look's kit")
-	_expect(plain._effective_move("L1").hash() == hero_script.MOVES.L1.hash(), "flags off: MOVES as written")
-	plain._start_attack("L2")
-	_expect(plain.anim.current_animation == "Throw", "flags off: L2 plays Throw")
-	game.comic_moves = false
-	game.comic_style = true
 	stage.queue_free()
 	await process_frame
 
@@ -300,17 +250,8 @@ func _check_stances(comic: CharacterBody3D) -> void:
 	comic._set_state(comic.State.MOVE)
 
 
-## Standing or running, both blades' tips are on the floor, and they draw on it when they move.
+## The ground mark a dragged blade draws (he rests with the tentacle, so no tip-on-floor pose).
 func _check_drag(comic: CharacterBody3D) -> void:
-	var skel: Skeleton3D = comic.model.find_children("*", "Skeleton3D", true, false)[0]
-	for clip: String in ["Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R"]:
-		comic.anim.play(clip, 0.0)
-		for at: float in [0.0, 0.25, 0.5, 0.75]:
-			comic.anim.seek(comic.anim.current_animation_length * at, true)
-			for aura: Node in comic._coats:  # off the skeleton: attachments only follow it on a frame
-				var bone: Transform3D = skel.get_bone_global_pose(skel.find_bone(aura.bone_name))
-				var h: float = (skel.global_transform * bone * aura._tip).y - comic.global_position.y
-				_expect(absf(h) < TIP_ON_FLOOR, "%s: %s's blade tip is on the floor (%.2f m at %.2f)" % [clip, aura.bone_name, h, at])
 	comic.anim.play("Idle", 0.0)
 	comic.anim.seek(0.0, true)
 	for el: String in Look.AXE_INFUSIONS:
@@ -339,7 +280,7 @@ func _check_drag(comic: CharacterBody3D) -> void:
 
 ## The current element on both axes, for every element.
 func _check_axe_auras(comic: CharacterBody3D) -> void:
-	_expect(comic._coats.size() == Look.HERO_AXES.size(), "--comic: he starts with his element on his axe")
+	_expect(comic._coats.size() == Look.HERO_AXES.size(), "he starts with his element on his axe")
 	for el: String in Look.AXE_INFUSIONS:
 		var auras: Array = Look.infuse_axes(comic.model, el)
 		_expect(auras.size() == Look.HERO_AXES.size(), "%s: an aura per axe" % el)
@@ -360,12 +301,6 @@ func _check_axe_auras(comic: CharacterBody3D) -> void:
 			_expect(aura.tongues[0].global_basis.y.length() > small, "%s: bigger while Awakened" % el)
 			aura.charge(false)
 			aura.free()
-	comic.ascendancy = "wind"
-	var after: Array = comic._coat_axes()
-	_expect(after.size() == Look.HERO_AXES.size() and after[0].look == after[0].LOOKS.wind, "his Ascendancy's element goes on the axe")
-	for aura: Node in after:
-		aura.free()
-	comic.ascendancy = ""
 
 
 func _role_clips(spec: Dictionary) -> Array:
@@ -438,7 +373,7 @@ func _has_g(model: Node) -> bool:
 ## nodes code reaches for. The names come from the scripts, so a new piece can't slip by.
 func _check_dungeon() -> void:
 	var pieces := _pieces_in_sources()
-	_expect(pieces.size() >= 15, "source scan found the dungeon pieces (%d)" % pieces.size())
+	_expect(pieces.size() >= 14, "source scan found the dungeon pieces (%d)" % pieces.size())
 	for f in DirAccess.get_files_at("res://assets/kaykit/dungeon"):
 		if f.ends_with(".glb") and f.get_basename() not in pieces:
 			pieces.append(f.get_basename())
@@ -460,9 +395,6 @@ func _check_dungeon() -> void:
 		comic.free()
 		kaykit.free()
 	_expect(missing.is_empty(), "comic set has every dungeon piece, missing %s" % [missing])
-	var tile: Node3D = load(Look.PIECE_PATH % "floor_tile_big_spikes").instantiate()
-	_expect(tile.find_child("spikes", true, false) != null, "spike tile keeps its `spikes` node (spike_trap.gd)")
-	tile.free()
 	_expect(Look.comic_piece("no_such_piece") == null, "absent piece: null, caller keeps KayKit")
 
 
@@ -475,11 +407,6 @@ func _pieces_in_sources() -> Array:
 			for m in quoted.search_all(line):
 				if m.get_string(1) not in found:
 					found.append(m.get_string(1))
-	for path: String in ["res://scripts/shrine_prop.gd", "res://scripts/vault_prop.gd"]:
-		for row: Array in load(path).PIECES:
-			if row[0] not in found:
-				found.append(row[0])
-	found.append("floor_tile_big_spikes")  # spike_trap.gd
 	return found
 
 

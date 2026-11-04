@@ -14,7 +14,6 @@ const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
 const CLOSE_VIEW := GAME_VIEW * 0.42
 const FAR_VIEW := GAME_VIEW * 1.5
 const SETTLE := 0.15
-const ASCEND_SETTLE := 2.5
 const RISE := 1.2  # enemies are in State.SPAWN for 1 s
 const CLIP_FPS := 24.0
 ## A clip worth seeing per kind, besides idle: [clip, frame].
@@ -42,14 +41,12 @@ func _initialize() -> void:
 	_game = get_root().get_node("Game")
 	_look_script = load("res://scripts/comic_look.gd")
 	_game.save_hints = false
-	_game.skip_title = true
-	_game._comic_cli = true
 	_game._hints_seen = _game.HINTS.keys()  # no hint text over the shots
 	_main = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(_main)
 	await create_timer(0.3).timeout
 	_clear_enemies()
-	_main._queue.clear()
+	_main.clear_room()
 	_cam = Camera3D.new()
 	_cam.fov = 42.0
 	_main.add_child(_cam)
@@ -63,7 +60,6 @@ func _initialize() -> void:
 	await _dots()
 	await _ink_and_flash()
 	await _text()
-	await _props()
 
 	if not _headless:
 		var f := FileAccess.open(DIR + "/INDEX.txt", FileAccess.WRITE)
@@ -165,8 +161,7 @@ func _boss() -> void:
 		_shot("boss_enrage", "Enrage: arms wide, heart blazing.")
 
 
-## The same foe near and far: the dots must stay one size on screen.
-## Him, every Ab_ clip on its hit frame, and hero_look's Ascendancy gear on his rig.
+## Him (the heretic), every Ab_ clip on its hit frame.
 func _hero() -> void:
 	_clear_enemies()
 	var p: Node3D = _main.player
@@ -178,7 +173,7 @@ func _hero() -> void:
 	p.anim.speed_scale = 0.0
 	_look(p.global_position + Vector3.UP * 1.2, CLOSE_VIEW)
 	await create_timer(SETTLE).timeout
-	_shot("hero_idle", "Compare comic_poc/out renders. His hair, mantle, feathers and two axes are the model's, nothing floats beside them. Toon tones, hull ink, no magenta. Head and cape aren't cut by the hull.")
+	_shot("hero_idle", "The heretic at rest: toon tones, hull ink, no magenta, nothing floating beside him. Head and skirt chains aren't cut by the hull.")
 	for id: String in _look_script.HERO_MOVES:
 		var h: Dictionary = _look_script.HERO_MOVES[id]
 		p.anim.play(h.clip, 0.0)
@@ -188,18 +183,11 @@ func _hero() -> void:
 		_shot("hero_%s" % h.clip, "%s at its hit frame: contact pose, axes in the hands." % h.clip)
 	p.anim.play("Idle", 0.0)
 	p.anim.speed_scale = 0.0
-	for path: String in ["wind", "earth", "water"]:
-		p.ascend(path)
-		await create_timer(ASCEND_SETTLE).timeout  # past its burst, to the look he keeps
-		_shot("hero_ascend_%s" % path, "%s Ascendancy on the base body: cracks and axes in its colour, no added gear." % path)
-	p.ascendancy = ""
-	_look_script.tint_fractures(p.model, "spirit")
-	p._asc_aura.queue_free()
-	p._asc_aura = null
 	p.model.rotation.y = was_rot
 	p.set_physics_process(true)
 
 
+## The same foe near and far: the dots must stay one size on screen.
 func _dots() -> void:
 	_clear_enemies()
 	var e: Node3D = _main._spawn("minion", false, _at(Vector3(0.0, 0.0, 3.0)))
@@ -256,32 +244,6 @@ func _text() -> void:
 	_shot("reduced_flashing", "Setting on: word dimmer, not popping.")
 	_game.reduce_flashing = saved
 	await create_timer(1.0).timeout
-
-
-## Room props that build themselves from pieces, and their coloured lights on toon.
-func _props() -> void:
-	var at: Vector3 = _at(Vector3(0.0, 0.0, 3.0))
-	var shrine: Node3D = load("res://scripts/shrine_prop.gd").new()
-	_main.add_child(shrine)
-	shrine.position = at + Vector3(-3.0, 0.0, 0.0)
-	shrine._light.light_energy = 2.0
-	var vault: Node3D = load("res://scripts/vault_prop.gd").new()
-	vault.color = Color(1.0, 0.7, 0.2)
-	_main.add_child(vault)
-	vault.position = at + Vector3(3.0, 0.0, 0.0)
-	vault._light.light_energy = 2.5
-	var trap: Node3D = load("res://scripts/spike_trap.gd").new()
-	_main.add_child(trap)
-	trap.position = at + Vector3(0.0, 0.01, 5.0)
-	trap.set_physics_process(false)
-	await process_frame
-	trap._spikes.position.y = 0.0
-	_look(at, GAME_VIEW * 0.8)
-	await create_timer(SETTLE).timeout
-	_shot("props_lights", "Shrine and vault glow. Toon tones ignore light colour, so expect a stepped brighter pool and no tint on stone. Decide if that's acceptable. Spike trap up, spikes on their tile.")
-	shrine.free()
-	vault.free()
-	trap.free()
 
 
 func _at(offset: Vector3) -> Vector3:

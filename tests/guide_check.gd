@@ -6,7 +6,7 @@ extends SceneTree
 ## `user://guide_sheet.png`. godot --path . -s tests/guide_check.gd
 ## (headless works for the checks: godot --headless --path . -s tests/guide_check.gd)
 
-const FROM := ["L1", "L2", "L3", "LPL", "H", "LH", "LHH", "LLH", "CH", "DL", "DH"]
+const FROM := ["L1", "L2", "L3", "DL", "GR", "EC", "EE", "AL1", "EW", "IP", "IJ", "IS", "EM", "EA", "EF", "VS", "VR", "VD", "EV", "TW"]
 const CROP := Vector2i(760, 300)
 
 var _fails: Array[String] = []
@@ -16,12 +16,11 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	game.combo_guide = true  # (not saved)
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
-	main._queue.clear()
+	main.clear_room()
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
 	var p: Node3D = main.player
@@ -48,36 +47,20 @@ func _initialize() -> void:
 				p._start_attack(row.id)
 				var after: String = p._next_move(row.next.kind)
 				_check(after == row.next.id, "%s%s %s then %s -> %s (guide says %s)" % [from, _tag(awake), row.id, row.next.kind, after, row.next.id])
-		# Out of a dash: light is the Dash Stab.
+		# Out of a dash: light is the Dash Stab, heavy is Tow Line.
 		p._set_state(p.State.MOVE)
 		p._post_dash_t = 0.3
 		var rows: Array = p.combo_options()
 		_check(not rows.is_empty() and rows[0].id == "DL", "post-dash light -> DL" + _tag(awake))
-		if awake:
-			_check(rows[0].next.get("id", "") == "RUSH", "post-dash DL then heavy -> RUSH (Awakened)")
-		# ...and heavy is Whirlwind.
-		_check(rows.size() > 1 and rows[1].id == "DH" and p._next_move("heavy") == "DH", "post-dash heavy -> DH" + _tag(awake))
-		# L2 finished, chain still live: the pause makes the third light Flurry.
-		_begin(p, "L1")
-		p._start_attack("L2")
-		p._set_state(p.State.MOVE)
-		p._chain_reset_t = 0.3
-		rows = p.combo_options()
-		_check(not rows.is_empty() and rows[0].id == "LPL" and p._next_move("light") == "LPL",
-			"L L, pause, L -> Flurry" + _tag(awake))
-		_begin(p, "L1")
-		p._start_attack("L2")
-		_check(p._next_move("light") == "L3", "L L L without the pause stays Triple Chop" + _tag(awake))
-		rows = p.combo_options()
-		_check(rows[0].get("pause", {}).get("id", "") == "LPL", "mid-L2 the light row hints the pause (Flurry)" + _tag(awake))
-		_check(rows.slice(1).all(func(r: Dictionary) -> bool: return not r.has("pause")), "only the light row has a pause hint" + _tag(awake))
+		_check(rows.size() > 1 and rows[1].id == "TW" and p._next_move("heavy") == "TW", "post-dash heavy -> TW" + _tag(awake))
 	p._set_awakened(false)
 	# A combo landed GUIDE_LEARNED times is no longer hinted as the follow-up.
 	_begin(p, "L1")
-	_check(p.combo_options()[1].next.get("id", "") == "LHH", "L1's heavy row hints Spike")
-	p.combos_landed["LHH"] = p.GUIDE_LEARNED
+	var hinted: String = p.combo_options()[1].next.get("id", "")
+	_check(hinted != "", "L1's heavy row hints a combo")
+	p.combos_landed[hinted] = p.GUIDE_LEARNED
 	_begin(p, "L1")
-	_check(p.combo_options()[1].next.get("id", "") != "LHH", "a learned Spike is no longer hinted")
+	_check(p.combo_options()[1].next.get("id", "") != hinted, "a learned %s is no longer hinted" % hinted)
 	p.combos_landed.clear()
 	p._set_state(p.State.MOVE)
 	p._post_dash_t = 0.0
@@ -108,11 +91,9 @@ func _tag(awake: bool) -> String:
 func _sheet(main: Node, p: Node3D, guide: Control) -> void:
 	var shots: Array[Image] = []
 	var setups := [
-		["", false, "L1", false], ["", false, "L2", false], ["earth", true, "L3", true],
-		["earth", true, "LH", false], ["water", true, "dash", false], ["wind", false, "charge", false]]
+		["", false, "L1", false], ["", false, "L2", false], ["", true, "L3", true],
+		["", true, "EC", false], ["", true, "dash", false], ["", false, "charge", false]]
 	for s: Array in setups:
-		if s[0] != "" and p.ascendancy != s[0]:
-			p.ascend(s[0])
 		p._set_awakened(s[1])
 		p.global_position = Vector3.ZERO
 		p._set_state(p.State.MOVE)

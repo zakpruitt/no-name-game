@@ -5,6 +5,7 @@ extends Node
 ## reel), `solid` false ignores other foes, `tether` draws a tentacle to it, `wall_mult` is a wall splat's
 ## damage. Frozen foes fly as ice cubes (cube_on()). See docs/features/void-element.md.
 
+const FOES := preload("res://scripts/foes.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 
@@ -190,7 +191,7 @@ func _burst(other: Node3D) -> void:
 	_count(foe)
 	if other != null:
 		_hit_other(other)
-	for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), spot, SPLASH):
+	for e: Node3D in FOES.near(hero.get_tree(), spot, SPLASH):
 		if e == foe or e == other or _struck.has(e):
 			continue
 		e.take_hit(damage * SPLASH_MULT, Vector3.ZERO, WIND_LAUNCH if el == "wind" else 0.0, false)
@@ -200,9 +201,8 @@ func _burst(other: Node3D) -> void:
 	_finish()
 
 
-func _count(e: Node3D) -> void:
+func _count(_e: Node3D) -> void:
 	Game.register_hit("breaker")
-	hero._cast_hit(e)
 
 
 func _finish() -> void:

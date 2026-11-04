@@ -100,7 +100,6 @@ const KIND_TONES := {
 ## the clip already covers that beat). Only consulted when the model lacks the clip
 ## asked for, so a re-export that adds one wins by itself.
 const CLIPS := {
-	"shaman_comic": {"Throw": "Ab_L2"},
 	"heretic": {"Throw": "Ab_L2"},
 	"necromancer": {"Running_A": "Walking_D_Skeletons", "Spawn_Ground_Skeletons": "Idle_Combat"},
 	"warden": {
@@ -113,44 +112,34 @@ const CLIPS := {
 		"Spellcast_Shoot": "",
 	},
 }
-const HERO := "shaman_comic"
-## The Meshy hero behind --heretic: same clips and form names as HERO, one painted texture.
+## The hero: the Meshy heretic (assets/comic/heretic.glb), one painted texture.
 const HERETIC := "heretic"
+## Game.hero_model -> the GLB the HERETIC kind loads (assets/comic/<file>.glb). Every model
+## keeps the same rig contract, clips and material name, so everything keyed by HERETIC
+## (tones, clips, heretic_rig.gd) works for each. Default "heretic" until Zak picks.
+const HERETIC_MODELS := {"heretic": "heretic", "chibi": "heretic_chibi"}
 ## Materials drawn from their own texture through the cut tones, not from a TONES palette.
-const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.2}}
+const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12}}
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
 ## nudge would otherwise flip between two clips every frame.
 const RUN_STICK := 1.25
-## Game.comic_moves: id in player.MOVES / ULTIMATES -> its Ab_ clip. hit and frames are
+## id in player.MOVES -> its Ab_ clip. hit and frames are
 ## the kit's hit frame and clip length; old is the KayKit clip's length in s, the time
-## base MOVES' fractions were tuned against (ultimates are timed in s, so have none).
+## base MOVES' fractions were tuned against.
 const HERO_MOVES := {
 	"L1": {"clip": "Ab_L1", "hit": 8, "frames": 25, "old": 1.0},
 	"L2": {"clip": "Ab_L2", "hit": 9, "frames": 27, "old": 1.3667},
 	"L3": {"clip": "Ab_L3", "hit": 18, "frames": 45, "old": 1.2667},
-	"LH": {"clip": "Ab_LH", "hit": 12, "frames": 41, "old": 2.1},
-	"LLH": {"clip": "Ab_LLH", "hit": 16, "frames": 47, "old": 1.6},
-	"H": {"clip": "Ab_H", "hit": 12, "frames": 51, "old": 2.4},
 	"DL": {"clip": "Ab_DL", "hit": 9, "frames": 49, "old": 1.6},
-	"LHH": {"clip": "Ab_LHH", "hit": 21, "frames": 45, "old": 1.0667},
-	"CH": {"clip": "Ab_CH", "hit": 37, "frames": 67, "old": 1.6333},
-	"AF": {"clip": "Ab_AF", "hit": 40, "frames": 79, "old": 1.1},
-	"SKY": {"clip": "Ab_SKY", "hit": 32, "frames": 61},
-	"RUSH": {"clip": "Ab_RUSH", "hit": 9, "frames": 55},
-	"LPL": {"clip": "Ab_LPL", "hit": 6, "frames": 30, "old": 1.1667},
-	"DH": {"clip": "Ab_DH", "hit": 5, "frames": 20, "old": 0.6667},
 	"AL1": {"clip": "Ab_AL1", "hit": 8, "frames": 24, "old": 1.0},
-	"AL2": {"clip": "Ab_AL2", "hit": 7, "frames": 26, "old": 1.1667},
-	"AH": {"clip": "Ab_AH", "hit": 8, "frames": 44, "old": 2.4},
-	"AL3": {"clip": "Ab_AL3", "hit": 6, "frames": 28, "old": 1.1667},
 }
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).
 ## The void arm's shapes: the meshes each shows, the axe's and the others' own element on the arm with them.
 const HERO_FORMS := {
-	"axe": ["axe_void_haft", "axe_void_blade", "axe_void_edge", "axe_void_core", "void_surge", "void_surge_core"],
-	"hammer": ["hammer_void_haft", "hammer_void_head", "hammer_void_rock", "hammer_void_lava", "void_seep"],
-	"spear": ["spear_void_haft", "spear_void_collar", "spear_void_ice", "void_frost"],
+	"axe": ["axe_void_haft", "axe_void_blade", "axe_void_edge", "axe_void_core"],
+	"hammer": ["hammer_void_haft", "hammer_void_head", "hammer_void_rock", "hammer_void_lava"],
+	"spear": ["spear_void_haft", "spear_void_collar", "spear_void_ice"],
 	"hand": [],
 }
 ## The shape each move asks for; anything not here is the axe.
@@ -160,7 +149,7 @@ const HERO_MOVE_FORMS := {"L2": "spear", "DL": "spear", "L3": "hammer", "CH": "h
 const VOID_COLOR := Color(0.62, 0.34, 0.92)
 const HERO_AXES := {"hand.r": "axe_void_blade"}
 const HERO_AXE_EDGES := {"hand.r": "axe_void_edge"}
-## Before an Ascendancy his axe is the storm: its aura and floor mark are wind's, in its own materials.
+## His spirit axe is the storm: its aura and floor mark are wind's, in its own materials.
 const HERO_AURA_AS := {"spirit": "wind"}
 ## Element -> the blade and edge materials both axes take (infuse_axes).
 const AXE_INFUSIONS := {
@@ -175,8 +164,6 @@ const HERO_FIDGETS := ["Idle_Heft", "Idle_Listen", "Idle_Swing"]
 const HERO_READY := "Idle_Ready"
 ## Of the motes circling him: at full size they outshine the veins they should echo.
 const HERO_ORBIT_SIZE := 0.5
-## What an Ascendancy changes on his body: every lit vein takes its element's colour.
-const HERO_FRACTURES := ["fracture"]
 const READY_HOLD := 3.0  # s in the guard after his last attack or hit
 const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets
 ## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
@@ -221,10 +208,13 @@ static var _piece_ink := {}  # width -> shared outline ShaderMaterial
 static func scene(kind: String) -> PackedScene:
 	if not Game.comic_style:
 		return null
-	if not _scenes.has(kind):
-		var path := MODEL_PATH % kind
-		_scenes[kind] = load(path) if ResourceLoader.exists(path) else null
-	return _scenes[kind]
+	var file := kind
+	if kind == HERETIC:
+		file = HERETIC_MODELS.get(Game.hero_model, HERETIC)
+	if not _scenes.has(file):
+		var path := MODEL_PATH % file
+		_scenes[file] = load(path) if ResourceLoader.exists(path) else null
+	return _scenes[file]
 
 
 ## A new comic dungeon piece, or null (flag off, or no GLB: caller keeps KayKit).
@@ -250,12 +240,13 @@ static func piece(piece_name: String) -> Node3D:
 
 ## The clip to play on this model for a clip name the game asks for.
 static func hero_kind() -> String:
-	return HERETIC if Game.heretic and scene(HERETIC) != null else HERO
+	return HERETIC
 
 
 ## A PAINTED material: the GLB's texture lit through comic_toon's cut tones.
 static func painted(src: BaseMaterial3D) -> ShaderMaterial:
-	var key := "painted/" + src.resource_name
+	# per texture too: the heretic models share a material name but not their paint
+	var key := "painted/%s/%s" % [src.resource_name, src.albedo_texture.resource_path if src.albedo_texture else ""]
 	if _mats.has(key):
 		return _mats[key]
 	var t: Dictionary = PAINTED[src.resource_name]
@@ -301,7 +292,7 @@ static func is_run_clip(clip: String) -> bool:
 ## A MOVES entry moved onto its Ab_ clip, `length` s long: the first hit lands on the
 ## hit frame, and everything after it (more hits, cancel, end) keeps its time after the
 ## hit; whatever's before it stretches with the wind-up. `base_hit` is MOVES' own first
-## hit (an upgrade may have rewritten `hits`). `leap` (BREAKERS) lands in move.leap.
+## hit. `leap` (VOID_ELEMENT.BREAKERS) lands in move.leap.
 static func retime(id: String, move: Dictionary, length: float, base_hit: float, leap := -1.0) -> void:
 	var h: Dictionary = HERO_MOVES[id]
 	var hit: float = float(h.hit) / h.frames
@@ -317,13 +308,6 @@ static func retime(id: String, move: Dictionary, length: float, base_hit: float,
 		move.hop = [at.call(move.hop[0]), at.call(move.hop[1]), move.hop[2]]
 	if leap >= 0.0:
 		move.leap = at.call(leap)
-
-
-## anim.speed_scale that brings an ultimate's clip, `length` s long, to its hit frame
-## `hit_time` s in: ultimates run on their own seconds, the clip follows them.
-static func ult_speed(id: String, length: float, hit_time: float) -> float:
-	var h: Dictionary = HERO_MOVES[id]
-	return length * h.hit / h.frames / hit_time
 
 
 ## Invisible stand-ins riding the hero's hands, from the grip to the axe head, for
@@ -356,7 +340,7 @@ static func hero_blades(model: Node3D) -> Array[MeshInstance3D]:
 
 ## The element on the hero's axe: blade and edge recoloured, tongues along the edge, motes
 ## behind the swing and a mark where the blade scrapes the floor. Returns the auras so the caller can
-## swap them (player.ascend).
+## free them.
 static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 	var made: Array[Node3D] = []
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
@@ -377,14 +361,6 @@ static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 		aura.setup(aura_as, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
 		made.append(aura)
 	return made
-
-
-## His veins in an element's colour (AXE_INFUSIONS). The body stays as it is: same mesh, new material.
-static func tint_fractures(model: Node3D, element: String) -> void:
-	for mesh_name: String in HERO_FRACTURES:
-		var mi: MeshInstance3D = model.find_child(mesh_name, true, false)
-		if mi != null:
-			_axe_material(mi, AXE_INFUSIONS[element][1])
 
 
 ## A skinned mesh's vertices in the hand's space, ordered along the edge.
@@ -527,12 +503,6 @@ static func build_environment(parent: Node) -> void:
 	fill.light_energy = FILL_ENERGY
 	fill.light_color = FILL_COLOR.linear_to_srgb()
 	parent.add_child(fill)
-
-
-## Undo build_environment's global shadow filter when the flag goes off.
-static func restore_shadows() -> void:
-	var path := "rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality"
-	RenderingServer.directional_soft_shadow_filter_set_quality(ProjectSettings.get_setting(path))
 
 
 ## Drop cached materials so nothing is left alive at exit.

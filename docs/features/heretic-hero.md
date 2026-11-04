@@ -2,7 +2,7 @@
 
 ## What it does
 
-A second comic hero behind a flag: `--comic --heretic`, never saved. The model and texture come from Meshy; the rig, weights and clips are rebuilt here. Without the flag nothing changes.
+The hero (the only one since round 28). The model and texture come from Meshy; the rig, weights and clips are rebuilt here.
 
 His right arm is a bundle of five tentacles. At rest they hang free and sway. When a move asks for a weapon the old one pulls back, the new one shoots out of the limb, the loose tips coil away and the main tentacle straightens to grip the haft. They unfurl again when he stops attacking.
 
@@ -14,7 +14,13 @@ How to make more models like this: [meshy-pipeline.md](meshy-pipeline.md).
 |---|---|
 | `tools/meshy_rig/heretic_rig.py` | Meshy FBX → rig blend: bones, tentacle chains traced from the mesh, skirt chains, weights |
 | `tools/meshy_rig/heretic_stress.py` | Stress poses and stretch numbers on the rig blend |
-| `tools/meshy_rig/heretic_bake.py` | Copies `shaman_comic.glb`'s clips and weapons onto the rig, exports the GLB |
+| `tools/meshy_rig/heretic_refine.py` | Rig blend → refined rig blend: flattened texture in, tentacle limb thickened, head and left fist grown. Bones and weights untouched |
+| `tools/meshy_rig/flatten_texture.py` | The texture flattening (k-means in Lab, mode filter, islands from the UVs, mip padding) |
+| `tools/meshy_rig/heretic_bake.py` | Copies `shaman_comic.glb`'s clips and weapons onto the rig, exports the GLB. Optional height |
+| `tools/meshy_rig/heretic_audit.py` | Prints a hero GLB's tris, materials, texture, bones, rig-contract chains and height |
+| `tools/meshy_rig/chibi_decimate.py` | Meshy GLB → welded, decimated (two collapse passes), recentred, optionally mirrored GLB, plus front/side/back/top renders |
+| `tools/meshy_rig/chibi_paint.py` | Repaints the chibi's claw texels (found from the hand's UV triangles) in the heretic's magenta |
+| `assets/comic/heretic_chibi.glb` | The chibi heretic (`--hero=chibi`), same rig contract |
 | `assets/comic/heretic.glb` | The result |
 | `scripts/heretic_rig.gd` | Modifier: sway, weapon changes, limb pose off attacks; adds the skirt's `SpringBoneSimulator3D` |
 | `scripts/heretic_form_fx.gd` | The burst on a change: flat camera-facing shapes redrawn on twos. `LOOKS` holds each form's tones, star size and chips |
@@ -29,12 +35,71 @@ Sources live in `vendor_src/meshy/source` (gitignored). From the repo root, with
 ```
 blender -b --factory-startup -P tools/meshy_rig/heretic_rig.py -- <rigged.fbx> vendor_src/meshy/heretic/heretic_rig_v1.blend
 blender -b vendor_src/meshy/heretic/heretic_rig_v1.blend -P tools/meshy_rig/heretic_stress.py -- vendor_src/meshy/heretic/stress
-blender -b vendor_src/meshy/heretic/heretic_rig_v1.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/heretic/out/heretic.glb
-python tools/comic_glb.py vendor_src/meshy/heretic/out heretic
+blender -b vendor_src/meshy/heretic/heretic_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- dump vendor_src/meshy/heretic/v2/uvtris.npy
+python tools/meshy_rig/flatten_texture.py vendor_src/meshy/source/Meshy_AI_elemental_heretic_v2_20261103_texture_fbx/Meshy_AI_elemental_heretic_v2_20261103_texture.png vendor_src/meshy/heretic/v2/uvtris.npy vendor_src/meshy/heretic/v2/flat.png 14 0.2
+blender -b vendor_src/meshy/heretic/heretic_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/heretic/v2/flat.png vendor_src/meshy/heretic/v2/heretic_rig_v2.blend 0.02 1.22 1.3
+blender -b vendor_src/meshy/heretic/v2/heretic_rig_v2.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/heretic/v2/out/heretic.glb 2.2
+python tools/comic_glb.py vendor_src/meshy/heretic/v2/out heretic
+cp vendor_src/meshy/heretic/v2/flat.png assets/comic/heretic_Material_0_baseColor.png
 godot --headless --import --path .
 ```
 
-Paths must be absolute on Windows.
+Paths must be absolute on Windows. Without the refine step and the `2.2` (bake `heretic_rig_v1.blend` straight) you get round 28's model back; it is also in git before round 29.
+
+`vendor_src/.gdignore` must exist in the worktree before the import. Without it Godot scans the Meshy FBX and blends, fails on the `.blend` importer, and silently re-imports nothing, so the game keeps the old GLB.
+
+Godot never overwrites an extracted texture that already exists (`heretic_Material_0_baseColor.png`). Copy the new one over it, as above, or the new GLB shows the old texture.
+
+## Round 29 refinement
+
+Audit of round 28's GLB: 15,901 tris on the body (17,125 with weapons), one 2048 texture, one material, 101 bones (21 `tent.*`, 36 `skirt.*`, 3 `weapon.*`, 15 fingers), 1.95 m tall against KayKit's 2.18 m. Seen from the game camera he was about 110 px tall: the white mane took most of what you see, the tentacle limb was a thin magenta clump at rest, the Meshy paint's baked shading broke up into speckle under the cut tones, and the 2.7 m weapons dwarfed him.
+
+What changed, all in `heretic_refine.py` and the bake, the rig untouched:
+- Texture flattened into 14 colour regions with 20% of the original lightness kept for the face and seams (`flatten_texture.py`), and `PAINTED.brush` 0.2 → 0.12.
+- Tentacle limb pushed out 2 cm along its normals (fading in over 10 cm from the shoulder), so it reads at rest.
+- Head and hair grown 1.22x about the neck, left fist 1.3x about the wrist, towards the chibi direction in [art-direction.md](art-direction.md).
+- Baked at 2.2 m instead of the old hero's head height, so he matches KayKit and grows into the weapons.
+
+Result: same tris, bones and clips; `heretic_shots`, `comic_check`, `training_check` and the autotest pass. Seen in windowed stills only, not played.
+
+Two Meshy candidates were generated for a new base (60 credits, see [art-direction.md](art-direction.md)) and neither was used: one realistic with no tentacle arm, one chibi with a broken patchwork texture. Both are in `vendor_src/meshy/source/` (`cand1_t2r_01a1a6bc.glb`, `chibi_t2r_01a1a6c4.glb`); the chibi's Meshy task ids are preview `01a1a6c3-871e-77fc-89fd-883d5fac3e76`, refine `01a1a6c4-842d-77b6-9f97-05a5d24782e8`, so it can be retextured and auto-rigged from Meshy without generating again.
+
+## The chibi heretic (round 29, selectable)
+
+A second heretic model with the same rig contract: `assets/comic/heretic_chibi.glb`. Pick it with `--hero=chibi` (this process only), or Settings → "Hero model (next run)": Heretic / Chibi heretic (saved as `video/hero_model`, only written when not the default). `--hero=heretic` forces the default. `Game.hero_model` picks the file through `ComicLook.HERETIC_MODELS`; the kind stays `heretic`, so `KIND_TONES`, `CLIPS`, `heretic_rig.gd` and every `hero_kind() == HERETIC` check work for both. `painted()` caches per texture, since both models call their material `P_HereticPaint`. Default is still the round-28 heretic until Zak picks.
+
+What it is: the round-29 chibi candidate (big pointed bone-white hood, short body, a six-claw tentacle hand on an ordinary right arm), decimated, mirrored so the claw is the right hand, retextured and auto-rigged through Meshy's REST API, then rebuilt with `heretic_rig.py ... chibi`.
+
+| | Heretic | Chibi |
+|---|---|---|
+| Body tris | 15,901 | 21,999 (23,223 with weapons) |
+| Height | 2.2 m | 1.75 m |
+| Bones | 101 (21 tent, 36 skirt, 15 fingers) | 89 (24 tent, 36 skirt, no fingers) |
+| Tentacle | five tips on a tentacle arm | six claws (`main`, `up`, `out`, `mid`, `low`, `back`) from the wrist |
+| Weapons | old hero's size (axe 2.75 m) | x0.7 about the hand: axe 1.92 m, spear 1.88 m, hammer 1.34 m |
+| Texture | flattened Meshy paint | Meshy retexture as is (already flat), claws repainted magenta |
+
+Rebuild (from the repo root, Blender 5.2, absolute Windows paths; sources in `vendor_src/meshy/source/` and `vendor_src/meshy/chibi/`):
+
+```
+blender -b --factory-startup -P tools/meshy_rig/chibi_decimate.py -- vendor_src/meshy/source/chibi_t2r_01a1a6c4.glb vendor_src/meshy/chibi/dec22k.glb 22000 vendor_src/meshy/chibi/dec_render 1
+# Meshy REST (key from the Blender add-on): POST /openapi/v1/retexture {model_url: data URI of dec22k.glb, text_style_prompt, enable_original_uv: false}
+#   -> task 01a1a6d6-f321-74ba-884f-4757b66cad3d (10 credits), then POST /openapi/v1/rigging {input_task_id: that, height_meters: 1.7}
+#   -> task 01a1a6d9-45e2-7612-983b-118deb1b38ed (5 credits): vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx
+blender -b --factory-startup -P tools/meshy_rig/heretic_rig.py -- vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx vendor_src/meshy/chibi/chibi_rig_v1.blend chibi
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/chibi_paint.py -- vendor_src/meshy/chibi/paint.png
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/chibi/paint.png vendor_src/meshy/chibi/chibi_rig_v2.blend 0 1 1
+blender -b vendor_src/meshy/chibi/chibi_rig_v2.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/chibi/out/heretic_chibi.glb 1.75 0.7
+python tools/comic_glb.py vendor_src/meshy/chibi/out heretic_chibi
+python -c "from PIL import Image; Image.open('vendor_src/meshy/chibi/paint.png').convert('RGB').save('assets/comic/heretic_chibi_Material_0_baseColor.jpg', quality=92)"
+godot --headless --import --path .
+```
+
+The `chibi` profile in `heretic_rig.py` holds its values: Meshy's REST rig names (`Spine02` lowest, `Spine`, `neck`, `head_end`) are aliased to the Mixamo-style names; `ARM_FROM_SKELETON` keeps Meshy's upper and lower arm and starts the tentacle at the wrist (`SHOULDER` = the wrist, `RING_R` 0.07, `ROOT_BLEND` 0.04 into `lowerarm.r`); `ARM_SPLITS` wrist.r 0-0.03 m, hand.r 0.03-0.10 m along `main`; every claw parented to `hand.r`; `TIP_SEG` 0.06; claw paint hue 0.82-0.94, saturation over 0.4, x below -0.15; skirt from 0.62 m (fade to 0.52) down to 0.18 m, leg radius 0.085 below 0.3 m and 0.075 above, axis (0.02, 0.2). The default `heretic` profile reproduces round 28's rig unchanged.
+
+`heretic_rig.gd` reads chain lengths from the skeleton (up to `MAX_CHAIN` bones per tip) and also sways a `back` tip, so the chibi's sixth claw moves; the heretic has no `back` chain and is unchanged.
+
+Seen in windowed `heretic_shots` stills only (`user://heretic_shots_chibi/`), not played. From the game camera the hood is a big pale shape that reads clearly on the indigo floor, and the weapons are about his height. The claw hand is small next to the old tentacle arm, and the face is hidden from above.
 
 ## The rig
 
@@ -66,23 +131,25 @@ The burst uses its own flat material, not `Fx.flare` or `Fx.burst`: soft glows a
 ## Invariants
 
 - Read modifier results inside `Skeleton3D.skeleton_updated`. The skeleton restores poses afterwards, so reading them later shows the pre-modifier pose.
-- `void_arm.rest_form` is `"hand"` for him and `"axe"` for the old hero. `void_arm_check` expects `"axe"`, so run with `--heretic` its 6 rest-form checks fail by design.
-- `void_surge`, `void_seep` and `void_frost` aren't in his GLB: they're shaped to wrap the old arm. `void_arm` skips absent parts, and the same run fails 4 checks that look for those meshes.
+- `void_arm.rest_form` is `"hand"`: a free tentacle at rest, weapons only form to strike. `void_arm_check` expects it.
+- `ComicLook.HERO_FORMS` lists only meshes in his GLB (the old arm's `void_surge`, `void_seep` and `void_frost` went in round 28).
+- `ComicLook.HERO_MOVES` `frames` / `hit` are the shaman's 24 fps counts; his own `Ab_` clips run other lengths (L1 1.033 s, L2 1.1 s, L3 1.867 s, DL 2.033 s, AL1 1.0 s), so only `hit / frames` is used as the hit fraction. Re-measure the hit frames on his clips.
 
 ## Not done
 
 - Clips are still the old hero's. Nothing is keyed for tentacles, so swings read as an arm with a weapon.
 - The change has no sound of its own.
 - The orbiting motes are still the old soft cyan dots (`elements.Orbit`).
-- Weapons are the old hero's size: axe 2.75 m and spear 2.68 m on a 1.95 m hero.
+- Weapons are the old hero's size: axe 2.75 m and spear 2.68 m on a 2.2 m hero.
+- Still a realistic body with a grown head: the chibi direction needs a new base (art-direction.md).
 - The main tentacle's last bone assumes `Vector3.UP` as its direction, because nothing follows it to measure from.
 - `mid` and `low` bulge when coiled hard, where they're fused to the limb.
 - High knees can stretch the skirt where it meets the thigh.
-- Element effects on the tentacle are missing, and so are his veins recolouring on an Ascendancy.
+- Element effects on the tentacle are missing.
 - The KayKit-era clip names and the Ab_ clips he can't reach yet are baked but unchecked by eye.
 
 ## Checks
 
-`godot --headless --path . -s tests/heretic_shots.gd` (PASS/FAIL). Windowed, it also saves `user://heretic_shots/`, including `strip_<close|game>_<form>_<i>.png`: the change in 20 ms steps from a close camera and the game's, with the weights printed as `[strip]`. Playing: `godot --path . -- --comic --heretic`.
+`godot --headless --path . -s tests/heretic_shots.gd` (PASS/FAIL). Windowed, it also saves `user://heretic_shots/`, including `strip_<close|game>_<form>_<i>.png`: the change in 20 ms steps from a close camera and the game's, with the weights printed as `[strip]`. Playing: `godot --path .`.
 
 Anything testing the change steps the skeleton by hand: set `MODIFIER_CALLBACK_MODE_PROCESS_MANUAL`, call `advance(delta)`, then await `skeleton_updated`, since `advance` only queues the time. Timers don't work, even at a low `Engine.time_scale`: one slow frame covers the whole change.

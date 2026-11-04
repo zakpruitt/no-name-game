@@ -4,19 +4,11 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Play",
+			"name": "Play (training room)",
 			"type": "godot",
 			"request": "launch",
 			"project": "${workspaceFolder}",
 			"scene": "main"
-		},
-		{
-			"name": "Training room",
-			"type": "godot",
-			"request": "launch",
-			"project": "${workspaceFolder}",
-			"scene": "main",
-			"additional_options": "-- --training"
 		},
 		{
 			"name": "Autotest (windowed, screenshots)",

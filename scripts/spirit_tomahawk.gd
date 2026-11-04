@@ -1,10 +1,11 @@
 extends Node3D
-## Spirit tomahawk (Dash Stab's and Flurry's cast): a giant spectral axe flung
+## Spirit tomahawk (Dash Stab's cast): a giant spectral axe flung
 ## out spinning flat like a sawblade, flat side to the camera, piercing
 ## everything on the way to `reach`, then boomeranging back to the hero and
 ## cutting again. Each foe is hit once per leg. Spawned by player._cast for
 ## casts of kind "tomahawk" (elements.CASTS), one per `fan`.
 
+const FOES := preload("res://scripts/foes.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const SPIN := 22.0  # rad/s
 const HEIGHT := 0.9
@@ -21,13 +22,12 @@ var back_time := 0.32
 var damage := 6.0
 var back_damage := 4.0
 var on_hit := Callable()
-var shared = null  # Dictionary shared by a volley (the Cyclone breaker's ring): each foe hit once per leg by all of them
 var el := "spirit"
 
 var _axe: MeshInstance3D
 var _spinner: Node3D
 var _from := Vector3.ZERO
-var _hit: Array = []
+var _hit: Array[Node] = []
 var _back := false
 var _puff := 0.0
 
@@ -37,7 +37,7 @@ func _ready() -> void:
 	_spinner = Node3D.new()
 	_spinner.position.y = HEIGHT
 	add_child(_spinner)
-	_axe = SPIRIT_ECHO.ghost(axe_mesh, color, el)
+	_axe = SPIRIT_ECHO.ghost(axe_mesh, color)
 	# Laid flat (handle along +Z, flat side up), spun round its balance point.
 	var b := Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0)).scaled(Vector3.ONE * size)
 	_axe.transform = Transform3D(b, -(b * CENTER))
@@ -81,19 +81,11 @@ func _fly_back(t: float) -> void:
 
 func _cut() -> void:
 	var at := Vector3(global_position.x, 0.0, global_position.z)
-	for e in Ascendancy.enemies_near(get_tree(), at, size * 0.55):
+	for e in FOES.near(get_tree(), at, size * 0.55):
 		if e in _hit:
 			continue
 		_hit.append(e)
-		if shared != null:
-			var key := "%d:%d" % [e.get_instance_id(), int(_back)]
-			if shared.has(key):
-				continue
-			shared[key] = true
 		var push: Vector3 = e.global_position - at
 		push.y = 0.0
-		e.take_hit(back_damage if _back else damage, push.normalized() * 4.0, 0.0, false)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent(), e.global_position, el, push.normalized())
-		if on_hit.is_valid():
-			on_hit.call(e)
+		SPIRIT_ECHO.strike(e, back_damage if _back else damage, push.normalized() * 4.0, 0.0, false,
+			get_parent(), el, push.normalized(), false, on_hit)

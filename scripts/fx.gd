@@ -1,15 +1,6 @@
 class_name Fx
 ## Small throwaway visual effects: damage numbers, hit sparks, flashes.
 
-static var _flash_mat: StandardMaterial3D
-static var _rim_mat: ShaderMaterial
-static var _outline_mat: ShaderMaterial
-# Source material -> copy with the outline pass, shared by every character using it.
-static var _outlined := {}
-## Tick time of the last big impact (read by the autotest to snap a frame).
-static var last_big_hit_ms := 0
-static var last_afterimage_ms := 0
-
 ## Particle and flare sprites (Kenney Particle Pack, CC0): white with alpha, tinted per use.
 const TEX := {
 	"dot": preload("res://assets/vfx/circle_05.png"),
@@ -25,10 +16,60 @@ const TEX := {
 const CHAIN_TIERS := [10, 20, 35]
 ## How much bigger a sprite's quad is than the solid shape it replaced (soft edges).
 const TEX_SCALE := {"dot": 2.0, "smoke": 1.5}
-# Particle materials are colourless (tint comes from the colour ramp), so one per texture/blend.
-static var _particle_mats := {}
 const SWOOSH_SHADER := preload("res://shaders/swoosh.gdshader")
 const NOISE := preload("res://assets/vfx/noise_soft.png")
+const COMIC_INK_PX := 1.6  # Game.comic_style's hull width (default 3.5): a hero is only ~130 px tall
+const COMIC_INK_WOBBLE := 0.25  # how much of the width varies over the form
+const COMIC_INK_PUSH := 0.08  # m behind the model, so a part's hull doesn't cover its neighbours
+## Telegraph rim (edge_ring): a light ring just inside the radius with a dark outline just outside it.
+const EDGE_WIDTH := 0.16  # m, light rim
+const EDGE_OUTLINE := 0.07  # m, dark outline
+## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
+## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
+const COMIC_POP := preload("res://scripts/comic_pop.gd")
+## Flat two-tone chip colour off the axes per element (element_hit).
+const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
+	"spirit": Color(0.2, 0.85, 0.78)}
+
+static var _flash_mat: StandardMaterial3D
+static var _tint_mats := {}  # flash_tint() overlays, one per colour
+static var _rim_mat: ShaderMaterial
+static var _outline_mat: ShaderMaterial
+# Source material -> copy with the outline pass, shared by every character using it.
+static var _outlined: Dictionary = {}
+# Particle materials are colourless (tint comes from the colour ramp), so one per texture/blend.
+static var _particle_mats: Dictionary = {}
+## Tick time of the last big impact (read by the autotest to snap a frame).
+static var last_big_hit_ms := 0
+static var last_afterimage_ms := 0
+
+
+## The base of nearly every effect material: unshaded, alpha-blended (`add`:
+## additive), with the sprite `tex` from TEX when given.
+static func unshaded_mat(color := Color.WHITE, tex := "", add := false) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if add:
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	if tex != "":
+		mat.albedo_texture = TEX[tex]
+	mat.albedo_color = color
+	return mat
+
+
+## A floating billboard label (damage numbers, heals): the caller animates and frees it.
+static func _label(text: String, font_size: int, color: Color, outline_color: Color) -> Label3D:
+	var l := Label3D.new()
+	l.text = text
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.font_size = font_size
+	l.outline_size = 18
+	l.pixel_size = 0.006
+	l.modulate = color
+	l.outline_modulate = outline_color
+	return l
 
 
 ## Melee swing arc: a flat crescent around `pos` facing `fwd`, out to `radius`
@@ -68,15 +109,8 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 
 
 static func damage_number(parent: Node, pos: Vector3, amount: float, big := false) -> void:
-	var l := Label3D.new()
-	l.text = str(roundi(amount))
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.font_size = 96 if big else 64
-	l.outline_size = 18
-	l.pixel_size = 0.006
-	l.modulate = Color(1.0, 0.85, 0.3) if big else Color.WHITE
-	l.outline_modulate = Color(0.1, 0.05, 0.1)
+	var l := _label(str(roundi(amount)), 96 if big else 64,
+		Color(1.0, 0.85, 0.3) if big else Color.WHITE, Color(0.1, 0.05, 0.1))
 	parent.add_child(l)
 	var jitter := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.2, 0.2))
 	l.global_position = pos + Vector3.UP * 2.2 + jitter
@@ -88,6 +122,9 @@ static func damage_number(parent: Node, pos: Vector3, amount: float, big := fals
 
 static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := 0.9) -> void:
 	var at := pos + Vector3.UP * 1.1
+	if Game.comic_style:  # the hot inked star; impact() adds the strokes
+		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3})
+		return
 	# Pale colours vanish on the light floor tiles: push the flare's saturation up.
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.75), 1.0, color.a)
 	flare(parent, at, vivid, size * 3.0, 0.16, "flare")
@@ -109,6 +146,11 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 	if tier <= 0:
 		return
 	var at := pos + Vector3.UP * 1.1
+	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
+		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
+			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
+			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
+		return
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.8), 1.0)
 	flare(parent, at, vivid, 1.6 + tier * 0.6, 0.14, "star8")
 	if tier >= 2:
@@ -122,6 +164,10 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector3, big := false) -> void:
 	var at := pos + Vector3.UP * 1.0
 	var k := 1.5 if big else 1.0
+	if Game.comic_style:  # chunky chips of the element, flung along the blow
+		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": COMIC_CHIP.get(element, COMIC_CHIP.spirit),
+			"chip_size": 0.11 * k, "chip_speed": 6.0, "dir": dir, "spread": 0.6, "steps": 3})
+		return
 	match element:
 		"wind":
 			burst(parent, at, Color(0.45, 1.0, 0.55), int(6 * k), 12.0, 0.15, 0.2, dir, 40.0, 0.0, 0.0, "spark")
@@ -140,6 +186,11 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> void:
 	var at := pos + Vector3.UP * 1.2
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.7), 1.0)
+	if Game.comic_style:  # strokes bursting out all round him, never a star over him
+		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
+			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
+			"hold": 2 if tier >= 3 else 1, "steps": 3})
+		return
 	flare(parent, at, vivid, 2.2 + tier * 1.0, 0.18, "star8")
 	flare(parent, at, Color(1, 1, 1, 0.9), 0.9 + tier * 0.3, 0.1, "dot", true)
 	ring(parent, pos, Color(vivid, 0.85), 1.6 + tier * 0.7, 0.3)
@@ -151,15 +202,9 @@ static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> vo
 ## shapes wash out to white on the light floor.
 static func flare(parent: Node, at: Vector3, color: Color, size: float, time := 0.16,
 		tex := "flare", add := false) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	if add:
-		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var mat := unshaded_mat(color, tex, add)
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.no_depth_test = true  # a hit flare reads through the enemy it lands on
-	mat.albedo_texture = TEX[tex]
-	mat.albedo_color = color
 	if Game.reduce_flashing:
 		mat.albedo_color.a *= 0.45
 		size *= 0.6
@@ -221,14 +266,9 @@ static func burst(parent: Node, pos: Vector3, color: Color, amount := 14, speed 
 static func particle_mat(tex: String, add: bool) -> StandardMaterial3D:
 	var key := tex + ("+" if add else "")
 	if not _particle_mats.has(key):
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		if add:
-			mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		var mat := unshaded_mat(Color.WHITE, tex, add)
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		mat.vertex_color_use_as_albedo = true
-		mat.albedo_texture = TEX[tex]
 		_particle_mats[key] = mat
 	return _particle_mats[key]
 
@@ -237,6 +277,11 @@ static func particle_mat(tex: String, add: bool) -> StandardMaterial3D:
 ## Shaded, not glowing: debris should read as stuff, not light.
 static func shards(parent: Node, pos: Vector3, color: Color, amount := 10, dir := Vector3.UP,
 		speed := 8.0, size := 0.18, lifetime := 0.7) -> void:
+	if Game.comic_style:  # flat inked two-tone chips, not shaded boxes
+		COMIC_POP.spawn(parent, pos, {"chips": clampi(int(amount * 0.6), 2, 14), "chip": color,
+			"chip_size": size * 0.85, "chip_speed": speed * 0.7, "dir": dir, "spread": 1.2,
+			"steps": clampi(int(lifetime * 10.0), 4, 7)})
+		return
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.explosiveness = 1.0
@@ -286,6 +331,11 @@ static func shard_mat() -> StandardMaterial3D:
 static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 		color := Color(0.93, 0.89, 0.78)) -> void:
 	var at := pos + Vector3.UP * 0.9
+	if Game.comic_style:  # a held kill star, strokes all round, bone chips; no smoke, no soft ring
+		COMIC_POP.spawn(parent, at, {"star": 1.15 if big else 0.9, "spikes": 11, "hold": 2, "steps": 3,
+			"strokes": 8, "radial": true, "gap": 0.7, "stroke_len": 0.6, "stroke_w": 0.18,
+			"chips": 7 if big else 5, "chip": color, "chip_size": 0.17, "chip_speed": 6.5, "chip_ink": 4, "dir": dir, "spread": 1.3})
+		return
 	# Saturated gold: cream and white vanish on the light floor tiles.
 	flare(parent, at, Color(1.0, 0.62, 0.15), 4.4 if big else 3.4, 0.22, "flare")
 	flare(parent, at, Color(1.0, 1.0, 1.0), 1.6 if big else 1.2, 0.1, "dot", true)
@@ -298,11 +348,8 @@ static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 ## narrowing and fading over `time`.
 static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float, color: Color,
 		time := 0.3, width := 2.2) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = TEX.dot  # stretched along the dash: a soft speed smear
-	mat.albedo_color = Color(color, color.a * (0.5 if Game.reduce_flashing else 1.0))
+	# The dot stretched along the dash: a soft speed smear.
+	var mat := unshaded_mat(Color(color, color.a * (0.5 if Game.reduce_flashing else 1.0)), "dot")
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(width, length)
 	plane.material = mat
@@ -335,11 +382,8 @@ static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radiu
 		cyl.cap_top = false
 		cyl.cap_bottom = false
 		cyl.radial_segments = 16  # faceted on purpose: low-poly look
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var mat := unshaded_mat(layer[1])
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mat.albedo_color = layer[1]
 		if Game.reduce_flashing:
 			mat.albedo_color.a *= 0.4
 		cyl.material = mat
@@ -379,29 +423,36 @@ static func soul(parent: Node, pos: Vector3, color := Color(0.3, 0.75, 1.0, 0.9)
 
 static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> void:
 	var at := pos + Vector3.UP * 1.1
+	if big:
+		last_big_hit_ms = Time.get_ticks_msec()
+	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
+		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
+			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
+			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
+		return
 	flare(parent, at, Color(1.0, 0.5, 0.08), 3.6 if big else 2.4, 0.15, "flare")
 	flare(parent, at, Color(1.0, 0.97, 0.85), 1.2 if big else 0.8, 0.08, "dot", true)
 	flare(parent, at, Color(1.0, 0.6, 0.2, 0.9), 2.2 if big else 1.4, 0.2, "ring")
 	burst(parent, at, Color(1.0, 0.6, 0.15), 24 if big else 14, 14.0 if big else 10.0, 0.22, 0.35, dir, 50.0)
 	burst(parent, at, Color(1.0, 0.97, 0.85), 8 if big else 4, 18.0, 0.18, 0.2, dir, 30.0, 0.0, 0.0, "dot", true)
-	if big:
-		last_big_hit_ms = Time.get_ticks_msec()
 
 
 static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void:
+	if Game.comic_style:
+		return  # no smoke in the comic look: the landing's ring and cracks carry it
 	burst(parent, pos + Vector3.UP * 0.2, Color(0.62, 0.57, 0.5, 0.6), amount, 4.0, size, 0.55, Vector3.UP, 80.0, 1.0, 0.45, "smoke")
 
 
 ## Expanding flat ring on the ground (shockwaves, Awakening burst).
 static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time := 0.35) -> void:
+	if Game.comic_style:  # a hard inked hoop on twos, not a soft glowing disc
+		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 6)})
+		return
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2.ONE * 2.2  # the texture's ring sits just inside the quad: outer edge ~1 m
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = TEX.ring
-	mat.albedo_color = Color(color, minf(color.a * 1.3, 1.0))  # soft edges read fainter than the solid torus did
+	# Soft edges read fainter than the solid torus did, so the alpha is pushed up.
+	var mat := unshaded_mat(Color(color, minf(color.a * 1.3, 1.0)), "ring")
 	mesh.material = mat
 	m.mesh = mesh
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -414,17 +465,119 @@ static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time :
 	tw.chain().tween_callback(m.queue_free)
 
 
+## Where a foe was spiked into the floor (enemy._crater): a dark hole (a hard
+## disc CRATER_HOLE of the radius) under a ragged splat, both popping out to
+## `radius`, a dust ring past it, the lot fading over `time`.
+const CRATER_COLOR := Color(0.16, 0.12, 0.1, 0.85)  # soot brown, reads on the light tiles
+const CRATER_HOLE := 0.45  # the solid disc's radius, as a share of `radius`
+const CRATER_SPLAT := 1.6  # the splat quad's half-size, as a share of `radius` (its texture fills ~half of it)
+const CRATER_SEGMENTS := 14  # a chunky low-poly edge, not a perfect circle
+const CRATER_RING := Color(0.62, 0.57, 0.5, 0.75)  # the dust colour of dust()
+const CRATER_RING_OUT := 1.5  # the dust ring's reach, in crater radii
+static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> void:
+	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
+	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)
+	ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
+
+
+static func _crater_layer(parent: Node, at: Vector3, radius: float, tex: String, time: float) -> void:
+	var m := MeshInstance3D.new()
+	var mesh: PrimitiveMesh
+	if tex == "":  # the hole: a hard-edged flat disc, 1 m radius
+		var disc := CylinderMesh.new()
+		disc.top_radius = 1.0
+		disc.bottom_radius = 1.0
+		disc.height = 0.01
+		disc.radial_segments = CRATER_SEGMENTS
+		disc.rings = 1
+		mesh = disc
+	else:
+		var quad := PlaneMesh.new()
+		quad.size = Vector2.ONE * 2.0
+		mesh = quad
+	var mat := unshaded_mat(CRATER_COLOR, tex)
+	mesh.material = mat
+	m.mesh = mesh
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(m)
+	m.global_position = at + Vector3.UP * randf() * 0.01  # jitter: overlapping marks don't z-fight
+	m.rotation.y = randf() * TAU
+	m.scale = Vector3(radius * 0.3, 1.0, radius * 0.3)
+	var tw := m.create_tween()
+	tw.tween_property(m, "scale", Vector3(radius, 1.0, radius), 0.08).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_interval(time * 0.5)
+	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5)
+	tw.tween_callback(m.queue_free)
+
+
+## Cartoon dizzy stars circling a dazed head (training_dummy._shake_off):
+## DAZE_STARS solid five-point stars inked in ComicFx.INK, on a DAZE_RING m
+## ring `height` above `node`, spinning DAZE_SPIN rad/s, popping in and
+## shrinking away over `time`. Named "DazeStars".
+const DAZE_STARS := 3
+const DAZE_RING := 0.5  # m, the ring's radius
+const DAZE_SIZE := 0.2  # m, a star's outer radius
+const DAZE_INNER := 0.45  # a star's inner points, as a share of its outer radius
+const DAZE_INK := 1.35  # the ink star behind, as a share of the star
+const DAZE_SPIN := 7.0  # rad/s
+const DAZE_COLOR := Color(1.0, 0.86, 0.2)
+static var _star_mesh: ArrayMesh
+static func daze(node: Node3D, height: float, time := 0.9) -> void:
+	if _star_mesh == null:
+		_star_mesh = _star(DAZE_SIZE, DAZE_INNER)
+	var pivot := Node3D.new()
+	pivot.name = "DazeStars"
+	node.add_child(pivot)
+	pivot.position.y = height
+	var fill := unshaded_mat(DAZE_COLOR)
+	fill.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fill.render_priority = 1  # over its ink
+	var ink := unshaded_mat(Color(0.012, 0.01, 0.02))
+	ink.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	ink.billboard_keep_scale = true  # a billboard drops the node's scale otherwise: the ink would hide
+	for i in DAZE_STARS:
+		var a := TAU * i / DAZE_STARS
+		for layer in 2:
+			var star := MeshInstance3D.new()
+			star.mesh = _star_mesh
+			star.material_override = ink if layer == 0 else fill
+			star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			star.position = Vector3(cos(a), 0.0, sin(a)) * DAZE_RING
+			star.scale = Vector3.ONE * (DAZE_INK if layer == 0 else 1.0)
+			pivot.add_child(star)
+	pivot.scale = Vector3.ONE * 0.2
+	var tw := pivot.create_tween().set_parallel()
+	tw.tween_property(pivot, "rotation:y", DAZE_SPIN * time, time)
+	tw.tween_property(pivot, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(pivot, "scale", Vector3.ONE * 0.01, 0.15).set_delay(time - 0.15)
+	tw.chain().tween_callback(pivot.queue_free)
+
+
+## A flat five-point star facing +z, `outer` m to its points, `inner` of that to its notches.
+static func _star(outer: float, inner: float) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	for i in 10:
+		var a := PI * 0.5 + TAU * i / 10.0
+		var r := outer if i % 2 == 0 else outer * inner
+		var p := Vector3(cos(a) * r, sin(a) * r, 0.0)
+		var q_a := PI * 0.5 + TAU * (i + 1) / 10.0
+		var q_r := outer if (i + 1) % 2 == 0 else outer * inner
+		verts.append_array([Vector3.ZERO, Vector3(cos(q_a) * q_r, sin(q_a) * q_r, 0.0), p])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
 ## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
-## soot and fades over `time` (Cataclysm, fire waves). Blend mix so it reads on light tiles.
+## soot and fades over `time` (magma, breaker landings). Blend mix so it reads on light tiles.
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2.ONE * 2.0
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = TEX.scorch
-	mat.albedo_color = Color(Color.from_hsv(color.h, 0.95, 1.0), 0.95)
+	var mat := unshaded_mat(Color(Color.from_hsv(color.h, 0.95, 1.0), 0.95), "scorch")
 	mesh.material = mat
 	m.mesh = mesh
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -441,15 +594,7 @@ static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time
 
 ## Green "+N" and rising sparkles for healing.
 static func heal(parent: Node, pos: Vector3, amount: float) -> void:
-	var l := Label3D.new()
-	l.text = "+%d" % roundi(amount)
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.font_size = 88
-	l.outline_size = 18
-	l.pixel_size = 0.006
-	l.modulate = Color(0.45, 1.0, 0.5)
-	l.outline_modulate = Color(0.02, 0.12, 0.05)
+	var l := _label("+%d" % roundi(amount), 88, Color(0.45, 1.0, 0.5), Color(0.02, 0.12, 0.05))
 	parent.add_child(l)
 	l.global_position = pos + Vector3.UP * 2.4
 	var tw := l.create_tween().set_parallel()
@@ -465,10 +610,7 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 	if DisplayServer.get_name() == "headless":
 		return  # the dummy renderer has no skeletons to bake from
 	last_afterimage_ms = Time.get_ticks_msec()
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = color
+	var mat := unshaded_mat(color)
 	var ghost := Node3D.new()
 	parent.add_child(ghost)
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
@@ -489,32 +631,45 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 ## Briefly paint every mesh under `root` white.
 static func flash(root: Node, duration := 0.08) -> void:
 	if _flash_mat == null:
-		_flash_mat = StandardMaterial3D.new()
-		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flash_mat = unshaded_mat()
 	_flash_mat.albedo_color = Color(1, 1, 1, 0.3 if Game.reduce_flashing else 0.85)
 	var meshes := root.find_children("*", "MeshInstance3D", true, false)
 	for mi in meshes:
 		mi.material_overlay = _flash_mat
 	await root.get_tree().create_timer(duration, true, false, true).timeout
-	for mi in meshes:
+	for mi in meshes:  # (untyped: a mesh freed during the wait can't be assigned to a typed loop variable)
 		if is_instance_valid(mi) and mi.material_overlay == _flash_mat:
+			mi.material_overlay = null
+
+
+## flash() in a colour (enemy hit confirms in the hero's element): one shared
+## overlay per colour, so a crowd flashing together costs one material.
+static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
+	var key := color.to_rgba32()
+	if not _tint_mats.has(key):
+		_tint_mats[key] = unshaded_mat()
+	var mat: StandardMaterial3D = _tint_mats[key]
+	mat.albedo_color = Color(color, 0.3 if Game.reduce_flashing else 0.85)
+	var meshes := root.find_children("*", "MeshInstance3D", true, false)
+	for mi in meshes:
+		mi.material_overlay = mat
+	await root.get_tree().create_timer(duration, true, false, true).timeout
+	for mi in meshes:
+		if is_instance_valid(mi) and mi.material_overlay == mat:
 			mi.material_overlay = null
 
 
 ## Drop cached materials so nothing is left alive at exit.
 static func release() -> void:
 	_flash_mat = null
+	_tint_mats.clear()
+	_star_mesh = null
 	_rim_mat = null
 	_outline_mat = null
 	_outlined.clear()
 	_particle_mats.clear()
 	ComicLook.release()
 
-
-const COMIC_INK_PX := 1.6  # Game.comic_style's hull width (default 3.5): a hero is only ~130 px tall
-const COMIC_INK_WOBBLE := 0.25  # how much of the width varies over the form
-const COMIC_INK_PUSH := 0.08  # m behind the model, so a part's hull doesn't cover its neighbours
 
 ## Give every mesh under `root` a dark toon outline (inverted hull pass).
 ## The outline material Fx.outline puts on the hero, for something built later (void_tendril.gd).
@@ -547,13 +702,34 @@ static func outline(root: Node) -> void:
 			mi.set_surface_override_material(i, _outlined[src])
 
 
-## Telegraph rim: a light ring just inside radius r with a dark outline just
-## outside it, so attack areas read on bright tiles without relying on colour.
-## Add it under the telegraph mesh; colour it each frame with pulse_edge().
-const EDGE_WIDTH := 0.16  # m, light rim
-const EDGE_OUTLINE := 0.07  # m, dark outline
+## Fx.outline with an outline material of `root`'s own (enemy.gd thickens it
+## on big hits): each surface gets its own copy, so one character's ink can
+## change width alone. Returns that material (null headless, as outline()).
+static func outline_own(root: Node) -> ShaderMaterial:
+	if DisplayServer.get_name() == "headless":
+		return null
+	outline(root)  # sets up the shared material's look (comic width, wobble, ink)
+	var own: ShaderMaterial = _outline_mat.duplicate()
+	var copies := {}  # this character's shared copy -> its own copy
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var shared := mi.get_surface_override_material(i)
+			if shared == null or shared.next_pass != _outline_mat:
+				continue
+			if not copies.has(shared):
+				var copy: Material = shared.duplicate()
+				copy.next_pass = own
+				copies[shared] = copy
+			mi.set_surface_override_material(i, copies[shared])
+	return own
 
 
+## Telegraph rim: a light ring just inside radius r (EDGE_WIDTH) with a dark
+## outline just outside it (EDGE_OUTLINE), so attack areas read on bright tiles
+## without relying on colour. Add it under the telegraph mesh; colour it each
+## frame with pulse_edge().
 static func edge_ring(r: float) -> MeshInstance3D:
 	var edge := MeshInstance3D.new()
 	var outline := MeshInstance3D.new()
@@ -562,10 +738,7 @@ static func edge_ring(r: float) -> MeshInstance3D:
 		var torus := TorusMesh.new()
 		torus.rings = 48
 		torus.ring_segments = 4
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		torus.material = mat
+		torus.material = unshaded_mat()
 		mi.mesh = torus
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	(outline.mesh.material as StandardMaterial3D).albedo_color = Color(0.05, 0.02, 0.05, 0.8)

@@ -30,9 +30,6 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
-	game._comic_cli = true
-	game.heretic = true
 	game._hints_seen = game.HINTS.keys()
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
@@ -42,8 +39,6 @@ func _initialize() -> void:
 		await create_timer(0.1).timeout
 		waited += 0.1
 	await create_timer(1.5).timeout
-	if "_queue" in main:
-		main._queue.clear()
 	var only := ""  # -- --only=maw films just that one
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--only="):
@@ -92,6 +87,9 @@ func _film(combo_name: String, moves: Array, alt: bool) -> void:
 	while _p.state != _p.State.LEAP and t < 1.0:
 		await process_frame
 		t += _p.get_process_delta_time()
+	if _p.state != _p.State.LEAP:
+		await create_timer(0.45).timeout
+		await _shot("%s_2" % combo_name)  # what it leaves on the floor (no hang to film)
 	if _p.state == _p.State.LEAP:
 		while _p.state == _p.State.LEAP and _state_t() < 0.3:
 			await process_frame

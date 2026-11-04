@@ -8,24 +8,13 @@ signal awakening_changed(value: float)
 signal announced(text: String)
 ## Consecutive hits on airborne enemies (0 when the juggle drops).
 signal air_combo_changed(count: int)
-## Any enemy died (for on-kill upgrades).
+## Any enemy died.
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
-signal bones_changed(count: int)
-## Hero level (1..LEVEL_MAX) and progress toward the next one.
-signal level_changed(level: int, xp_into: int, xp_needed: int)
-signal leveled_up(level: int)
-## An Awakened ultimate began (chain: its number this Awakening; 0 = the Trinity storm).
-signal ultimate(ult_name: String, color: Color, chain: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
 const AWAKEN_MAX := 100.0
-# Hero levels: each kill gives XP equal to the enemy's bones (risen and split
-# minions give none). LEVEL_XP[i] is the total XP for level i + 2, so level 6
-# (Ascendancy) lands around room 5 of a typical run.
-const LEVEL_XP := [4, 12, 24, 40, 60]
-const LEVEL_MAX := 6
 # Style rank thresholds. Varied moves earn more style than repeating one.
 const RANKS := [["SSS", 160.0], ["SS", 110.0], ["S", 70.0], ["A", 40.0], ["B", 20.0], ["C", 8.0], ["D", 0.0]]
 # Player settings, saved to SETTINGS_PATH. Screen shake cycles through these.
@@ -34,6 +23,21 @@ const SHAKE_LEVELS := [1.0, 0.5, 0.0, 1.5]
 const SFX_PATH := "res://assets/sfx/%s.wav"
 const SFX_VOICES := 16
 const SFX_MIN_GAP_MS := 35  # same sound can't restart faster than this
+# Hitstop shape (hitstop()): a hit freezes the game at its time scale, then over
+# the tail of its length eases back up to full speed instead of snapping (an
+# ease-out: quick release, soft landing). Each overlapping stop keeps its own
+# shape and the slowest one wins each frame. Slow motion at or above
+# HITSTOP_FLAT_SCALE (the breaker window) holds flat so its timing reads true.
+const HITSTOP_EASE := 0.3  # fraction of a freeze (scale < SLOWMO_SCALE) spent ramping back up
+const SLOWMO_EASE := 0.45  # fraction of a slow-motion stop (last kill, a breaker) spent ramping back
+const HITSTOP_EASE_CURVE := 0.45  # ease() curve of the ramp; < 1 = ease-out
+const HITSTOP_OPENER := 0.8  # a string's first hit (combo_count <= 1) freezes this fraction as long: snappier
+const SLOWMO_SCALE := 0.1  # time scales below this are freezes; from here to HITSTOP_FLAT_SCALE, slow motion
+const HITSTOP_FLAT_SCALE := 0.5  # time scales at or above this never ramp
+# Hit weight (hit_weight, 0..1): how big the latest hit was, from its hitstop
+# length, fading in real time; the weapon trail swells with it.
+const HIT_WEIGHT_STOP := 0.12  # a freeze this long (real s) is a full-weight hit
+const HIT_WEIGHT_DECAY := 4.0  # weight lost per real second
 # Juggles: air hits chain while each lands within AIR_TIMEOUT of the last.
 # Reaching a milestone announces it and pays out bonus style + Awakening.
 const AIR_TIMEOUT := 0.9
@@ -75,16 +79,15 @@ const RUMBLE := {
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
+## The comic impact frame over the 3D view (scripts/impact_frame.gd), fired
+## by big hitstops and kills.
+var impact: CanvasLayer = null
 var combo_count := 0
 var style := 0.0
 var awakening := 0.0
 var perfect_dodges := 0
-var bones := 0  # run currency, dropped by slain skeletons (bone_pickup.gd)
-var bones_total := 0  # collected this run (bones may be spent)
 var air_hits := 0
 var best_air := 0
-## Survives scene reloads: start the next run without the title screen.
-var skip_title := false
 ## Multiplier on all screen shake (accessibility / taste).
 var shake_scale := 1.0
 var music_scale := 1.0
@@ -94,27 +97,27 @@ var rumble_on := true
 var reduce_flashing := false
 ## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
 var combo_guide := true
-## Comic-book art style, see docs/features/comic-style.md. Read this one; it only
-## changes between runs (sync_comic). On with --comic (never saved) or the setting.
-var comic_style := false
-var comic_setting := false
-var _comic_cli := false
-## --comic-moves only: the comic hero's moves play his Ab_ clips (ComicLook.HERO_MOVES).
-var comic_moves := false
-## --heretic, with --comic: plays the Meshy hero (assets/comic/heretic.glb) instead. Never saved.
-var heretic := false
+## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
+## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
+var comic_style := true
+## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "heretic" (default, until Zak
+## picks) or "chibi" (assets/comic/heretic_chibi.glb). --hero=chibi for this process only, or the
+## Settings entry (saved). Read as the player is built, so a change shows from the next run.
+var hero_model := "heretic"
+var hero_setting := "heretic"
+const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic"}
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
-## Multiplier on Awakening gained (Overflow upgrade).
-var awakening_gain_mult := 1.0
 ## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
 var awaken_locked := false
-var xp := 0
-var level := 1
 var _combo_timer := 0.0
 var _air_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
+var _stops: Array = []  # live hitstops: [end_ms, ramp_ms, scale]; see HITSTOP_EASE
+## 0..1: the latest hit's weight (HIT_WEIGHT_STOP), fading at HIT_WEIGHT_DECAY.
+var hit_weight := 0.0
+var _weight_ms := 0  # when hit_weight last decayed (real ticks: process delta is time-scaled)
 var _sfx_streams := {}
 var _sfx_last_ms := {}
 var _sfx_players: Array[AudioStreamPlayer] = []
@@ -126,13 +129,15 @@ var _combat_level := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	enemy_killed.connect(func(e: Node) -> void: add_xp(e.bones))
+	impact = preload("res://scripts/impact_frame.gd").new()
+	add_child(impact)
+	enemy_killed.connect(func(_e: Node) -> void: impact.flash(impact.IMPACT_KILL, true))
 	_setup_input()
 	_load_settings()
-	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
-	comic_moves = not ("--no-comic-moves" in OS.get_cmdline_user_args() or "--no-comic-moves" in OS.get_cmdline_args())
-	heretic = "--heretic" in OS.get_cmdline_user_args() or "--heretic" in OS.get_cmdline_args()
-	sync_comic()
+	hero_model = hero_setting
+	for a in OS.get_cmdline_user_args() + OS.get_cmdline_args():
+		if a.begins_with("--hero=") and HERO_MODELS.has(a.trim_prefix("--hero=")):
+			hero_model = a.trim_prefix("--hero=")
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -141,8 +146,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if Engine.time_scale < 1.0 and Time.get_ticks_msec() >= _hitstop_end_ms:
-		Engine.time_scale = 1.0
+	_update_hitstop()
 	if combo_count > 0:
 		_combo_timer -= delta
 		if _combo_timer <= 0.0:
@@ -161,7 +165,6 @@ func _process(delta: float) -> void:
 func _exit_tree() -> void:
 	stop_all_sfx()
 	Fx.release()
-	preload("res://scripts/hero_look.gd").release()
 	preload("res://scripts/elements.gd").release()
 	preload("res://scripts/breaker_quake.gd").release()
 	_sfx_streams.clear()
@@ -181,58 +184,70 @@ func reset() -> void:
 	style = 0.0
 	awakening = 0.0
 	perfect_dodges = 0
-	bones = 0
-	bones_total = 0
 	air_hits = 0
 	best_air = 0
-	awakening_gain_mult = 1.0
 	awaken_locked = false
-	xp = 0
-	level = 1
-	_emit_level()
 	_recent_moves.clear()
+	_stops.clear()
+	hit_weight = 0.0
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
 
 
-func add_xp(amount: int) -> void:
-	if amount <= 0 or level >= LEVEL_MAX:
-		return
-	xp += amount
-	while level < LEVEL_MAX and xp >= LEVEL_XP[level - 1]:
-		level += 1
-		leveled_up.emit(level)
-	_emit_level()
-
-
-func _emit_level() -> void:
-	if level >= LEVEL_MAX:
-		level_changed.emit(level, 1, 1)
-		return
-	var start: int = 0 if level == 1 else LEVEL_XP[level - 2]
-	level_changed.emit(level, xp - start, LEVEL_XP[level - 1] - start)
-
-
-func add_bones(count: int) -> void:
-	bones += count
-	if count > 0:
-		bones_total += count
-	bones_changed.emit(bones)
-
-
 ## Freeze the game briefly on impact. Overlapping calls extend, never shorten.
+## `duration` is real seconds; the stop holds `time_scale` then eases back to
+## full speed over its tail (HITSTOP_EASE / SLOWMO_EASE; flat from HITSTOP_FLAT_SCALE).
 func hitstop(duration: float, time_scale := 0.03) -> void:
 	if duration <= 0.0:
 		return
-	_hitstop_end_ms = maxi(_hitstop_end_ms, Time.get_ticks_msec() + int(duration * 1000.0))
+	if impact and time_scale < HITSTOP_FLAT_SCALE:
+		impact.on_hitstop(duration)
+	if time_scale < SLOWMO_SCALE:
+		hit_weight = maxf(hit_weight, clampf(duration / HIT_WEIGHT_STOP, 0.0, 1.0))
+	if combo_count <= 1 and time_scale < SLOWMO_SCALE:
+		duration *= HITSTOP_OPENER  # the string's opener: a snap, not a stall
+	var ramp := 0.0
+	if time_scale < SLOWMO_SCALE:
+		ramp = HITSTOP_EASE
+	elif time_scale < HITSTOP_FLAT_SCALE:
+		ramp = SLOWMO_EASE
+	var now := Time.get_ticks_msec()
+	var end_ms := now + int(duration * 1000.0)
+	_hitstop_end_ms = maxi(_hitstop_end_ms, end_ms)
+	_stops.append([end_ms, int(duration * ramp * 1000.0), time_scale])
 	Engine.time_scale = minf(Engine.time_scale, time_scale)
+
+
+## Each frame: the slowest live stop sets the time scale; a stop in its ramp
+## eases from its scale up to 1.0; finished stops drop off.
+func _update_hitstop() -> void:
+	var now := Time.get_ticks_msec()
+	var scale := 1.0
+	var i := _stops.size() - 1
+	while i >= 0:
+		var s: Array = _stops[i]
+		var left: int = s[0] - now
+		if left <= 0:
+			_stops.remove_at(i)
+		else:
+			var at: float = s[2]
+			if left < s[1]:
+				at = lerpf(s[2], 1.0, ease(1.0 - float(left) / float(s[1]), HITSTOP_EASE_CURVE))
+			scale = minf(scale, at)
+		i -= 1
+	if Engine.time_scale != scale:
+		Engine.time_scale = scale
+	if hit_weight > 0.0:
+		hit_weight = maxf(hit_weight - HIT_WEIGHT_DECAY * (now - _weight_ms) * 0.001, 0.0)
+	_weight_ms = now
 
 
 ## Back to full speed now, cutting any hitstop / slow motion short (a combo
 ## breaker's press ends its slow-motion window).
 func end_slowmo() -> void:
 	_hitstop_end_ms = Time.get_ticks_msec()
+	_stops.clear()
 	Engine.time_scale = 1.0
 
 
@@ -257,6 +272,8 @@ func sfx(sound_name: String, volume_db := 0.0, pitch_jitter := 0.08) -> void:
 func shake(amount: float) -> void:
 	if camera_rig and shake_scale > 0.0:
 		camera_rig.add_trauma(amount * shake_scale)
+		if amount >= camera_rig.ROLL_SHAKE:
+			camera_rig.roll(amount * camera_rig.ROLL_DEG)
 
 
 func _start_music() -> void:
@@ -356,24 +373,16 @@ func guide_label() -> String:
 	return "Combo guide: %s" % ("On" if combo_guide else "Off")
 
 
-func toggle_comic() -> void:
-	comic_setting = not comic_setting
+## Settings: heretic <-> chibi heretic, saved; takes effect when the next run builds the hero.
+func cycle_hero() -> void:
+	var order := HERO_MODELS.keys()
+	hero_setting = order[(order.find(hero_setting) + 1) % order.size()]
+	hero_model = hero_setting
 	_save_settings()
 
 
-func comic_label() -> String:
-	return "Comic style (next run): %s" % ("On" if comic_setting else "Off")
-
-
-## Called as a run's scene loads, so one run never mixes the two looks.
-func sync_comic() -> void:
-	var on := _comic_cli or comic_setting
-	if on == comic_style:
-		return
-	comic_style = on
-	Fx.release()  # the outline's ink width and the cached copies follow the flag
-	if not on:
-		ComicLook.restore_shadows()
+func hero_label() -> String:
+	return "Hero model (next run): %s" % HERO_MODELS.get(hero_setting, "Heretic")
 
 
 ## Step to the next screen shake level and save it.
@@ -395,7 +404,9 @@ func _load_settings() -> void:
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
-		comic_setting = cfg.get_value("video", "comic_style", false)
+		hero_setting = cfg.get_value("video", "hero_model", "heretic")
+		if not HERO_MODELS.has(hero_setting):
+			hero_setting = "heretic"
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -406,8 +417,8 @@ func _save_settings() -> void:
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("video", "combo_guide", combo_guide)
-	if comic_setting:  # flag off leaves settings.cfg exactly as it was
-		cfg.set_value("video", "comic_style", true)
+	if hero_setting != "heretic":  # the default leaves settings.cfg as it was
+		cfg.set_value("video", "hero_model", hero_setting)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 
@@ -422,6 +433,8 @@ func register_hit(move_id: String) -> void:
 		_recent_moves.pop_front()
 	style += 1.0 + variety
 	add_awakening(1.5 * RANK_AWAKEN_MULT[rank()])
+	if camera_rig:
+		camera_rig.hit_zoom(1.0 + camera_rig.HIT_ZOOM_TIER * Fx.chain_tier(combo_count))
 	if move_id.ends_with("_air"):
 		_air_hit()
 	combo_changed.emit(combo_count, rank())
@@ -470,7 +483,6 @@ func add_awakening(amount: float) -> void:
 	if amount > 0.0:
 		if awaken_locked:
 			return
-		amount *= awakening_gain_mult
 	awakening = clampf(awakening + amount, 0.0, AWAKEN_MAX)
 	awakening_changed.emit(awakening)
 

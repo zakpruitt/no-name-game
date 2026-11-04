@@ -11,7 +11,7 @@ Each element treats foes differently, so lift-and-slam belongs to the storm alon
 - **Magma goes down and apart:** they get shoved, dragged under and ripped open.
 - **Dark pulls in and swallows:** no weapon first. They get dragged to one spot and something eats them.
 
-The KayKit hero's `route()`, `BREAKERS` and `H` move are untouched.
+These are the hero's only heavies and breakers: the KayKit hero's `route()`, `BREAKERS` and `H` were removed in round 28.
 
 ## The kit
 
@@ -89,6 +89,34 @@ Right click with no weapon first. Dark gathers foes and swallows them, and the t
 
 On the bench: Puppet, Knot, Maw, Meat shield, Hanging up.
 
+## Look
+
+Judged from the game camera with `tests/element_shots.gd`. Every element effect on this hero is flat
+camera-facing geometry in layers (ink, one element colour, one light tone, a hot yellow-orange star for
+impacts), redrawn on twos, peaking on its first frame and gone in about a third of a second. They share
+`heretic_form_fx.material()` (unshaded vertex colour, no depth test), prewarmed in `elements.prewarm()`,
+and each has a public `tick(delta)` and a local `RandomNumberGenerator`.
+
+| Effect | Script | Used by |
+|---|---|---|
+| Lightning bolt: a fat zigzag, new each step, with forks; an impact star when it comes from the sky | `scripts/comic_bolt.gd` | `element_rite.arc()` (Live Wire, the rite's thunder), `elements.storm_strike("wind")` (Grounded, wind thrown foes) |
+| Lava geyser: an overshooting column, a splash star, inked blobs off the top | `scripts/comic_geyser.gd` | `element_rite.geyser()` (Meteor Fall, Worldbreaker, Magma Burst) at 0.7 of the asked height and 0.75 of the radius wide |
+| Whirlwind: five fat wind bands round a funnel, spinning in held frames | `scripts/comic_gale.gd` | `elements.pillar("wind")` with the comic style (Updraft Lash) |
+| Frost: inked cracks, a ring of ice teeth and plates, bare floor between, depth tested | `frost_spear.frost_mesh()` | the Frost Spear |
+| Ice spikes: flat two-tone ice with the ink hull, 1.35x chunkier, overshooting, no dots or dust | `elements.comic_ice()` | `spikes()` and `nova()` with the comic style (Cold Front, Harpoon, Deep Freeze) |
+| The black hole: Black Tide's churning ink at `Hole.VIEW_R` 2.6 m, so the pile on it can't hide it; Collapse is a held-frame `Splat` | `dark_fx.Hole` | Singularity, Collapse; `dark_fx.burst()` is a small splat and ink debris |
+| Hit flourishes: a hot inked impact star, fat paper speed strokes along the blow, two-tone element chips, a halo in his colour behind the star from chain tier 1, radial strokes round him for a named combo, a held kill star with bone chips; no flares, dot sprays, smoke or soft rings | `scripts/comic_pop.gd` | `Fx.hit_spark`, `impact`, `chain_spark`, `element_hit`, `combo_pop`, `death`, `shards`, `ring` with the comic style; `Fx.dust` draws nothing |
+| Breaker dive: a fat inked comet streak with a hot core, ending in a held impact star; the cue is crisp inked bands | `scripts/comic_comet.gd`, `breaker_cue.gd` | `player._comet()`, every breaker (see combo-breakers.md) |
+| Molten Palm's fist: flat, wider than long, four fat knuckles glowing molten, stretched in flight, squashed with a star on arrival | `scripts/comic_fist.gd` | the one-line hook at the top of `void_element._fist()` |
+| Abyss spikes: flat inked violet spikes round a hot core, 1.3x the asked height, coming up `SPOUT_DELAY` 0.12 s late so the impact frame doesn't swallow them | `dark_fx.Spout` | `dark_fx.spout()` |
+| Words: each signature move says its own word on its first hit (`ComicFx.MOVE_WORDS`, sized by its combo tier), each breaker its own on landing (`BREAKER_WORDS`, `BREAKER_SCALE`); every word goes beside the hero towards the hit, in the direction with most room from the foes, the hero and the other words (`_place`) | `scripts/comic_fx.gd` | it watches the hero's `_move_id`, `_hits_done`, `breakers_landed` (read only) |
+
+Sizes that read at the game camera (about 50 px a metre at 1080p): bolts 0.26-0.4 m for the colour band
+with ink twice that, a 1.1 m impact star, geyser columns 0.7 m across and 2.2 m tall, wind bands 0.32 m.
+Five geysers at 1.35 m wide walled off the whole landing; a 6 m frost disc at 30% washed out the frame.
+A hit star at 0.45 m (big 0.65) reads on each foe in a crowd; chain halos at 0.7 m with a ring were a cyan
+thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
+
 ## Files
 
 | File | Role |
@@ -97,6 +125,7 @@ On the bench: Puppet, Knot, Maw, Meat shield, Hanging up.
 | `scripts/thrown_foe.gd` | A thrown foe, its cube |
 | `scripts/floor_bind.gd` | Tendrils out of the floor holding foes: Undertow and Overwhelm |
 | `scripts/frost_spear.gd` | The planted spear, its frost and `frost_ring()` |
+| `scripts/comic_bolt.gd`, `comic_geyser.gd`, `comic_gale.gd`, `comic_pop.gd`, `comic_comet.gd`, `comic_fist.gd` | The flat comic bolt, geyser, whirlwind, hit flourishes, dive comet and palm fist (see "Look") |
 | `scripts/dark_fx.gd` | The dark element's things in the world: `Hole`, `Mark`, `Pool`, `Maw`, `Splat`, `ink_drops()`, `spout()`, `reap()`, `burst()` |
 | `shaders/dark_ink.gdshader`, `dark_splat.gdshader` | Churning floor ink (spiral streaks, wobbling rim, stepped time, `open`, `erode`) and the camera-facing ink burst (`progress`, stepped by `dark_fx.Splat`) |
 | `scripts/player.gd` | `MOVES` and `COMBOS` rows, `void_route()`, `_breaker_for()`, `_breaker_pressed()`, the `tentacle` branches of `State.LEAP` |
@@ -107,7 +136,7 @@ On the bench: Puppet, Knot, Maw, Meat shield, Hanging up.
 
 ## Invariants
 
-- Void breakers stay out of `player.BREAKERS`: `move_list_check` and `comic_check` walk that table for the KayKit hero. `_breaker_for()` picks the table.
+- `player._breaker_for()` reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
 - A breaker entry is `_WINDOW` merged with its row (`entry()`).
 - `leap` must be at or before the move's `cancel`.
 - Every exit from the hang lets go: no press, dash out and `_end_leap` all call `release_seized()`. The tendrils stay in `_spare` for the next one.
@@ -125,7 +154,7 @@ On the bench: Puppet, Knot, Maw, Meat shield, Hanging up.
 - While the frost spear stands, either button vaults (`vaults()`, from `player._routed`), not only during the plant's animation: that ends before the frost has finished spreading, so a player watching it got a plain slice. `tests/void_arm_check.gd` `_spear_by_hand` plays this with real button presses.
 - Black Tide's flight is capped at `TIDE_ARRIVE`: far foes fly faster, so an early Maw press can't bite before they reach the pool.
 - Damage that ticks on a whole crowd (`dark_fx.Hole`, `floor_bind.gd`) goes through `enemy.burn_hit`: the damage and number with no sparks, word or flash, which buried the thing holding them.
-- Tentacle breakers use the `crisp` version of `breaker_cue.gd`, thin hard rings, since they land right on that spot.
+- Tentacle breakers (and every comic hero) use the `crisp` version of `breaker_cue.gd`, flat inked bands, since they land right on that spot.
 - A breaker's cue, prompt and war cry come in `_brk_color()`, what it lands in, not his axe's teal. Tentacle breakers also skip the war cry's bubble: it hid him and filled the floor.
 - Tentacle breakers skip the `Fx.combo_pop` on landing, and his element moves skip the `_land_slam` ring. Avalanche also skips the crater: its ice buried the cubes as they left.
 - `cube_on()` hides the plain ice cylinder every time, even on a foe already in a cube: `enemy.freeze()` shows it again on each refreeze, and `seize()` refreezes the cubes for Avalanche's window.
@@ -142,7 +171,7 @@ Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_
 
 - Clips are borrowed from other moves, so the poses are approximate until the VFX update.
 - Heavy foes aren't lifted. Their answers are the lightning, Meteor Fall and Overwhelm.
-- Geysers, lightning and rings are the older soft or bright effects. Only the star and chips (`heretic_form_fx.gd`) are in the flat comic style.
+- Still soft on this hero: the dive comet and breaker cue discs, the orange hit flares and chain dots on every foe, `Fx.shards` smoke, Molten Palm's fist, the Undertow smoke and the scorch decals (see "Look").
 - The storm, ice and magma strings and R have been played by hand. The dark string has not.
 - Molten Palm's fist is a rough lump until the VFX update.
 
