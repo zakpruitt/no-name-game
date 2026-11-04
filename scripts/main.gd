@@ -153,8 +153,7 @@ func _ready() -> void:
 # --- Training -----------------------------------------------------------------
 
 func _start_training() -> void:
-	hud.wave_label.text = "TRAINING"
-	hud.flash_message("TRAINING\nEsc: Awakening, moves", 2.0)
+	hud.wave_label.text = "TRAINING"  # (no big centre banner: it sat over the first strings)
 	for spot: Vector3 in DUMMY_SPOTS:
 		var dummy: Node = DUMMY.new()
 		dummy.model_scene = _model("Skeleton_Warrior")
