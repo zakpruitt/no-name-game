@@ -115,6 +115,8 @@ fast-forward, so no agent edits another's files or index.
   (`FOES.near` reads it) or film each on its own: three slams side by side were one purple blot.
 - **Paused AnimationPlayer in a modifier or a check:** `current_animation` is "" while paused (use `assigned_animation`), and re-seeking a paused player in `heretic_shots` kept showing the old pose. Measure clip content from its tracks (`tests/contact_frames.gd` `track_pose`) in a check.
 - **Changing a clip's keys under another lane's timing:** keep each contact frame, and run the lane's own measure (`tests/contact_frames.gd`) after every export; stepped keys make each drawing change a speed spike, so recovery steps must stay small.
+- **GLB size is tracks, not keys:** each animation track costs a sampler, two accessors and buffer views in the GLB's JSON (about 280 bytes before any key), so 24 claw tracks on 40 clips added 280 KB of JSON alone. Drop tracks on clips nothing plays (grep `scripts/*.gd` for the clip names after the Ab_ mapping) before thinning keys.
+- **Bash heredocs turn `\x00` into a real NUL** in a Python patch: the patched file became binary and grep stopped matching. Write byte literals as `bytes(1)`, or write the patch with the Write tool.
 
 - **A string can strand the bot.** A lone L L H leaves the frost spear up for 5 s and any L or H press then vaults onto it,
   so the next strings never reached Collapse and Grounded; the autotest stayed green. Check `breakers=` / `moves=` against
