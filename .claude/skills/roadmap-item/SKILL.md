@@ -1,6 +1,6 @@
 ---
 name: roadmap-item
-description: Implement one Awaken change end to end — pick the top unchecked ROADMAP.md item (or the feature the user named), build it, verify with the autotest and screenshots, check it off, refresh the wiki if needed, and make one Conventional Commit on dev. Use for "do the next roadmap item", "/loop" rounds, or any gameplay/feature request in this repo.
+description: Implement one Awaken change end to end — pick the top unchecked ROADMAP.md item (or the feature the user named), build it, verify with the autotest and screenshots, check it off, and make one Conventional Commit on dev. Use for "do the next roadmap item", "/loop" rounds, or any gameplay/feature request in this repo.
 ---
 
 # One roadmap item, end to end
@@ -33,7 +33,6 @@ Read `CLAUDE.md` (layout, test flags) and `ROADMAP.md` first.
 - Check the item off in ROADMAP.md with a one-line note of what was done, including the numbers if any. Add follow-ups you discovered as new `- [ ]` items.
 - Update CLAUDE.md if you added a flag, script, table or workflow.
 - Add or update the feature's doc in `docs/features/` (template and index in its README): how it works, files, invariants, tuning, extending, tests. Do this for any feature that spans several files or has its own test.
-- If players would see the change (new move, enemy, power, menu, numbers), run the `update-wiki` skill. `python tools/wiki.py` is enough when only numbers or ids changed.
 
 ## 5. Commit and report
 - One Conventional Commit on `dev` (feat/fix/perf/docs/test/chore…).

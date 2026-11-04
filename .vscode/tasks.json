@@ -40,13 +40,6 @@
 			"command": "godot",
 			"args": ["--headless", "--import", "--path", "${workspaceFolder}"],
 			"problemMatcher": []
-		},
-		{
-			"label": "Wiki: regenerate data",
-			"type": "process",
-			"command": "python",
-			"args": ["tools/wiki.py"],
-			"problemMatcher": []
 		}
 	],
 	"inputs": [
