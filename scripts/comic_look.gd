@@ -90,6 +90,11 @@ const EMITS := {
 ## A kind whose script defines a shared material name differently.
 const KIND_TONES := {
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
+	# His weapons grow out of the limb, so they carry its painted magenta, not the old hero's violet.
+	"heretic": {
+		"P_Tendril": {"shadow": Color(0.12, 0.012, 0.16), "mid": Color(0.44, 0.07, 0.4), "light": Color(0.68, 0.15, 0.58), "rim": Color(0.62, 0.2, 0.62), "brush": 0.14},
+		"P_VoidHard": {"shadow": Color(0.05, 0.01, 0.07), "mid": Color(0.2, 0.04, 0.2), "light": Color(0.4, 0.1, 0.38), "rim": Color(0.62, 0.2, 0.62), "brush": 0.14},
+	},
 }
 ## Model name -> clip the game asks for -> clip it has ("" = keep what's playing,
 ## the clip already covers that beat). Only consulted when the model lacks the clip

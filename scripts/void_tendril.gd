@@ -27,7 +27,7 @@ func _ready() -> void:
 	_mi.set_meta("no_ghost", true)
 	add_child(_mi)
 	if DisplayServer.get_name() != "headless":
-		_mat = ComicLook.material("P_Tendril").duplicate()
+		_mat = ComicLook.material("P_Tendril", ComicLook.hero_kind()).duplicate()
 		_mat.next_pass = Fx.ink_material()
 	visible = false
 
