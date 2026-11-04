@@ -285,3 +285,12 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] `docs/features/art-direction.md`: "chibi but badass", from Zak
 - [ ] Chibi base: retexture the chibi candidate in Meshy (about 10 credits) and auto-rig it (about 5), or generate again from the art-direction template, then run it through `tools/meshy_rig` with new `TIPS`
 - [ ] Hand play-test of the refined heretic: does 2.2 m and the bigger head feel right in motion
+
+## Round 29 (heretic effects)
+- [x] Storm: Live Wire's arcs and Grounded's sky strike are fat flat inked zigzag bolts on twos with a hot impact star (`comic_bolt.gd`). Sheet before: thin glowing tubes and a soft green funnel burying the foes; after: bold green-and-ink bolts that clear by +0.2 s and leave the foes visible
+- [x] Ice: the Frost Spear's frost is inked cracks, ice teeth and plates over bare floor (`frost_spear.frost_mesh()`). Before: a 12 m grey-blue slab that washed out the next two moves' frames; after: the floor and foes read through it
+- [x] Magma: geysers are flat overshooting lava columns with inked blobs (`comic_geyser.gd`). Before: Meteor Fall was a soup of soft swirl cones and orange dot rain hiding every foe; after: five bold tongues with the foes between them
+- [x] Dark: Singularity's hole is churning ink 2.6 m wide, and Collapse a held-frame ink splat. Before: a 1.3 m disc hidden under the pile, so it was just violet hoops; after: a black pool round the pile
+- [x] Ice: comic ice spikes are flat two-tone with the ink hull, chunkier and overshooting, and `nova()` uses hard hoops (comic style only). Before: Cold Front sat in a soft blue glow; after: crisp crystals
+- [x] Storm: Updraft Lash's gale is fat inked wind bands spinning in held frames (`comic_gale.gd`, comic style only). Before: a soft green disc over the foes; after: a cartoon whirlwind
+- [ ] Next: the dive comet and breaker-cue soft discs, the orange hit flares and dots on every foe (fx.gd / enemy.gd lanes), Molten Palm's lumpy fist and the Undertow smoke

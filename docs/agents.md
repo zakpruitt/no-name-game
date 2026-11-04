@@ -62,3 +62,13 @@ fast-forward, so no agent edits another's files or index.
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
 the worktree, and deletes the branch once it has been merged.
+
+## Lessons
+
+- `tests/element_shots.gd -- --only=<combo>` films one string in about 20 s; the full run is about
+  2.5 min. Iterate on one, then film all for the before/after. Copy `user://element_shots/` to your
+  scratchpad straight away: other agents' runs overwrite it.
+- Effects left standing carry into the next combo's frames (the frost spear lives 5 s and showed up
+  under the ice cube shots), so read neighbouring sheets too when judging a lingering effect.
+- A Python rewrite of a file on Windows keeps CRLF in text mode; check `git show --stat` after
+  committing that only your lines changed.
