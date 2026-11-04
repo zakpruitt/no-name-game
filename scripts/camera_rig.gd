@@ -2,7 +2,7 @@ extends Node3D
 ## Angled top-down follow camera with trauma-based screen shake.
 
 @export var target: Node3D
-@export var offset := Vector3(0.0, 13.0, 9.5)
+@export var offset := Vector3(0.0, 10.0, 7.5)  # feel audit 2026-11-04 item 3: (0, 13, 9.5) left the chibi ~40 px tall
 @export var follow_speed := 8.0
 @export var max_shake_offset := 0.6
 @export var max_shake_roll := 2.5
@@ -22,6 +22,9 @@ var _roll_to := 0.0
 var _roll_sign := 1.0  # heavy hits roll alternate ways so a string rocks
 var _fov := 0.0  # degrees narrower than FOV, chases _fov_to
 var _fov_to := 0.0
+var _hang := 0.0  # 0..1: how far into the breaker-hang push-in (the hero is in State.LEAP)
+var _lift := 0.0  # metres the follow point has risen with his leap
+var _leap_state := -2  # the target's State.LEAP (-1: it has none; -2: not read yet)
 
 # Per-hit feel (hero-agnostic; Game calls these): hits push the camera in a
 # hair, more as the chain climbs, clamped so a crowd hit doesn't dive; heavy
@@ -37,7 +40,14 @@ const ROLL_MAX := 2.5  # cap on the stacked roll, degrees
 const ROLL_RETURN := 9.0  # how fast the roll springs back (per real second)
 const NUDGE_FOLLOW := 40.0  # how fast kick / zoom / roll reach their targets (per real second)
 const KICK_RETURN := 12.0  # how fast a kick springs back (per real second)
-const FOV := 42.0
+const FOV := 36.0  # was 42 (item 3: the hero was a 40 px hood)
+# Breaker hangs (feel audit item 3 / 10): while the hero is in State.LEAP the camera pushes in a little
+# and its follow point rises with him, so the hang doesn't climb under the HUD.
+const HANG_ZOOM := 0.12  # fraction of the offset the hang pushes in
+const HANG_IN := 6.0  # per real second, towards the push-in
+const HANG_OUT := 3.0  # per real second, back out after the slam
+const LIFT_FOLLOW := 0.75  # fraction of his height off the floor the follow point rises
+const LIFT_MAX := 4.0  # metres
 # FOV punch: enders (punch()) and big stops (Game.hitstop's impact frame) and kills narrow the view a few
 # degrees on top of the push-in, springing back in real time.
 const FOV_ENDER := 2.5  # degrees at a full ender / a full-strength impact frame
@@ -107,15 +117,21 @@ func add_trauma(amount: float) -> void:
 
 
 func _process(delta: float) -> void:
+	var real_delta := delta / maxf(Engine.time_scale, 0.01)  # slow-mo shouldn't slow the push-in
+	var hanging := target != null and _hanging(target)
+	_hang = lerpf(_hang, 1.0 if hanging else 0.0, 1.0 - exp(-(HANG_IN if hanging else HANG_OUT) * real_delta))
 	if target:
 		var goal := target.global_position
-		goal.y = 0.0
+		var body: Variant = target.get("model")  # (the leap lifts his model, not the body)
+		var high: float = body.global_position.y if body is Node3D and is_instance_valid(body) else goal.y
+		var lift := clampf(high * LIFT_FOLLOW, 0.0, LIFT_MAX) if hanging else 0.0
+		_lift = lerpf(_lift, lift, 1.0 - exp(-(HANG_IN if lift > _lift else HANG_OUT) * real_delta))
+		goal.y = _lift
 		var speed := follow_speed * (3.0 if _zoom_to != 1.0 else 1.0)  # keep up while zoomed
 		global_position = global_position.lerp(goal, 1.0 - exp(-speed * delta))
 	trauma = maxf(trauma - trauma_decay * delta, 0.0)
 	if Time.get_ticks_msec() >= _zoom_until_ms:
 		_zoom_to = 1.0
-	var real_delta := delta / maxf(Engine.time_scale, 0.01)  # slow-mo shouldn't slow the push-in
 	_zoom = lerpf(_zoom, _zoom_to, 1.0 - exp(-9.0 * real_delta))
 	var follow := 1.0 - exp(-NUDGE_FOLLOW * real_delta)
 	_kick_to = _kick_to.lerp(Vector3.ZERO, 1.0 - exp(-KICK_RETURN * real_delta))
@@ -127,8 +143,16 @@ func _process(delta: float) -> void:
 	_fov_to = lerpf(_fov_to, 0.0, 1.0 - exp(-FOV_RETURN * real_delta))
 	_fov = lerpf(_fov, _fov_to, follow)
 	camera.fov = FOV - _fov
-	camera.position = offset * _zoom * (1.0 - _hit_zoom) + _kick
+	camera.position = offset * _zoom * (1.0 - _hit_zoom) * (1.0 - HANG_ZOOM * _hang) + _kick
 	var s := trauma * trauma
 	camera.h_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
 	camera.v_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
 	camera.rotation.z = deg_to_rad(randf_range(-1.0, 1.0) * max_shake_roll * s + _roll)
+
+
+## True while `t` (the hero) is in his combo-breaker leap (player.State.LEAP).
+func _hanging(t: Node3D) -> bool:
+	if _leap_state == -2:
+		var states: Variant = t.get_script().get_script_constant_map().get("State") if t.get_script() else null
+		_leap_state = int(states.get("LEAP", -1)) if states is Dictionary else -1
+	return _leap_state >= 0 and t.get("state") == _leap_state

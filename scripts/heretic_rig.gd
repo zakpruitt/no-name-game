@@ -81,6 +81,11 @@ const SKIRT_GRAVITY := 0.9
 const SKIRT_RADIUS := 0.035
 ## Bone -> capsule radius, length: so the skirt rides over his thighs.
 const LEG_CAPSULES := {"upperleg.l": [0.11, 0.42], "upperleg.r": [0.11, 0.42]}
+const RIM_SHADER := preload("res://shaders/hero_rim.gdshader")
+const RIM_COLOR := Color(1.0, 0.96, 0.84)  # paper, past his ink (_add_rim)
+const RIM_PX := 2.4  # px of rim past the ink line
+const RIM_PUSH := 0.06  # m pushed back past the ink hull's, so the ink hides the rim's inner part
+const RIM_PRIORITY := 100  # after every effect in the transparent pass
 
 var void_arm: Node
 var _chains := []  # [{bones: PackedInt32Array, phase: float}]
@@ -131,6 +136,36 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	_warm_fx(skel)
 	_add_springs(skel)
 	_add_eyes(skel)
+	_add_rim(skel)
+
+
+## Feel audit 2026-11-04 item 3: in breaker hangs and slams he was lost under the bolts, rings and words.
+## A paper rim (shaders/hero_rim.gdshader) past his ink, drawn after the effects, keeps his silhouette.
+## Chained after Fx.outline's ink pass on his own copies of his surfaces (the ink material is shared).
+func _add_rim(skel: Skeleton3D) -> void:
+	if DisplayServer.get_name() == "headless" or Fx.ink_material() == null:
+		return
+	var rim := ShaderMaterial.new()
+	rim.shader = RIM_SHADER
+	rim.render_priority = RIM_PRIORITY
+	rim.set_shader_parameter("rim_color", RIM_COLOR)
+	rim.set_shader_parameter("width_px", Fx.COMIC_INK_PX + RIM_PX)
+	rim.set_shader_parameter("depth_push", Fx.COMIC_INK_PUSH + RIM_PUSH)
+	var ink: Material = Fx.ink_material().duplicate()
+	ink.next_pass = rim
+	var copies := {}
+	for mi: MeshInstance3D in skel.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null or mi.get_parent() == self:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(i)
+			if m == null or m.next_pass != Fx.ink_material():
+				continue
+			if not copies.has(m):
+				var copy: Material = m.duplicate()
+				copy.next_pass = ink
+				copies[m] = copy
+			mi.set_surface_override_material(i, copies[m])
 
 
 func _clips_key_claws(ap: AnimationPlayer) -> bool:
