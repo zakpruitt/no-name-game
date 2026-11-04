@@ -18,6 +18,9 @@ How to make more models like this: [meshy-pipeline.md](meshy-pipeline.md).
 | `tools/meshy_rig/flatten_texture.py` | The texture flattening (k-means in Lab, mode filter, islands from the UVs, mip padding) |
 | `tools/meshy_rig/heretic_bake.py` | Copies `shaman_comic.glb`'s clips and weapons onto the rig, exports the GLB. Optional height |
 | `tools/meshy_rig/heretic_audit.py` | Prints a hero GLB's tris, materials, texture, bones, rig-contract chains and height |
+| `tools/meshy_rig/chibi_decimate.py` | Meshy GLB → welded, decimated (two collapse passes), recentred, optionally mirrored GLB, plus front/side/back/top renders |
+| `tools/meshy_rig/chibi_paint.py` | Repaints the chibi's claw texels (found from the hand's UV triangles) in the heretic's magenta |
+| `assets/comic/heretic_chibi.glb` | The chibi heretic (`--hero=chibi`), same rig contract |
 | `assets/comic/heretic.glb` | The result |
 | `scripts/heretic_rig.gd` | Modifier: sway, weapon changes, limb pose off attacks; adds the skirt's `SpringBoneSimulator3D` |
 | `scripts/heretic_form_fx.gd` | The burst on a change: flat camera-facing shapes redrawn on twos. `LOOKS` holds each form's tones, star size and chips |
@@ -60,6 +63,43 @@ What changed, all in `heretic_refine.py` and the bake, the rig untouched:
 Result: same tris, bones and clips; `heretic_shots`, `comic_check`, `training_check` and the autotest pass. Seen in windowed stills only, not played.
 
 Two Meshy candidates were generated for a new base (60 credits, see [art-direction.md](art-direction.md)) and neither was used: one realistic with no tentacle arm, one chibi with a broken patchwork texture. Both are in `vendor_src/meshy/source/` (`cand1_t2r_01a1a6bc.glb`, `chibi_t2r_01a1a6c4.glb`); the chibi's Meshy task ids are preview `01a1a6c3-871e-77fc-89fd-883d5fac3e76`, refine `01a1a6c4-842d-77b6-9f97-05a5d24782e8`, so it can be retextured and auto-rigged from Meshy without generating again.
+
+## The chibi heretic (round 29, selectable)
+
+A second heretic model with the same rig contract: `assets/comic/heretic_chibi.glb`. Pick it with `--hero=chibi` (this process only), or Settings → "Hero model (next run)": Heretic / Chibi heretic (saved as `video/hero_model`, only written when not the default). `--hero=heretic` forces the default. `Game.hero_model` picks the file through `ComicLook.HERETIC_MODELS`; the kind stays `heretic`, so `KIND_TONES`, `CLIPS`, `heretic_rig.gd` and every `hero_kind() == HERETIC` check work for both. `painted()` caches per texture, since both models call their material `P_HereticPaint`. Default is still the round-28 heretic until Zak picks.
+
+What it is: the round-29 chibi candidate (big pointed bone-white hood, short body, a six-claw tentacle hand on an ordinary right arm), decimated, mirrored so the claw is the right hand, retextured and auto-rigged through Meshy's REST API, then rebuilt with `heretic_rig.py ... chibi`.
+
+| | Heretic | Chibi |
+|---|---|---|
+| Body tris | 15,901 | 21,999 (23,223 with weapons) |
+| Height | 2.2 m | 1.75 m |
+| Bones | 101 (21 tent, 36 skirt, 15 fingers) | 89 (24 tent, 36 skirt, no fingers) |
+| Tentacle | five tips on a tentacle arm | six claws (`main`, `up`, `out`, `mid`, `low`, `back`) from the wrist |
+| Weapons | old hero's size (axe 2.75 m) | x0.7 about the hand: axe 1.92 m, spear 1.88 m, hammer 1.34 m |
+| Texture | flattened Meshy paint | Meshy retexture as is (already flat), claws repainted magenta |
+
+Rebuild (from the repo root, Blender 5.2, absolute Windows paths; sources in `vendor_src/meshy/source/` and `vendor_src/meshy/chibi/`):
+
+```
+blender -b --factory-startup -P tools/meshy_rig/chibi_decimate.py -- vendor_src/meshy/source/chibi_t2r_01a1a6c4.glb vendor_src/meshy/chibi/dec22k.glb 22000 vendor_src/meshy/chibi/dec_render 1
+# Meshy REST (key from the Blender add-on): POST /openapi/v1/retexture {model_url: data URI of dec22k.glb, text_style_prompt, enable_original_uv: false}
+#   -> task 01a1a6d6-f321-74ba-884f-4757b66cad3d (10 credits), then POST /openapi/v1/rigging {input_task_id: that, height_meters: 1.7}
+#   -> task 01a1a6d9-45e2-7612-983b-118deb1b38ed (5 credits): vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx
+blender -b --factory-startup -P tools/meshy_rig/heretic_rig.py -- vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx vendor_src/meshy/chibi/chibi_rig_v1.blend chibi
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/chibi_paint.py -- vendor_src/meshy/chibi/paint.png
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/chibi/paint.png vendor_src/meshy/chibi/chibi_rig_v2.blend 0 1 1
+blender -b vendor_src/meshy/chibi/chibi_rig_v2.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/chibi/out/heretic_chibi.glb 1.75 0.7
+python tools/comic_glb.py vendor_src/meshy/chibi/out heretic_chibi
+python -c "from PIL import Image; Image.open('vendor_src/meshy/chibi/paint.png').convert('RGB').save('assets/comic/heretic_chibi_Material_0_baseColor.jpg', quality=92)"
+godot --headless --import --path .
+```
+
+The `chibi` profile in `heretic_rig.py` holds its values: Meshy's REST rig names (`Spine02` lowest, `Spine`, `neck`, `head_end`) are aliased to the Mixamo-style names; `ARM_FROM_SKELETON` keeps Meshy's upper and lower arm and starts the tentacle at the wrist (`SHOULDER` = the wrist, `RING_R` 0.07, `ROOT_BLEND` 0.04 into `lowerarm.r`); `ARM_SPLITS` wrist.r 0-0.03 m, hand.r 0.03-0.10 m along `main`; every claw parented to `hand.r`; `TIP_SEG` 0.06; claw paint hue 0.82-0.94, saturation over 0.4, x below -0.15; skirt from 0.62 m (fade to 0.52) down to 0.18 m, leg radius 0.085 below 0.3 m and 0.075 above, axis (0.02, 0.2). The default `heretic` profile reproduces round 28's rig unchanged.
+
+`heretic_rig.gd` reads chain lengths from the skeleton (up to `MAX_CHAIN` bones per tip) and also sways a `back` tip, so the chibi's sixth claw moves; the heretic has no `back` chain and is unchanged.
+
+Seen in windowed `heretic_shots` stills only (`user://heretic_shots_chibi/`), not played. From the game camera the hood is a big pale shape that reads clearly on the indigo floor, and the weapons are about his height. The claw hand is small next to the old tentacle arm, and the face is hidden from above.
 
 ## The rig
 

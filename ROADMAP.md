@@ -294,7 +294,10 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Refined it without touching the rig (`tools/meshy_rig/heretic_refine.py`, `flatten_texture.py`): flat colour regions, tentacle thickened 2 cm, head 1.22x and left fist 1.3x, baked at 2.2 m, `PAINTED.brush` 0.12. Seen in windowed stills only
 - [x] Meshy: 60 credits spent (cap 60): a realistic A-pose candidate (30, came out with no tentacle arm and a floor-length cape) and a chibi candidate (30, right proportions, broken patchwork texture). Neither used; both kept in `vendor_src/meshy/source/`
 - [x] `docs/features/art-direction.md`: "chibi but badass", from Zak
-- [ ] Chibi base: retexture the chibi candidate in Meshy (about 10 credits) and auto-rig it (about 5), or generate again from the art-direction template, then run it through `tools/meshy_rig` with new `TIPS`
+- [x] Chibi base: decimated to 22k tris and mirrored (`chibi_decimate.py`), retextured (10 credits) and auto-rigged (5) through Meshy's REST API, rebuilt with `heretic_rig.py ... chibi` (six claws, Meshy's arm to the wrist), claws repainted magenta (`chibi_paint.py`), baked at 1.75 m with weapons x0.7: `assets/comic/heretic_chibi.glb`. Meshy: 15 credits this round (balance 1067 -> 1052)
+- [x] Selectable: `--hero=chibi`, or Settings "Hero model (next run)" (Heretic / Chibi heretic); default unchanged. heretic_shots, comic_check, training_check, void_arm_check and the autotest pass with either. Seen in windowed stills only
+- [ ] Zak: pick the default heretic (chibi or round 28's) after playing both
+- [ ] Chibi: the claw hand is small at the game camera next to the old tentacle arm; consider growing it (`heretic_refine.py` hand scale on `hand.r`/`tent.*`) or a regenerate with a tentacle arm from the shoulder
 - [ ] Hand play-test of the refined heretic: does 2.2 m and the bigger head feel right in motion
 
 ## Round 29 (heretic effects)

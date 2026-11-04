@@ -48,6 +48,22 @@ ornaments, no patterns, no text, no weapon.
 - Meshy 7.1 returns 0.9-1.2 M triangles with no target count. Plan a decimate to 20-30k before rigging.
 - Cost: 30 credits per textured model (20 preview + 10 refine).
 
+## Retexturing in Meshy (round 29, the chibi)
+
+`POST /openapi/v1/retexture` (10 credits) on our decimated 22k-tri GLB sent as a data URI, `enable_original_uv: false`, default model (Meshy 7), with:
+
+```
+Chibi cartoon game hero, cel-shaded hand-painted look: large flat colour regions, no gradients,
+no baked shading, no noise. Big pointed hood in clean bone-white. Inside the hood is pitch black:
+the face is hidden in deep shadow, only two glowing cyan eyes show, menacing, no skin, no nose,
+no mouth. Right arm and its tentacle claw hand solid bright magenta with darker magenta tips.
+Scarf round the neck bone-white. Tunic and sleeves bold teal blue, sash and belt bright crimson
+red, ragged skirt teal blue, boots light grey, left glove light grey. Bold simple colours that
+stand out on a dark indigo floor. No dark brown, no patterns, no text, no small details.
+```
+
+What came back: clean flat regions with no patchwork, a bone-white hood and scarf, teal tunic, crimson sash, light boots, near-black skirt (not teal). The face became a black mask with angry cyan eyes over a still-visible pale chin and nose: menacing rather than cute, but not fully shadowed, because the sculpted face is in the geometry. "Bright magenta" came out a dark wine (hue 0.90, value 0.43), so `chibi_paint.py` repaints the claw texels to the heretic's magenta. Geometry was kept exactly (21,999 tris), but Meshy rescaled it to 2 m and moved it to the origin. The output is already flat enough: `flatten_texture.py` merged the cyan eyes into the dark mask, so it isn't used on this model.
+
 ## Checking
 
 Look at the windowed `tests/heretic_shots.gd` (or `tests/comic_shots.gd`) game-camera shots before calling a model better. A Blender render is only for spotting problems.

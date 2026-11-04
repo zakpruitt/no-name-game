@@ -87,6 +87,9 @@ fast-forward, so no agent edits another's files or index.
 - A visual that lives in a locked file (another lane's gameplay script) can often be driven from
   your own file by reading state: `ComicFx` watches `_move_id`, `_hits_done` and `breakers_landed`
   instead of adding hooks to void_element.gd.
+- **Meshy REST from Blender:** retexture (`/openapi/v1/retexture`, 10 credits) and auto-rig (`/openapi/v1/rigging`, 5) both work on a GLB sent as a data URI or a task id; call them from the live Blender with `urllib` so the key stays there. Decimate first (rigging caps at 380k tris).
+- **Second model, same kind:** a variant of a hero loads through a file map (`ComicLook.HERETIC_MODELS`) while keeping the kind name, so tones, clips and every `hero_kind()` check work unchanged. Cache shared materials per texture, not per material name.
+- **"Parameter material is null" in the autotest** showed up on some seeds with the round-28 heretic as well as the chibi (seed 4: 20 lines). It predates round 29; not chased yet.
 
 ## When you're done
 
