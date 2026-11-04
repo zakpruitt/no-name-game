@@ -1,15 +1,30 @@
 # Rebuilds the Meshy "elemental heretic" rig on a copy: game bone names, tentacle chains traced
 # from the mesh, skirt chains, and clean weights. The source FBX is only read.
-#   blender -b --factory-startup -P heretic_rig.py -- <rigged.fbx> <out.blend>
+#   blender -b --factory-startup -P heretic_rig.py -- <rigged.fbx> <out.blend> [profile]
+# profile: "heretic" (default, round 28's model) or "chibi" (round 29's chibi: Meshy's REST
+# auto-rig, a normal right arm ending in a six-claw tentacle hand). Each profile is the
+# per-character settings below; the logic is shared.
 import bpy, sys, colorsys, collections, heapq, math, json, os
 import numpy as np
 from mathutils import Vector
 
 args = sys.argv[sys.argv.index("--") + 1:]
 SRC, OUT = args[0], args[1]
+PROFILE = args[2] if len(args) > 2 else "heretic"
 
-# ---- per-character settings
-SHOULDER = np.array([-0.17, 0.01, 1.23])
+# ---- per-character settings (the heretic's; the chibi profile overrides them further down)
+SHOULDER = np.array([-0.17, 0.01, 1.23])   # centre of the ring the tentacle is measured from
+RING_R = .14         # how far round SHOULDER the ring reaches
+ROOT_BLEND = .08     # surface distance over which the limb melts into ROOT_BONE
+ROOT_BONE = "shoulder.r"
+ARM_FROM_SKELETON = False  # True: upperarm.r / lowerarm.r are Meshy's arm; the tentacle starts at the wrist
+TIP_PARENT = "upperarm.r"  # tips not in JOIN hang off this; None = the main bone nearest their start
+TENT_HUE = (.68, .90, .18)  # hue range and min saturation of the limb's paint
+HOLE_Z = .5          # colour holes are closed on the limb only above this height
+NECK_Z = 1.42        # above this nothing but the tentacle may follow tentacle bones
+ALIAS = {}           # this rig's bone name -> the Mixamo-style name used below
+SKIRT_CHAIN_TOP, SKIRT_BOTTOM = .80, .2
+LEG_R = (.38, .115, .095)  # below z, radius below, radius above: inside it is leg, not skirt
 TIPS = {  # name: where the tip is. "main" comes first: it is the weapon limb and carries hand.r
     "main": (-.482, .038, .474), "low": (-.42, .129, .682), "mid": (-.559, .13, .892),
     "out": (-.509, .127, 1.283), "up": (-.372, .072, 1.463),
@@ -37,6 +52,26 @@ for f in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
     for i in (1, 2, 3, 4):
         BODY_MAP[f"LeftHand{f}{i}"] = f"finger.{f.lower()}.{min(i, 3)}.l"
 
+if PROFILE == "chibi":
+    # Meshy's REST auto-rig (24 bones, no fingers), on the decimated, mirrored, retextured chibi.
+    # The tentacle is a six-claw hand on an ordinary arm, so the arm is Meshy's and the claws
+    # start at the wrist. Tip positions picked by eye (vendor_src/meshy/chibi/tips.png).
+    ALIAS = {"Spine02": "Spine", "Spine01": "Spine1", "Spine": "Spine2", "neck": "Neck", "head_end": "HeadTop_End"}
+    SHOULDER = np.array([-0.304, -0.208, 0.857])   # RightHand's head: the wrist
+    RING_R, ROOT_BLEND, ROOT_BONE = .07, .04, "lowerarm.r"
+    ARM_FROM_SKELETON, TIP_PARENT = True, "hand.r"   # every claw grows out of the palm
+    TIPS = {"main": (-.198, -.462, .844), "up": (-.33, -.447, 1.075), "out": (-.383, -.413, .884),
+            "mid": (-.151, -.355, .896), "low": (-.215, -.397, .704), "back": (-.313, -.342, .7)}
+    ARM_SPLITS = [("wrist.r", .03), ("hand.r", .10)]   # arc length from the wrist along main
+    JOIN, TRIM = {}, {}
+    TIP_SEG = .06
+    TENT_XMAX, TENT_HUE, HOLE_Z, NECK_Z = -.15, (.82, .94, .4), .6, 1.0
+    SKIRT_TOP, SKIRT_FADE, SKIRT_AXIS = .62, .52, (.02, .2)
+    SKIRT_CHAIN_TOP, SKIRT_BOTTOM = .62, .18
+    LEG_R = (.3, .085, .075)
+    BLEND = .02
+    BODY_MAP.update({"RightArm": "upperarm.r", "RightForeArm": "lowerarm.r"})
+
 # ---- read the source
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=SRC)
@@ -51,9 +86,10 @@ me = ob.data
 n = len(me.vertices)
 mw = ob.matrix_world.copy()
 co = np.array([list(mw @ v.co) for v in me.vertices])
-OB = {b.name.replace("mixamorig:", ""): (np.array(old.matrix_world @ b.head_local), np.array(old.matrix_world @ b.tail_local))
+canon = lambda s: ALIAS.get(s.replace("mixamorig:", ""), s.replace("mixamorig:", ""))
+OB = {canon(b.name): (np.array(old.matrix_world @ b.head_local), np.array(old.matrix_world @ b.tail_local))
       for b in old.data.bones}
-gname = [g.name.replace("mixamorig:", "") for g in ob.vertex_groups]
+gname = [canon(g.name) for g in ob.vertex_groups]
 G = np.zeros((n, len(gname)), np.float32)
 for v in me.vertices:
     for g in v.groups:
@@ -82,7 +118,7 @@ for l in me.loops:
     uvs[l.vertex_index] = uvd[l.index].uv
 rgb = px[np.clip((uvs[:, 1] % 1 * Hd).astype(int), 0, Hd - 1), np.clip((uvs[:, 0] % 1 * Wd).astype(int), 0, Wd - 1), :3]
 hsv = np.array([colorsys.rgb_to_hsv(*c) for c in rgb])
-pur = (hsv[:, 0] > .68) & (hsv[:, 0] < .90) & (hsv[:, 1] > .18)
+pur = (hsv[:, 0] > TENT_HUE[0]) & (hsv[:, 0] < TENT_HUE[1]) & (hsv[:, 1] > TENT_HUE[2])
 wp = np.zeros(W, bool); wp[wid[pur]] = True
 
 def components(idx):
@@ -103,7 +139,7 @@ def components(idx):
 tent = np.zeros(W, bool)
 tent[max(components(list(np.where(wp)[0])), key=len)] = True
 for _ in range(2):   # close colour holes on the limb only
-    tent[[b for a in np.where(tent)[0] for b in adj[a] if wco[b][0] < -.12 and wco[b][2] > .5]] = True
+    tent[[b for a in np.where(tent)[0] for b in adj[a] if wco[b][0] < TENT_XMAX + .02 and wco[b][2] > HOLE_Z]] = True
 tent &= wco[:, 0] < TENT_XMAX
 keep = max(components(list(np.where(tent)[0])), key=len)
 tent[:] = False; tent[keep] = True
@@ -123,7 +159,7 @@ def dijkstra(srcs):
     return dist, pred
 
 d0 = np.linalg.norm(wco - SHOULDER, axis=1)
-ringv = [i for i in np.where(tent)[0] if d0[i] < .14]
+ringv = [i for i in np.where(tent)[0] if d0[i] < RING_R]
 dist, pred = dijkstra(ringv)
 tverts = np.array(sorted(dist))
 print("tentacle verts", len(tverts))
@@ -189,22 +225,30 @@ for s, S in (("l", "Left"), ("r", "Right")):
 bone("upperarm.l", H("LeftArm"), H("LeftForeArm"), "shoulder.l")
 bone("lowerarm.l", H("LeftForeArm"), H("LeftHand"), "upperarm.l")
 wv = (T("LeftHand") - H("LeftHand")); wv /= np.linalg.norm(wv)
+palm = H("LeftHandMiddle1") if "LeftHandMiddle1" in OB else H("LeftHand") + (T("LeftHand") - H("LeftHand")) * .6
 bone("wrist.l", H("LeftHand"), H("LeftHand") + wv * .03, "lowerarm.l", False)
-bone("hand.l", H("LeftHand") + wv * .03, H("LeftHandMiddle1"), "wrist.l")
-bone("handslot.l", H("LeftHandMiddle1"), H("LeftHandMiddle1") + wv * .08, "hand.l", False)
+bone("hand.l", H("LeftHand") + wv * .03, palm, "wrist.l")
+bone("handslot.l", palm, palm + wv * .08, "hand.l", False)
 for f in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
     for i in (1, 2, 3):
+        if f"LeftHand{f}{i}" not in OB:   # the REST auto-rig has no fingers
+            continue
         bone(f"finger.{f.lower()}.{i}.l", H(f"LeftHand{f}{i}"), T(f"LeftHand{f}{i}"),
              "hand.l" if i == 1 else f"finger.{f.lower()}.{i - 1}.l")
 
 # right side: the main tentacle wears the game's arm names, so hand.r keeps working
 tent_bones = []   # name, chain, arc start, arc end
 main = chains["main"]
-mpts = np.vstack(([H("RightArm")], main["pts"]))
+prev = "shoulder.r"
+if ARM_FROM_SKELETON:   # a real arm up to the wrist; the tentacle hand starts there
+    bone("upperarm.r", H("RightArm"), H("RightForeArm"), "shoulder.r")
+    bone("lowerarm.r", H("RightForeArm"), H("RightHand"), "upperarm.r")
+    prev = "lowerarm.r"
+mpts = np.vstack(([H("RightHand") if ARM_FROM_SKELETON else H("RightArm")], main["pts"]))
 marc0 = np.linalg.norm(mpts[1] - mpts[0])
 total = np.linalg.norm(np.diff(mpts, axis=0), axis=1).sum()
 print("main limb length %.3f" % total)
-prev, a0 = "shoulder.r", 0.
+a0 = 0.
 for nm, a1 in ARM_SPLITS:
     p, _ = resample(mpts, [a0, a1])
     bone(nm, p[0], p[1], prev)
@@ -220,7 +264,7 @@ for i in range(cnt):
     tent_bones.append((nm, "main", cuts[i], cuts[i + 1])); prev = nm
 
 def main_bone_at(p):
-    best, bd = "upperarm.r", 9e9
+    best, bd = ARM_SPLITS[0][0], 9e9
     on_main = {b[0] for b in tent_bones if b[1] == "main"}
     for nm, h, t, _, _ in bones:
         if nm in on_main:
@@ -236,7 +280,7 @@ for name in list(TIPS)[1:]:
     cuts = np.linspace(0, L, cnt + 1)
     pp, _ = resample(c["pts"], cuts)
     # tips that leave at the shoulder hang off upperarm.r; the fused ones split from the main limb
-    prev = main_bone_at(pp[0]) if name in JOIN else "upperarm.r"
+    prev = main_bone_at(pp[0]) if name in JOIN or TIP_PARENT is None else TIP_PARENT
     print("chain", name, "len %.3f" % L, "bones", cnt, "parent", prev)
     for i in range(cnt):
         nm = f"tent.{name}.{i + 1:02d}"
@@ -246,7 +290,7 @@ for name in list(TIPS)[1:]:
 # ---- tentacle weights: surface distance, so a tip never grabs its neighbour across a gap
 tb_names = [b[0] for b in tent_bones]
 seeds = {b: set() for b in tb_names}
-seeds["upperarm.r"].update(ringv)
+seeds[ARM_SPLITS[0][0]].update(ringv)
 for name in TIPS:
     c = chains[name]
     pts = mpts if name == "main" else c["pts"]
@@ -295,11 +339,11 @@ F /= np.maximum(F.sum(1, keepdims=True), 1e-6)
 # tentacle: replace, except right at the root where it melts into the shoulder
 for v in tverts:
     F[v] = 0
-    root = np.clip(dist[v] / .08, 0, 1)
+    root = np.clip(dist[v] / ROOT_BLEND, 0, 1)
     for j, b in enumerate(tb_names):
         if TW[v, j] > 0:
             F[v, idx[b]] += TW[v, j] * root
-    F[v, idx["shoulder.r"]] += 1 - root
+    F[v, idx[ROOT_BONE]] += 1 - root
 
 # ---- skirt
 def seg_dist(p, a, b):
@@ -308,14 +352,14 @@ def seg_dist(p, a, b):
     return np.linalg.norm(p - (a + t[:, None] * ab), axis=1)
 dleg = np.minimum.reduce([seg_dist(wco, H(f"{S}UpLeg"), H(f"{S}Leg")) for S in ("Left", "Right")]
                          + [seg_dist(wco, H(f"{S}Leg"), H(f"{S}Foot")) for S in ("Left", "Right")])
-R = np.where(wco[:, 2] < .38, .115, .095)
+R = np.where(wco[:, 2] < LEG_R[0], LEG_R[1], LEG_R[2])
 fam = np.isin(wdom, ["LeftUpLeg", "RightUpLeg", "Hips", "LeftLeg", "RightLeg", "Spine"])
-skirt = fam & ~tent & (wco[:, 2] < SKIRT_TOP) & (wco[:, 2] > .2) & (dleg > R)
+skirt = fam & ~tent & (wco[:, 2] < SKIRT_TOP) & (wco[:, 2] > SKIRT_BOTTOM) & (dleg > R)
 ang = np.arctan2(wco[:, 0] - SKIRT_AXIS[0], -(wco[:, 1] - SKIRT_AXIS[1]))
 sect = (ang / (2 * math.pi) * SKIRT_N) % SKIRT_N
 print("skirt verts", int(skirt.sum()))
 zlow = np.percentile(wco[skirt, 2], 2)
-top = .80
+top = SKIRT_CHAIN_TOP
 levels = np.linspace(top, zlow, 4)
 for i in range(SKIRT_N):
     m = skirt & (np.minimum(abs(sect - i), SKIRT_N - abs(sect - i)) < .75)
@@ -350,7 +394,7 @@ for v in np.where(skirt)[0]:
             F[v, idx[f"skirt.{si:02d}.{kk}"]] += wsk * ws * wk
 
 # ---- smooth where the new weights meet the old ones
-zone = set(np.where(skirt)[0]) | {v for v in tverts if dist[v] < .14}
+zone = set(np.where(skirt)[0]) | {v for v in tverts if dist[v] < RING_R}
 for _ in range(2):
     zone |= {b for a in zone for b in adj[a]}
 zone = np.array(sorted(zone))
@@ -369,12 +413,12 @@ for v in range(W):
 F /= np.maximum(F.sum(1, keepdims=True), 1e-6)
 
 # hair and head must follow only the head and neck family: check, don't assume
-above = wco[:, 2] > 1.42
+above = wco[:, 2] > NECK_Z
 bad = F[above][:, [idx[b] for b in tb_names]].sum(1)
 print("verts above the neck on tentacle bones >.01 (excluding the tentacle):", int(((bad > .01) & ~tent[above]).sum()))
 
 # same vertex set the audit of Meshy's rig measured, so before and after compare fairly
-audit = np.isin(wdom, ["LeftUpLeg", "RightUpLeg"]) & (wco[:, 2] < .84) & (wco[:, 2] > .2) & ~tent
+audit = np.isin(wdom, ["LeftUpLeg", "RightUpLeg"]) & (wco[:, 2] < SKIRT_TOP + .02) & (wco[:, 2] > SKIRT_BOTTOM) & ~tent
 np.save(os.path.splitext(OUT)[0] + "_audit_skirt.npy", audit)
 
 # ---- swap in the new rig (only in this copy)

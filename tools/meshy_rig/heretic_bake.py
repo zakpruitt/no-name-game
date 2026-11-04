@@ -1,6 +1,7 @@
 # Bakes the current hero's clips onto the rebuilt rig, moves his weapons over, exports a GLB.
-#   blender -b <rig.blend> -P heretic_bake.py -- <shaman_comic.glb> <out.glb> [height_m]
+#   blender -b <rig.blend> -P heretic_bake.py -- <shaman_comic.glb> <out.glb> [height_m] [weapon_scale]
 # height_m: his height in the GLB (default: the old hero's head height decides it, ~1.95 m).
+# weapon_scale: weapons scaled about the hand (default 1: the old hero's 2.7 m axe and spear).
 # Each mapped bone takes the source bone's direction and world rotation, so the weapon in hand.r
 # swings as it does on the old hero, whatever the rest poses and proportions are.
 import bpy, sys, os, json, struct
@@ -9,6 +10,7 @@ from mathutils import Vector, Matrix, Quaternion
 args = sys.argv[sys.argv.index("--") + 1:]
 SRC_GLB, OUT = args[0], args[1]
 HEIGHT = float(args[2]) if len(args) > 2 else 0.0
+WEAPON_SCALE = float(args[3]) if len(args) > 3 else 1.0
 # void_surge, void_seep and void_frost are left out: they are shaped to wrap the old hero's arm
 FORMS = ["axe_void_haft", "axe_void_blade", "axe_void_edge", "axe_void_core",
          "hammer_void_haft", "hammer_void_head", "hammer_void_rock", "hammer_void_lava",
@@ -77,7 +79,8 @@ for nm in ONE_TO_ONE:
 # ---- weapons: same place in the hand as on the old hero
 old_hand, new_hand = SR["hand.r"], NR["hand.r"]
 Ainv = ALIGN["hand.r"].inverted().to_matrix().to_4x4()
-wm = Matrix.Translation(new_hand.translation) @ Ainv @ Matrix.Translation(-old_hand.translation)
+wm = (Matrix.Translation(new_hand.translation) @ Matrix.Scale(WEAPON_SCALE, 4) @ Ainv
+      @ Matrix.Translation(-old_hand.translation))
 weapons = []
 for nm in FORMS:
     o = bpy.data.objects.get(nm)
