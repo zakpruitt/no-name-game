@@ -1,5 +1,6 @@
 # Bakes the current hero's clips onto the rebuilt rig, moves his weapons over, exports a GLB.
-#   blender -b <rig.blend> -P heretic_bake.py -- <shaman_comic.glb> <out.glb>
+#   blender -b <rig.blend> -P heretic_bake.py -- <shaman_comic.glb> <out.glb> [height_m]
+# height_m: his height in the GLB (default: the old hero's head height decides it, ~1.95 m).
 # Each mapped bone takes the source bone's direction and world rotation, so the weapon in hand.r
 # swings as it does on the old hero, whatever the rest poses and proportions are.
 import bpy, sys, os, json, struct
@@ -7,6 +8,7 @@ from mathutils import Vector, Matrix, Quaternion
 
 args = sys.argv[sys.argv.index("--") + 1:]
 SRC_GLB, OUT = args[0], args[1]
+HEIGHT = float(args[2]) if len(args) > 2 else 0.0
 # void_surge, void_seep and void_frost are left out: they are shaped to wrap the old hero's arm
 FORMS = ["axe_void_haft", "axe_void_blade", "axe_void_edge", "axe_void_core",
          "hammer_void_haft", "hammer_void_head", "hammer_void_rock", "hammer_void_lava",
@@ -45,6 +47,8 @@ ob.matrix_parent_inverse.identity()
 ob.data.transform(ob_m)
 ob.matrix_world = Matrix.Identity(4)
 scale = (SR["head"].translation.z) / arm.data.bones["head"].head_local.z
+if HEIGHT > 0:  # an asked-for height instead: weapons keep their size, so he grows into them
+    scale = HEIGHT / max(v.co.z for v in ob.data.vertices)
 print("scale to old hero: %.3f (head %.3f -> %.3f)" % (scale, arm.data.bones["head"].head_local.z, SR["head"].translation.z))
 ob.data.transform(Matrix.Scale(scale, 4))
 bpy.context.view_layer.objects.active = arm

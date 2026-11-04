@@ -117,7 +117,7 @@ const HERO := "shaman_comic"
 ## The Meshy hero behind --heretic: same clips and form names as HERO, one painted texture.
 const HERETIC := "heretic"
 ## Materials drawn from their own texture through the cut tones, not from a TONES palette.
-const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.2}}
+const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12}}
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
 ## nudge would otherwise flip between two clips every frame.
 const RUN_STICK := 1.25
