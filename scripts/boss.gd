@@ -45,6 +45,11 @@ const COMIC_ATTACKS := {
 const CLIP_FPS := 24.0
 const COMIC_SLAM_AIR := 13.0  # Attack_Slam frames from take-off to landing
 const COMIC_SLAM_RECOVER := 26.0  # and from landing to the end
+# Hit reactions, reduced (super armour: no lean, tumble, launch or crater; _boss_reaction): every hit
+# flashes in the hero's colour (enemy FLASH_TAP / FLASH_BIG); big hits also swell its outline BOSS_INK
+# times and give a small BOSS_SQUASH, so a heavy blow still reads on the Warden without moving it.
+const BOSS_SQUASH := Vector3(1.08, 0.9, 1.08)
+const BOSS_INK := 1.6
 ## Damage that breaks its guard if dealt within `break_window` seconds.
 @export var break_damage := 90.0
 @export var break_window := 4.0
@@ -348,7 +353,7 @@ func take_hit(damage: float, knockback: Vector3, _launch: float, big: bool) -> v
 	Fx.hit_spark(get_parent(), global_position + Vector3.UP * 0.8 + knockback.normalized() * -0.6, Color(1.0, 0.9, 0.6), 1.5 if big else 1.0)
 	Fx.impact(get_parent(), global_position + Vector3.UP * 0.8, knockback + Vector3.UP * 2.0, big)
 	ComicFx.hit(global_position, big)
-	Fx.flash(model)
+	_boss_reaction(big)
 	_freeze_t = hit_freeze
 	if hp <= 0.0:
 		_cancel_leap()
@@ -362,6 +367,14 @@ func take_hit(damage: float, knockback: Vector3, _launch: float, big: bool) -> v
 	_break_decay_t = break_window
 	if _break_meter >= break_damage:
 		_guard_break()
+
+
+## The Warden's whole reaction to a hit (in place of enemy._hit_reaction): flash, and on big hits ink + squash.
+func _boss_reaction(big: bool) -> void:
+	Fx.flash_tint(model, _hit_color(), FLASH_BIG if big else FLASH_TAP)
+	if big:
+		_ink_pulse(BOSS_INK)
+		_squash(BOSS_SQUASH)
 
 
 func _guard_break() -> void:
