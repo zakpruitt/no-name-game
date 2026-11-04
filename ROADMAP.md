@@ -255,6 +255,13 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Foot skate at game speeds on warrior, rogue and maybe bomber; watch the generic `Hit_B` and `Lie_StandUp` on minion, shield, bomber, necromancer
 - [ ] Comic pass on HUD, menus and power icons
 
+## Round 27 (combat feel loop)
+- [x] Hitstop with shape (`docs/features/impact-feedback.md`): a freeze holds then eases back over its last 30% (`HITSTOP_EASE`, ease-out curve 0.45), slow motion over its last 45% (`SLOWMO_EASE`), a string's first hit freezes 80% as long (`HITSTOP_OPENER`), breaker focus stays flat, and overlapping stops each keep their shape with the slowest winning. `tests/hitstop_check.gd`
+- [x] Camera hit feel: every hit pushes the camera in 1.2% (x2.5 past the third chain tier, capped at 6%), heavy hits (shake >= 0.3) roll it up to 2.5 degrees alternating sides, and kicks/push-in/roll chase spring targets so stacked hits don't jitter (`camera_rig.hit_zoom`/`roll`). `tests/camera_feel_check.gd`
+- [x] Comic impact frame (`scripts/impact_frame.gd`): stops of 0.1 s+ and kills flip the view into a negative with a vignette for 50 ms then fade over 90 ms (0.45 strength for enders, full at 0.25 s stops, 0.4 on kills, at most one per 240 ms); reduce flashing keeps a soft vignette pulse only. `tests/impact_frame_check.gd`, `tests/impact_preview.gd`
+- [x] Weapon trail swells with the chain (+10% reach per tier) and the hit's weight (+25% right after a 0.12 s+ freeze, fading over 0.25 s), with a fuller crescent and longer life. `tests/trail_check.gd`, `tests/trail_preview.gd -- --swell`
+- [ ] Hand play-test the feel numbers (ease curve, roll, impact frame strength, swell): all judged headless or from stills
+
 ## Round 28 (strip to the heretic)
 Zak: "reduce the game to JUST the heretic combat system for now. Remove the roguelike layer, keep the training ground." Decisions made while he was away, each open to veto:
 - [x] The game boots straight into the training room: no title screen, no runs, rooms, doors, waves, map, rewards, camp, shrine, vault, altar, records or run summary. Settings live on the pause menu
