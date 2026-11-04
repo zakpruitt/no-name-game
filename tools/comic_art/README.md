@@ -13,7 +13,8 @@ them. Renders, `.blend` outputs and GLBs aren't stored here; they total about 1.
 | `comic_lib.py`, `comic_rig.py` | The look (toon, ink, halftone) and the enemy rig kit |
 | `build_comic.py`, `rig_comic.py`, `abilities.py` | The shaman, his rig and his 12 hand-keyed moves |
 | `export_comic_shaman.py` | `shaman_comic.glb` |
-| `enemy_*.py` | One enemy each. `enemy_minion.py` is the template |
+| `enemy_*.py` | One enemy each. `enemy_minion.py` is the template; `enemy_dummy.py` is the training punching bag |
+| `chibi_pass.py` | Chibi proportions on a finished enemy blend: `blender -b out/enemies/<name>.blend -P chibi_pass.py -- <name>` -> `out/enemies_chibi/` |
 | `env_kit.py`, `env_room.py` | The 25 dungeon pieces and a composed room |
 | `comic_vfx.py`, `ability_vfx.py`, `render_abilities.py`, `reel_room.py` | The comic effects and showcase reels. Blender only; not in the game |
 | `style_poc/` | What the kit builds on: `build_poc.py`, `rig_poc.py` and `shaman_poc.blend`, which holds the baked retargets |

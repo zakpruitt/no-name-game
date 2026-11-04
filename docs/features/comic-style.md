@@ -44,6 +44,59 @@ and the scripts hardcode that path. If you change the live scripts, copy them ba
 are Blender only; the game has just the words from `ComicFx`, and its casts keep their
 existing look.
 
+## Foe proportions (round 29)
+
+The foes were built at realistic skeleton proportions and stood beside the chibi hero like another
+artist's work. `tools/comic_art/chibi_pass.py` reshapes each finished enemy `.blend` without
+re-rigging: same bones, names, weights and clips. Each bone gets an affine map of rest space:
+`head` 1.5x about the neck (hoods, hats, horns and jaw ride along), hands 1.35x (and whatever they
+hold), feet 1.3x, legs 0.62 along and 1.28 across, arms 0.9 / 1.18, spine and chest 0.84 / 1.1,
+hips 1.08. A bone scales along and across its own axis, so its direction and every rotation key
+keep their meaning; unlisted bones move rigidly with their parent; bones hanging to the floor
+(robe hems, tails) keep their spread and squash in Z. Vertices move by their weights' blend of the
+maps, everything drops until the feet are on z = 0 again, and root/hips location keys shrink by the
+hip-height ratio. The archer's arrow is re-aimed from the nock every frame. Per-kind tweaks are in
+`KIND` (mage hat, archer bow, shield, Warden cleaver and key chain, rogue and bomber legs).
+
+| Kind | tris | height before -> after (m, weapon up) | hips (m) |
+|---|---|---|---|
+| minion | 5,482 | 2.21 -> 2.29 | 0.72 -> 0.53 |
+| rogue | 6,370 | 1.24 -> 1.29 | 0.58 -> 0.49 |
+| shield | 8,576 | 2.06 -> 2.20 | 0.66 -> 0.49 |
+| warrior | 8,250 | 2.07 -> 2.08 | 0.86 -> 0.63 |
+| mage | 9,164 | 2.34 -> 2.47 | 0.76 -> 0.57 |
+| archer | 8,188 | 1.94 -> 1.81 | 0.68 -> 0.51 |
+| bomber | 7,505 | 2.39 -> 2.30 | 0.44 -> 0.41 |
+| necromancer | 10,504 | 2.52 -> 2.99 (hood) | 0.82 (robe, no legs) |
+| warden | 19,792 | 3.20 -> 3.23 | 1.20 -> 0.93 |
+| dummy | 9,798 | 2.08 (built chibi) | 0.45 |
+
+Rebuild (headless, from the kit folder; the pass reads `out/enemies/<name>.blend` and writes
+`out/enemies_chibi/`, with `_game.png`, `_hero.png` and a `_motion.png` strip):
+
+```
+blender -b out/enemies/minion.blend -P chibi_pass.py -- minion
+python tools/comic_glb.py <kit>/out/enemies_chibi minion
+blender -b -P enemy_dummy.py      # the punching bag: out/enemies/dummy.glb
+```
+
+**Tones in the hero's hand.** Line width was already the same (`Fx.COMIC_INK_PX` 1.6 on hero and
+foes alike); foes look busier only because each part carries its own hull. The shadows differed:
+the hero's is his paint times `PAINTED.P_HereticPaint.shadow`, a cool lilac at about half value,
+while the foe tables shaded into deep warm browns. `ComicLook.material` moves every foe toon
+material's shadow `FOE_SHADE_MATCH` (0.5) of the way to `mid` times that tint (`foe_shadow`); the
+hero, emits and dungeon pieces are untouched. Health bars (`enemy_bars.HEAD_HEIGHT` 2.4 m) still
+clear every head; they float high over the low rogue, as before.
+
+**The training dummy** is `assets/comic/dummy.glb` (`enemy_dummy.py`): a pale canvas sack tied off
+at the top, red straps, a bullseye and boxing gloves, googly eyes, a buck-toothed grin and a plaster
+cross. Clips: the skeletons' names plus `Dazed` (pupils spin, head lolls), which
+`training_dummy._shake_off` holds over `DAZE_TIME`; every clip keys the eye bones' scale, so a
+hit's squeezed-shut eyes never stick. Collision, the bag spring, the tag and the stars are unchanged.
+
+Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
+opens, every foe beside the hero at the game camera, closer along the same angle, and from the front.
+
 ## How it works
 
 **Stances.** The rig's rest pose is the hero pose, axe overhead and axe straight out, and offsets from it

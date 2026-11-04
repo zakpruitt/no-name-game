@@ -152,6 +152,8 @@ fast-forward, so no agent edits another's files or index.
 - **Autotest run-to-run variance, same code:** breakers 5-7, max_combo 127-197, hits 163-227, `[rhythm]` beats within
   about 15 ms. rhythm_check's table is exact except `L1->L2 buffered ... hit` (218 or 221 ms, frame timing). Compare
   those, not the totals.
+- **Facing in a shot:** comic and KayKit models face +Z, which is towards the game camera, so `model.rotation.y = PI` turns them away (`tests/enemy_lineup.gd` did this until round 29; from above you can't tell, from the front you see their backs). Leave it at 0 to face the camera.
+- **Swapping a model the game spawns:** tests that build their own copy (`enemy_feel_check`, `enemy_feel_preview` built dummies from `Skeleton_Warrior`) keep the old model silently. Grep `tests/` for the old model name when you change what `main.gd` spawns.
 
 ## When you're done
 

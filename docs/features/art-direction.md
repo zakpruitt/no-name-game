@@ -14,6 +14,16 @@ Zak, round 29: "chibi-esque, cartoony, not taking itself too seriously, but stil
 - Weapons oversized: about the hero's height or more.
 - Game scale: the hero is 2.2 m in his GLB, KayKit characters about 2.18 m. He is about 130 px tall at the game camera, which looks down from 13 m up and 9.5 m back. Judge everything there, not in a Blender viewport.
 
+## Foes
+
+- Foes follow the hero's proportions: big head (1.5x a realistic skull), big hands and whatever
+  they hold, short thick legs, squat torso. A foe built at normal proportions goes through
+  `tools/comic_art/chibi_pass.py` (see [comic-style.md](comic-style.md)) before it ships.
+- Shadows step like the hero's: cool and lilac, not deep brown (`ComicLook.FOE_SHADE_MATCH`).
+- Props already huge (shield, Warden cleaver, the archer's floor-length bow) are not grown again.
+- The training dummy is a character, not a prop: a cartoon punching bag with a face, which squeezes
+  its eyes shut on a hit and spins its pupils when dazed.
+
 ## Shapes and colour
 
 - Bold simple shapes and large flat colour regions. Three or four colours per character plus one accent (the heretic's accent is the magenta limb).

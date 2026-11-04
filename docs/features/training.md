@@ -21,12 +21,12 @@ The MOVES panel beside it lists every input (`scripts/move_list.gd`).
   - `take_hit` tops up HP before a hit that could kill it and emits `hit_taken(damage)`. It is also heavier in the air than a skeleton: launches lift it `LAUNCH_SCALE` (0.55) as high, and its upward speed is capped (`enemy.launch_speed_for`, the inverse of the airborne gravity profile with its apex hang) so it never rises past `MAX_HEIGHT` (3 m). Otherwise every hit of a long string (casts, tentacle ticks, breaker slams) resets its rise and juggles it out of reach.
   - `_physics_process` refills HP after `REFILL_DELAY`, and the dummy shakes off a daze (`_shake_off`: three side kicks of the spring, a stretch, `Fx.daze` inked stars, counted in `shakeoffs`).
   - Hand-tune knobs: `bag_damping`, `bag_stiffness`, `bag_lean_mult`, `bag_squash_mult` start at the `BAG_*` consts and take `--bag-damping=N`, `--bag-stiffness=N`, `--bag-lean=N`, `--bag-squash=N` (`bag_overrides()`, read in `_ready`; prints `[training] bag knobs ...` once). A tap is still after about 9 / damping s: 5 → 113 frames (1.9 s), 7 → 86. The header comment in the script has the formulas.
-  - A hit during the shake-off cuts it (`_cut_shake_off`: the tween stops, the stars go; `shakeoffs_cut`).
+  - A hit during the shake-off cuts it (`_cut_shake_off`: the tween stops, the stars go, the `Dazed` clip lets go; `shakeoffs_cut`). The comic bag holds `DAZE_CLIP` ("Dazed": spinning pupils, lolling head) over `DAZE_TIME` while it shakes off.
   - The tag: `StringTag` Label3D (Bangers, `TAG_*`), fed by `string_damage` in `take_hit` and closed by `Game.combo_changed(0)` (`_on_combo`, `last_string_damage`).
   - Punching bag: `_lean` snaps a tilt `BAG_LEAN_MULT` (1.8) times a skeleton's lean (capped `BAG_MAX_TILT`) and `_bag_step` springs it back past upright (`BAG_STIFFNESS` 190, `BAG_DAMPING` 5: each swing back ~55% of the last; held through the hit freeze, idle while airborne or settling a landing). `_squash` goes `BAG_SQUASH_MULT` (1.6) as far. Getting up from a knockdown kicks the spring `BAG_GETUP_KICK` back against the blow. Look: `godot --path . -s tests/enemy_feel_preview.gd -- --bag`.
 - `scripts/main.gd`, "Training" section:
   - `training` (always true; tests read it);
-  - `_start_training()` spawns the dummies (as Skeleton_Warriors);
+  - `_start_training()` spawns the dummies: the comic punching bag `assets/comic/dummy.glb` (`tools/comic_art/enemy_dummy.py`), KayKit's Skeleton_Warrior if it is missing;
   - `_train_hit` / `_train_combo` / `_train_text` drive the readout;
   - `train_awaken` and `restart_training` serve the pause menu;
   - `clear_room()` removes the dummies and every foe, for tests that set up their own room.
