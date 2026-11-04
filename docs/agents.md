@@ -107,6 +107,8 @@ fast-forward, so no agent edits another's files or index.
   held a GDScript line continuation never matched. Anchor the edit on the next line instead.
 - **To film one move on one foe in a crowd**, take the others out of the `"enemies"` group for the call
   (`FOES.near` reads it) or film each on its own: three slams side by side were one purple blot.
+- **Paused AnimationPlayer in a modifier or a check:** `current_animation` is "" while paused (use `assigned_animation`), and re-seeking a paused player in `heretic_shots` kept showing the old pose. Measure clip content from its tracks (`tests/contact_frames.gd` `track_pose`) in a check.
+- **Changing a clip's keys under another lane's timing:** keep each contact frame, and run the lane's own measure (`tests/contact_frames.gd`) after every export; stepped keys make each drawing change a speed spike, so recovery steps must stay small.
 
 ## When you're done
 

@@ -307,6 +307,8 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [ ] Zak: play the chibi; keep it as the default or flip `Game.HERO_DEFAULT` back to "heretic"
 - [ ] Chibi: the spear change's star still touches the hood from the game camera; the eyes draw over the claw or a haft when one passes in front of the face
 - [ ] Hand play-test of the refined heretic: does 2.2 m and the bigger head feel right in motion
+- [x] Chibi animation: L1, AL1, L2, L3, DL, GR, VS, Idle, Idle_Ready and Run_F hand-keyed on his own rig (`tools/meshy_rig/chibi_keys.py`: IK poses, on twos at play speed, anticipation squash, one smear drawing, held contact, swollen claw on reaches), claw splay/clench keys on every other clip; lengths and every HERO_MOVES contact frame unchanged (L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30). `heretic_rig.gd` follows keyed claws and arms (`keyed`, `KEYED_ARM`, `KEYED_COLLAPSED`); `heretic_shots -- --clips` films every clip from the game camera. Seen in windowed stills only, not played
+- [ ] Chibi: key his own Ab_LH (EC, IJ), Ab_H (VR), Ab_LLH (EF, IP), Ab_AF (EM), Hit_A, Dodge_Forward, Run_B and the strafes; play the keyed clips and judge the on-twos stepping in motion
 
 ## Round 29 (heretic effects)
 - [x] Storm: Live Wire's arcs and Grounded's sky strike are fat flat inked zigzag bolts on twos with a hot impact star (`comic_bolt.gd`). Sheet before: thin glowing tubes and a soft green funnel burying the foes; after: bold green-and-ink bolts that clear by +0.2 s and leave the foes visible
