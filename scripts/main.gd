@@ -79,8 +79,10 @@ var _rhythm_log: Array[String] = []  # the [rhythm] lines, printed at the end (a
 var _bot_rhythm := []  # [move id, real ms] per move started in this string, for the `[rhythm]` line
 var _bot_strings_done := {}  # BOT_STRINGS index -> played (autotest `strings=`)
 # Autotest frame stats (real time, so hitstop slow-mo doesn't skew them).
-var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemies": 0, "draws": 0, "nodes": 0}
+var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemies": 0, "draws": 0, "nodes": 0,
+	"cpu_ms": 0.0, "cpu_worst": 0.0, "cpu_spikes": 0, "gpu_ms": 0.0, "gpu_worst": 0.0}
 var _perf_last_us := 0
+var _probe: Node  # perf_probe.gd: times each frame's node work (autotest only)
 var _perf_last_frame := 0
 var _shots_taken := 0
 var _hit_shot_taken := false
@@ -129,6 +131,10 @@ func _ready() -> void:
 		elif arg == "--reduce-flashing":  # the setting, without saving it
 			Game.reduce_flashing = true
 	if _autotest:
+		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+		_probe = preload("res://scripts/perf_probe.gd").new()
+		_probe.on_frame = _sample_perf
+		add_child(_probe)
 		player.bot_enabled = true
 		player.attack_started.connect(func(id: String) -> void:
 			_bot_starts += 1
@@ -410,7 +416,6 @@ func _process(delta: float) -> void:
 	if not _autotest:
 		return
 	_autotest_t += delta
-	_sample_perf()
 	_drive_bot()
 	var shot_times := [2.5, 6.0, 9.5]
 	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
@@ -454,23 +459,44 @@ func _check_hints(delta: float) -> void:
 
 # --- Autotest bot -----------------------------------------------------------
 
-func _sample_perf() -> void:
+## Called by the probe at the end of each frame with that frame's node work.
+func _sample_perf(node_ms: float) -> void:
 	var now := Time.get_ticks_usec()
 	var frame := Engine.get_process_frames()
 	# Skip gaps from paused menus and screenshot saves (not gameplay frames).
 	if _perf_last_us > 0 and frame == _perf_last_frame + 1 and _autotest_t > 1.0:
 		var ms := (now - _perf_last_us) / 1000.0
+		# `cpu` is what the frame cost on the main thread (node work + render
+		# submit), `gpu` the GPU's render time: the wall `ms` is capped.
+		var vp := get_viewport().get_viewport_rid()
+		var cpu := node_ms + RenderingServer.viewport_get_measured_render_time_cpu(vp)
+		var gpu := RenderingServer.viewport_get_measured_render_time_gpu(vp)
+		_perf.cpu_ms += cpu
+		_perf.cpu_worst = maxf(_perf.cpu_worst, cpu)
+		_perf.gpu_ms += gpu
+		_perf.gpu_worst = maxf(_perf.gpu_worst, gpu)
 		_perf.frames += 1
 		_perf.total_ms += ms
 		_perf.worst_ms = maxf(_perf.worst_ms, ms)
-		if ms > 25.0:
-			_perf.spikes += 1
-			print("[perf] spike %.1fms at t=%.2f enemies=%d" % [ms, _autotest_t, get_tree().get_nodes_in_group("enemies").size()])
+		if ms > 25.0 or cpu > 8.0:
+			_perf.spikes += 1 if ms > 25.0 else 0
+			_perf.cpu_spikes += 1 if cpu > 8.0 else 0
+			print("[perf] spike %.1fms at t=%.2f cpu=%.1fms gpu=%.1fms move=%s pipelines=%s nodes=%d" % [ms, _autotest_t, cpu, gpu,
+				player._move_id, _pipelines(), Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
 		_perf.enemies = maxi(_perf.enemies, get_tree().get_nodes_in_group("enemies").size())
 		_perf.draws = maxi(_perf.draws, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
 		_perf.nodes = maxi(_perf.nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
 	_perf_last_us = now
 	_perf_last_frame = frame
+
+
+## Pipeline compilations so far (canvas, mesh, surface, draw, specialization).
+func _pipelines() -> String:
+	var out: Array[String] = []
+	for m in [Performance.PIPELINE_COMPILATIONS_CANVAS, Performance.PIPELINE_COMPILATIONS_MESH, Performance.PIPELINE_COMPILATIONS_SURFACE,
+			Performance.PIPELINE_COMPILATIONS_DRAW, Performance.PIPELINE_COMPILATIONS_SPECIALIZATION]:
+		out.append(str(int(Performance.get_monitor(m))))
+	return "/".join(out)
 
 
 func _autotest_finish() -> void:
@@ -481,9 +507,11 @@ func _autotest_finish() -> void:
 		print(line)
 	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d strings=%d/%d moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
-	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
-		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
+		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, ",".join(_bot_moves.keys())])
+	var n := maxi(_perf.frames, 1)
+	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d cpu avg=%.1fms worst=%.1fms cpu_spikes(>8ms)=%d gpu avg=%.1fms worst=%.1fms max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
+		_perf.total_ms / n, _perf.worst_ms, _perf.spikes, _perf.frames, _perf.cpu_ms / n, _perf.cpu_worst, _perf.cpu_spikes,
+		_perf.gpu_ms / n, _perf.gpu_worst, _perf.enemies, _perf.draws, _perf.nodes])
 	print("[training] strings=%d best=%.0f last=%.0f/%d dummy_hp=%.0f" % [_strings, _best_string,
 		_last_string.x, _last_string.y, _dummy.hp if is_instance_valid(_dummy) else -1.0])
 	if _spar != null:
