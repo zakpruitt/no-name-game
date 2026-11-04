@@ -15,7 +15,7 @@ judged from headless checks and windowed stills or film; none of it has been pla
 - **Perf and cleanup** (round 31): f404668 cpu/gpu `[perf]`, 55327f1 GPU afterimages, dc2088e shader warmup, 9d817d8 bot to training_bot.gd, 6a58675 and d6b9a14 dead code and assets, 08a9885 final numbers.
 - **Split player** (round 31): 6d829ff hero_moves.gd, f8d6c89 hero_input.gd, d684a36 hero_leap.gd, fb9d4a4 hero_awaken.gd, 097ea9f, 738a619 docs.
 - **Feel audit** (this lane): `tests/string_film.gd` and `docs/feel-audit-2026-11-04.md`, the top-10 list for the next rounds.
-- **Foes chibi** (foe GLBs and tones) was still running when this was written; check `git log dev` for its commits.
+- **Foes chibi** (round 29): 4f75e08 chibi proportions on all nine comic foes, 47ec71c the dummies as a comic punching-bag character, d567bd2 foe shadows towards lilac, 491f1aa foe_shots, cef1f1b docs. The audit film predates it: the dummies on the sheets are the old skeleton warriors.
 
 Windowed autotest now: all 13 strings, 7/7 breakers perfect, `cpu avg=1.3ms worst=8.0-8.6ms`, 0-1 cpu spikes, `gpu avg=0.6ms`.
 
