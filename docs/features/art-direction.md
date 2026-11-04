@@ -19,7 +19,10 @@ Zak, round 29: "chibi-esque, cartoony, not taking itself too seriously, but stil
 - Foes follow the hero's proportions: big head (1.5x a realistic skull), big hands and whatever
   they hold, short thick legs, squat torso. A foe built at normal proportions goes through
   `tools/comic_art/chibi_pass.py` (see [comic-style.md](comic-style.md)) before it ships.
-- Shadows step like the hero's: cool and lilac, not deep brown (`ComicLook.FOE_SHADE_MATCH`).
+- Shadows step like the hero's: cool and lilac, not deep brown (`ComicLook.FOE_SHADE_MATCH` 0.8).
+- A few thick inked masses, not many thin parts: a skeleton's bones are merged per limb group
+  (`tools/comic_art/chunk_pass.py`), so the outline runs round the silhouette like the hero's. Keep a
+  hint of ribs in the torso's shading; never a hull on every rib or finger again.
 - Props already huge (shield, Warden cleaver, the archer's floor-length bow) are not grown again.
 - The training dummy is a character, not a prop: a cartoon punching bag with a face, which squeezes
   its eyes shut on a hit and spins its pupils when dazed.

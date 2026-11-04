@@ -84,9 +84,8 @@ blender -b -P enemy_dummy.py      # the punching bag: out/enemies/dummy.glb
 foes alike); foes look busier only because each part carries its own hull. The shadows differed:
 the hero's is his paint times `PAINTED.P_HereticPaint.shadow`, a cool lilac at about half value,
 while the foe tables shaded into deep warm browns. `ComicLook.material` moves every foe toon
-material's shadow `FOE_SHADE_MATCH` (0.5) of the way to `mid` times that tint (`foe_shadow`); the
-hero, emits and dungeon pieces are untouched. Health bars (`enemy_bars.HEAD_HEIGHT` 2.4 m) still
-clear every head; they float high over the low rogue, as before.
+material's shadow `FOE_SHADE_MATCH` (0.8 since the chunk pass; 0.5 first) of the way to `mid` times that tint (`foe_shadow`); the
+hero, emits and dungeon pieces are untouched.
 
 **The training dummy** is `assets/comic/dummy.glb` (`enemy_dummy.py`): a pale canvas sack tied off
 at the top, red straps, a bullseye and boxing gloves, googly eyes, a buck-toothed grin and a plaster
@@ -94,8 +93,57 @@ cross. Clips: the skeletons' names plus `Dazed` (pupils spin, head lolls), which
 `training_dummy._shake_off` holds over `DAZE_TIME`; every clip keys the eye bones' scale, so a
 hit's squeezed-shut eyes never stick. Collision, the bag spring, the tag and the stars are unchanged.
 
+**Chunky masses** (`tools/comic_art/chunk_pass.py`, after chibi_pass, reads `out/enemies_chibi/`,
+writes `out/enemies_chunky/`). The skeletons were 30-130 separate bone islands, each with its own
+outline in the game, so ribs and fingers read as busy line work beside the one-mass hero. The pass
+sorts the bone mesh's islands into limb groups by their bone (head, jaw, torso, each arm, each hand,
+each leg; anything under a weapon / shield / bow / staff bone stays as it was), fattens each group
+along its normals (`FAT`: head 4 mm, jaw 8, torso 20, arms 30, hands 8, legs 36), voxel-remeshes it
+(11 mm), smooths and decimates it (`TRIS`, at most 4x the group's old faces), and takes weights back
+from the original group by nearest-face interpolation plus 4 smoothing passes, so elbows and knees
+bend instead of shearing. Eyes, sockets, teeth, belts and helmets near the body move out with it
+(`PUSH_R` 7 cm falloff). The torso keeps faint rib grooves (fat 20 mm, not 36) so it still reads as a
+skeleton. Bone names, clips and the `g` attribute are kept.
+
+| Kind | tris before -> after | height (m) | bar_height | run_foot_speed (m/s at 1x) |
+|---|---|---|---|---|
+| minion | 5,482 -> 7,842 | 2.29 | 2.2 | 3.11 |
+| rogue | 6,370 -> 9,562 | 1.29 | 1.55 | 2.18 (stride x1.3) |
+| shield | 8,576 -> 11,247 | 2.20 | 2.45 | 0.96 (walk re-keyed, stride x2.0) |
+| warrior | 8,250 -> 11,026 | 2.08 | 2.4 | 0.96 (stride x1.5) |
+| mage | 9,164 -> 12,278 | 2.47 | 2.4 | 1.53 |
+| archer | 8,188 -> 10,860 | 1.81 | 2.0 | 1.29 |
+| bomber | 7,505 -> 10,877 | 2.30 | 2.3 (the bomb) | 1.73 (stride x1.25) |
+| necromancer | 10,504 -> 11,110 | 2.99 | 2.8 | no feet |
+| warden | 19,792 -> 22,264 | 3.23 | own HUD bar | - |
+
+```
+blender -b out/enemies_chibi/minion.blend -P chunk_pass.py -- minion   # [stride=Running_A:1.4] to try a stride
+python tools/comic_glb.py <kit>/out/enemies_chunky minion
+```
+
+**Health bars** sit at each kind's `bar_height` (`enemy_types.gd`, metres before model_scale: head
+top in Idle_Combat + 0.3 m, measured on the chunky blends; the bomber clears its bomb), read by
+`enemy_bars.bar_height()`; kinds without one keep `HEAD_HEIGHT` 2.4.
+
+**Shadow tint** `FOE_SHADE_MATCH` 0.8 (was 0.5), judged side-lit (`foe_shots.gd -- --side`): bone's
+shadow/mid ratio is then (0.43, 0.36, 0.50) against the hero's (0.42, 0.38, 0.56); 0.5 still read brown.
+
+**Run strides.** The chibi legs cover far less per cycle than the game's move speeds (warrior 0.63 m/s
+of planted-foot travel against 2.8 m/s, the shield's shuffle 0.11 against 3.2). Two fixes: chunk_pass
+`KIND[...]['STRIDE']` widens a run clip's leg swing by scaling each leg bone's rotation about the clip's
+mean pose, and the shield's walk is re-keyed (`enemy_shield.py`: stride .13 -> .3, 48 -> 24 frames);
+then `enemy.gd` plays the run at ground speed / (`run_foot_speed` * model_scale)
+(`run_clip_speed()`, clamped `RUN_CLIP_SPEED_MIN` 0.5 / `MAX` 3.0). `tests/foe_stride_check.gd`
+(headless PASS/FAIL, in `agent.sh check`) samples both foot bones over each run clip, takes the mean
+backward speed while a foot is moving back in the lower half of its height range, and fails if that is
+8% off the stored number or the feet end more than 15% off the ground at move_speed. The minion's
+shamble swings its feet low in both directions, so its forward swing still slides.
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
-opens, every foe beside the hero at the game camera, closer along the same angle, and from the front.
+opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
+(`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`
+turns the models).
 
 ## How it works
 

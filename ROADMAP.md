@@ -316,7 +316,14 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Chibi proportion pass on all nine foes, no Meshy credits: `tools/comic_art/chibi_pass.py` (head 1.5x, hands and weapons 1.35x, legs 0.62 long and 1.28 thick, squat torso; same bones, weights and clips, hips keys rescaled, the archer's arrow re-aimed). Tri counts unchanged (5.5k-19.8k)
 - [x] The training dummy is a comic punching-bag character (`tools/comic_art/enemy_dummy.py`, `assets/comic/dummy.glb`, 9.8k tris): googly eyes that squeeze shut on hits, a `Dazed` clip with spinning pupils for the shake-off, same collision and bag spring
 - [x] Foe shadows step towards the hero's lilac (`ComicLook.FOE_SHADE_MATCH` 0.5, `foe_shadow`). Seen in windowed stills only, not played
-- [ ] Next: foes are still many thin parts with a hull each, so they read busier than the one-mesh hero; the rogue's bar floats a metre over its head; run strides are shorter, so feet may skate more (not measured)
+- [x] Foes in thick masses: `tools/comic_art/chunk_pass.py` voxel-unions each skeleton's bone parts per limb group (head, jaw, torso, arms, hands, legs; held props untouched), weights back from the original, so the outline sits on the silhouette, not every rib. All nine foes, 7.8k-12.3k tris (Warden 22.3k), no Meshy credits. Seen in windowed stills (foe_shots, enemy_feel_preview), not played
+- [x] Health bars per kind: `bar_height` in `enemy_types.gd` (head top + 0.3 m; rogue 1.55, necromancer 2.8, bomber 2.3 to clear its bomb), read by `enemy_bars.bar_height()`
+- [x] Foe shadows `FOE_SHADE_MATCH` 0.5 -> 0.8, judged side-lit (`foe_shots.gd -- --side`)
+- [x] Run strides measured (`tests/foe_stride_check.gd`, in `agent.sh check`): planted feet were 1.2-30x slower than the move speed. Wider strides on rogue / warrior / shield / bomber, the shield's walk re-keyed, and `enemy.gd` plays the run at ground speed over `run_foot_speed` (`RUN_CLIP_SPEED_MIN/MAX` 0.5 / 3.0)
+- [x] Spar foes (minion, rogue, shield, warrior) squeeze their eyes shut on Hit_A / Hit_B and in Death_A (keyed `eye.l` / `eye.r` scale). Seen in a Blender still only
+- [ ] Zak: play `--spar=minion|rogue|shield|warrior` and judge the masses, the fast chibi runs (clip up to 3x) and the hit squint in motion
+- [ ] The minion's shamble swings its feet low both ways, so its forward swing still slides; a re-keyed run with a lifted swing would fix it
+- [ ] Eye squeeze for the other five foes; a launch / tumble doesn't shut the eyes (only Hit_A / Hit_B / Death_A do)
 
 ## Round 29 (heretic effects)
 - [x] Storm: Live Wire's arcs and Grounded's sky strike are fat flat inked zigzag bolts on twos with a hot impact star (`comic_bolt.gd`). Sheet before: thin glowing tubes and a soft green funnel burying the foes; after: bold green-and-ink bolts that clear by +0.2 s and leave the foes visible

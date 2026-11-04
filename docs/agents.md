@@ -154,6 +154,8 @@ fast-forward, so no agent edits another's files or index.
   those, not the totals.
 - **Facing in a shot:** comic and KayKit models face +Z, which is towards the game camera, so `model.rotation.y = PI` turns them away (`tests/enemy_lineup.gd` did this until round 29; from above you can't tell, from the front you see their backs). Leave it at 0 to face the camera.
 - **Swapping a model the game spawns:** tests that build their own copy (`enemy_feel_check`, `enemy_feel_preview` built dummies from `Skeleton_Warrior`) keep the old model silently. Grep `tests/` for the old model name when you change what `main.gd` spawns.
+- **Foe run speed vs feet (round 29):** measure, don't guess. Sample both foot bones over the run clip (seek + `force_update_all_bone_transforms`) and take the mean backward speed while a foot moves back in the lower half of its height; the kit's clips covered 1.2-30x less ground than `move_speed`. Chibi legs can't reach the stride, so widen it in Blender and speed the clip for the rest (`tests/foe_stride_check.gd`).
+- **A test flag beats a temp edit for before/after:** `foe_shots.gd -- --bars / --side / --turn` made the bar and shadow comparisons one command each; for a const (FOE_SHADE_MATCH) a sed, run, sed back, then `git diff --stat` to prove it's restored.
 
 - **Backslashes in heredocs reach Python halved here**: a backreference typed as two backslashes and 1 in a quoted
   heredoc patch arrived as one backslash, which Python read as a 0x01 byte and wrote into agent.sh. Write regex
