@@ -25,6 +25,8 @@ uniform float tone_by_g = 0.0;
 // 1 = the sun's cast shadows land here. 0 for characters: they still cast on the floor, but
 // a small, detailed model shadowing itself breaks up into black blotches instead of cut tones.
 uniform float receive_shadow = 1.0;
+// A painted model's texture; the tones then act as light levels on it. White on everything else.
+uniform sampler2D paint : source_color, hint_default_white, filter_linear_mipmap;
 
 const float BAND_MID = 0.3;
 const float BAND_LIGHT = 0.72;
@@ -57,7 +59,7 @@ void fragment() {
 	float thin = inner + v_brush * inner * 0.6;
 	float inked = inner > 0.0 ? step(nv, thin) : 0.0;
 	float rim = step(nv, thin + rim_width) * (1.0 - inked);
-	ALBEDO = vec3((1.0 - inked) * (1.0 + tone_by_g * (COLOR.r * 0.8 - 0.4)));
+	ALBEDO = texture(paint, UV).rgb * (1.0 - inked) * (1.0 + tone_by_g * (COLOR.r * 0.8 - 0.4));
 	ROUGHNESS = 1.0;
 	EMISSION = ink_color + rim_color * rim;
 }

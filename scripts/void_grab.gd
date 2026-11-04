@@ -178,7 +178,7 @@ func on_state(s: int) -> void:
 	if s == hero.State.ATTACK or s == hero.State.SWING:
 		return
 	_clear_target()
-	arm.shape("axe")
+	arm.shape(arm.rest_form)
 
 
 func _flat_to(at: Vector3) -> Vector3:

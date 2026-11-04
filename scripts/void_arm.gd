@@ -8,6 +8,7 @@ const SNAP_OVER := 1.2  # ...overshooting to this
 const SNAP_PEAK_AT := 0.4  # of SNAP_TIME
 
 var form := ""
+var rest_form := "axe"  # the shape outside an attack
 var hero: Node3D
 var _parts := {}  # form -> Array[MeshInstance3D]
 var _bone := -1

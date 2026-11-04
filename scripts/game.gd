@@ -101,6 +101,8 @@ var comic_setting := false
 var _comic_cli := false
 ## --comic-moves only: the comic hero's moves play his Ab_ clips (ComicLook.HERO_MOVES).
 var comic_moves := false
+## --heretic, with --comic: plays the Meshy hero (assets/comic/heretic.glb) instead. Never saved.
+var heretic := false
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
@@ -129,6 +131,7 @@ func _ready() -> void:
 	_load_settings()
 	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
 	comic_moves = not ("--no-comic-moves" in OS.get_cmdline_user_args() or "--no-comic-moves" in OS.get_cmdline_args())
+	heretic = "--heretic" in OS.get_cmdline_user_args() or "--heretic" in OS.get_cmdline_args()
 	sync_comic()
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()

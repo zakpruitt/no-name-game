@@ -292,6 +292,7 @@ const COMBO_SFX_DB := -9.0
 const LIGHT_CHAIN := ["L1", "L2", "L3"]
 const VOID_GRAB := preload("res://scripts/void_grab.gd")
 const VOID_ARM := preload("res://scripts/void_arm.gd")
+const HERETIC_RIG := preload("res://scripts/heretic_rig.gd")
 const SWING_INVULN := 1.4  # s, on the tentacle (void_grab.gd)
 const PULL_INVULN := 0.8
 const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
@@ -511,12 +512,12 @@ func _ready() -> void:
 	shape.position.y = 0.9
 	add_child(shape)
 
-	var comic := ComicLook.scene(ComicLook.HERO)
+	var comic := ComicLook.scene(ComicLook.hero_kind())
 	_comic_hero = comic != null
 	model = comic.instantiate() if _comic_hero else MODEL.instantiate()
 	add_child(model)
 	if _comic_hero:
-		ComicLook.apply(model, ComicLook.HERO)
+		ComicLook.apply(model, ComicLook.hero_kind())
 	else:
 		HERO_LOOK.dress(model)
 	Fx.outline(model)
@@ -538,6 +539,10 @@ func _ready() -> void:
 		var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 		var void_arm := VOID_ARM.new()
 		void_arm.setup(self, model, skel)
+		if ComicLook.hero_kind() == ComicLook.HERETIC:  # free tentacle at rest; weapons only form to strike
+			void_arm.rest_form = "hand"
+			void_arm.shape("hand", false)
+			HERETIC_RIG.new().setup(void_arm, skel)
 		_void = VOID_GRAB.new()
 		add_child(_void)
 		_void.setup(self, void_arm, skel)
@@ -626,7 +631,7 @@ func _coat_axes() -> Array[Node3D]:
 
 ## What the rig calls a clip the game asks for.
 func _clip_name(wanted: String) -> String:
-	return ComicLook.clip(anim, ComicLook.HERO, wanted) if _comic_hero else wanted
+	return ComicLook.clip(anim, ComicLook.hero_kind(), wanted) if _comic_hero else wanted
 
 
 func _comic_moves_on() -> bool:

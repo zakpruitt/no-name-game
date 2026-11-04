@@ -96,6 +96,7 @@ const KIND_TONES := {
 ## asked for, so a re-export that adds one wins by itself.
 const CLIPS := {
 	"shaman_comic": {"Throw": "Ab_L2"},
+	"heretic": {"Throw": "Ab_L2"},
 	"necromancer": {"Running_A": "Walking_D_Skeletons", "Spawn_Ground_Skeletons": "Idle_Combat"},
 	"warden": {
 		"Spawn_Ground_Skeletons": "Idle_Combat",
@@ -108,6 +109,10 @@ const CLIPS := {
 	},
 }
 const HERO := "shaman_comic"
+## The Meshy hero behind --heretic: same clips and form names as HERO, one painted texture.
+const HERETIC := "heretic"
+## Materials drawn from their own texture through the cut tones, not from a TONES palette.
+const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.2}}
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
 ## nudge would otherwise flip between two clips every frame.
 const RUN_STICK := 1.25
@@ -237,6 +242,31 @@ static func piece(piece_name: String) -> Node3D:
 
 
 ## The clip to play on this model for a clip name the game asks for.
+static func hero_kind() -> String:
+	return HERETIC if Game.heretic and scene(HERETIC) != null else HERO
+
+
+## A PAINTED material: the GLB's texture lit through comic_toon's cut tones.
+static func painted(src: BaseMaterial3D) -> ShaderMaterial:
+	var key := "painted/" + src.resource_name
+	if _mats.has(key):
+		return _mats[key]
+	var t: Dictionary = PAINTED[src.resource_name]
+	var m := ShaderMaterial.new()
+	m.shader = load(TOON_SHADER)
+	m.set_shader_parameter("paint", src.albedo_texture)
+	m.set_shader_parameter("ink_color", INK)
+	m.set_shader_parameter("shadow_color", t.shadow)
+	m.set_shader_parameter("mid_color", t.mid)
+	m.set_shader_parameter("light_color", t.light)
+	m.set_shader_parameter("hi_color", t.light)
+	m.set_shader_parameter("brush", t.brush)
+	m.set_shader_parameter("inner", 0.17 * INNER_SCALE)
+	m.set_shader_parameter("receive_shadow", 0.0)
+	_mats[key] = m
+	return m
+
+
 static func clip(player: AnimationPlayer, kind: String, wanted: String) -> String:
 	if player.has_animation(wanted):
 		return wanted
@@ -438,7 +468,8 @@ static func apply(root: Node, kind := "") -> void:
 		for i in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(i)
 			if src != null:
-				mi.set_surface_override_material(i, material(src.resource_name, kind))
+				var look: Material = painted(src) if PAINTED.has(src.resource_name) else material(src.resource_name, kind)
+				mi.set_surface_override_material(i, look)
 
 
 ## Every GLB material name under `root` (imported names, works headless).
@@ -455,7 +486,7 @@ static func material_names(root: Node) -> Array:
 
 
 static func known_material(mat_name: String) -> bool:
-	return TONES.has(mat_name) or EMITS.has(mat_name)
+	return TONES.has(mat_name) or EMITS.has(mat_name) or PAINTED.has(mat_name)
 
 
 ## comic_lib.comic_scene: flat dark indigo, untonemapped, one hard sun with real
