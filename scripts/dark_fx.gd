@@ -103,10 +103,10 @@ static func hoop_run(parent: Node, spot: Vector3, from: float, to: float, time: 
 
 
 ## An inky pop at a spot.
+## A held-frame ink splat and chunky ink debris, in place of the soft flare and violet dots it had.
 static func burst(parent: Node, at: Vector3, size := 1.0) -> void:
-	Fx.flare(parent, at + Vector3.UP * 0.9, HOT, 1.5 * size, 0.14, "star8")
+	splat(parent, at + Vector3.UP * 0.9, 1.1 * size)
 	Fx.shards(parent, at + Vector3.UP * 0.5, INK, int(10 * size), Vector3.UP, 7.0 * size, 0.16, 0.5)
-	Fx.burst(parent, at + Vector3.UP * 0.6, VIOLET, int(10 * size), 7.0, 0.1, 0.3, Vector3.UP, 90.0)
 
 
 ## A crescent of darkness flying out in front of him.
@@ -217,7 +217,10 @@ class Hole extends Node3D:
 	const BIG_SLOW := 0.4
 	const STAGGER := 0.9
 	const STAGGER_EVERY := 0.25  # s
-	const CORE_R := 1.3  # m
+	const VIEW_R := 2.6  # m the ink shows out to (the look only; the pull is RADIUS)
+	const HOLE_SPIN := 2.2  # the ink churns faster than a pool's
+	const HOLE_FLOW := 2.6
+	const COLLAPSE_SPLAT := 2.8  # m: the ink burst as it falls in
 	const FLYING := "thrown_foe_flying"
 
 	var hero: CharacterBody3D
@@ -231,17 +234,19 @@ class Hole extends Node3D:
 
 	func _ready() -> void:
 		add_to_group("dark_hole")
-		SELF.part(self, SELF.disc(CORE_R), SELF.flat_mat(INK))
+		# Churning ink as wide as the pile it pulls in: a 1.3 m disc was hidden under the foes on it.
+		var ink := SELF.ink_mat(HOLE_SPIN, HOLE_FLOW)
+		SELF.part(self, SELF.floor_ink(), ink).scale = Vector3(VIEW_R, 1.0, VIEW_R)
 		_spin = Node3D.new()
 		add_child(_spin)
 		var hot := SELF.flat_mat(HOT)
 		var rim := SELF.flat_mat(VIOLET)
 		for i in 3:
 			var a := TAU * i / 3.0
-			SELF.part(_spin, SELF.arc_mesh(CORE_R * 1.9, 0.9, 0.34), rim, Vector3.UP * 0.03).rotation.y = a
-			SELF.part(_spin, SELF.arc_mesh(CORE_R * 1.35, 0.8, 0.14), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
-		var edge := SELF.part(self, SELF.hoop(0.08), hot, Vector3.UP * 0.06)
-		edge.scale = Vector3(CORE_R, 0.05, CORE_R)
+			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 1.2, 1.0, 0.5), rim, Vector3.UP * 0.03).rotation.y = a
+			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, 0.2), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
+		var edge := SELF.part(self, SELF.hoop(0.05), hot, Vector3.UP * 0.06)
+		edge.scale = Vector3(VIEW_R, 0.05, VIEW_R)
 		scale = Vector3(0.05, 1.0, 0.05)
 		create_tween().tween_property(self, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 		SELF.burst(get_parent(), global_position, 1.3)
@@ -254,7 +259,7 @@ class Hole extends Node3D:
 		_spin.rotate_y(-7.0 * delta)
 		if _t >= _next_ring:
 			_next_ring += 0.3
-			SELF.hoop_run(get_parent(), global_position, RADIUS, CORE_R, 0.3, VIOLET, 0.05)
+			SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, 0.05)
 		var tick := _t >= _next_tick
 		if tick:
 			_next_tick += TICK
@@ -301,7 +306,9 @@ class Hole extends Node3D:
 		var at := global_position
 		SELF.hoop_run(parent, at, 0.5, RADIUS, 0.28, HOT, 0.1)
 		SELF.hoop_run(parent, at, 0.3, RADIUS * 0.7, 0.24, Color.WHITE, 0.06)
-		SELF.burst(parent, at, 2.2)
+		SELF.splat(parent, at + Vector3.UP * 1.2, COLLAPSE_SPLAT)
+		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 10, RADIUS * 0.6)
+		Fx.shards(parent, at + Vector3.UP * 0.5, INK, 16, Vector3.UP, 10.0, 0.22, 0.5)
 		queue_free()
 
 
