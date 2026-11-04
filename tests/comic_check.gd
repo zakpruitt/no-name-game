@@ -510,6 +510,18 @@ func _check_fx(game: Node) -> void:
 	game.combo_count = 35
 	Comic.hit(Vector3.ZERO, false)
 	_expect(fx._words[1].text in Comic.WORDS[3], "tier 3 chain shows a tier 3 word")
+	_expect(not first.visible, "one word at a time: the new word replaces the live one")
+	var said := ""
+	var repeats := 0
+	for k in 30:
+		fx._last_word_ms = -100000
+		Comic.hit(Vector3.ZERO, false)
+		var live: Array = fx._words.filter(func(l: Label) -> bool: return l.visible)
+		_expect(live.size() == 1, "only one word is live")
+		if live[0].text == said:
+			repeats += 1
+		said = live[0].text
+	_expect(repeats == 0, "never the same word twice in a row (%d repeats)" % repeats)
 	game.combo_count = 0
 	_expect(Comic.word_scale(2, false) > 1.0, "normal words pop")
 	_expect(Comic.word_scale(2, true) == 1.0, "reduced flashing: no pop")
