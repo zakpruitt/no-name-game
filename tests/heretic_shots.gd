@@ -159,7 +159,8 @@ const CLIP_SET := [
 	["Ab_AL1", "AL1", "axe"], ["Ab_GR", "GR", "hand"], ["Ab_VS", "VS", "hand"], ["Ab_LH", "EC", "hand"],
 	["Ab_H", "VR", "hand"], ["Ab_LLH", "EF", "spear"], ["Ab_AF", "EM", "hand"],
 	["Idle", "", "hand"], ["Idle_Ready", "", "hand"], ["Run_F", "", "hand"], ["Strafe_L", "", "hand"],
-	["Hit_A", "", "hand"], ["Dodge_Forward", "", "hand"],
+	["Hit_A", "", "hand"], ["Dodge_Forward", "", "hand"], ["Run_B", "", "hand"], ["Strafe_R", "", "hand"],
+	["Jump_Start", "", "hand"], ["Jump_Idle", "", "hand"],
 ]
 
 

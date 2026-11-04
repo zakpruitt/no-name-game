@@ -25,7 +25,9 @@ STEP_STANCE = 3  # at 1.1: 11 a second
 # From the game camera (54 degrees down) up-and-down barely reads, so a squash also widens the hood
 # past volume (x this per unit of squash) and the runs sway sideways over the planted foot.
 HSQ_WIDE = 0.0
-COPIED_STEP = 6  # frames per claw drawing on the clips still copied from the shaman (claws only)
+COPIED_STEP = 6
+RUN_SWAY = 0.02  # m the hips shift sideways per footfall (+ his right on the left foot's contact)
+RUN_ROLL = 4.0  # degrees of roll per footfall  # frames per claw drawing on the clips still copied from the shaman (claws only)
 
 arm = bpy.data.objects["Armature"]
 BONES = arm.data.bones
@@ -440,7 +442,7 @@ def run_keys():
         lfwd = 0.3 * math.cos(ph)  # left foot ahead at 1, behind at 11
         lup = max(0.0, -math.sin(ph)) * 0.2
         rup = max(0.0, math.sin(ph)) * 0.2
-        keys.append((f, pose(NEUTRAL, hip=(0.02 * math.cos(ph), 0.0, -0.09 * bounce + 0.03), hipr=(-10 * math.cos(ph), 16, 4 * math.cos(ph)),
+        keys.append((f, pose(NEUTRAL, hip=(RUN_SWAY * math.cos(ph), 0.0, -0.09 * bounce + 0.03), hipr=(-10 * math.cos(ph), 16, RUN_ROLL * math.cos(ph)),
                              chest=(12 * math.cos(ph), 6, 0), head=(-4 * math.cos(ph), -10 + 8 * bounce, 0), hsq=0.1 * bounce - 0.05,
                              rh=(150, -10 + 8 * math.sin(ph), 0.55), w=(165, 10 + 10 * math.sin(ph + 1)),
                              lh=(-35 + 50 * math.cos(ph), -40, 0.38), fl=(-0.02, lfwd, lup), fr=(0.02, -lfwd, rup),
@@ -451,6 +453,164 @@ def run_keys():
 
 
 CLIPS["Run_F"] = (21, "hand", STEP_STANCE, None, run_keys())
+
+
+# ---- round 2: the void moves' clips and the rest of what the game plays on him.
+# Contacts for clips outside HERO_MOVES: the move's own hit (MOVES `hits` x the clip's length) lands on
+# the contact frame or just after it, so the hitstop freezes on the arrival (like GR and VS).
+
+# Ab_LH, Updraft Lash (EC, hit 0.29 = frame 14.8; also IJ's vault): the claw dragged back low and
+# splayed, raked along the floor under them, then heaved up overhead clenched as he hops after them.
+LH_COIL = pose(GUARD, hip=(0.03, 0.06, -0.16), hipr=(35, 10, -4), chest=(25, 4, 0), head=(-25, 6, 0), hsq=0.2,
+               rh=(135, -40, 0.5), w=(160, -35), lh=(-50, 10, 0.38), fl=(-0.08, 0.12, 0), fr=(0.07, -0.12, 0),
+               claw=-0.8, clawph=50.0, hs=1.15)
+LH_DEEP = pose(LH_COIL, hipr=(42, 12, -5), chest=(30, 5, 0), rh=(145, -42, 0.5), w=(170, -30), hsq=0.24)
+LH_SMEAR = pose(LH_COIL, hip=(0, -0.04, -0.14), hipr=(5, 18, 0), chest=(0, 10, 0), head=(-5, 8, 0), hsq=-0.08,
+                rh=(70, -45, 0.6), w=(75, -35), claw=-1.0, clawph=0.0, hs=1.45)
+LH_HIT = pose(LH_SMEAR, hip=(-0.03, -0.07, -0.16), hipr=(-32, 20, 4), chest=(-24, 10, 2), head=(15, 8, 0), hsq=0.14,
+              rh=(-5, -40, 0.6), w=(-15, -28), lh=(-150, 0, 0.38), fl=(-0.09, 0.15, 0), fr=(0.08, -0.15, 0), hs=1.45)
+LH_SCOOP = pose(LH_HIT, hipr=(-26, 14, 2), hsq=0.06, rh=(-5, -28, 0.6), w=(-12, -12), claw=0.6)
+LH_RISE = pose(LH_HIT, hip=(0, -0.02, 0.03), hipr=(-10, -8, 0), chest=(-5, -12, 0), head=(0, -10, 0), hsq=-0.22,
+               rh=(-5, 55, 0.58), w=(-5, 80), lh=(-60, -50, 0.37), fl=(-0.03, 0.05, 0.1), fr=(0.03, -0.05, 0.16),
+               claw=1.0, hs=1.3)
+LH_TOP = pose(LH_RISE, hsq=-0.18, rh=(0, 60, 0.57), w=(0, 85), claw=-0.5, clawph=40.0, hs=1.2)
+CLIPS["Ab_LH"] = (51, "hand", STEP_ATTACK, 14, [
+    (1, GUARD, "out"), (4, LH_COIL, "lin"), (9, LH_DEEP, "hold"), (11, LH_SMEAR, "hold"), (14, LH_HIT, "hold"),
+    (18, LH_SCOOP, "lin"), (33, LH_RISE, "hold"), (36, LH_TOP, "io"), (47, GUARD, "hold"), (51, GUARD, "hold")])
+
+# Ab_H, Reap (VR, hit 0.24 = frame 15.1): the claw as a scythe: cocked high behind his right shoulder,
+# splayed, raked in a flat crescent across the front to his left, swollen, then shut on the follow-through.
+VR_WIND = pose(GUARD, hip=(0.04, 0.05, -0.1), hipr=(38, -4, -5), chest=(30, -6, 0), head=(-30, 6, 0), hsq=0.16,
+               rh=(120, 25, 0.52), w=(150, 30), lh=(-60, 0, 0.38), fl=(-0.07, 0.1, 0), fr=(0.06, -0.12, 0),
+               claw=-0.9, clawph=60.0, hs=1.15)
+VR_DEEP = pose(VR_WIND, hipr=(45, -6, -6), chest=(34, -8, 0), rh=(130, 30, 0.5), w=(165, 30), hsq=0.2)
+VR_SMEAR = pose(VR_WIND, hip=(0, -0.02, -0.08), hipr=(0, 10, 0), chest=(0, 8, 0), head=(-8, 6, 0), hsq=-0.12,
+                rh=(40, 0, 0.6), w=(50, -5), claw=-1.0, clawph=0.0, hs=1.5)
+VR_HIT = pose(VR_SMEAR, hip=(-0.03, -0.05, -0.1), hipr=(-40, 15, 4), chest=(-28, 10, 3), head=(18, 8, 0), hsq=0.12,
+              rh=(-40, -10, 0.6), w=(-70, -10), lh=(-150, 10, 0.38), fl=(-0.08, 0.14, 0), fr=(0.08, -0.14, 0), hs=1.4)
+VR_OVER = pose(VR_HIT, hipr=(-46, 16, 4), chest=(-32, 10, 3), rh=(-48, -8, 0.59), w=(-82, -8), hsq=0.08)
+VR_SET = pose(VR_HIT, hipr=(-25, 8, 2), chest=(-18, 8, 0), rh=(-30, -5, 0.55), w=(-50, 10), hsq=0.0, claw=0.9, hs=1.1)
+CLIPS["Ab_H"] = (63, "hand", STEP_ATTACK, 15, [
+    (1, GUARD, "out"), (4, VR_WIND, "lin"), (11, VR_DEEP, "hold"), (13, VR_SMEAR, "hold"), (15, VR_HIT, "hold"),
+    (21, VR_OVER, "io"), (27, VR_SET, "lin"), (35, mixp(VR_SET, GUARD, 0.5), "lin"), (44, GUARD, "hold"),
+    (63, GUARD, "hold")])
+
+# Ab_LLH, Harpoon (EF) and the Frost Spear plant (IP), hit 0.34 = frame 20.1: up on his toes with the
+# spear raised high and turned tip-down, then lunged and driven into the floor ahead, held, leaning on it.
+LLH_RISE = pose(SP, hip=(0, 0.04, 0.02), hipr=(10, -10, 0), chest=(5, -12, 0), head=(-5, -8, 0), hsq=-0.14,
+                rh=(40, 62, 0.52), w=(10, -45), lh=(-60, 40, 0.39), claw=0.9)
+LLH_TOP = pose(LLH_RISE, hipr=(15, -14, 0), chest=(8, -15, 0), hsq=-0.18, rh=(50, 72, 0.5), w=(5, -55),
+               fl=(-0.05, 0.04, 0.05), fr=(0.05, -0.05, 0.06), claw=1.0)
+LLH_SHAKE = pose(LLH_TOP, rh=(46, 70, 0.51), hipr=(13, -13, 2), head=(-3, -7, 3))
+LLH_SMEAR = pose(LLH_TOP, hip=(0, -0.06, -0.08), hipr=(0, 18, 0), chest=(0, 12, 0), head=(0, 6, 0), hsq=0.0,
+                 rh=(10, 20, 0.6), w=(5, -35), fl=(-0.06, 0.08, 0), fr=(0.06, -0.1, 0), hs=1.2)
+LLH_HIT = pose(LLH_SMEAR, hip=(0, -0.14, -0.22), hipr=(-10, 34, 0), chest=(-5, 16, 0), head=(5, 12, 0), hsq=0.26,
+               rh=(0, -25, 0.6), w=(0, -22), lh=(-90, -40, 0.38), fl=(-0.1, 0.24, 0), fr=(0.1, -0.26, 0), hs=1.1)
+LLH_OVER = pose(LLH_HIT, hip=(0, -0.15, -0.24), hipr=(-12, 37, 0), hsq=0.3, rh=(-2, -27, 0.6))
+LLH_SET = pose(LLH_HIT, hip=(0, -0.06, -0.12), hipr=(-5, 18, 0), chest=(0, 10, 0), hsq=0.05, rh=(10, -20, 0.55),
+               w=(5, -20), claw=0.8, hs=1.0)
+CLIPS["Ab_LLH"] = (59, "spear", STEP_ATTACK, 20, [
+    (1, SP, "out"), (5, LLH_RISE, "out"), (12, LLH_TOP, "hold"), (14, LLH_SHAKE, "hold"), (16, LLH_TOP, "hold"),
+    (18, LLH_SMEAR, "hold"), (20, LLH_HIT, "hold"), (26, LLH_OVER, "io"), (32, LLH_SET, "io"), (48, SP, "hold"),
+    (59, SP, "hold")])
+
+# Ab_AF, Molten Palm (EM, hit 0.51 = frame 50.5, played at 1.7 x 1.6 so drawings every 6 frames): the claw
+# pulled back to his hip and clenched into a swelling fist, shaking with the build-up, then shoved out
+# flat ahead, the palm splayed and huge, body lunging behind it.
+STEP_FAST = 6
+AF_DRAW = pose(GUARD, hip=(0.03, 0.08, -0.12), hipr=(35, -6, 0), chest=(28, -8, 0), head=(-25, 4, 0), hsq=0.14,
+               rh=(150, -20, 0.38), w=(170, -10), lh=(-10, 20, 0.38), fl=(-0.07, 0.14, 0), fr=(0.06, -0.12, 0),
+               claw=1.0, hs=1.2)
+AF_CHARGE = pose(AF_DRAW, hip=(0.03, 0.1, -0.14), hipr=(45, -8, 0), chest=(34, -10, 0), rh=(160, -15, 0.36),
+                 hsq=0.22, hs=1.45)
+AF_SHAKE = pose(AF_CHARGE, rh=(154, -11, 0.37), hipr=(42, -7, 2), head=(-22, 4, 3), hs=1.5)
+AF_SMEAR = pose(AF_CHARGE, hip=(0, -0.06, -0.08), hipr=(5, 14, 0), chest=(0, 10, 0), head=(-5, 4, 0), hsq=-0.14,
+                rh=(40, -5, 0.6), w=(25, 0), claw=0.2, hs=1.5)
+AF_HIT = pose(AF_SMEAR, hip=(-0.02, -0.18, -0.12), hipr=(-32, 24, 0), chest=(-22, 14, 0), head=(20, 6, 0), hsq=0.2,
+              rh=(-10, 0, 0.6), w=(-10, 5), lh=(-160, 20, 0.39), fl=(-0.06, 0.24, 0), fr=(0.06, -0.3, 0), claw=-1.0,
+              hs=1.65)
+AF_OVER = pose(AF_HIT, hip=(-0.02, -0.19, -0.13), hipr=(-35, 26, 0), hsq=0.24, rh=(-12, -1, 0.6), hs=1.6)
+AF_SET = pose(AF_HIT, hip=(-0.01, -0.08, -0.09), hipr=(-15, 12, 0), chest=(-10, 10, 0), hsq=0.04, rh=(10, -5, 0.55),
+              w=(5, 5), claw=0.0, hs=1.2)
+CLIPS["Ab_AF"] = (99, "hand", STEP_FAST, 50, [
+    (1, GUARD, "out"), (7, AF_DRAW, "lin"), (25, AF_CHARGE, "hold"), (31, AF_SHAKE, "hold"), (35, AF_CHARGE, "hold"),
+    (39, AF_SHAKE, "hold"), (43, AF_CHARGE, "hold"), (47, AF_SMEAR, "hold"), (50, AF_HIT, "hold"), (60, AF_OVER, "io"),
+    (70, AF_SET, "io"), (84, GUARD, "hold"), (99, GUARD, "hold")])
+
+# Hit_A: a big cartoon flinch: knocked back with the hood squashed flat and wide, claw flung open, held,
+# a stretched rebound, back to the guard.
+HIT_FLINCH = pose(GUARD, hip=(0, 0.1, -0.06), hipr=(8, -22, -6), chest=(5, -16, -4), head=(10, -14, -8), hsq=0.3,
+                  rh=(110, 20, 0.5), w=(140, 40), lh=(-110, 30, 0.38), fl=(-0.06, 0.04, 0), fr=(0.06, 0.08, 0),
+                  claw=-1.0, clawph=40.0, hs=1.2)
+HIT_BACK = pose(HIT_FLINCH, hip=(0, 0.06, -0.02), hipr=(4, -12, -3), chest=(2, -8, 0), head=(5, -6, -3), hsq=-0.12,
+                rh=(70, 5, 0.5), w=(80, 25), claw=-0.3, clawph=0.0, hs=1.05)
+CLIPS["Hit_A"] = (21, "hand", STEP_ATTACK, None, [
+    (1, GUARD, "snap"), (2, HIT_FLINCH, "hold"), (7, HIT_BACK, "io"), (13, pose(GUARD, hsq=0.05), "io"),
+    (21, GUARD, "hold")])
+
+# Dodge_Forward (13 frames at 1.7: 0.25 s, drawings every 2): a squash, a long streak pose (pitched
+# forward, hood stretched along the dash, claw and fist trailing), snapped back to the guard.
+DG_SQUASH = pose(GUARD, hip=(0, 0, -0.12), hipr=(0, 20, 0), chest=(0, 8, 0), hsq=0.2, rh=(60, -20, 0.45),
+                 w=(120, -10), claw=0.5)
+DG_STREAK = pose(GUARD, hip=(0, -0.06, -0.04), hipr=(0, 40, 0), chest=(0, 12, 0), head=(0, -10, 0), hsq=-0.28,
+                 rh=(175, 0, 0.6), w=(180, 10), lh=(-170, 0, 0.39), fl=(-0.02, -0.2, 0.1), fr=(0.02, -0.35, 0.15),
+                 claw=-0.2, hs=0.95)
+DG_SNAP = pose(GUARD, hip=(0, 0.02, -0.1), hipr=(0, -6, 0), hsq=0.18, rh=(30, -5, 0.52), w=(20, 20), claw=0.0)
+CLIPS["Dodge_Forward"] = (13, "hand", 2, None, [
+    (1, DG_SQUASH, "hold"), (3, DG_STREAK, "hold"), (8, DG_SNAP, "hold"), (10, pose(GUARD, hsq=-0.05, hipr=(0, 4, 0)), "lin"),
+    (13, GUARD, "hold")])
+
+
+# Run_B and the strafes: Run_F's phase and footfalls (left foot down on 1, right on 11), the planted foot
+# sliding against the way he travels. Backwards he leans back with the claw up in guard; sideways he
+# faces ahead and leans into the step.
+def loco_keys(way):
+    keys = []
+    n = 21
+    for f in range(1, n + 1, STEP_STANCE):
+        u = (f - 1) / (n - 1)
+        ph = u * 2 * math.pi
+        c, s = math.cos(ph), math.sin(ph)
+        bounce = abs(c)
+        lup = max(0.0, -s) * 0.18
+        rup = max(0.0, s) * 0.18
+        if way == "B":
+            fl, fr = (-0.03, -0.26 * c, lup), (0.03, 0.26 * c, rup)
+            body = dict(hipr=(-8 * c, -8, RUN_ROLL * c), chest=(8 * c, -2, 0), head=(-3 * c, 2 + 6 * bounce, 0),
+                        rh=(30, -5 + 6 * s, 0.52), w=(20, 15 + 8 * s), lh=(-35 - 30 * c, -35, 0.36), claw=-0.3)
+        else:
+            side = -1.0 if way == "L" else 1.0  # his right +
+            # planted foot slides against the travel: left planted on 0..pi, right on pi..2pi
+            fl = (-0.1 - side * 0.12 * c, 0.03, lup)
+            fr = (0.1 - side * 0.12 * c, -0.04, rup)
+            body = dict(hipr=(side * 10, 6, side * (7 + 3 * bounce) + RUN_ROLL * c), chest=(-side * 8, 6, 0),
+                        head=(-side * 6, 4 + 6 * bounce, -side * 4), rh=(30, -5 + 5 * s, 0.52), w=(20 + side * 15, 15),
+                        lh=(-35, -35, 0.36), claw=-0.2)
+        keys.append((f, pose(GUARD, hip=(RUN_SWAY * c, 0.0, -0.08 * bounce + 0.02), hsq=0.1 * bounce - 0.05,
+                             fl=fl, fr=fr, clawph=360 * u, **body), "lin"))
+    keys[-1] = (n, keys[0][1], "hold")
+    return keys
+
+
+for _way, _clip in (("B", "Run_B"), ("L", "Strafe_L"), ("R", "Strafe_R")):
+    CLIPS[_clip] = (21, "hand", STEP_STANCE, None, loco_keys(_way))
+
+# Jump_Start (20) and Jump_Idle (33): the breaker leap. A deep squash, sprung up stretched with the claw
+# thrown overhead, then tucked and hanging with the claw cocked high and splayed, a slow menacing flex.
+JS_CROUCH = pose(GUARD, hip=(0, 0.03, -0.18), hipr=(0, 20, 0), chest=(0, 8, 0), head=(0, 6, 0), hsq=0.28,
+                 rh=(120, -30, 0.45), w=(150, -20), lh=(-60, -50, 0.36), fl=(-0.08, 0.06, 0), fr=(0.08, -0.06, 0),
+                 claw=-0.6)
+JS_SPRING = pose(GUARD, hip=(0, -0.02, 0.06), hipr=(0, -8, 0), chest=(0, -10, 0), head=(0, -12, 0), hsq=-0.25,
+                 rh=(50, 70, 0.6), w=(55, 75), lh=(-40, -60, 0.37), fl=(-0.03, 0.05, 0.1), fr=(0.03, -0.08, 0.18),
+                 claw=1.0, hs=1.3)
+JUMP_AIR = pose(GUARD, hip=(0, 0, 0.02), hipr=(0, 8, 0), chest=(0, 4, 0), head=(0, -4, 0), hsq=-0.05,
+                rh=(60, 45, 0.55), w=(75, 50), lh=(-50, -30, 0.37), fl=(-0.02, 0.1, 0.18), fr=(0.02, -0.04, 0.25),
+                claw=-0.6, clawph=60.0, hs=1.2)
+CLIPS["Jump_Start"] = (20, "hand", STEP_ATTACK, None, [
+    (1, GUARD, "out"), (3, JS_CROUCH, "hold"), (8, JS_SPRING, "hold"), (12, JS_SPRING, "io"), (20, JUMP_AIR, "hold")])
+CLIPS["Jump_Idle"] = (33, "hand", STEP_STANCE, None, [
+    (1, JUMP_AIR, "io"), (17, pose(JUMP_AIR, hip=(0, 0, 0.0), hsq=0.04, rh=(62, 50, 0.55), claw=0.3, clawph=120.0), "io"),
+    (33, JUMP_AIR, "hold")])
 
 
 # ---------------------------------------------------------------- writing
