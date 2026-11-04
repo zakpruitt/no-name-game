@@ -13,7 +13,28 @@ var camera: Camera3D
 var _zoom := 1.0
 var _zoom_to := 1.0
 var _zoom_until_ms := 0
-var _kick := Vector3.ZERO  # directional hit nudge (kick), springs back
+var _kick := Vector3.ZERO  # directional hit nudge (kick), chases _kick_to
+var _kick_to := Vector3.ZERO  # where the kicks add up; springs back
+var _hit_zoom := 0.0  # per-hit micro push-in (fraction of offset), chases _hit_zoom_to
+var _hit_zoom_to := 0.0
+var _roll := 0.0  # degrees of hit roll, chases _roll_to
+var _roll_to := 0.0
+var _roll_sign := 1.0  # heavy hits roll alternate ways so a string rocks
+
+# Per-hit feel (hero-agnostic; Game calls these): hits push the camera in a
+# hair, more as the chain climbs, clamped so a crowd hit doesn't dive; heavy
+# hits roll it a touch. Every nudge chases a target that springs back in real
+# time, so stacked hits in one frame blend instead of jittering.
+const HIT_ZOOM := 0.012  # push-in per hit, as a fraction of the camera offset
+const HIT_ZOOM_TIER := 0.5  # extra per Fx.CHAIN_TIERS tier passed (x1 at tier 0, x2.5 at tier 3)
+const HIT_ZOOM_MAX := 0.06  # cap on the stacked push-in (at most 6% closer)
+const HIT_ZOOM_RETURN := 7.0  # how fast the push-in springs back (per real second)
+const ROLL_DEG := 2.2  # degrees of roll per unit of shake on a heavy hit (Game.shake >= ROLL_SHAKE)
+const ROLL_SHAKE := 0.3  # Game.shake amounts from here roll the camera
+const ROLL_MAX := 2.5  # cap on the stacked roll, degrees
+const ROLL_RETURN := 9.0  # how fast the roll springs back (per real second)
+const NUDGE_FOLLOW := 40.0  # how fast kick / zoom / roll reach their targets (per real second)
+const KICK_RETURN := 12.0  # how fast a kick springs back (per real second)
 
 
 func _ready() -> void:
@@ -39,7 +60,24 @@ func kick(dir: Vector3, amount: float) -> void:
 	dir.y = 0.0
 	if dir.length_squared() < 0.0001 or Game.shake_scale <= 0.0:
 		return
-	_kick = (_kick + dir.normalized() * amount * Game.shake_scale).limit_length(0.8)
+	_kick_to = (_kick_to + dir.normalized() * amount * Game.shake_scale).limit_length(0.8)
+
+
+## A hit landed: push the camera in by HIT_ZOOM (x `mult`), stacking up to
+## HIT_ZOOM_MAX. Game.register_hit calls it with the chain tier's multiplier.
+func hit_zoom(mult := 1.0) -> void:
+	if Game.shake_scale <= 0.0:
+		return
+	_hit_zoom_to = minf(_hit_zoom_to + HIT_ZOOM * mult, HIT_ZOOM_MAX)
+
+
+## Roll the camera `deg` degrees (sign alternates each call), springing back.
+## Heavy hits (Game.shake past ROLL_SHAKE).
+func roll(deg: float) -> void:
+	if Game.shake_scale <= 0.0:
+		return
+	_roll_sign = -_roll_sign
+	_roll_to = clampf(_roll_to + _roll_sign * deg * Game.shake_scale, -ROLL_MAX, ROLL_MAX)
 
 
 func add_trauma(amount: float) -> void:
@@ -57,9 +95,15 @@ func _process(delta: float) -> void:
 		_zoom_to = 1.0
 	var real_delta := delta / maxf(Engine.time_scale, 0.01)  # slow-mo shouldn't slow the push-in
 	_zoom = lerpf(_zoom, _zoom_to, 1.0 - exp(-9.0 * real_delta))
-	_kick = _kick.lerp(Vector3.ZERO, 1.0 - exp(-12.0 * real_delta))
-	camera.position = offset * _zoom + _kick
+	var follow := 1.0 - exp(-NUDGE_FOLLOW * real_delta)
+	_kick_to = _kick_to.lerp(Vector3.ZERO, 1.0 - exp(-KICK_RETURN * real_delta))
+	_kick = _kick.lerp(_kick_to, follow)
+	_hit_zoom_to = lerpf(_hit_zoom_to, 0.0, 1.0 - exp(-HIT_ZOOM_RETURN * real_delta))
+	_hit_zoom = lerpf(_hit_zoom, _hit_zoom_to, follow)
+	_roll_to = lerpf(_roll_to, 0.0, 1.0 - exp(-ROLL_RETURN * real_delta))
+	_roll = lerpf(_roll, _roll_to, follow)
+	camera.position = offset * _zoom * (1.0 - _hit_zoom) + _kick
 	var s := trauma * trauma
 	camera.h_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
 	camera.v_offset = randf_range(-1.0, 1.0) * max_shake_offset * s
-	camera.rotation.z = deg_to_rad(randf_range(-1.0, 1.0) * max_shake_roll * s)
+	camera.rotation.z = deg_to_rad(randf_range(-1.0, 1.0) * max_shake_roll * s + _roll)

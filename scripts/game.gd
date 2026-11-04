@@ -301,6 +301,8 @@ func sfx(sound_name: String, volume_db := 0.0, pitch_jitter := 0.08) -> void:
 func shake(amount: float) -> void:
 	if camera_rig and shake_scale > 0.0:
 		camera_rig.add_trauma(amount * shake_scale)
+		if amount >= camera_rig.ROLL_SHAKE:
+			camera_rig.roll(amount * camera_rig.ROLL_DEG)
 
 
 func _start_music() -> void:
@@ -466,6 +468,8 @@ func register_hit(move_id: String) -> void:
 		_recent_moves.pop_front()
 	style += 1.0 + variety
 	add_awakening(1.5 * RANK_AWAKEN_MULT[rank()])
+	if camera_rig:
+		camera_rig.hit_zoom(1.0 + camera_rig.HIT_ZOOM_TIER * Fx.chain_tier(combo_count))
 	if move_id.ends_with("_air"):
 		_air_hit()
 	combo_changed.emit(combo_count, rank())
