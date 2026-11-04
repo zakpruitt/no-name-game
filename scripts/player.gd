@@ -132,12 +132,11 @@ const COMBOS := {
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
 }
 # Combo breakers (VOID_ELEMENT.BREAKERS, timed finishers). The move leaps into the air at `leap`
-# (fraction of its anim), hops `back` m while rising `height` m over `rise` s,
-# hurls `spikes` spikes onto a zone `zone` m ahead (spread `spread`), and a
-# cue rings that zone: press heavy between `open` and `close` s after take-off
-# (rings meet at `sweet`; within `perfect` of it = PERFECT, x`perfect_mult`)
-# to dive onto it in `dive` s, detonating the spikes and hitting `radius` for
-# `damage`. Too early locks it out; no press = he floats down in `fall` s.
+# (fraction of its anim), hops `back` m while rising `height` m over `rise` s
+# with the tentacles on the foes, and a cue rings a zone `zone` m ahead: press
+# right click between `open` and `close` s after take-off (rings meet at `sweet`;
+# within `perfect` of it = PERFECT, x`perfect_mult`) to dive onto it in `dive` s,
+# slamming what he holds. Too early locks it out; no press = he floats down in `fall` s.
 # The breaker window plays in slow motion (BREAKER_FOCUS time scale, camera
 # pushed in to BREAKER_FOCUS_ZOOM), and a perfect press freezes the frame for
 # BREAKER_PERFECT_STOP real s before the dive.
@@ -747,8 +746,8 @@ func _set_state(s: State) -> void:
 		_charge_light.light_energy = 0.0
 
 
-## Combo breaker, part 1: leap up and back, hurl spikes onto the zone ahead,
-## ring it with the timing cue (VOID_ELEMENT.BREAKERS via _breaker_for).
+## Combo breaker, part 1: leap up and back with the tentacles on what the string hit,
+## and ring the landing with the timing cue (VOID_ELEMENT.BREAKERS via _breaker_for).
 func _start_leap(id: String, entry: Dictionary) -> void:
 	_brk_id = id
 	_brk = entry
@@ -770,13 +769,8 @@ func _start_leap(id: String, entry: Dictionary) -> void:
 	_play("Jump_Start", 0.05, true)
 	Game.sfx("dash", -4.0, 0.05)
 	Fx.dust(get_parent(), global_position, 10, 0.8)
-	if not _brk.has("tentacle"):  # (it sat over him and hid the tentacles going out)
-		Fx.ring(get_parent(), global_position, Color(_fx_color(), 0.8), 1.6, 0.25)
-	if _brk.has("tentacle"):
-		_void.seize(_brk)
-		_brk_aim()
-	elif not _brk.has("dash"):  # he kicks off hard enough to crack the floor
-		BREAKER_QUAKE.crater(get_parent(), global_position, element(), 1.4, false)
+	_void.seize(_brk)  # the tentacles go out for what the string hit
+	_brk_aim()
 
 
 ## Some of his breakers land where the string put them, however far off that is: Meteor Fall on whoever
@@ -812,8 +806,7 @@ func _state_leap(delta: float) -> void:
 	if _brk_phase == 0 and _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and not bot_enabled:
 		_leap_dash_out()
 		return
-	if b.has("tentacle"):
-		_void.seized_tick(_brk_phase, t, b)
+	_void.seized_tick(_brk_phase, t, b)
 	if _brk_phase == 0:
 		_brk_aim()
 		if t < b.rise:  # hop back (forward if `back` < 0) while rising
@@ -945,7 +938,7 @@ func _start_dive() -> void:
 		Game.camera_rig.punch(0.85, 0.3)
 
 
-## The dive lands: detonate the spikes, blast the zone, name the breaker.
+## The dive lands: the element's slam (VOID_ELEMENT.breaker_impact), the crater, name the breaker.
 func _breaker_impact() -> void:
 	var b := _brk
 	var el := _brk_element()
@@ -1490,16 +1483,14 @@ func _cast(fwd: Vector3) -> void:
 			parent.add_child(echo)
 			echo.global_position = Vector3(global_position.x, model.position.y, global_position.z)  # (air slashes: in the air)
 		"tomahawk":
-			var n: int = c.get("fan", 1)
-			for i in n:
-				var th = _spirit(SPIRIT_TOMAHAWK.new(), c, el)
-				th.dir = fwd.rotated(Vector3.UP, deg_to_rad(c.get("spread", 0.0) * (i - (n - 1) * 0.5)))
-				th.hero = self
-				th.size = c.size * g
-				th.reach = minf(c.range, _clear_ahead(th.dir, c.range) + 0.4)
-				th.back_damage = c.back_damage * _dmg_mult * _cast_power()
-				parent.add_child(th)
-				th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
+			var th = _spirit(SPIRIT_TOMAHAWK.new(), c, el)
+			th.dir = fwd
+			th.hero = self
+			th.size = c.size * g
+			th.reach = minf(c.range, _clear_ahead(th.dir, c.range) + 0.4)
+			th.back_damage = c.back_damage * _dmg_mult * _cast_power()
+			parent.add_child(th)
+			th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
 
 
 ## The common setup of a spirit cast node (spirit_*.gd): the hero's axe,
