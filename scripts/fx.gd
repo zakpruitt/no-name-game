@@ -642,16 +642,25 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 		mat.next_pass = ink_material()
 	var ghost := Node3D.new()
 	parent.add_child(ghost)
+	var poses := {}  # his skeleton -> a frozen copy of its pose: skinned on the GPU, not baked
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var flashing := _flash_mat != null and mi.material_overlay == _flash_mat
 		if not mi.is_visible_in_tree() or mi.mesh == null or flashing or mi.has_meta("no_ghost"):  # (no_ghost: effects riding on him)
 			continue
 		var copy := MeshInstance3D.new()
-		copy.mesh = mi.bake_mesh_from_current_skeleton_pose() if mi.skin else mi.mesh
+		copy.mesh = mi.mesh
 		copy.material_override = mat
 		copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ghost.add_child(copy)
 		copy.global_transform = mi.global_transform
+		var skel := mi.get_node_or_null(mi.skeleton) as Skeleton3D if mi.skin else null
+		if skel != null:
+			if not poses.has(skel):
+				poses[skel] = _frozen_pose(skel, ghost)
+			copy.skin = mi.skin
+			copy.skeleton = copy.get_path_to(poses[skel])
+		elif mi.skin:
+			copy.mesh = mi.bake_mesh_from_current_skeleton_pose()
 	var tw := ghost.create_tween()
 	if comic:
 		tw.tween_interval(COMIC_GHOST_STEP)
@@ -660,6 +669,23 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 	else:
 		tw.tween_property(mat, "albedo_color:a", 0.0, time)
 	tw.tween_callback(ghost.queue_free)
+
+
+## A Skeleton3D under `parent` holding `skel`'s current pose. Baking a skinned
+## mesh on the CPU (bake_mesh_from_current_skeleton_pose) took ~18 ms for the
+## heretic; a copied pose lets the GPU skin the shared mesh as usual.
+static func _frozen_pose(skel: Skeleton3D, parent: Node3D) -> Skeleton3D:
+	var copy := Skeleton3D.new()
+	for i in skel.get_bone_count():
+		copy.add_bone(skel.get_bone_name(i))
+	for i in skel.get_bone_count():
+		copy.set_bone_parent(i, skel.get_bone_parent(i))
+		copy.set_bone_rest(i, skel.get_bone_rest(i))
+	for i in skel.get_bone_count():  # global poses: they include the rig's sway and spring bones (parents come first)
+		copy.set_bone_global_pose(i, skel.get_bone_global_pose(i))
+	parent.add_child(copy)
+	copy.global_transform = skel.global_transform
+	return copy
 
 
 ## Briefly paint every mesh under `root` white.
