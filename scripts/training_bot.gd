@@ -30,6 +30,20 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	["L", "H", "L", "H"], ["D", "L", "H"], ["D", "L", "H", "H"], ["D", "H"],
 	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"]]
 const BOT_GAP := 0.35  # s standing between strings
+## Every string starts from the same place (round 30, second pass): once the dummies stand again (or after
+## BOT_SETTLE_MAX s) they're put back on their homes and the hero BOT_SPOT m from the first one, toward where
+## he started, facing it. Strings used to start wherever the last one threw them, so 5-7 of the 7 breakers
+## landed; now every run lands all of them (agent.sh checks `breakers=7/7`).
+const BOT_SPOT := 2.0
+const BOT_SETTLE_MAX := 2.5
+## The bot presses this long (s, move time) before the move's cancel point. At combo_window()'s BUFFER_MS
+## a press made as an Awakened Updraft Lash started lapsed just before its cancel, and L H L H lost its air slash.
+## Still inside the buffer, so every press fires on the first legal frame and the [rhythm] beats are unchanged.
+const BOT_LEAD := 0.15
+var _start_pos := Vector3.ZERO  # where the hero stood when the bot took over
+var _reset_done := false  # this string's start has been reset
+var _settle_t := 0.0
+var _press_frame := -1  # physics frame of the bot's last press
 var _bot_string := 0  # BOT_STRINGS index playing
 var _bot_step := 0  # next token in it
 var _bot_wait := 1.0  # s before the next string starts
@@ -64,6 +78,7 @@ var _quitting := false
 func _ready() -> void:
 	player = main.player
 	hud = main.hud
+	_start_pos = player.global_position
 	Game.combo_changed.connect(func(c: int, _r: String) -> void:
 		_max_combo = maxi(_max_combo, c)
 		if c > 0:
@@ -151,9 +166,9 @@ func _autotest_finish() -> void:
 	_quitting = true
 	for line: String in player.bot_log + _rhythm_log:
 		print(line)
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d strings=%d/%d moves=%s" % [
+	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
+		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
 	var n := maxi(_perf.frames, 1)
 	for line in _perf_log:
 		print(line)
@@ -204,6 +219,8 @@ func _drive_bot() -> void:
 			nd = d
 			nearest = e
 	var dt := get_process_delta_time()
+	if Engine.get_physics_frames() <= _press_frame:
+		return  # a press stays down until a physics step has read it (a faster render frame dropped some)
 	for a in ["attack_light", "dash", "awaken"]:
 		Input.action_release(a)
 	if _bot_hold_t > 0.0:  # hold right click until Overwhelm goes
@@ -234,6 +251,8 @@ func _drive_bot() -> void:
 				_bot_string = (_bot_string + 1) % BOT_STRINGS.size()
 				_bot_step = 0
 				_bot_wait = BOT_GAP
+				_reset_done = false
+				_settle_t = 0.0
 		return
 	if _bot_pending != "":  # wait for the last press to be taken before the next one
 		_bot_pending_t += dt
@@ -243,13 +262,23 @@ func _drive_bot() -> void:
 		if not taken and _bot_pending_t < BOT_TAKE:
 			return
 		_bot_pending = ""
+	if _bot_step == 0 and not _reset_done:
+		if not idle:
+			return
+		_settle_t += dt
+		if not _dummies_settled() and _settle_t < BOT_SETTLE_MAX:
+			return
+		_reset_spots()
+		_reset_done = true
+		return  # (the next frame starts the string from there)
 	if _bot_step == 0 and (not idle or nd > 3.0):
 		return  # walk up first
 	if _bot_step == 0:
 		_bot_rhythm.clear()
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
-	if player.state == player.State.ATTACK:
-		ready = player.combo_window().ready
+	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
+		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
+		ready = left <= BOT_LEAD
 	if not ready or player.state == player.State.LEAP:
 		return
 	match string[_bot_step]:
@@ -262,8 +291,32 @@ func _drive_bot() -> void:
 		"hold":
 			Input.action_press("attack_heavy")
 			_bot_hold_t = player.CHARGE_TIME + 0.15
+	_press_frame = Engine.get_physics_frames()
 	_bot_pending = string[_bot_step]
 	_bot_pending_t = 0.0
 	_bot_starts_at = _bot_starts
 	_bot_step += 1
 
+
+## The dummies are on their feet: none flying, reeling, frozen or held (BOT_SETTLE_MAX).
+func _dummies_settled() -> bool:
+	for d: Node in main._dummies:
+		if is_instance_valid(d) and (d.state != d.State.CHASE or d.frozen_t > 0.0 or not d.is_on_floor()):
+			return false
+	return true
+
+
+## The start of every string (BOT_SPOT): dummies home and still, the hero in front of the first one, facing it.
+func _reset_spots() -> void:
+	for d: Node in main._dummies:
+		if is_instance_valid(d):
+			d.global_position = d.home
+			d.velocity = Vector3.ZERO
+	var target: Vector3 = main._dummies[0].home
+	var back := _start_pos - target
+	back.y = 0.0
+	player.global_position = target + back.normalized() * BOT_SPOT
+	player.velocity = Vector3.ZERO
+	player._face(target - player.global_position)
+	player.model.rotation.y = player._facing_yaw
+	player.bot_move = Vector3.ZERO

@@ -106,7 +106,9 @@ so the autotest lands it.
 - `godot --headless --path . -s tests/void_arm_check.gd`: the breakers' timing, holds and slams (PASS/FAIL).
 - `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero.
 - `godot --headless --path . -- --autotest`: prints `[autotest] combo_breaker #N <id> perfect=` per breaker and
-  `breakers= perfect_breakers=` on the done line.
+  `breakers=N/N perfect_breakers=` on the done line. The bot resets the dummies to their homes and the hero to
+  `training_bot.BOT_SPOT` before each string and presses `BOT_LEAD` before each cancel point, so the run repeats
+  exactly; `agent.sh check` fails unless `breakers=7/7` and `strings=13/13`.
 - Windowed: `godot --path . -s tests/breaker_prompt_preview.gd` → `user://breaker_prompt.png`; `tests/element_shots.gd`
   for each slam.
 

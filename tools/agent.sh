@@ -50,6 +50,9 @@ check() {
 		out=$(godot_run 180 -- $args)
 		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error" || ! echo "$out" | grep -q "\[autotest\] done"; then
 			echo "FAIL  $args"; echo "$out" | grep "FAIL\|SCRIPT ERROR\|Parse Error" | sort | uniq -c | head -5; fail=1
+		elif ! echo "$out" | grep -q "\[autotest\] done.* breakers=\([0-9]\+\)/\1 .* strings=\([0-9]\+\)/\2 "; then
+			# the bot starts every string from the same spots (training_bot BOT_SPOT): every breaker and string must land
+			echo "FAIL  $args (not every breaker / string)"; echo "$out" | grep "\[autotest\] done" | grep -o " breakers=[0-9/]* \| strings=[0-9/]* "; fail=1
 		else
 			echo "ok    $args"
 		fi
