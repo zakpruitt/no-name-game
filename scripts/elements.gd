@@ -54,6 +54,7 @@ const LOOK := {
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
 const DARK_FX := preload("res://scripts/dark_fx.gd")
+const COMIC_GALE := preload("res://scripts/comic_gale.gd")
 const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
 const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
 const STRIKE_STAR := 1.1  # m, the impact star at its foot
@@ -406,6 +407,9 @@ static func hit_area(tree: SceneTree, pos: Vector3, radius: float, damage: float
 
 ## A column at `pos`: tornado (wind), stone pillar (earth), geyser (water), beam (spirit).
 static func pillar(parent: Node, pos: Vector3, el: String, height := 4.0, radius := 1.4, life := 0.6) -> void:
+	if el == "wind" and Game.comic_style:  # fat inked wind bands on twos, not the soft funnels
+		COMIC_GALE.spawn(parent, pos, height, radius, life)
+		return
 	var c: Color = LOOK[el].color
 	var g: Color = LOOK[el].glow
 	var root := Node3D.new()
