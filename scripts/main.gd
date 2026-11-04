@@ -75,6 +75,7 @@ var _bot_starts := 0  # moves started (player.attack_started), to see a press ta
 var _bot_starts_at := 0
 const BOT_TAKE := 0.7
 var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
+var _rhythm_log: Array[String] = []  # the [rhythm] lines, printed at the end (a print mid-run is a frame spike)
 var _bot_rhythm := []  # [move id, real ms] per move started in this string, for the `[rhythm]` line
 var _bot_strings_done := {}  # BOT_STRINGS index -> played (autotest `strings=`)
 # Autotest frame stats (real time, so hitstop slow-mo doesn't skew them).
@@ -476,6 +477,8 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
+	for line: String in player.bot_log + _rhythm_log:
+		print(line)
 	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d strings=%d/%d moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
 		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
@@ -504,7 +507,7 @@ func _print_rhythm(string: Array) -> void:
 		if r.size() > 2:
 			var from: int = _bot_rhythm[i - 1][2] if i > 0 and _bot_rhythm[i - 1].size() > 2 else _bot_rhythm[0][1]
 			beats.append("%s %d" % [r[0], r[2] - from])
-	print("[rhythm] %s: %s | beats %s ms" % [" ".join(string), ", ".join(gaps) if not gaps.is_empty() else "one move", ", ".join(beats)])
+	_rhythm_log.append("[rhythm] %s: %s | beats %s ms" % [" ".join(string), ", ".join(gaps) if not gaps.is_empty() else "one move", ", ".join(beats)])
 
 
 func _snap(path: String) -> void:

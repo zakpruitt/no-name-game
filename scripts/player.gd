@@ -317,6 +317,9 @@ var _perfect_this_dash := false
 var bot_move := Vector3.ZERO
 
 var bot_enabled := false
+## The bot's `[autotest]` lines, printed by main at the end: a print mid-fight with stdout piped costs
+## 2-10 ms, the windowed autotest's only frame spikes.
+var bot_log: Array[String] = []
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
 var _brk: Dictionary = {}  # the breaker in play (BREAKERS entry)
@@ -1006,7 +1009,7 @@ func _breaker_impact() -> void:
 		breaker_perfects += 1
 	_breaker_callout(breaker_name(), perfect)
 	if bot_enabled:
-		print("[autotest] combo_breaker #%d %s perfect=%s" % [breakers_landed, _brk_id, perfect])
+		bot_log.append("[autotest] combo_breaker #%d %s perfect=%s" % [breakers_landed, _brk_id, perfect])
 	_end_leap()
 
 
@@ -1634,7 +1637,7 @@ func _is_last_kill() -> bool:
 func _last_kill(e: Node) -> void:
 	last_kills += 1
 	if "--autotest" in OS.get_cmdline_user_args():
-		print("[autotest] last_kill #%d rank_ups=%d" % [last_kills, rank_ups])
+		bot_log.append("[autotest] last_kill #%d rank_ups=%d" % [last_kills, rank_ups])
 	Game.hitstop(LAST_KILL_SLOWMO, 0.2)
 	if Game.camera_rig != null:
 		Game.camera_rig.punch(0.82, LAST_KILL_SLOWMO + 0.15)
