@@ -372,6 +372,7 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 
 ## A fist of the arm's own stuff, flying out along `fwd`.
 static func _fist(parent: Node, at: Vector3, fwd: Vector3, length: float) -> Node3D:
+	if Game.comic_style: return load("res://scripts/comic_fist.gd").spawn(parent, at, fwd, length, FIST_TIME)  # the flat inked fist
 	var root := Node3D.new()
 	parent.add_child(root)
 	var from := at + fwd * 1.0 + Vector3.UP * 1.0

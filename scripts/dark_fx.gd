@@ -523,27 +523,81 @@ static func quiet_hit(e: Node, damage: float, big := false) -> void:
 		e.take_hit(damage, Vector3.ZERO, 0.0, big)
 
 
-## A spike of black going straight up from under a foe.
-static func spout(parent: Node, spot: Vector3, high := 3.4) -> void:
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.global_position = Vector3(spot.x, 0.0, spot.z)
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 0.75
-	cone.height = high
-	cone.radial_segments = 5
-	part(root, cone, flat_mat(INK, true), Vector3.UP * high * 0.5)
-	var inner := CylinderMesh.new()
-	inner.top_radius = 0.0
-	inner.bottom_radius = 0.3
-	inner.height = high * 0.75
-	inner.radial_segments = 5
-	part(root, inner, flat_mat(HOT), Vector3(0.0, high * 0.38, 0.0))
-	root.scale = Vector3(1.0, 0.05, 1.0)
-	var tw := root.create_tween()
-	tw.tween_property(root, "scale", Vector3.ONE, 0.08).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(0.14)
-	tw.tween_property(root, "scale", Vector3(0.1, 1.0, 0.1), 0.12)
-	tw.tween_callback(root.queue_free)
-	burst(parent, spot)
+## A spike of black going straight up from under a foe: a flat inked spike facing the camera, violet
+## round a hot core so it reads on the dark floor, coming up SPOUT_DELAY s after the landing so the
+## impact frame doesn't swallow it, overshooting and breaking up on twos.
+const SPOUT_DELAY := 0.12
+const SPOUT_GROW := 1.3  # of the asked height
+const SPOUT_HALF_W := 0.5  # m at the base
+const SPOUT_BY_STEP := [1.15, 1.0, 0.85, 0.45]  # height; the last is colour only
+
+
+static func spout(parent: Node, spot: Vector3, high := 3.4) -> Node3D:
+	var s := Spout.new()
+	s.high = high * SPOUT_GROW
+	parent.add_child(s)
+	s.global_position = Vector3(spot.x, 0.0, spot.z)
+	return s
+
+
+class Spout extends Node3D:
+	var high := 4.4
+	var _t := 0.0
+	var _step := -1
+	var _right := Vector3.RIGHT
+	var _mesh := ArrayMesh.new()
+	var _verts := PackedVector3Array()
+	var _colors := PackedColorArray()
+	var _lean := 0.0
+
+	func _ready() -> void:
+		add_to_group("dark_spout")
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			_right = cam.global_basis.x
+		_lean = randf_range(-0.12, 0.12)
+		var mi := MeshInstance3D.new()
+		mi.mesh = _mesh
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.extra_cull_margin = high + 2.0
+		add_child(mi)
+
+	func _process(delta: float) -> void:
+		tick(delta)
+
+	## Public so a test can step it exactly.
+	func tick(delta: float) -> void:
+		_t += delta
+		if _t < SPOUT_DELAY:
+			return
+		var step := int((_t - SPOUT_DELAY) * 12.0)
+		if step >= SPOUT_BY_STEP.size():
+			queue_free()
+			return
+		if step == _step:
+			return
+		if _step < 0:
+			SELF.burst(get_parent(), global_position)
+		_step = step
+		_verts.clear()
+		_colors.clear()
+		var h: float = high * SPOUT_BY_STEP[step]
+		var last := step == SPOUT_BY_STEP.size() - 1
+		var tip := Vector3.UP * h + _right * h * _lean
+		if not last:
+			_spike(tip * 1.04, SPOUT_HALF_W * 1.5, INK)
+		_spike(tip, SPOUT_HALF_W * (0.6 if last else 1.0), VIOLET)
+		if not last:
+			_spike(tip * 0.8, SPOUT_HALF_W * 0.38, HOT)
+		_mesh.clear_surfaces()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = _verts
+		arrays[Mesh.ARRAY_COLOR] = _colors
+		_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_mesh.surface_set_material(0, load("res://scripts/heretic_form_fx.gd").material())
+
+	func _spike(tip: Vector3, w: float, c: Color) -> void:
+		var a := _right * w
+		_verts.append_array([-a, a, tip])
+		_colors.append_array([c, c, c])
