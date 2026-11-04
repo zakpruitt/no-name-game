@@ -34,6 +34,17 @@ const SHAKE_LEVELS := [1.0, 0.5, 0.0, 1.5]
 const SFX_PATH := "res://assets/sfx/%s.wav"
 const SFX_VOICES := 16
 const SFX_MIN_GAP_MS := 35  # same sound can't restart faster than this
+# Hitstop shape (hitstop()): a hit freezes the game at its time scale, then over
+# the tail of its length eases back up to full speed instead of snapping (an
+# ease-out: quick release, soft landing). Each overlapping stop keeps its own
+# shape and the slowest one wins each frame. Slow motion at or above
+# HITSTOP_FLAT_SCALE (the breaker window) holds flat so its timing reads true.
+const HITSTOP_EASE := 0.3  # fraction of a freeze (scale < SLOWMO_SCALE) spent ramping back up
+const SLOWMO_EASE := 0.45  # fraction of a slow-motion stop (last kill, Cataclysm) spent ramping back
+const HITSTOP_EASE_CURVE := 0.45  # ease() curve of the ramp; < 1 = ease-out
+const HITSTOP_OPENER := 0.8  # a string's first hit (combo_count <= 1) freezes this fraction as long: snappier
+const SLOWMO_SCALE := 0.1  # time scales below this are freezes; from here to HITSTOP_FLAT_SCALE, slow motion
+const HITSTOP_FLAT_SCALE := 0.5  # time scales at or above this never ramp
 # Juggles: air hits chain while each lands within AIR_TIMEOUT of the last.
 # Reaching a milestone announces it and pays out bonus style + Awakening.
 const AIR_TIMEOUT := 0.9
@@ -113,6 +124,7 @@ var _combo_timer := 0.0
 var _air_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
+var _stops: Array = []  # live hitstops: [end_ms, ramp_ms, scale]; see HITSTOP_EASE
 var _sfx_streams := {}
 var _sfx_last_ms := {}
 var _sfx_players: Array[AudioStreamPlayer] = []
@@ -139,8 +151,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if Engine.time_scale < 1.0 and Time.get_ticks_msec() >= _hitstop_end_ms:
-		Engine.time_scale = 1.0
+	_update_hitstop()
 	if combo_count > 0:
 		_combo_timer -= delta
 		if _combo_timer <= 0.0:
@@ -189,6 +200,7 @@ func reset() -> void:
 	level = 1
 	_emit_level()
 	_recent_moves.clear()
+	_stops.clear()
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
@@ -220,17 +232,51 @@ func add_bones(count: int) -> void:
 
 
 ## Freeze the game briefly on impact. Overlapping calls extend, never shorten.
+## `duration` is real seconds; the stop holds `time_scale` then eases back to
+## full speed over its tail (HITSTOP_EASE / SLOWMO_EASE; flat from HITSTOP_FLAT_SCALE).
 func hitstop(duration: float, time_scale := 0.03) -> void:
 	if duration <= 0.0:
 		return
-	_hitstop_end_ms = maxi(_hitstop_end_ms, Time.get_ticks_msec() + int(duration * 1000.0))
+	if combo_count <= 1 and time_scale < SLOWMO_SCALE:
+		duration *= HITSTOP_OPENER  # the string's opener: a snap, not a stall
+	var ramp := 0.0
+	if time_scale < SLOWMO_SCALE:
+		ramp = HITSTOP_EASE
+	elif time_scale < HITSTOP_FLAT_SCALE:
+		ramp = SLOWMO_EASE
+	var now := Time.get_ticks_msec()
+	var end_ms := now + int(duration * 1000.0)
+	_hitstop_end_ms = maxi(_hitstop_end_ms, end_ms)
+	_stops.append([end_ms, int(duration * ramp * 1000.0), time_scale])
 	Engine.time_scale = minf(Engine.time_scale, time_scale)
+
+
+## Each frame: the slowest live stop sets the time scale; a stop in its ramp
+## eases from its scale up to 1.0; finished stops drop off.
+func _update_hitstop() -> void:
+	var now := Time.get_ticks_msec()
+	var scale := 1.0
+	var i := _stops.size() - 1
+	while i >= 0:
+		var s: Array = _stops[i]
+		var left: int = s[0] - now
+		if left <= 0:
+			_stops.remove_at(i)
+		else:
+			var at: float = s[2]
+			if left < s[1]:
+				at = lerpf(s[2], 1.0, ease(1.0 - float(left) / float(s[1]), HITSTOP_EASE_CURVE))
+			scale = minf(scale, at)
+		i -= 1
+	if Engine.time_scale != scale:
+		Engine.time_scale = scale
 
 
 ## Back to full speed now, cutting any hitstop / slow motion short (a combo
 ## breaker's press ends its slow-motion window).
 func end_slowmo() -> void:
 	_hitstop_end_ms = Time.get_ticks_msec()
+	_stops.clear()
 	Engine.time_scale = 1.0
 
 
