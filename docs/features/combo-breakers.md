@@ -273,7 +273,7 @@ him, and a light shake.
   early); `hit(perfect)` flashes them. `crisp` (the tentacle breakers and any
   comic hero) draws them as flat inked bands with heretic_form_fx's material.
 - `scripts/comic_comet.gd`: the comic dive streak and landing star (`beat()` from
-  `air_gust.comet()`; the comet hangs off the model as the `comic_comet` meta).
+  `player._comet()`; the comet hangs off the model as the `comic_comet` meta).
 - `scripts/breaker_prompt.gd`: the timing prompt. It's a circle affixed to
   the hero, above his left shoulder on screen (`OFFSET` from his chest,
   kept `MARGIN` inside the screen; the combo guide sits on his right), so
