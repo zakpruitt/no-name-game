@@ -28,6 +28,8 @@ const EDGE_OUTLINE := 0.07  # m, dark outline
 ## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
+const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
+const COMIC_FLASH := Color(1.0, 0.97, 0.88)  # a comic hit flash's paper ink
 ## Flat two-tone chip colour off the axes per element (element_hit).
 const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
 	"spirit": Color(0.2, 0.85, 0.78)}
@@ -614,8 +616,15 @@ static func heal(parent: Node, pos: Vector3, amount: float) -> void:
 static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # the dummy renderer has no skeletons to bake from
+	var comic := Game.comic_style
+	if comic and Time.get_ticks_msec() - last_afterimage_ms < int(COMIC_GHOST_STEP * 1000.0):
+		return  # on twos: a dash asks every 0.035 s, which stacked into a solid bar
 	last_afterimage_ms = Time.get_ticks_msec()
-	var mat := unshaded_mat(color)
+	# Comic: a flat inked silhouette, not a see-through copy: one step in his colour, then ink, on twos.
+	var mat := unshaded_mat(Color(Color.from_hsv(color.h, maxf(color.s, 0.6), 0.95), 1.0) if comic else color)
+	if comic:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+		mat.next_pass = ink_material()
 	var ghost := Node3D.new()
 	parent.add_child(ghost)
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
@@ -629,12 +638,20 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 		ghost.add_child(copy)
 		copy.global_transform = mi.global_transform
 	var tw := ghost.create_tween()
-	tw.tween_property(mat, "albedo_color:a", 0.0, time)
+	if comic:
+		tw.tween_interval(COMIC_GHOST_STEP)
+		tw.tween_callback(func() -> void: mat.albedo_color = ComicLook.INK)
+		tw.tween_interval(maxf(time - COMIC_GHOST_STEP, COMIC_GHOST_STEP))
+	else:
+		tw.tween_property(mat, "albedo_color:a", 0.0, time)
 	tw.tween_callback(ghost.queue_free)
 
 
 ## Briefly paint every mesh under `root` white.
 static func flash(root: Node, duration := 0.08) -> void:
+	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
+		flash_tint(root, COMIC_FLASH, duration)  # (a foe: its ink flashes, not a white blob over it)
+		return
 	if _flash_mat == null:
 		_flash_mat = unshaded_mat()
 	_flash_mat.albedo_color = Color(1, 1, 1, 0.3 if Game.reduce_flashing else 0.85)
@@ -656,12 +673,40 @@ static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
 	var mat: StandardMaterial3D = _tint_mats[key]
 	mat.albedo_color = Color(color, 0.3 if Game.reduce_flashing else 0.85)
 	var meshes := root.find_children("*", "MeshInstance3D", true, false)
+	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
+		# Comic: the foe's own ink goes paper, then his colour, for two short steps, round its own tones.
+		# An overlay fill (even a solid one) turned each foe into a flat inkless blob over a zapped crowd.
+		var inks := _own_inks(root)
+		var tone := Color.from_hsv(color.h, maxf(color.s, 0.6), 1.0)
+		for ink: ShaderMaterial in inks:
+			ink.set_shader_parameter("outline_color", COMIC_FLASH)
+		await root.get_tree().create_timer(duration * 0.5, true, false, true).timeout
+		for ink: ShaderMaterial in inks:
+			ink.set_shader_parameter("outline_color", tone)
+		await root.get_tree().create_timer(duration * 0.5, true, false, true).timeout
+		for ink: ShaderMaterial in inks:
+			ink.set_shader_parameter("outline_color", ComicLook.INK)
+		return
 	for mi in meshes:
 		mi.material_overlay = mat
 	await root.get_tree().create_timer(duration, true, false, true).timeout
 	for mi in meshes:
 		if is_instance_valid(mi) and mi.material_overlay == mat:
 			mi.material_overlay = null
+
+
+## The outline materials of `root`'s own (outline_own), not the shared one: what a comic flash recolours.
+static func _own_inks(root: Node) -> Array:
+	var out := []
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for k in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(k)
+			var ink: Material = m.next_pass if m != null else null
+			if ink is ShaderMaterial and ink != _outline_mat and not out.has(ink):
+				out.append(ink)
+	return out
 
 
 ## Drop cached materials so nothing is left alive at exit.
