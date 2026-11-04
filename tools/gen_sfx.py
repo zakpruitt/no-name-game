@@ -123,10 +123,6 @@ def main():
     save("awaken", mix(whoosh(0.9, 9, 0.15), gain(thump(0.9, 50, 30, 0.35), 0.9),
                        gain(chime(0.9, [440, 660, 880], 0.35, 0.06), 0.4)))
     save("spawn", mix(gain(crack(0.5, 10, 0.2, 0.05), 0.8), rattle(0.5, 11, 6)), 0.5)
-    save("wave_clear", chime(0.8, [660, 990], 0.3, 0.12), 0.5)
-    save("pickup", chime(0.18, [1320, 1980], 0.05, 0.03), 0.4)
-    # Synergy unlocked: a bright rising arpeggio over a soft whoosh.
-    save("synergy", mix(chime(1.0, [523, 659, 784, 1047], 0.3, 0.07), gain(whoosh(0.6, 12, 0.5), 0.25)), 0.6)
     # Bone cage: walls grind up out of the floor, then clack shut.
     save("cage_rise", mix(rattle(0.8, 13, 45), gain(whoosh(0.8, 14, 0.08), 0.9),
                           gain(thump(0.8, 55, 40, 0.3), 0.6)), 0.7)
@@ -144,11 +140,9 @@ def main():
     save("cast_wind", mix(whoosh(0.24, 19, 0.85), gain(chime(0.2, [1760], 0.04), 0.15)), 0.4)
     save("cast_earth", mix(thump(0.25, 110, 45, 0.08), gain(crack(0.2, 20, 0.04, 0.2), 0.8), gain(rattle(0.25, 21, 8), 0.4)), 0.45)
     save("cast_water", mix(whoosh(0.25, 22, 0.4), gain(chime(0.25, [2093, 2637, 3136], 0.05, 0.02), 0.35)), 0.4)
-    # Ultimate: a rising sweep into a chord; impact: a deep boom with a long rumble.
+    # Ultimate: a rising sweep into a chord.
     sweep = [math.sin(tone(i / RATE, 180, 900, 0.7)) * env(i / RATE, 0.25, 0.25) for i in range(int(0.7 * RATE))]
     save("ult", mix(gain(sweep, 0.5), whoosh(0.7, 23, 0.3), gain(chime(0.9, [523, 784, 1047], 0.35, 0.05), 0.5)), 0.8)
-    save("ult_impact", mix(thump(0.9, 90, 28, 0.3), gain(crack(0.5, 24, 0.08, 0.35), 0.9),
-                           gain([x * env(i / RATE, 0.01, 0.25) for i, x in enumerate(lowpass(noise(int(0.9 * RATE), 25), 0.04))], 2.5)), 0.95)
     # Combo breakers. War cry: a distorted growl swelling up and breaking off
     # (two detuned saws with a wobble, breath noise, darkened, clipped).
     n = int(0.55 * RATE)
