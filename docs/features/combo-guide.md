@@ -115,7 +115,7 @@ Routing rules in `route()`, checked in order:
 ## Extending
 
 - **New named combo on the existing inputs:**
-  1. Add the move to `MOVES` and `COMBOS` (name, input, tier).
+  1. Add the move to `MOVES` and `COMBOS` (name, input, tier), and its row to `scripts/move_list.gd`.
   2. Add its rule to `route()`, and update `chain_after()` if it affects the light chain.
   3. Nothing in the guide needs to change. Run `tests/guide_check.gd`, and add the new move to its `FROM` list if it can be started directly.
 - **Non-combo move:** give it a name in `MOVE_NAMES`, or the guide shows its raw id.
@@ -141,6 +141,6 @@ Routing rules in `route()`, checked in order:
 - The autotest bot presses buttons with `Input.action_press`, which generates no `InputEvent`, so bot presses never flash rows. `_on_press(kind)` can be called directly if a test needs the flash.
 - `_box` is a single `StyleBoxFlat` reused for every pill. This works because `draw_style_box` issues its draw commands immediately. Don't cache draw commands that depend on it.
 - `combo_options()` treats `State.DASH` as "dashing" so the Dash Stab row shows during the dash itself. `route()` only receives `post_dash`, which is set when the dash ends; any buffered light press resolves then.
-- Pause MOVES list: each named combo shows how often it was landed this run and, under it, the owned powers that hook it ("+ Rebound", `Upgrades.combo_of`).
-- Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Flurry  (L L, pause, L)  ·  5 / 11 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
+- Pause MOVES list: draws `scripts/move_list.gd` `SECTIONS`, every input grouped (basics, combos, air string, combo breakers, Awakened, Ascended), which is also the wiki's "Every input" table. Each named combo shows how often it was landed this run and, under it, the owned powers that hook it ("+ Rebound", `Upgrades.combo_of`). The panel scrolls (wheel, Page Up / Down, right stick). When you add a move, add its row there: `tests/move_list_check.gd` walks every row's input through `route()`, and fails if a move, combo, ultimate or breaker is unlisted or a listed input starts the wrong move.
+- Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Flurry  (L L, pause, L)  ·  5 / 16 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
 - Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint; ultimates are always hinted. Still open in ROADMAP: a feel pass by hand on placement against the fight.

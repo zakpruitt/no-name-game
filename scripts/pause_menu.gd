@@ -4,8 +4,31 @@ extends "res://scripts/menu_screen.gd"
 ## rewards, run summary). A panel on the left lists the run's powers; the
 ## footer shows the room and the run's seed (replay with --seed).
 
+const MOVE_LIST := preload("res://scripts/move_list.gd")
+const MOVES_WIDTH := 500.0
+const MOVES_HEIGHT := 620.0  # the list scrolls past this
+const MOVES_INPUT_WIDTH := 190.0
+const MOVES_PAGE := 300  # px per Page Up / Down
+const MOVES_STICK := 700.0  # px/s at full right stick
+
+var moves_panel: Control
+var moves_scroll: ScrollContainer
+
+
+func _process(delta: float) -> void:
+	if not is_open() or not is_instance_valid(moves_scroll):
+		return
+	var stick := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y)
+	if absf(stick) > 0.25:
+		moves_scroll.scroll_vertical += int(round(stick * MOVES_STICK * delta))
+
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and is_open() and is_instance_valid(moves_scroll):
+		if event.keycode in [KEY_PAGEUP, KEY_PAGEDOWN]:
+			moves_scroll.scroll_vertical += MOVES_PAGE if event.keycode == KEY_PAGEDOWN else -MOVES_PAGE
+			get_viewport().set_input_as_handled()
+			return
 	if not event.is_action_pressed("pause"):
 		return
 	if in_settings():
@@ -185,42 +208,77 @@ func _power_row(list: Control, id: String, level: int, synergies: Array) -> void
 		how.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
-## "MOVES": the fixed move list, basics plus the named combos (player.COMBOS).
-## Combos landed this run show how often; the rest are dimmed, still to find.
+## "MOVES": everything he can press (MOVE_LIST.SECTIONS). Combos landed this run
+## show how often; the rest are dimmed, still to find. Scrolls with the mouse
+## wheel, Page Up / Down or the right stick.
 func _build_moves() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null or _root == null:
 		return
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", _style(Color(0.06, 0.05, 0.1, 0.85), Color(0.4, 0.35, 0.55)))
-	panel.custom_minimum_size = Vector2(380, 0)
-	panel.position = Vector2(1600 - 48 - 380, 120)
+	panel.position = Vector2(1600 - 40 - MOVES_WIDTH, 110)
 	_root.add_child(panel)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 6)
-	panel.add_child(list)
-	_label(list, "MOVES", 30, Color(1.0, 0.7, 0.25))
-	_label(list, "%d / %d combos landed this run" % [player.combos_landed.size(), player.COMBOS.size()], 15,
+	moves_panel = panel
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 8)
+	panel.add_child(outer)
+	_label(outer, "MOVES", 30, Color(1.0, 0.7, 0.25))
+	_label(outer, "%d / %d combos landed this run" % [player.combos_landed.size(), player.COMBOS.size()], 15,
 		Color(1, 1, 1, 0.5))
-	var rows: Array = [["L", "Slice"], ["H", "Spin"], ["Dash", "Dodge"], ["Q", "Awaken"]]
-	for id: String in player.COMBOS:
-		rows.append([player.COMBOS[id].input, player.combo_name(id), player.COMBOS[id].tier, player.combos_landed.get(id, 0), id])
-	for r: Array in rows:
-		var tier: int = r[2] if r.size() > 2 else 0
-		var color: Color = player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95)
-		var times: int = r[3] if r.size() > 3 else -1
-		if times == 0:
-			color.a = 0.5
-		var line := _label(list, "%s   %s%s" % [r[0], r[1], "   ×%d" % times if times > 0 else ""], 19, color)
-		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		# Owned powers that hook this combo (Upgrades.combo_of), in their path colour.
-		if r.size() > 4:
-			for pid: String in player.upgrades:
-				var u := Upgrades.get_by_id(pid)
-				if Upgrades.combo_of(u) == r[4]:
-					var hook := _label(list, "      + %s%s" % [u.name, Upgrades.level_tag(player.upgrades[pid])], 14,
-						Upgrades.color(u).lightened(0.3))
-					hook.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_label(outer, "Scroll: wheel, Page Up / Down or right stick", 13, Color(1, 1, 1, 0.4))
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(MOVES_WIDTH - 16, MOVES_HEIGHT)
+	outer.add_child(scroll)
+	moves_scroll = scroll
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 3)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for section: Dictionary in MOVE_LIST.sections_for(player):
+		_move_header(list, section)
+		for row: Dictionary in section.rows:
+			_move_row(list, row, player)
+
+
+## A section heading in the move list, with its hint in a dim line under it.
+func _move_header(list: Control, section: Dictionary) -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 6)
+	list.add_child(gap)
+	var head := _label(list, section.title, 15, Color(1.0, 0.7, 0.25, 0.85))
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if section.has("hint"):
+		var hint := _label(list, section.hint, 13, Color(1, 1, 1, 0.5))
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
+## One input and its name, plus the owned powers that hook it
+## (Upgrades.combo_of), in their path colour.
+func _move_row(list: Control, row: Dictionary, player: Node) -> void:
+	var tier: int = MOVE_LIST.row_tier(row, player)
+	var color: Color = player.COMBO_TIER_COLORS[tier - 1] if tier > 0 else Color(0.85, 0.8, 0.95)
+	var combo: String = MOVE_LIST.row_combo(row, player)
+	var times: int = player.combos_landed.get(combo, 0)
+	if combo != "" and times == 0:
+		color.a = 0.5
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 8)
+	list.add_child(line)
+	var input := _label(line, row.input, 16, color)
+	input.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	input.custom_minimum_size = Vector2(MOVES_INPUT_WIDTH, 0)
+	var title := _label(line, MOVE_LIST.row_name(row, player) + ("   ×%d" % times if times > 0 else ""), 16, color)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if combo == "":
+		return
+	for pid: String in player.upgrades:
+		var u := Upgrades.get_by_id(pid)
+		if Upgrades.combo_of(u) == combo:
+			var hook := _label(list, "      + %s%s" % [u.name, Upgrades.level_tag(player.upgrades[pid])], 14,
+				Upgrades.color(u).lightened(0.3))
+			hook.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 ## The run map, read-only, over the pause menu (main.show_map()).

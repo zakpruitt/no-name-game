@@ -37,20 +37,21 @@ static func release() -> void:
 ## and fades, with two floor rings under him, and the floor answers in `el`
 ## (pebbles and embers jump, frost blows out, lightning cracks down on him,
 ## wisps rise).
-static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit") -> void:
-	var s := SphereMesh.new()
-	s.radius = 1.0
-	s.height = 2.0
-	s.radial_segments = 16
-	s.rings = 8
-	var shell := ELEMENTS._mi(s, ELEMENTS.glow(Color(c.lerp(Color.WHITE, 0.3), 0.3), 1.2))
-	parent.add_child(shell)
-	shell.global_position = pos
-	shell.scale = Vector3.ONE * 0.4
-	var tw := shell.create_tween().set_parallel()
-	tw.tween_property(shell, "scale", Vector3(4.2, 2.6, 4.2), 0.32).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(shell, "transparency", 1.0, 0.32).set_ease(Tween.EASE_IN)
-	tw.chain().tween_callback(shell.queue_free)
+static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble := true) -> void:
+	if bubble:
+		var s := SphereMesh.new()
+		s.radius = 1.0
+		s.height = 2.0
+		s.radial_segments = 16
+		s.rings = 8
+		var shell := ELEMENTS._mi(s, ELEMENTS.glow(Color(c.lerp(Color.WHITE, 0.3), 0.3), 1.2))
+		parent.add_child(shell)
+		shell.global_position = pos
+		shell.scale = Vector3.ONE * 0.4
+		var tw := shell.create_tween().set_parallel()
+		tw.tween_property(shell, "scale", Vector3(4.2, 2.6, 4.2), 0.32).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw.tween_property(shell, "transparency", 1.0, 0.32).set_ease(Tween.EASE_IN)
+		tw.chain().tween_callback(shell.queue_free)
 	var floor_at := Vector3(pos.x, 0.0, pos.z)
 	Fx.ring(parent, floor_at, Color(c, 0.9), 3.6, 0.3)
 	Fx.ring(parent, floor_at, Color(1.0, 1.0, 1.0, 0.6), 2.2, 0.22)

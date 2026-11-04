@@ -12,6 +12,10 @@ invariants and the gotchas.
 
 | Feature | Doc | Main code |
 |---|---|---|
+| Meshy models into the game: how to generate them, rebuild the rig, bring them in | [meshy-pipeline.md](meshy-pipeline.md) | `tools/meshy_rig/` |
+| The Meshy heretic hero behind `--comic --heretic`: rebuilt rig, tentacle chains, skirt springs | [heretic-hero.md](heretic-hero.md) | `scripts/heretic_rig.gd`, `tools/meshy_rig/` |
+| The void arm: E, weapon shapes, grab, swing, slam (comic hero) | [void-arm.md](void-arm.md) | `scripts/void_grab.gd`, `scripts/void_arm.gd`, `scripts/void_tendril.gd`, `player.void_route()` |
+| Right click on the void arm: the tentacle, the elements and breakers (comic hero) | [void-element.md](void-element.md) | `scripts/void_element.gd`, `player.void_route()` |
 | Combo guide (next-input hints beside the hero) | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `player.route()` |
 | Powers: paths, masteries, fusions, icons | [powers.md](powers.md) | `scripts/upgrades.gd`, `scripts/power_icon.gd`, `reward_screen.gd` |
 | Run map, vaults and trials | [run-map.md](run-map.md) | `scripts/run_map.gd`, `scripts/map_screen.gd`, `main._choose_path()` |
@@ -19,6 +23,7 @@ invariants and the gotchas.
 | Spirit casts (giant spectral axes / ancestor per move) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_*.gd`, `player._cast()`, `elements.CASTS` |
 | Combo breakers (timed aerial finishers) and strings that move (hops, weave, air string, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `player.BREAKERS`, `player._state_leap()`, `player._hop()`, `scripts/breaker_spike.gd`, `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd` |
 | Ascended heavies: lava wells / static charge / soak, set off by the next heavy | [element-rites.md](element-rites.md) | `scripts/element_rite.gd`, `player._rite_set_off()`, `player._rite_wells()` |
+| Comic art style behind `Game.comic_style` (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 
 ## Writing one
 

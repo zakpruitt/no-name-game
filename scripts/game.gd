@@ -94,6 +94,15 @@ var rumble_on := true
 var reduce_flashing := false
 ## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
 var combo_guide := true
+## Comic-book art style, see docs/features/comic-style.md. Read this one; it only
+## changes between runs (sync_comic). On with --comic (never saved) or the setting.
+var comic_style := false
+var comic_setting := false
+var _comic_cli := false
+## --comic-moves only: the comic hero's moves play his Ab_ clips (ComicLook.HERO_MOVES).
+var comic_moves := false
+## --heretic, with --comic: plays the Meshy hero (assets/comic/heretic.glb) instead. Never saved.
+var heretic := false
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## Multiplier on Awakening gained (Overflow upgrade).
@@ -120,6 +129,10 @@ func _ready() -> void:
 	enemy_killed.connect(func(e: Node) -> void: add_xp(e.bones))
 	_setup_input()
 	_load_settings()
+	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
+	comic_moves = not ("--no-comic-moves" in OS.get_cmdline_user_args() or "--no-comic-moves" in OS.get_cmdline_args())
+	heretic = "--heretic" in OS.get_cmdline_user_args() or "--heretic" in OS.get_cmdline_args()
+	sync_comic()
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -343,6 +356,26 @@ func guide_label() -> String:
 	return "Combo guide: %s" % ("On" if combo_guide else "Off")
 
 
+func toggle_comic() -> void:
+	comic_setting = not comic_setting
+	_save_settings()
+
+
+func comic_label() -> String:
+	return "Comic style (next run): %s" % ("On" if comic_setting else "Off")
+
+
+## Called as a run's scene loads, so one run never mixes the two looks.
+func sync_comic() -> void:
+	var on := _comic_cli or comic_setting
+	if on == comic_style:
+		return
+	comic_style = on
+	Fx.release()  # the outline's ink width and the cached copies follow the flag
+	if not on:
+		ComicLook.restore_shadows()
+
+
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -362,6 +395,7 @@ func _load_settings() -> void:
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
+		comic_setting = cfg.get_value("video", "comic_style", false)
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -372,6 +406,8 @@ func _save_settings() -> void:
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("video", "combo_guide", combo_guide)
+	if comic_setting:  # flag off leaves settings.cfg exactly as it was
+		cfg.set_value("video", "comic_style", true)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 
@@ -455,6 +491,7 @@ func _setup_input() -> void:
 	_bind("attack_heavy", [KEY_K], [MOUSE_BUTTON_RIGHT], [JOY_BUTTON_Y])
 	_bind("dash", [KEY_SPACE, KEY_SHIFT], [], [JOY_BUTTON_A])
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
+	_bind("traverse", [KEY_R], [], [JOY_BUTTON_LEFT_SHOULDER])
 	_bind("restart", [KEY_ENTER], [], [])
 	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
 

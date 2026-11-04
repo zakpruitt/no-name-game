@@ -34,7 +34,7 @@ const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
 const SHRINE_MENU := preload("res://scripts/shrine.gd")
 const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
-const DUNGEON := "res://assets/kaykit/dungeon/%s.glb"
+const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
 const ENEMY_TYPES := {
@@ -279,7 +279,8 @@ var _quitting := false
 # fights back; powers, Awakening and the Ascendancy are free from the pause menu.
 static var _train_next := false  # "Restart training" reloads straight into it
 var training := false
-var _dummy: Node
+var _dummy: Node  # the first of _dummies
+var _dummies := []
 var _string := Vector2.ZERO  # this string's damage, hits on the dummy
 var _last_string := Vector2.ZERO
 var _best_string := 0.0
@@ -289,6 +290,7 @@ var _hits := 0
 
 func _ready() -> void:
 	Game.reset()
+	Game.sync_comic()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	# One seed drives the global RNG (arena dressing, combat effects) and
 	# run_rng (doors, twists, spawn order, reward offers), which nothing else
@@ -312,6 +314,8 @@ func _ready() -> void:
 	_build_arena()
 	for spec in ENEMY_TYPES.values() + [BOSS_SPEC]:
 		_model(spec.model)
+	for kind in ENEMY_TYPES.keys() + ["warden"]:
+		ComicLook.scene(kind)
 
 	player = PLAYER.new()
 	add_child(player)
@@ -324,6 +328,8 @@ func _ready() -> void:
 
 	hud = HUD.new()
 	add_child(hud)
+	if Game.comic_style:
+		add_child(ComicFx.new())
 	_apply_altar()
 	hud.bind_player(player)
 
@@ -471,14 +477,17 @@ func _start_training() -> void:
 	hud.wave_label.text = "TRAINING"
 	hud.flash_message("TRAINING
 Esc: powers, Awakening, Ascendancy", 2.0)
-	_dummy = DUMMY.new()
-	_dummy.model_scene = _model("Skeleton_Warrior")
-	_dummy.set_meta("kind", "dummy")
-	_dummy.set_meta("title", "training dummy")
-	add_child(_dummy)
-	_dummy.home = player.global_position + Vector3(0.0, 0.0, -4.5)
-	_dummy.global_position = _dummy.home
-	_dummy.hit_taken.connect(_train_hit)
+	for spot: Vector3 in DUMMY_SPOTS:
+		var dummy: Node = DUMMY.new()
+		dummy.model_scene = _model("Skeleton_Warrior")
+		dummy.set_meta("kind", "dummy")
+		dummy.set_meta("title", "training dummy")
+		add_child(dummy)
+		dummy.home = player.global_position + spot
+		dummy.global_position = dummy.home
+		dummy.hit_taken.connect(_train_hit)
+		_dummies.append(dummy)
+	_dummy = _dummies[0]
 	Game.combo_changed.connect(_train_combo)
 	_train_text()
 
@@ -508,7 +517,7 @@ func _train_text() -> void:
 		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
 	if _best_string > 0.0:
 		parts.append("BEST  %d" % _best_string)
-	hud.set_trial("      ".join(parts) if not parts.is_empty() else "Hit the dummy: each string's damage shows here")
+	hud.set_trial("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here")
 
 
 func _hits_text(n: float) -> String:
@@ -926,7 +935,7 @@ static func _twist_text(ids: Array, field: String, sep: String) -> String:
 func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	var e := ENEMY.new()
 	var spec: Dictionary = ENEMY_TYPES[kind]
-	e.model_scene = _model(spec.model)
+	_set_model(e, kind, spec.model)
 	for key in spec:
 		if key not in ["model", "title"]:
 			e.set(key, spec[key])
@@ -991,10 +1000,17 @@ func _model(model_name: String) -> PackedScene:
 	return _models[model_name]
 
 
+## The comic GLB when Game.comic_style is on and it exists, else the KayKit model.
+func _set_model(e: Node, kind: String, kaykit: String) -> void:
+	var comic := ComicLook.scene(kind)
+	e.model_scene = comic if comic != null else _model(kaykit)
+	e.comic_kind = kind if comic != null else ""
+
+
 func _spawn_boss() -> void:
 	hud.flash_message("THE BONE WARDEN", 1.6)
 	var b := BOSS.new()
-	b.model_scene = _model(BOSS_SPEC.model)
+	_set_model(b, "warden", BOSS_SPEC.model)
 	for key in BOSS_SPEC:
 		if key != "model":
 			b.set(key, BOSS_SPEC[key])
@@ -1229,6 +1245,9 @@ func _end_run(victory: bool) -> void:
 # --- World ------------------------------------------------------------------
 
 func _build_environment() -> void:
+	if Game.comic_style:
+		ComicLook.build_environment(self)
+		return
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.05, 0.05, 0.09)
@@ -1288,6 +1307,8 @@ func _build_arena() -> void:
 	# Torches on the back wall, with real light.
 	for x in [-10.0, -2.0, 6.0]:
 		_place("torch_mounted", Vector3(x, 2.4, -ARENA_HALF + 0.5))
+		if Game.comic_style:
+			continue  # glow is drawn, not lit: the toon shader would only step its brightness
 		var l := OmniLight3D.new()
 		l.light_color = Color(1.0, 0.6, 0.3)
 		l.light_energy = 2.0
@@ -1306,8 +1327,7 @@ func _build_arena() -> void:
 
 
 func _place(piece: String, pos: Vector3, yaw_deg := 0.0) -> Node3D:
-	var scene: PackedScene = load(DUNGEON % piece)
-	var n: Node3D = scene.instantiate()
+	var n: Node3D = ComicLook.piece(piece)
 	n.position = pos
 	n.rotation_degrees.y = yaw_deg
 	add_child(n)
@@ -1356,6 +1376,7 @@ func _apply_layout(index: int) -> void:
 	_traps.clear()
 	for p: Vector3 in layout.pillars:
 		var pillar := _place("pillar_decorated", p)
+		pillar.add_to_group("grab_anchors")  # the void arm swings on them (void_grab.gd)
 		_cyl_collider(pillar, 0.75, 4.0)
 		_occluders.append(pillar)
 		if first:

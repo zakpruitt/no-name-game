@@ -21,6 +21,9 @@ func _initialize() -> void:
 	_check(main.training and main.room_kind == "training", "boots into training")
 	var dummy: Node = main._dummy
 	_check(is_instance_valid(dummy) and dummy.is_alive(), "the dummy stands")
+	_check(main._dummies.size() == main.DUMMY_SPOTS.size(), "a few of them (%d)" % main._dummies.size())
+	for d: Node in main._dummies:
+		_check(is_instance_valid(d) and d.is_alive() and d.global_position.distance_to(d.home) < 0.8, "each stands on its spot, clear of the walls")
 	# Far more damage than its HP, in one go and spread over hits: it lives.
 	for i in 6:
 		dummy.take_hit(400.0, Vector3(0, 0, -2), 0.0, true)

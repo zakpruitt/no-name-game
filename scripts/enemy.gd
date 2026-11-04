@@ -13,6 +13,9 @@ const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"
 const PROJECTILE := preload("res://scripts/projectile.gd")
 
 @export var model_scene: PackedScene
+## ComicLook model name when model_scene is a comic GLB ("" = KayKit, nothing changes).
+var comic_kind := ""
+var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (_hold_clip)
 @export var max_hp := 30.0
 @export var move_speed := 3.6
 @export var attack_range := 1.9
@@ -102,6 +105,7 @@ static var blasts := 0
 var radius := 0.55
 var hp := 0.0
 var last_hit_ms := -100000  # when damage last landed (health bar, enemy_bars.gd)
+var _quiet_hit := false  # inside burn_hit
 var state := State.SPAWN
 var model: Node3D
 var anim: AnimationPlayer
@@ -129,6 +133,7 @@ var _squash_tween: Tween
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
 var _guard_broken_t := 0.0
+var _shield_node: Node3D
 var _aim_dir := Vector3.FORWARD
 var _aim_line: Node3D
 
@@ -156,15 +161,18 @@ func _ready() -> void:
 	model.scale = Vector3.ONE * model_scale
 	radius *= model_scale
 	add_child(model)
-	if shield:
+	if comic_kind != "":
+		ComicLook.fit(model, comic_kind)
+		ComicLook.apply(model, comic_kind)
+	if shield and comic_kind == "":
 		_attach_shield()
-	if body_tint != Color.WHITE:
+	if body_tint != Color.WHITE and comic_kind == "":
 		_tint_body()
-	if cloth_color.a > 0.0:
+	if cloth_color.a > 0.0 and comic_kind == "":
 		_tint_cloth()
 	if attack_kind == "bomb":
 		_attach_bomb()
-	if attack_kind == "line":
+	if attack_kind == "line" and comic_kind == "":
 		var bow: Node3D = CROSSBOW_SCENE.instantiate()
 		bow.rotation_degrees.y = 90.0  # point down the aim
 		_attach_to_hand("handslot.r", bow)
@@ -482,6 +490,9 @@ func _thaw(shattered: bool) -> void:
 	frozen_t = 0.0
 	if _ice:
 		_ice.visible = false
+	var cube := get_node_or_null("ThrownCube")  # (thrown_foe.cube_on)
+	if cube != null:
+		cube.queue_free()
 	if shattered:
 		Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
 		Game.register_hit("shatter_ice")
@@ -518,6 +529,16 @@ func _on_player_attack(_move_id: String) -> void:
 	Fx.dust(get_parent(), global_position, 6)
 
 
+## Damage and its number with no sparks, word or flash, for an effect that draws its own: ticks several times
+## a second on a whole crowd would bury whatever's holding them. `big` is one solid blow, which does flash.
+func burn_hit(damage: float, big := false) -> void:
+	_quiet_hit = true
+	take_hit(damage, Vector3.ZERO, 0.0, big)
+	_quiet_hit = false
+	if big and is_instance_valid(model):
+		Fx.flash(model)
+
+
 func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> void:
 	if state == State.DEAD or state == State.SPAWN or state == State.DODGE:
 		return
@@ -529,13 +550,16 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	hp -= damage
 	last_hit_ms = Time.get_ticks_msec()
 	Fx.damage_number(get_parent(), global_position, damage, big)
-	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
-	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
+	if not _quiet_hit:
+		Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
+		Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
+		ComicFx.hit(global_position, big)
 	var hero := get_tree().get_first_node_in_group("player")
-	if hero != null and hero.has_method("_fx_color"):  # long strings escalate the sparks
+	if hero != null and hero.has_method("_fx_color") and not _quiet_hit:  # long strings escalate the sparks
 		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
 			knockback.normalized() + Vector3.UP * 0.5)
-	Fx.flash(model)
+	if not _quiet_hit:
+		Fx.flash(model)
 	_telegraph.visible = false
 	_freeze_t = hit_freeze_big if big else hit_freeze
 	if hp <= 0.0:
@@ -583,6 +607,8 @@ func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
 		Game.announced.emit("GUARD BREAK")
 		return false
 	blocks += 1
+	if comic_kind != "":
+		_hold_clip("Block_Hit", 0.05)
 	Fx.hit_spark(get_parent(), shield_pos, Color(0.7, 0.85, 1.0), 0.8)
 	Game.sfx("hit", -6.0, 0.3)
 	Game.hitstop(0.03)
@@ -596,6 +622,18 @@ func _attach_shield() -> void:
 	var s: Node3D = SHIELD_SCENE.instantiate()
 	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
 	_attach_to_hand("handslot.l", s)
+	_shield_node = s
+
+
+## Torn off for good. True if there was one.
+func rip_shield() -> bool:
+	if not shield:
+		return false
+	shield = false
+	if is_instance_valid(_shield_node):
+		_shield_node.visible = false
+	Game.announced.emit("GUARD BREAK")
+	return true
 
 
 func _tint_body() -> void:
@@ -628,6 +666,9 @@ func _attach_to_hand(bone: String, item: Node3D) -> void:
 
 
 func _attach_bomb() -> void:
+	if comic_kind != "":
+		_attach_comic_spark()
+		return
 	var bomb := MeshInstance3D.new()
 	var ball := SphereMesh.new()
 	ball.radius = 0.36
@@ -652,7 +693,24 @@ func _attach_bomb() -> void:
 	_attach_to_hand("handslot.r", bomb)
 
 
+## The comic bomber carries its own bomb; only the fuse's spark is live.
+func _attach_comic_spark() -> void:
+	_spark = MeshInstance3D.new()
+	var tip := SphereMesh.new()
+	tip.radius = 0.08
+	tip.height = 0.16
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = BOMB_COLOR
+	tip.material = glow
+	_spark.mesh = tip
+	_spark.scale = Vector3.ONE * 0.6
+	_attach_to_hand("spark", _spark)
+
+
 func _light_fuse() -> void:
+	if comic_kind != "":
+		_hold_clip("Bomb_Windup", 0.1, anim.get_animation("Bomb_Windup").length / attack_windup)
 	_fuse = attack_windup
 	_spark.visible = true
 	_telegraph.visible = true
@@ -763,6 +821,12 @@ func _set_state(s: State) -> void:
 
 
 func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> void:
+	if comic_kind != "":
+		if anim_name in [run_anim, "Idle_Combat"] and Time.get_ticks_msec() < _clip_hold_ms:
+			return
+		anim_name = ComicLook.clip(anim, comic_kind, anim_name)
+		if anim_name == "":
+			return  # the clip already playing covers this beat
 	if anim.current_animation == anim_name and not restart:
 		return
 	anim.play(anim_name, blend, 1.0)
@@ -770,6 +834,20 @@ func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> 
 		anim.seek(0.0, true)
 	if _frozen_speed >= 0.0:
 		_frozen_speed = speed  # applied when the hit freeze ends
+	else:
+		anim.speed_scale = speed
+
+
+## Comic clips the state machine would otherwise replace next frame with run/idle.
+func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
+	_play(anim_name, blend, speed, true)
+	_clip_hold_ms = Time.get_ticks_msec() + int(anim.get_animation(anim_name).length / speed * 1000.0)
+
+
+## Speed of the clip already playing, respecting a running hit freeze.
+func _clip_speed(speed: float) -> void:
+	if _frozen_speed >= 0.0:
+		_frozen_speed = speed
 	else:
 		anim.speed_scale = speed
 

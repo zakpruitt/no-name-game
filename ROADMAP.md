@@ -237,3 +237,20 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Wiki on GitHub Pages: https://zakpruitt.github.io/no-name-game/ (a workflow deploys `docs/wiki/` on every push to dev that touches it)
 - [ ] Hand play-test: breaker windows and dive speeds, the timing circle's spacing (`breaker_prompt.OFFSET`), the air dash / homing / height cap, Flurry's afterimages (windowed only)
 - [ ] The autotest bot rarely uses L H H or the air string (bot routes live in `main.gd`), so they're covered only by the PASS/FAIL tests
+
+## Round 26 (comic art style)
+- [x] Comic style behind `--comic` (default off, `docs/features/comic-style.md`): cut-tone toon and flat emit shaders, thick ink, hard indigo lighting, comic hero, all 9 enemy types and 25 dungeon pieces, each falling back to KayKit if missing
+- [x] Comic words on hits by combo tier, in Bangers (OFL). The panel cut-in was built and removed after a play-test: its black bars got in the way
+- [x] `--comic-moves`: the hero's hand-keyed `Ab_` clips, retimed from `MOVES`
+- [x] Blender sources kept in `tools/comic_art/`
+- [x] First play-test fixes: floor stones facing down (checker pattern), hero buried in ink (hull 5.5 -> 2 px, pushed back, inner ink halved, no self-shadow), walls solid black (fill raised)
+- [x] Second play-test: mouse aim with limited turning through combos, four-direction run in place of the retargeted crab walk, softer lines and shadow texture
+- [x] Natural carries: hand-keyed idle, guard, fidgets, charge, hit, dash and jump, runs without the hero-pose arms; the element on both axes
+- [x] Both axes huge and dragged on the floor, each leaving a fading mark in the element
+- [ ] Confirm those fixes on screen and run `tests/comic_shots.gd` (windowed): the fixes are checked on the meshes, not yet seen rendered. Fix what it shows before landing
+- [ ] Hand play-test under `--comic`: the moves felt good on first play. With `--comic-moves`, still judge Spike, Charged Slam and Cataclysm hit 2-3x later, so judge the feel
+- [ ] Cut the hero from 67k tris to 20-30k, rescale him (2.45 m against KayKit's 2.18 m), measure dash afterimage cost
+- [ ] Restore under the flag: Awakened eyes, element axe coats, Ascendancy gear placement; port spirit casts off the KayKit models
+- [ ] Port the Blender comic effects (bursts, ghost axes, smears) into the game's casts
+- [ ] Foot skate at game speeds on warrior, rogue and maybe bomber; watch the generic `Hit_B` and `Lie_StandUp` on minion, shield, bomber, necromancer
+- [ ] Comic pass on HUD, menus and power icons

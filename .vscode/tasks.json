@@ -55,7 +55,7 @@
 			"type": "pickString",
 			"description": "Which check",
 			"options": ["rite_check", "breaker_check", "hop_check", "ult_check", "ascend_check", "guide_check",
-				"power_check", "map_check", "training_check", "prompt_follow_check"]
+				"power_check", "map_check", "training_check", "prompt_follow_check", "move_list_check"]
 		}
 	]
 }

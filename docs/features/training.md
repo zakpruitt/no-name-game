@@ -2,7 +2,7 @@
 
 ## What it does
 
-**Training** on the title screen opens a single room with a training dummy, for practising combos, breakers and ultimates without a run. The dummy never fights back and can't die. It takes hits, staggers, launches and juggles like any skeleton, then walks back to its spot and refills its HP once left alone.
+**Training** on the title screen opens a single room with a few training dummies (`main.DUMMY_SPOTS`), for practising combos, breakers and ultimates without a run. Dummies never fight back and can't die. Hits on any of them add to the same string. It takes hits, staggers, launches and juggles like any skeleton, then walks back to its spot and refills its HP once left alone.
 
 Under the room title, the HUD shows the current string's damage and hits, the last string's, and the best string so far. A string ends when the combo drops.
 

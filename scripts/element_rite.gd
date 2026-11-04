@@ -236,11 +236,11 @@ static func _lava_mat(inner: bool) -> ShaderMaterial:
 
 ## A lava geyser at `pos`: a molten column punching up, lava raining back
 ## down, magma spikes round its foot.
-static func geyser(parent: Node, pos: Vector3, radius: float) -> void:
+## `h`: how tall. `hot`: the glowing core, which blows out white when several go up together.
+static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, hot_core := true) -> void:
 	var root := Node3D.new()
 	parent.add_child(root)
 	root.global_position = _flat(pos)
-	var h := 5.5
 	var col := ELEMENTS._mi(ELEMENTS.funnel(radius * 0.75, radius * 0.45, h), _lava_mat(false))
 	col.position.y = h * 0.5
 	root.add_child(col)
@@ -248,9 +248,10 @@ static func geyser(parent: Node, pos: Vector3, radius: float) -> void:
 	core.top_radius = radius * 0.22
 	core.bottom_radius = radius * 0.3
 	core.height = h * 1.05
-	var hot := ELEMENTS._mi(core, ELEMENTS.glow(LAVA_HOT, 2.6))
-	hot.position.y = h * 0.52
-	root.add_child(hot)
+	if hot_core:
+		var hot := ELEMENTS._mi(core, ELEMENTS.glow(LAVA_HOT, 2.6))
+		hot.position.y = h * 0.52
+		root.add_child(hot)
 	root.scale = Vector3(0.5, 0.05, 0.5)
 	var tw := root.create_tween().set_parallel()
 	tw.tween_property(root, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)

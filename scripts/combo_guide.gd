@@ -255,7 +255,7 @@ func _glyph(c: Vector2, kind: String, h: float, alpha: float) -> void:
 	var size := int(KEY_SIZE * h / GLYPH_H)
 	var w := maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + h * 0.6)
 	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
-	var kc: Color = Upgrades.PATHS[kind].color  # the same colour as that path's powers
+	var kc: Color = Upgrades.PATHS[kind].color if Upgrades.PATHS.has(kind) else ComicLook.VOID_COLOR  # the colour of that path's powers
 	_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, alpha))
