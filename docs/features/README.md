@@ -25,6 +25,7 @@ invariants and the gotchas.
 | Ascended heavies: lava wells / static charge / soak, set off by the next heavy | [element-rites.md](element-rites.md) | `scripts/element_rite.gd`, `player._rite_set_off()`, `player._rite_wells()` |
 | Comic art style behind `Game.comic_style` (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |
+| Enemy hit reactions (squash, lean, tinted flash, juggle hang/tumble/bounce/skid, crowd wave) | [enemy-hit-reactions.md](enemy-hit-reactions.md) | `enemy._hit_reaction()`, `enemy._gravity()`, `enemy._land_from_air()`, `Fx.flash_tint()` |
 
 ## Writing one
 

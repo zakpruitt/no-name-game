@@ -1,0 +1,119 @@
+# Enemy hit reactions
+
+Added in Round 27 (combat feel loop). Hero-agnostic: everything here is on the
+enemy's side of a hit and reads only the hero's `_fx_color()`.
+
+## What it does
+
+Every landed hit on a skeleton shows from its side: it snaps into a squash
+that fits the hit (a tap, a big hit, a launch, a hit while juggled, a kill),
+tips over along the knockback and springs back upright, and flashes in the
+hero's current colour (element, or the Ascendancy when Awakened). A kill holds
+the corpse's last pose a beat longer before it flies.
+
+Launched foes hang at the top of their arc, tumble over backwards along the
+blow, bounce once off the floor when they come down hard, skate on along the
+launch and slide to a stop in a puff of dust before getting up.
+
+When one swing hits a crowd, the foes react one after another a few
+milliseconds apart (a wave sweeping across them), not all on the same frame.
+
+## Files
+
+- `scripts/enemy.gd`:
+  - `take_hit` calls `_hit_reaction(damage, knockback, launch, big)` **once**,
+    right after the `Fx.hit_spark` / `Fx.impact` / `chain_spark` block. That
+    function is the only place a hit's visual reaction lives (freeze, flash,
+    squash, lean, wave delay), so a quiet hit (damage-over-time ticks on a
+    crowd) can skip the whole block in one `if`.
+  - `_reaction_kind()` picks the `SQUASH` key: `kill` (hp already down),
+    `juggle` (hit while `AIRBORNE`), `launch`, `none` (poise held mid-windup:
+    still flashes, no squash or lean), `big`, `tap`.
+  - `_react()` does the flash (`Fx.flash_tint`), the squash and the lean, or a
+    `_kick_tumble` for launches. `_wave_slot()` counts hits per physics frame;
+    `_hit_reaction` delays `_react` by `slot * WAVE_STEP` on a tween and
+    extends `_freeze_t` by the same, so the knockback starts late too.
+  - `_lean()` tips `model.rotation.x/z` (the top goes with the blow, in the
+    model's local frame), holds, eases back. `_face` keeps owning `rotation.y`.
+  - `_gravity()` is the airborne gravity profile (`HANG_GRAVITY` near the
+    apex); `launch_speed_for(height)` is its inverse (static).
+  - `_tumble()` spins the model while `AIRBORNE`; `_land_from_air()` bounces
+    or flops it flat and rights it; `_skid()` is the knockdown slide (`HURT`
+    with `_state_t < 0`).
+  - `last_squash` is the last `_squash()` amount, for the tests.
+- `scripts/fx.gd`: `flash_tint(root, color, duration)`: `flash()` in a colour,
+  one shared overlay material per colour (`_tint_mats`, cleared in `release`).
+- `scripts/training_dummy.gd`: caps its rise with `launch_speed_for` so the cap
+  stays exact under the hang profile.
+- `scripts/boss.gd` overrides `take_hit` without calling super and keeps its
+  own plain `Fx.flash`: the Warden does not lean, squash per kind or tumble.
+
+## How it works
+
+1. `take_hit` applies damage, spawns the hit sparks, then `_hit_reaction`.
+2. `_hit_reaction` sets `_freeze_t` (the per-enemy pose hold; `KILL_FREEZE`
+   on a kill, else `hit_freeze` / `hit_freeze_big`) plus the wave delay, and
+   runs `_react` now (slot 0) or after the delay.
+3. The rest of `take_hit` sets the state and velocity as before (`AIRBORNE`
+   with the launch, `HURT` with the knockback). The freeze holds everything
+   in `_physics_process` until it runs out, so a delayed foe's knockback also
+   starts `WAVE_STEP` later than its neighbour's.
+4. In the air, `_gravity()` drops to `HANG_GRAVITY` of `AIR_GRAVITY` while
+   `|velocity.y| < HANG_SPEED`; `_tumble` turns the model at `_tumble_v`,
+   slowing by `TUMBLE_DRAG`. `_fall_vy` remembers the last in-air vertical
+   speed, because the landing frame has already zeroed `velocity.y`.
+5. On touchdown (`is_on_floor()` after 0.15 s up): a fall of at least
+   `BOUNCE_MIN_FALL` and no bounce yet → `velocity.y = fall * BOUNCE_KEEP`,
+   horizontal speed `fall * LAND_SLIDE` along the launch direction
+   (`_air_dir`), and it stays `AIRBORNE`. Otherwise `Lie_StandUp`, dust,
+   `SQUASH.land`, the tumble is tweened to the nearest full turn and zeroed,
+   and `HURT` starts at `_state_t = -0.35` (lying there), during which
+   `_skid` applies `SKID_FRICTION` and puffs dust every `SKID_DUST_EVERY` s
+   while faster than `SKID_MIN_SPEED`.
+
+## Invariants
+
+- One call to `_hit_reaction` per landed hit, beside the hit sparks. New
+  reactions go inside it (or `_react`), never loose in `take_hit`.
+- The lean and tumble touch only `model.rotation.x` and `.z`; yaw stays with
+  `_face`. Both end at exactly 0 (the tumble settles to a multiple of TAU then
+  snaps to 0), so nothing is left tilted when the state machine moves on.
+- `_squash` restores `Vector3.ONE * model_scale`; split minions that change
+  `model_scale` after spawning rely on that.
+- `launch_speed_for` must stay the exact inverse of `_gravity()`'s profile
+  (the training dummy's `MAX_HEIGHT` cap, `training_check`, depends on it).
+- The wave delay rides on a tween, so it waits out hitstop like the squash.
+
+## Tuning (top of `enemy.gd`)
+
+- `SQUASH` per kind, `LEAN` / `LEAN_BIG` (rad), `LEAN_HOLD`, `LEAN_TIME`.
+- `FLASH_TAP` / `FLASH_BIG` (s), `FLASH_TINT` (0 = white, 1 = the hero's colour).
+- `KILL_FREEZE`, `WAVE_STEP`, `WAVE_MAX`.
+- `AIR_GRAVITY`, `GROUND_GRAVITY`, `HANG_SPEED`, `HANG_GRAVITY`: a 9 m/s
+  launch spends 34 frames within 0.3 m of its apex (25 under plain gravity)
+  and peaks at 2.91 m.
+- `TUMBLE_SPEED` / `TUMBLE_BIG` / `TUMBLE_DRAG` / `TUMBLE_SETTLE`: a big
+  launch turns about 5.2 rad over its flight.
+- `BOUNCE_MIN_FALL`, `BOUNCE_KEEP` (a 9 m/s launch bounces 0.48 m),
+  `LAND_SLIDE`, `AIR_DRAG`, `SKID_FRICTION`, `SKID_DUST_EVERY`, `SKID_MIN_SPEED`.
+
+## Testing
+
+- `godot --headless --path . -s tests/enemy_feel_check.gd`: PASS/FAIL on real
+  minions in the arena: squash per kind, lean direction and size, flash on,
+  poise held, kill hold; the juggle's apex against `launch_speed_for`, hang
+  frames, tumble, bounce, flat landing, skid, righting; four foes hit in one
+  frame react `WAVE_STEP` apart. Prints the measured juggle and wave numbers.
+- `godot --path . -s tests/enemy_feel_preview.gd` (windowed): a tap, a big
+  hit, a launch near its apex and a knockdown in a row → `user://enemy_feel.png`.
+- `tests/training_check.gd` still caps the dummy at `MAX_HEIGHT`.
+
+## Gotchas
+
+- The flash overlay replaces `material_overlay`; `set_glow` rims are put back
+  by `_physics_process` once the overlay clears, as before.
+- The elastic squash and the lean run on idle-frame tweens, so a headless test
+  sampling `model.scale` one frame later sees the spring mid-flight: assert
+  `last_squash` instead.
+- The wave tween starts on the next idle frame, so the first step lands a
+  frame or two late headless; the check allows ±2 frames.

@@ -265,6 +265,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] spirit casts: `spirit_echo.strike()` replaces the six copies of hit / register / debris / hook and `fade_ghosts()` the four per-cast fades; `cast_dump` for all eight kinds unchanged on every cast triangle
 - [x] projectile halo on the shared material, typed loops in weapon_trail / air_gust
 - [x] `docs/cleanup-audit.md`: every script, test, tool and feature doc classified KEEP / TANGLED / DROP / OLD HERO against the heretic hero + training target, the seams in player / main / game / hud / elements / element_rite / ascendancy, and a 10-step ordered deletion plan (about 9 000 of 20 700 script lines) with two open questions (Awakening, Ascendancy). No deletions
+- [x] Enemy hit reactions in one place (`enemy._hit_reaction`, docs/features/enemy-hit-reactions.md): squash per hit kind (`SQUASH` tap 0.87 / big 0.70 / launch 1.45 / juggle 0.84 / kill 0.60), a lean along the knockback (0.2 rad, 0.42 on big hits, held through the freeze), the flash in the hero's colour (`Fx.flash_tint`), and a kill holds the corpse 0.14 s. `tests/enemy_feel_check.gd`
+- [x] Juggle feel: gravity drops to 55% while |vy| < 2 m/s so a 9 m/s launch spends 34 frames within 0.3 m of its apex (25 before), the foe tumbles over backwards (~5 rad on a big launch), bounces once off the floor (0.48 m) and skates on, then slides out in dust (1.8 m/s skid) before getting up; `launch_speed_for()` keeps the training dummy's 3 m cap exact
+- [x] Crowd hits read as a wave: of the foes hit in one physics frame, each after the first reacts `WAVE_STEP` (35 ms) later (freeze, flash, squash and knockback start), up to 6 steps
+- [x] Windowed look at the reactions: `tests/enemy_feel_preview.gd` → `user://enemy_feel.png`
 
 ## Round 28 (strip to the heretic)
 Zak: "reduce the game to JUST the heretic combat system for now. Remove the roguelike layer, keep the training ground." Decisions made while he was away, each open to veto:

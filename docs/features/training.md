@@ -18,7 +18,7 @@ The usual Settings and quit options and the build and moves panels are also ther
 
 - `scripts/training_dummy.gd`: extends `enemy.gd`.
   - `_state_chase` never winds up an attack; it faces the hero, or walks back to `home` when knocked away.
-  - `take_hit` tops up HP before a hit that could kill it and emits `hit_taken(damage)`. It is also heavier in the air than a skeleton: launches lift it `LAUNCH_SCALE` (0.55) as high, and its upward speed is capped so it never rises past `MAX_HEIGHT` (3 m). Otherwise every hit of a long string (casts, wheels, element set-offs) resets its rise and juggles it out of reach.
+  - `take_hit` tops up HP before a hit that could kill it and emits `hit_taken(damage)`. It is also heavier in the air than a skeleton: launches lift it `LAUNCH_SCALE` (0.55) as high, and its upward speed is capped (`enemy.launch_speed_for`, the inverse of the airborne gravity profile with its apex hang) so it never rises past `MAX_HEIGHT` (3 m). Otherwise every hit of a long string (casts, wheels, element set-offs) resets its rise and juggles it out of reach.
   - `_physics_process` refills HP after `REFILL_DELAY`.
 - `scripts/main.gd`, "Training" section:
   - `training` and the static `_train_next`;
