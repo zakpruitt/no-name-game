@@ -163,7 +163,55 @@ func _bag() -> void:
 	_check(wobble > 0.15, "the shake-off rocks it side to side (%.2f rad)" % wobble)
 	print("[enemy_feel] bag: tap tips %.2f rad, swings %.2f back, still after %d frames; knockdown boing %.2f rad; shake-off %.2f rad" \
 		% [tip.length(), back, settled, boing, wobble])
+	await _bag_round3(d, settled)
+	await create_timer(1.0).timeout  # freeing it mid hit-flash floods "Parameter material is null" (agents.md)
 	d.queue_free()
+
+
+## Round 3: the knobs and their flags, a hit cutting a shake-off short, the last-string tag.
+func _bag_round3(d: Node, settled_default: int) -> void:
+	var knobs: Dictionary = d.bag_overrides(PackedStringArray(["--bag-damping=7", "--bag-stiffness=abc", "--bag-lean=2.5", "--autotest"]))
+	_check(knobs == {"bag_damping": 7.0, "bag_lean_mult": 2.5}, "--bag-*= flags parse (%s)" % [knobs])
+	await create_timer(1.0).timeout
+	d.bag_damping = 7.0
+	d.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	var settled := -1
+	for i in 240:
+		await physics_frame
+		if i > 5 and d._bag_tilt == Vector2.ZERO:
+			settled = i
+			break
+	_check(settled > 0 and settled < settled_default, "more damping settles sooner (%d frames vs %d)" % [settled, settled_default])
+	d.bag_damping = d.BAG_DAMPING
+	# A shake-off cut short by a hit: the kicks and the stars stop.
+	await create_timer(0.5).timeout
+	var cut: int = d.shakeoffs_cut
+	d.hp = d.max_hp - 10.0
+	d.last_hit_ms = -100000
+	await physics_frame
+	await physics_frame
+	d.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	await physics_frame
+	_check(d.shakeoffs_cut == cut + 1 and d.find_child("DazeStars", false, false) == null, "a hit cuts the shake-off short (%d)" % d.shakeoffs_cut)
+	var stretched := false
+	for i in 40:  # past the whole shake-off: no boing stretch at its end
+		await physics_frame
+		stretched = stretched or d.last_squash == d.DAZE_STRETCH
+	_check(not d._daze_tween.is_running() and not stretched, "no head-shake or boing after the cut")
+	# The tag: the string's damage on this dummy pops when the combo drops, dims when the next starts.
+	var game: Node = get_root().get_node("Game")
+	game.combo_changed.emit(0, "D")  # close whatever the hits above started
+	var tag: Label3D = d.get_node("StringTag")
+	d.take_hit(12.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	await physics_frame
+	d.take_hit(30.0, Vector3(0.0, 0.0, 6.0), 0.0, true)
+	var dealt: float = d.string_damage
+	game.combo_changed.emit(0, "D")
+	_check(tag.visible and tag.text == "%d" % roundi(dealt) and d.last_string_damage == dealt and d.string_damage == 0.0,
+		"the tag reads the last string's damage (%s for %.0f)" % [tag.text, dealt])
+	d.take_hit(5.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	_check(is_equal_approx(tag.modulate.a, d.TAG_DIM) and tag.text == "%d" % roundi(dealt), "a new string dims it (%.2f)" % tag.modulate.a)
+	print("[enemy_feel] bag round 3: damping 7 still after %d frames (5: %d); shake-off cut %d; tag %s" % [settled, settled_default, d.shakeoffs_cut, tag.text])
 
 
 ## Hit direction: a side launch rolls, a downward hit craters (from the air,
