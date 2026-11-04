@@ -616,7 +616,24 @@ const SPOUT_HALF_W := 0.5  # m at the base
 const SPOUT_BY_STEP := [1.15, 1.0, 0.85, 0.45]  # height; the last is colour only
 
 
+## Abyss asks for one per foe; over a pile that was a wall of spikes. Spouts asked for together (inside
+## SPOUT_SAME_MS) keep SPOUT_SPACING apart and stop at SPOUT_MAX; the rest are skipped (null).
+const SPOUT_SAME_MS := 100
+const SPOUT_SPACING := 2.0  # m
+const SPOUT_MAX := 3
+static var _spouts := []  # [ms, flat position] of this batch
+
+
 static func spout(parent: Node, spot: Vector3, high := 3.4) -> Node3D:
+	var now := Time.get_ticks_msec()
+	var flat := Vector3(spot.x, 0.0, spot.z)
+	_spouts = _spouts.filter(func(r: Array) -> bool: return now - int(r[0]) <= SPOUT_SAME_MS)
+	if _spouts.size() >= SPOUT_MAX:
+		return null
+	for r: Array in _spouts:
+		if (r[1] as Vector3).distance_to(flat) < SPOUT_SPACING:
+			return null
+	_spouts.append([now, flat])
 	var s := Spout.new()
 	s.high = high * SPOUT_GROW
 	parent.add_child(s)

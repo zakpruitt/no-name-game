@@ -54,6 +54,9 @@ const SPOT_FAR_COST := 30.0  # px of clearance the outer ring costs
 const SPOT_ENOUGH := 220.0  # px of clearance that's as good as any more
 const HERO_PAD_PX := 55.0
 const FOE_PAD_PX := 40.0  # a foe counts as this big round its chest
+const CALLOUT_HALF_H_PX := 28.0  # the hero's combo-name callout, half its height
+const PROMPT_HALF_PX := Vector2(62.0, 62.0)  # the breaker prompt's circle and its name under it
+const BLOCK_OVERLAP_COST := 60.0  # px: sitting on top of something is worse than just touching it
 const SAME_FRAME_MS := 60  # a signature word replaces a generic one born this recently
 # Keeps a word on the page, as comic_vfx._on_page: side margin, top and bottom bands.
 const PAGE_MARGIN := Vector2(0.1, 0.14)
@@ -170,13 +173,25 @@ func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
 		var f: Vector3 = hero._facing() if hero.has_method("_facing") else hero.global_basis.z
 		toward = _screen_of(cam, hero.global_position + Vector3.UP * 1.0 + f) - h
 	toward = toward.normalized() if toward.length() > 0.01 else Vector2.UP
-	var blocks: Array[Vector2] = [h]  # (the hero first: HERO_PAD_PX, not FOE_PAD_PX)
+	# Everything a word must keep clear of, as screen rects: the hero, each foe, the live words, his
+	# combo-name callout and the breaker prompt.
+	var blocks: Array[Rect2] = [_pad_rect(h, HERO_PAD_PX)]
 	for e: Node3D in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and not cam.is_position_behind(e.global_position):
-			blocks.append(cam.unproject_position(e.global_position + Vector3.UP * 1.0))
+			blocks.append(_pad_rect(cam.unproject_position(e.global_position + Vector3.UP * 1.0), FOE_PAD_PX))
 	for k in POOL:
 		if k != me and _born[k] != 0:
-			blocks.append(_words[k].position + _words[k].size * 0.5)
+			var ws: Vector2 = _words[k].size * float(_words[k].get_meta("base", 1.0))
+			blocks.append(Rect2(_words[k].position + _words[k].size * 0.5 - ws * 0.5, ws))
+	var callout: Variant = hero.get("_callout")
+	if callout is Label3D and callout.is_visible_in_tree() and not cam.is_position_behind(callout.global_position):
+		var half_m: float = callout.get_aabb().size.x * 0.5 * callout.global_basis.get_scale().x
+		var mid := cam.unproject_position(callout.global_position)
+		var half_px := absf(cam.unproject_position(callout.global_position + cam.global_basis.x * half_m).x - mid.x)
+		blocks.append(Rect2(mid - Vector2(half_px, CALLOUT_HALF_H_PX), Vector2(half_px, CALLOUT_HALF_H_PX) * 2.0))
+	var prompt: Variant = hero.get("_brk_prompt")
+	if prompt is Control and is_instance_valid(prompt) and prompt.get("_shown") == true:
+		blocks.append(Rect2(prompt.center - PROMPT_HALF_PX * Vector2(1.0, 0.8), PROMPT_HALF_PX * 2.0))
 	var best := Vector2.ZERO
 	var best_score := -INF
 	var half := size_px * 0.5
@@ -185,15 +200,20 @@ func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
 			var v := toward.rotated(deg_to_rad(deg))
 			var c := _on_page(h + v * (SPOT_RINGS[ring] + absf(v.x) * half.x + absf(v.y) * half.y), size_px)
 			var clear := SPOT_ENOUGH
-			for k in blocks.size():
-				var dx := maxf(absf(blocks[k].x - c.x) - half.x, 0.0)
-				var dy := maxf(absf(blocks[k].y - c.y) - half.y, 0.0)
-				clear = minf(clear, Vector2(dx, dy).length() - (HERO_PAD_PX if k == 0 else FOE_PAD_PX))
+			for b: Rect2 in blocks:
+				var bc := b.get_center()
+				var dx := maxf(absf(bc.x - c.x) - half.x - b.size.x * 0.5, 0.0)
+				var dy := maxf(absf(bc.y - c.y) - half.y - b.size.y * 0.5, 0.0)
+				clear = minf(clear, Vector2(dx, dy).length() - (BLOCK_OVERLAP_COST if dx == 0.0 and dy == 0.0 else 0.0))
 			var score := clear - absf(deg) * SPOT_TURN_COST - ring * SPOT_FAR_COST
 			if score > best_score:
 				best_score = score
 				best = c
 	return best
+
+
+func _pad_rect(p: Vector2, pad: float) -> Rect2:
+	return Rect2(p - Vector2.ONE * pad, Vector2.ONE * pad * 2.0)
 
 
 func _screen_of(cam: Camera3D, p: Vector3) -> Vector2:
