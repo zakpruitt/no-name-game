@@ -2,9 +2,11 @@
 # and thickens the tentacle limb so it reads at game distance. Bones and weights are unchanged,
 # so heretic_bake.py runs on the result exactly as on the original.
 #   blender -b <rig.blend> -P heretic_refine.py -- dump <uvtris.npy>
-#   blender -b <rig.blend> -P heretic_refine.py -- <flat.png> <out.blend> [thicken_m] [head_scale] [hand_scale]
+#   blender -b <rig.blend> -P heretic_refine.py -- <flat.png> <out.blend> [thicken_m] [head_scale] [hand_scale] [claw_scale]
 # head_scale / hand_scale push him towards the art direction (docs/features/art-direction.md):
 # a bigger head and fist, grown about the neck and the wrist, blended by skin weight.
+# claw_scale grows the tentacle hand (hand.r and every tent.* claw) about the right wrist, and
+# moves those bones with it so the claws still bend at their own joints (the chibi's signature limb).
 import bpy, sys, os
 import numpy as np
 
@@ -23,8 +25,11 @@ FLAT, OUT = args[0], args[1]
 THICKEN = float(args[2]) if len(args) > 2 else 0.015
 HEAD_SCALE = float(args[3]) if len(args) > 3 else 1.0
 HAND_SCALE = float(args[4]) if len(args) > 4 else 1.0
+CLAW_SCALE = float(args[5]) if len(args) > 5 else 1.0
+CLAW = ("hand.r", "tent.")
 # (bone prefixes whose summed weight grows a vertex, bone whose head is the centre)
-GROW = [(("head", "neck"), "head", HEAD_SCALE), (("hand.l", "finger."), "hand.l", HAND_SCALE)]
+GROW = [(("head", "neck"), "head", HEAD_SCALE), (("hand.l", "finger."), "hand.l", HAND_SCALE),
+        (CLAW, "wrist.r", CLAW_SCALE)]
 # bones whose weight pushes a vertex out: the whole limb, hand.r and the tips
 LIMB = ("upperarm.r", "lowerarm.r", "wrist.r", "hand.r", "tent.")
 ROOT_FADE = 0.10   # metres from the shoulder over which the push fades in, so the join stays
@@ -86,5 +91,19 @@ lco = (co - MW[:3, 3]) @ np.linalg.inv(MW[:3, :3]).T
 me.vertices.foreach_set("co", lco.ravel())
 me.update()
 print("thickened %d verts by up to %.3f m" % (int((w > 0.01).sum()), THICKEN))
+if CLAW_SCALE != 1.0:   # the claws' joints follow their mesh; hand.r keeps its head on the wrist
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = arm.data.edit_bones
+    c = eb["wrist.r"].head.copy()
+    moved = [b for b in eb if b.name.startswith(CLAW)]
+    old = {b.name: (b.head.copy(), b.tail.copy()) for b in moved}
+    for b in moved:
+        h, t = old[b.name]
+        if b.name != "hand.r":
+            b.head = c + (h - c) * CLAW_SCALE
+        b.tail = c + (t - c) * CLAW_SCALE
+    bpy.ops.object.mode_set(mode="OBJECT")
+    print("claw bones moved", len(moved))
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 print("SAVED", OUT)
