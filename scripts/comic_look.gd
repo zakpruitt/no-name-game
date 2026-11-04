@@ -187,6 +187,12 @@ const INNER_SCALE := 0.5
 ## it stays as tuned; the Warden is modelled at full size (3.2 m) where the KayKit boss
 ## relied on model_scale 1.8. The others match KayKit's height (~2.2 m bounds) as built.
 const RIG_SCALE := {"warden": 1.0 / 1.8}
+## Foes in the hero's hand (round 29): the chibi hero's shadow is his paint times
+## PAINTED's shadow, a cool lilac at about half value, while the kit's foe tables shade
+## into deep warm browns. Every foe toon material (any kind but HERETIC) moves its shadow
+## FOE_SHADE_MATCH of the way to mid * that tint, so both sides of a fight step into the
+## same shadow. Emits and dungeon pieces are left alone.
+const FOE_SHADE_MATCH := 0.5
 ## Used (with a warning) for a material the tables don't know yet.
 const FALLBACK_TONE := "P_Trousers"
 ## Every line and solid black. Near the floor's own shadow tone rather than true black:
@@ -404,7 +410,8 @@ static func fit(model: Node3D, kind: String) -> void:
 ## The shared comic material for a GLB material name.
 static func material(mat_name: String, kind := "") -> ShaderMaterial:
 	var override: Dictionary = KIND_TONES.get(kind, {})
-	var key := kind + "/" + mat_name if override.has(mat_name) else mat_name
+	var foe := kind != "" and kind != HERETIC and not EMITS.has(mat_name)
+	var key := kind + "/" + mat_name if override.has(mat_name) else ("foe/" + mat_name if foe else mat_name)
 	if _mats.has(key):
 		return _mats[key]
 	var m := ShaderMaterial.new()
@@ -421,7 +428,7 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		var t: Dictionary = override.get(mat_name, TONES.get(mat_name, TONES[FALLBACK_TONE]))
 		m.shader = load(TOON_SHADER)
 		m.set_shader_parameter("ink_color", INK)
-		m.set_shader_parameter("shadow_color", t.shadow)
+		m.set_shader_parameter("shadow_color", foe_shadow(t) if foe else t.shadow)
 		m.set_shader_parameter("mid_color", t.mid)
 		m.set_shader_parameter("light_color", t.light)
 		m.set_shader_parameter("hi_color", t.get("hi", t.light))
@@ -436,6 +443,13 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		m.next_pass = _piece_outline(PIECE_INK_PX[mat_name])
 	_mats[key] = m
 	return m
+
+
+## A foe tone's shadow moved FOE_SHADE_MATCH towards the hero's (see FOE_SHADE_MATCH).
+static func foe_shadow(t: Dictionary) -> Color:
+	var hero: Color = PAINTED.P_HereticPaint.shadow
+	var like_hero := Color(t.mid.r * hero.r, t.mid.g * hero.g, t.mid.b * hero.b)
+	return (t.shadow as Color).lerp(like_hero, FOE_SHADE_MATCH)
 
 
 static func _piece_outline(width: float) -> ShaderMaterial:
