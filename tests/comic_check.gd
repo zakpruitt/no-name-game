@@ -90,14 +90,20 @@ func _check_hero(game: Node) -> void:
 	await _check_hero_in_play(game, hero_script, rig != null)
 
 
-## Every clip player.gd can ask for: _play lines (with their ternaries), MOVES, hang_anim.
+## Every clip the hero can ask for: _play lines (with their ternaries) in player.gd and the hero_*.gd
+## files it is split into, MOVES, hang_anim.
 func _hero_clips(hero_script: GDScript) -> Array:
 	var found := {}
 	var quoted := RegEx.create_from_string("\"([A-Za-z0-9_]+)\"")
-	for line: String in FileAccess.get_file_as_string("res://scripts/player.gd").split("\n"):
-		if "_play(" in line:
-			for m in quoted.search_all(line):
-				found[m.get_string(1)] = true
+	var sources: Array[String] = ["player.gd"]
+	for f: String in DirAccess.get_files_at("res://scripts"):
+		if f.begins_with("hero_") and f.ends_with(".gd"):
+			sources.append(f)
+	for source: String in sources:
+		for line: String in FileAccess.get_file_as_string("res://scripts/" + source).split("\n"):
+			if "_play(" in line:
+				for m in quoted.search_all(line):
+					found[m.get_string(1)] = true
 	for move: Dictionary in hero_script.MOVES.values():
 		found[move.anim] = true
 	for b: Dictionary in load("res://scripts/void_element.gd").BREAKERS.values():

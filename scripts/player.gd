@@ -40,108 +40,12 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 @export var perfect_dodge_refund := 20.0
 @export var perfect_dodge_stun := 1.2
 
-## String pacing (round 30; the ms are real time at anim_speed 1.7, printed by tests/rhythm_check.gd).
-const L1_SPEED := 1.1  # opener: hit 216 -> 196 ms, so the first beat comes quickly
-const L3_SPEED := 1.3  # ender: wind-up 471 -> 362 ms; L2's hit to L3's was 553 ms with the hitstop, a stall before the payoff
-const L3_CANCEL := 0.645  # (was 0.6) keeps ~140 ms from L3's hit to its cancel at L3_SPEED
-const L3_END := 0.975  # (was 0.85) keeps ~330 ms of recovery after the hammer lands at L3_SPEED: the ender's weight
-const EM_SPEED := 2.1  # Molten Palm (was 1.6): its palm landed 619 ms in, ~800 ms after L3's hit; now 471 ms in
+const HERO_MOVES := preload("res://scripts/hero_moves.gd")
+# The move data lives in hero_moves.gd; these are the names other scripts and the checks read off the hero.
+const MOVES := HERO_MOVES.MOVES
+const COMBOS := HERO_MOVES.COMBOS
+const GUIDE_LEARNED := HERO_MOVES.GUIDE_LEARNED
 
-# Moves. Timings are fractions of the animation's length, so changing
-# anim_speed keeps everything in sync.
-#   hits: when damage is dealt   cancel: when the next input is accepted
-#   end: when control returns    lunge: forward burst speed at start
-#   width: (optional) hits a straight strip `range` long and 2x`width` wide
-#          instead of the `arc` cone
-#   decay: (optional, default 3) how fast the lunge dies: it's gone at 1/decay
-#          of the move, so a low decay keeps the hero travelling
-#   speed: (optional, default 1) plays the animation this much faster (or,
-#          below 1, slower), for anims whose natural length doesn't fit
-#   hop: (optional) [start, end, height]: the hero leaves the ground in an arc
-#        between those fractions (the model lifts, the body stays). A move
-#        started in the air (out of a hop) comes down by its first hit
-#        (`land` overrides), so L H's rise carries into L H H's drop.
-#   air: (optional) holds the height the move started at; `climb` adds this
-#        many metres by its first hit (the air string goes up cut by cut)
-# String rhythm (round 30, tests/rhythm_check.gd prints the ms): the opener is quick (L1 `speed`
-# L1_SPEED), the mids snappy, the ender winds up a beat longer than a mid, freezes longest and
-# recovers longest (L3_SPEED with its cancel / end set to land there; ~330 ms recovery after the hit).
-const MOVES := {
-	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
-		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
-		"stop": 0.045, "shake": 0.12, "speed": L1_SPEED},
-	"GR": {"anim": "Ab_GR", "damage": 6.0, "range": 9.0, "arc": 360.0, "hits": [0.24], "cancel": 0.42, "end": 0.66,
-		"lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.14},
-	"VS": {"anim": "Ab_VS", "damage": 24.0, "range": 3.8, "arc": 150.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
-		"lunge": 1.5, "knockback": 3.0, "launch": 6.0, "big": true, "stop": 0.09, "shake": 0.42},
-	"L2": {"anim": "Throw", "damage": 9.0, "range": 2.5, "arc": 160.0,
-		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
-		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6]},
-	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
-		"hits": [0.4], "cancel": L3_CANCEL, "end": L3_END, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
-		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9], "speed": L3_SPEED},
-	# The void arm's right click (void_element.gd). The tentacle and the element do the work.
-	"EE": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
-	"EW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
-	"EC": {"anim": "Ab_LH", "damage": 4.0, "range": 2.6, "arc": 150.0, "hits": [0.29], "cancel": 0.46, "end": 0.7,
-		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.28, "hop": [0.28, 0.58, 1.5]},
-	"EA": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
-	"EV": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
-	"VR": {"anim": "Ab_H", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.46, "end": 0.7,
-		"speed": 1.2, "lunge": 3.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.25},
-	"VD": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.52, "end": 0.7,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.3},
-	"OW": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
-		"lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.4},
-	"TW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
-	"EF": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [0.34], "cancel": 0.5, "end": 0.72,
-		"speed": 1.2, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
-	"IP": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [0.34], "cancel": 0.5, "end": 0.8,
-		"speed": 1.2, "lunge": 1.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
-	"IJ": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.2], "cancel": 0.3, "end": 0.8,
-		"speed": 1.1, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.0, "shake": 0.0, "air": true, "climb": 2.4},
-	"IS": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
-		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
-	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [0.51], "cancel": 0.68, "end": 0.85,
-		"speed": EM_SPEED, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
-	# Light after Updraft Lash (L H L): an air slash. He stays up with the foe
-	# the lash threw (`air`: holds the height he started at) and the cut
-	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).
-	"AL1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 7.0, "range": 2.6, "arc": 170.0,
-		"hits": [0.32], "cancel": 0.42, "end": 0.7, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
-		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4},
-	# Light right out of a dash: long lunging stab, pouncing onto the foe
-	# (a low leap that lands on the stab).
-	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
-		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
-		"stop": 0.07, "shake": 0.22, "hop": [0.03, 0.3, 0.6]},
-}
-# The named combos: landing one plays its tier's sound and shows its name
-# above the hero. Moves not listed here (L1, L2, AL1) stay quiet. Also the
-# pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
-const COMBOS := {
-	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
-	"VS": {"name": "Singularity", "input": "H H", "tier": 2},
-	"VR": {"name": "Reap", "input": "H L", "tier": 1},
-	"VD": {"name": "Black Tide", "input": "H L H", "tier": 2},
-	"OW": {"name": "Overwhelm", "input": "hold H", "tier": 2},
-	"TW": {"name": "Tow Line", "input": "Dash H", "tier": 2},
-	"EC": {"name": "Updraft Lash", "input": "L H", "tier": 1},
-	"EE": {"name": "Live Wire", "input": "L H H", "tier": 2},
-	"EW": {"name": "Live Wire", "input": "L H L H", "tier": 3},
-	"IP": {"name": "Frost Spear", "input": "L L H", "tier": 1},
-	"IS": {"name": "Deep Freeze", "input": "L L H L H", "tier": 3},
-	"EF": {"name": "Harpoon", "input": "Dash L H", "tier": 1},
-	"EA": {"name": "Ice Cube", "input": "Dash L H H", "tier": 2},
-	"EM": {"name": "Molten Palm", "input": "L L L H", "tier": 1},
-	"EV": {"name": "Undertow", "input": "L L L H H", "tier": 2},
-	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
-}
 # Combo breakers (VOID_ELEMENT.BREAKERS, timed finishers). The move leaps into the air at `leap`
 # (fraction of its anim), hops `back` m while rising `height` m over `rise` s
 # with the tentacles on the foes, and a cue rings a zone `zone` m ahead: press
@@ -165,11 +69,6 @@ const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
 const CAST_SFX_DB := -11.0
-# Names of the moves that aren't combos, for the combo guide.
-const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "AL1": "Air Slash", "IJ": "Vault"}
-# After landing a combo this many times in a run, the guide stops hinting it
-# as a follow-up (it still shows as a row).
-const GUIDE_LEARNED := 6
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
 const ENDER_HITSTOP := 0.025  # extra hitstop per tier when a named combo's ender lands
@@ -177,7 +76,6 @@ const ENDER_ZOOM := 0.035  # camera push-in per tier on a combo ender
 const RANK_COLORS: Dictionary = preload("res://scripts/hud.gd").RANK_COLORS
 const LAST_KILL_SLOWMO := 0.55  # real seconds of slow motion on the fight's final blow
 const COMBO_SFX_DB := -9.0
-const LIGHT_CHAIN := ["L1", "L2", "L3"]
 const VOID_GRAB := preload("res://scripts/void_grab.gd")
 const VOID_ARM := preload("res://scripts/void_arm.gd")
 const HERETIC_RIG := preload("res://scripts/heretic_rig.gd")
@@ -213,19 +111,6 @@ var _connected := false  # the current move has hit something (combo breakers ne
 var _hop_y0 := 0.0  # model height the current move started at (MOVES `hop`)
 var _hop_air := false  # off the ground this move (for the landing dust)
 var _hop_peak := 0.0  # highest the model got this time up (scales the landing slam)
-# Landing slams scale with the fall: shake, ring and dust grow from a 0.4 m hop
-# up to SLAM_FULL_HEIGHT (the top of the air string), by up to SLAM_SCALE.
-const SLAM_FULL_HEIGHT := 2.4
-const SLAM_SCALE := 2.0
-# Plunge: a move started in the air that comes down onto its hit (L H H off
-# the launcher, Triple Chop off Sky Rend) deals +PLUNGE_PER_M damage per metre
-# it started above 0.4 m, so the air string pays for going high (2.6 m: +33%).
-const PLUNGE_PER_M := 0.15
-# Juggle tracking: a move started in the air (the air slashes, a plunge) turns
-# to the nearest airborne foe within AIR_HOME_RANGE and lunges far enough to
-# reach it (`_air_home`), so a launched foe that drifted doesn't make the
-# string whiff. AIR_HOME_MAX caps the lunge speed.
-const AIR_HOME_RANGE := 5.5
 ## Mouse aim, the comic hero only (_mouse_aiming). He faces the cursor while free and turns toward
 ## it at a limited rate through a combo, so a string can be redirected but not spun on the spot.
 const AIM_HEIGHT := 0.8  # m: the cursor is read on this plane, about where a foe's body is
@@ -234,7 +119,6 @@ const AIM_ASSIST_MOUSE_ANGLE := 25.0  # deg: the cursor says where, so the soft 
 const COMBO_REDIRECT := 55.0  # deg a chained move may turn as it starts
 const COMBO_TURN_WINDUP := 420.0  # deg/s before a move's first hit
 const COMBO_TURN_ACTIVE := 140.0  # deg/s from then on
-const AIR_HOME_MAX := 22.0
 ## Input feel (round 30; tests/rhythm_check.gd).
 ## A press of L / right click / dash / R is remembered this long and fires on the first frame it's legal
 ## (the next move's cancel point, the end of a dash). 300: L1 cancels 0.275 s in, so a press as a move
@@ -251,17 +135,6 @@ const DASH_CANCEL_WHIFF := 0.2
 ## Mouse aim keeps the foe a move started on (_aim_lock) while the cursor stays within AIM_LOCK_BREAK deg
 ## of it, so the per-frame turn doesn't flick between two foes mid-string; past that the cursor wins.
 const AIM_LOCK_BREAK := 40.0
-# Air dash: dashing out of the air slash while at least AIR_DASH_MIN up keeps
-# him at that height (the press after it is Dash Stab / Tow Line as on the floor).
-const AIR_DASH_FROM := ["AL1"]
-const AIR_DASH_MIN := 0.6
-# One air dash per trip up (reset on landing), and `climb` stops at
-# AIR_MAX_HEIGHT, so dash-slash loops can't keep him up or lift him forever.
-const AIR_DASHES := 1
-const AIR_MAX_HEIGHT := 2.8
-# The air dash's cut: a giant spectral axe (spirit_echo) rides with him at his
-# height and sweeps through the dash, nicking what it passes.
-const AIR_DASH_CUT := {"damage": 3.0, "radius": 3.0, "arc": 150.0, "time": 0.16}
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -661,58 +534,11 @@ func _state_charge(delta: float) -> void:
 			_start_attack("CH" if _charged else "H")
 
 
-## The move's height off the floor at progress `t`: comes down from where it
-## started by `land` (first hit), plus its own `hop` arc.
-func _hop(t: float) -> void:
-	var y := 0.0
-	if _move.get("air", false):  # air move: hold the height it started at
-		# `climb`: rise this much more by the hit, so each air cut goes higher.
-		var cap := AIR_MAX_HEIGHT
-		var climb: float = minf(_move.get("climb", 0.0), maxf(0.0, cap - _hop_y0))
-		var up: float = climb * smoothstep(0.0, _move.hits[0], t)
-		y = minf(_hop_y0 + up + sin(t * PI) * 0.15, cap + 0.15)
-	elif _hop_y0 > 0.0:
-		var land: float = _move.get("land", _move.hits[0])
-		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
-		y = _hop_y0 * (1.0 - k * k)  # accelerating down onto the hit
-	if _move.has("hop"):
-		var h: Array = _move.hop
-		if t > h[0] and t < h[1]:
-			var k: float = (t - h[0]) / (h[1] - h[0])
-			y += h[2] * 4.0 * k * (1.0 - k)
-	if y > 0.4:
-		_hop_air = true
-		_hop_peak = maxf(_hop_peak, y)
-	elif _hop_air and y < 0.05:
-		_hop_air = false  # landed onto the hit: a slam
-		_land_slam(_hop_peak)
-		_hop_peak = 0.0
-	model.position.y = y
-
-
-## Damage multiplier for the current move's plunge (see PLUNGE_PER_M): only
-## for moves that start in the air and land, and only on their first hit.
-func plunge_mult() -> float:
-	if _move.get("air", false) or _hits_done > 1:
-		return 1.0
-	return 1.0 + PLUNGE_PER_M * maxf(0.0, _hop_y0 - 0.4)
-
-
-## Landing from a hop: dust, a ring in the hero's colour and a shake, all
-## bigger the further he fell (an air-string Triple Chop lands hardest).
-func _land_slam(peak: float) -> void:
-	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
-	Fx.dust(get_parent(), global_position, int(6 * k), 0.5 * k)
-	if not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: it hid them)
-		Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2 * k, 0.22)
-	Game.shake(0.12 * k)
-
-
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
 	if _void != null:
 		_void.attack_tick(t, delta)
-	if _mouse_aiming() and not _hop_air:  # (in the air _air_home has him)
+	if _mouse_aiming() and not _hop_air:  # (in the air hero_moves.air_home has him)
 		_face(_turned(_aim_want(true), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
 	# Lunge decays quickly so attacks feel snappy, not slidey.
 	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
@@ -722,7 +548,7 @@ func _state_attack(delta: float) -> void:
 	if _move_id in VOID_ELEMENT.SPEAR_RUN and _hits_done == 0:
 		VOID_ELEMENT.run_to_spear(self, delta)
 
-	_hop(t)
+	HERO_MOVES.hop(self, t)
 	var hits: Array = _move.hits
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
@@ -1061,94 +887,29 @@ func _end_leap() -> void:
 # --- Actions ----------------------------------------------------------------
 
 func _next_move(kind: String) -> String:
-	return _routed(kind, _move_id, state == State.ATTACK, _chain_i, _post_dash_t > 0.0)
+	return HERO_MOVES.routed(self, kind, _move_id, state == State.ATTACK, _chain_i, _post_dash_t > 0.0)
 
 
-## void_route(), plus the vault: while his frost spear stands, either press takes him up over it.
-func _routed(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
-	if VOID_ELEMENT.vaults(get_tree(), from, attacking, post_dash):
-		return "IJ"
-	return void_route(kind, from, attacking, chain, post_dash)
-
-
-## The move a "light" or "heavy" press starts. `from` is the move playing (or the last one), `attacking`
-## whether it's still going, `chain` the light chain position, `post_dash` just out of a dash. The combo
-## guide asks this too (with made-up states to look one press ahead), so they always agree.
-## Lights run the weapons: axe, spear, hammer. H (right click) is the tentacle:
-## what it does off a weapon depends on that weapon's element, on its own it's the grab (void_element.gd).
-## L off Updraft Lash goes into the air, L off the grab flails what it holds, H off a dash is Tow Line.
+## hero_moves.gd routing (static: move_list.gd and the checks call it on the script).
 static func void_route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
-	if kind == "light":
-		if attacking and VOID_ELEMENT.LIGHT_AFTER.has(from):
-			return VOID_ELEMENT.LIGHT_AFTER[from]
-		return "DL" if post_dash else LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
-	if post_dash and not attacking:
-		return VOID_ELEMENT.DASH_MOVE
-	return VOID_ELEMENT.heavy_after(from, attacking)
+	return HERO_MOVES.void_route(kind, from, attacking, chain, post_dash)
 
 
-## The air dash's spectral axe (AIR_DASH_CUT): a spirit_echo parented to the
-## hero at the model's height, so it travels with the dash, sweeping round
-## the dash direction. Grows with the chain like the casts.
-func _air_dash_cut() -> void:
-	var c: Dictionary = AIR_DASH_CUT
-	var echo = _spirit(SPIRIT_ECHO.new(), c, element())
-	echo.fwd = _dash_dir
-	echo.arc_deg = c.arc
-	echo.radius = c.radius * _cast_grow()
-	echo.delay = 0.0
-	echo.time = c.time
-	add_child(echo)
-	echo.position = Vector3(0.0, model.position.y, 0.0)
-
-
-## Whether a dash now would be an air dash (AIR_DASH_*).
-func _can_air_dash() -> bool:
-	return _move_id in AIR_DASH_FROM and model.position.y >= AIR_DASH_MIN and _air_dashes < AIR_DASHES
-
-
-## What dash-then-light starts from here (the combo guide's dash row): Dash Stab, in the air too.
-func dash_light() -> String:
-	return void_route("light", _move_id, false, _chain_i, true)
-
-
-## Light chain position after `id` starts.
 static func chain_after(id: String) -> int:
-	if id in LIGHT_CHAIN:
-		return (LIGHT_CHAIN.find(id) + 1) % LIGHT_CHAIN.size()
-	if id == "DL":
-		return 1  # a dash stab flows into L2
-	return VOID_ELEMENT.CHAIN.get(id, 0)
+	return HERO_MOVES.chain_after(id)
 
 
-## What the combo guide shows right now: one row per input that continues the
-## string ("light", "heavy", "dash" = dash then light), each with the move it
-## starts and the best named combo one more press past it, plus `pause` when
-## waiting for the move to finish first starts a different named combo.
-## Empty when there's no string to continue.
+func _can_air_dash() -> bool:
+	return HERO_MOVES.can_air_dash(self)
+
+
+func dash_light() -> String:
+	return HERO_MOVES.dash_light(self)
+
+
+## The combo guide's rows (hero_moves.combo_options; combo_guide.gd reads it every frame).
 func combo_options() -> Array:
-	var attacking := state == State.ATTACK
-	var dashing := state == State.DASH or _post_dash_t > 0.0
-	var live := attacking or dashing or state == State.CHARGE or (state == State.MOVE and _chain_i > 0)
-	if not live:
-		return []
-	if state == State.CHARGE:
-		return [_option("heavy", VOID_ELEMENT.CHARGED, true)]
-	var rows := []
-	var kinds: Array[String] = ["light", "heavy"]
-	for kind: String in kinds:
-		var id := _routed(kind, _move_id, attacking, _chain_i, dashing)
-		if kind == "heavy" and id == VOID_ELEMENT.NEUTRAL:
-			continue  # a lone grab isn't a continuation
-		var o := _option(kind, id)
-		if attacking:
-			var wait := _routed(kind, _move_id, false, _chain_i, false)
-			if wait != id and COMBOS.has(wait):
-				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
-		rows.append(o)
-	if attacking and not dashing:
-		rows.append(_option("dash", dash_light()))
-	return rows
+	return HERO_MOVES.combo_options(self)
 
 
 ## One beat of a breaker dive's comet (every 0.02 s as he drops): one fat inked streak that ends in a
@@ -1199,24 +960,8 @@ func breaker_name() -> String:
 	return _brk.names.get(element(), _brk.names.spirit) if not _brk.is_empty() else ""
 
 
-func _option(kind: String, id: String, hold := false) -> Dictionary:
-	var o := {"kind": kind, "id": id, "name": guide_name(id), "tier": COMBOS[id].tier if COMBOS.has(id) else 0,
-		"hold": hold, "next": {}}
-	if o.tier < 3 and not hold:
-		var best := 0
-		for k: String in ["heavy", "light"]:  # heavy first: wins ties
-			var n := _routed(k, id, true, chain_after(id), false)
-			var tier: int = COMBOS[n].tier if COMBOS.has(n) else 0
-			if combos_landed.get(n, 0) >= GUIDE_LEARNED:
-				tier = 0  # learned: no need to hint it any more
-			if tier > best:
-				best = tier
-				o.next = {"kind": k, "id": n, "name": guide_name(n), "tier": tier}
-	return o
-
-
 func guide_name(id: String) -> String:
-	return combo_name(id) if COMBOS.has(id) else MOVE_NAMES.get(id, id)
+	return HERO_MOVES.guide_name(id)
 
 
 ## How soon a press is taken: `progress` 0..1 toward the move's cancel point,
@@ -1250,12 +995,12 @@ func _start_attack(id: String) -> void:
 	_hop_air = _hop_y0 > 0.4
 	_hop_peak = _hop_y0 if _hop_air else 0.0
 	_callout_done = false
-	_chain_i = chain_after(id)
+	_chain_i = HERO_MOVES.chain_after(id)
 	_post_dash_t = 0.0
 	_air_dash = false
 	_aim(state == State.ATTACK)
 	if _hop_air:
-		_air_home()
+		HERO_MOVES.air_home(self)
 	_set_state(State.ATTACK)
 	_void.on_move(id, prev_id)
 	attack_started.emit(id)
@@ -1291,7 +1036,7 @@ func _start_dash() -> void:
 	_ghost_t = 0.0
 	_play("Dodge_Forward", 0.04, true)
 	if _air_dash:
-		_air_dash_cut()
+		HERO_MOVES.air_dash_cut(self)
 	else:
 		Fx.dust(get_parent(), global_position, 8)
 		Fx.dash_streak(get_parent(), global_position, _dash_dir, dash_speed * dash_time + 0.8, Color(_fx_color(), 0.8))
@@ -1346,36 +1091,6 @@ func _aim_want(held := false) -> Vector3:
 	return want
 
 
-## Juggle tracking (AIR_HOME_*): face the nearest airborne foe and lunge to
-## reach it by the first hit. The lunge decays to 0 by a third of the move
-## (`decay` 3), covering lunge * length / 6 metres.
-func _air_home() -> void:
-	var best: Node3D = null
-	var best_d := AIR_HOME_RANGE
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.is_alive() or not e.is_airborne():
-			continue
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		if to.length() < best_d:
-			best_d = to.length()
-			best = e
-	if best == null:
-		return
-	var to := best.global_position - global_position
-	to.y = 0.0
-	if to.length() > 0.05:
-		_face(to)
-		model.rotation.y = _facing_yaw
-	var gap: float = best_d - _move.get("range", 2.5) * 0.6
-	if gap <= 0.0:
-		return
-	var length: float = _move_len / maxf(anim_speed * _anim_mult, 0.01)
-	var decay: float = _move.get("decay", 3.0)
-	var need := gap * 2.0 * decay / maxf(length, 0.01)  # travel = lunge * length / (2 * decay)
-	_move.lunge = clampf(maxf(_move.lunge, need), 0.0, AIR_HOME_MAX)
-
-
 func _do_hit() -> void:
 	if _move_id == "GR":
 		_void.strike()
@@ -1407,7 +1122,7 @@ func _do_hit() -> void:
 		var kb_dir := to / d if d > 0.01 else fwd
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
-		var dmg: float = _move.damage * _dmg_mult * plunge_mult()
+		var dmg: float = _move.damage * _dmg_mult * HERO_MOVES.plunge_mult(self)
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Fx.element_hit(get_parent(), e.global_position, element(), kb_dir, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
@@ -1657,13 +1372,8 @@ static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: floa
 	return ahead > -0.5 and ahead <= length + pad and side <= half_width + pad
 
 
-## A copy of the MOVES entry for this press (never mutates MOVES itself), retimed for his clips.
 func _effective_move(id: String) -> Dictionary:
-	var m: Dictionary = MOVES[id].duplicate(true)
-	if ComicLook.HERO_MOVES.has(id):
-		var length := anim.get_animation(ComicLook.HERO_MOVES[id].clip).length
-		ComicLook.retime(id, m, length, MOVES[id].hits[0], VOID_ELEMENT.BREAKERS.get(id, {}).get("leap", -1.0))
-	return m
+	return HERO_MOVES.effective_move(anim, id)
 
 
 func is_invulnerable() -> bool:
