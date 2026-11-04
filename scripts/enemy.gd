@@ -641,11 +641,12 @@ func _on_player_attack(_move_id: String) -> void:
 
 ## Damage and its number with no sparks, word or flash, for an effect that draws its own: ticks several times
 ## a second on a whole crowd would bury whatever's holding them. `big` is one solid blow, which does flash.
-func burn_hit(damage: float, big := false) -> void:
+## A downward `knockback` (Maw's bite) still gets the full reaction (_hit_reaction: the crater), no sparks.
+func burn_hit(damage: float, big := false, knockback := Vector3.ZERO) -> void:
 	_quiet_hit = true
-	take_hit(damage, Vector3.ZERO, 0.0, big)
+	take_hit(damage, knockback, 0.0, big)
 	_quiet_hit = false
-	if big and is_instance_valid(model):
+	if big and is_instance_valid(model) and not _is_spike(knockback, 0.0):
 		Fx.flash(model)
 
 
@@ -668,14 +669,14 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	if hero != null and hero.has_method("_fx_color") and not _quiet_hit:  # long strings escalate the sparks
 		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
 			knockback.normalized() + Vector3.UP * 0.5)
-	if _quiet_hit:  # a burn tick: the pose hold, none of the show
+	if _quiet_hit and not _is_spike(knockback, launch):  # a burn tick: the pose hold, none of the show
 		_freeze_t = hit_freeze_big if big else hit_freeze
 		_wave_delay = 0.0
 	else:
 		_hit_reaction(damage, knockback, launch, big)
 	_telegraph.visible = false
 	if hp <= 0.0:
-		_die(knockback)
+		_die(Vector3(knockback.x, maxf(knockback.y, 0.0), knockback.z))  # a slam's kill still pops up and out
 		return
 
 	var airborne := state == State.AIRBORNE

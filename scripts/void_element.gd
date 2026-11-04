@@ -77,6 +77,7 @@ const DEEP_FREEZE_RADIUS := 6.5  # m round the spear
 const DEEP_FREEZE_DAMAGE := 16.0
 const DEEP_FREEZE_SPIKES := 6
 const DEEP_FREEZE_SPIKE_OUT := 1.8  # m from the spear: further out they hid the cubes
+const DEEP_FREEZE_DOWN := 6.0  # m/s into the floor on its hit: enemy._is_spike craters them before the cube
 const PRESS_REACH := 10.0  # m: how far the tentacles go for a cube
 const CRUSH_HIGH := 2.5  # m the cubes go up
 const CRUSH_RADIUS := 3.2  # m round the pile that anyone else gets caught
@@ -98,6 +99,7 @@ const UNDERTOW_SINK := 0.9  # m
 const UNDERTOW_TICK := 3.5
 const RIP_SMALL_MULT := 3.0  # on a small foe: it's coming apart
 const RIP_SPLASH := 5.0  # m
+const METEOR_DOWN := 6.0  # m/s into the floor on Meteor Fall's hit on the seized foe: it craters (enemy._is_spike)
 const UNDERTOW_CHASE := 18.0  # m it'll follow those Molten Palm just shoved
 const METEOR_GEYSERS := 5
 const METEOR_GEYSER_OUT := 2.8  # m round where he lands
@@ -122,6 +124,7 @@ const TIDE_POOL_R := 3.4
 const COLLAPSE_RADIUS := 6.5  # m
 const COLLAPSE_THROW := 9.0
 const MAW_RADIUS := 3.4  # m
+const MAW_DOWN := 6.0  # m/s into the floor as the jaws shut: the swallowed crater (enemy._is_spike)
 const ABYSS_RADIUS := 4.2  # m
 const ABYSS_SINK := 2.6  # m they go down while he's on his way
 const ABYSS_LAUNCH := 11.0
@@ -303,7 +306,7 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 	Game.shake(0.5)
 	var foes: Array = FOES.near(hero.get_tree(), spot, DEEP_FREEZE_RADIUS)
 	for e: Node3D in foes:
-		e.take_hit(damage, Vector3.ZERO, 0.0, true)
+		e.take_hit(damage, Vector3.DOWN * DEEP_FREEZE_DOWN, 0.0, true)
 		Game.register_hit("cast")
 		encase(e)
 	return foes.size()
@@ -665,7 +668,7 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 		jaws = DARK.maw(hero.get_parent(), spot, MAW_RADIUS)
 	jaws.bite()
 	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS):
-		DARK.quiet_hit(e, damage, true)
+		DARK.quiet_hit(e, damage, true, Vector3.DOWN * MAW_DOWN)
 		Game.register_hit("breaker")
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)  # one word for the one bite
 	Game.shake(0.6)
@@ -743,7 +746,7 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 		var spot := _flat(e.global_position)
 		if e.has_method("rip_shield"):
 			e.rip_shield()
-		e.take_hit(damage * (1.0 if hero._void.is_heavy(e) else RIP_SMALL_MULT), Vector3.ZERO, 0.0, true)
+		e.take_hit(damage * (1.0 if hero._void.is_heavy(e) else RIP_SMALL_MULT), Vector3.DOWN * METEOR_DOWN, 0.0, true)
 		Game.register_hit("breaker")
 		under(parent, spot, "earth")
 		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 22, Vector3.UP, 12.0, 0.2, 0.8)

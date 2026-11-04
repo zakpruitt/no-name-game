@@ -600,11 +600,11 @@ static func prewarm_pieces(root: Node3D) -> void:
 
 
 ## A hit that does its damage and number without sparks or a word per foe: the source draws its own.
-static func quiet_hit(e: Node, damage: float, big := false) -> void:
+static func quiet_hit(e: Node, damage: float, big := false, knockback := Vector3.ZERO) -> void:
 	if e.has_method("burn_hit"):
-		e.burn_hit(damage, big)
+		e.burn_hit(damage, big, knockback)
 	else:
-		e.take_hit(damage, Vector3.ZERO, 0.0, big)
+		e.take_hit(damage, knockback, 0.0, big)
 
 
 ## A spike of black going straight up from under a foe: a flat inked spike facing the camera, violet

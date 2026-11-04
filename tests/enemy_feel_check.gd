@@ -83,6 +83,7 @@ func _extra() -> void:
 	await _direction()
 	await _bag()
 	await _air_kill()
+	await _slams()
 
 
 ## Killed while up: the corpse spins faster all the way down, then settles on a full turn.
@@ -349,6 +350,31 @@ func _juggle() -> void:
 	var plain_hang: float = 2.0 * sqrt(2.0 * 0.3 / e.AIR_GRAVITY) * 60.0
 	_check(hang_frames > plain_hang * 1.25, "it hangs %d frames within 0.3 m of the apex (plain gravity %.0f)" % [hang_frames, plain_hang])
 	print("[enemy_feel] juggle: launch %.1f apex %.2f m, %d frames within 0.3 m of it (plain gravity %.0f), tumble %.2f rad, bounce %.2f m, skid %.2f m/s, %d frames up" 		% [launch, top, hang_frames, plain_hang, tumbled, bounce_top, skid_v, frames])
+
+
+## The element slams that hit downward (void_element DEEP_FREEZE_DOWN, METEOR_DOWN, MAW_DOWN): each, run for
+## real by the hero on a standing minion, craters it (SQUASH.crater, knocked down) instead of a plain flinch.
+func _slams() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var hero: Node = _main.player
+	var at: Vector3 = hero.global_position + Vector3(0.0, 0.0, 4.0)
+	var seen := []
+	for move in ["deep_freeze", "meteor", "maw"]:
+		var e: Node = await _fresh(at)
+		await physics_frame
+		match move:
+			"deep_freeze":
+				ve._deep_freeze(hero, at, 1.0)
+			"meteor":
+				ve._tear(hero, {"damage": 1.0}, [e], 1.0)
+			"maw":
+				hero._void.dark_spot = at
+				ve._maw(hero, {"damage": 1.0}, 1.0)
+		_check(e.last_squash == e.SQUASH.crater and e.state == e.State.HURT,
+			"%s craters the foe (squash %.2f, state %d)" % [move, e.last_squash.y, e.state])
+		seen.append("%s %.2f" % [move, e.last_squash.y])
+		await create_timer(0.3).timeout
+	print("[enemy_feel] slams: %s" % ", ".join(seen))
 
 
 ## A sturdy minion at `at`, past its spawn animation, standing still and harmless.
