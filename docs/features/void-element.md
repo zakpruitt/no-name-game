@@ -166,10 +166,16 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 - A lava well outlasts the Undertow that made it and goes on burning whoever stands in it.
 - New moves go in `VOID_ONLY`, or `move_list_check` expects `route()` to reach them.
 - Clips come straight from `MOVES.anim`, as with `GR` and `VS`, so hit fractions are frame / frames of that clip.
+- **Timing contract (round 30, `tests/rhythm_check.gd`).** A press is held `player.BUFFER_MS` (300) and fires on the first frame
+  past `player.cancel_point()`: the move's `cancel` on a whiff, `CANCEL_ON_HIT` (0.5) of the way back to its last hit once it
+  connected (`fire()` above 0 counts), never before `HIT_CONFIRM_MIN` (0.03 s) after it or before the breaker's `leap`. A dash
+  cancels every one of these moves once its first hit is out (or `DASH_CANCEL_WHIFF` into a whiff), and a breaker's hang
+  too. The breaker windows share one rhythm off the rise (`BREAKER_HANG`, `BREAKER_TO_SWEET`, `BREAKER_TO_CLOSE`; see
+  [combo-breakers.md](combo-breakers.md)). Molten Palm plays at `player.EM_SPEED` (2.1): its palm lands 471 ms in.
 
 ## Tuning
 
-Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_mult` 1.5 and the chain's `_cast_power()`), `thrown_foe.OTHER_MULT` and `SPLASH_MULT`. Timing: `_WINDOW` (`open`, `sweet`, `close`, `perfect`), `WIRE_START`, `WIRE_STEP`. The hold: `SEIZE_RANGE`, `SEIZE_MAX`, `SEIZE_LIFT`. The throw: `thrown_foe.SPEED`, `SPLASH`, `CUBE_HIGH`, `CUBE_SEEK`. Each move's reach, damage and time are constants at the top of `void_element.gd`, named after it (`REAP_`, `TIDE_`, `COLLAPSE_`, `MAW_`, `ABYSS_`, `HARPOON_`, `SPEAR_`, `DEEP_FREEZE_`, `PRESS_`, `PALM_`, `UNDERTOW_`, `FLAIL_`, `OVERWHELM_`, `TOW_`). R with nothing to latch onto: `void_grab.SKY_MIN`, `SKY_MAX`.
+Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_mult` 1.5 and the chain's `_cast_power()`), `thrown_foe.OTHER_MULT` and `SPLASH_MULT`. Timing: `_WINDOW` (`perfect`, `rise`; `open` / `sweet` / `close` follow the rise through `BREAKER_HANG` / `BREAKER_TO_SWEET` / `BREAKER_TO_CLOSE`), `WIRE_START`, `WIRE_STEP`. The hold: `SEIZE_RANGE`, `SEIZE_MAX`, `SEIZE_LIFT`. The throw: `thrown_foe.SPEED`, `SPLASH`, `CUBE_HIGH`, `CUBE_SEEK`. Each move's reach, damage and time are constants at the top of `void_element.gd`, named after it (`REAP_`, `TIDE_`, `COLLAPSE_`, `MAW_`, `ABYSS_`, `HARPOON_`, `SPEAR_`, `DEEP_FREEZE_`, `PRESS_`, `PALM_`, `UNDERTOW_`, `FLAIL_`, `OVERWHELM_`, `TOW_`). R with nothing to latch onto: `void_grab.SKY_MIN`, `SKY_MAX`.
 
 ## Not done
 

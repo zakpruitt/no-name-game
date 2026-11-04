@@ -110,6 +110,13 @@ fast-forward, so no agent edits another's files or index.
 - **Paused AnimationPlayer in a modifier or a check:** `current_animation` is "" while paused (use `assigned_animation`), and re-seeking a paused player in `heretic_shots` kept showing the old pose. Measure clip content from its tracks (`tests/contact_frames.gd` `track_pose`) in a check.
 - **Changing a clip's keys under another lane's timing:** keep each contact frame, and run the lane's own measure (`tests/contact_frames.gd`) after every export; stepped keys make each drawing change a speed spike, so recovery steps must stay small.
 
+- **A string can strand the bot.** A lone L L H leaves the frost spear up for 5 s and any L or H press then vaults onto it,
+  so the next strings never reached Collapse and Grounded; the autotest stayed green. Check `breakers=` / `moves=` against
+  what the strings should reach, not only that it finished (`strings=N/N` now says every string played).
+- **Prints in the autotest are frame spikes** (2-10 ms with stdout piped): bot lines go into `player.bot_log` / main's
+  logs and print at the end.
+- A tuning test should fail with the old number: flip the constant back, run it, see FAIL, flip it forward.
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
