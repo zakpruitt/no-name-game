@@ -89,25 +89,33 @@ const MOVES := {
 		"launch": 0.0, "stop": 0.03, "shake": 0.1, "weave": 0.45},
 	# Heavy from neutral: spinning AoE, multi-hit. A leaping whirl: he spins
 	# up off the floor through all three hits and lands with a slam.
-	# The void arm's H (void_element.gd). Shots are the arm thrown out; the element does the work.
-	"EB": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.25, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
-	"DS": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.1, "lunge": 6.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
+	# The void arm's right click (void_element.gd). The tentacle and the element do the work.
 	"EE": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
+		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
+	"EW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
+		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
+	"EC": {"anim": "Ab_LH", "damage": 4.0, "range": 2.6, "arc": 150.0, "hits": [0.29], "cancel": 0.46, "end": 0.7,
+		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.28, "hop": [0.28, 0.58, 1.5]},
 	"EA": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
 	"EV": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
-	"EX": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
-		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
-	"EC": {"anim": "Ab_LH", "damage": 4.0, "range": 2.6, "arc": 150.0, "hits": [0.29], "cancel": 0.46, "end": 0.7,
-		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.28},
+		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
+	"VR": {"anim": "Ab_H", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.46, "end": 0.7,
+		"speed": 1.2, "lunge": 3.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.25},
+	"VD": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.52, "end": 0.7,
+		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.3},
+	"OW": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
+		"lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.4},
+	"TW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
+		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
 	"EF": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [0.34], "cancel": 0.5, "end": 0.72,
-		"speed": 1.2, "lunge": 7.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
-	"EG": {"anim": "Ab_RUSH", "damage": 5.0, "range": 2.8, "arc": 120.0, "hits": [0.16], "cancel": 0.36, "end": 0.55,
-		"speed": 1.1, "lunge": 15.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.28},
+		"speed": 1.2, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
+	"IP": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [0.34], "cancel": 0.5, "end": 0.8,
+		"speed": 1.2, "lunge": 1.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
+	"IJ": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.2], "cancel": 0.3, "end": 0.8,
+		"speed": 1.1, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.0, "shake": 0.0, "air": true, "climb": 2.4},
+	"IS": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
+		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
 	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [0.51], "cancel": 0.68, "end": 0.85,
 		"speed": 1.6, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
 	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
@@ -176,20 +184,20 @@ const MOVES := {
 # pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
 const COMBOS := {
 	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
-	"VS": {"name": "Tendril Slam", "input": "E E", "tier": 1},
-	"SHAPEBREAKER": {"name": "Shapebreaker", "input": "L L L E", "tier": 3},
-	"EC": {"name": "Updraft", "input": "L H", "tier": 1},
-	"EE": {"name": "Thunder Volley", "input": "L H H", "tier": 2},
-	"EF": {"name": "Frostline", "input": "L L H", "tier": 1},
-	"EA": {"name": "Shard Storm", "input": "L L H H", "tier": 2},
-	"EG": {"name": "Glacier Run", "input": "Dash L H", "tier": 2},
-	"EM": {"name": "Magma Heart", "input": "L L L H", "tier": 2},
-	"EV": {"name": "Magma Barrage", "input": "L L L H H", "tier": 2},
-	"EX": {"name": "Conduit", "input": "E H", "tier": 2},
-	"STORMSNARE": {"name": "Stormsnare", "input": "L H E", "tier": 2},
-	"COLD_SNAP": {"name": "Cold Snap", "input": "L L H E", "tier": 2},
-	"MOLTEN_SLAM": {"name": "Molten Slam", "input": "L L L H E", "tier": 2},
-	"CONVERGENCE": {"name": "Convergence", "input": "L H L H L H", "tier": 3},
+	"VS": {"name": "Singularity", "input": "H H", "tier": 2},
+	"VR": {"name": "Reap", "input": "H L", "tier": 1},
+	"VD": {"name": "Black Tide", "input": "H L H", "tier": 2},
+	"OW": {"name": "Overwhelm", "input": "hold H", "tier": 2},
+	"TW": {"name": "Tow Line", "input": "Dash H", "tier": 2},
+	"EC": {"name": "Updraft Lash", "input": "L H", "tier": 1},
+	"EE": {"name": "Live Wire", "input": "L H H", "tier": 2},
+	"EW": {"name": "Live Wire", "input": "L H L H", "tier": 3},
+	"IP": {"name": "Frost Spear", "input": "L L H", "tier": 1},
+	"IS": {"name": "Deep Freeze", "input": "L L H L H", "tier": 3},
+	"EF": {"name": "Harpoon", "input": "Dash L H", "tier": 1},
+	"EA": {"name": "Ice Cube", "input": "Dash L H H", "tier": 2},
+	"EM": {"name": "Molten Palm", "input": "L L L H", "tier": 1},
+	"EV": {"name": "Undertow", "input": "L L L H H", "tier": 2},
 	"LPL": {"name": "Flurry", "input": "L L, pause, L", "tier": 1},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
 	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
@@ -311,7 +319,7 @@ const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
 	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
 const CAST_SFX_DB := -11.0
 # Names of the moves that aren't combos, for the combo guide.
-const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin", "AL1": "Air Slash", "EB": "Element Shot", "DS": "Scatter Shot"}
+const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin", "AL1": "Air Slash", "IJ": "Vault"}
 # After landing a combo this many times in a run, the guide stops hinting it
 # as a follow-up (it still shows as a row); ultimates are always hinted.
 const GUIDE_LEARNED := 6
@@ -326,8 +334,8 @@ const LIGHT_CHAIN := ["L1", "L2", "L3"]
 const VOID_GRAB := preload("res://scripts/void_grab.gd")
 const VOID_ARM := preload("res://scripts/void_arm.gd")
 const HERETIC_RIG := preload("res://scripts/heretic_rig.gd")
-const SWING_INVULN := 1.4  # s, on the tentacle (void_grab.gd)
-const PULL_INVULN := 0.8
+const PULL_INVULN := 0.8  # s, on the tentacle (void_grab.gd)
+const SWING_COOLDOWN := 1.5  # s between presses of R
 const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
 # Charging (hold heavy from neutral): release before CHARGE_TIME for the
 # normal spin (H), after it for the charged slam (CH). You can creep while
@@ -471,8 +479,12 @@ var _trails: Array = []
 var _comic_hero := false  # model is ComicLook.HERO, not the KayKit Barbarian
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 var _void: Node  # his grab and slam (void_grab.gd), the comic hero only
-var _el_seen := {}  # elements this string has used (void_element.gd), for Convergence
-var _converged := false  # this Magma Heart lands as Convergence
+var _swing_cd := 0.0  # s until R swings again
+var _dash_from := Vector3.ZERO  # where his last dash or swing began (void_element._tow)
+var _swing_buffer_t := 0.0  # s left on a press of R
+var _brk_alt := false  # the window's press was the other button: `alt` (void_element.BREAKERS)
+var _brk_y0 := 0.0  # m up he was when a tentacle breaker began
+var bot_alt := false  # the bot's window press takes `alt`
 var _fling_t := 0.0  # s left flying off a swing
 var _ready_t := 0.0  # comic hero: s left in the guard after a fight
 var _fidget_t: float = ComicLook.FIDGET_EVERY  # comic hero: s until he next fidgets
@@ -523,6 +535,7 @@ var _brk_dive_from := Vector3.ZERO
 var _brk_spikes: Array = []
 var _brk_blasted: Dictionary = {}  # foes the spikes' detonation already hit
 var _brk_cue: Node3D
+var _brk_meteor: Node3D  # the fire round him on the way down (void_element.meteor_shell)
 var _brk_wheel: Node3D  # the juggle's sawblade (BREAKERS `juggle`)
 var _brk_focus := false  # the window's slow motion has started
 var _brk_ended := ""  # how the last breaker's press went (breaker_window)
@@ -724,7 +737,7 @@ func _physics_process(delta: float) -> void:
 			AIR_GUST.vanish(_gust_cloud, get_parent())
 		_gust_cloud = null
 	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
-	if swinging and _void != null and (VOID_ELEMENT.is_element_move(_move_id) or (_move_id == "VS" and _void.finisher != "")):
+	if swinging and _void != null and VOID_ELEMENT.is_element_move(_move_id):
 		swinging = false  # the element is the swing (void_element.gd)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -739,6 +752,8 @@ func _tick_timers(delta: float) -> void:
 	_buffer_t -= delta
 	_dash_buffer_t -= delta
 	_dash_cd -= delta
+	_swing_cd -= delta
+	_swing_buffer_t -= delta
 	_post_dash_t -= delta
 	_fling_t -= delta
 	_invuln_t -= delta
@@ -763,9 +778,8 @@ func _read_input() -> void:
 	elif Input.is_action_just_pressed("attack_heavy"):
 		_buffered = "heavy"
 		_buffer_t = input_buffer
-	elif _void != null and Input.is_action_just_pressed("special"):
-		_buffered = "special"
-		_buffer_t = input_buffer
+	if _void != null and Input.is_action_just_pressed("traverse"):
+		_swing_buffer_t = input_buffer
 	if Input.is_action_just_pressed("dash"):
 		_dash_buffer_t = input_buffer
 	if Input.is_action_just_pressed("awaken"):
@@ -840,6 +854,8 @@ func _state_move(delta: float) -> void:
 
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0:
 		_start_dash()
+	elif _try_swing():
+		pass
 	elif _buffered == "heavy" and _next_move("heavy") in ["H", VOID_ELEMENT.NEUTRAL] and Input.is_action_pressed("attack_heavy"):
 		_start_charge()
 	elif _buffered != "":
@@ -910,7 +926,10 @@ func _state_charge(delta: float) -> void:
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0:
 		_start_dash()
 	elif not Input.is_action_pressed("attack_heavy"):
-		_start_attack("CH" if _charged else (VOID_ELEMENT.NEUTRAL if _void != null else "H"))
+		if _void != null:
+			_start_attack(VOID_ELEMENT.CHARGED if _charged else VOID_ELEMENT.NEUTRAL)
+		else:
+			_start_attack("CH" if _charged else "H")
 
 
 ## The move's height off the floor at progress `t`: comes down from where it
@@ -972,7 +991,8 @@ func _weave(t: float) -> void:
 func _land_slam(peak: float) -> void:
 	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
 	Fx.dust(get_parent(), global_position, int(6 * k), 0.5 * k)
-	Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2 * k, 0.22)
+	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: it hid them)
+		Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2 * k, 0.22)
 	Game.shake(0.12 * k)
 	if _hop_y0 >= PLUNGE_AXES_FROM and not _move.get("air", false):
 		_plunge_axes()
@@ -1019,6 +1039,8 @@ func _state_attack(delta: float) -> void:
 	var fwd := _facing()
 	velocity.x = fwd.x * lunge
 	velocity.z = fwd.z * lunge
+	if _void != null and _move_id in VOID_ELEMENT.SPEAR_RUN and _hits_done == 0:
+		VOID_ELEMENT.run_to_spear(self, delta)
 
 	_hop(t)
 	if model.position.y > 0.3 and named_id() == "STORMFALL":  # the comet trail down
@@ -1051,6 +1073,8 @@ func _state_attack(delta: float) -> void:
 		if _hits_done > 0 and has_upgrade("shockstep") and _move_id in SHATTER_MOVES:
 			_shockstep(global_position)
 		_start_dash()
+		return
+	if (_hits_done > 0 or t > 0.2) and _try_swing():
 		return
 	if t >= _move.cancel and _buffered != "":
 		_start_attack(_next_move(_buffered))
@@ -1111,6 +1135,8 @@ func _start_leap(id: String, entry: Dictionary = {}) -> void:
 	_brk_passed = {}
 	_brk_focus = false
 	_brk_ended = ""
+	_brk_alt = false
+	_brk_y0 = model.position.y if _brk.has("tentacle") else 0.0
 	_brk_volley.clear()
 	_breaker_prompt()
 	_brk_ancestor = null
@@ -1122,11 +1148,32 @@ func _start_leap(id: String, entry: Dictionary = {}) -> void:
 	_play("Jump_Start", 0.05, true)
 	Game.sfx("dash", -4.0, 0.05)
 	Fx.dust(get_parent(), global_position, 10, 0.8)
-	Fx.ring(get_parent(), global_position, Color(_fx_color(), 0.8), 1.6, 0.25)
+	if not _brk.has("tentacle"):  # (it sat over him and hid the tentacles going out)
+		Fx.ring(get_parent(), global_position, Color(_fx_color(), 0.8), 1.6, 0.25)
 	if _brk.has("tentacle"):
-		_void.seize()
+		_void.seize(_brk)
+		_brk_aim()
 	elif not _brk.has("dash"):  # he kicks off hard enough to crack the floor
 		BREAKER_QUAKE.crater(get_parent(), global_position, element(), 1.4, false)
+
+
+## Some of his breakers land where the string put them, however far off that is: Meteor Fall on whoever
+## the tentacle has hold of, the dark ones `short` of dark_spot.
+func _brk_aim() -> void:
+	var spot: Vector3
+	if _brk.has("at_spot"):
+		spot = _void.dark_spot
+	elif _brk.has("meteor") and not _void.held_foes().is_empty():
+		spot = Vector3(_void.held_foes()[0].global_position.x, 0.0, _void.held_foes()[0].global_position.z)
+	else:
+		return
+	var to := spot - Vector3(global_position.x, 0.0, global_position.z)
+	if to.length() > 0.1:
+		_brk_dir = to.normalized()
+	var short: float = _brk.get("short", 0.0)
+	_brk_zone = spot - _brk_dir * minf(short, _clear_ahead(-_brk_dir, short) + to.length())  # (back off if he's already that close)
+	if is_instance_valid(_brk_cue):
+		_brk_cue.global_position = spot
 
 
 ## Combo breaker, part 2: rise and hang, throw, wait for the timed press, then
@@ -1146,11 +1193,12 @@ func _state_leap(delta: float) -> void:
 	if b.has("tentacle"):
 		_void.seized_tick(_brk_phase, t, b)
 	if _brk_phase == 0:
+		_brk_aim()
 		if t < b.rise:  # hop back (forward if `back` < 0) while rising
 			var k: float = t / b.rise
 			velocity.x = -_brk_dir.x * b.back / b.rise
 			velocity.z = -_brk_dir.z * b.back / b.rise
-			model.position.y = b.height * (1.0 - pow(1.0 - k, 3.0))
+			model.position.y = lerpf(_brk_y0, b.height, 1.0 - pow(1.0 - k, 3.0))
 		else:
 			model.position.y = b.height + sin((t - b.rise) * 9.0) * 0.06  # hangs
 			var hang: String = b.get("hang_anim", "Jump_Idle")
@@ -1167,7 +1215,8 @@ func _state_leap(delta: float) -> void:
 			_throw_spike()
 		if t >= b.cue and _brk_cue == null:
 			_brk_cue = BREAKER_CUE.new()
-			_brk_cue.color = _fx_color()
+			_brk_cue.color = _brk_color()
+			_brk_cue.crisp = b.has("tentacle")
 			_brk_cue.open = b.open - b.cue
 			_brk_cue.sweet = b.sweet - b.cue
 			_brk_cue.close = b.close - b.cue
@@ -1181,7 +1230,7 @@ func _state_leap(delta: float) -> void:
 			Game.sfx("heartbeat", -6.0, 0.0)
 			# The war cry marks the window: he roars in the slowed hang.
 			Game.sfx("war_cry", -3.0, 0.06)
-			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _fx_color(), _brk_element())
+			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _brk_color(), _brk_element(), not b.has("tentacle"))  # (its bubble hid him and filled the floor)
 			if awakened and not b.has("dash") and not b.has("fan"):
 				_breaker_ancestor()
 		if not _brk_locked and not _brk_held and _breaker_pressed(t):
@@ -1229,8 +1278,12 @@ func _state_leap(delta: float) -> void:
 			_ghost_t = 0.02
 			if b.has("dash"):
 				Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.5))
+			elif b.has("meteor"):  # (the tail on the shell does the work: this is what comes off it)
+				Fx.burst(get_parent(), model.global_position + Vector3.UP, VOID_ELEMENT.METEOR_HOT, 5, 3.0, 0.14, 0.3, Vector3.UP, 60.0)
 			else:  # the dive comes down like a comet in his element
-				AIR_GUST.comet(get_parent(), model, _fx_color(), _brk_element())
+				AIR_GUST.comet(get_parent(), model, _brk_color(), _brk_element())
+		if is_instance_valid(_brk_meteor):
+			_brk_meteor.global_position = model.global_position + Vector3.UP
 		if b.has("dash"):
 			_dash_cut()
 		if k >= 1.0:
@@ -1333,11 +1386,17 @@ func _drop_wheel() -> void:
 	_brk_wheel = null
 
 
-## The breaker press this frame: heavy, or the autotest bot at the sweet spot.
+## The breaker press this frame: heavy, light where the breaker has an `alt`, or the autotest bot at the
+## sweet spot. Which one it was is in _brk_alt.
 func _breaker_pressed(t: float) -> bool:
 	if bot_enabled:
+		_brk_alt = bot_alt
 		return t >= _brk.sweet
-	return Input.is_action_just_pressed(_brk.get("press", "attack_heavy"))
+	if _brk.has("alt") and Input.is_action_just_pressed("attack_light"):
+		_brk_alt = true
+		return true
+	_brk_alt = false
+	return Input.is_action_just_pressed("attack_heavy")
 
 
 func _throw_spike() -> void:
@@ -1367,6 +1426,21 @@ func _throw_spike() -> void:
 
 
 func _start_dive() -> void:
+	if _brk_alt and _brk.has("alt"):
+		_brk.merge(_brk.alt, true)
+	if _brk.has("cubes"):
+		_void.freeze_seized()
+	if _brk.has("maw"):
+		_void.dark_maw = VOID_ELEMENT.DARK.maw(get_parent(), _void.dark_spot, VOID_ELEMENT.MAW_RADIUS)
+	if _brk.has("abyss") and is_instance_valid(_void.dark_bind):
+		_void.dark_bind.sink = VOID_ELEMENT.ABYSS_SINK
+	if _brk.has("press"):
+		_void.aim_crush()
+	_brk_aim()
+	if _brk.has("meteor"):
+		var run := _brk_zone - Vector3(global_position.x, 0.0, global_position.z)
+		_brk_meteor = VOID_ELEMENT.meteor_shell(get_parent(), Vector3(run.x, -_brk.height, run.z))
+		_brk_meteor.global_position = model.global_position + Vector3.UP
 	_brk_phase = 1
 	_state_t = 0.0
 	_drop_wheel()
@@ -1408,13 +1482,15 @@ func _breaker_impact() -> void:
 	var at := Vector3(global_position.x, 0.0, global_position.z)
 	var perfect: bool = absf(_brk_press - b.sweet) <= b.perfect
 	var mult: float = (b.perfect_mult if perfect else 1.0) * _cast_power()
+	if is_instance_valid(_brk_meteor):
+		_brk_meteor.queue_free()
 	if b.has("dash"):
 		_dash_wake(b.damage * _dmg_mult * mult, perfect)
 	elif b.has("fan"):
 		_fan_release(mult, perfect)
 		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius, Vector3.ZERO, false)
 	elif b.has("tentacle"):
-		VOID_ELEMENT.breaker_impact(self, b, at, _void.slam_seized(), mult)
+		VOID_ELEMENT.breaker_impact(self, b, at, _void.held_foes() if b.has("cubes") or b.has("rip") else _void.slam_seized(), mult)
 	else:
 		ELEMENTS.sky_impact(get_parent(), at, el, b.radius)
 		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius * 0.9, _brk_dir)
@@ -1425,7 +1501,8 @@ func _breaker_impact() -> void:
 		if perfect:
 			BREAKER_QUAKE.eruption_line(get_parent(), _brk_dive_from, _brk_dir, (at - Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)).length(), el)
 	else:
-		BREAKER_QUAKE.crater(get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
+		if not b.has("press") and not b.has("at_spot"):  # (its ice buried the cubes as they left; the dark ones have their own)
+			BREAKER_QUAKE.crater(get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
 		if perfect and not b.has("tentacle"):  # (his erupts under each foe already)
 			BREAKER_QUAKE.eruption(get_parent(), at, el, maxf(b.radius, 2.4) * 1.35)
 		Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
@@ -1507,7 +1584,8 @@ func _breaker_callout(text: String, perfect: bool) -> void:
 	Game.sfx(COMBO_TIER_SFX[2], COMBO_SFX_DB, 0.0)
 	_callout.text = text + ("\nPERFECT" if perfect else "")
 	_callout.modulate = COMBO_TIER_COLORS[2] if perfect else _fx_color().lerp(Color.WHITE, 0.3)
-	Fx.combo_pop(get_parent(), global_position, _callout.modulate, 3 if perfect else 2)
+	if not _brk.has("tentacle"):  # (it covered what the tentacles do on landing)
+		Fx.combo_pop(get_parent(), global_position, _callout.modulate, 3 if perfect else 2)
 	_callout.position = Vector3(0.0, 2.9, 0.0)
 	_callout.scale = Vector3.ONE * 0.6
 	_callout.visible = true
@@ -1569,21 +1647,23 @@ func _next_move(kind: String) -> String:
 ## route() for the hero he is: the comic hero has his own, smaller move set for now.
 func _routed(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool, gusted: bool) -> String:
 	if _comic_hero:
+		if VOID_ELEMENT.vaults(get_tree(), from, attacking, post_dash):
+			return "IJ"
 		return void_route(kind, from, attacking, chain, post_dash)
 	return route(kind, from, attacking, chain, post_dash, awake, gusted)
 
 
-## The comic hero's presses. Lights run the weapons: axe, spear, hammer. H is the element: the weapon's
-## own off a weapon (void_element.gd), on its own a Gale Burst. E off anything is the slam (so L L L E
-## is the whole string into it), from neutral the grab. No air string or ultimates while the void
-## arm's moves are worked out; route() below is untouched for them to come back to.
+## The comic hero's presses. Lights run the weapons: axe, spear, hammer. H (right click) is the tentacle:
+## what it does off a weapon depends on that weapon's element, on its own it's the grab (void_element.gd).
+## L off Updraft Lash goes into the air, L off the grab flails what it holds, H off a dash is Tow Line.
+## route() below is untouched for the other heroes.
 static func void_route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
-	if kind == "special":
-		return "VS" if attacking and from != "VS" else "GR"
 	if kind == "light":
+		if attacking and VOID_ELEMENT.LIGHT_AFTER.has(from):
+			return VOID_ELEMENT.LIGHT_AFTER[from]
 		return "DL" if post_dash else LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
 	if post_dash and not attacking:
-		return VOID_ELEMENT.DASH_SHOT
+		return VOID_ELEMENT.DASH_MOVE
 	return VOID_ELEMENT.heavy_after(from, attacking)
 
 
@@ -1680,21 +1760,14 @@ func combo_options() -> Array:
 	if not live or (attacking and _move_id == "AF"):
 		return []  # (the finisher has the screen to itself)
 	if state == State.CHARGE:
-		return [_option("heavy", "CH", true)]
+		return [_option("heavy", VOID_ELEMENT.CHARGED if _void != null else "CH", true)]
 	var rows := []
 	var kinds: Array[String] = ["light", "heavy"]
-	if _comic_hero:
-		kinds.append("special")
 	for kind: String in kinds:
 		var id := _routed(kind, _route_from(), attacking, _chain_i, dashing, awakened, _gusted)
-		if kind == "special" and id != "VS":
-			continue  # the grab isn't a continuation
 		if kind == "heavy" and id in ["H", VOID_ELEMENT.NEUTRAL]:
-			continue  # the plain spin, or a lone shot, isn't a continuation
+			continue  # the plain spin, or a lone grab, isn't a continuation
 		var o := _option(kind, id)
-		if kind == "special" and _void != null and not _breaker_for(_move_id).is_empty():
-			o.name = _breaker_for(_move_id).names.spirit  # E here is the breaker, not the plain slam
-			o.tier = 3
 		if id == "L3" and attacking and model.position.y >= PLUNGE_AXES_FROM:
 			var fall := "STORMFALL" if model.position.y >= STORMFALL_FROM else "SKYFALL"
 			o.name = combo_name(fall)  # from up here it plunges as Skyfall / Stormfall (named_id())
@@ -1716,8 +1789,8 @@ func combo_options() -> Array:
 func breaker_window() -> Dictionary:
 	if state == State.LEAP and _brk_phase == 0 and not _brk_locked:
 		var b := _brk
-		return {"live": true, "t": _state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": _fx_color(),
-			"name": breaker_name(), "button": "special" if b.get("press", "") == "special" else "heavy"}
+		return {"live": true, "t": _state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": _brk_color(),
+			"name": breaker_name(), "alt_name": b.alt.names.spirit if b.has("alt") else ""}
 	return {"ended": _brk_ended}
 
 
@@ -1735,9 +1808,12 @@ func _breaker_prompt() -> void:
 func _breaker_for(id: String) -> Dictionary:
 	if _void == null:
 		return BREAKERS.get(id, {})
-	if id == "EM" and _converged:
-		return VOID_ELEMENT.entry("CONVERGENCE")
-	return VOID_ELEMENT.entry(id) if VOID_ELEMENT.BREAKERS.has(id) and id != "CONVERGENCE" else {}
+	return VOID_ELEMENT.entry(id) if VOID_ELEMENT.BREAKERS.has(id) else {}
+
+
+## A breaker's shared effects: in what it lands in, if it says, instead of his axe's teal.
+func _brk_color() -> Color:
+	return VOID_ELEMENT.ELEMENTS.LOOK[_brk.erupt].color if _brk.has("erupt") else _fx_color()
 
 
 ## The element a breaker's effects come in: his own, unless the breaker says otherwise.
@@ -1755,7 +1831,7 @@ func _option(kind: String, id: String, hold := false) -> Dictionary:
 		"ult": ULTIMATES.has(id) or id == "AF", "hold": hold, "next": {}}
 	if o.tier < 3 and not hold:
 		var best := 0
-		for k: String in (["special", "heavy", "light"] if _comic_hero else ["heavy", "light"]):  # heavy first: wins ties
+		for k: String in ["heavy", "light"]:  # heavy first: wins ties
 			var n := _routed(k, id, true, chain_after(id), false, awakened, _gusted or id == "AH")
 			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
 			if combos_landed.get(n, 0) >= GUIDE_LEARNED and not (ULTIMATES.has(n) or n == "AF"):
@@ -1828,9 +1904,6 @@ func _start_attack(id: String) -> void:
 		AIR_GUST.gust(get_parent(), global_position, model, _fx_color(), element())
 		if not is_instance_valid(_gust_cloud):
 			_gust_cloud = AIR_GUST.cloud(model, _fx_color())
-	if state != State.ATTACK:
-		_el_seen.clear()  # a new string
-	_converged = false
 	_set_state(State.ATTACK)
 	if _void != null:
 		_void.on_move(id, prev_id)
@@ -1842,7 +1915,18 @@ func _start_attack(id: String) -> void:
 		_move.damage *= _ult_mult()
 
 
+## R: the void arm swings him, if it's ready. True if it did.
+func _try_swing() -> bool:
+	if _void == null or _swing_buffer_t <= 0.0 or _swing_cd > 0.0:
+		return false
+	_swing_buffer_t = 0.0
+	_swing_cd = SWING_COOLDOWN
+	_void.traverse()
+	return true
+
+
 func _start_dash() -> void:
+	_dash_from = global_position
 	_air_dash = _can_air_dash()
 	if _air_dash:
 		_air_dashes += 1
@@ -1940,13 +2024,15 @@ func _air_home() -> void:
 func _do_hit() -> void:
 	if _move_id == "GR":
 		_void.strike()
+		if _void._target_alive():
+			VOID_ELEMENT.DARK.burst(get_parent(), _void._target.global_position, 0.8)
 		return
 	if _move_id == "VS":
 		_void.slam_lands()
 	var fwd := _facing()
 	var named_before := _callout_done  # a combo ender lands its extra punch once
-	# (not on H's moves or the slams they lead to: the element is the swing, and the arc hides it)
-	if _void == null or not (VOID_ELEMENT.is_element_move(_move_id) or (_move_id == "VS" and _void.finisher != "")):
+	# (not on H's moves: the element is the swing, and the arc hides it)
+	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):
 		_swoosh(fwd)
 	var rite := ascendancy != "" and _move_id in RITE.HEAVIES
 	if rite and _hits_done == 1:  # sets off what the last heavy laid down, before this one lays its own
@@ -2100,7 +2186,8 @@ func _combo_callout(id: String) -> void:
 	_callout.text = combo_name(id)
 	_callout.modulate = Ascendancy.color(ascendancy) if id == "AF" and ascendancy != "" else COMBO_TIER_COLORS[tier - 1]
 	var pop_color: Color = VOID_ELEMENT.color_of(_move_id, _fx_color()) if _void != null else _fx_color()
-	Fx.combo_pop(get_parent(), global_position, pop_color if tier < 3 else _callout.modulate, tier)
+	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: a pop there hides what they're doing)
+		Fx.combo_pop(get_parent(), global_position, pop_color if tier < 3 else _callout.modulate, tier)
 	_callout.position = Vector3(0.0, 2.9, 0.0)
 	_callout.scale = Vector3.ONE * 0.6
 	_callout.visible = true
@@ -2155,7 +2242,7 @@ func _trail_rest_color() -> Color:
 
 ## The element cast that comes with the current move (ELEMENTS.CASTS), on its first active frame.
 func _cast(fwd: Vector3) -> void:
-	if not ELEMENTS.CASTS.has(_move_id):
+	if not ELEMENTS.CASTS.has(_move_id) or (_void != null and _move_id in VOID_ELEMENT.NO_CAST):
 		return
 	var c: Dictionary = ELEMENTS.CASTS[_move_id]
 	var el := element()
@@ -2691,8 +2778,11 @@ func _on_combo_changed(_count: int, rank: String) -> void:
 		rank_ups += 1
 		var c: Color = RANK_COLORS.get(rank, Color.WHITE)
 		var at := global_position + Vector3.UP * 1.1
-		Fx.ring(get_parent(), global_position, Color(c, 0.9), 1.8 + i * 0.45, 0.3)
-		Fx.flare(get_parent(), at, c, 1.8 + i * 0.5, 0.2, "star8")
+		if Game.heretic:  # thin and hard: the soft ring and star sat on him and fought his effects
+			VOID_ELEMENT.DARK.hoop_run(get_parent(), global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
+		else:
+			Fx.ring(get_parent(), global_position, Color(c, 0.9), 1.8 + i * 0.45, 0.3)
+			Fx.flare(get_parent(), at, c, 1.8 + i * 0.5, 0.2, "star8")
 		Fx.burst(get_parent(), at, c, 6 + i * 4, 9.0, 0.14, 0.35, Vector3.UP, 120.0, -6.0, 0.3, "spark")
 		if i >= 4 and Game.camera_rig != null:  # S and up
 			Game.camera_rig.punch(0.94, 0.15)
@@ -3038,12 +3128,6 @@ func _path(key: String, fallback: float) -> float:
 ## The COMBOS id the current move lands as: Triple Chop from the top of the
 ## air string is Skyfall, otherwise the move itself.
 func named_id() -> String:
-	if _move_id == "VS" and _void.after_string:
-		return "SHAPEBREAKER"
-	if _move_id == "VS" and _void.finisher != "":
-		return _void.finisher
-	if _move_id == "EM" and _converged:
-		return "CONVERGENCE"
 	if _move_id == "L3" and _hop_y0 >= STORMFALL_FROM:
 		return "STORMFALL"
 	if _move_id == "L3" and _hop_y0 >= PLUNGE_AXES_FROM:

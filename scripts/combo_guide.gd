@@ -27,8 +27,8 @@ const EDGE := 330.0  # flip to the hero's left this close to the right edge
 const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
 const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.74)
 ## Button text: mouse and keyboard, the one control set shown in the game.
-const LABELS := {"light": "LMB", "heavy": "RMB", "dash": "SPACE", "special": "E"}
-const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash", "special": "special"}
+const LABELS := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
+const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash"}
 
 var player: Node3D
 var shown := 0  # times the guide appeared (autotest)

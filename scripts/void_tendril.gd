@@ -25,6 +25,7 @@ func _ready() -> void:
 	_mi = MeshInstance3D.new()
 	_mi.mesh = _mesh
 	_mi.set_meta("no_ghost", true)
+	_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # (reaching off screen, it threw a long black line)
 	add_child(_mi)
 	if DisplayServer.get_name() != "headless":
 		_mat = ComicLook.material("P_Tendril", ComicLook.hero_kind()).duplicate()
@@ -85,7 +86,7 @@ func _build(pts: PackedVector3Array) -> void:
 				var a1 := i * SIDES + s2
 				var b0 := a0 + SIDES
 				var b1 := a1 + SIDES
-				idx.append_array([a0, a1, b0, a1, b1, b0])
+				idx.append_array([a0, b0, a1, a1, b0, b1])  # (clockwise from outside: Godot culls the other way)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts

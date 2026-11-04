@@ -19,47 +19,51 @@ const RITES := preload("res://scripts/element_rite.gd")
 ## The comic hero's moves while the void arm is being worked out (player.void_route()).
 const VOID_SECTIONS := [
 	{"title": "WEAPONS", "rows": [
-		{"input": "L", "kind": "move", "id": "L1", "note": "Axe: the arm's resting shape, chopped across."},
-		{"input": "L L", "kind": "move", "id": "L2", "note": "Spear: the arm draws out and drives ahead."},
-		{"input": "L L L", "kind": "move", "id": "L3", "note": "Hammer: a leap, then down with lava."},
-		{"input": "hold H", "kind": "move", "id": "CH", "note": "Hammer: a charged slam."},
+		{"input": "L", "kind": "move", "id": "L1", "note": "Axe: storm."},
+		{"input": "L L", "kind": "move", "id": "L2", "note": "Spear: ice."},
+		{"input": "L L L", "kind": "move", "id": "L3", "note": "Hammer: magma."},
 		{"input": "Dash L", "kind": "move", "id": "DL", "note": "Spear: a lunge off a dash, or off a swing."},
 	]},
-	{"title": "ELEMENTS", "rows": [
-		{"input": "H", "kind": "move", "id": "EB", "note": "Shoots his last weapon's element. Keep pressing to keep shooting."},
-		{"input": "Dash H", "kind": "move", "id": "DS", "note": "A fan of three shots off a dash."},
-		{"input": "L H", "kind": "move", "id": "EC", "note": "Axe into storm: a gale throws them in the air."},
-		{"input": "L H H", "kind": "move", "id": "EE", "note": "Shoots lightning at them. E in the window: Worldbreaker."},
-		{"input": "L L H", "kind": "move", "id": "EF", "note": "Spear into ice: a line of spikes freezes them. L shatters them with the hammer."},
-		{"input": "L L H H", "kind": "move", "id": "EA", "note": "Shoots an ice lance at each. E in the window: Shatterstorm."},
-		{"input": "L L L H", "kind": "move", "id": "EM", "note": "Hammer into lava: the floor breaks, wells up and throws them."},
-		{"input": "L L L H H", "kind": "move", "id": "EV", "note": "Shoots molten rock and sets off the wells. E in the window: Absolute Zero."},
-		{"input": "Dash L H", "kind": "move", "id": "EG", "note": "A second lunge along a line of ice. E in the window: Thunderclap."},
-		{"input": "L H L H L H", "kind": "move", "id": "CONVERGENCE", "note": "All three elements in one string. E in the window: Convergence Breaker."},
+	{"title": "STORM", "rows": [
+		{"input": "L H", "kind": "move", "id": "EC", "note": "The tentacle sweeps under them and the wind throws them up."},
+		{"input": "L H H", "kind": "move", "id": "EE", "note": "A tentacle on each of them, with lightning running through."},
+		{"input": "L H H, H in the window", "kind": "text", "name": "Grounded", "tier": 3, "note": "Everyone slammed down, with lightning under each."},
+		{"input": "L H L", "kind": "move", "id": "AL1", "note": "Up after them with the axe."},
+		{"input": "L H L H", "kind": "move", "id": "EW", "note": "Live Wire from the air. The window has two endings."},
+		{"input": "L H L H, H in the window", "kind": "text", "name": "Worldbreaker", "tier": 3, "note": "Slammed into the floor, with magma erupting under each."},
+		{"input": "L H L H, L in the window", "kind": "text", "name": "Cold Front", "tier": 3, "note": "Frozen solid and hurled at the others as ice cubes."},
 	]},
-	{"title": "BREAKERS (E IN THE WINDOW)", "rows": [
-		{"input": "L H H E", "kind": "text", "name": "Worldbreaker", "tier": 3, "note": "Tentacles seize them all and slam them down. Magma erupts under each."},
-		{"input": "L L H H E", "kind": "text", "name": "Shatterstorm", "tier": 3, "note": "The slam brings lightning down on each."},
-		{"input": "L L L H H E", "kind": "text", "name": "Absolute Zero", "tier": 3, "note": "Slammed out of the lava into ice that freezes them."},
-		{"input": "Dash L H E", "kind": "text", "name": "Thunderclap", "tier": 3, "note": "A quick slam with lightning off the dash."},
-		{"input": "hold H, E", "kind": "text", "name": "Landslide", "tier": 3, "note": "Off the charged slam: down into magma."},
-		{"input": "L H L H L H E", "kind": "text", "name": "Convergence Breaker", "tier": 3, "note": "Magma, ice and lightning under each of them, all at once."},
+	{"title": "ICE", "rows": [
+		{"input": "L L H", "kind": "move", "id": "IP", "note": "Plants the spear. Frost spreads out from it and slows whoever's on it."},
+		{"input": "L L H L", "kind": "move", "id": "IJ", "note": "Vaults up over the spear, any time while it stands. Right click does too."},
+		{"input": "L L H L H", "kind": "move", "id": "IS", "note": "Slams down onto the spear: it explodes and everyone on the frost freezes into a cube."},
+		{"input": "L L H L H, H in the window", "kind": "text", "name": "Avalanche", "tier": 3, "note": "The tentacles pick up every cube and slam them all together in the middle."},
+		{"input": "Dash L H", "kind": "move", "id": "EF", "note": "A spear tip through a whole line: they freeze and are reeled in, one behind the other."},
+		{"input": "Dash L H H", "kind": "move", "id": "EA", "note": "Freezes the nearest and bowls it. Everyone it passes freezes too."},
 	]},
-	{"title": "TENTACLE", "rows": [
-		{"input": "E", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
-		{"input": "E at a pillar", "kind": "text", "name": "Swing", "note": "Swings round it and flings him off the way he was going. Hold E to go round longer."},
-		{"input": "E off any move", "kind": "move", "id": "VS", "note": "Heaves the foe overhead and slams it into the floor."},
-		{"input": "L L L E", "kind": "move", "id": "SHAPEBREAKER", "note": "Axe, spear, hammer, then the slam, at full power."},
-		{"input": "E H", "kind": "move", "id": "EX", "note": "Charges the foe it holds with his last weapon's element, and it bursts."},
-		{"input": "L H E", "kind": "move", "id": "STORMSNARE", "note": "The slam lands in the storm: lightning where it hits."},
-		{"input": "L L H E", "kind": "move", "id": "COLD_SNAP", "note": "The slam lands in ice and freezes what's near."},
-		{"input": "L L L H E", "kind": "move", "id": "MOLTEN_SLAM", "note": "The slam lands in lava: a geyser where it hits."},
+	{"title": "MAGMA", "rows": [
+		{"input": "L L L H", "kind": "move", "id": "EM", "note": "The arm swells into a fist and shoves them along a line of lava. A wall hits hard."},
+		{"input": "L L L H H", "kind": "move", "id": "EV", "note": "Tendrils drag them waist-deep into lava, stuck and burning, however far the palm sent them."},
+		{"input": "L L L H H, H in the window", "kind": "text", "name": "Meteor Fall", "tier": 3, "note": "He goes up and comes down on them as a meteor, wherever they are. The biggest takes it worst, and shields come off for good."},
+	]},
+	{"title": "DARK", "rows": [
+		{"input": "H", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
+		{"input": "H H", "kind": "move", "id": "VS", "note": "Heaves what it holds overhead and slams it: a black hole tears open there and drags foes in."},
+		{"input": "H H, H in the window", "kind": "text", "name": "Collapse", "tier": 3, "note": "He comes down at the hole. It falls in on itself and throws everyone clear, hard."},
+		{"input": "H L", "kind": "move", "id": "VR", "note": "A crescent of darkness through everyone in front of him. It marks them."},
+		{"input": "H L H", "kind": "move", "id": "VD", "note": "A pool opens ahead, and everyone marked is dragged across the floor into it, however far off."},
+		{"input": "H L H, H in the window", "kind": "text", "name": "Maw", "tier": 3, "note": "Jaws of darkness come up out of the pool and shut on them."},
+		{"input": "hold H", "kind": "move", "id": "OW", "note": "A black pool under what he's aiming at, with tendrils piling on. Works on big foes."},
+		{"input": "hold H, H in the window", "kind": "text", "name": "Abyss", "tier": 3, "note": "They sink through the floor, then black spikes throw them back up."},
+		{"input": "Dash H", "kind": "move", "id": "TW", "note": "Latches onto whoever he just passed and yanks them into each other."},
+		{"input": "R", "kind": "text", "name": "Swing", "note": "Swings him the way he's aiming, round a pillar if there's one there. Hold R to go further; letting go flings him."},
+		{"input": "R, then H", "kind": "text", "name": "Snatch", "note": "Grabs a foe on the way past, carries it, and it flies on when he lets go."},
 	]},
 ]
 
 
 ## Only the comic hero has these, so route() and SECTIONS never see them (tests/void_arm_check.gd walks them).
-const VOID_ONLY := ["GR", "VS", "SHAPEBREAKER", "EB", "DS", "EC", "EE", "EF", "EA", "EG", "EM", "EV", "EX", "STORMSNARE", "COLD_SNAP", "MOLTEN_SLAM", "CONVERGENCE"]
+const VOID_ONLY := ["GR", "VS", "EC", "EE", "EW", "EF", "IP", "IJ", "IS", "EA", "EM", "EV", "VR", "VD", "OW", "TW"]
 
 
 ## What the pause menu lists for this hero.

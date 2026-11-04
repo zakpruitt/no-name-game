@@ -105,6 +105,7 @@ static var blasts := 0
 var radius := 0.55
 var hp := 0.0
 var last_hit_ms := -100000  # when damage last landed (health bar, enemy_bars.gd)
+var _quiet_hit := false  # inside burn_hit
 var state := State.SPAWN
 var model: Node3D
 var anim: AnimationPlayer
@@ -132,6 +133,7 @@ var _squash_tween: Tween
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
 var _guard_broken_t := 0.0
+var _shield_node: Node3D
 var _aim_dir := Vector3.FORWARD
 var _aim_line: Node3D
 
@@ -488,6 +490,9 @@ func _thaw(shattered: bool) -> void:
 	frozen_t = 0.0
 	if _ice:
 		_ice.visible = false
+	var cube := get_node_or_null("ThrownCube")  # (thrown_foe.cube_on)
+	if cube != null:
+		cube.queue_free()
 	if shattered:
 		Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
 		Game.register_hit("shatter_ice")
@@ -524,6 +529,16 @@ func _on_player_attack(_move_id: String) -> void:
 	Fx.dust(get_parent(), global_position, 6)
 
 
+## Damage and its number with no sparks, word or flash, for an effect that draws its own: ticks several times
+## a second on a whole crowd would bury whatever's holding them. `big` is one solid blow, which does flash.
+func burn_hit(damage: float, big := false) -> void:
+	_quiet_hit = true
+	take_hit(damage, Vector3.ZERO, 0.0, big)
+	_quiet_hit = false
+	if big and is_instance_valid(model):
+		Fx.flash(model)
+
+
 func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> void:
 	if state == State.DEAD or state == State.SPAWN or state == State.DODGE:
 		return
@@ -535,14 +550,16 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	hp -= damage
 	last_hit_ms = Time.get_ticks_msec()
 	Fx.damage_number(get_parent(), global_position, damage, big)
-	Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
-	Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
-	ComicFx.hit(global_position, big)
+	if not _quiet_hit:
+		Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
+		Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
+		ComicFx.hit(global_position, big)
 	var hero := get_tree().get_first_node_in_group("player")
-	if hero != null and hero.has_method("_fx_color"):  # long strings escalate the sparks
+	if hero != null and hero.has_method("_fx_color") and not _quiet_hit:  # long strings escalate the sparks
 		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
 			knockback.normalized() + Vector3.UP * 0.5)
-	Fx.flash(model)
+	if not _quiet_hit:
+		Fx.flash(model)
 	_telegraph.visible = false
 	_freeze_t = hit_freeze_big if big else hit_freeze
 	if hp <= 0.0:
@@ -605,6 +622,18 @@ func _attach_shield() -> void:
 	var s: Node3D = SHIELD_SCENE.instantiate()
 	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
 	_attach_to_hand("handslot.l", s)
+	_shield_node = s
+
+
+## Torn off for good. True if there was one.
+func rip_shield() -> bool:
+	if not shield:
+		return false
+	shield = false
+	if is_instance_valid(_shield_node):
+		_shield_node.visible = false
+	Game.announced.emit("GUARD BREAK")
+	return true
 
 
 func _tint_body() -> void:

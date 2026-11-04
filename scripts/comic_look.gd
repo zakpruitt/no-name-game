@@ -155,7 +155,8 @@ const HERO_FORMS := {
 }
 ## The shape each move asks for; anything not here is the axe.
 const HERO_MOVE_FORMS := {"L2": "spear", "DL": "spear", "L3": "hammer", "CH": "hammer", "GR": "hand", "VS": "hand",
-	"EF": "spear", "EG": "spear", "EM": "hammer", "EB": "hand", "DS": "hand", "EE": "hand", "EA": "hand", "EV": "hand", "EX": "hand"}
+	"EF": "spear", "IP": "spear", "IJ": "hand", "IS": "hand", "EA": "hand", "EM": "hand", "EV": "hand", "EC": "hand", "EE": "hand", "EW": "hand",
+	"VR": "hand", "VD": "hand", "OW": "hand", "TW": "hand"}
 const VOID_COLOR := Color(0.62, 0.34, 0.92)
 const HERO_AXES := {"hand.r": "axe_void_blade"}
 const HERO_AXE_EDGES := {"hand.r": "axe_void_edge"}

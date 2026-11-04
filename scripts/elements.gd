@@ -49,6 +49,7 @@ const LOOK := {
 	"wind": {"color": Color(0.5, 1.0, 0.55), "glow": Color(0.92, 1.0, 0.9), "sfx": "cast_wind"},
 	"earth": {"color": Color(1.0, 0.38, 0.08), "glow": Color(1.0, 0.78, 0.3), "rock": Color(0.2, 0.16, 0.15), "sfx": "cast_earth"},
 	"water": {"color": Color(0.4, 0.78, 1.0), "glow": Color(0.88, 0.97, 1.0), "sfx": "cast_water"},
+	"void": {"color": Color(0.62, 0.3, 1.0), "glow": Color(1.0, 0.4, 0.95), "sfx": "cast_spirit"},  # the void arm's dark moves only
 }
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const ORBIT_REST := 3
@@ -106,6 +107,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	Fx.shards(root, at, Color.WHITE, 2, Vector3.UP, 0.0, 0.3, 0.15)
 	Fx.dash_streak(root, at, Vector3.FORWARD, 1.0, Color.WHITE, 0.15)
 	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
+	load("res://scripts/dark_fx.gd").prewarm_pieces(root)
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color, true)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))

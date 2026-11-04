@@ -28,6 +28,7 @@ var fixed := false  # true: stay at `center` (tests/breaker_prompt_preview.gd la
 
 var _font: Font
 var _label := "RMB"  # the heavy button (combo_guide.LABELS, loaded in _ready)
+var _alt_label := "LMB"  # the light button, for a window with two endings
 var _box := StyleBoxFlat.new()
 var _shown := false
 var _w: Dictionary = {}  # last breaker_window() while shown
@@ -41,6 +42,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_font = ThemeDB.fallback_font
 	_label = load("res://scripts/combo_guide.gd").LABELS.heavy
+	_alt_label = load("res://scripts/combo_guide.gd").LABELS.light
 	_box.anti_aliasing = true
 	_last_us = Time.get_ticks_usec()
 
@@ -132,6 +134,15 @@ func _name(at: Vector2, a: float, col: Color) -> void:
 	var label: String = _w.get("name", "")
 	if label == "":
 		return
+	var alt: String = _w.get("alt_name", "")
+	if alt != "":  # two endings: say which button is which
+		_name_line("%s %s" % [_label, label], at, a, col)
+		_name_line("%s %s" % [_alt_label, alt], at + Vector2(0.0, NAME_SIZE + 4.0), a, col)
+		return
+	_name_line(label, at, a, col)
+
+
+func _name_line(label: String, at: Vector2, a: float, col: Color) -> void:
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
 	var pos := Vector2(at.x - tw * 0.5, at.y + NAME_SIZE)
 	draw_string_outline(_font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, 4, Color(0.04, 0.03, 0.07, 0.8 * a))
@@ -141,9 +152,8 @@ func _name(at: Vector2, a: float, col: Color) -> void:
 ## The button to press in the middle (the combo guide's key style).
 func _key(c: Vector2, a: float, rim: Color) -> void:
 	var label := _label
-	var window: Dictionary = player.breaker_window() if player != null else {}
-	if window.get("button", "") == "special":
-		label = load("res://scripts/combo_guide.gd").LABELS.special
+	if _w.get("alt_name", "") != "":
+		label = "%s %s" % [_label, _alt_label]
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, KEY_SIZE).x
 	var w := maxf(KEY_H, tw + KEY_H * 0.6)
 	var rect := Rect2(c - Vector2(w, KEY_H) * 0.5, Vector2(w, KEY_H))

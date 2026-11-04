@@ -27,6 +27,7 @@ const POOL := 6
 # Words can't stack into noise on a crowd: at most one per gap.
 const WORD_GAP_MS := 110
 const WORD_GAP_REDUCED_MS := 400
+const WORD_GAP_HERETIC_MS := 240  # his moves hit whole crowds at once
 const WORD_RISE_PX := 1.3  # per frame
 const WORD_HEAD := 1.6  # metres above the foe's feet
 const WORD_JITTER := 34.0
@@ -99,7 +100,7 @@ func _make_label() -> Label:
 func _word(world: Vector3, tier: int) -> void:
 	var now := Time.get_ticks_msec()
 	var reduced := Game.reduce_flashing
-	if now - _last_word_ms < (WORD_GAP_REDUCED_MS if reduced else WORD_GAP_MS):
+	if now - _last_word_ms < (WORD_GAP_REDUCED_MS if reduced else WORD_GAP_HERETIC_MS if Game.heretic else WORD_GAP_MS):
 		return
 	_last_word_ms = now
 	var i := _next

@@ -13,6 +13,7 @@ var color := Color(0.3, 0.95, 0.85)
 var open := 0.2
 var sweet := 0.38
 var close := 0.54
+var crisp := false  # thin hard rings: the tentacle's breakers land right on this spot
 
 var _t := 0.0
 var _target: MeshInstance3D
@@ -29,13 +30,24 @@ func _ready() -> void:
 
 func _ring(c: Color) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
-	var mesh := PlaneMesh.new()
-	mesh.size = Vector2.ONE * 2.2  # Fx.ring: the texture's ring sits ~1 m out
+	var mesh: PrimitiveMesh
+	if crisp:
+		var hoop := TorusMesh.new()
+		hoop.inner_radius = 0.92
+		hoop.outer_radius = 1.0
+		hoop.rings = 48
+		hoop.ring_segments = 4
+		mesh = hoop
+	else:
+		var quad := PlaneMesh.new()
+		quad.size = Vector2.ONE * 2.2  # Fx.ring: the texture's ring sits ~1 m out
+		mesh = quad
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.no_depth_test = true  # reads over the spikes and enemies
-	mat.albedo_texture = Fx.TEX.ring
+	if not crisp:
+		mat.albedo_texture = Fx.TEX.ring
 	mat.albedo_color = c
 	mesh.material = mat
 	m.mesh = mesh
@@ -79,7 +91,8 @@ func hit(perfect: bool) -> void:
 	if _over:
 		return
 	_over = true
-	Fx.ring(get_parent(), global_position, Color(GOLD if perfect else color, 0.95), TARGET * 1.6, 0.25)
+	if not crisp:
+		Fx.ring(get_parent(), global_position, Color(GOLD if perfect else color, 0.95), TARGET * 1.6, 0.25)
 	_fade(0.1)
 
 
