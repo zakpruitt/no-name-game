@@ -191,8 +191,10 @@ const RIG_SCALE := {"warden": 1.0 / 1.8}
 ## PAINTED's shadow, a cool lilac at about half value, while the kit's foe tables shade
 ## into deep warm browns. Every foe toon material (any kind but HERETIC) moves its shadow
 ## FOE_SHADE_MATCH of the way to mid * that tint, so both sides of a fight step into the
-## same shadow. Emits and dungeon pieces are left alone.
-const FOE_SHADE_MATCH := 0.5
+## same shadow. Emits and dungeon pieces are left alone. 0.8 (was 0.5): side-lit from 90 degrees
+## off the sun (`foe_shots.gd -- --side`), bone's shadow/mid ratio comes to (0.43, 0.36, 0.50)
+## against the hero's (0.42, 0.38, 0.56); at 0.5 it was (0.43, 0.33, 0.42) and still read brown.
+const FOE_SHADE_MATCH := 0.8
 ## Used (with a warning) for a material the tables don't know yet.
 const FALLBACK_TONE := "P_Trousers"
 ## Every line and solid black. Near the floor's own shadow tone rather than true black:

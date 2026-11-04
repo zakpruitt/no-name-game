@@ -16,7 +16,13 @@ const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset: the game's angl
 const CLOSE_SIZE := 9.0  # m tall, ortho, along the game's angle
 const FRONT_SIZE := 7.5  # m tall, ortho, from the front at chest height
 
+## `--side`: the front shot from 90 degrees off the sun (main.gd's -35 degree yaw), models turned to it,
+## so each body shows its lit and shadow halves side by side (judging FOE_SHADE_MATCH against the hero).
+const SIDE_DIR := Vector3(0.82, 0.0, 0.57)
+
 var _bars := false
+var _side := false
+var _turn := 0.0  # `--turn=deg`: every model turned this far from facing the camera (side light on the faces)
 
 
 func _initialize() -> void:
@@ -27,6 +33,11 @@ func _initialize() -> void:
 			tag = arg.substr(6)
 		elif arg == "--bars":
 			_bars = true
+		elif arg == "--side":
+			_side = true
+			_turn = SIDE_DIR.signed_angle_to(Vector3.BACK, Vector3.DOWN)
+		elif arg.begins_with("--turn="):
+			_turn = deg_to_rad(float(arg.substr(7)))
 	var dir := "user://foe_shots"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
 	var game: Node = get_root().get_node("Game")
@@ -65,7 +76,7 @@ func _initialize() -> void:
 		var n: Node3D = nodes[kind]
 		n.set_physics_process(false)
 		n.global_position = placed[kind]
-		n.model.rotation = Vector3.ZERO  # facing +Z, the camera
+		n.model.rotation = Vector3(0.0, _turn, 0.0)  # facing +Z, the camera, unless --turn
 		var anim: AnimationPlayer = n.anim
 		var idle := "Idle" if kind == "hero" else "Idle_Combat"
 		if kind != "hero" and n.get("comic_kind") != "":
@@ -87,7 +98,7 @@ func _initialize() -> void:
 	await create_timer(0.3).timeout
 	await _save("%s/%s_row_close.png" % [dir, tag])
 	cam.size = FRONT_SIZE
-	cam.global_position = centre + Vector3(0.0, 1.2, 9.0)
+	cam.global_position = centre + (Vector3(0.0, 1.2, 0.0) + SIDE_DIR * 9.0 if _side else Vector3(0.0, 1.2, 9.0))
 	cam.look_at(centre + Vector3(0.0, 0.2, 0.0))
 	await create_timer(0.2).timeout
 	await _save("%s/%s_row_front.png" % [dir, tag])
