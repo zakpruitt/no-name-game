@@ -27,9 +27,8 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 @export var dash_cooldown := 0.3
 @export var max_hp := 100.0
 @export var anim_speed := 1.7
-## s a press is remembered. 0.3: with the hits on their contact frames (round 30) L1 cancels
-## 0.275 s in, so a press as it starts must still be held then.
-@export var input_buffer := 0.3
+## s a press is remembered (BUFFER_MS).
+@export var input_buffer := BUFFER_MS / 1000.0
 @export var aim_assist_range := 5.5
 @export var aim_assist_angle := 70.0
 ## Fixed length of Awakening; nothing extends it, and the meter can't refill
@@ -225,6 +224,22 @@ const COMBO_REDIRECT := 55.0  # deg a chained move may turn as it starts
 const COMBO_TURN_WINDUP := 420.0  # deg/s before a move's first hit
 const COMBO_TURN_ACTIVE := 140.0  # deg/s from then on
 const AIR_HOME_MAX := 22.0
+## Input feel (round 30; tests/rhythm_check.gd).
+## A press of L / right click / dash / R is remembered this long and fires on the first frame it's legal
+## (the next move's cancel point, the end of a dash). 300: L1 cancels 0.275 s in, so a press as a move
+## starts still carries; much longer and a mashed ender spills into a whole extra string.
+const BUFFER_MS := 300
+## Hit-confirm: once the move has connected, its cancel point comes CANCEL_ON_HIT of the way back from
+## `cancel` toward its last hit, so a string that lands flows faster than one swung at air (a whiff keeps
+## the table's `cancel`: the recovery is the whiff's price). Never before HIT_CONFIRM_MIN s (move time)
+## after the last hit, nor before a breaker's `leap`.
+const CANCEL_ON_HIT := 0.5
+const HIT_CONFIRM_MIN := 0.03
+## A dash cancels any move once its first hit is out, or this far into it on a whiff (fraction).
+const DASH_CANCEL_WHIFF := 0.2
+## Mouse aim keeps the foe a move started on (_aim_lock) while the cursor stays within AIM_LOCK_BREAK deg
+## of it, so the per-frame turn doesn't flick between two foes mid-string; past that the cursor wins.
+const AIM_LOCK_BREAK := 40.0
 # Air dash: dashing out of the air slash while at least AIR_DASH_MIN up keeps
 # him at that height (the press after it is Dash Stab / Tow Line as on the floor).
 const AIR_DASH_FROM := ["AL1"]
@@ -242,6 +257,7 @@ var _chain_reset_t := 0.0
 var _buffered := ""
 var _buffer_t := 0.0
 var _dash_buffer_t := 0.0
+var _aim_lock: Node3D  # the foe the current move turned onto (AIM_LOCK_BREAK)
 var _dash_cd := 0.0
 var _dash_dir := Vector3.FORWARD
 var _post_dash_t := 0.0
@@ -683,7 +699,7 @@ func _state_attack(delta: float) -> void:
 	if _void != null:
 		_void.attack_tick(t, delta)
 	if _mouse_aiming() and not _hop_air:  # (in the air _air_home has him)
-		_face(_turned(_aim_want(), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
+		_face(_turned(_aim_want(true), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
 	# Lunge decays quickly so attacks feel snappy, not slidey.
 	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
 	var fwd := _facing()
@@ -703,17 +719,31 @@ func _state_attack(delta: float) -> void:
 		return
 
 	# Dash cancels anything once the first hit has come out (or early on whiff).
-	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2):
+	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > DASH_CANCEL_WHIFF):
 		_start_dash()
 		return
-	if (_hits_done > 0 or t > 0.2) and _try_swing():
+	if (_hits_done > 0 or t > DASH_CANCEL_WHIFF) and _try_swing():
 		return
-	if t >= _move.cancel and _buffered != "":
+	if t >= cancel_point() and _buffered != "":
 		_start_attack(_next_move(_buffered))
 		return
 	if t >= _move.end:
 		_chain_reset_t = 0.35
 		_set_state(State.MOVE)
+
+
+## Where the current move takes the next press (fraction of its clip): `cancel`, or earlier once it has
+## connected (CANCEL_ON_HIT, HIT_CONFIRM_MIN), never before a breaker's leap.
+func cancel_point() -> float:
+	var c: float = _move.get("cancel", 0.0)
+	if not _connected or _hits_done < _move.hits.size():
+		return c
+	var last: float = _move.hits[-1]
+	var early := maxf(lerpf(c, last, CANCEL_ON_HIT), last + HIT_CONFIRM_MIN * anim_speed * _anim_mult / _move_len)
+	var brk := _breaker_for(_move_id)
+	if not brk.is_empty():
+		early = maxf(early, _move.get("leap", brk.leap))
+	return minf(c, early)
 
 
 func _state_dash(delta: float) -> void:
@@ -1184,9 +1214,10 @@ func combo_window() -> Dictionary:
 	if state != State.ATTACK:
 		return {"progress": 1.0, "ready": true, "dash": _dash_cd <= 0.0}
 	var t := _state_t * anim_speed * _anim_mult / _move_len
-	var left: float = (_move.cancel - t) * _move_len / (anim_speed * _anim_mult)
-	return {"progress": clampf(t / _move.cancel, 0.0, 1.0), "ready": left <= input_buffer,
-		"dash": _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2)}
+	var cancel := cancel_point()
+	var left: float = (cancel - t) * _move_len / (anim_speed * _anim_mult)
+	return {"progress": clampf(t / cancel, 0.0, 1.0), "ready": left <= input_buffer,
+		"dash": _dash_cd <= 0.0 and (_hits_done > 0 or t > DASH_CANCEL_WHIFF)}
 
 
 func _start_attack(id: String) -> void:
@@ -1265,10 +1296,16 @@ func _aim(chained := false) -> void:
 
 
 ## Where an attack wants to point: the cursor (else the stick, else ahead), pulled onto a foe near that line.
-func _aim_want() -> Vector3:
+## `held`: mid-move, stay on the foe the move started on while the cursor is near it (AIM_LOCK_BREAK).
+func _aim_want(held := false) -> Vector3:
 	var mouse := _mouse_aiming()
 	var dir := _mouse_dir() if mouse else _input_dir()
 	var want := dir.normalized() if dir.length() > 0.1 else _facing()
+	if held and is_instance_valid(_aim_lock) and _aim_lock.is_alive():
+		var to_lock := _aim_lock.global_position - global_position
+		to_lock.y = 0.0
+		if to_lock.length() > 0.01 and rad_to_deg(want.angle_to(to_lock.normalized())) <= AIM_LOCK_BREAK:
+			return to_lock
 	var max_angle := AIM_ASSIST_MOUSE_ANGLE if mouse else aim_assist_angle
 	var best: Node3D = null
 	var best_score := INF
@@ -1290,6 +1327,8 @@ func _aim_want() -> Vector3:
 	if best:
 		want = best.global_position - global_position
 		want.y = 0.0
+	if not held:
+		_aim_lock = best
 	return want
 
 
