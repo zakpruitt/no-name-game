@@ -5,7 +5,7 @@
 # Animation: poses are stated in the world (foot targets, shield transform, sword wrist + rotation, head aim) and
 # solved to the kit's pose format for EVERY frame, so planted feet stay planted and the left hand stays on the grip.
 import bpy, sys, os, math
-sys.path.insert(0, r"C:\Users\pruit\Desktop\dev\awaken\vendor_src\shaman_redesign\comic_poc")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # the kit beside this script
 import comic_lib as C, comic_rig as CR
 from mathutils import Vector as V, Quaternion as Q, Euler
 NAME = 'shield'
@@ -458,9 +458,10 @@ IDLE_B = dict(hr=(5, 0, -1), hl=(0, 0, -.05), ch=(7, 0, -3), hd=(4, 0, -5), jw=(
 R_PEEK = dict(hr=(3, 0, 1), hl=(0, 0, -.01), ch=(0, 0, 2), hd=(-6, 0, 8), jw=(-3, 0, 0), Sr=(1, 0, -1), Sl=(0, 0, -.005), Wr=(-4, 2, 0), Wl=(0, 0, .03))
 act('Idle_Combat', 48, {0: IDLE_A, 16: IDLE_B, 30: R_PEEK, 48: IDLE_A})
 
-# the shuffle: tiny dragged steps, the door lurching on each one
+# the shuffle: dragged steps, the door lurching on each one. Round 29: s .13 -> .3 and the cycle 48 -> 24
+# frames, since the game walks him at 3.2 m/s and the tiny steps skated (tests/foe_stride_check.gd)
 def walk(t):
-    s = .13; sw = .32
+    s = .3; sw = .36
     def fy(ph):
         ph %= 1
         if ph < sw:
@@ -475,7 +476,7 @@ def walk(t):
         L=(0, ly, lz), R=(0, ry, rz), Lp=(lk * 22, 0, 0), Rp=(rk * 22, 0, 0),
         Sr=(2 + 2.5 * math.cos(2 * w), 0, 4 * math.sin(w)), Sl=(.02 * math.sin(w), -.015 * math.cos(2 * w), -.04 + .03 * math.cos(2 * w)),
         Wr=(6 * math.sin(w), 3, 0), Wl=(0, -.03 * math.sin(w), -.05 + .025 * math.cos(2 * w)))
-act('Walking_D_Skeletons', 48, {f: walk(f / 48) for f in range(49)})
+act('Walking_D_Skeletons', 24, {f: walk(f / 24) for f in range(25)})
 
 # chop: the door swings open like a door, the sword comes over, hold, the slow stubborn shut
 WIND = dict(hr=(-7, 0, 12), hl=(0, .09, .005), ch=(-14, 0, 16), hd=(4, 0, -16), jw=(-16, 0, 0),
@@ -523,7 +524,7 @@ R.action('Lie_StandUp', 32, {0: _LIE, (8, 'hold'): _LIE, (20, 'out'): _KNEEL, (3
 R.obj.animation_data.action = bpy.data.actions['Idle_Combat']
 
 # foot check: measured through the armature, as printed to confirm the solve (ankle rest z is .1)
-for nm, ln, stance in (('Idle_Combat', 48, True), ('Walking_D_Skeletons', 48, True), ('1H_Melee_Attack_Chop', 42, True), ('Block_Hit', 28, True), ('Hit_A', 16, True), ('Death_A', 56, False), ('Spawn_Ground_Skeletons', 40, False)):
+for nm, ln, stance in (('Idle_Combat', 48, True), ('Walking_D_Skeletons', 24, True), ('1H_Melee_Attack_Chop', 42, True), ('Block_Hit', 28, True), ('Hit_A', 16, True), ('Death_A', 56, False), ('Spawn_Ground_Skeletons', 40, False)):
     zs = {'foot.l': [], 'foot.r': []}
     for f in range(ln + 1):
         R.play(nm, f)
@@ -542,7 +543,7 @@ R.play('Idle_Combat', 0)
 C.render(os.path.join(OUT, NAME + '_hero.png'), hero)
 C.render(os.path.join(OUT, NAME + '_game.png'), game)
 C.render(os.path.join(OUT, NAME + '_side.png'), side)
-FR = [('Idle_Combat', 16), ('Walking_D_Skeletons', 0), ('Walking_D_Skeletons', 12), ('Walking_D_Skeletons', 24),
+FR = [('Idle_Combat', 16), ('Walking_D_Skeletons', 0), ('Walking_D_Skeletons', 6), ('Walking_D_Skeletons', 12),
       ('1H_Melee_Attack_Chop', 13), ('1H_Melee_Attack_Chop', 15), ('1H_Melee_Attack_Chop', 18), ('Block_Hit', 2),
       ('Block_Hit', 10), ('Block_Hit', 20), ('Hit_A', 2), ('Death_A', 12),
       ('Death_A', 25), ('Death_A', 33), ('Death_A', 54), ('Spawn_Ground_Skeletons', 8),

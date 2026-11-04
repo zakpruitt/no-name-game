@@ -30,11 +30,23 @@ TRIS = {'head': 1200, 'jaw': 300, 'torso': 2200, 'arm': 450, 'hand': 500, 'leg':
 WEIGHT_SMOOTH = 4                    # neighbour-average passes on the transferred weights
 PUSH_R = .07                         # other parts within this of the body move out with it
 PROPS = ('weapon', 'shield', 'bow', 'arrow', 'nock', 'staff', 'bomb', 'fuse', 'chain', 'ring', 'keys')
+# Longer strides on the run clips (round 29): the game moves foes at 3-5.4 m/s and the chibi legs
+# cover a lot less than that per cycle. Each leg bone's rotation on that clip is scaled about the
+# clip's mean pose (q = mean * (mean^-1 q)^k), so the swing widens and the stance bend stays.
+# enemy.gd plays the run faster for the rest (run_clip_speed, tests/foe_stride_check.gd).
+STRIDE_BONES = ('upperleg.', 'lowerleg.', 'foot.')
 KIND = {
-    'warrior': {'BODY': {'bone'}},
+    'rogue': {'STRIDE': {'Running_C': 1.3}},
+    'warrior': {'STRIDE': {'Running_A': 1.5}},
+    'shield': {'STRIDE': {'Walking_D_Skeletons': 2.0}},
+    'bomber': {'STRIDE': {'Running_C': 1.25}},
 }
 cfg = KIND.get(NAME, {})
 BODY = cfg.get('BODY', BODY)
+STRIDE = cfg.get('STRIDE', {})
+for _a in sys.argv[sys.argv.index('--') + 2:] if '--' in sys.argv else []:
+    if _a.startswith('stride='):   # stride=Running_C:1.5 (trying a value without editing KIND)
+        _c, _k = _a[7:].split(':'); STRIDE[_c] = float(_k)
 
 rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
 arm = rig.data
@@ -242,6 +254,47 @@ for o in meshes():
     print('[chunk] %s pushed %s %d verts' % (NAME, o.name, moved))
 
 rig.data.pose_position = 'POSE'
+
+# ------------------------------------------------------------------ wider run strides
+def fcurves(a):
+    out = []
+    for layer in getattr(a, 'layers', []):
+        for strip in layer.strips:
+            for bag in strip.channelbags:
+                out += list(bag.fcurves)
+    return out
+from mathutils import Quaternion as Q
+for clip, k in STRIDE.items():
+    a = bpy.data.actions.get(clip)
+    if a is None:
+        print('[chunk] %s no clip %s' % (NAME, clip)); continue
+    by = {}
+    for fc in fcurves(a):
+        if fc.data_path.endswith('rotation_quaternion'):
+            b = fc.data_path.split('"')[1]
+            if b.startswith(STRIDE_BONES):
+                by.setdefault(b, {})[fc.array_index] = fc
+    for b, chans in by.items():
+        if len(chans) != 4: continue
+        n = len(chans[0].keyframe_points)
+        qs = [Q([chans[i].keyframe_points[j].co.y for i in range(4)]) for j in range(n)]
+        acc = Q((0, 0, 0, 0))
+        for q in qs:
+            if q.dot(qs[0]) < 0: q = -q
+            acc = Q([acc[i] + q[i] for i in range(4)])
+        mean = acc.normalized(); mi = mean.inverted()
+        for j, q in enumerate(qs):
+            d = mi @ q
+            ax, ang = d.to_axis_angle()
+            if ang > math.pi: ang -= 2 * math.pi
+            nq = mean @ Q(ax, ang * k)
+            for i in range(4):
+                kp = chans[i].keyframe_points[j]
+                dy = nq[i] - kp.co.y
+                kp.co.y += dy; kp.handle_left.y += dy; kp.handle_right.y += dy
+        for fc in chans.values(): fc.update()
+    print('[chunk] %s stride %s x%.2f on %d leg bones' % (NAME, clip, k, len(by)))
+
 tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in meshes())
 height = max((o.matrix_world @ v.co).z for o in meshes() for v in o.data.vertices)
 print('[chunk] %s total tris %d, height %.2f' % (NAME, tris, height))

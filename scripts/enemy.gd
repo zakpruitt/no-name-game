@@ -26,6 +26,10 @@ var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (
 @export var poise := 0.0
 @export var model_scale := 1.0
 @export var run_anim := "Running_A"
+## m/s a planted foot slides back on the comic run clip at 1x, before model_scale (enemy_types
+## `run_foot_speed`, measured by tests/foe_stride_check.gd). The run plays at ground speed over
+## this, clamped to RUN_CLIP_SPEED_MIN/MAX, so short chibi legs don't skate. 0 = always 1x.
+@export var run_foot_speed := 0.0
 ## "melee", "ranged" or "line". Ranged and line enemies hold
 ## `preferred_range` and shoot; "line" is a fast crossbow bolt aimed along a
 ## ground line that tracks the player until `AIM_LOCK` of the windup, then
@@ -453,6 +457,8 @@ func _state_chase(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 25.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 25.0 * delta)
 	_play(run_anim if moving else "Idle_Combat")
+	if moving and comic_kind != "" and anim.current_animation == ComicLook.clip(anim, comic_kind, run_anim):
+		_clip_speed(run_clip_speed(Vector2(velocity.x, velocity.z).length()))
 
 
 ## Push away from nearby enemies so groups spread out and surround.
@@ -1217,6 +1223,18 @@ func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> 
 func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
 	_play(anim_name, blend, speed, true)
 	_clip_hold_ms = Time.get_ticks_msec() + int(anim.get_animation(anim_name).length / speed * 1000.0)
+
+
+## Clip speed range for the run matched to the ground (run_foot_speed).
+const RUN_CLIP_SPEED_MIN := 0.5
+const RUN_CLIP_SPEED_MAX := 3.0  # the shield's shuffle needs it at 3.2 m/s; chibi legs pump fast
+
+
+## The run clip's speed that keeps planted feet on the floor at `ground` m/s.
+func run_clip_speed(ground: float) -> float:
+	if run_foot_speed <= 0.0:
+		return 1.0
+	return clampf(ground / (run_foot_speed * model_scale), RUN_CLIP_SPEED_MIN, RUN_CLIP_SPEED_MAX)
 
 
 ## Speed of the clip already playing, respecting a running hit freeze.
