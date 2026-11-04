@@ -2,7 +2,9 @@ extends SceneTree
 ## Enemy hit reactions, headless, on real minions in the arena: every landed
 ## hit squashes the model per SQUASH kind, grounded hits lean it away along
 ## the knockback and spring it back, the flash is in the hero's colour, and a
-## kill holds the corpse KILL_FREEZE. Prints [enemy_feel] PASS/FAIL.
+## kill holds the corpse KILL_FREEZE; juggles hang, tumble, bounce and skid;
+## a crowd hit in one frame reacts as a wave (WAVE_STEP apart). Prints
+## [enemy_feel] PASS/FAIL and the measured juggle numbers.
 ## Run: godot --headless --path . -s tests/enemy_feel_check.gd
 
 var _fails: Array[String] = []
@@ -74,6 +76,47 @@ func _initialize() -> void:
 ## Further checks (juggle feel, crowd waves) go here as the rounds add them.
 func _extra() -> void:
 	await _juggle()
+	await _wave()
+
+
+## Four foes hit in one frame: the first reacts now, each next one WAVE_STEP later.
+func _wave() -> void:
+	var at: Vector3 = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
+	for old in _main.get_tree().get_nodes_in_group("enemies"):
+		old.queue_free()
+	var crowd: Array = []
+	for i in 4:
+		var e: Node = _main._spawn("minion", false, at + Vector3(i * 1.5 - 2.25, 0.0, 0.0))
+		e.max_hp = 2000.0
+		e.hp = 2000.0
+		crowd.append(e)
+	await create_timer(1.1).timeout
+	for e in crowd:
+		e.move_speed = 0.0
+		e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	var freezes: Array = crowd.map(func(e: Node) -> float: return e._freeze_t)
+	var ok := true
+	for i in 4:
+		ok = ok and is_equal_approx(freezes[i], crowd[0].hit_freeze + i * crowd[0].WAVE_STEP)
+	_check(ok, "a crowd's freezes step by WAVE_STEP (%s)" % [freezes])
+	var first: Array = [-1, -1, -1, -1]  # frame each foe first squashed (0 = this frame)
+	for f in 20:
+		for i in 4:
+			if first[i] < 0 and crowd[i].model.scale.y < crowd[i].model_scale * 0.999:
+				first[i] = f
+		await physics_frame
+	var step: float = crowd[0].WAVE_STEP * Engine.physics_ticks_per_second
+	var spaced: bool = first[0] == 0
+	for i in range(1, 4):
+		spaced = spaced and first[i] > first[i - 1] and absf(first[i] - first[i - 1] - step) <= 2.0  # the tween starts on the next idle frame
+	_check(spaced, "the crowd reacts one after another, %.1f frames apart (%s)" % [step, first])
+	print("[enemy_feel] wave: four foes hit in one frame react on frames %s (WAVE_STEP %.0f ms)" % [first, crowd[0].WAVE_STEP * 1000.0])
+	# Two hits a frame apart are not a wave.
+	await create_timer(0.6).timeout
+	crowd[0].take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	await physics_frame
+	crowd[1].take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	_check(is_equal_approx(crowd[1]._freeze_t, crowd[1].hit_freeze), "a hit the next frame starts a new wave (%.3f)" % crowd[1]._freeze_t)
 
 
 ## A launch hangs at its apex, tumbles, bounces once off the floor and skids.
@@ -108,8 +151,8 @@ func _juggle() -> void:
 	_check(absf(expect - launch) < 0.35, "launch %.1f peaks at %.2f m (launch_speed_for -> %.2f)" % [launch, top, expect])
 	_check(tumbled > 1.0, "it tumbles while up (%.2f rad)" % tumbled)
 	_check(landed > 0 and bounce_top > 0.1, "it bounces once off the floor (%.2f m)" % bounce_top)
-	_check(e.state == e.State.HURT and e._state_t < 0.0 and e.model.scale.y < 0.95 * e.model_scale,
-		"it lands flat (%.2f, springing back from %.2f) and lies there" % [e.model.scale.y, e.SQUASH.land.y])
+	_check(e.state == e.State.HURT and e._state_t < 0.0 and e.last_squash == e.SQUASH.land,
+		"it lands flat (%.2f) and lies there" % e.last_squash.y)
 	_check(skid_v > 0.3, "the knockdown keeps sliding (%.2f m/s)" % skid_v)
 	_check(frames < 299, "the juggle ends (%d frames)" % frames)
 	await create_timer(0.3).timeout

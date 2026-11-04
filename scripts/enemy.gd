@@ -119,6 +119,12 @@ const FLASH_TAP := 0.07
 const FLASH_BIG := 0.12
 const FLASH_TINT := 0.55
 const KILL_FREEZE := 0.14
+# Crowd hits read as a wave, not one frame: of the foes hit in the same
+# physics frame, each after the first reacts WAVE_STEP s later than the one
+# before (its freeze runs that much longer and its flash/squash/lean wait),
+# up to WAVE_MAX steps (a Cataclysm's ring all land inside ~0.2 s).
+const WAVE_STEP := 0.035
+const WAVE_MAX := 6
 # Juggles (_gravity, _tumble, _land_from_air, _skid): AIR_GRAVITY while
 # launched (GROUND_GRAVITY otherwise), HANG_GRAVITY of it while |vy| <
 # HANG_SPEED so a launched foe hangs a beat at the apex (a 9 m/s launch
@@ -148,6 +154,8 @@ const SKID_DUST_EVERY := 0.08
 const SKID_MIN_SPEED := 1.0
 
 static var dodges := 0  # running count, reported by the autotest
+static var _wave_frame := -1  # physics frame of the last hit taken by any enemy, and
+static var _wave_n := 0  # how many took one that frame (_wave_slot)
 static var blocks := 0
 static var blasts := 0
 
@@ -179,6 +187,7 @@ var frozen_mult := 1.0
 var _ice: MeshInstance3D
 var _frozen_speed := -1.0
 var _squash_tween: Tween
+var last_squash := Vector3.ONE  # the last _squash() amount (enemy_feel_check reads it)
 var _lean_tween: Tween
 var _fall_vy := 0.0  # last in-air vertical speed (the landing frame has already zeroed velocity.y)
 var _bounced := false
@@ -659,8 +668,26 @@ func _reaction_kind(knockback: Vector3, launch: float, big: bool) -> String:
 ## freeze, the flash in the hero's colour, the squash and the lean away.
 func _hit_reaction(_damage: float, knockback: Vector3, launch: float, big: bool) -> void:
 	var kind := _reaction_kind(knockback, launch, big)
-	_freeze_t = KILL_FREEZE if kind == "kill" else (hit_freeze_big if big else hit_freeze)
-	_react(kind, knockback, big)
+	var delay := _wave_slot() * WAVE_STEP
+	_freeze_t = (KILL_FREEZE if kind == "kill" else (hit_freeze_big if big else hit_freeze)) + delay
+	if delay <= 0.0:
+		_react(kind, knockback, big)
+		return
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(_react.bind(kind, knockback, big))
+
+
+## This hit's place in the frame's wave: 0 for the first foe hit this physics
+## frame, 1 for the next, ... capped at WAVE_MAX.
+func _wave_slot() -> int:
+	var f := Engine.get_physics_frames()
+	if f != _wave_frame:
+		_wave_frame = f
+		_wave_n = 0
+	else:
+		_wave_n += 1
+	return mini(_wave_n, WAVE_MAX)
 
 
 func _react(kind: String, knockback: Vector3, big: bool) -> void:
@@ -1052,6 +1079,7 @@ func _clip_speed(speed: float) -> void:
 func _squash(amount: Vector3) -> void:
 	if _squash_tween:
 		_squash_tween.kill()
+	last_squash = amount
 	model.scale = amount * model_scale
 	_squash_tween = create_tween()
 	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, 0.3) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
