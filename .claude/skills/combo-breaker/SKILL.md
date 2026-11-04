@@ -1,83 +1,39 @@
 ---
 name: combo-breaker
-description: Add, tune or extend an Awaken combo breaker — a timed finisher that hangs off a combo ender (player.BREAKERS: leap/hang, cue rings + timing circle, slow-motion window, heavy press → dive / juggle slam / dash-through / tomahawk ring). Use for "add a breaker to <move>", "make <combo> end in a timed finisher", tuning a breaker's window, damage or look, or a new breaker kind.
+description: Add, tune or extend an Awaken combo breaker — a timed finisher that hangs off a combo ender (VOID_ELEMENT.BREAKERS: leap/hang with the tentacles on the foes, cue rings + timing circle, slow-motion window, right-click press → dive and the element's slam). Use for "add a breaker to <move>", "make <combo> end in a timed finisher", tuning a breaker's window, damage or look, or a new breaker kind.
 ---
 
 # Combo breakers
 
-Read `docs/features/combo-breakers.md` first. It has the full design, files, invariants and the damage table.
+Read `docs/features/combo-breakers.md` (the shared leap / window / dive) and the breakers table in
+`docs/features/void-element.md` (what each slam does) first.
 
 ## What a breaker is
 - When an ender **connects** and reaches `leap` (fraction of the move), `_state_attack` hands off to `_start_leap()` (`State.LEAP`).
-- He leaps (`rise`, `height`, `back`; a negative `back` leaps forward) and waits in the air or a stance.
-- Timing cues show the window:
-  - floor rings at the zone (`breaker_cue.gd`),
-  - the timing circle pinned up-left of the hero (`breaker_prompt.gd`, which reads `player.breaker_window()`).
-- The window `open..close` plays in slow motion (`BREAKER_FOCUS`).
-- Pressing heavy:
-  - near `sweet` (within `perfect`) is a PERFECT: ×`perfect_mult`, a freeze-frame and more Awakening,
-  - inside the window, but not near `sweet`, is a normal hit,
-  - too early locks the breaker out,
-  - no press floats him down,
-  - a dash before the press calls it off (`_leap_dash_out`). A new kind that spawns pieces must clean them up there too.
-- The combo guide shows nothing during a leap. Keep the two prompts separate.
+- He leaps (`rise`, `height`, `back`) with the tentacles on what the string hit (`void_grab.seize()`), and a cue rings the landing.
+- The window (`open`..`close` s after take-off) plays in slow motion; right click in it dives (`dive` s) and slams what he holds.
+  Within `perfect` of `sweet` is a PERFECT (freeze, x`perfect_mult`, `awaken_perfect`). An `alt` makes L in the window a second ending.
+- Too early locks it out, no press floats him down, a dash in the hang calls it off.
 
-## Kinds (keys on the `BREAKERS` entry)
-| Kind | Keys | Example |
-|---|---|---|
-| Dive (default) | `spikes`, `spike_damage`, `detonate`, `zone`, `spread`, `radius` | L L H: throws spectral axes (`breaker_spike.gd`), dives onto them |
-| Juggle | `juggle`, `juggle_damage`, `juggle_radius`, `juggle_axes` | Charged Slam: spins in a `spirit_wheel` on the model, then slams |
-| Dash | `dash`, `pass_damage`, `width`, `hang_anim`, `radius: 0` | Flurry: dashes through the line, `_dash_wake` raises a rift |
-| Fan | `fan`, `fan_damage`, `fan_back`, `fan_range`, plus `juggle` + `pull`, `pull_radius` | Cyclone: whirl pulls foes in, then a ring of tomahawks |
-| Volley | `volley`, `volley_damage`, `volley_radius`, `volley_max`, `volley_size` | Spike: an axe hovers over each foe (`spirit_guillotine` `wait`), and all of them drop with the dive |
+## Where things live
+- `scripts/void_element.gd`: `_WINDOW` (shared defaults), `BREAKERS` (per breaker: `names.spirit`, `erupt`, `damage`, `leap`, `awaken`,
+  `awaken_perfect`, and the keys its slam reads: `wire`, `press`, `at_spot` + `short`, `meteor`, `rip`, `collapse`, `maw`, `abyss`, `cubes`),
+  `entry()`, `breaker_impact()`.
+- `scripts/player.gd`: `_breaker_for()`, `_start_leap()`, `_state_leap()`, `_start_dive()`, `_breaker_impact()`, `breaker_window()`, `BREAKER_*`.
+- `scripts/void_grab.gd`: `seize()`, `seized_tick()`, `slam_seized()`, `release_seized()`.
+- `scripts/breaker_cue.gd`, `breaker_prompt.gd`, `breaker_quake.gd`: cue, prompt, war cry and crater.
 
-Names go in `names` per element (spirit, wind, earth, water). Don't reuse a power's name: check `upgrades.gd`, where an `eye_of_storm` clash already happened once.
+## Process
+1. **Pick an ender.** It must have no follow-up the press would steal: right click in the window must not also be a live route.
+2. **Add the entry** to `VOID_ELEMENT.BREAKERS`; `leap` at or before the move's `cancel`. Prefer existing slam keys over new code.
+3. **New slam:** add its branch to `VOID_ELEMENT.breaker_impact()` (and any set-up to `player._start_dive()`).
+4. **List it:** a breaker row in `scripts/move_list.gd`, and a string reaching it in `main.BOT_STRINGS` so the autotest lands it.
+5. **Test it:** extend `tests/void_arm_check.gd`'s breaker checks; look at it windowed with `tests/element_shots.gd -- --only=<name>`.
 
-## Adding one to a move
-1. **Pick an ender.** It must have no heavy follow-up that the press would steal: LH can't have one, because heavy after LH is LHH.
-   - Its cast (if any) fires on the hit, before the leap. Keep it or drop its `CASTS` entry.
-2. **Add the entry.** Add a `BREAKERS` entry in `player.gd`, copying the closest kind's numbers.
-   - Keep `open/sweet/close` around 0.3–0.36 / 0.42–0.5 / 0.56–0.66 s and `perfect` at 0.06.
-   - Set `leap` just after the move's last hit, and at or before its `cancel`. Otherwise a buffered press starts the next move first and the breaker never happens.
-3. **Add a new kind if needed.** Branch on its key in:
-   - `_state_leap` (hang),
-   - `_start_dive` (anim / sfx),
-   - `_breaker_impact` (what lands).
-   - Decide whether Awakened adds the ancestor (`_breaker_ancestor`; dive kinds only) or something else.
-   - `_end_leap` must clean up anything the kind spawns on the hero, and it zeroes velocity.
-4. **Cap the damage.** Volleys and multi-piece hits share one hit record, so each foe is hit once per wave:
-   - `breaker_spike.blasted`,
-   - `spirit_tomahawk.shared`,
-   - `_brk_passed`.
-   Aim for a perfect at about 45–55 on one dummy at rest, before the Awakened ×1.6.
-5. **Test it.** In `tests/breaker_check.gd`, add the move's dummy spot to the per-id position map. Put it inside the dive zone, or on the dash line for a dash.
-6. **Look at it.** Use the `headless-render` skill:
-   - `cast_dump --cast=breaker --breaker=<id>` mid-hang (`--t=0.45`) from `top`,
-   - after landing (`--t=-0.4`),
-   - with `--awakened` if it changes.
-7. **Document it.**
-   - In `docs/features/combo-breakers.md`: what it does, the Files bullet, a Tuning row and a damage table row.
-   - In `CLAUDE.md`: the combo breakers line.
-
-## Verify (every change)
 ```
-timeout 300 godot --headless --path . -s tests/breaker_check.gd   # [breaker] PASS
-timeout 120 godot --headless --path . -s tests/hop_check.gd       # [hop] PASS
-timeout 200 godot --headless --path . -- --autotest [--seed=7]    # no SCRIPT ERROR/ERROR, [autotest] combo_breaker #N <id> perfect=true
+timeout 300 godot --headless --path . -s tests/void_arm_check.gd   # void_arm_check: PASS
+timeout 120 godot --headless --path . -s tests/move_list_check.gd  # [moves] PASS
+timeout 120 godot --headless --path . -- --autotest                # combo_breaker #N <id> perfect=true, then done
 ```
-Then run `ult_check`, `ascend_check` and `guide_check`; all must PASS.
 
-`breaker_check` covers, for each breaker:
-- perfect, late, early lockout, no press and Awakened,
-- the `breaker_window()` live/ended states,
-- the slow motion and the return to full speed.
-
-It also checks that a connected L L H triggers its breaker and a whiff doesn't.
-
-**Perf:** the average must stay about 6.9 ms headless. Spikes logged with `enemies=0` are room loads, not breakers; re-run a seed before blaming the change.
-
-## Gotchas
-- **Slow motion uses `Game.hitstop` at `BREAKER_FOCUS`.** Any press must call `Game.end_slowmo()`, because hitstop only extends.
-- **Test press timing.** The test's press lands 1–2 physics frames late. Late cases press at `close - 0.04`, not `- 0.02`.
-- **Real time vs game time.** UI animations should use real time (`Time.get_ticks_usec`). The game slows during the window and freezes on a perfect.
-- **`_set_awakened(true)` for Awakened tests.** Setting `awakened = true` directly turns itself off on the next tick, because `_awaken_t` is 0.
+Then `bash tools/agent.sh check`, update the feature docs, commit and land.

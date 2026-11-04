@@ -11,7 +11,7 @@ Each element treats foes differently, so lift-and-slam belongs to the storm alon
 - **Magma goes down and apart:** they get shoved, dragged under and ripped open.
 - **Dark pulls in and swallows:** no weapon first. They get dragged to one spot and something eats them.
 
-The KayKit hero's `route()`, `BREAKERS` and `H` move are untouched.
+These are the hero's only heavies and breakers: the KayKit hero's `route()`, `BREAKERS` and `H` were removed in round 28.
 
 ## The kit
 
@@ -136,7 +136,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 
 ## Invariants
 
-- Void breakers stay out of `player.BREAKERS`: `move_list_check` and `comic_check` walk that table for the KayKit hero. `_breaker_for()` picks the table.
+- `player._breaker_for()` reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
 - A breaker entry is `_WINDOW` merged with its row (`entry()`).
 - `leap` must be at or before the move's `cancel`.
 - Every exit from the hang lets go: no press, dash out and `_end_leap` all call `release_seized()`. The tendrils stay in `_spare` for the next one.

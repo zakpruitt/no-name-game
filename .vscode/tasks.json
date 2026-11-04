@@ -47,8 +47,9 @@
 			"id": "test",
 			"type": "pickString",
 			"description": "Which check",
-			"options": ["rite_check", "breaker_check", "hop_check", "ult_check", "ascend_check", "guide_check",
-				"power_check", "map_check", "training_check", "prompt_follow_check", "move_list_check"]
+			"options": ["void_arm_check", "guide_check", "training_check", "prompt_follow_check", "move_list_check",
+				"comic_check", "hitstop_check", "camera_feel_check", "impact_frame_check", "trail_check", "enemy_feel_check",
+				"heretic_shots"]
 		}
 	]
 }

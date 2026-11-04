@@ -288,6 +288,9 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Void element moves keep their exact behaviour (decision d): Avalanche and the rest of `void_element.gd` are untouched apart from `FOES.near` / `ELEMENTS.` renames and the no-op `_cast_hit` hook going
 - [x] Comic style is always on (`Game.comic_style` stays true as the flag the art code reads; enemies still fall back to KayKit per model). `--comic`, `--heretic`, `--comic-moves` / `--no-comic-moves` and the settings toggle are gone, and `settings.cfg`'s old `comic_style` key is ignored
 - [x] The autotest bot plays void strings (`main.BOT_STRINGS`: L/H/dash/hold) into every breaker and prints `casts= breakers= perfect_breakers= moves=`
+- [x] Leftovers found dead after the strip and removed: `air_gust.gd` (only the dive's comet trail was live, now `player._comet()`), the no-op `_cast_hit` hook and its 21 calls, `spirit_echo`'s Ascendancy `FORMS`, `spirit_tomahawk.shared`, the cast `fan`, the guide's ultimate glow, the non-tentacle breaker branches, `HERO_FORMS`' old-arm meshes, the air-dash "AD" route
+- [x] Docs and tooling follow: CLAUDE.md, README, feature docs (powers, run map and element rites gone; combo breakers, spirit casts, combo guide, training, comic style rewritten for the heretic), the `headless-render` skill (its `cast_dump` / `hero_dump` / `render_hero.py` went), the other skills, `.vscode` and the `agent.sh` test list
+- [ ] Re-measure `ComicLook.HERO_MOVES` hit frames on the heretic's own `Ab_` clips: `frames` / `hit` are still the shaman's 24 fps counts (`comic_check` now only checks the hit is inside the clip)
 
 ## Round 29 (assets)
 - [x] Audit of the heretic GLB: 15.9k tris body (17.1k with weapons), one 2048 texture, 101 bones, 1.95 m against KayKit's 2.18 m; at the game camera the mane dominated, the tentacle read as a thin clump and the paint broke into speckle under the cut tones

@@ -1,8 +1,8 @@
 extends SceneTree
 ## Training mode: the game boots straight into it. Checks
 ## the dummy takes hits without dying or fighting back, that a dropped combo
-## records the string, and that the pause menu's Fill Awakening and
-## Ascend work. Prints [training] PASS/FAIL; windowed it also saves
+## records the string, and that the pause menu's Fill Awakening works.
+## Prints [training] PASS/FAIL; windowed it also saves
 ## user://training_room.png and user://training_pause.png.
 ## Run: godot --headless --path . -s tests/training_check.gd
 

@@ -23,11 +23,11 @@ Read `CLAUDE.md` (layout, test flags) and `ROADMAP.md` first.
   - Filter noise with `grep -v "RID\|PagedAllocator\|Leaked instance\|instance_notify\|utilities.cpp"`.
   - A parse error makes Godot hang, so always wrap the call in `timeout 120`.
 - Visual change: run `godot --path . -- --autotest` (plus the relevant flags), then Read the screenshot from `%APPDATA%/Godot/app_userdata/Awaken/` and look at it.
-- Menus: `godot --path . -s tests/menu_check.gd`.
-- Balance or pacing: `--pace` over seeds 1–3; note the numbers in ROADMAP.
+- Menus: open the pause menu in a windowed run (`tests/training_check.gd` windowed saves `training_pause.png`).
+- All checks: `bash tools/agent.sh check`.
 - **Save data:** never create or touch `settings.cfg`, `records.cfg` or `altar.cfg`.
   - The autotest already disables saving.
-  - New test scripts must set `Game.save_hints = false` and keep records and altar disabled.
+  - New test scripts must set `Game.save_hints = false`.
 
 ## 4. Record
 - Check the item off in ROADMAP.md with a one-line note of what was done, including the numbers if any. Add follow-ups you discovered as new `- [ ]` items.

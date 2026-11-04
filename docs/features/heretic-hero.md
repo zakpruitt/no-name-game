@@ -2,7 +2,7 @@
 
 ## What it does
 
-A second comic hero behind a flag: `--comic --heretic`, never saved. The model and texture come from Meshy; the rig, weights and clips are rebuilt here. Without the flag nothing changes.
+The hero (the only one since round 28). The model and texture come from Meshy; the rig, weights and clips are rebuilt here.
 
 His right arm is a bundle of five tentacles. At rest they hang free and sway. When a move asks for a weapon the old one pulls back, the new one shoots out of the limb, the loose tips coil away and the main tentacle straightens to grip the haft. They unfurl again when he stops attacking.
 
@@ -131,8 +131,9 @@ The burst uses its own flat material, not `Fx.flare` or `Fx.burst`: soft glows a
 ## Invariants
 
 - Read modifier results inside `Skeleton3D.skeleton_updated`. The skeleton restores poses afterwards, so reading them later shows the pre-modifier pose.
-- `void_arm.rest_form` is `"hand"` for him and `"axe"` for the old hero. `void_arm_check` expects `"axe"`, so run with `--heretic` its 6 rest-form checks fail by design.
-- `void_surge`, `void_seep` and `void_frost` aren't in his GLB: they're shaped to wrap the old arm. `void_arm` skips absent parts, and the same run fails 4 checks that look for those meshes.
+- `void_arm.rest_form` is `"hand"`: a free tentacle at rest, weapons only form to strike. `void_arm_check` expects it.
+- `ComicLook.HERO_FORMS` lists only meshes in his GLB (the old arm's `void_surge`, `void_seep` and `void_frost` went in round 28).
+- `ComicLook.HERO_MOVES` `frames` / `hit` are the shaman's 24 fps counts; his own `Ab_` clips run other lengths (L1 1.033 s, L2 1.1 s, L3 1.867 s, DL 2.033 s, AL1 1.0 s), so only `hit / frames` is used as the hit fraction. Re-measure the hit frames on his clips.
 
 ## Not done
 
@@ -144,11 +145,11 @@ The burst uses its own flat material, not `Fx.flare` or `Fx.burst`: soft glows a
 - The main tentacle's last bone assumes `Vector3.UP` as its direction, because nothing follows it to measure from.
 - `mid` and `low` bulge when coiled hard, where they're fused to the limb.
 - High knees can stretch the skirt where it meets the thigh.
-- Element effects on the tentacle are missing, and so are his veins recolouring on an Ascendancy.
+- Element effects on the tentacle are missing.
 - The KayKit-era clip names and the Ab_ clips he can't reach yet are baked but unchecked by eye.
 
 ## Checks
 
-`godot --headless --path . -s tests/heretic_shots.gd` (PASS/FAIL). Windowed, it also saves `user://heretic_shots/`, including `strip_<close|game>_<form>_<i>.png`: the change in 20 ms steps from a close camera and the game's, with the weights printed as `[strip]`. Playing: `godot --path . -- --comic --heretic`.
+`godot --headless --path . -s tests/heretic_shots.gd` (PASS/FAIL). Windowed, it also saves `user://heretic_shots/`, including `strip_<close|game>_<form>_<i>.png`: the change in 20 ms steps from a close camera and the game's, with the weights printed as `[strip]`. Playing: `godot --path .`.
 
 Anything testing the change steps the skeleton by hand: set `MODIFIER_CALLBACK_MODE_PROCESS_MANUAL`, call `advance(delta)`, then await `skeleton_updated`, since `advance` only queues the time. Timers don't work, even at a low `Engine.time_scale`: one slow frame covers the whole change.

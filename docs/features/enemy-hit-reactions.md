@@ -8,7 +8,7 @@ enemy's side of a hit and reads only the hero's `_fx_color()`.
 Every landed hit on a skeleton shows from its side: it snaps into a squash
 that fits the hit (a tap, a big hit, a launch, a hit while juggled, a kill),
 tips over along the knockback and springs back upright, and flashes in the
-hero's current colour (element, or the Ascendancy when Awakened). A kill holds
+hero's current colour (the move's element, or gold when Awakened). A kill holds
 the corpse's last pose a beat longer before it flies.
 
 Launched foes hang at the top of their arc, tumble over backwards along the
