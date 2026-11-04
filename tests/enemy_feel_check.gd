@@ -208,10 +208,10 @@ func _bag_round3(d: Node, settled_default: int) -> void:
 	d.take_hit(30.0, Vector3(0.0, 0.0, 6.0), 0.0, true)
 	var dealt: float = d.string_damage
 	game.combo_changed.emit(0, "D")
-	_check(tag.visible and tag.text == "%d" % roundi(dealt) and d.last_string_damage == dealt and d.string_damage == 0.0,
+	_check(tag.visible and tag.text == "LAST %d" % roundi(dealt) and d.last_string_damage == dealt and d.string_damage == 0.0,
 		"the tag reads the last string's damage (%s for %.0f)" % [tag.text, dealt])
 	d.take_hit(5.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
-	_check(is_equal_approx(tag.modulate.a, d.TAG_DIM) and tag.text == "%d" % roundi(dealt), "a new string dims it (%.2f)" % tag.modulate.a)
+	_check(is_equal_approx(tag.modulate.a, d.TAG_DIM) and tag.text == "LAST %d" % roundi(dealt), "a new string dims it (%.2f)" % tag.modulate.a)
 	print("[enemy_feel] bag round 3: damping 7 still after %d frames (5: %d); shake-off cut %d; tag %s" % [settled, settled_default, d.shakeoffs_cut, tag.text])
 
 

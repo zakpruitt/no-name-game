@@ -50,7 +50,7 @@ const BAG_FLAGS := {"--bag-damping=": "bag_damping", "--bag-stiffness=": "bag_st
 	"--bag-lean=": "bag_lean_mult", "--bag-squash=": "bag_squash_mult"}
 # The last-string tag: TAG_HEIGHT m over its feet, Bangers at TAG_SIZE, popping TAG_POP big when a string
 # ends; while the next string is on it fades to TAG_DIM.
-const TAG_HEIGHT := 2.75
+const TAG_HEIGHT := 3.3
 const TAG_SIZE := 72
 const TAG_POP := 1.5
 const TAG_DIM := 0.35
@@ -126,7 +126,7 @@ func _on_combo(count: int, _rank: String) -> void:
 		return
 	last_string_damage = string_damage
 	string_damage = 0.0
-	_tag.text = "%d" % roundi(last_string_damage)
+	_tag.text = "LAST %d" % roundi(last_string_damage)
 	_tag.visible = true
 	_tag.modulate.a = 1.0
 	_tag.outline_modulate.a = 1.0
