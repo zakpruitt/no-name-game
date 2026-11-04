@@ -97,8 +97,47 @@ func _initialize() -> void:
 	rig.roll(2.0)
 	_check(is_zero_approx(rig._roll_to) and is_zero_approx(rig._hit_zoom_to), "screen shake off switches roll and push-in off too")
 	game.shake_scale = 1.0
+	await _fov_and_blow(rig)
 	print("[camera] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
+
+
+## Round 29 fx 4: enders, big stops and kills narrow the FOV a few degrees (stacking, capped, springing
+## back); a kick records the blow's direction for the impact frame, which leans that way on screen.
+func _fov_and_blow(rig: Node3D) -> void:
+	await _settle(1.0)
+	_check(is_equal_approx(rig.camera.fov, rig.FOV), "rests at FOV %.0f (%.2f)" % [rig.FOV, rig.camera.fov])
+	rig.punch(0.9, 0.1)
+	await process_frame
+	await process_frame
+	_check(rig.camera.fov < rig.FOV - 0.5, "an ender's punch narrows the FOV too (%.2f)" % rig.camera.fov)
+	for i in 6:
+		rig.fov_punch(rig.FOV_ENDER)
+	_check(rig._fov_to <= rig.FOV_MAX + 0.0001, "stacked FOV punches cap at FOV_MAX (%.2f)" % rig._fov_to)
+	await _settle(1.2)
+	_check(absf(rig.camera.fov - rig.FOV) < 0.05, "and spring back (%.2f)" % rig.camera.fov)
+	var corpse := Node.new()
+	game.enemy_killed.emit(corpse)
+	corpse.free()
+	_check(rig._fov_to > rig.FOV_KILL * 0.5, "a kill punches the FOV (%.2f)" % rig._fov_to)
+	rig.kick(Vector3.RIGHT, 0.2)
+	_check(game.last_hit_dir.is_equal_approx(Vector3.RIGHT) and Time.get_ticks_msec() - game.last_hit_ms < 50, "a kick records the blow's direction")
+	var blow: Vector2 = game.hit_dir_screen()
+	_check(blow.x > 0.9, "which points right on the screen for a blow along +x (%s)" % blow)
+	game.last_hit_ms -= game.HIT_DIR_FRESH_MS + 10
+	_check(game.hit_dir_screen() == Vector2.ZERO, "a stale blow centres the frame")
+	game.reduce_flashing = false
+	game.impact._last_ms = -100000
+	rig.kick(Vector3.LEFT, 0.2)
+	game.impact.flash(0.8, false, Vector2.ZERO, Color(0.62, 0.3, 1.0))
+	await process_frame
+	_check(game.impact.dir.x < -0.05, "the impact frame leans with a kick just after it fired (%s)" % game.impact.dir)
+	await _settle(0.5)
+	game.shake_scale = 0.0
+	rig._fov_to = 0.0
+	rig.fov_punch(2.0)
+	_check(is_zero_approx(rig._fov_to), "screen shake off switches the FOV punch off")
+	game.shake_scale = 1.0
 
 
 func _settle(sec: float) -> void:

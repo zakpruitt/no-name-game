@@ -23,7 +23,13 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
   slams, breakers, the last kill) and kills flip the 3D view for a few real
   frames into a high-contrast negative with a dark vignette, then fade. With
   `Game.reduce_flashing` the negative and the kill frames are dropped and only
-  a soft vignette pulse remains.
+  a soft vignette pulse remains. The vignette leans with the last heavy blow
+  (`Game.last_hit_dir`, set by `camera_rig.kick`; its middle moves
+  `DIR_SHIFT` back against it, so the ink piles up where the blow went) and
+  its ink takes a dark tone of his element (`Game.hero_hit_color()`).
+- **FOV punch.** Enders (`camera_rig.punch`), frames that fire on a freeze and
+  kills narrow the view a few degrees on top of the push-in (`fov_punch`,
+  `FOV_ENDER` 2.5, `FOV_KILL` 1.5, capped at `FOV_MAX` 5), springing back.
 - **The trail swells.** Deep in a chain and right after a heavy hit the
   weapon ribbon reaches further, lives longer and fills out.
 
@@ -78,12 +84,16 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
    value (`NUDGE_FOLLOW`), all in real time (`delta / time_scale`), then sets
    `camera.position = offset * _zoom * (1 - _hit_zoom) + _kick` and adds
    `_roll` to the trauma roll.
-4. `impact_frame.flash(strength, kill)` records the start tick; `current()`
+4. `impact_frame.flash(strength, kill, blow, element)` records the start tick; `current()`
    is the strength for `IMPACT_HOLD` then a linear fade over `IMPACT_FADE`;
    `_process` pushes it to the shader and hides the rect at 0. Frames closer
    than `IMPACT_GAP_MS` to the last are dropped. The shader reads the screen
    (`hint_screen_texture`), maps luminance to ink/paper through a smoothstep,
-   mixes that in by `strength * invert`, and darkens the edges by `strength`.
+   mixes that in by `strength * invert`, and darkens the edges by `strength`
+   towards `tint`, round a middle shifted by `dir`. The hero kicks the camera
+   just after the `Game.hitstop` that fired the frame, so through
+   `IMPACT_HOLD` the frame re-reads `Game.hit_dir_screen()` once a newer kick
+   lands (`lean`).
 5. `weapon_trail._process` samples a new point with `swell()` =
    `CHAIN_GROW * tier + HIT_GROW * Game.hit_weight`: the tip is stretched by
    `1 + swell`, the life by `1 + LIFE_GROW * swell`, and `UV2.x = swell` goes
@@ -118,6 +128,8 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 | `NUDGE_FOLLOW` 40, `KICK_RETURN` 12 | camera_rig.gd | how fast nudges reach their targets / kicks spring back |
 | `IMPACT_STOP` 0.1, `IMPACT_FULL_STOP` 0.25, `IMPACT_MIN` 0.45, `IMPACT_KILL` 0.4 | impact_frame.gd | which stops flash and how hard |
 | `IMPACT_HOLD` 0.05, `IMPACT_FADE` 0.09, `IMPACT_GAP_MS` 240, `REDUCED_SCALE` 0.45 | impact_frame.gd | frame timing, rate limit, reduce-flashing strength |
+| `DIR_SHIFT` 0.2, `TINT_MIX` 0.5, `TINT_DARK` 0.5 | impact_frame.gd | how far the vignette leans; how much of his colour its ink takes |
+| `FOV_ENDER` 2.5, `FOV_KILL` 1.5, `FOV_MAX` 5, `FOV_RETURN` 6 | camera_rig.gd | FOV punch (degrees) on enders / big freezes, kills, cap, spring |
 | `CHAIN_GROW` 0.1, `HIT_GROW` 0.25, `LIFE_GROW` 0.6 | weapon_trail.gd | ribbon swell per tier / per hit weight / its life |
 
 ## Testing
@@ -125,9 +137,12 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 - `godot --headless --path . -s tests/hitstop_check.gd`: shape, opener, flat
   focus, overlap, `end_slowmo`.
 - `godot --headless --path . -s tests/camera_feel_check.gd`: push-in cap and
-  spring, roll sides and cap, kick cancel and spring, the Game hooks, shake 0.
+  spring, roll sides and cap, kick cancel and spring, the Game hooks, shake 0,
+  FOV punch (ender, cap, spring, kill), the blow's screen direction and the
+  frame leaning with a kick after it fired.
 - `godot --headless --path . -s tests/impact_frame_check.gd`: hold/fade
-  timing, strengths, gap, focus exclusion, kills, reduce flashing.
+  timing, strengths, gap, focus exclusion, kills, reduce flashing, the lean
+  and tint (and plain centred ink without them).
 - `godot --headless --path . -s tests/trail_check.gd`: reach and life by
   tier and weight, old samples kept, weight decay.
 - Looks (windowed): `godot --path . -s tests/impact_preview.gd` ->

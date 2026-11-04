@@ -75,6 +75,12 @@ var camera_rig: Node = null
 ## The comic impact frame over the 3D view (scripts/impact_frame.gd), fired
 ## by big hitstops and kills.
 var impact: CanvasLayer = null
+## The last heavy blow's direction (world, flat) and when (real ms): camera_rig.kick sets it, the impact
+## frame leans its vignette that way.
+var last_hit_dir := Vector3.ZERO
+var last_hit_ms := -100000
+const HIT_DIR_FRESH_MS := 250  # older than this, the impact frame is centred
+var _void_element: GDScript
 var combo_count := 0
 var style := 0.0
 var awakening := 0.0
@@ -126,7 +132,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	impact = preload("res://scripts/impact_frame.gd").new()
 	add_child(impact)
-	enemy_killed.connect(func(_e: Node) -> void: impact.flash(impact.IMPACT_KILL, true))
+	enemy_killed.connect(_on_kill_feel)
 	_setup_input()
 	_load_settings()
 	hero_model = hero_setting
@@ -190,6 +196,39 @@ func reset() -> void:
 	awakening_changed.emit(awakening)
 
 
+## A kill: the impact frame (towards the blow, in his colour) and a small FOV punch.
+func _on_kill_feel(_e: Node) -> void:
+	impact.flash(impact.IMPACT_KILL, true, hit_dir_screen(), hero_hit_color())
+	if camera_rig:
+		camera_rig.fov_punch(camera_rig.FOV_KILL)
+
+
+## last_hit_dir on the screen (normalised, y down), or zero if it's stale or there's no camera.
+func hit_dir_screen() -> Vector2:
+	if Time.get_ticks_msec() - last_hit_ms > HIT_DIR_FRESH_MS or camera_rig == null or last_hit_dir == Vector3.ZERO:
+		return Vector2.ZERO
+	var cam: Camera3D = camera_rig.camera
+	var at: Vector3 = camera_rig.global_position
+	if cam == null or not cam.is_inside_tree() or cam.is_position_behind(at):
+		return Vector2.ZERO
+	var d := cam.unproject_position(at + last_hit_dir) - cam.unproject_position(at)
+	return d.normalized() if d.length() > 0.01 else Vector2.ZERO
+
+
+## The hero's colour for this hit: his move's element, else his own (alpha 0 with no hero).
+func hero_hit_color() -> Color:
+	var hero: Node = camera_rig.target if camera_rig else null
+	if hero == null or not is_instance_valid(hero) or not hero.has_method("_fx_color"):
+		return Color(0, 0, 0, 0)
+	var own: Color = hero._fx_color()
+	var id: Variant = hero.get("_move_id")
+	if id is String and id != "":
+		if _void_element == null:  # (loaded on first use: preloading it here would make the autoload depend on it)
+			_void_element = load("res://scripts/void_element.gd")
+		return _void_element.color_of(id, own)
+	return own
+
+
 ## Freeze the game briefly on impact. Overlapping calls extend, never shorten.
 ## `duration` is real seconds; the stop holds `time_scale` then eases back to
 ## full speed over its tail (HITSTOP_EASE / SLOWMO_EASE; flat from HITSTOP_FLAT_SCALE).
@@ -197,7 +236,8 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 	if duration <= 0.0:
 		return
 	if impact and time_scale < HITSTOP_FLAT_SCALE:
-		impact.on_hitstop(duration)
+		if impact.on_hitstop(duration, hit_dir_screen(), hero_hit_color()) and camera_rig and time_scale < SLOWMO_SCALE:
+			camera_rig.fov_punch(camera_rig.FOV_ENDER * clampf(duration / impact.IMPACT_FULL_STOP, 0.5, 1.0))
 	if time_scale < SLOWMO_SCALE:
 		hit_weight = maxf(hit_weight, clampf(duration / HIT_WEIGHT_STOP, 0.0, 1.0))
 	if combo_count <= 1 and time_scale < SLOWMO_SCALE:

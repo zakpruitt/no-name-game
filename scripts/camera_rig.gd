@@ -20,6 +20,8 @@ var _hit_zoom_to := 0.0
 var _roll := 0.0  # degrees of hit roll, chases _roll_to
 var _roll_to := 0.0
 var _roll_sign := 1.0  # heavy hits roll alternate ways so a string rocks
+var _fov := 0.0  # degrees narrower than FOV, chases _fov_to
+var _fov_to := 0.0
 
 # Per-hit feel (hero-agnostic; Game calls these): hits push the camera in a
 # hair, more as the chain climbs, clamped so a crowd hit doesn't dive; heavy
@@ -35,11 +37,18 @@ const ROLL_MAX := 2.5  # cap on the stacked roll, degrees
 const ROLL_RETURN := 9.0  # how fast the roll springs back (per real second)
 const NUDGE_FOLLOW := 40.0  # how fast kick / zoom / roll reach their targets (per real second)
 const KICK_RETURN := 12.0  # how fast a kick springs back (per real second)
+const FOV := 42.0
+# FOV punch: enders (punch()) and big stops (Game.hitstop's impact frame) and kills narrow the view a few
+# degrees on top of the push-in, springing back in real time.
+const FOV_ENDER := 2.5  # degrees at a full ender / a full-strength impact frame
+const FOV_KILL := 1.5
+const FOV_MAX := 5.0
+const FOV_RETURN := 6.0  # per real second
 
 
 func _ready() -> void:
 	camera = Camera3D.new()
-	camera.fov = 42.0
+	camera.fov = FOV
 	add_child(camera)
 	camera.position = offset
 	camera.look_at_from_position(offset, Vector3.ZERO, Vector3.UP)
@@ -52,13 +61,26 @@ func _ready() -> void:
 func punch(zoom: float, hold: float) -> void:
 	_zoom_to = zoom
 	_zoom_until_ms = Time.get_ticks_msec() + int(hold * 1000.0)
+	if zoom < 1.0:  # (an ender's ENDER_ZOOM is 0.05-0.1 a tier)
+		fov_punch(FOV_ENDER * clampf((1.0 - zoom) / 0.1, 0.4, 1.0))
+
+
+## Narrow the view by `deg` degrees, stacking up to FOV_MAX, springing back.
+func fov_punch(deg: float) -> void:
+	if Game.shake_scale <= 0.0:
+		return
+	_fov_to = minf(_fov_to + deg * minf(Game.shake_scale, 1.0), FOV_MAX)
 
 
 ## Nudge the camera along `dir` (world, flattened) by `amount` m; it springs back
 ## in real time. Heavy hits and combo enders (player._camera_hit).
 func kick(dir: Vector3, amount: float) -> void:
 	dir.y = 0.0
-	if dir.length_squared() < 0.0001 or Game.shake_scale <= 0.0:
+	if dir.length_squared() < 0.0001:
+		return
+	Game.last_hit_dir = dir.normalized()  # (the impact frame leans this way, even with shake off)
+	Game.last_hit_ms = Time.get_ticks_msec()
+	if Game.shake_scale <= 0.0:
 		return
 	_kick_to = (_kick_to + dir.normalized() * amount * Game.shake_scale).limit_length(0.8)
 
@@ -102,6 +124,9 @@ func _process(delta: float) -> void:
 	_hit_zoom = lerpf(_hit_zoom, _hit_zoom_to, follow)
 	_roll_to = lerpf(_roll_to, 0.0, 1.0 - exp(-ROLL_RETURN * real_delta))
 	_roll = lerpf(_roll, _roll_to, follow)
+	_fov_to = lerpf(_fov_to, 0.0, 1.0 - exp(-FOV_RETURN * real_delta))
+	_fov = lerpf(_fov, _fov_to, follow)
+	camera.fov = FOV - _fov
 	camera.position = offset * _zoom * (1.0 - _hit_zoom) + _kick
 	var s := trauma * trauma
 	camera.h_offset = randf_range(-1.0, 1.0) * max_shake_offset * s

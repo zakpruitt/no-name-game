@@ -67,6 +67,14 @@ func _initialize() -> void:
 	_check(fr.current() == 0.0, "and kills get no frame")
 	game.reduce_flashing = false
 	corpse.free()
+	# The vignette leans against the blow and its ink takes a dark tone of his element; none given, centred ink.
+	await _wait(fr.IMPACT_GAP_MS * 0.001 + fr.IMPACT_HOLD + fr.IMPACT_FADE)
+	fr.flash(0.8, false, Vector2(1.0, 0.0), Color(0.62, 0.3, 1.0))
+	_check(fr.dir.is_equal_approx(Vector2(fr.DIR_SHIFT, 0.0)), "a blow to the right leans the vignette (%s)" % fr.dir)
+	_check(fr.tint != fr.INK and fr.tint.b > fr.INK.b and fr.tint.get_luminance() < 0.3, "tinted a dark tone of his colour (%s)" % fr.tint)
+	await _wait(fr.IMPACT_GAP_MS * 0.001 + fr.IMPACT_HOLD + fr.IMPACT_FADE)
+	fr.flash(0.8)
+	_check(fr.dir == Vector2.ZERO and fr.tint == fr.INK, "no blow and no colour: centred plain ink")
 	print("[impact] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
 
