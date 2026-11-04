@@ -1,7 +1,7 @@
 extends SceneTree
 ## Training mode: the game boots straight into it. Checks
 ## the dummy takes hits without dying or fighting back, that a dropped combo
-## records the string, and that the pause menu's power pick, Awakening and
+## records the string, and that the pause menu's Fill Awakening and
 ## Ascend work. Prints [training] PASS/FAIL; windowed it also saves
 ## user://training_room.png and user://training_pause.png.
 ## Run: godot --headless --path . -s tests/training_check.gd
@@ -52,16 +52,8 @@ func _initialize() -> void:
 	pause._open()
 	await create_timer(0.4).timeout
 	var labels: Array = pause._buttons.map(func(b: Button) -> String: return b.text)
-	_check("Pick a power" in labels and "Ascend" in labels and "Map" not in labels, "training pause menu (%s)" % ", ".join(labels))
+	_check("Fill Awakening" in labels and "Ascend" in labels and "Restart training" in labels, "training pause menu (%s)" % ", ".join(labels))
 	_save("user://training_pause.png")
-	pause._buttons[labels.find("Pick a power")].pressed.emit()
-	await create_timer(0.3).timeout
-	_check(main.reward.visible and main.reward.can_reroll(), "power pick opens with a free reroll")
-	main.reward.pick(0)
-	await create_timer(0.8).timeout
-	_check(main.player.upgrades.size() == 1, "the picked power is added")
-	pause._open()
-	await create_timer(0.2).timeout
 	pause._buttons[labels.find("Fill Awakening")].pressed.emit()
 	_check(game.awakening >= game.AWAKEN_MAX, "Fill Awakening fills the meter")
 	pause._open()

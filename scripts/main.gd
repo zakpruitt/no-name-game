@@ -11,7 +11,6 @@ const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
 const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
-const REWARD := preload("res://scripts/reward_screen.gd")
 const BOSS := preload("res://scripts/boss.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
@@ -29,7 +28,6 @@ const ARENA_HALF := TILE * HALF_TILES
 
 var player: CharacterBody3D
 var hud: CanvasLayer
-var reward: CanvasLayer
 var ascend_menu: CanvasLayer
 ## Always true: the pause menu reads it to show the training items.
 var training := true
@@ -98,10 +96,6 @@ func _ready() -> void:
 		add_child(ComicFx.new())
 	hud.bind_player(player)
 
-	reward = REWARD.new()
-	add_child(reward)
-	reward.reroll_pressed.connect(func() -> void:
-		reward.open(Upgrades.roll(player.upgrades, 3, false), 0, "TRAINING · PICK A POWER"))
 	add_child(PAUSE.new())
 	ascend_menu = ASCEND_MENU.new()
 	add_child(ascend_menu)
@@ -129,7 +123,7 @@ func _ready() -> void:
 
 func _start_training() -> void:
 	hud.wave_label.text = "TRAINING"
-	hud.flash_message("TRAINING\nEsc: powers, Awakening, Ascendancy", 2.0)
+	hud.flash_message("TRAINING\nEsc: Awakening, Ascendancy, moves", 2.0)
 	for spot: Vector3 in DUMMY_SPOTS:
 		var dummy: Node = DUMMY.new()
 		dummy.model_scene = _model("Skeleton_Warrior")
@@ -170,25 +164,11 @@ func _train_text() -> void:
 		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
 	if _best_string > 0.0:
 		parts.append("BEST  %d" % _best_string)
-	hud.set_trial("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here")
+	hud.set_readout("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here")
 
 
 func _hits_text(n: float) -> String:
 	return "%d hit%s" % [n, "" if n == 1.0 else "s"]
-
-
-## Pause menu → Pick a power: three cards, rerolls free.
-func train_power() -> void:
-	var choices := Upgrades.roll(player.upgrades, 3, false)
-	if choices.is_empty():
-		hud.flash_message("EVERY POWER MAXED", 1.2)
-		return
-	reward.open(choices, 0, "TRAINING · PICK A POWER")
-	var id: String = await reward.picked
-	player.add_upgrade(id)
-	hud.set_upgrades(player.upgrades)
-	hud.flash_message((Upgrades.get_by_id(id).name + Upgrades.level_tag(player.upgrades[id])).to_upper(), 1.0)
-	Game.sfx("perfect", -4.0, 0.0)
 
 
 func train_awaken() -> void:

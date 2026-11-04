@@ -9,6 +9,7 @@ extends Control
 ## so hitstop and slow motion don't stall it. Off in Settings (Game.combo_guide).
 
 const FADE_IN := 0.05
+const KEY_COLORS := {"light": Color(0.35, 0.62, 1.0), "heavy": Color(1.0, 0.78, 0.2), "dash": Color(0.35, 0.88, 0.45)}  # each button's key rim
 const FADE_OUT := 0.14
 const SWAP_TIME := 0.09  # rows slide in when the options change
 const SWAP_STAGGER := 0.018
@@ -255,7 +256,7 @@ func _glyph(c: Vector2, kind: String, h: float, alpha: float) -> void:
 	var size := int(KEY_SIZE * h / GLYPH_H)
 	var w := maxf(h, _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + h * 0.6)
 	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
-	var kc: Color = Upgrades.PATHS[kind].color if Upgrades.PATHS.has(kind) else ComicLook.VOID_COLOR  # the colour of that path's powers
+	var kc: Color = KEY_COLORS.get(kind, ComicLook.VOID_COLOR)
 	_pill(r, Color(0.1, 0.08, 0.14, 0.95 * alpha), Color(kc, alpha), 2)
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_string(_font, Vector2(c.x - tw * 0.5, c.y + size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, alpha))

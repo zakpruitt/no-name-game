@@ -343,7 +343,8 @@ const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
 const CHARGE_TIME := 0.8
 const CHARGE_MOVE_MULT := 0.35
 const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
-const SYNERGY_COLOR := Color(0.45, 1.0, 0.85)
+const AWAKEN_BURST_RADIUS := 7.0  # the activation shockwave blows foes back this far
+const AWAKEN_BURST_DAMAGE := 10.0
 const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
 const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
@@ -433,33 +434,19 @@ var _mouse_active := true  # false once a gamepad is the last thing touched
 var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
-var _second_wind_used := false
 var _charged := false
 var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
 var charged_slams := 0  # reported by the autotest
 var ground_breakers := 0  # reported by the autotest
-var shatters := 0  # Shatter bursts (autotest)
 var spikes := 0  # juggled foes spiked down (autotest)
 var _last_combo := ""  # the last named combo landed (War Chant pays more for a new one)
 var combos_landed := {}  # COMBOS id -> times landed this run (pause menu, run summary)
-## Moves that count as heavy for Shatter.
-const SHATTER_MOVES := ["H", "LH", "LLH", "CH", "AF", "DH", "LHH"]
 # Spike (LHH) on a juggled foe: damage multiplier, how hard it's slammed
 # down (m/s), and the impact that knocks down foes around where it lands.
 const SPIKE_AIR_MULT := 1.6
 const SPIKE_DOWN := 24.0
 const SPIKE_IMPACT := {"radius": 2.6, "damage": 6.0, "knockback": 5.0}
-const REBOUND_DELAY := 0.22  # s from the spike to the bounce (Rebound)
-const SHATTER_COLOR := Color(0.92, 0.88, 0.78)
-var synergies: Array = []  # active Upgrades.SYNERGIES ids, kept by add_upgrade()
-var masteries: Array = []  # Upgrades.PATHS ids with their mastery on, kept by add_upgrade()
-## Light-press moves, for the Light path's powers.
-const LIGHT_MOVES := ["L1", "L2", "L3", "DL", "LPL", "AL1", "AL2", "AL3"]
-const RAZOR_GALE_SPREAD := 16.0  # degrees between Razor Gale's blades
-var _crescendo := false  # Crescendo: the next heavy is empowered
-var _slipped: Array = []  # enemies Slipstream already cut this dash
-var power_procs := {}  # power id -> times it fired, for the newer powers (autotest)
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 var cataclysms := 0  # finishers landed (reported by the autotest)
 var callouts := 0  # combo callouts shown (autotest)
@@ -515,8 +502,6 @@ var _perfect_this_dash := false
 # Lets the autotest drive the hero without real input.
 var bot_move := Vector3.ZERO
 
-## Owned combo-slot upgrades: id -> level (see upgrades.gd).
-var upgrades := {}
 var bot_enabled := false
 var stormfalls := 0  # landings from the top of the Updraft (tests)
 var rites := 0  # Ascended heavies that set off primes (RITE, autotest)
@@ -1067,11 +1052,6 @@ func _state_attack(delta: float) -> void:
 
 	# Dash cancels anything once the first hit has come out (or early on whiff).
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > 0.2):
-		if _hits_done > 0 and has_upgrade("static_step"):
-			_proc("static_step")
-			_static_trap(global_position)
-		if _hits_done > 0 and has_upgrade("shockstep") and _move_id in SHATTER_MOVES:
-			_shockstep(global_position)
 		_start_dash()
 		return
 	if (_hits_done > 0 or t > 0.2) and _try_swing():
@@ -1091,8 +1071,6 @@ func _state_dash(delta: float) -> void:
 		Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.45))
 	velocity.x = _dash_dir.x * dash_speed
 	velocity.z = _dash_dir.z * dash_speed
-	if has_upgrade("slipstream"):
-		_slipstream()
 	if _state_t >= dash_time:
 		velocity.x *= 0.3
 		velocity.z *= 0.3
@@ -1872,16 +1850,6 @@ func _start_attack(id: String) -> void:
 	_move_id = id
 	_move = _effective_move(id)
 	_anim_mult = _base_anim_mult() * _move.get("speed", 1.0)
-	if id in LIGHT_MOVES and has_upgrade("quickblade"):
-		_proc("quickblade")
-		_anim_mult *= 1.0 + upg("quickblade", "speed") / 100.0
-	if _crescendo and id in SHATTER_MOVES:
-		_crescendo = false
-		_move.damage *= 1.0 + upg("crescendo", "bonus") / 100.0
-		_move.knockback *= 1.5
-		_proc("crescendo")
-		Fx.flash(model)
-		Fx.burst(get_parent(), global_position + Vector3.UP, Upgrades.PATHS.heavy.color, 16, 5.0, 0.1, 0.3, Vector3.UP, 70.0)
 	_move_len = anim.get_animation(_clip_name(_move.anim)).length
 	_hits_done = 0
 	_connected = false
@@ -1931,9 +1899,8 @@ func _start_dash() -> void:
 	if _air_dash:
 		_air_dashes += 1
 	_dash_buffer_t = 0.0
-	_dash_cd = dash_cooldown * (_path("dash_cd", 1.0) if awakened else 1.0) * (1.0 - _mastery("dash", "cooldown") / 100.0)
+	_dash_cd = dash_cooldown * (_path("dash_cd", 1.0) if awakened else 1.0)
 	_anim_mult = _base_anim_mult()
-	_slipped.clear()
 	var dir := _input_dir()
 	_dash_dir = dir.normalized() if dir.length() > 0.1 else _facing()
 	_face(_dash_dir)
@@ -2059,31 +2026,13 @@ func _do_hit() -> void:
 		var dmg: float = _move.damage * _dmg_mult * plunge_mult()
 		if _move_id == "LHH" and was_airborne:
 			dmg *= SPIKE_AIR_MULT
-		if was_airborne and _move_id in LIGHT_MOVES and has_upgrade("sky_reaper"):
-			dmg *= 1.0 + upg("sky_reaper", "bonus") / 100.0
-			_proc("sky_reaper")
-		if _move_id == "CH" and has_upgrade("bone_breaker") and (e.shield or e.elite or e.has_method("is_boss")):
-			_proc("bone_breaker")
-			dmg *= 1.0 + upg("bone_breaker", "bonus") / 100.0
-			Fx.ring(get_parent(), e.global_position, Color(1.0, 0.95, 0.8, 0.9), 1.4, 0.25)
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Fx.element_hit(get_parent(), e.global_position, element(), kb_dir, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 		_connected = true
-		if not e.is_alive() and _move_id in SHATTER_MOVES and has_upgrade("shatter") and not e.has_method("is_boss"):
-			_proc("shatter")
-			_shatter(e)
 		if _move_id == "LHH" and was_airborne:
 			_spike(e)
-		if was_airborne and has_upgrade("chain_spark"):
-			_proc("chain_spark")
-			_chain_spark(e)
-		if _move_id == "L1" and has_upgrade("bloodthirst"):
-			_proc("bloodthirst")
-			heal(upg("bloodthirst", "heal"), false)
-		if _move_id in LIGHT_MOVES and has_upgrade("thousand_cuts") and e.is_alive():
-			_thousand_cuts(e)
 		if awakened and ascendancy != "":
 			_element_hit(e)
 		if rite:
@@ -2095,13 +2044,6 @@ func _do_hit() -> void:
 		if _void != null and VOID_ELEMENT.is_element_move(_move_id) and VOID_ELEMENT.fire(self, _move_id, fwd) > 0:
 			hit_any = true
 			_connected = true
-		if _move_id == "L3" and has_upgrade("ember_cleave"):
-			_proc("ember_cleave")
-			var w := FIRE_WAVE.new()
-			w.direction = fwd
-			w.damage = upg("ember_cleave", "damage")
-			get_parent().add_child(w)
-			w.global_position = global_position + fwd * 1.0
 		if _move_id in ["AF", "LLH"]:
 			_combo_callout(_move_id)  # big enough to name even on a whiff
 		if _move_id == "AF":
@@ -2112,38 +2054,15 @@ func _do_hit() -> void:
 		if _move_id == "LLH":
 			ground_breakers += 1
 			_crack_line(fwd, Color(0.85, 0.75, 0.6))
-			if has_upgrade("fault_line"):
-				_proc("fault_line")
-				_fault_line(global_position, fwd)
 		if _move_id == "CH":
 			charged_slams += 1
 			var at := global_position + fwd * 1.6
 			Fx.ring(get_parent(), at, Color(CHARGE_COLOR, 0.9), _move.range, 0.3)
 			Fx.burst(get_parent(), at + Vector3.UP * 0.2, CHARGE_COLOR, 24, 9.0, 0.14, 0.35, Vector3.UP, 80.0)
 			Fx.dust(get_parent(), at, 16, 1.0)
-			if has_upgrade("quake"):
-				_proc("quake")
-				_quake(at)
-		if _move_id == "LH" and has_upgrade("skybreaker"):
-			_proc("skybreaker")
-			var r := upg("skybreaker", "radius")
-			Fx.ring(get_parent(), global_position, Color(0.9, 0.95, 1.0, 0.8), r, 0.3)
-			for e in get_tree().get_nodes_in_group("enemies"):
-				var to: Vector3 = e.global_position - global_position
-				to.y = 0.0
-				if e.is_alive() and not e.is_airborne() and to.length() < r:
-					e.take_hit(4.0, to.normalized() * 2.0, 8.0, false)
-					Game.register_hit("skybreaker")
 	if _move_id == "VS":
 		_void.slam_landed()
-	if _move_id == "LPL" and _hits_done == _move.hits.size() and has_upgrade("razor_gale"):
-		_razor_gale(fwd)
-	if _move_id == "DH" and has_upgrade("eye_of_storm"):
-		_eye_of_storm()
 	if hit_any:
-		if _move_id == "L3" and has_upgrade("crescendo") and not _crescendo:
-			_crescendo = true
-			Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.heavy.color, 0.8), 1.6, 0.25)
 		var named := named_id()
 		var ender: int = COMBOS[named].tier if COMBOS.has(named) and not named_before else 0
 		_combo_callout(named)
@@ -2175,9 +2094,6 @@ func _combo_callout(id: String) -> void:
 	var tier: int = c.tier
 	callouts += 1
 	last_callout_tier = tier
-	if has_upgrade("war_chant") and not awakened:
-		_proc("war_chant")
-		Game.add_awakening(upg("war_chant", "awaken") * (2.0 if id != _last_combo else 1.0))
 	_last_combo = id
 	combos_landed[id] = combos_landed.get(id, 0) + 1
 	if combos_landed[id] == 1:
@@ -2662,86 +2578,14 @@ func _trinity() -> void:
 			return
 
 
-# --- Upgrades ---------------------------------------------------------------
-
-func has_upgrade(id: String) -> bool:
-	return upgrades.has(id)
-
-
-## Current level's tuning number `key` for owned upgrade `id` (upgrades.gd
-## lv), boosted by any active synergy (Upgrades.SYNERGIES).
-func upg(id: String, key: String) -> float:
-	return Upgrades.value(id, key, upgrades.get(id, 1)) * Upgrades.boost(synergies, id, key)
-
-
-## A synergy switched on: chime, a teal ring and sparks around the hero.
-func _synergy_burst() -> void:
-	Game.sfx("synergy", -2.0, 0.0)
-	Fx.flash(model)
-	Fx.ring(get_parent(), global_position, Color(SYNERGY_COLOR, 0.9), 3.0, 0.5)
-	Fx.burst(get_parent(), global_position + Vector3.UP, SYNERGY_COLOR, 24, 5.0, 0.12, 0.6, Vector3.UP, 60.0, -4.0)
-
-
-## Lose upgrade `id` entirely (shrine melt).
-func remove_upgrade(id: String) -> void:
-	upgrades.erase(id)
-	synergies = Upgrades.active_synergies(upgrades)
-	_refresh_masteries()
-
-
-## Recompute the path masteries (Upgrades.PATHS): announce new ones and keep
-## the Soul mastery's max HP in step.
-func _refresh_masteries() -> void:
-	var before := masteries
-	masteries = Upgrades.masteries(upgrades)
-	var hp_bonus: float = Upgrades.PATHS.soul.mastery.hp
-	if "soul" in masteries and "soul" not in before:
-		max_hp += hp_bonus
-		heal(hp_bonus, false)
-	elif "soul" in before and "soul" not in masteries:
-		max_hp -= hp_bonus
-		hp = minf(hp, max_hp)
-	health_changed.emit(hp, max_hp)
-	for path: String in masteries:
-		if path not in before:
-			Game.announced.emit("%s MASTERY" % Upgrades.PATHS[path].name.to_upper())
-			Game.sfx("synergy", -2.0, 0.0)
-			var c: Color = Upgrades.PATHS[path].color
-			Fx.ring(get_parent(), global_position, Color(c, 0.9), 3.2, 0.5)
-			Fx.burst(get_parent(), global_position + Vector3.UP, c, 24, 5.0, 0.12, 0.6, Vector3.UP, 60.0, -4.0)
-
-
-## Mastery number `key` of `path` while that mastery is on, else 0.
-func _mastery(path: String, key: String) -> float:
-	return Upgrades.PATHS[path].mastery[key] if path in masteries else 0.0
-
-
-## How long an Awakening lasts, with the Awaken mastery.
+## How long an Awakening lasts.
 func _awaken_len() -> float:
-	return awaken_duration + _mastery("awaken", "time")
+	return awaken_duration
 
 
 ## Animation speed before per-move boosts (Awakening is faster).
 func _base_anim_mult() -> float:
 	return 1.3 if awakened else 1.0
-
-
-func _proc(id: String) -> void:
-	power_procs[id] = power_procs.get(id, 0) + 1
-
-
-## Gain an upgrade, or level it up if it's already owned (up to MAX_LEVEL).
-func add_upgrade(id: String) -> void:
-	upgrades[id] = mini(upgrades.get(id, 0) + 1, Upgrades.MAX_LEVEL)
-	var before := synergies
-	synergies = Upgrades.active_synergies(upgrades)
-	for tag: String in synergies:
-		if tag not in before:
-			Game.announced.emit("%s SYNERGY" % Upgrades.SYNERGIES[tag].name.to_upper())
-			_synergy_burst()
-	if id == "overflow":
-		Game.awakening_gain_mult = 1.0 + upg(id, "bonus") / 100.0
-	_refresh_masteries()
 
 
 func _on_level_up(level: int) -> void:
@@ -2757,18 +2601,6 @@ func _on_level_up(level: int) -> void:
 func _on_enemy_killed(e: Node) -> void:
 	if state != State.DEAD and _is_last_kill():
 		_last_kill(e)
-	if has_upgrade("reaper") and state != State.DEAD:
-		_proc("reaper")
-		heal(upg("reaper", "heal"), false)
-		Game.add_awakening(upg("reaper", "awaken"))
-	if has_upgrade("undying_flame") and awakened and state != State.DEAD:
-		# The meter drains in step with _awaken_t, so refill both.
-		_awaken_t = minf(_awaken_t + upg("undying_flame", "time"), _awaken_len())
-		Game.awakening = Game.AWAKEN_MAX * _awaken_t / _awaken_len()
-		Game.awakening_changed.emit(Game.awakening)
-		heal(upg("undying_flame", "heal"), false)
-		_proc("undying_flame")
-		Fx.burst(get_parent(), global_position + Vector3.UP, Upgrades.PATHS.awaken.color, 10, 4.0, 0.1, 0.4, Vector3.UP, 60.0)
 
 
 ## Style rank climbed: a burst in the new rank's colour (the HUD's), bigger the higher it goes.
@@ -2820,27 +2652,6 @@ static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: floa
 	return ahead > -0.5 and ahead <= length + pad and side <= half_width + pad
 
 
-## Dust bursts along the Ground Breaker's strip.
-## Shatter: the slain foe bursts into bone shards that hit everyone close by
-## (shard kills don't shatter again).
-func _shatter(dead: Node3D) -> void:
-	shatters += 1
-	var at := dead.global_position
-	var r: float = upg("shatter", "radius")
-	Fx.burst(get_parent(), at + Vector3.UP * 0.7, SHATTER_COLOR, 26, 9.0, 0.12, 0.35, Vector3.UP, 160.0)
-	Fx.ring(get_parent(), at, Color(SHATTER_COLOR, 0.8), r, 0.3)
-	Game.sfx("enemy_death", 0.0, 0.15)
-	Game.shake(0.25)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if e == dead or not e.is_alive():
-			continue
-		var to: Vector3 = e.global_position - at
-		to.y = 0.0
-		if to.length() <= r + e.radius:
-			e.take_hit(upg("shatter", "damage"), to.normalized() * 6.0, 3.0, false)
-			Game.register_hit("shatter")
-
-
 func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
 	var start := global_position if from == Vector3.INF else from
 	var length: float = MOVES.LLH.range
@@ -2850,152 +2661,13 @@ func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
 		Fx.burst(get_parent(), at + Vector3.UP * 0.1, color, 5, 4.0, 0.08, 0.25, Vector3.UP, 40.0)
 
 
-## Fault Line: the strip erupts again a moment later, launching what's on it.
-func _fault_line(origin: Vector3, fwd: Vector3) -> void:
-	var delay: float = upg("fault_line", "delay")
-	var glow := _fault_glow(origin, fwd)
-	glow.create_tween().tween_property(glow.mesh.material, "albedo_color:a", 0.75, delay)
-	await get_tree().create_timer(delay, false).timeout
-	var mat: StandardMaterial3D = glow.mesh.material
-	mat.albedo_color.a = 0.95
-	var tw := glow.create_tween()
-	tw.tween_property(mat, "albedo_color:a", 0.0, 0.35).set_ease(Tween.EASE_IN)
-	tw.tween_callback(glow.queue_free)
-	_crack_line(fwd, Color(1.0, 0.55, 0.2), origin)
-	Game.shake(0.3)
-	Game.sfx("hit_big", -6.0, 0.1)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - origin
-		to.y = 0.0
-		if e.is_alive() and _in_strip(to, fwd, MOVES.LLH.range, MOVES.LLH.width, e.radius):
-			e.take_hit(upg("fault_line", "damage"), fwd * 3.0, 7.0, true)
-			Game.register_hit("fault_line")
-
-
-## Glowing crack along the Ground Breaker's strip; it brightens until the
-## Fault Line erupts, so the eruption reads as a telegraph.
-func _fault_glow(origin: Vector3, fwd: Vector3) -> MeshInstance3D:
-	var length: float = MOVES.LLH.range
-	var m := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(MOVES.LLH.width * 1.2, 0.02, length)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.45, 0.1, 0.35)
-	mesh.material = mat
-	m.mesh = mesh
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	get_parent().add_child(m)
-	m.global_position = origin + fwd * (length * 0.5 + 0.5) + Vector3.UP * 0.06
-	m.rotation.y = atan2(fwd.x, fwd.z)
-	return m
-
-
-## Quake: a shockwave out from the charged slam's impact.
-func _quake(at: Vector3) -> void:
-	var r := upg("quake", "radius")
-	Fx.ring(get_parent(), at, Color(1.0, 0.75, 0.35, 0.9), r, 0.45)
-	Game.shake(0.3)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - at
-		to.y = 0.0
-		if e.is_alive() and to.length() < r:
-			e.take_hit(upg("quake", "damage"), to.normalized() * 5.0, 6.0, true)
-			Game.register_hit("quake")
-
-
-## MOVES entry with owned upgrades applied (never mutates MOVES itself).
+## A copy of the MOVES entry for this press (never mutates MOVES itself), retimed for his clips.
 func _effective_move(id: String) -> Dictionary:
 	var m: Dictionary = MOVES[id].duplicate(true)
-	if id == "H" and has_upgrade("whirlwind"):
-		_proc("whirlwind")
-		# Spread the extra hits evenly across the spin.
-		var n := int(upg("whirlwind", "hits"))
-		m.hits = []
-		for i in n:
-			m.hits.append(lerpf(0.22, 0.7, float(i) / (n - 1)))
-		m.range += upg("whirlwind", "reach")
-	if id == "L2" and has_upgrade("rising_edge"):
-		_proc("rising_edge")
-		m.launch = upg("rising_edge", "launch")
-	if id == "DL" and has_upgrade("momentum"):
-		_proc("momentum")
-		m.damage *= 1.0 + upg("momentum", "bonus") / 100.0
-		m.range += 1.5
-		m.lunge *= 1.3
-	if id in LIGHT_CHAIN:
-		m.damage *= 1.0 + _mastery("light", "damage") / 100.0
-	if id in SHATTER_MOVES:
-		m.damage *= 1.0 + _mastery("heavy", "damage") / 100.0
-	if id == "DL":
-		m.damage *= 1.0 + _mastery("dash", "damage") / 100.0
-	if id in LIGHT_MOVES and has_upgrade("flicker") and _since_dash <= upg("flicker", "time"):
-		m.damage *= 1.0 + upg("flicker", "bonus") / 100.0
-		_proc("flicker")
 	if _comic_moves_on() and ComicLook.HERO_MOVES.has(id):
 		var length := anim.get_animation(ComicLook.HERO_MOVES[id].clip).length
 		ComicLook.retime(id, m, length, MOVES[id].hits[0], BREAKERS.get(id, {}).get("leap", -1.0))
 	return m
-
-
-func _chain_spark(from: Node3D) -> void:
-	var targets := get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
-		return e != from and e.is_alive() and e.global_position.distance_to(from.global_position) < 6.0)
-	targets.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return a.global_position.distance_to(from.global_position) < b.global_position.distance_to(from.global_position))
-	for e in targets.slice(0, int(upg("chain_spark", "targets"))):
-		var mid: Vector3 = (from.global_position + e.global_position) * 0.5
-		Fx.burst(get_parent(), mid + Vector3.UP, Color(0.5, 0.85, 1.0), 10, 6.0, 0.15, 0.2)
-		e.take_hit(upg("chain_spark", "damage"), Vector3.ZERO, 0.0, false)
-		Game.register_hit("chain_spark")
-
-
-## Thousand Cuts: count light hits per foe; every `hits`th one rends it.
-func _thousand_cuts(e: Node3D) -> void:
-	var n: int = e.get_meta("cuts", 0) + 1
-	if n < int(upg("thousand_cuts", "hits")):
-		e.set_meta("cuts", n)
-		return
-	e.set_meta("cuts", 0)
-	_proc("thousand_cuts")
-	var c: Color = Upgrades.PATHS.light.color
-	Fx.burst(get_parent(), e.global_position + Vector3.UP * 0.9, c, 18, 7.0, 0.1, 0.25, Vector3.UP, 180.0)
-	Fx.ring(get_parent(), e.global_position, Color(c, 0.8), 1.2, 0.2)
-	e.take_hit(upg("thousand_cuts", "damage"), Vector3.ZERO, 0.0, false)
-	Game.register_hit("thousand_cuts")
-
-
-## Slipstream: cut each enemy the dash passes through, once per dash.
-func _slipstream() -> void:
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.is_alive() or e in _slipped:
-			continue
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		if to.length() <= 0.9 + e.radius:
-			_slipped.append(e)
-			_proc("slipstream")
-			var c: Color = Upgrades.PATHS.dash.color
-			Fx.burst(get_parent(), e.global_position + Vector3.UP * 0.9, c, 12, 6.0, 0.1, 0.25, _dash_dir, 60.0)
-			e.take_hit(upg("slipstream", "damage"), _dash_dir * 3.0, 0.0, false)
-			Game.register_hit("slipstream")
-
-
-## Shockstep: a heavy dash-cancel leaves a launching shockwave behind.
-func _shockstep(pos: Vector3) -> void:
-	_proc("shockstep")
-	var r := upg("shockstep", "radius")
-	Fx.ring(get_parent(), pos, Color(Upgrades.PATHS.heavy.color, 0.9), r, 0.35)
-	Fx.ring(get_parent(), pos, Color(Upgrades.PATHS.dash.color, 0.8), r * 0.6, 0.25)
-	Fx.dust(get_parent(), pos, 12, 0.9)
-	Game.shake(0.2)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - pos
-		to.y = 0.0
-		if e.is_alive() and to.length() < r + e.radius:
-			e.take_hit(upg("shockstep", "damage"), to.normalized() * 4.0, 7.0, true)
-			Game.register_hit("shockstep")
 
 
 ## Spike: slam a juggled foe into the floor; the impact knocks down foes
@@ -3014,67 +2686,6 @@ func _spike(e: Node3D) -> void:
 		if o != e and o.is_alive() and not o.is_airborne() and to.length() < SPIKE_IMPACT.radius + o.radius:
 			o.take_hit(SPIKE_IMPACT.damage * _dmg_mult, to.normalized() * SPIKE_IMPACT.knockback, 0.0, true)
 			Game.register_hit("spike")
-	if has_upgrade("rebound"):
-		_rebound(e)
-
-
-## Rebound: a spiked foe bounces back up off the floor for another juggle.
-func _rebound(e: Node3D) -> void:
-	await get_tree().create_timer(REBOUND_DELAY).timeout
-	if not is_instance_valid(e) or not e.is_alive():
-		return
-	_proc("rebound")
-	e.take_hit(upg("rebound", "damage") * _dmg_mult, Vector3.ZERO, upg("rebound", "launch"), false)
-	Game.register_hit("rebound")
-	Fx.ring(get_parent(), e.global_position, Color(Upgrades.PATHS.soul.color, 0.85), 1.4, 0.25)
-
-
-## Razor Gale: Flurry's last cut flings a fan of the element's blades.
-func _razor_gale(fwd: Vector3) -> void:
-	_proc("razor_gale")
-	var n := int(upg("razor_gale", "count"))
-	var el := element()
-	for i in n:
-		var b := ELEMENTS.Bolt.new()
-		b.el = el
-		b.dir = fwd.rotated(Vector3.UP, deg_to_rad(RAZOR_GALE_SPREAD * (i - (n - 1) * 0.5)))
-		b.speed = 24.0
-		b.reach = minf(8.0, _clear_ahead(b.dir, 8.0) + 0.6)
-		b.damage = upg("razor_gale", "damage") * _dmg_mult
-		b.size = 0.8
-		b.tilt = 70.0 if i % 2 == 0 else -70.0
-		b.on_hit = _cast_hit
-		get_parent().add_child(b)
-		b.global_position = global_position + b.dir * 0.7 + Vector3.UP * (0.25 if el == "earth" else 1.0)
-
-
-## Eye of the Storm: each Cyclone hit drags foes around it into the spin
-## (not the boss).
-func _eye_of_storm() -> void:
-	_proc("eye_of_storm")
-	var r := upg("eye_of_storm", "radius")
-	Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.dash.color, 0.5), r, 0.2)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		var d := to.length()
-		if e.is_alive() and d > _move.range * 0.6 and d < r + e.radius and not e.has_method("is_boss"):
-			e.take_hit(upg("eye_of_storm", "damage"), -to / d * minf(d * 2.5, 9.0), 0.0, false)
-			Game.register_hit("eye_of_storm")
-
-
-func _static_trap(pos: Vector3) -> void:
-	Fx.ring(get_parent(), pos, Color(0.5, 0.85, 1.0, 0.6), 1.2, 0.4)
-	await get_tree().create_timer(0.4).timeout
-	if not is_inside_tree():
-		return
-	Fx.ring(get_parent(), pos, Color(0.6, 0.9, 1.0, 0.9), 3.0, 0.3)
-	Fx.burst(get_parent(), pos + Vector3.UP * 0.5, Color(0.6, 0.9, 1.0), 20, 9.0, 0.18, 0.3, Vector3.UP, 90.0)
-	Game.sfx("hit_big", -4.0)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if e.is_alive() and e.global_position.distance_to(pos) < 3.0:
-			e.take_hit(upg("static_step", "damage"), (e.global_position - pos).normalized() * 4.0, 0.0, true)
-			Game.register_hit("static_step")
 
 
 func is_invulnerable() -> bool:
@@ -3091,27 +2702,20 @@ func try_awaken() -> void:
 	_set_awakened(true)
 	Game.sfx("awaken", 0.0, 0.0)
 	Game.rumble("awaken")
-	if has_upgrade("phoenix_heart"):
-		_proc("phoenix_heart")
-		heal(upg("phoenix_heart", "heal"))
 	# Activation burst: big freeze, shockwave that blows enemies back.
 	Game.hitstop(0.25, 0.05)
 	Game.shake(0.6)
-	var r := upg("eruption", "radius") if has_upgrade("eruption") else 7.0
+	var r := AWAKEN_BURST_RADIUS
 	Fx.awaken_burst(get_parent(), global_position, Ascendancy.color(ascendancy), r)
 	if Game.camera_rig:
 		Game.camera_rig.punch(0.85, 0.35)
-	if has_upgrade("eruption"):
-		_proc("eruption")
-		Fx.ring(get_parent(), global_position, Color(Upgrades.PATHS.awaken.color, 0.9), r * 0.7, 0.35)
-		Fx.burst(get_parent(), global_position + Vector3.UP * 0.3, Upgrades.PATHS.awaken.color, 40, 10.0, 0.18, 0.5, Vector3.UP, 160.0)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not e.is_alive():
 			continue
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		if to.length() < r:
-			e.take_hit(upg("eruption", "damage") if has_upgrade("eruption") else 10.0, to.normalized() * 12.0, 5.0, true)
+			e.take_hit(AWAKEN_BURST_DAMAGE, to.normalized() * 12.0, 5.0, true)
 
 
 ## The overlay a mesh wears when not Awakened (HERO_LOOK's axe runes), or null.
@@ -3317,9 +2921,6 @@ func _perfect_dodge(attacker: Node) -> void:
 	Fx.afterimage(get_parent(), model, Color(0.8, 0.95, 1.0, 0.6), 0.5)
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
-	if has_upgrade("riposte"):
-		_proc("riposte")
-		_riposte()
 
 
 ## Cataclysm's eruption: fire rings, embers and radiating fire waves on top of the move's own hit.
@@ -3391,18 +2992,6 @@ func _fire_mat(c: Color, inner: bool) -> ShaderMaterial:
 	return m
 
 
-func _riposte() -> void:
-	var r := upg("riposte", "radius")
-	Fx.ring(get_parent(), global_position, Color(0.7, 0.9, 1.0, 0.9), r, 0.3)
-	Fx.burst(get_parent(), global_position + Vector3.UP * 0.5, Color(0.7, 0.9, 1.0), 24, 9.0, 0.15, 0.3, Vector3.UP, 120.0)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		if e.is_alive() and to.length() < r:
-			e.take_hit(upg("riposte", "damage"), to.normalized() * 3.0, 7.0, true)
-			Game.register_hit("riposte")
-
-
 ## Restore HP (capped at max). `show` pops a green number and sparkle.
 func heal(amount: float, show := true) -> void:
 	if state == State.DEAD or amount <= 0.0:
@@ -3446,15 +3035,6 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 	_invuln_t = 0.5
 	velocity.x = knockback.x
 	velocity.z = knockback.z
-	if hp <= 0.0 and has_upgrade("second_wind") and not _second_wind_used:
-		_proc("second_wind")
-		_second_wind_used = true
-		hp = max_hp * upg("second_wind", "hp") / 100.0
-		health_changed.emit(hp, max_hp)
-		Game.announced.emit("SECOND WIND")
-		Fx.heal(get_parent(), global_position, hp)
-		Game.hitstop(0.3, 0.1)
-		_invuln_t = 1.2
 	if hp <= 0.0:
 		_set_state(State.DEAD)
 		if awakened:

@@ -272,3 +272,4 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Foes stay as code and data (`enemy.gd`, `boss.gd`, `scripts/enemy_types.gd`, `main._spawn()` / `_spawn_boss()`), but nothing spawns them outside tests for now. Necromancer raising, elite twists and bone drops went with the run
 - [x] The training room keeps the first layout's four pillars (R swings on them) and drops the spike traps
 - [x] The autotest boots training, lets the bot play the dummies for 16 s and prints `[autotest] done ...`; `--seed`, `--tour`, `--pace` and the room / twist / altar / camp flags are gone
+- [x] Powers (combo-slot upgrades), their paths, masteries, synergies, icons, reward cards and the training room's "Pick a power" are gone, with every hook in `player.gd`. The Awakening burst keeps its old default numbers (`AWAKEN_BURST_RADIUS`, `AWAKEN_BURST_DAMAGE`)

@@ -8,7 +8,7 @@ signal awakening_changed(value: float)
 signal announced(text: String)
 ## Consecutive hits on airborne enemies (0 when the juggle drops).
 signal air_combo_changed(count: int)
-## Any enemy died (for on-kill upgrades).
+## Any enemy died.
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
 signal bones_changed(count: int)
@@ -121,8 +121,6 @@ var comic_moves := false
 var heretic := false
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
-## Multiplier on Awakening gained (Overflow upgrade).
-var awakening_gain_mult := 1.0
 ## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
 var awaken_locked := false
 var xp := 0
@@ -207,7 +205,6 @@ func reset() -> void:
 	bones_total = 0
 	air_hits = 0
 	best_air = 0
-	awakening_gain_mult = 1.0
 	awaken_locked = false
 	xp = 0
 	level = 1
@@ -539,7 +536,6 @@ func add_awakening(amount: float) -> void:
 	if amount > 0.0:
 		if awaken_locked:
 			return
-		amount *= awakening_gain_mult
 	awakening = clampf(awakening + amount, 0.0, AWAKEN_MAX)
 	awakening_changed.emit(awakening)
 
