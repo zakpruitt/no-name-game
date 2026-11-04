@@ -28,7 +28,7 @@ var emitting := false
 
 var _base_local := Vector3.ZERO
 var _tip_local := Vector3.UP
-var _points: Array = []  # [base: Vector3, tip: Vector3, age: float, life: float, swell: float]
+var _points: Array[Array] = []  # [base: Vector3, tip: Vector3, age: float, life: float, swell: float]
 var _imesh := ImmediateMesh.new()
 var _mat := ShaderMaterial.new()
 
@@ -63,7 +63,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	global_transform = Transform3D.IDENTITY
-	for p in _points:
+	for p: Array in _points:
 		p[2] += delta
 	while not _points.is_empty() and _points[0][2] > _points[0][3]:
 		_points.pop_front()

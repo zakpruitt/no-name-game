@@ -177,5 +177,5 @@ static func _blades(model: Node3D, c: Color) -> void:
 
 ## Effects riding on the model stay out of his afterimages (Fx.afterimage).
 static func _no_ghost(root: Node3D) -> void:
-	for mi in root.find_children("*", "MeshInstance3D", true, false):
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		mi.set_meta("no_ghost", true)
