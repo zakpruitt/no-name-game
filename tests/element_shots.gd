@@ -1,6 +1,6 @@
 extends SceneTree
 ## The void arm's right-click strings and R's swing in the real game, at the game's camera, with real foes in front of him:
-##   godot --path . -s tests/element_shots.gd     user://element_shots/<combo>_<0..2>.png
+##   godot --path . -s tests/element_shots.gd     user://element_shots/<combo>_<0..2>.png (and _rope: a tentacle out)
 ## Windowed only (headless draws nothing), about a minute. Sets its flags for this process only.
 
 const DIR := "user://element_shots"
@@ -78,6 +78,8 @@ func _film(combo_name: String, moves: Array, alt: bool) -> void:
 		if i == 0 or not combo_name in ["meteor", "maw"]:  # (the point of them is going after where the last move sent them)
 			_gather()
 		_p._start_attack(moves[i])
+		if i == moves.size() - 1:
+			_rope_watch("%s_rope" % combo_name)  # (not awaited: runs alongside)
 		await _until_hit()
 		await create_timer(0.03).timeout
 	await _shot("%s_0" % combo_name)  # the last move's hit
@@ -147,6 +149,20 @@ func _gather() -> void:
 	for i in foes.size():
 		var side := (i - (foes.size() - 1) * 0.5) * 1.4
 		foes[i].global_position = _p.global_position + fwd * (2.6 + i % 2 * 1.2) + fwd.cross(Vector3.UP) * side
+
+
+## Films the third frame a void tentacle is out (Tow Line's ropes fly for under 0.1 s, Harpoon's line), if one is.
+func _rope_watch(file: String) -> void:
+	var t := 0.0
+	var out := 0
+	while t < 1.5:
+		await process_frame
+		t += _p.get_process_delta_time()
+		if get_nodes_in_group("void_tendrils").any(func(n: Node3D) -> bool: return n.visible):
+			out += 1
+			if out >= 3:
+				await _shot(file)
+				return
 
 
 func _until_hit() -> void:

@@ -329,6 +329,7 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Bursts and scorches: `Fx.burst` throws a few two-tone chips (no smoke, no dots) and `Fx.scorch` is an inked crack splat (`comic_crack.gd`). Before: an orange haze under Molten Palm's line; after: a hard orange crack star that cools darker
 - [x] Dark ink bursts (`dark_fx.Splat`) are inked violet tentacles with a hot core, tapering in segments and curling. Before: four flat black slabs over the towed pile; after: tentacles lashing round it
 - [x] Words also keep clear of the combo-name callout and the breaker prompt; Abyss spikes keep 2 m apart, at most 3 (two over the four-foe pile, was four)
+- [x] Round 4: the void tentacle (`void_tendril.gd`: grabs, Harpoon, Tow Line ropes, the R swing) is a flat inked ribbon in the splat's layers (ink edge, violet body, hot core), 0.52 m wide at the hand tapering in four segments, a 5% sag and its whip on twos; `element_shots` films `<combo>_rope` the third frame one is out
 - [ ] Next: the tow rope itself (`void_tendril.gd`) is still a thin dark tube; the frost-cube cyan glass and the green Live Wire hoops are the loudest left; damage numbers still land on the callout (only words avoid it)
 
 ## Round 30 (combo rhythm)
