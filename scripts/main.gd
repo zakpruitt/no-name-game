@@ -21,6 +21,9 @@ const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
 const PILLARS := [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)]
 const HINT_GAP := 7.0
 const AUTOTEST_TIME := 16.0
+## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
+## its `[rhythm]` line), up to AUTOTEST_MAX s.
+const AUTOTEST_MAX := 40.0
 
 const TILE := 4.0
 const HALF_TILES := 4  # arena is (2 * HALF_TILES) tiles across
@@ -54,10 +57,13 @@ var _hits := 0
 var _max_combo := 0
 ## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
 ## click (Overwhelm). Each runs into its breaker where it has one (player presses it at
-## the sweet spot for the bot), so the autotest walks every element and the dark.
-const BOT_STRINGS := [["L", "H"], ["L", "L", "H"], ["H", "H"], ["L", "H", "H"], ["L", "L", "L", "H"],
-	["H", "L", "H"], ["L", "H", "L", "H"], ["D", "L", "H"], ["L", "L", "H", "L", "H"], ["hold"],
-	["L", "L", "L", "H", "H"], ["D", "L", "H", "H"], ["D", "H"], ["L", "L", "L"]]
+## the sweet spot for the bot), so the autotest walks every element and the dark. Frost Spear (L L H)
+## only plays inside L L H L H, which sets the spear off: while it stands (5 s) any L or H press vaults onto
+## it (void_element.vaults), and a lone L L H sent the next strings up the spear (Collapse and Grounded
+## never played).
+const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "H"], ["H", "L", "H"],
+	["L", "H", "L", "H"], ["D", "L", "H"], ["D", "L", "H", "H"], ["D", "H"],
+	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"]]
 const BOT_GAP := 0.35  # s standing between strings
 var _bot_string := 0  # BOT_STRINGS index playing
 var _bot_step := 0  # next token in it
@@ -69,6 +75,8 @@ var _bot_starts := 0  # moves started (player.attack_started), to see a press ta
 var _bot_starts_at := 0
 const BOT_TAKE := 0.7
 var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
+var _bot_rhythm := []  # [move id, real ms] per move started in this string, for the `[rhythm]` line
+var _bot_strings_done := {}  # BOT_STRINGS index -> played (autotest `strings=`)
 # Autotest frame stats (real time, so hitstop slow-mo doesn't skew them).
 var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemies": 0, "draws": 0, "nodes": 0}
 var _perf_last_us := 0
@@ -121,7 +129,9 @@ func _ready() -> void:
 			Game.reduce_flashing = true
 	if _autotest:
 		player.bot_enabled = true
-		player.attack_started.connect(func(_id: String) -> void: _bot_starts += 1)
+		player.attack_started.connect(func(id: String) -> void:
+			_bot_starts += 1
+			_bot_rhythm.append([id, Time.get_ticks_msec()]))
 	_start_training()
 
 
@@ -421,7 +431,7 @@ func _process(delta: float) -> void:
 		_cast_shot_taken = true
 		await get_tree().create_timer(0.1, true, false, true).timeout
 		_snap("user://autotest_cast.png")
-	if _autotest_t >= AUTOTEST_TIME:
+	if _autotest_t >= AUTOTEST_MAX or (_autotest_t >= AUTOTEST_TIME and _bot_strings_done.size() >= BOT_STRINGS.size()):
 		_autotest_finish()
 
 
@@ -466,9 +476,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d moves=%s" % [
+	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d strings=%d/%d moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, ",".join(_bot_moves.keys())])
+		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	print("[training] strings=%d best=%.0f last=%.0f/%d dummy_hp=%.0f" % [_strings, _best_string,
@@ -479,6 +489,22 @@ func _autotest_finish() -> void:
 	# Give the audio thread a moment to release playbacks, or they leak at exit.
 	await get_tree().create_timer(0.2, true, false, true).timeout
 	get_tree().quit()
+
+
+## One `[rhythm]` line per string the bot played: real ms from each move's start to the next's (hitstop,
+## buffering and hit-confirm included), so tuning has numbers. The bot presses as soon as combo_window()
+## says a press would be buffered, so these are the fastest the string goes.
+func _print_rhythm(string: Array) -> void:
+	var gaps := []
+	var beats := []  # first hit to first hit, starting from the string's first press
+	for i in _bot_rhythm.size():
+		var r: Array = _bot_rhythm[i]
+		if i > 0:
+			gaps.append("%s->%s gap=%d ms" % [_bot_rhythm[i - 1][0], r[0], r[1] - _bot_rhythm[i - 1][1]])
+		if r.size() > 2:
+			var from: int = _bot_rhythm[i - 1][2] if i > 0 and _bot_rhythm[i - 1].size() > 2 else _bot_rhythm[0][1]
+			beats.append("%s %d" % [r[0], r[2] - from])
+	print("[rhythm] %s: %s | beats %s ms" % [" ".join(string), ", ".join(gaps) if not gaps.is_empty() else "one move", ", ".join(beats)])
 
 
 func _snap(path: String) -> void:
@@ -507,6 +533,8 @@ func _drive_bot() -> void:
 	Input.action_release("attack_heavy")
 	if player.state == player.State.ATTACK:
 		_bot_moves[player._move_id] = true
+		if player._hits_done > 0 and not _bot_rhythm.is_empty() and _bot_rhythm[-1].size() == 2:
+			_bot_rhythm[-1].append(Time.get_ticks_msec())  # its first hit (the [rhythm] beats)
 	if nearest == null:
 		player.bot_move = Vector3.ZERO
 		return
@@ -521,6 +549,8 @@ func _drive_bot() -> void:
 		if idle:
 			_bot_wait -= dt
 			if _bot_wait <= 0.0:
+				_print_rhythm(string)
+				_bot_strings_done[_bot_string] = true
 				_bot_string = (_bot_string + 1) % BOT_STRINGS.size()
 				_bot_step = 0
 				_bot_wait = BOT_GAP
@@ -535,6 +565,8 @@ func _drive_bot() -> void:
 		_bot_pending = ""
 	if _bot_step == 0 and (not idle or nd > 3.0):
 		return  # walk up first
+	if _bot_step == 0:
+		_bot_rhythm.clear()
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
 	if player.state == player.State.ATTACK:
 		ready = player.combo_window().ready
