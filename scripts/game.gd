@@ -45,6 +45,10 @@ const HITSTOP_EASE_CURVE := 0.45  # ease() curve of the ramp; < 1 = ease-out
 const HITSTOP_OPENER := 0.8  # a string's first hit (combo_count <= 1) freezes this fraction as long: snappier
 const SLOWMO_SCALE := 0.1  # time scales below this are freezes; from here to HITSTOP_FLAT_SCALE, slow motion
 const HITSTOP_FLAT_SCALE := 0.5  # time scales at or above this never ramp
+# Hit weight (hit_weight, 0..1): how big the latest hit was, from its hitstop
+# length, fading in real time; the weapon trail swells with it.
+const HIT_WEIGHT_STOP := 0.12  # a freeze this long (real s) is a full-weight hit
+const HIT_WEIGHT_DECAY := 4.0  # weight lost per real second
 # Juggles: air hits chain while each lands within AIR_TIMEOUT of the last.
 # Reaching a milestone announces it and pays out bonus style + Awakening.
 const AIR_TIMEOUT := 0.9
@@ -128,6 +132,9 @@ var _air_timer := 0.0
 var _recent_moves: Array[String] = []
 var _hitstop_end_ms := 0
 var _stops: Array = []  # live hitstops: [end_ms, ramp_ms, scale]; see HITSTOP_EASE
+## 0..1: the latest hit's weight (HIT_WEIGHT_STOP), fading at HIT_WEIGHT_DECAY.
+var hit_weight := 0.0
+var _weight_ms := 0  # when hit_weight last decayed (real ticks: process delta is time-scaled)
 var _sfx_streams := {}
 var _sfx_last_ms := {}
 var _sfx_players: Array[AudioStreamPlayer] = []
@@ -207,6 +214,7 @@ func reset() -> void:
 	_emit_level()
 	_recent_moves.clear()
 	_stops.clear()
+	hit_weight = 0.0
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
@@ -245,6 +253,8 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 		return
 	if impact and time_scale < HITSTOP_FLAT_SCALE:
 		impact.on_hitstop(duration)
+	if time_scale < SLOWMO_SCALE:
+		hit_weight = maxf(hit_weight, clampf(duration / HIT_WEIGHT_STOP, 0.0, 1.0))
 	if combo_count <= 1 and time_scale < SLOWMO_SCALE:
 		duration *= HITSTOP_OPENER  # the string's opener: a snap, not a stall
 	var ramp := 0.0
@@ -278,6 +288,9 @@ func _update_hitstop() -> void:
 		i -= 1
 	if Engine.time_scale != scale:
 		Engine.time_scale = scale
+	if hit_weight > 0.0:
+		hit_weight = maxf(hit_weight - HIT_WEIGHT_DECAY * (now - _weight_ms) * 0.001, 0.0)
+	_weight_ms = now
 
 
 ## Back to full speed now, cutting any hitstop / slow motion short (a combo

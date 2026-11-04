@@ -8,6 +8,13 @@ const SHADER := preload("res://shaders/weapon_trail.gdshader")
 const NOISE := preload("res://assets/vfx/noise_soft.png")
 const SUBDIV := 3  # interpolated steps between frame samples (fast swings stay round)
 const REACH := 1.2  # trail tip past the blade tip, as a fraction of blade length
+# The ribbon swells with the hit: each Fx.CHAIN_TIERS tier the chain passes and
+# the latest hit's weight (Game.hit_weight, from its hitstop) stretch each new
+# sample's tip (a wider crescent), lengthen its life and fill the shader's body
+# (UV2.x = the swell, 0..1). Samples keep the swell they were drawn with.
+const CHAIN_GROW := 0.1  # extra reach per chain tier (x1.3 at tier 3)
+const HIT_GROW := 0.25  # extra reach at full hit weight
+const LIFE_GROW := 0.6  # extra lifetime per unit of swell (x1.33 at the most)
 
 @export var lifetime := 0.2
 ## Body colour (alpha = opacity); the leading edge is this lightened toward white.
@@ -21,7 +28,7 @@ var emitting := false
 
 var _base_local := Vector3.ZERO
 var _tip_local := Vector3.UP
-var _points: Array = []  # [base: Vector3, tip: Vector3, age: float]
+var _points: Array = []  # [base: Vector3, tip: Vector3, age: float, life: float, swell: float]
 var _imesh := ImmediateMesh.new()
 var _mat := ShaderMaterial.new()
 
@@ -58,11 +65,14 @@ func _process(delta: float) -> void:
 	global_transform = Transform3D.IDENTITY
 	for p in _points:
 		p[2] += delta
-	while not _points.is_empty() and _points[0][2] > lifetime:
+	while not _points.is_empty() and _points[0][2] > _points[0][3]:
 		_points.pop_front()
 	if emitting and is_instance_valid(weapon) and weapon.is_visible_in_tree():
 		var xf := weapon.global_transform
-		_points.append([xf * _base_local, xf * _tip_local, 0.0])
+		var grow := swell()
+		var base: Vector3 = xf * _base_local
+		var tip: Vector3 = xf * _tip_local
+		_points.append([base, base + (tip - base) * (1.0 + grow), 0.0, lifetime * (1.0 + LIFE_GROW * grow), grow])
 
 	_imesh.clear_surfaces()
 	var n := _points.size()
@@ -80,19 +90,28 @@ func _process(delta: float) -> void:
 			var age: float = lerpf(p1[2], p2[2], t)
 			_vertex_pair(
 				_catmull(p0[0], p1[0], p2[0], p3[0], t),
-				_catmull(p0[1], p1[1], p2[1], p3[1], t), age)
+				_catmull(p0[1], p1[1], p2[1], p3[1], t), age,
+				lerpf(p1[3], p2[3], t), lerpf(p1[4], p2[4], t))
 	var last: Array = _points[0]
-	_vertex_pair(last[0], last[1], last[2])
+	_vertex_pair(last[0], last[1], last[2], last[3], last[4])
 	_imesh.surface_end()
 
 
-func _vertex_pair(base: Vector3, tip: Vector3, age: float) -> void:
-	var u := clampf(age / lifetime, 0.0, 1.0)
+## 0 = the plain ribbon; grows CHAIN_GROW per chain tier and HIT_GROW per hit weight.
+func swell() -> float:
+	return CHAIN_GROW * Fx.chain_tier(Game.combo_count) + HIT_GROW * Game.hit_weight
+
+
+func _vertex_pair(base: Vector3, tip: Vector3, age: float, life: float, grow: float) -> void:
+	var u := clampf(age / life, 0.0, 1.0)
+	var uv2 := Vector2(clampf(grow, 0.0, 1.0), 0.0)
 	_imesh.surface_set_color(color)
 	_imesh.surface_set_uv(Vector2(u, 0.0))
+	_imesh.surface_set_uv2(uv2)
 	_imesh.surface_add_vertex(base)
 	_imesh.surface_set_color(color)
 	_imesh.surface_set_uv(Vector2(u, 1.0))
+	_imesh.surface_set_uv2(uv2)
 	_imesh.surface_add_vertex(tip)
 
 
