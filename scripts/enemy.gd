@@ -97,6 +97,26 @@ var _raising := false
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
+# Hit reactions (_hit_reaction, the one place every visual reaction to a hit
+# lives): the model snaps to SQUASH[kind] (x, y, z scale) and springs back,
+# leans away along the knockback (LEAN rad, LEAN_BIG on big hits, back over
+# LEAN_TIME) and flashes in the hero's hit colour mixed FLASH_TINT toward it
+# (FLASH_TAP / FLASH_BIG s). A kill holds the corpse's last pose KILL_FREEZE s
+# before it flies (longer than hit_freeze_big: the pop reads).
+const SQUASH := {
+	"tap": Vector3(1.15, 0.87, 1.15),
+	"big": Vector3(1.32, 0.7, 1.32),
+	"launch": Vector3(0.72, 1.45, 0.72),  # stretched tall as it leaves the ground
+	"juggle": Vector3(1.2, 0.84, 1.2),  # a sharp snap on each hit that keeps it up
+	"kill": Vector3(1.4, 0.6, 1.4),
+}
+const LEAN := 0.2
+const LEAN_BIG := 0.42
+const LEAN_TIME := 0.35
+const FLASH_TAP := 0.07
+const FLASH_BIG := 0.12
+const FLASH_TINT := 0.55
+const KILL_FREEZE := 0.14
 
 static var dodges := 0  # running count, reported by the autotest
 static var blocks := 0
@@ -130,6 +150,7 @@ var frozen_mult := 1.0
 var _ice: MeshInstance3D
 var _frozen_speed := -1.0
 var _squash_tween: Tween
+var _lean_tween: Tween
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
 var _guard_broken_t := 0.0
@@ -558,10 +579,11 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	if hero != null and hero.has_method("_fx_color") and not _quiet_hit:  # long strings escalate the sparks
 		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
 			knockback.normalized() + Vector3.UP * 0.5)
-	if not _quiet_hit:
-		Fx.flash(model)
+	if _quiet_hit:  # a burn tick: the pose hold, none of the show
+		_freeze_t = hit_freeze_big if big else hit_freeze
+	else:
+		_hit_reaction(damage, knockback, launch, big)
 	_telegraph.visible = false
-	_freeze_t = hit_freeze_big if big else hit_freeze
 	if hp <= 0.0:
 		_die(knockback)
 		return
@@ -572,7 +594,6 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		velocity = Vector3(knockback.x * 0.4, maxf(launch, 4.5), knockback.z * 0.4)
 		_set_state(State.AIRBORNE)
 		_play("Hit_B", 0.05, 1.5, true)
-		_squash(Vector3(0.8, 1.3, 0.8))  # stretch upward when launched
 		return
 	if knockback.length() < poise and state == State.WINDUP:
 		return  # poise held: flinch-free, the attack still lands
@@ -580,7 +601,67 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	velocity.z = knockback.z
 	_set_state(State.HURT)
 	_play("Hit_A" if randf() < 0.5 else "Hit_B", 0.05, 1.6, true)
-	_squash(Vector3(1.25, 0.78, 1.25) if big else Vector3(1.15, 0.87, 1.15))
+
+
+## Which SQUASH key a hit gets, from the enemy's side: "kill" (hp is already
+## down), "launch" (leaving the ground), "juggle" (hit while up), "big" / "tap"
+## (grounded flinches) or "none" (poise held: it still flashes).
+func _reaction_kind(knockback: Vector3, launch: float, big: bool) -> String:
+	if hp <= 0.0:
+		return "kill"
+	if state == State.AIRBORNE:
+		return "juggle"
+	if launch > 0.0:
+		return "launch"
+	if knockback.length() < poise and state == State.WINDUP:
+		return "none"
+	return "big" if big else "tap"
+
+
+## Every visual reaction to a landed hit, in one place (take_hit calls it once,
+## beside the hit sparks, so damage-over-time ticks can skip the lot): the
+## freeze, the flash in the hero's colour, the squash and the lean away.
+func _hit_reaction(_damage: float, knockback: Vector3, launch: float, big: bool) -> void:
+	var kind := _reaction_kind(knockback, launch, big)
+	_freeze_t = KILL_FREEZE if kind == "kill" else (hit_freeze_big if big else hit_freeze)
+	_react(kind, knockback, big)
+
+
+func _react(kind: String, knockback: Vector3, big: bool) -> void:
+	Fx.flash_tint(model, _hit_color(), FLASH_BIG if big or kind == "kill" else FLASH_TAP)
+	if kind == "none":
+		return
+	_squash(SQUASH[kind])
+	match kind:
+		"tap":
+			_lean(knockback, LEAN)
+		"big", "kill":
+			_lean(knockback, LEAN_BIG)
+
+
+## The hero's current hit colour (element, Ascendancy when Awakened), white
+## without a hero (lineups, previews).
+func _hit_color() -> Color:
+	var hero := get_tree().get_first_node_in_group("player")
+	if hero != null and hero.has_method("_fx_color"):
+		return Color.WHITE.lerp(hero._fx_color(), FLASH_TINT)
+	return Color.WHITE
+
+
+## Tip the model over along the knockback (the top goes with the blow) and
+## spring it back upright. Only the x/z tilt: _face keeps owning the yaw.
+func _lean(knockback: Vector3, amount: float) -> void:
+	var flat := Vector3(knockback.x, 0.0, knockback.z)
+	if flat.length_squared() < 0.001:
+		return
+	var local := Basis(Vector3.UP, model.rotation.y).inverse() * flat.normalized()
+	if _lean_tween:
+		_lean_tween.kill()
+	model.rotation.x = local.z * amount
+	model.rotation.z = -local.x * amount
+	_lean_tween = create_tween().set_parallel()
+	_lean_tween.tween_property(model, "rotation:x", 0.0, LEAN_TIME).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	_lean_tween.tween_property(model, "rotation:z", 0.0, LEAN_TIME).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 ## Fall apart on the spot (e.g. when the boss that summoned it dies).

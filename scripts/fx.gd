@@ -26,6 +26,7 @@ const EDGE_WIDTH := 0.16  # m, light rim
 const EDGE_OUTLINE := 0.07  # m, dark outline
 
 static var _flash_mat: StandardMaterial3D
+static var _tint_mats := {}  # flash_tint() overlays, one per colour
 static var _rim_mat: ShaderMaterial
 static var _outline_mat: ShaderMaterial
 # Source material -> copy with the outline pass, shared by every character using it.
@@ -492,9 +493,27 @@ static func flash(root: Node, duration := 0.08) -> void:
 			mi.material_overlay = null
 
 
+## flash() in a colour (enemy hit confirms in the hero's element): one shared
+## overlay per colour, so a crowd flashing together costs one material.
+static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
+	var key := color.to_rgba32()
+	if not _tint_mats.has(key):
+		_tint_mats[key] = unshaded_mat()
+	var mat: StandardMaterial3D = _tint_mats[key]
+	mat.albedo_color = Color(color, 0.3 if Game.reduce_flashing else 0.85)
+	var meshes := root.find_children("*", "MeshInstance3D", true, false)
+	for mi in meshes:
+		mi.material_overlay = mat
+	await root.get_tree().create_timer(duration, true, false, true).timeout
+	for mi in meshes:
+		if is_instance_valid(mi) and mi.material_overlay == mat:
+			mi.material_overlay = null
+
+
 ## Drop cached materials so nothing is left alive at exit.
 static func release() -> void:
 	_flash_mat = null
+	_tint_mats.clear()
 	_rim_mat = null
 	_outline_mat = null
 	_outlined.clear()
