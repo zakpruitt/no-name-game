@@ -91,6 +91,12 @@ fast-forward, so no agent edits another's files or index.
 - **Second model, same kind:** a variant of a hero loads through a file map (`ComicLook.HERETIC_MODELS`) while keeping the kind name, so tones, clips and every `hero_kind()` check work unchanged. Cache shared materials per texture, not per material name.
 - **"Parameter material is null" in the autotest** showed up on some seeds with the round-28 heretic as well as the chibi (seed 4: 20 lines). It predates round 29; not chased yet.
 
+- `git rebase` onto a moved dev can refuse with "untracked working tree files would be overwritten" for
+  `.uid` files Godot made locally that another agent has since committed. Delete the local copies (same
+  content) and rebase again; commit the `.uid` of every new script you add.
+- To find which effect is cluttering a shot, stub its function with an early `return`, reshoot that one
+  combo (`--only=`) and compare. Two of round 29's three "worst" items turned out to be a different effect.
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes

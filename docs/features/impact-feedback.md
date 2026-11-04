@@ -27,6 +27,13 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 - **The trail swells.** Deep in a chain and right after a heavy hit the
   weapon ribbon reaches further, lives longer and fills out.
 
+- **Comic hit readouts** (round 29, `Game.comic_style`). Damage numbers are
+  one inked number per foe (`scripts/comic_number.gd`): a hit within
+  `MERGE_S` of that foe's last adds into it, and it pops again. A foe's hit
+  flash recolours its own ink (paper, then the hero's colour) instead of an
+  overlay, which read as a soft blob over a crowd being zapped. The
+  training readout is unchanged: it counts the hit signal, not the numbers.
+
 ## Files
 
 - `scripts/game.gd`: `hitstop()` (shape + opener + `hit_weight`),
