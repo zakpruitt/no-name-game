@@ -76,3 +76,21 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - shaped VFX upgrades,
 - tuning damage or windows with the numbers shown,
 - a robustness fix, such as "only on connect" or "velocity carry-over".
+
+## Filming and judging feel (feel audit 2026-11-04)
+- **Film the string, not a still.** `godot --path . -s tests/string_film.gd` films every `BOT_STRINGS` string at 12 fps
+  from the game camera, played by the real bot, plus a frame marked HIT the first drawn frame after each new hit or
+  breaker slam, with an INDEX line per frame (real ms, move, hits done, `Engine.time_scale`). Contact holds and freezes
+  almost never land on a 12 fps beat; without the HIT frame the sheet shows the wind-up and the recovery and skips the blow.
+- **Put `time_scale` on the label.** A frame at x0.03 is a freeze, x0.6 the breaker focus, x0.05 a slam; colouring
+  those labels made the hitstop beat readable on a sheet at a glance.
+- **Check the hits connected before judging.** The first film's L L L H after a Grounded breaker swung at air (the combo
+  count never moved, no freeze): the breaker scatters the dummies. The film gathers them in a fan in front of him per string.
+- **Move the hero too, not only the foes.** Gathering the dummies in front of wherever he stood walked every later string
+  into the east wall (a dark band through the pile, and their homes followed). Reset him to the middle facing up the screen.
+- **A gathered pile changes the moves.** At 2.2 m Dash Stab lunges through the foes and the bot's D L H never reached
+  Harpoon; in the autotest (foes further off) it does. Say which setup a frame comes from.
+- **Read the next string's first second.** Callouts, banners, words and ground effects from the last string were most of
+  the clutter; per-string sheets that start at the string's first press show it, stills of one move don't.
+- **Zoom before judging.** At 400 px thumbnails the 1.85 m chibi is a few pixels; crop the middle 60% at 600 px
+  (scratchpad `feelaudit_keys.py`) for the hero, and use the full sheet for timing.

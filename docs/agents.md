@@ -159,3 +159,11 @@ fast-forward, so no agent edits another's files or index.
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
 the worktree, and deletes the branch once it has been merged.
+- **Filming feel:** `tests/string_film.gd` (windowed, about a minute) films every bot string at 12 fps into
+  `user://string_film/<string>/` with an INDEX.txt; copy it out at once. Grab frames into memory (half size) and write
+  them while the bot walks between strings: saving a PNG mid-string stalls that frame and stretches the hitstop
+  you are trying to film. Real-time 12 fps on a 60 Hz display lands on 83 or 100 ms; schedule from the film's start.
+- **A SceneTree film can drive the autotest bot:** `training_bot.gd`.new() with `main` set, its shot flags set true and
+  `_autotest_t` held at 0 each frame, so it never snaps over the shared `autotest_*.png` or quits the tree.
+- **An effect's tween on scaled time outlives its string.** Hitstop and breaker slow motion stretch any `create_tween()`
+  on a node; the combo-name callout hung 1-1.5 s into the next string. Film the gap between strings to see it.
