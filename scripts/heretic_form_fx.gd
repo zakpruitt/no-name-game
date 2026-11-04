@@ -12,7 +12,7 @@ const STAR_SPIKES := 9
 const STAR_STRETCH := 0.4  # further along the haft than across it
 ## Biggest at once, then gone by about 0.25 s, when strikes start landing: it mustn't hide the swing.
 const STAR_SIZE_BY_STEP := [1.0, 0.8, 0.45]  # step past the end: no star
-const STAR_OFF_HAND := 0.6  # of its size, up the haft and off the hero
+const STAR_OFF_HAND := 1.5  # of its size, up the haft: clear of the chibi's hood
 const STROKE_BY_STEP := [0.6, 1.1]  # of the haft's length, keeping up with the growth; then no stroke
 const CHIP_HEAD_START := 0.04  # s of flight on the first frame, so they don't start in a pile
 const STROKE_WIDTH := 0.1  # m at the hand, tapering to a point
