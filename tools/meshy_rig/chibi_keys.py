@@ -22,6 +22,10 @@ args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = args[0] if args else ""
 STEP_ATTACK = 4  # frames per drawing at 30 fps for clips played at 1.7: 12.75 drawings a second
 STEP_STANCE = 3  # at 1.1: 11 a second
+# From the game camera (54 degrees down) up-and-down barely reads, so a squash also widens the hood
+# past volume (x this per unit of squash) and the runs sway sideways over the planted foot.
+HSQ_WIDE = 0.0
+COPIED_STEP = 6  # frames per claw drawing on the clips still copied from the shaman (claws only)
 
 arm = bpy.data.objects["Armature"]
 BONES = arm.data.bones
@@ -456,7 +460,11 @@ def contact(hand_pos):
     return max(i for i, s in enumerate(sp) if s >= 0.4 * peak) + 1  # 1-based frames
 
 
-def write(name, n, frames_pose, claws):
+def write(name, n, frames_pose, changes):
+    """changes: the 0-based frames where a new drawing starts (0 included). Claws key only those, held
+    (CONSTANT -> glTF STEP); everything else keys the frame before each change and the change itself,
+    LINEAR, which is the same curve as a key on every frame (the change still takes one frame) at a
+    fraction of the keys."""
     old = bpy.data.actions.get(name)
     if old:
         old.name = name + "__old"
@@ -467,6 +475,7 @@ def write(name, n, frames_pose, claws):
     slot = act.slots.new("OBJECT", arm.name)
     ad.action_slot = slot
     data = {}
+    claw_bones = set()
     for i, (B, C, hsq, hs) in enumerate(frames_pose):
         for b, (q, t) in B.items():
             data.setdefault(b, {"q": [], "t": []})
@@ -474,43 +483,48 @@ def write(name, n, frames_pose, claws):
         for b, q in C.items():
             data.setdefault(b, {"q": [], "t": []})
             data[b]["q"].append(q)
+            claw_bones.add(b)
         data.setdefault("head", {}).setdefault("s", []).append(hsq)
         data.setdefault("hand.r", {}).setdefault("u", []).append(hs)
+    held = sorted(set(changes + [n - 1]))
+    lin = sorted(set([0, n - 1] + [i - 1 for i in changes if i > 0] + changes))
     for b, d in data.items():
         qs = d["q"]
         for i in range(1, len(qs)):
             if qs[i].dot(qs[i - 1]) < 0:
                 qs[i] = -qs[i]
+        at = held if b in claw_bones else lin
         for k in range(4):
             fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["%s"].rotation_quaternion' % b, index=k)
-            fc.keyframe_points.add(n)
-            fc.keyframe_points.foreach_set("co", [v for i in range(n) for v in (i + 1, qs[i][k])])
-            fc.keyframe_points.foreach_set("interpolation", [1] * n)
+            fc.keyframe_points.add(len(at))
+            fc.keyframe_points.foreach_set("co", [v for i in at for v in (i + 1, qs[i][k])])
+            fc.keyframe_points.foreach_set("interpolation", [0 if b in claw_bones else 1] * len(at))
             fc.update()
         if b in ("root", "hips"):
             for k in range(3):
                 fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["%s"].location' % b, index=k)
-                fc.keyframe_points.add(n)
-                fc.keyframe_points.foreach_set("co", [v for i in range(n) for v in (i + 1, d["t"][i][k])])
-                fc.keyframe_points.foreach_set("interpolation", [1] * n)
+                fc.keyframe_points.add(len(lin))
+                fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + 1, d["t"][i][k])])
+                fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
                 fc.update()
         if "s" in d:  # head squash: wide and short, keeping the volume about
             for k in range(3):
                 fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["head"].scale', index=k)
-                fc.keyframe_points.add(n)
+                fc.keyframe_points.add(len(lin))
                 vals = []
                 for i in range(n):
                     s = d["s"][i]
-                    vals.append(1.0 - s if k == 1 else 1.0 / math.sqrt(max(1.0 - s, 0.3)))
-                fc.keyframe_points.foreach_set("co", [v for i in range(n) for v in (i + 1, vals[i])])
-                fc.keyframe_points.foreach_set("interpolation", [1] * n)
+                    wide = 1.0 / math.sqrt(max(1.0 - s, 0.3)) * (1.0 + HSQ_WIDE * max(s, 0.0))
+                    vals.append(1.0 - s if k == 1 else wide)
+                fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + 1, vals[i])])
+                fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
                 fc.update()
     if any(abs(u - 1.0) > 1e-4 for u in data["hand.r"]["u"]):
         for k in range(3):  # the claw (and a weapon in it) swells on a reach or a smear
             fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["hand.r"].scale', index=k)
-            fc.keyframe_points.add(n)
-            fc.keyframe_points.foreach_set("co", [v for i in range(n) for v in (i + 1, data["hand.r"]["u"][i])])
-            fc.keyframe_points.foreach_set("interpolation", [1] * n)
+            fc.keyframe_points.add(len(lin))
+            fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + 1, data["hand.r"]["u"][i])])
+            fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
             fc.update()
     ad.action = None
     if old:
@@ -532,7 +546,7 @@ for name, (n, form, step, want, keys) in CLIPS.items():
     print("[keys] %-12s %3d frames  contact want %s got %s" % (name, n, want, got))
     if want and got != want:
         print("   speeds", " ".join("%d:%.2f" % (i + 1, (hand[i] - hand[i - 1]).length) for i in range(1, n)))
-    write(name, n, out, None)
+    write(name, n, out, [0] + [i for i in range(1, n) if frames[i] != frames[i - 1]])
 
 
 # ---- claws on the clips still copied from the shaman: half curled at rest, splayed into each swing's
@@ -550,41 +564,48 @@ def copied_claws(a):
     n = len(pos)
     loop = a.name in ("Run_B", "Strafe_L", "Strafe_R", "Running_A", "2H_Melee_Idle", "Jump_Idle", "Spellcasting")
     hit = contact(pos) if not loop else None
-    vals = []
-    for i in range(n):
+    # drawings (0-based frame, value), each held to the next (CONSTANT keys, glTF STEP): one every
+    # COPIED_STEP frames on the ramps, the clench on the contact held 4 frames
+    def at(i):
         f = i + 1
         if loop:
-            v = 0.2 + 0.25 * math.sin(2 * math.pi * i / max(n - 1, 1))
-        elif f < hit:
-            v = -0.8 * min(1.0, f / max(hit - 1.0, 1.0))
-        else:
-            v = 1.0 - 0.7 * min(1.0, (f - hit) / max(0.5 * (n - hit), 1.0))
-        # on twos
-        vals.append(v)
-    stepped = [vals[(i // STEP_STANCE) * STEP_STANCE] if not (hit and i + 1 == hit) else vals[i] for i in range(n)]
-    if hit:
-        for i in range(hit - 1, min(hit + 3, n)):
-            stepped[i] = 1.0
+            return 0.2 + 0.25 * math.sin(2 * math.pi * i / max(n - 1, 1))
+        if f < hit:
+            return -0.8 * min(1.0, f / max(hit - 1.0, 1.0))
+        return 1.0 - 0.7 * min(1.0, (f - hit) / max(0.5 * (n - hit), 1.0))
+    if loop:
+        marks = list(range(0, n, COPIED_STEP))
+    else:
+        marks = sorted(set(list(range(0, hit - 1, COPIED_STEP)) + [hit - 1] + list(range(hit + 3, n, COPIED_STEP))))
+    keys = [(i, 1.0 if hit and hit - 1 <= i < hit + 3 else at(i)) for i in marks]
+    if keys[-1][0] != n - 1:
+        keys.append((n - 1, keys[-1][1]))
     cb = a.layers[0].strips[0].channelbag(a.slots[0])
     for i_t, t in enumerate(TIPS):
         for j, b in enumerate(CHAINS[t]):
             qs = []
-            for v in stepped:
+            for _i, v in keys:
                 deg = v * CLENCH_DEG if v > 0 else v * SPLAY_DEG * (1.6 if j == 0 else 1.0)
                 if t == "main":
                     deg *= 0.6
                 qs.append(Quaternion(CURL[b], math.radians(deg)))
             for k in range(4):
                 fc = cb.fcurves.new('pose.bones["%s"].rotation_quaternion' % b, index=k)
-                fc.keyframe_points.add(n)
-                fc.keyframe_points.foreach_set("co", [x for i in range(n) for x in (f0 + i, qs[i][k])])
-                fc.keyframe_points.foreach_set("interpolation", [1] * n)
+                fc.keyframe_points.add(len(keys))
+                fc.keyframe_points.foreach_set("co", [x for (i, _v), q in zip(keys, qs) for x in (f0 + i, q[k])])
+                fc.keyframe_points.foreach_set("interpolation", [0] * len(keys))
                 fc.update()
     return hit
 
 
+# The clips the game plays on him (scripts/*.gd, after ComicLook's Ab_ mapping). The rest are still in
+# the GLB but get no claw tracks: every track is a sampler, accessors and buffer views in the GLB's
+# JSON, and claw tracks on all 40 copied clips grew the file by 1.1 MB.
+PLAYED = {"Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3", "Ab_DL", "Ab_GR", "Ab_VS", "Ab_LH", "Ab_H", "Ab_LLH", "Ab_AF",
+          "Ab_Swing", "Idle", "Idle_Ready", "Idle_Heft", "Idle_Listen", "Idle_Swing", "Run_F", "Run_B",
+          "Strafe_L", "Strafe_R", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle", "Death_A", "2H_Melee_Idle"}
 for a in list(bpy.data.actions):
-    if a.name in CLIPS or a.name.endswith("__old"):
+    if a.name in CLIPS or a.name.endswith("__old") or a.name not in PLAYED:
         continue
     if not a.slots or not a.layers:
         continue
@@ -594,6 +615,109 @@ for a in list(bpy.data.actions):
 bad = [r for r in report if r[2] and r[2] != r[3]]
 if bad:
     print("[keys] CONTACT MISMATCH", bad)
+
+
+def share_anim_accessors(path):
+    """Lossless: animation samplers whose key times (or values) are byte-identical share one accessor,
+    then unused accessors and buffer views are dropped and the BIN chunk is packed again. The exporter
+    writes a time accessor per track, and every track in a clip keys the same frames."""
+    d = open(path, "rb").read()
+    jl = struct.unpack("<I", d[12:16])[0]
+    j = json.loads(d[20:20 + jl])
+    bl = struct.unpack("<I", d[20 + jl:24 + jl])[0]
+    bin_ = d[28 + jl:28 + jl + bl]
+    acc, views = j["accessors"], j["bufferViews"]
+
+    def blob(a):
+        v = views[acc[a]["bufferView"]]
+        o = v.get("byteOffset", 0) + acc[a].get("byteOffset", 0)
+        meta = json.dumps({k: acc[a][k] for k in ("componentType", "count", "type", "normalized") if k in acc[a]})
+        return meta, bin_[o:o + v["byteLength"] - acc[a].get("byteOffset", 0)]
+    canon = {}
+    for an in j["animations"]:
+        for sm in an["samplers"]:
+            for k in ("input", "output"):
+                key = blob(sm[k])
+                sm[k] = canon.setdefault(key, sm[k])
+    # every accessor still referenced, in first-use order
+    used = []
+
+    def use(a):
+        if a not in used:
+            used.append(a)
+    for m in j.get("meshes", []):
+        for pr in m["primitives"]:
+            for a in pr["attributes"].values():
+                use(a)
+            if "indices" in pr:
+                use(pr["indices"])
+            for t in pr.get("targets", []):
+                for a in t.values():
+                    use(a)
+    for sk in j.get("skins", []):
+        if "inverseBindMatrices" in sk:
+            use(sk["inverseBindMatrices"])
+    for an in j["animations"]:
+        for sm in an["samplers"]:
+            use(sm["input"]); use(sm["output"])
+    amap = {a: i for i, a in enumerate(used)}
+    for m in j.get("meshes", []):
+        for pr in m["primitives"]:
+            pr["attributes"] = {k: amap[a] for k, a in pr["attributes"].items()}
+            if "indices" in pr:
+                pr["indices"] = amap[pr["indices"]]
+            pr["targets"] = [{k: amap[a] for k, a in t.items()} for t in pr.get("targets", [])] or None
+            if pr["targets"] is None:
+                del pr["targets"]
+    for sk in j.get("skins", []):
+        if "inverseBindMatrices" in sk:
+            sk["inverseBindMatrices"] = amap[sk["inverseBindMatrices"]]
+    for an in j["animations"]:
+        for sm in an["samplers"]:
+            sm["input"] = amap[sm["input"]]; sm["output"] = amap[sm["output"]]
+    j["accessors"] = [acc[a] for a in used]
+    # buffer views still referenced (accessors, images), repacked 4-byte aligned
+    vused = []
+    for a in j["accessors"]:
+        if acc_view(a) is not None and acc_view(a) not in vused:
+            vused.append(acc_view(a))
+    for im in j.get("images", []):
+        if "bufferView" in im and im["bufferView"] not in vused:
+            vused.append(im["bufferView"])
+    vmap = {v: i for i, v in enumerate(vused)}
+    out = bytearray()
+    new_views = []
+    for v in vused:
+        bv = dict(views[v])
+        o = bv.get("byteOffset", 0)
+        chunk = bin_[o:o + bv["byteLength"]]
+        while len(out) % 4:
+            out.append(0)
+        bv["byteOffset"] = len(out)
+        out += chunk
+        new_views.append(bv)
+    for a in j["accessors"]:
+        if "bufferView" in a:
+            a["bufferView"] = vmap[a["bufferView"]]
+    for im in j.get("images", []):
+        if "bufferView" in im:
+            im["bufferView"] = vmap[im["bufferView"]]
+    j["bufferViews"] = new_views
+    while len(out) % 4:
+        out.append(0)
+    j["buffers"][0]["byteLength"] = len(out)
+    js = json.dumps(j, separators=(",", ":")).encode("utf-8")
+    while len(js) % 4:
+        js += b" "
+    total = 12 + 8 + len(js) + 8 + len(out)
+    glb = struct.pack("<III", 0x46546C67, 2, total) + struct.pack("<I", len(js)) + b"JSON" + js
+    glb += struct.pack("<I", len(out)) + b"BIN" + bytes(1) + bytes(out)
+    open(path, "wb").write(glb)
+
+
+def acc_view(a):
+    return a.get("bufferView")
+
 
 # ---- optional contact sheet renders are left to the game (tests/heretic_shots.gd --clips)
 if OUT:
@@ -612,8 +736,11 @@ if OUT:
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_skins=True,
                               export_animations=True, export_animation_mode="ACTIONS", export_force_sampling=False,
                               export_apply=False, export_yup=True)
+    before = os.path.getsize(OUT)
+    share_anim_accessors(OUT)
     d = open(OUT, "rb").read()
     l = struct.unpack("<I", d[12:16])[0]
     j = json.loads(d[20:20 + l])
-    print("GLB", len(d) // 1024, "KB; anims", len(j["animations"]), "joints", len(j["skins"][0]["joints"]))
+    print("GLB", len(d) // 1024, "KB (%d KB before sharing); anims" % (before // 1024), len(j["animations"]),
+          "joints", len(j["skins"][0]["joints"]))
     print("KEYED", OUT, "bad contacts" if bad else "contacts ok")
