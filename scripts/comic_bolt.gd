@@ -5,6 +5,7 @@ extends Node3D
 ## (elements.arc, was element_rite.arc) and the green funnel (elements.storm_strike), which read as a smudge at the game
 ## camera. Uses heretic_form_fx's shared material, so there's nothing new to compile.
 
+const SELF := preload("res://scripts/comic_bolt.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const STEPS_PER_S := 12.0  # on twos
 const WIDTH_BY_STEP := [1.0, 0.85, 0.5]  # full, a new zigzag, then colour only, then gone
@@ -34,7 +35,7 @@ var _colors := PackedColorArray()
 
 
 static func spawn(parent: Node, a: Vector3, b: Vector3, w := 0.24, star_size := 0.0, fork_count := 1) -> Node3D:
-	var bolt: Node3D = load("res://scripts/comic_bolt.gd").new()
+	var bolt: Node3D = SELF.new()
 	bolt.width = w
 	bolt.star = star_size
 	bolt.forks = fork_count

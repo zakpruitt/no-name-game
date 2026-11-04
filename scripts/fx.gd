@@ -770,6 +770,7 @@ static func release() -> void:
 	_outline_mat = null
 	_outlined.clear()
 	_particle_mats.clear()
+	COMIC_POP.release()
 	ComicLook.release()
 
 

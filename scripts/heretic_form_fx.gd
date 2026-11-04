@@ -4,6 +4,7 @@ extends Node3D
 ## camera and is redrawn on twos, like comic_axe_aura.gd, because glow and soft dots read as a
 ## different game next to the inked hero.
 
+const SELF := preload("res://scripts/heretic_form_fx.gd")  # (held: a load() at fire time recompiled it once freed)
 const STEPS_PER_S := 12.0  # on twos, at the clips' 24 fps
 const STEPS := 5  # then it's gone
 const INK := Color(0.012, 0.01, 0.02)
@@ -62,7 +63,7 @@ static func material() -> StandardMaterial3D:
 
 ## `dir` is the haft's direction in the world; zero for a change back to the bare limb.
 static func spawn(parent: Node, at: Vector3, form: String, dir: Vector3, length: float) -> Node3D:
-	var fx: Node3D = load("res://scripts/heretic_form_fx.gd").new()
+	var fx: Node3D = SELF.new()
 	parent.add_child(fx)
 	fx.global_position = at
 	fx.setup(form, dir, length)

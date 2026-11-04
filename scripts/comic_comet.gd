@@ -5,6 +5,7 @@ extends Node3D
 ## afterimages, which piled into a big soft disc under the foes at the game camera.
 ## Flat, camera-facing, heretic_form_fx's shared material, a public tick(delta).
 
+const SELF := preload("res://scripts/comic_comet.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
 const INK := Color(0.012, 0.01, 0.02)
@@ -38,7 +39,7 @@ var _colors := PackedColorArray()
 static func beat(parent: Node, model: Node3D, c: Color) -> void:
 	var comet: Node3D = model.get_meta("comic_comet") if model.has_meta("comic_comet") else null
 	if not is_instance_valid(comet):
-		comet = load("res://scripts/comic_comet.gd").new()
+		comet = SELF.new()
 		comet.color = c
 		parent.add_child(comet)
 		comet.setup(model)

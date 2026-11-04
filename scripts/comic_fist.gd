@@ -5,6 +5,7 @@ extends Node3D
 ## shaded balls. Drawn on twos with heretic_form_fx's shared material; moves like the old one, so
 ## the tentacle (void_grab._tick_palm) still follows it out.
 
+const SELF := preload("res://scripts/comic_fist.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK := Color(0.012, 0.01, 0.02)
 const LOW := Color(0.5, 0.08, 0.45)  # the limb's magenta (heretic_form_fx "hand", a touch brighter)
@@ -31,7 +32,7 @@ var _colors := PackedColorArray()
 
 ## The same flight as void_element._fist: from 1 m ahead of `at` out `length` m along `fwd` in `time` s.
 static func spawn(parent: Node, at: Vector3, fwd: Vector3, length: float, time: float) -> Node3D:
-	var fist: Node3D = load("res://scripts/comic_fist.gd").new()
+	var fist: Node3D = SELF.new()
 	parent.add_child(fist)
 	fist.setup(at, fwd, length, time)
 	return fist

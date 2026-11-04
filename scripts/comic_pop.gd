@@ -58,19 +58,68 @@ var _spikes := PackedFloat32Array()
 var _turn := 0.0
 var _reduced := false
 var _mesh := ArrayMesh.new()
+var _mi: MeshInstance3D
+var _done := false
 var _verts := PackedVector3Array()
 var _colors := PackedColorArray()
 
 
+const SELF := preload("res://scripts/comic_pop.gd")
+const POOL_MAX := 48  # finished pops kept out of the tree for the next hit (a breaker spawns a dozen at once)
+
+static var _pool := []  # (untyped: a pooled pop someone freed must not error on the way out)
+
+
 static func spawn(parent: Node, at: Vector3, opts: Dictionary) -> Node3D:
-	var pop: Node3D = load("res://scripts/comic_pop.gd").new()
+	var pop: Node3D = null
+	while pop == null and not _pool.is_empty():
+		var p: Variant = _pool.pop_back()
+		if is_instance_valid(p):
+			pop = p
+	if pop == null:
+		pop = SELF.new()
 	parent.add_child(pop)
 	pop.setup(at, opts)
 	return pop
 
 
+## Frees the pooled pops (Fx.release, at exit).
+static func release() -> void:
+	for p: Variant in _pool:
+		if is_instance_valid(p):
+			p.free()
+	_pool.clear()
+
+
+## Done: back to the pool out of the tree, or freed when the pool is full.
+func _finish() -> void:
+	_done = true
+	visible = false
+	set_process(false)
+	if _pool.size() >= POOL_MAX:
+		queue_free()
+		return
+	_to_pool.call_deferred()  # (deferred: tick() may run inside the parent's own loop)
+
+
+func _to_pool() -> void:
+	if _pool.size() >= POOL_MAX:
+		queue_free()
+		return
+	if get_parent() != null:
+		get_parent().remove_child(self)
+	_pool.append(self)
+
+
 func setup(at: Vector3, opts: Dictionary) -> void:
 	add_to_group("comic_pop")
+	set_process(true)
+	visible = true
+	_done = false
+	_t = 0.0
+	_step = -1
+	_strokes.clear()
+	_chips.clear()
 	top_level = true
 	global_transform = Transform3D(Basis.IDENTITY, at)
 	o = DEFAULTS.duplicate()
@@ -86,13 +135,14 @@ func setup(at: Vector3, opts: Dictionary) -> void:
 	var d: Vector3 = o.dir
 	_fwd = _right * d.dot(_right) + _up * d.dot(_up)
 	_fwd = _fwd.normalized() if _fwd.length() > 0.05 else Vector3.ZERO
-	var mi := MeshInstance3D.new()
-	mi.mesh = _mesh
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.set_meta("no_ghost", true)
-	mi.extra_cull_margin = 8.0 + float(o.ring)
-	mi.sorting_offset = o.layer
-	add_child(mi)
+	if _mi == null:
+		_mi = MeshInstance3D.new()
+		_mi.mesh = _mesh
+		_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_mi.set_meta("no_ghost", true)
+		add_child(_mi)
+	_mi.extra_cull_margin = 8.0 + float(o.ring)
+	_mi.sorting_offset = o.layer
 	_new_star()
 	var n: int = o.strokes
 	for i in n:
@@ -140,10 +190,12 @@ func _process(delta: float) -> void:
 
 ## Public so a test can step it exactly.
 func tick(delta: float) -> void:
+	if _done:
+		return
 	_t += delta
 	var step := int(_t * STEPS_PER_S)
 	if step >= int(o.steps) + int(o.hold) - 1:
-		queue_free()
+		_finish()
 		return
 	if step == _step:
 		return

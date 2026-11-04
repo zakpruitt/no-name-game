@@ -129,6 +129,12 @@ fast-forward, so no agent edits another's files or index.
 - **Prints in the autotest are frame spikes** (2-10 ms with stdout piped): bot lines go into `player.bot_log` / main's
   logs and print at the end.
 - A tuning test should fail with the old number: flip the constant back, run it, see FAIL, flip it forward.
+- **A `preload` in a `-s` test script compiles before the autoloads exist** ("Identifier not found: Game" in the
+  preloaded script): `load()` effect scripts inside the test's functions instead.
+- **The dev checkout can be mid-import** (another lane just landed GLBs): a windowed autotest there ran at 400-800 ms a
+  frame with 0 hits. Measure a baseline in your own worktree with `git checkout <base> -- scripts tests`, then restore.
+- **To find what a mystery shape on a sheet is**, copy the shot test, and at that shot print every visible
+  MeshInstance3D near the hero with its parent's script and albedo; one run named the "ice glass" (a spirit tomahawk).
 
 ## When you're done
 

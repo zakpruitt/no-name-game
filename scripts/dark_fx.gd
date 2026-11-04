@@ -5,6 +5,7 @@ extends RefCounted
 
 const FOES := preload("res://scripts/foes.gd")
 const SELF := preload("res://scripts/dark_fx.gd")
+const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
 
 const INK := Color(0.03, 0.01, 0.06)
@@ -36,21 +37,33 @@ static func part(parent: Node3D, mesh: Mesh, mat: Material, at := Vector3.ZERO) 
 	return m
 
 
+static var _discs := {}  # radius (cm) -> mesh: shared, each built once (a fresh mesh per effect rebuilt its arrays)
+static var _hoops := {}  # thinness (per mille) -> mesh
+
+
 static func disc(r: float) -> CylinderMesh:
+	var key := roundi(r * 100.0)
+	if _discs.has(key):
+		return _discs[key]
 	var d := CylinderMesh.new()
 	d.top_radius = r
 	d.bottom_radius = r
 	d.height = 0.02
 	d.radial_segments = 28
+	_discs[key] = d
 	return d
 
 
 static func hoop(thin: float) -> TorusMesh:
+	var key := roundi(thin * 1000.0)
+	if _hoops.has(key):
+		return _hoops[key]
 	var t := TorusMesh.new()
 	t.inner_radius = 1.0 - thin
 	t.outer_radius = 1.0
 	t.rings = 32
 	t.ring_segments = 3
+	_hoops[key] = t
 	return t
 
 
@@ -530,7 +543,7 @@ class Splat extends Node3D:
 		arrays[Mesh.ARRAY_VERTEX] = _verts
 		arrays[Mesh.ARRAY_COLOR] = _colors
 		_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		_mesh.surface_set_material(0, load("res://scripts/heretic_form_fx.gd").material())
+		_mesh.surface_set_material(0, FORM_FX.material())
 
 	func _screen(a: float) -> Vector3:
 		return _right * cos(a) + _up * sin(a)
@@ -696,7 +709,7 @@ class Spout extends Node3D:
 		arrays[Mesh.ARRAY_VERTEX] = _verts
 		arrays[Mesh.ARRAY_COLOR] = _colors
 		_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		_mesh.surface_set_material(0, load("res://scripts/heretic_form_fx.gd").material())
+		_mesh.surface_set_material(0, FORM_FX.material())
 
 	func _spike(tip: Vector3, w: float, c: Color) -> void:
 		var a := _right * w
