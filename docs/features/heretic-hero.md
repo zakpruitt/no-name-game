@@ -20,7 +20,8 @@ How to make more models like this: [meshy-pipeline.md](meshy-pipeline.md).
 | `tools/meshy_rig/heretic_audit.py` | Prints a hero GLB's tris, materials, texture, bones, rig-contract chains and height |
 | `tools/meshy_rig/chibi_decimate.py` | Meshy GLB → welded, decimated (two collapse passes), recentred, optionally mirrored GLB, plus front/side/back/top renders |
 | `tools/meshy_rig/chibi_paint.py` | Repaints the chibi's claw texels (found from the hand's UV triangles) in the heretic's magenta |
-| `assets/comic/heretic_chibi.glb` | The chibi heretic (`--hero=chibi`), same rig contract |
+| `tools/meshy_rig/chibi_face.py` | Hides the chibi's chin and nose in the hood's shadow (skin texels under the face's UV triangles go dark indigo) and brightens the eye texels to cyan |
+| `assets/comic/heretic_chibi.glb` | The chibi heretic, the default hero since round 29 (`--hero=heretic` for the old one), same rig contract |
 | `assets/comic/heretic.glb` | The result |
 | `scripts/heretic_rig.gd` | Modifier: sway, weapon changes, limb pose off attacks; adds the skirt's `SpringBoneSimulator3D` |
 | `scripts/heretic_form_fx.gd` | The burst on a change: flat camera-facing shapes redrawn on twos. `LOOKS` holds each form's tones, star size and chips |
@@ -64,20 +65,21 @@ Result: same tris, bones and clips; `heretic_shots`, `comic_check`, `training_ch
 
 Two Meshy candidates were generated for a new base (60 credits, see [art-direction.md](art-direction.md)) and neither was used: one realistic with no tentacle arm, one chibi with a broken patchwork texture. Both are in `vendor_src/meshy/source/` (`cand1_t2r_01a1a6bc.glb`, `chibi_t2r_01a1a6c4.glb`); the chibi's Meshy task ids are preview `01a1a6c3-871e-77fc-89fd-883d5fac3e76`, refine `01a1a6c4-842d-77b6-9f97-05a5d24782e8`, so it can be retextured and auto-rigged from Meshy without generating again.
 
-## The chibi heretic (round 29, selectable)
+## The chibi heretic (round 29, the default)
 
-A second heretic model with the same rig contract: `assets/comic/heretic_chibi.glb`. Pick it with `--hero=chibi` (this process only), or Settings → "Hero model (next run)": Heretic / Chibi heretic (saved as `video/hero_model`, only written when not the default). `--hero=heretic` forces the default. `Game.hero_model` picks the file through `ComicLook.HERETIC_MODELS`; the kind stays `heretic`, so `KIND_TONES`, `CLIPS`, `heretic_rig.gd` and every `hero_kind() == HERETIC` check work for both. `painted()` caches per texture, since both models call their material `P_HereticPaint`. Default is still the round-28 heretic until Zak picks.
+A second heretic model with the same rig contract: `assets/comic/heretic_chibi.glb`. **It is the default hero** (`Game.HERO_DEFAULT = "chibi"`), an orchestrator decision in round 29 that Zak can veto by changing that one constant. `--hero=heretic` plays the round-28 model for this process only, or Settings → "Hero model (next run)": Chibi heretic / Heretic (saved as `video/hero_model`, only written when not the default). `--hero=chibi` forces the default. `Game.hero_model` picks the file through `ComicLook.HERETIC_MODELS`; the kind stays `heretic`, so `KIND_TONES`, `CLIPS`, `heretic_rig.gd` and every `hero_kind() == HERETIC` check work for both. `painted()` caches per texture, since both models call their material `P_HereticPaint`.
 
 What it is: the round-29 chibi candidate (big pointed bone-white hood, short body, a six-claw tentacle hand on an ordinary right arm), decimated, mirrored so the claw is the right hand, retextured and auto-rigged through Meshy's REST API, then rebuilt with `heretic_rig.py ... chibi`.
 
 | | Heretic | Chibi |
 |---|---|---|
 | Body tris | 15,901 | 21,999 (23,223 with weapons) |
-| Height | 2.2 m | 1.75 m |
+| Height | 2.2 m | 1.85 m (1.75 m before round 29's second pass) |
 | Bones | 101 (21 tent, 36 skirt, 15 fingers) | 89 (24 tent, 36 skirt, no fingers) |
-| Tentacle | five tips on a tentacle arm | six claws (`main`, `up`, `out`, `mid`, `low`, `back`) from the wrist |
+| Tentacle | five tips on a tentacle arm | six claws (`main`, `up`, `out`, `mid`, `low`, `back`) from the wrist, grown 1.5x about it |
 | Weapons | old hero's size (axe 2.75 m) | x0.7 about the hand: axe 1.92 m, spear 1.88 m, hammer 1.34 m |
-| Texture | flattened Meshy paint | Meshy retexture as is (already flat), claws repainted magenta |
+| Texture | flattened Meshy paint | Meshy retexture as is (already flat), claws repainted magenta, face under the hood darkened |
+| Eyes | none | `heretic_rig.gd` `EYES`: two glowing cyan almonds at the hood's brim |
 
 Rebuild (from the repo root, Blender 5.2, absolute Windows paths; sources in `vendor_src/meshy/source/` and `vendor_src/meshy/chibi/`):
 
@@ -88,10 +90,11 @@ blender -b --factory-startup -P tools/meshy_rig/chibi_decimate.py -- vendor_src/
 #   -> task 01a1a6d9-45e2-7612-983b-118deb1b38ed (5 credits): vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx
 blender -b --factory-startup -P tools/meshy_rig/heretic_rig.py -- vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx vendor_src/meshy/chibi/chibi_rig_v1.blend chibi
 blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/chibi_paint.py -- vendor_src/meshy/chibi/paint.png
-blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/chibi/paint.png vendor_src/meshy/chibi/chibi_rig_v2.blend 0 1 1
-blender -b vendor_src/meshy/chibi/chibi_rig_v2.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/chibi/out/heretic_chibi.glb 1.75 0.7
-python tools/comic_glb.py vendor_src/meshy/chibi/out heretic_chibi
-python -c "from PIL import Image; Image.open('vendor_src/meshy/chibi/paint.png').convert('RGB').save('assets/comic/heretic_chibi_Material_0_baseColor.jpg', quality=92)"
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/chibi_face.py -- vendor_src/meshy/chibi/paint.png vendor_src/meshy/chibi/face.png
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/chibi/face.png vendor_src/meshy/chibi/chibi_rig_v3_1.5.blend 0 1 1 1.5
+blender -b vendor_src/meshy/chibi/chibi_rig_v3_1.5.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/chibi/out_1.5/heretic_chibi.glb 1.85 0.7
+python tools/comic_glb.py vendor_src/meshy/chibi/out_1.5 heretic_chibi
+python -c "from PIL import Image; Image.open('vendor_src/meshy/chibi/face.png').convert('RGB').save('assets/comic/heretic_chibi_Material_0_baseColor.jpg', quality=92)"
 godot --headless --import --path .
 ```
 
@@ -99,7 +102,19 @@ The `chibi` profile in `heretic_rig.py` holds its values: Meshy's REST rig names
 
 `heretic_rig.gd` reads chain lengths from the skeleton (up to `MAX_CHAIN` bones per tip) and also sways a `back` tip, so the chibi's sixth claw moves; the heretic has no `back` chain and is unchanged.
 
-Seen in windowed `heretic_shots` stills only (`user://heretic_shots_chibi/`), not played. From the game camera the hood is a big pale shape that reads clearly on the indigo floor, and the weapons are about his height. The claw hand is small next to the old tentacle arm, and the face is hidden from above.
+Seen in windowed `heretic_shots` stills only (`user://heretic_shots_chibi/`), not played. From the game camera the hood is a big pale shape that reads clearly on the indigo floor, and the weapons are about his height.
+
+### Second pass (round 29): claw, height, face, eyes, grip
+
+From the game camera the first chibi read clean and on-style, but the claw hand was too small to read at rest, the pale chin and nose showed under the hood, the weapon-change star sat over the hood, and the grab and slam did little with the claw. What changed:
+- **Claw 1.5x** about the right wrist (`heretic_refine.py`'s sixth argument, `claw_scale`): every vertex weighted to `hand.r` or `tent.*` grows by its weight, and the `tent.*` bones and `hand.r`'s tail move with it so the claws bend at their own joints; `hand.r`'s head stays on the wrist, so weapons sit where they did. 1.3, 1.4 and 1.5 were compared at the game camera (scratchpad `chibi_claw_scales.png`): 1.5 is the first that reads as a big claw at rest without tearing at the wrist. Same 21,999 tris and 89 bones.
+- **Baked at 1.85 m** (was 1.75 m), so he is about as big on screen as the old 2.2 m heretic's bulk; weapons stay x0.7 (axe 1.92 m), about his height.
+- **Face in shadow** (`chibi_face.py`): head triangles inside a box round the hood opening (x -0.2..0.28, y -0.05..0.3, z 0.92..1.3 m on `chibi_rig_v1.blend`), texels of hue .02-.075, saturation .21-.45, value over .7 (the peach skin; the hood's bone white is hue .1, saturation under .2) go to (0.045, 0.035, 0.085); 36,806 texels. The jagged lower edge of the black mask is left pale and reads as a sawtooth grin. Eye texels (hue .4-.56) go bright cyan.
+- **Glowing eyes** (`heretic_rig.gd` `EYES`, per `Game.hero_model`): from the game camera, 54 degrees down, the hood hides the face entirely, so a texture can't be seen. Two flat camera-facing almonds (ink, cyan `EYE_LOW`, white core; 9.5 x 4 cm, inner corners tilted down 16 degrees) on a `BoneAttachment3D` on `head`, at the texture's eyes pushed forward to the brim (skeleton space (-0.034, 1.25, 0.13) and (0.155, 1.25, 0.13)). They draw with no depth test, like the burst, and hide when his face turns more than about 80 degrees from the camera (`EYE_FACING`). In the stills they read as two cyan slits under the hood when he faces the camera, and as a pair of specks from the game camera. They need `cull_mode = CULL_DISABLED`: the fan winds the wrong way for Godot and was culled the first time.
+- **Burst off the hood**: `heretic_form_fx.STAR_OFF_HAND` 0.6 → 1.5 of the star's size up the haft. Axe and hammer stars now sit above the hood at +20/+60/+100 ms; the spear's, which points down and forward, still touches the hood's edge from the game camera.
+- **Claw grip on GR and VS** (`heretic_rig.gd` `GRIP_MOVES`, visual only): reads `player._move_id` and how far the clip has played against the move's first hit. GR splays the claws back as it reaches (up to `GRIP_SPLAY_DEG` 22 per bone, the claws' base swelling `GRIP_SPLAY_GROW` 1.18) and snaps them shut on the hit (`GRIP_CLENCH_DEG` 32 per bone, in `GRIP_SNAP` 0.05 s); VS holds them clenched with a shake (`GRIP_SHAKE_DEG` 6 at 19 Hz) while it heaves, then flings them open on the slam. Only when the form is `hand`; it fades back to the free sway over `GRIP_FADE` 0.15 s. The main tentacle curls with the claws. `heretic_shots` checks the four states and the release.
+
+Before/after sheet at the game camera: scratchpad `chibi_round3_sheet.png` (idle, run, L1-L3, GR reach and catch, VS lift and slam, change frames).
 
 ## The rig
 

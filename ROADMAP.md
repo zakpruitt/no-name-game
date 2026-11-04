@@ -299,8 +299,10 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] `docs/features/art-direction.md`: "chibi but badass", from Zak
 - [x] Chibi base: decimated to 22k tris and mirrored (`chibi_decimate.py`), retextured (10 credits) and auto-rigged (5) through Meshy's REST API, rebuilt with `heretic_rig.py ... chibi` (six claws, Meshy's arm to the wrist), claws repainted magenta (`chibi_paint.py`), baked at 1.75 m with weapons x0.7: `assets/comic/heretic_chibi.glb`. Meshy: 15 credits this round (balance 1067 -> 1052)
 - [x] Selectable: `--hero=chibi`, or Settings "Hero model (next run)" (Heretic / Chibi heretic); default unchanged. heretic_shots, comic_check, training_check, void_arm_check and the autotest pass with either. Seen in windowed stills only
-- [ ] Zak: pick the default heretic (chibi or round 28's) after playing both
-- [ ] Chibi: the claw hand is small at the game camera next to the old tentacle arm; consider growing it (`heretic_refine.py` hand scale on `hand.r`/`tent.*`) or a regenerate with a tentacle arm from the shoulder
+- [x] Orchestrator decision (Zak can veto: `Game.HERO_DEFAULT` in game.gd): **the chibi is the default hero**; `--hero=heretic` or Settings plays round 28's model
+- [x] Chibi second pass, no Meshy credits: claw hand and claws grown 1.5x about the wrist with their bones (`heretic_refine.py` `claw_scale`; 1.3/1.4/1.5 compared at the game camera), baked at 1.85 m (was 1.75, weapons still x0.7), chin and nose under the hood painted into shadow (`chibi_face.py`), glowing cyan eyes drawn over the hood's brim while he faces the camera (`heretic_rig.gd` `EYES`), the change star moved up the haft off the hood (`STAR_OFF_HAND` 1.5), and a claw grip on GR (splay, snap shut on the hit) and VS (clenched and shaking, flung open on the slam) (`GRIP_MOVES`). 21,999 tris, 89 bones. Seen in windowed stills only, not played
+- [ ] Zak: play the chibi; keep it as the default or flip `Game.HERO_DEFAULT` back to "heretic"
+- [ ] Chibi: the spear change's star still touches the hood from the game camera; the eyes draw over the claw or a haft when one passes in front of the face
 - [ ] Hand play-test of the refined heretic: does 2.2 m and the bigger head feel right in motion
 
 ## Round 29 (heretic effects)

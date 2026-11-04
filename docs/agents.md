@@ -96,6 +96,8 @@ fast-forward, so no agent edits another's files or index.
   content) and rebase again; commit the `.uid` of every new script you add.
 - To find which effect is cluttering a shot, stub its function with an early `return`, reshoot that one
   combo (`--only=`) and compare. Two of round 29's three "worst" items turned out to be a different effect.
+- **Killing Godot:** never `taskkill //IM godot.exe` (it hits other agents' runs and is refused); stop your own background command with TaskStop, and always wrap Godot in `timeout N`.
+- **An eye or decal that draws nothing:** check face culling before position. A hand-built fan wound counter-clockwise is back-facing in Godot; set `cull_mode = CULL_DISABLED` like `heretic_form_fx.gd`.
 
 ## When you're done
 
