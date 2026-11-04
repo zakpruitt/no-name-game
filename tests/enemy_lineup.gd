@@ -23,7 +23,7 @@ func _initialize() -> void:
 		var e: Node3D = spawned[i]
 		e.set_physics_process(false)
 		e.global_position = spots[i]
-		e.model.rotation.y = PI  # face the camera
+		e.model.rotation.y = 0.0  # face the camera (models face +Z, the camera)
 		e.anim.play("Idle_Combat")
 	await create_timer(0.4).timeout
 	get_root().get_texture().get_image().save_png("user://enemy_lineup.png")
