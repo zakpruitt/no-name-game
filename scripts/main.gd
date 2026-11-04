@@ -34,6 +34,7 @@ const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
 const SHRINE_MENU := preload("res://scripts/shrine.gd")
 const SHRINE_PROP := preload("res://scripts/shrine_prop.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
+const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 
 # Enemy types: model + overrides for enemy.gd's exported stats. Tune here.
 const ENEMY_TYPES := {
@@ -278,7 +279,8 @@ var _quitting := false
 # fights back; powers, Awakening and the Ascendancy are free from the pause menu.
 static var _train_next := false  # "Restart training" reloads straight into it
 var training := false
-var _dummy: Node
+var _dummy: Node  # the first of _dummies
+var _dummies := []
 var _string := Vector2.ZERO  # this string's damage, hits on the dummy
 var _last_string := Vector2.ZERO
 var _best_string := 0.0
@@ -475,14 +477,17 @@ func _start_training() -> void:
 	hud.wave_label.text = "TRAINING"
 	hud.flash_message("TRAINING
 Esc: powers, Awakening, Ascendancy", 2.0)
-	_dummy = DUMMY.new()
-	_dummy.model_scene = _model("Skeleton_Warrior")
-	_dummy.set_meta("kind", "dummy")
-	_dummy.set_meta("title", "training dummy")
-	add_child(_dummy)
-	_dummy.home = player.global_position + Vector3(0.0, 0.0, -4.5)
-	_dummy.global_position = _dummy.home
-	_dummy.hit_taken.connect(_train_hit)
+	for spot: Vector3 in DUMMY_SPOTS:
+		var dummy: Node = DUMMY.new()
+		dummy.model_scene = _model("Skeleton_Warrior")
+		dummy.set_meta("kind", "dummy")
+		dummy.set_meta("title", "training dummy")
+		add_child(dummy)
+		dummy.home = player.global_position + spot
+		dummy.global_position = dummy.home
+		dummy.hit_taken.connect(_train_hit)
+		_dummies.append(dummy)
+	_dummy = _dummies[0]
 	Game.combo_changed.connect(_train_combo)
 	_train_text()
 
@@ -512,7 +517,7 @@ func _train_text() -> void:
 		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
 	if _best_string > 0.0:
 		parts.append("BEST  %d" % _best_string)
-	hud.set_trial("      ".join(parts) if not parts.is_empty() else "Hit the dummy: each string's damage shows here")
+	hud.set_trial("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here")
 
 
 func _hits_text(n: float) -> String:
