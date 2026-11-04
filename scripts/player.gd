@@ -1112,13 +1112,10 @@ func combo_options() -> Array:
 	return rows
 
 
-## One beat of a breaker dive's comet trail (every 0.02 s as he drops): a ghost
-## of him plus sparks in the element.
-func _comet(c: Color, el: String) -> void:
-	Fx.afterimage(get_parent(), model, Color(c, 0.55), 0.2)
-	var at := model.global_position + Vector3.UP * 1.0
-	Fx.burst(get_parent(), at, c.lerp(Color.WHITE, 0.25), 6, 4.0, 0.14, 0.3, Vector3.UP, 40.0, 2.0, 0.4)
-	Fx.burst(get_parent(), at, ELEMENTS.LOOK[el].glow, 3, 2.0, 0.1, 0.25, Vector3.UP, 60.0, 0.0, 0.3)
+## One beat of a breaker dive's comet (every 0.02 s as he drops): one fat inked streak that ends in a
+## held impact star when the beats stop (comic_comet.gd).
+func _comet(c: Color, _el: String) -> void:
+	load("res://scripts/comic_comet.gd").beat(get_parent(), model, c)
 
 
 ## The breaker timing prompt (breaker_prompt.gd) reads this every frame:

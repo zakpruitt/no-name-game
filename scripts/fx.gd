@@ -147,10 +147,9 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 		return
 	var at := pos + Vector3.UP * 1.1
 	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
-		COMIC_POP.spawn(parent, at, {"star": 0.42 + 0.1 * tier, "star_color": color, "star_core": color.lightened(0.5),
-			"star_ring": color if tier >= 3 else Color(0, 0, 0, 0), "spikes": 7 + tier, "layer": -0.5, "steps": 3,
-			"strokes": 0 if tier < 2 else 2 + tier, "dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35),
-			"stroke_len": 0.5 + 0.1 * tier})
+		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
+			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
+			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
 		return
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.8), 1.0)
 	flare(parent, at, vivid, 1.6 + tier * 0.6, 0.14, "star8")
@@ -446,6 +445,9 @@ static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void
 
 ## Expanding flat ring on the ground (shockwaves, Awakening burst).
 static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time := 0.35) -> void:
+	if Game.comic_style:  # a hard inked hoop on twos, not a soft glowing disc
+		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 6)})
+		return
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2.ONE * 2.2  # the texture's ring sits just inside the quad: outer edge ~1 m

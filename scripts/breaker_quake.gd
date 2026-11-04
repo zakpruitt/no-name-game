@@ -38,6 +38,11 @@ static func release() -> void:
 ## (pebbles and embers jump, frost blows out, lightning cracks down on him,
 ## wisps rise).
 static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble := true) -> void:
+	if Game.comic_style:  # strokes bursting out round him and one inked hoop under him; no glow
+		Fx.COMIC_POP.spawn(parent, pos, {"strokes": 12, "radial": true, "gap": 1.1, "stroke_len": 0.75,
+			"stroke_w": 0.22, "stroke_color": c.lightened(0.3), "hold": 2, "steps": 3})
+		Fx.ring(parent, Vector3(pos.x, 0.0, pos.z), c, 3.0, 0.3)
+		return
 	if bubble:
 		var s := SphereMesh.new()
 		s.radius = 1.0
