@@ -85,6 +85,7 @@ func _extra() -> void:
 	await _air_kill()
 	await _slams()
 	await _boss()
+	await _spar()
 
 
 ## Killed while up: the corpse spins faster all the way down, then settles on a full turn.
@@ -454,6 +455,28 @@ func _boss() -> void:
 		"and it never leans, tumbles or lifts (tilt %.3f, y %.2f)" % [tilt, b.global_position.y])
 	print("[enemy_feel] boss: big hit squash %.2f ink %.1fx, tilt %.3f" % [b.last_squash.y, b.last_ink, tilt])
 	b.queue_free()
+
+
+## --spar=<kind>: off without the flag, one live foe of that kind at 1/3 damage with it, its hits counted.
+func _spar() -> void:
+	for old in _main.get_tree().get_nodes_in_group("enemies"):
+		old.queue_free()
+	var spar: GDScript = load("res://scripts/spar.gd")
+	_check(spar.kind_from(PackedStringArray(["--autotest"])) == "" and spar.kind_from(PackedStringArray(["--spar=dragon"])) == ""
+		and spar.start(_main, PackedStringArray()) == null, "no --spar flag (or a wrong kind): no spar foe")
+	var s: Node = spar.start(_main, PackedStringArray(["--spar=shield"]))
+	var spec: Dictionary = _main.ENEMY_TYPES.shield
+	_check(s != null and is_instance_valid(s.foe) and s.foe.shield and is_equal_approx(s.foe.attack_damage, spec.attack_damage / 3.0),
+		"--spar=shield puts up a shield skeleton at 1/3 damage (%.1f)" % (s.foe.attack_damage if s != null else -1.0))
+	await create_timer(1.1).timeout
+	s.foe.take_hit(1.0, Vector3(6.0, 0.0, 0.0), 0.0, true)
+	await physics_frame
+	s.foe.take_hit(1.0, Vector3(0.0, 0.0, 0.0), 0.0, false)
+	_check(s.total_hits() == 2, "its hits are counted (%d)" % s.total_hits())
+	print("[enemy_feel] spar: shield foe attack %.1f, hits_taken %d" % [s.foe.attack_damage, s.total_hits()])
+	await create_timer(0.5).timeout
+	s.queue_free()
+	s.foe.queue_free()
 
 
 ## A sturdy minion at `at`, past its spawn animation, standing still and harmless.

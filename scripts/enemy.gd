@@ -197,6 +197,7 @@ static var blasts := 0
 var radius := 0.55
 var hp := 0.0
 var last_hit_ms := -100000  # when damage last landed (health bar, enemy_bars.gd)
+var hits_taken := 0  # landed hits, blocks not counted (spar.gd reports it)
 var _quiet_hit := false  # inside burn_hit
 var state := State.SPAWN
 var model: Node3D
@@ -655,6 +656,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		return
 	if _shield_blocks(knockback, launch, big):
 		return
+	hits_taken += 1
 	if frozen_t > 0.0:
 		damage *= frozen_mult
 		_thaw(true)

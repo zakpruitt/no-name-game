@@ -14,6 +14,7 @@ const HUD := preload("res://scripts/hud.gd")
 const BOSS := preload("res://scripts/boss.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
+const SPAR := preload("res://scripts/spar.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
@@ -41,6 +42,7 @@ var _models := {}
 
 var _dummy: Node  # the first of _dummies
 var _dummies := []
+var _spar: Node  # one live foe with --spar=<kind> (scripts/spar.gd), else null
 var _string := Vector2.ZERO  # this string's damage, hits on the dummies
 var _last_string := Vector2.ZERO
 var _best_string := 0.0
@@ -141,6 +143,7 @@ func _start_training() -> void:
 	_dummy = _dummies[0]
 	Game.combo_changed.connect(_train_combo)
 	_train_text()
+	_spar = SPAR.start(self)
 
 
 func _train_hit(damage: float) -> void:
@@ -470,6 +473,8 @@ func _autotest_finish() -> void:
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	print("[training] strings=%d best=%.0f last=%.0f/%d dummy_hp=%.0f" % [_strings, _best_string,
 		_last_string.x, _last_string.y, _dummy.hp if is_instance_valid(_dummy) else -1.0])
+	if _spar != null:
+		_spar.report()
 	Game.stop_all_sfx()
 	# Give the audio thread a moment to release playbacks, or they leak at exit.
 	await get_tree().create_timer(0.2, true, false, true).timeout
