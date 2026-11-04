@@ -31,6 +31,11 @@ Pillar 1 is combat feel first. Zak described L L H as "axe, slam, jump in the ai
 - **Enders.** Enders get extra hitstop and camera push per tier (`ENDER_HITSTOP` / `ENDER_ZOOM`), a second swoosh, and the camera `kick`.
 - **Dash cancels anything** after the first hit. Never remove that, even when it lets a dash skip a breaker.
 
+## The foe's side of a hit (`scripts/enemy.gd`, docs/features/enemy-hit-reactions.md)
+- **Direction is a contract.** `take_hit(..., knockback, launch, ...)`: `launch >= enemy.RELAUNCH_MIN` (7) while up re-launches with the stretch; `launch < 0` or `knockback.y < 0` is a slam (crater, long skid); any fall past `SPIKE_FALL` (15 m/s) craters too, so setting `velocity.y` hard down after the hit (Spike) works without a flag. A new move that should crater passes a negative `knockback.y`.
+- **Side vs facing.** Knockback across the foe's facing rolls it; along it backflips. Aim knockback where the hit visually goes.
+- Visual reactions go in `_hit_reaction` / `_react` only. Sample `last_squash` / `last_ink` in headless tests, not `model.scale` (tweens run on idle frames).
+
 ## Process
 1. **Change the data.** Prefer table edits (`MOVES`, `COMBOS`, `CASTS`, `BREAKERS`), each with a short tuning comment, over new code paths.
 2. **Add a hop.** For a new hop, add the move to `tests/hop_check.gd`, which checks that it leaves the ground and lands on its hit.

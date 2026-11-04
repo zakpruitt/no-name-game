@@ -18,6 +18,14 @@ launch and slide to a stop in a puff of dust before getting up.
 When one swing hits a crowd, the foes react one after another a few
 milliseconds apart (a wave sweeping across them), not all on the same frame.
 
+Round 2: hits read their direction. A hit from below on a juggled foe
+re-launches it with the launch stretch; a downward hit (a slam) drives an
+airborne foe into the floor, or a grounded one flat, into a crater: it
+pancakes, a dark dent pops out round it, and it lies longer and skids further.
+A launch across the foe rolls it sideways instead of flipping it. Big hits
+swell the foe's own ink outline for a beat. Killed in the air, the corpse
+spins all the way down; a crowd killed by one blow pops one after another.
+
 ## Files
 
 - `scripts/enemy.gd`:
@@ -48,6 +56,22 @@ milliseconds apart (a wave sweeping across them), not all on the same frame.
 - `scripts/boss.gd` overrides `take_hit` without calling super and keeps its
   own plain `Fx.flash`: the Warden does not lean, squash per kind or tumble.
 
+- Round 2 in `enemy.gd`: `_is_spike(knockback, launch)` (static: `launch < 0`
+  or `knockback.y < 0`); `_reaction_kind` adds `spike` / `crater` /
+  `air_kill`, and an airborne hit with `launch >= RELAUNCH_MIN` is `launch`;
+  `take_hit`'s spike branch sets the motion (down at `SPIKE_SPEED`, or
+  `_knock_down(SPIKE_LIE)` on the floor); `_crater()` is the pancake + mark +
+  dust + shake; `_knock_down(lie)` is the shared get-up (both axes settle);
+  `_kick_tumble` picks flip or roll (`_tumble_roll`); `_ink_pulse(mult)`
+  tweens this foe's own outline (`_ink_mat` from `Fx.outline_own`,
+  `last_ink`); `_corpse_tumble` spins an air kill down; `_die` waits
+  `_wave_delay` before `Fx.death`.
+- `scripts/fx.gd`: `crater()` (hard disc + scorch splat + dust ring),
+  `outline_own()` (per-character outline material and surface copies),
+  `daze()` + `_star()` (the dummy's inked dizzy stars).
+- `scripts/training_dummy.gd` (punching bag): `_lean` / `_squash` /
+  `_knock_down` overrides, the `_bag_step` spring, `_shake_off`.
+
 ## How it works
 
 1. `take_hit` applies damage, spawns the hit sparks, then `_hit_reaction`.
@@ -71,6 +95,12 @@ milliseconds apart (a wave sweeping across them), not all on the same frame.
    `_skid` applies `SKID_FRICTION` and puffs dust every `SKID_DUST_EVERY` s
    while faster than `SKID_MIN_SPEED`.
 
+6. Direction: a spike hit's `_react` is `spike` (kick a big tumble) or
+   `crater`; `_land_from_air` checks `fall >= SPIKE_FALL` before the bounce,
+   so Spike (`player._spike` sets `velocity.y = -SPIKE_DOWN` after its hit)
+   craters with no flag. Craters set `_spiked` after `_knock_down` (every
+   `_set_state` clears it), and `_skid` uses `SPIKE_SKID_FRICTION` then.
+
 ## Invariants
 
 - One call to `_hit_reaction` per landed hit, beside the hit sparks. New
@@ -83,6 +113,11 @@ milliseconds apart (a wave sweeping across them), not all on the same frame.
 - `launch_speed_for` must stay the exact inverse of `_gravity()`'s profile
   (the training dummy's `MAX_HEIGHT` cap, `training_check`, depends on it).
 - The wave delay rides on a tween, so it waits out hitstop like the squash.
+
+- A spike's crater must come after `_knock_down` in the same frame: its
+  `_set_state(HURT)` clears `_spiked`.
+- `Fx.outline_own` is a no-op headless (like `outline`): `_ink_mat` is null
+  there and `_ink_pulse` only records `last_ink`.
 
 ## Tuning (top of `enemy.gd`)
 
@@ -97,6 +132,13 @@ milliseconds apart (a wave sweeping across them), not all on the same frame.
 - `BOUNCE_MIN_FALL`, `BOUNCE_KEEP` (a 9 m/s launch bounces 0.48 m),
   `LAND_SLIDE`, `AIR_DRAG`, `SKID_FRICTION`, `SKID_DUST_EVERY`, `SKID_MIN_SPEED`.
 
+- Round 2: `RELAUNCH_MIN`, `SPIKE_SPEED`, `SPIKE_FALL`, `SPIKE_SLIDE`,
+  `SPIKE_GROUND_SLIDE`, `SPIKE_SKID_FRICTION`, `SPIKE_LIE`, `CRATER_HOLD`,
+  `CRATER_TIME`, `CRATER_RADIUS`, `CRATER_SHAKE`, `ROLL_BIAS`, `LIE_TIME`,
+  `SQUASH_TIME`, `INK` per kind, `INK_TIME`, `AIR_KILL_SPIN`. Measured: a
+  spiked skid 2.61 m against 0.25 m for a plain landing; a side launch rolls
+  5.2 rad; an air kill spins 3.5 rad before it lands.
+
 ## Testing
 
 - `godot --headless --path . -s tests/enemy_feel_check.gd`: PASS/FAIL on real
@@ -107,6 +149,12 @@ milliseconds apart (a wave sweeping across them), not all on the same frame.
 - `godot --path . -s tests/enemy_feel_preview.gd` (windowed): a tap, a big
   hit, a launch near its apex and a knockdown in a row → `user://enemy_feel.png`.
 - `tests/training_check.gd` still caps the dummy at `MAX_HEIGHT`.
+- Round 2 adds to `enemy_feel_check`: re-launch stretch, side roll and its
+  righting, spike from the air / Spike's fall / on the floor (crater, no
+  bounce, lie, longer skid), the dummy's spring (tip, overshoot, settle),
+  boing, shake-off, the ink multiplier, air-kill spin, multi-kill pop wave.
+  The preview row is six foes (adds a roll and a crater); `-- --bag` shows
+  three dummies (tipped, swinging back, dazed) → `user://enemy_feel_bag.png`.
 
 ## Gotchas
 

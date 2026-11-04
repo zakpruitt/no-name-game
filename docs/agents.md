@@ -64,6 +64,23 @@ fast-forward, so no agent edits another's files or index.
   under the ice cube shots), so read neighbouring sheets too when judging a lingering effect.
 - A Python rewrite of a file on Windows keeps CRLF in text mode; check `git show --stat` after
   committing that only your lines changed.
+- A `-s` SceneTree test can't name `Fx`, `ComicFx` or other class_name scripts
+  that use the `Game` autoload: compiling it fails with "Identifier not found:
+  Game" and floods errors. Use `get_root().get_node("Game")` and
+  `load("res://scripts/fx.gd").crater(...)` at runtime.
+- `billboard_mode` on a material drops the node's scale unless
+  `billboard_keep_scale = true`: a scaled-up ink copy behind a billboard
+  sprite hides exactly behind it.
+- The soft VFX textures (`Fx.TEX` dot/scorch/star) fill well under half of
+  their quad; a decal sized "radius" reads half that. For a cartoony hard
+  shape use a flat mesh (CylinderMesh disc, ArrayMesh star) instead.
+- Foes hit in the same physics frame are wave-delayed (`enemy.WAVE_STEP`); in
+  a preview, hit the case you want to photograph on its own frame or its
+  reaction hasn't started by the shot.
+- `-s` timers windowed run long on the first frames (shader compiles): a
+  "0.06 s later" screenshot is often 0.12+ s later. Print the numbers you're
+  photographing alongside the shot.
+- The scratchpad is shared between agents: keep your files in a subfolder.
 
 ## When you're done
 

@@ -269,6 +269,11 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Juggle feel: gravity drops to 55% while |vy| < 2 m/s so a 9 m/s launch spends 34 frames within 0.3 m of its apex (25 before), the foe tumbles over backwards (~5 rad on a big launch), bounces once off the floor (0.48 m) and skates on, then slides out in dust (1.8 m/s skid) before getting up; `launch_speed_for()` keeps the training dummy's 3 m cap exact
 - [x] Crowd hits read as a wave: of the foes hit in one physics frame, each after the first reacts `WAVE_STEP` (35 ms) later (freeze, flash, squash and knockback start), up to 6 steps
 - [x] Windowed look at the reactions: `tests/enemy_feel_preview.gd` → `user://enemy_feel.png`
+- [x] Hit direction: an airborne hit launching 7+ m/s re-launches with the launch stretch (1.45); a downward hit (launch < 0 or knockback.y < 0) drives the foe down at 24 m/s, and any touchdown past 15 m/s (also Spike's) craters instead of bouncing: pancake 0.32 held 0.12 s, a 1.6 m dark dent (`Fx.crater`), lying 0.7 s and skidding 2.6 m (a plain landing 0.25 m); grounded, it craters on the spot. Side launches roll (rotation.z, 5.2 rad) instead of backflipping
+- [x] Punching-bag training dummy: hits snap it over 1.8x a skeleton's lean (tap 0.36 rad), an angular spring (190 rad/s² per rad, damping 5/s) swings it 0.20 rad back past upright and settles it in 113 frames; squashes 1.6x; it boings 0.32 rad on getting up; refilling, it shakes off a daze (three side kicks, a stretch) under inked `Fx.daze` stars. LAUNCH_SCALE, MAX_HEIGHT and refill unchanged
+- [x] Each foe owns its outline (`Fx.outline_own`); big hits swell it 2.0x (spike 2.4, crater 2.6, kill 2.8) and ease back over 0.28 s. Windowed autotest `[perf]` flat: avg 5.6 ms, draw calls 961 (987 before)
+- [x] Air kills spin down at 1.8x TUMBLE_BIG (3.5 rad before touchdown) and settle on a full turn; a crowd killed by one blow pops its deaths `WAVE_STEP` apart. `tests/enemy_feel_check.gd`, `tests/enemy_feel_preview.gd [-- --bag]`
+- [ ] Void scripts don't pass the downward flag yet: ice Deep Freeze / magma slam could hit with `knockback.y < 0` to crater
 
 ## Round 28 (strip to the heretic)
 Zak: "reduce the game to JUST the heretic combat system for now. Remove the roguelike layer, keep the training ground." Decisions made while he was away, each open to veto:
