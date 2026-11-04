@@ -89,7 +89,13 @@ fast-forward, so no agent edits another's files or index.
   instead of adding hooks to void_element.gd.
 - **Meshy REST from Blender:** retexture (`/openapi/v1/retexture`, 10 credits) and auto-rig (`/openapi/v1/rigging`, 5) both work on a GLB sent as a data URI or a task id; call them from the live Blender with `urllib` so the key stays there. Decimate first (rigging caps at 380k tris).
 - **Second model, same kind:** a variant of a hero loads through a file map (`ComicLook.HERETIC_MODELS`) while keeping the kind name, so tones, clips and every `hero_kind()` check work unchanged. Cache shared materials per texture, not per material name.
-- **"Parameter material is null" in the autotest** showed up on some seeds with the round-28 heretic as well as the chibi (seed 4: 20 lines). It predates round 29; not chased yet.
+- **"Parameter material is null" in the autotest** came with the room seeds; after round 28 there is no seed and none of round 31's windowed autotests printed it.
+- **The wall frame time lies here.** Zak's machine caps at 60 fps even with `--disable-vsync` (an empty project measures 16.67 ms), so `[perf] avg` stays ~16.4 ms whatever the game costs. Read `cpu` / `cpu_spikes` / `gpu` on the `[perf]` line.
+- **Godot frees what nothing holds.** A `load("res://scripts/x.gd")` script and a StandardMaterial3D's generated shader are freed when their last user goes, and rebuilt (10-20 ms) on the next use. Effects that load scripts or make fresh materials each time hitched every time, not just the first. `warmup.gd` holds them; new effect materials need `--collect-shaders`.
+- **`bake_mesh_from_current_skeleton_pose` is CPU skinning:** ~18 ms for the heretic. For a posed copy, share the mesh and skin with a new Skeleton3D holding the global poses.
+- **`print` costs 2-10 ms with stdout piped** (agents' runs): one print in a hit path is a frame spike. Buffer autotest lines and print them at the end.
+- **Per-function timing without the profiler:** a Python pass that renames each top-level `func f` to `__pc_f` and adds a wrapper adding `Time.get_ticks_usec()` deltas to `Engine.get_meta("pc")`, printed on spike frames, found every hitch in two runs. Revert with `git checkout scripts/`; don't commit it.
+- **Never kill all godot processes** (`taskkill /IM godot*`): other agents run Godot too. Stop your own with TaskStop or its PID.
 
 - `git rebase` onto a moved dev can refuse with "untracked working tree files would be overwritten" for
   `.uid` files Godot made locally that another agent has since committed. Delete the local copies (same
