@@ -85,7 +85,7 @@ func _check_hero(game: Node) -> void:
 		var got: String = Look.clip(rig, Look.HERETIC, wanted)
 		_expect(rig.has_animation(got), "hero: %s -> %s" % [wanted, got])
 	_check_hero_bones(model)
-	_check_overlay(hero_script, rig)
+	_check_overlay(hero_script, rig, model)
 	model.free()
 	await _check_hero_in_play(game, hero_script, rig != null)
 
@@ -127,7 +127,7 @@ func _check_hero_bones(model: Node3D) -> void:
 
 
 ## The numbers: hit = frame / length, and the time after the hit unchanged.
-func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
+func _check_overlay(hero_script: GDScript, rig: AnimationPlayer, model: Node3D) -> void:
 	var kaykit: Node = load(hero_script.AXE_SOURCE).instantiate()  # the old timings are its clips
 	var old_rig: AnimationPlayer = kaykit.find_child("AnimationPlayer", true, false)
 	_expect(Look.HERO_MOVES.size() == 5, "five Ab_ clips routed")
@@ -135,9 +135,9 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 		var h: Dictionary = Look.HERO_MOVES[id]
 		_expect(rig.has_animation(h.clip), "%s: clip %s" % [id, h.clip])
 		var length: float = rig.get_animation(h.clip).length
-		# frames / hit are the shaman's 24 fps counts; the heretic's clips run their own lengths,
-		# and only the hit fraction (hit / frames) is used.
-		_expect(h.hit > 0 and h.hit < h.frames, "%s: hit frame %d inside its %d" % [id, h.hit, h.frames])
+		_expect(absf(length - h.frames / Look.HERO_CLIP_FPS) < 0.001, "%s: %d frames match the clip's %.3f s" % [id, h.frames, length])
+		var contact := _contact_frame(model, rig.get_animation(h.clip), h.frames)
+		_expect(h.hit == contact, "%s: hit frame %d is the swing's contact frame %d" % [id, h.hit, contact])
 		var base: Dictionary = hero_script.MOVES[id]
 		var old_len: float = old_rig.get_animation(base.anim).length
 		_expect(absf(old_len - h.old) < 0.001, "%s: old length is %s's %.4f" % [id, base.anim, old_len])
@@ -159,6 +159,48 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 			_expect(m.leap >= hit and m.leap < m.end, what + " breaker leaps after the hit")
 		_expect(base.hash() == before, what + " left MOVES itself alone")
 	kaykit.free()
+
+
+## The clip's contact frame: the last frame (of `frames` at Look.HERO_CLIP_FPS) where the weapon
+## hand still moves at Look.HERO_CONTACT_SPEED of its peak speed, i.e. where the swing arrives.
+## Read straight off the tracks (no AnimationPlayer: it doesn't pose a skeleton in _initialize).
+func _contact_frame(model: Node3D, clip: Animation, frames: int) -> int:
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var hand := skel.find_bone("hand.r")
+	var speeds: Array[float] = [0.0]
+	var prev := _track_pose(skel, clip, hand, 0.0).origin
+	for f in range(1, frames + 1):
+		var at := _track_pose(skel, clip, hand, f / Look.HERO_CLIP_FPS).origin
+		speeds.append(at.distance_to(prev))
+		prev = at
+	var peak: float = speeds.max()
+	var last := 0
+	for f in speeds.size():
+		if speeds[f] >= Look.HERO_CONTACT_SPEED * peak:
+			last = f
+	return last
+
+
+## A bone's skeleton-space pose at `t` in `clip`, from its rest and the clip's tracks up the chain.
+func _track_pose(skel: Skeleton3D, clip: Animation, bone: int, t: float) -> Transform3D:
+	var x := Transform3D.IDENTITY
+	var b := bone
+	while b >= 0:
+		var rest := skel.get_bone_rest(b)
+		var pos := rest.origin
+		var rot := rest.basis.get_rotation_quaternion()
+		var scl := rest.basis.get_scale()
+		var suffix := ":" + skel.get_bone_name(b)
+		for i in clip.get_track_count():
+			if not str(clip.track_get_path(i)).ends_with(suffix):
+				continue
+			match clip.track_get_type(i):
+				Animation.TYPE_POSITION_3D: pos = clip.position_track_interpolate(i, t)
+				Animation.TYPE_ROTATION_3D: rot = clip.rotation_track_interpolate(i, t)
+				Animation.TYPE_SCALE_3D: scl = clip.scale_track_interpolate(i, t)
+		x = Transform3D(Basis(rot).scaled(scl), pos) * x
+		b = skel.get_bone_parent(b)
+	return x
 
 
 ## A real player: the heretic, on his Ab_ clips.

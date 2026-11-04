@@ -184,7 +184,7 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 
 ## Extending
 
-A new hero clip: add it to `HERO_MOVES` with its hit frame, length and the KayKit clip's length; `comic_check` proves all three. New dungeon piece: `python tools/comic_glb.py --env <src> <name>`, then as below. New enemy GLB: `python tools/comic_glb.py <src> <name>`, `godot --headless --import --path .`,
+A new hero clip: add it to `HERO_MOVES` with its contact frame and length in 30 fps frames and the KayKit clip's length; `comic_check` proves all three (it measures the contact frame off the weapon hand's track). New dungeon piece: `python tools/comic_glb.py --env <src> <name>`, then as below. New enemy GLB: `python tools/comic_glb.py <src> <name>`, `godot --headless --import --path .`,
 add any new materials to `TONES`/`EMITS`, run `comic_check`. It's picked up by kind name;
 the boss is `warden`. New clip asked for in `enemy.gd`/`boss.gd`: add it to `comic_check`'s
 role lists (its source scan fails until you do), then to `CLIPS` for models lacking it.

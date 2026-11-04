@@ -123,15 +123,19 @@ const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": C
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
 ## nudge would otherwise flip between two clips every frame.
 const RUN_STICK := 1.25
-## id in player.MOVES -> its Ab_ clip. hit and frames are
-## the kit's hit frame and clip length; old is the KayKit clip's length in s, the time
-## base MOVES' fractions were tuned against.
+## id in player.MOVES -> its Ab_ clip. `frames` is the heretic's clip length in HERO_CLIP_FPS
+## frames (length = frames / HERO_CLIP_FPS) and `hit` its contact frame: the last frame his
+## weapon hand still moves at HERO_CONTACT_SPEED of the swing's peak, where the swing arrives
+## (measured off the tracks by tests/comic_check.gd). old is the KayKit clip's length in s, the
+## time base MOVES' fractions were tuned against.
+const HERO_CLIP_FPS := 30.0  # heretic_bake.py resampled the shaman's 24 fps keys to 30, one hold frame first
+const HERO_CONTACT_SPEED := 0.4
 const HERO_MOVES := {
-	"L1": {"clip": "Ab_L1", "hit": 8, "frames": 25, "old": 1.0},
-	"L2": {"clip": "Ab_L2", "hit": 9, "frames": 27, "old": 1.3667},
-	"L3": {"clip": "Ab_L3", "hit": 18, "frames": 45, "old": 1.2667},
-	"DL": {"clip": "Ab_DL", "hit": 9, "frames": 49, "old": 1.6},
-	"AL1": {"clip": "Ab_AL1", "hit": 8, "frames": 24, "old": 1.0},
+	"L1": {"clip": "Ab_L1", "hit": 11, "frames": 31, "old": 1.0},
+	"L2": {"clip": "Ab_L2", "hit": 12, "frames": 33, "old": 1.3667},
+	"L3": {"clip": "Ab_L3", "hit": 24, "frames": 56, "old": 1.2667},
+	"DL": {"clip": "Ab_DL", "hit": 12, "frames": 61, "old": 1.6},
+	"AL1": {"clip": "Ab_AL1", "hit": 11, "frames": 30, "old": 1.0},
 }
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).

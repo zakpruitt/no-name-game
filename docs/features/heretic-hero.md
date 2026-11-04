@@ -148,7 +148,7 @@ The burst uses its own flat material, not `Fx.flare` or `Fx.burst`: soft glows a
 - Read modifier results inside `Skeleton3D.skeleton_updated`. The skeleton restores poses afterwards, so reading them later shows the pre-modifier pose.
 - `void_arm.rest_form` is `"hand"`: a free tentacle at rest, weapons only form to strike. `void_arm_check` expects it.
 - `ComicLook.HERO_FORMS` lists only meshes in his GLB (the old arm's `void_surge`, `void_seep` and `void_frost` went in round 28).
-- `ComicLook.HERO_MOVES` `frames` / `hit` are the shaman's 24 fps counts; his own `Ab_` clips run other lengths (L1 1.033 s, L2 1.1 s, L3 1.867 s, DL 2.033 s, AL1 1.0 s), so only `hit / frames` is used as the hit fraction. Re-measure the hit frames on his clips.
+- `ComicLook.HERO_MOVES` `frames` / `hit` are his own clips' 30 fps counts (`HERO_CLIP_FPS`; `heretic_bake.py` resampled the shaman's 24 fps keys and put one hold frame first, so every pose is 1/30 s later than the shaman's). `hit` is the contact frame, where the weapon hand's swing arrives: L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30 (round 30; the shaman's counts had each hit 27-54 ms of clip time early). `comic_check` measures it off the tracks (`HERO_CONTACT_SPEED`) and fails if a re-bake moves it.
 
 ## Not done
 

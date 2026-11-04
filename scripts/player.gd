@@ -27,7 +27,9 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 @export var dash_cooldown := 0.3
 @export var max_hp := 100.0
 @export var anim_speed := 1.7
-@export var input_buffer := 0.25
+## s a press is remembered. 0.3: with the hits on their contact frames (round 30) L1 cancels
+## 0.275 s in, so a press as it starts must still be held then.
+@export var input_buffer := 0.3
 @export var aim_assist_range := 5.5
 @export var aim_assist_angle := 70.0
 ## Fixed length of Awakening; nothing extends it, and the meter can't refill
