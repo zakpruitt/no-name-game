@@ -57,14 +57,6 @@ fast-forward, so no agent edits another's files or index.
 - **Extracted textures are never overwritten.** Godot keeps an existing `<name>_<material>.png` beside a GLB. Copy the new texture over it yourself.
 - **Revert import noise in one loop:** for each `git ls-files -m` with an empty `git diff --ignore-cr-at-eol`, `git checkout` it. Leave your own assets out of the loop.
 - **Meshy credits:** read the balance before and after each paid call (`GET /openapi/v1/balance`); the balance can also rise when Zak tops up, so count the change in `monthly_credits`.
-
-## When you're done
-
-Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
-the worktree, and deletes the branch once it has been merged.
-
-## Lessons
-
 - `tests/element_shots.gd -- --only=<combo>` films one string in about 20 s; the full run is about
   2.5 min. Iterate on one, then film all for the before/after. Copy `user://element_shots/` to your
   scratchpad straight away: other agents' runs overwrite it.
@@ -72,3 +64,8 @@ the worktree, and deletes the branch once it has been merged.
   under the ice cube shots), so read neighbouring sheets too when judging a lingering effect.
 - A Python rewrite of a file on Windows keeps CRLF in text mode; check `git show --stat` after
   committing that only your lines changed.
+
+## When you're done
+
+Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
+the worktree, and deletes the branch once it has been merged.
