@@ -347,6 +347,7 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Camera: the impact frame's vignette leans with the last heavy blow (`Game.last_hit_dir` from `camera_rig.kick`, `DIR_SHIFT` 0.2 of the screen) and its ink takes a dark tone of his element; enders, freezes that fire the frame and kills punch the FOV 1.5-2.5 deg (cap 5) on top of the push-in. `camera_feel_check` / `impact_frame_check` cover both
 - [x] Effect perf: `comic_pop` pools finished pops out of the tree (`POOL_MAX` 48; spawn 15-30% cheaper, 0.04-0.18 ms), the comic drawers and dark_fx `preload` themselves / heretic_form_fx instead of `load()` at fire time, dark_fx caches its hoop and disc meshes, and `warmup_shaders.gd` holds the rope, cube and tomahawk materials (3 new, 28). Windowed autotest cpu worst 8.9 ms (base) / 9.3 (before this, an EA compile spike) -> 8.0 ms, cpu avg 1.3-1.4, 1 cpu spike (EV)
 - [ ] Next: the Live Wire's comic_gale coil and the breaker cue still read loud in the storm frames; Dash Stab's spirit tomahawk is a shaman leftover on the heretic (worth a real heretic look or dropping); the damage numbers dodge text but not each other
+- [x] Round 5 (feel audit 2026-11-04): impact frame on slams and kills only, one word per beat at the blow, a closer camera that follows his hangs with a paper rim on him, and the Awakened swoosh inked and trail capped (see Round 32)
 
 ## Round 30 (combo rhythm)
 - [x] Hits on the contact pose: `ComicLook.HERO_MOVES` held the shaman's 24 fps counts; his clips are those keys at 30 fps with a hold frame first, so every hit came 27-54 ms of clip time early. Now his own 30 fps contact frames (last frame the weapon hand moves at 40% of its peak): L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30, the same on the chibi. `tests/contact_frames.gd` re-measures any model; `comic_check` fails on a mismatch
@@ -380,3 +381,16 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] `scripts/hero_awaken.gd` (90 lines): activation and burst, the buff (its numbers named: `ANIM_MULT`, `DAMAGE_MULT`, `SIZE`, `SPEED_MULT`, `DAMAGE_TAKEN`), the drain, the rim
 - [x] player.gd (1023 lines): declarations grouped by job, functions in sections; dead code gone (`spikes`, `callouts`, `last_callout_tier`, `_last_combo`, `heal()`, `_cast_target()`, the KayKit H / CH charge branch). `comic_check` scans `hero_*.gd` for clip names too
 - [ ] Next: casts / swoosh / callouts (~200 lines) could be a `hero_fx.gd`; `last_hit_by` + `_describe_attacker` feed a death recap that no longer exists (enemy.gd still builds the cause string); the forwarders could go once the checks call the hero_*.gd functions directly
+
+## Round 32 (feel audit fixes)
+From `docs/feel-audit-2026-11-04.md`'s top 10 (numbers are the audit's).
+- [x] 1. Impact frame only on breaker slams and kills: `IMPACT_STOP` 0.1 -> 0.3, `impact_frame` watches `breakers_landed` (`slam()`, 0.85 / perfect 1.0), `IMPACT_GAP_MS` 240 -> 900. Freeplay film: three flips in 10 s (the slams), was about one every 1.2 s
+- [x] 2. One word per beat at the blow: a new word replaces the live one, no generic word twice in a row, placed round the contact point (`SPOT_RINGS` 12 / 55 px, `SPOT_ENOUGH` 24)
+- [x] 3 / 10. Hero findable: camera (0, 10, 7.5) FOV 36, hang push-in `HANG_ZOOM` 0.12 and lift with his model (`LIFT_FOLLOW` 0.75), the combo guide on the side away from the pile, a paper rim on the hero over effects (`hero_rim.gdshader`), TRAINING / THIS STRING moved to bottom right
+- [x] 5. (audit 5, brief item 4) Awakened gold, partial: swoosh inked to its outer band and the second ender arc dropped while Awakened, trail swell capped (`SWELL_MAX` 0.35, `AWAKEN_SWELL_MAX` 0.12, `AWAKEN_ALPHA` 0.6)
+- [ ] 5. The flat gold axe over Awakened L2 / L3 is the spirit cast echo (`elements.CASTS` echo), not the swoosh: thin it or ink it while Awakened
+- [ ] 6. One number per breaker: one total (or the biggest foe's) instead of four equal numbers, numbers dodge each other, `LAST n` only on the dummy hit most
+- [ ] 7. Clear the floor between strings: Maw / Abyss pools, Meteor geysers, Undertow's crack and the frost disc fade when the next string's first hit lands (a Game signal on string start)
+- [ ] 8. Molten Palm needs a palm: `comic_fist.gd` bigger than his head, knuckles forward
+- [ ] 4 / 9. Callouts end with their string; Dash Stab and Harpoon land soft (combo-rhythm lane)
+

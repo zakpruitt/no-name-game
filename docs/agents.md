@@ -178,3 +178,10 @@ the worktree, and deletes the branch once it has been merged.
   `_autotest_t` held at 0 each frame, so it never snaps over the shared `autotest_*.png` or quits the tree.
 - **An effect's tween on scaled time outlives its string.** Hitstop and breaker slow motion stretch any `create_tween()`
   on a node; the combo-name callout hung 1-1.5 s into the next string. Film the gap between strings to see it.
+- **The player's state field is `state`, and his leap lifts `model`, not the body.** A camera that read `_state`
+  never saw State.LEAP, and one that followed `global_position.y` never rose: print the fields you read
+  (one `[dbg]` line every 6 frames through a film) before tuning a "doesn't work" camera.
+- **Judge a fix from a sheet of the whole string, then name what is left.** After the Awakened swoosh was inked,
+  the flat gold axe still over L2 / L3 was the spirit cast echo, a different effect.
+- **A visual hook without touching a locked file:** read a marker the call already passes (`Fx.swoosh`'s
+  `height` > 1.0 is player._swoosh's second arc) or watch a counter (`breakers_landed`) from your own file.

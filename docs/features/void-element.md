@@ -96,6 +96,9 @@ camera-facing geometry in layers (ink, one element colour, one light tone, a hot
 impacts), redrawn on twos, peaking on its first frame and gone in about a third of a second. They share
 `heretic_form_fx.material()` (unshaded vertex colour, no depth test), prewarmed in `elements.prewarm()`,
 and each has a public `tick(delta)` and a local `RandomNumberGenerator`.
+Round 32 (feel audit 2026-11-04): words sit at the blow, one at a time; the impact frame only flips on breaker
+landings and kills; the hero's paper rim (`heretic_rig._add_rim`) draws over these effects. Still open:
+standing element effects outliving the string (pools, geysers, crack, frost disc) and Molten Palm's small fist.
 
 | Effect | Script | Used by |
 |---|---|---|
