@@ -40,6 +40,13 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 @export var perfect_dodge_refund := 20.0
 @export var perfect_dodge_stun := 1.2
 
+## String pacing (round 30; the ms are real time at anim_speed 1.7, printed by tests/rhythm_check.gd).
+const L1_SPEED := 1.1  # opener: hit 216 -> 196 ms, so the first beat comes quickly
+const L3_SPEED := 1.3  # ender: wind-up 471 -> 362 ms; L2's hit to L3's was 553 ms with the hitstop, a stall before the payoff
+const L3_CANCEL := 0.645  # (was 0.6) keeps ~140 ms from L3's hit to its cancel at L3_SPEED
+const L3_END := 0.975  # (was 0.85) keeps ~330 ms of recovery after the hammer lands at L3_SPEED: the ender's weight
+const EM_SPEED := 2.1  # Molten Palm (was 1.6): its palm landed 619 ms in, ~800 ms after L3's hit; now 471 ms in
+
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
 #   hits: when damage is dealt   cancel: when the next input is accepted
@@ -56,10 +63,13 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 #        (`land` overrides), so L H's rise carries into L H H's drop.
 #   air: (optional) holds the height the move started at; `climb` adds this
 #        many metres by its first hit (the air string goes up cut by cut)
+# String rhythm (round 30, tests/rhythm_check.gd prints the ms): the opener is quick (L1 `speed`
+# L1_SPEED), the mids snappy, the ender winds up a beat longer than a mid, freezes longest and
+# recovers longest (L3_SPEED with its cancel / end set to land there; ~330 ms recovery after the hit).
 const MOVES := {
 	"L1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 8.0, "range": 2.4, "arc": 140.0,
 		"hits": [0.35], "cancel": 0.45, "end": 0.75, "lunge": 7.0, "knockback": 2.5, "launch": 0.0,
-		"stop": 0.045, "shake": 0.12},
+		"stop": 0.045, "shake": 0.12, "speed": L1_SPEED},
 	"GR": {"anim": "Ab_GR", "damage": 6.0, "range": 9.0, "arc": 360.0, "hits": [0.24], "cancel": 0.42, "end": 0.66,
 		"lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.14},
 	"VS": {"anim": "Ab_VS", "damage": 24.0, "range": 3.8, "arc": 150.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
@@ -68,8 +78,8 @@ const MOVES := {
 		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
 		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6]},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
-		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
-		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9]},
+		"hits": [0.4], "cancel": L3_CANCEL, "end": L3_END, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
+		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9], "speed": L3_SPEED},
 	# The void arm's right click (void_element.gd). The tentacle and the element do the work.
 	"EE": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
@@ -98,7 +108,7 @@ const MOVES := {
 	"IS": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
 		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
 	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [0.51], "cancel": 0.68, "end": 0.85,
-		"speed": 1.6, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
+		"speed": EM_SPEED, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
 	# Light after Updraft Lash (L H L): an air slash. He stays up with the foe
 	# the lash threw (`air`: holds the height he started at) and the cut
 	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).

@@ -49,6 +49,7 @@ func _initialize() -> void:
 	world.add_child(hero)
 	await process_frame
 	_table()
+	_pacing()
 	await _buffered()
 	await _hit_confirm()
 	await _aim_lock()
@@ -86,6 +87,29 @@ func _table() -> void:
 		hero._chain_i = 0
 
 
+## The axe-spear-hammer string as a rhythm: each wind-up longer than the last, the ender freezing longest,
+## the mids recovering quickly (<= MID_RECOVERY) and the ender with weight (ENDER_RECOVERY).
+const MID_RECOVERY := 260.0  # ms from hit to end
+const ENDER_RECOVERY := Vector2(280.0, 400.0)
+func _pacing() -> void:
+	var hit := {}
+	var rec := {}
+	var stop := {}
+	for id: String in ["L1", "L2", "L3"]:
+		hero._start_attack(id)
+		hit[id] = _ms(hero._move.hits[0])
+		rec[id] = _ms(hero._move.end) - hit[id]
+		stop[id] = hero._move.stop
+		hero._set_state(hero.State.MOVE)
+		hero._move_id = ""
+	print("[rhythm] L L L wind-ups %.0f / %.0f / %.0f ms, recoveries %.0f / %.0f / %.0f ms" % [hit.L1, hit.L2, hit.L3, rec.L1, rec.L2, rec.L3])
+	_check(hit.L1 < hit.L2 and hit.L2 < hit.L3, "opener quickest, ender winds up longest")
+	_check(stop.L1 <= stop.L2 and stop.L2 < stop.L3, "the ender freezes longest")
+	_check(rec.L1 <= MID_RECOVERY and rec.L2 <= MID_RECOVERY, "L1 / L2 recover within %.0f ms" % MID_RECOVERY)
+	_check(rec.L3 >= ENDER_RECOVERY.x and rec.L3 <= ENDER_RECOVERY.y, "L3 recovers %.0f ms: weight, not sticky" % rec.L3)
+	_check(hit.L3 < 400.0, "the hammer lands inside 400 ms (%.0f)" % hit.L3)
+
+
 ## L at L1's start is held and starts L2 on the first frame past the cancel point; L at L3's start
 ## (past BUFFER_MS before its cancel) is dropped.
 func _buffered() -> void:
@@ -102,7 +126,8 @@ func _buffered() -> void:
 		frames += 1
 	var step: float = (1.0 / 60.0) * hero.anim_speed * hero._anim_mult / hero._move_len
 	_check(hero._move_id == "L2", "the early L was held into L2 (%s)" % hero._move_id)
-	_check(last_t < cancel and last_t + step * 1.01 >= cancel, "and fired on the first frame past the cancel (%.3f -> %.3f, cancel %.3f)" % [last_t, last_t + step, cancel])
+	# (one physics_frame await can cover two physics steps headless: allow two)
+	_check(last_t < cancel and last_t + step * 2.01 >= cancel, "and fired on the first frame past the cancel (%.3f -> %.3f, cancel %.3f)" % [last_t, last_t + step, cancel])
 	await _settle()
 	hero._chain_i = 2
 	hero._chain_reset_t = 1.0
