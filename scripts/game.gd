@@ -60,14 +60,7 @@ const MUSIC_FADE_OUT := 0.25
 # is saved as seen (Reset hints in the pause menu brings them back).
 const HINTS := {
 	"attack": "Light [LMB] and heavy [RMB] chain into combos.\nMixing different moves raises your style rank.",
-	"dash": "Dash [Space] through attacks.\nDash just before a hit lands for a PERFECT dodge.",
-	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
-	"breaker": "Light, light, heavy is a GROUND BREAKER:\na lunging thrust that knocks down everything in a line.",
-	"shield": "Shields block hits from the front.\nHit from behind, or hold heavy to charge a guard-breaking slam.",
 	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
-	"bomber": "Bombers explode when their fuse runs out, hurting skeletons too.\nKnock them into a crowd, or dash clear.",
-	"necro": "Necromancers raise fallen skeletons.\nKill them first and their risen crumble.",
-	"cage": "The bone cage is closing! Run out through the gap,\nor dash through a wall.",
 }
 # Gamepad rumble per event: [weak motor, strong motor, seconds]. Toggle in menus.
 const RUMBLE := {
@@ -103,7 +96,7 @@ var comic_style := true
 ## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "chibi" (default since round 29,
 ## assets/comic/heretic_chibi.glb; an orchestrator call Zak can veto) or "heretic" (the round-28
 ## model, heretic.glb). --hero=heretic for this process only, or the Settings entry (saved).
-## Read as the player is built, so a change shows from the next run.
+## Read as the player is built, so a change shows from the next Restart training.
 const HERO_DEFAULT := "chibi"
 var hero_model := HERO_DEFAULT
 var hero_setting := HERO_DEFAULT
@@ -375,7 +368,7 @@ func guide_label() -> String:
 	return "Combo guide: %s" % ("On" if combo_guide else "Off")
 
 
-## Settings: heretic <-> chibi heretic, saved; takes effect when the next run builds the hero.
+## Settings: heretic <-> chibi heretic, saved; takes effect on the next Restart training.
 func cycle_hero() -> void:
 	var order := HERO_MODELS.keys()
 	hero_setting = order[(order.find(hero_setting) + 1) % order.size()]
@@ -384,7 +377,7 @@ func cycle_hero() -> void:
 
 
 func hero_label() -> String:
-	return "Hero model (next run): %s" % HERO_MODELS.get(hero_setting, HERO_MODELS[HERO_DEFAULT])
+	return "Hero model (on restart): %s" % HERO_MODELS.get(hero_setting, HERO_MODELS[HERO_DEFAULT])
 
 
 ## Step to the next screen shake level and save it.
@@ -506,7 +499,6 @@ func _setup_input() -> void:
 	_bind("dash", [KEY_SPACE, KEY_SHIFT], [], [JOY_BUTTON_A])
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
 	_bind("traverse", [KEY_R], [], [JOY_BUTTON_LEFT_SHOULDER])
-	_bind("restart", [KEY_ENTER], [], [])
 	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
 
 

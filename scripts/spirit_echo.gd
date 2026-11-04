@@ -72,15 +72,6 @@ static func ghost(mesh: Mesh, c: Color) -> MeshInstance3D:
 	return mi
 
 
-## Fade every ghost at once: `body_a` on the bodies, `rim` intensity on the
-## rims (each cast's _fade, with its own full-strength numbers).
-static func fade_ghosts(mats: Array[StandardMaterial3D], rims: Array[ShaderMaterial],
-		body_a: float, rim: float) -> void:
-	for i in mats.size():
-		mats[i].albedo_color.a = body_a
-		rims[i].set_shader_parameter("intensity", rim)
-
-
 ## One foe struck by a spirit cast: the hit, the combo counter, element debris
 ## at the foe (`debris_dir`, `big`) under `fx_parent`, then the caller's hook.
 static func strike(e: Node, damage: float, knockback: Vector3, launch: float, heavy: bool,

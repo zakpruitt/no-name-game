@@ -159,11 +159,6 @@ static func _note(mat: Material) -> void:
 		mat = mat.next_pass
 
 
-## Signatures seen this run that the list lacks.
-static func new_count() -> int:
-	return _new.size()
-
-
 ## Merge this run's new signatures into warmup_shaders.gd (dev checkouts only).
 static func save() -> void:
 	if _new.is_empty():
