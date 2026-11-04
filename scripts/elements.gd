@@ -52,6 +52,10 @@ const LOOK := {
 	"void": {"color": Color(0.62, 0.3, 1.0), "glow": Color(1.0, 0.4, 0.95), "sfx": "cast_spirit"},  # the void arm's dark moves only
 }
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
+const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
+const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
+const STRIKE_STAR := 1.1  # m, the impact star at its foot
 const ORBIT_REST := 3
 const ORBIT_AWAKENED := 7
 
@@ -108,6 +112,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	Fx.dash_streak(root, at, Vector3.FORWARD, 1.0, Color.WHITE, 0.15)
 	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
 	load("res://scripts/dark_fx.gd").prewarm_pieces(root)
+	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color, true)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))
@@ -847,9 +852,11 @@ static func wave_wall(hero: Node3D, time: float) -> void:
 ## enemy near `pos`, one strike each (`strike` deals the damage per target).
 static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 	match el:
-		"wind":
-			lightning_fx(parent, pos, LOOK.wind.color, 12.0)
-			pillar(parent, pos, el, 4.0, 1.4, 0.6)
+		"wind":  # a fat flat bolt out of the sky into a hot star, on twos (comic_bolt.gd)
+			var foot := Vector3(pos.x, 0.25, pos.z)
+			var sky := foot + Vector3(randf_range(-1.2, 1.2), STRIKE_HIGH, randf_range(-1.2, 1.2))
+			COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, STRIKE_STAR, 2)
+			return
 		"earth":
 			spikes(parent, pos, el, 1.8, 4, 0.9)
 			Fx.ring(parent, pos, Color(LOOK.earth.color, 0.9), 2.2, 0.3)

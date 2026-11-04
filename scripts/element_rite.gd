@@ -17,7 +17,9 @@ extends RefCounted
 ## and bigger wells.
 
 const ELEMENTS := preload("res://scripts/elements.gd")
-const RITE := preload("res://scripts/element_rite.gd")  # (inner classes reach the static funcs through it)
+const RITE := preload("res://scripts/element_rite.gd")
+const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)  # (inner classes reach the static funcs through it)
 const HEAVIES := ["H", "LH", "LHH", "LLH", "CH", "DH", "AH"]
 const PRIME_TIME := 4.0  # s a charge / soak / well waits for the next heavy
 const REACH := 12.0  # m from him that primes answer a heavy
@@ -157,36 +159,10 @@ static func _zap(parent: Node, from: Vector3, e: Node3D, dmg: float, on_hit: Cal
 			on_hit.call(e)
 
 
-## A jagged lightning arc between two points: a fat glow and a white core,
-## flickering out.
-static func arc(parent: Node, a: Vector3, b: Vector3, c: Color) -> void:
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.global_position = a
-	var span := b - a
-	var segs := clampi(int(span.length() / 0.8), 3, 10)
-	var side := span.cross(Vector3.UP).normalized()
-	if side.length() < 0.1:
-		side = Vector3.RIGHT
-	var prev := Vector3.ZERO
-	for i in range(1, segs + 1):
-		var t := float(i) / segs
-		var p := span * t
-		if i < segs:
-			p += side * randf_range(-0.5, 0.5) + Vector3.UP * randf_range(-0.35, 0.35)
-		for layer in 2:
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.13 if layer == 0 else 0.05
-			cyl.bottom_radius = cyl.top_radius
-			cyl.height = prev.distance_to(p)
-			cyl.radial_segments = 5
-			cyl.rings = 1
-			var seg := ELEMENTS._mi(cyl, ELEMENTS.glow(Color(c, 0.7), 1.6) if layer == 0 else ELEMENTS.glow(Color(1, 1, 1, 0.95), 3.0))
-			root.add_child(seg)
-			seg.position = (prev + p) * 0.5
-			seg.basis = Basis(Quaternion(Vector3.UP, (p - prev).normalized()))
-		prev = p
-	ELEMENTS._fade_free(root, 0.08, 0.14)
+## A jagged lightning arc between two points: a flat inked zigzag on twos (comic_bolt.gd). The storm's
+## palette is fixed (ink, green, pale core), so `c` is only kept for the callers.
+static func arc(parent: Node, a: Vector3, b: Vector3, _c: Color) -> void:
+	COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 1 if a.distance_to(b) > 2.5 else 0)
 
 
 # --- Water: Flash Freeze ------------------------------------------------------
