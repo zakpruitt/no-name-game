@@ -15,6 +15,12 @@ const REACH := 1.2  # trail tip past the blade tip, as a fraction of blade lengt
 const CHAIN_GROW := 0.1  # extra reach per chain tier (x1.3 at tier 3)
 const HIT_GROW := 0.25  # extra reach at full hit weight
 const LIFE_GROW := 0.6  # extra lifetime per unit of swell (x1.33 at the most)
+# Feel audit 2026-11-04 item 4: at chain tier 3 with a heavy hit the swell reached 0.55, and Awakened gold at
+# alpha 0.9 made each swing an opaque sheet over him. The swell is capped, harder while he is Awakened, and
+# the Awakened ribbon is thinner.
+const SWELL_MAX := 0.35
+const AWAKEN_SWELL_MAX := 0.12
+const AWAKEN_ALPHA := 0.6  # times the ribbon's alpha while Awakened
 
 @export var lifetime := 0.2
 ## Body colour (alpha = opacity); the leading edge is this lightened toward white.
@@ -31,6 +37,7 @@ var _tip_local := Vector3.UP
 var _points: Array[Array] = []  # [base: Vector3, tip: Vector3, age: float, life: float, swell: float]
 var _imesh := ImmediateMesh.new()
 var _mat := ShaderMaterial.new()
+var _gold := false  # Awakened this frame (_vertex_pair thins the ribbon)
 
 
 func setup(weapon_mesh: MeshInstance3D) -> void:
@@ -75,6 +82,7 @@ func _process(delta: float) -> void:
 		_points.append([base, base + (tip - base) * (1.0 + grow), 0.0, lifetime * (1.0 + LIFE_GROW * grow), grow])
 
 	_imesh.clear_surfaces()
+	_gold = _awakened()
 	var n := _points.size()
 	if n < 2:
 		return
@@ -99,17 +107,25 @@ func _process(delta: float) -> void:
 
 ## 0 = the plain ribbon; grows CHAIN_GROW per chain tier and HIT_GROW per hit weight.
 func swell() -> float:
-	return CHAIN_GROW * Fx.chain_tier(Game.combo_count) + HIT_GROW * Game.hit_weight
+	var s := CHAIN_GROW * Fx.chain_tier(Game.combo_count) + HIT_GROW * Game.hit_weight
+	return minf(s, AWAKEN_SWELL_MAX if _awakened() else SWELL_MAX)
+
+
+## The hero this trail belongs to is Awakened (read only).
+func _awakened() -> bool:
+	var hero := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
+	return hero != null and hero.get("awakened") == true
 
 
 func _vertex_pair(base: Vector3, tip: Vector3, age: float, life: float, grow: float) -> void:
 	var u := clampf(age / life, 0.0, 1.0)
 	var uv2 := Vector2(clampf(grow, 0.0, 1.0), 0.0)
-	_imesh.surface_set_color(color)
+	var col := color if not _gold else Color(color, color.a * AWAKEN_ALPHA)
+	_imesh.surface_set_color(col)
 	_imesh.surface_set_uv(Vector2(u, 0.0))
 	_imesh.surface_set_uv2(uv2)
 	_imesh.surface_add_vertex(base)
-	_imesh.surface_set_color(color)
+	_imesh.surface_set_color(col)
 	_imesh.surface_set_uv(Vector2(u, 1.0))
 	_imesh.surface_set_uv2(uv2)
 	_imesh.surface_add_vertex(tip)

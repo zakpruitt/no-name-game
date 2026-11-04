@@ -1,6 +1,8 @@
 class_name Fx
 ## Small throwaway visual effects: damage numbers, hit sparks, flashes.
 
+const SWOOSH_SECOND_HEIGHT := 1.0  # player._swoosh lifts its second (ender / chain) arc to 1.15 m, the first sits at 0.8
+const AWAKEN_SWOOSH_BAND := 0.72  # Awakened: the swoosh keeps only its outer band past this UV.y, inked inside
 ## Particle and flare sprites (Kenney Particle Pack, CC0): white with alpha, tinted per use.
 const TEX := {
 	"dot": preload("res://assets/vfx/circle_05.png"),
@@ -81,8 +83,14 @@ static func _label(text: String, font_size: int, color: Color, outline_color: Co
 ## Melee swing arc: a flat crescent around `pos` facing `fwd`, out to `radius`
 ## across `arc_deg` (360 = full spin), sweeping across it over `time`.
 ## `flip` swings right-to-left instead of left-to-right.
+## While the hero is Awakened (feel audit 2026-11-04 item 4: his gold crescents were opaque sheets 4-5x his
+## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and player._swoosh's second, wider
+## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
 static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float,
 		color: Color, flip := false, time := 0.26, height := 0.8) -> void:
+	var gold := _hero_awakened(parent)
+	if gold and height > SWOOSH_SECOND_HEIGHT:
+		return
 	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
 	var inner := radius * 0.4
 	var segs := maxi(10, int(arc_deg / 6.0))
@@ -102,6 +110,7 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var a_mult := 0.5 if Game.reduce_flashing else 1.0
 	mat.set_shader_parameter("color", Color(color, color.a * a_mult))
 	mat.set_shader_parameter("edge_color", Color(color.lerp(Color.WHITE, 0.45), a_mult))
+	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold else 0.0)
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()
 	m.material_override = mat
@@ -112,6 +121,13 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var tw := m.create_tween()
 	tw.tween_method(func(p: float) -> void: mat.set_shader_parameter("progress", p), 0.0, 1.0, time)
 	tw.tween_callback(m.queue_free)
+
+
+static func _hero_awakened(node: Node) -> bool:
+	if node == null or not node.is_inside_tree():
+		return false
+	var hero := node.get_tree().get_first_node_in_group("player")
+	return hero != null and hero.get("awakened") == true
 
 
 ## `foe`: who took it, so the comic number merges that foe's hits (comic_number.gd).
