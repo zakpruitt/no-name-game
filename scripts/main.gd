@@ -13,7 +13,6 @@ const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
 const BOSS := preload("res://scripts/boss.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
-const ASCEND_MENU := preload("res://scripts/ascend_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
@@ -28,7 +27,6 @@ const ARENA_HALF := TILE * HALF_TILES
 
 var player: CharacterBody3D
 var hud: CanvasLayer
-var ascend_menu: CanvasLayer
 ## Always true: the pause menu reads it to show the training items.
 var training := true
 var room_kind := "training"
@@ -97,20 +95,13 @@ func _ready() -> void:
 	hud.bind_player(player)
 
 	add_child(PAUSE.new())
-	ascend_menu = ASCEND_MENU.new()
-	add_child(ascend_menu)
 	Game.combo_changed.connect(func(c: int, _r: String) -> void:
 		_max_combo = maxi(_max_combo, c)
 		if c > 0:
 			_hits += 1)
 
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--ascend="):  # start ascended
-			var path := arg.get_slice("=", 1)
-			if Ascendancy.PATHS.has(path):
-				Game.add_xp(Game.LEVEL_XP[-1] - Game.xp)
-				player.ascend(path)
-		elif arg == "--start-awakened":
+		if arg == "--start-awakened":
 			Game.add_awakening(Game.AWAKEN_MAX)
 		elif arg == "--reduce-flashing":  # the setting, without saving it
 			Game.reduce_flashing = true
@@ -123,7 +114,7 @@ func _ready() -> void:
 
 func _start_training() -> void:
 	hud.wave_label.text = "TRAINING"
-	hud.flash_message("TRAINING\nEsc: Awakening, Ascendancy, moves", 2.0)
+	hud.flash_message("TRAINING\nEsc: Awakening, moves", 2.0)
 	for spot: Vector3 in DUMMY_SPOTS:
 		var dummy: Node = DUMMY.new()
 		dummy.model_scene = _model("Skeleton_Warrior")
@@ -173,13 +164,6 @@ func _hits_text(n: float) -> String:
 
 func train_awaken() -> void:
 	Game.add_awakening(Game.AWAKEN_MAX)
-
-
-func train_ascend() -> void:
-	Game.add_xp(Game.LEVEL_XP[-1] - Game.xp)
-	ascend_menu.open()
-	var path: String = await ascend_menu.chosen
-	player.ascend(path)
 
 
 ## Back into a fresh training room.

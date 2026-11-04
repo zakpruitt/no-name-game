@@ -5,6 +5,7 @@ extends Node3D
 ## everything in reach every TICK. Child of the hero so it follows the
 ## Cyclone's dash. Spawned by player._cast for casts of kind "wheel" (elements.CASTS).
 
+const FOES := preload("res://scripts/foes.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const TICK := 0.2  # s between grinding hits
 const TILT := 14.0  # degrees the outer ends lift: a shallow cone, reads as 3D
@@ -65,7 +66,7 @@ func _process(delta: float) -> void:
 		return
 	_tick = TICK
 	var at := Vector3(global_position.x, 0.0, global_position.z)
-	for e in Ascendancy.enemies_near(get_tree(), at, radius):
+	for e in FOES.near(get_tree(), at, radius):
 		var out: Vector3 = e.global_position - at
 		out.y = 0.0
 		var tangent := out.normalized().cross(Vector3.DOWN)  # the way the blades are moving

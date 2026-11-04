@@ -11,21 +11,12 @@ signal air_combo_changed(count: int)
 ## Any enemy died.
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
-signal bones_changed(count: int)
-## Hero level (1..LEVEL_MAX) and progress toward the next one.
-signal level_changed(level: int, xp_into: int, xp_needed: int)
-signal leveled_up(level: int)
 ## An Awakened ultimate began (chain: its number this Awakening; 0 = the Trinity storm).
 signal ultimate(ult_name: String, color: Color, chain: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
 const AWAKEN_MAX := 100.0
-# Hero levels: each kill gives XP equal to the enemy's bones (risen and split
-# minions give none). LEVEL_XP[i] is the total XP for level i + 2, so level 6
-# (Ascendancy) lands around room 5 of a typical run.
-const LEVEL_XP := [4, 12, 24, 40, 60]
-const LEVEL_MAX := 6
 # Style rank thresholds. Varied moves earn more style than repeating one.
 const RANKS := [["SSS", 160.0], ["SS", 110.0], ["S", 70.0], ["A", 40.0], ["B", 20.0], ["C", 8.0], ["D", 0.0]]
 # Player settings, saved to SETTINGS_PATH. Screen shake cycles through these.
@@ -97,8 +88,6 @@ var combo_count := 0
 var style := 0.0
 var awakening := 0.0
 var perfect_dodges := 0
-var bones := 0  # run currency, dropped by slain skeletons (bone_pickup.gd)
-var bones_total := 0  # collected this run (bones may be spent)
 var air_hits := 0
 var best_air := 0
 ## Multiplier on all screen shake (accessibility / taste).
@@ -123,8 +112,6 @@ var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
 var awaken_locked := false
-var xp := 0
-var level := 1
 var _combo_timer := 0.0
 var _air_timer := 0.0
 var _recent_moves: Array[String] = []
@@ -144,7 +131,6 @@ var _combat_level := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	enemy_killed.connect(func(e: Node) -> void: add_xp(e.bones))
 	impact = preload("res://scripts/impact_frame.gd").new()
 	add_child(impact)
 	enemy_killed.connect(func(_e: Node) -> void: impact.flash(impact.IMPACT_KILL, true))
@@ -201,45 +187,15 @@ func reset() -> void:
 	style = 0.0
 	awakening = 0.0
 	perfect_dodges = 0
-	bones = 0
-	bones_total = 0
 	air_hits = 0
 	best_air = 0
 	awaken_locked = false
-	xp = 0
-	level = 1
-	_emit_level()
 	_recent_moves.clear()
 	_stops.clear()
 	hit_weight = 0.0
 	Engine.time_scale = 1.0
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
-
-
-func add_xp(amount: int) -> void:
-	if amount <= 0 or level >= LEVEL_MAX:
-		return
-	xp += amount
-	while level < LEVEL_MAX and xp >= LEVEL_XP[level - 1]:
-		level += 1
-		leveled_up.emit(level)
-	_emit_level()
-
-
-func _emit_level() -> void:
-	if level >= LEVEL_MAX:
-		level_changed.emit(level, 1, 1)
-		return
-	var start: int = 0 if level == 1 else LEVEL_XP[level - 2]
-	level_changed.emit(level, xp - start, LEVEL_XP[level - 1] - start)
-
-
-func add_bones(count: int) -> void:
-	bones += count
-	if count > 0:
-		bones_total += count
-	bones_changed.emit(bones)
 
 
 ## Freeze the game briefly on impact. Overlapping calls extend, never shorten.

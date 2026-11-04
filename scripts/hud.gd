@@ -21,8 +21,6 @@ void fragment() {
 var hp_bar: ProgressBar
 var awaken_bar: ProgressBar
 var awaken_hint: Label
-var xp_fill: ColorRect
-var level_label: Label
 var combo_label: Label
 var rank_label: Label
 var air_label: Label
@@ -71,19 +69,6 @@ func _ready() -> void:
 	hp_bar = _bar(root, Vector2(32, 28), Vector2(360, 22), Color(0.9, 0.25, 0.25))
 	awaken_bar = _bar(root, Vector2(32, 58), Vector2(360, 14), Color(1.0, 0.6, 0.15))
 	awaken_bar.max_value = Game.AWAKEN_MAX
-	# XP: a thin strip (ProgressBar has a font-sized minimum height).
-	var xp_back := ColorRect.new()
-	xp_back.color = Color(0, 0, 0, 0.55)
-	xp_back.position = Vector2(32, 78)
-	xp_back.size = Vector2(360, 5)
-	root.add_child(xp_back)
-	xp_fill = ColorRect.new()
-	xp_fill.color = Color(1.0, 0.85, 0.4)
-	xp_fill.size = Vector2(0, 5)
-	xp_back.add_child(xp_fill)
-	level_label = _label(root, "LV 1", 22, Color(1.0, 0.85, 0.4))
-	level_label.position = Vector2(408, 52)
-	Game.level_changed.connect(_on_level)
 	awaken_hint = _label(root, "AWAKEN READY  [Q]", 20, Color(1.0, 0.7, 0.2))
 	awaken_hint.position = Vector2(32, 88)
 	awaken_hint.visible = false
@@ -305,11 +290,6 @@ func _on_air_combo(count: int) -> void:
 	air_label.modulate.a = 1.0
 	air_label.scale = Vector2.ONE * 1.35
 	create_tween().tween_property(air_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-
-func _on_level(level: int, into: int, needed: int) -> void:
-	level_label.text = "LV %d" % level if level < Game.LEVEL_MAX else "LV %d  MAX" % level
-	xp_fill.size.x = 360.0 * clampf(float(into) / maxf(needed, 1.0), 0.0, 1.0)
 
 
 func _on_awakening(v: float) -> void:

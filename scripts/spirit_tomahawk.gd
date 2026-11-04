@@ -5,6 +5,7 @@ extends Node3D
 ## cutting again. Each foe is hit once per leg. Spawned by player._cast for
 ## casts of kind "tomahawk" (elements.CASTS), one per `fan`.
 
+const FOES := preload("res://scripts/foes.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const SPIN := 22.0  # rad/s
 const HEIGHT := 0.9
@@ -81,7 +82,7 @@ func _fly_back(t: float) -> void:
 
 func _cut() -> void:
 	var at := Vector3(global_position.x, 0.0, global_position.z)
-	for e in Ascendancy.enemies_near(get_tree(), at, size * 0.55):
+	for e in FOES.near(get_tree(), at, size * 0.55):
 		if e in _hit:
 			continue
 		_hit.append(e)

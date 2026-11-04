@@ -107,11 +107,9 @@ func _tag(awake: bool) -> String:
 func _sheet(main: Node, p: Node3D, guide: Control) -> void:
 	var shots: Array[Image] = []
 	var setups := [
-		["", false, "L1", false], ["", false, "L2", false], ["earth", true, "L3", true],
-		["earth", true, "LH", false], ["water", true, "dash", false], ["wind", false, "charge", false]]
+		["", false, "L1", false], ["", false, "L2", false], ["", true, "L3", true],
+		["", true, "LH", false], ["", true, "dash", false], ["", false, "charge", false]]
 	for s: Array in setups:
-		if s[0] != "" and p.ascendancy != s[0]:
-			p.ascend(s[0])
 		p._set_awakened(s[1])
 		p.global_position = Vector3.ZERO
 		p._set_state(p.State.MOVE)

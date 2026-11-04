@@ -11,6 +11,7 @@ signal combo_found(id: String)  # a named combo landed for the first time this r
 
 enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD, LEAP, SWING }
 
+const FOES := preload("res://scripts/foes.gd")
 const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
 const HERO_LOOK := preload("res://scripts/hero_look.gd")
@@ -47,8 +48,6 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 @export var perfect_dodge_window := 0.15
 @export var perfect_dodge_refund := 20.0
 @export var perfect_dodge_stun := 1.2
-## Each level-up raises max HP by this much (and heals it).
-@export var level_hp := 5.0
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -310,7 +309,6 @@ const BREAKER_AWAKENED_WAKE := 1.4
 const BREAKER_SPILL := 0.12
 const BREAKER_EARLY := 0.08
 const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
-const RITE := preload("res://scripts/element_rite.gd")  # Ascended heavies: prime the element, the next heavy sets it off
 const BREAKER_SPIKE := preload("res://scripts/breaker_spike.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
@@ -345,6 +343,7 @@ const CHARGE_MOVE_MULT := 0.35
 const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
 const AWAKEN_BURST_RADIUS := 7.0  # the activation shockwave blows foes back this far
 const AWAKEN_BURST_DAMAGE := 10.0
+const AWAKEN_COLOR := Color(1.0, 0.78, 0.3)  # Awakening's ancestral gold: light, rim, trails, burst
 const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
 const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
@@ -352,12 +351,10 @@ var hp := max_hp
 var state := State.MOVE
 var awakened := false
 var model: Node3D
-var _form: Node3D  # HERO_LOOK.add_form gear for the chosen Ascendancy
 var _coats: Array[Node3D] = []  # HERO_LOOK.coat_axes for the current element
 var rank_ups := 0  # style rank climbs that burst at the hero (autotest)
 var _rank_i := 0  # current style rank as a step above D (Game.RANKS)
 var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
-var _asc_aura: Node3D  # ascend_aura.gd: the Ascendancy's always-on aura
 var anim: AnimationPlayer
 
 var _state_t := 0.0
@@ -455,11 +452,6 @@ var _callout: Label3D
 var _callout_tw: Tween
 var _callout_done := false
 var _awaken_light: OmniLight3D
-## Ascendancy path (Ascendancy.PATHS key) picked at level 6, or "".
-var ascendancy := ""
-var element_procs := 0  # lightning strikes, magma pools, freezes (autotest)
-var _wind_hits := 0
-var _aura: CPUParticles3D
 var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _trails: Array = []
@@ -504,7 +496,6 @@ var bot_move := Vector3.ZERO
 
 var bot_enabled := false
 var stormfalls := 0  # landings from the top of the Updraft (tests)
-var rites := 0  # Ascended heavies that set off primes (RITE, autotest)
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
 var _brk: Dictionary = {}  # the breaker in play (BREAKERS entry)
@@ -533,7 +524,6 @@ var _brk_passed: Dictionary = {}  # foes the dash breaker has cut through
 func _ready() -> void:
 	hp = max_hp
 	Game.enemy_killed.connect(_on_enemy_killed)
-	Game.leveled_up.connect(_on_level_up)
 	Game.combo_changed.connect(_on_combo_changed)
 	add_to_group("player")
 	collision_layer = 2
@@ -568,7 +558,7 @@ func _ready() -> void:
 		for blade in ComicLook.hero_blades(model):
 			_add_trail(blade)
 	anim = model.find_child("AnimationPlayer", true, false)
-	_coats = _coat_axes()  # after _meshes: coats are swapped on ascend
+	_coats = _coat_axes()  # after _meshes
 	if _comic_hero:
 		var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 		var void_arm := VOID_ARM.new()
@@ -590,28 +580,6 @@ func _ready() -> void:
 	_awaken_light.light_energy = 0.0
 	_awaken_light.omni_range = 5.0
 	_awaken_light.position.y = 1.2
-	_aura = CPUParticles3D.new()
-	_aura.amount = 24
-	_aura.lifetime = 0.8
-	_aura.emitting = false
-	_aura.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	_aura.emission_sphere_radius = 0.8
-	_aura.direction = Vector3.UP
-	_aura.spread = 25.0
-	_aura.gravity = Vector3.ZERO
-	_aura.initial_velocity_min = 1.2
-	_aura.initial_velocity_max = 2.4
-	_aura.scale_amount_min = 0.6
-	_aura.scale_amount_max = 1.2
-	var dot := SphereMesh.new()
-	dot.radius = 0.06
-	dot.height = 0.12
-	_aura.mesh = dot
-	var aura_mat := Ascendancy.glow_mat(Color.WHITE)
-	aura_mat.vertex_color_use_as_albedo = true
-	_aura.material_override = aura_mat
-	_aura.position.y = 1.0
-	add_child(_aura)
 	add_child(_awaken_light)
 	_charge_light = OmniLight3D.new()
 	_charge_light.light_color = CHARGE_COLOR
@@ -829,7 +797,7 @@ func _face(dir: Vector3) -> void:
 
 func _state_move(delta: float) -> void:
 	var dir := _input_dir()
-	var speed := move_speed * (1.2 * _path("speed", 1.0) if awakened else 1.0)
+	var speed := move_speed * (1.2 if awakened else 1.0)
 	var target := dir * speed
 	var grip := accel * (FLING_ACCEL_MULT if _fling_t > 0.0 else 1.0)
 	velocity.x = move_toward(velocity.x, target.x, grip * delta)
@@ -1282,7 +1250,7 @@ func _juggle() -> void:
 		_play("2H_Melee_Attack_Spinning", 0.05, true)
 	if b.has("pull"):  # the whirlwind drags foes in (never closer than 1.2 m)
 		var step: float = b.pull * get_physics_process_delta_time()
-		for e in Ascendancy.enemies_near(get_tree(), global_position, b.pull_radius):
+		for e in FOES.near(get_tree(), global_position, b.pull_radius):
 			if e.has_method("is_boss"):
 				continue
 			var to: Vector3 = global_position - e.global_position
@@ -1320,7 +1288,7 @@ func _breaker_ancestor() -> void:
 ## zone (one over the zone if there are none), following them (BREAKERS `volley`).
 func _volley_raise() -> void:
 	var b := _brk
-	var foes: Array = Ascendancy.enemies_near(get_tree(), _brk_zone, b.volley_radius)
+	var foes: Array = FOES.near(get_tree(), _brk_zone, b.volley_radius)
 	foes.sort_custom(func(a: Node3D, c: Node3D) -> bool:
 		return a.global_position.distance_squared_to(_brk_zone) < c.global_position.distance_squared_to(_brk_zone))
 	var shared := {}
@@ -1344,7 +1312,7 @@ func _volley_raise() -> void:
 ## The dash breaker cuts each foe it passes once (BREAKERS `dash`).
 func _dash_cut() -> void:
 	var b := _brk
-	for e in Ascendancy.enemies_near(get_tree(), global_position, b.width):
+	for e in FOES.near(get_tree(), global_position, b.width):
 		if _brk_passed.has(e):
 			continue
 		_brk_passed[e] = true
@@ -1484,8 +1452,6 @@ func _breaker_impact() -> void:
 		if perfect and not b.has("tentacle"):  # (his erupts under each foe already)
 			BREAKER_QUAKE.eruption(get_parent(), at, el, maxf(b.radius, 2.4) * 1.35)
 		Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
-	if ascendancy != "":  # the landing sets off every prime round him
-		_rite_set_off(b.perfect_mult if perfect else 1.0)
 	for s in _brk_spikes:
 		if is_instance_valid(s):
 			s.detonate()
@@ -1899,7 +1865,7 @@ func _start_dash() -> void:
 	if _air_dash:
 		_air_dashes += 1
 	_dash_buffer_t = 0.0
-	_dash_cd = dash_cooldown * (_path("dash_cd", 1.0) if awakened else 1.0)
+	_dash_cd = dash_cooldown
 	_anim_mult = _base_anim_mult()
 	var dir := _input_dir()
 	_dash_dir = dir.normalized() if dir.length() > 0.1 else _facing()
@@ -2001,12 +1967,8 @@ func _do_hit() -> void:
 	# (not on H's moves: the element is the swing, and the arc hides it)
 	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):
 		_swoosh(fwd)
-	var rite := ascendancy != "" and _move_id in RITE.HEAVIES
-	if rite and _hits_done == 1:  # sets off what the last heavy laid down, before this one lays its own
-		_rite_set_off(1.0)
 	var hit_any := false
 	var any_airborne := false
-	var struck: Array[Vector3] = []  # where this hit's foes stand (earth wells lava under them)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not e.is_alive():
 			continue
@@ -2033,11 +1995,6 @@ func _do_hit() -> void:
 		_connected = true
 		if _move_id == "LHH" and was_airborne:
 			_spike(e)
-		if awakened and ascendancy != "":
-			_element_hit(e)
-		if rite:
-			RITE.prime_foe(e, ascendancy)
-			struck.append(e.global_position)
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
 		_cast(fwd)
@@ -2047,10 +2004,8 @@ func _do_hit() -> void:
 		if _move_id in ["AF", "LLH"]:
 			_combo_callout(_move_id)  # big enough to name even on a whiff
 		if _move_id == "AF":
-			_finisher(fwd)
+			_cataclysm()
 			_ult_landed()
-		if rite and ascendancy == "earth":
-			_rite_wells(fwd, struck)
 		if _move_id == "LLH":
 			ground_breakers += 1
 			_crack_line(fwd, Color(0.85, 0.75, 0.6))
@@ -2100,7 +2055,7 @@ func _combo_callout(id: String) -> void:
 		combo_found.emit(id)
 	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
 	_callout.text = combo_name(id)
-	_callout.modulate = Ascendancy.color(ascendancy) if id == "AF" and ascendancy != "" else COMBO_TIER_COLORS[tier - 1]
+	_callout.modulate = COMBO_TIER_COLORS[tier - 1]
 	var pop_color: Color = VOID_ELEMENT.color_of(_move_id, _fx_color()) if _void != null else _fx_color()
 	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: a pop there hides what they're doing)
 		Fx.combo_pop(get_parent(), global_position, pop_color if tier < 3 else _callout.modulate, tier)
@@ -2119,9 +2074,10 @@ func _combo_callout(id: String) -> void:
 
 # --- Elements and ultimates ---------------------------------------------------
 
-## The hero's element: the Ascendancy path, or spirit before one.
+## The hero's element for his own casts and trails: spirit. (Each void move
+## takes its element from the weapon it forms: VOID_ELEMENT.ELEMENT_OF.)
 func element() -> String:
-	return ascendancy if ascendancy != "" else "spirit"
+	return "spirit"
 
 
 ## The swing's arc (Fx.swoosh) out to the move's reach, in the trail's colour.
@@ -2145,10 +2101,10 @@ func _swoosh(fwd: Vector3) -> void:
 				_swoosh_flip, time * 1.15, 1.15)
 
 
-## Colour for the hero's own effects (dash ghosts and streak): Ascendancy
-## colour while Awakened, otherwise the element's.
+## Colour for the hero's own effects (dash ghosts and streak): Awakening's
+## gold while Awakened, otherwise the element's.
 func _fx_color() -> Color:
-	return Ascendancy.color(ascendancy) if awakened else ELEMENTS.color(element())
+	return AWAKEN_COLOR if awakened else ELEMENTS.color(element())
 
 
 ## Swing trail colour outside Awakening: the current element's.
@@ -2288,10 +2244,10 @@ func _cast_power() -> float:
 	return 1.0 + CAST_POWER * Fx.chain_tier(Game.combo_count)
 
 
-## Element casts and ultimates hitting `e`: the Awakened path passive applies.
-func _cast_hit(e: Node) -> void:
-	if awakened and ascendancy != "":
-		_element_hit(e)
+## Element casts and void moves hitting `e` call this: the hook for an effect
+## on every such hit (none since the Ascendancy passives went).
+func _cast_hit(_e: Node) -> void:
+	pass
 
 
 ## Ground point for a targeted cast: the nearest foe roughly ahead within `reach`, else `ahead` m in front.
@@ -2325,7 +2281,7 @@ func _ult_begin(id: String) -> void:
 	_callout_done = true  # the banner names it
 	var c: Color = ELEMENTS.color(element())
 	if id == "AF":
-		c = Ascendancy.color(ascendancy) if ascendancy != "" else COMBO_TIER_COLORS[2]
+		c = COMBO_TIER_COLORS[2]
 	Game.ultimate.emit(combo_name(id), c, _ult_chain)
 	Game.sfx("ult", -3.0, 0.0)
 	Game.hitstop(0.16, 0.2)
@@ -2421,12 +2377,11 @@ func _state_sky(u: Dictionary, t: float, el: String, c: Color, delta: float) -> 
 		model.position.y = 0.0
 		var at := Vector3(global_position.x, 0.0, global_position.z)
 		ELEMENTS.sky_impact(get_parent(), at, el, u.radius)
-		var water: Dictionary = Ascendancy.PATHS.water
 		ELEMENTS.hit_area(get_tree(), at, u.radius, u.damage * _dmg_mult * _ult_mult(), u.launch, true, "ult",
 			func(e: Node) -> void:
 				_cast_hit(e)
 				if el == "water" and e.is_alive() and not e.has_method("is_boss"):
-					e.freeze(water.glacier_freeze, water.shatter_mult))
+					e.freeze(2.5, 1.5))
 		_ult_impact()
 
 
@@ -2481,7 +2436,7 @@ func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
 		if _ult_step_d >= 1.2:
 			_ult_step_d = 0.0
 			ELEMENTS.rush_step(get_parent(), global_position, _ult_dir, el)
-		for e in Ascendancy.enemies_near(get_tree(), global_position, u.width):
+		for e in FOES.near(get_tree(), global_position, u.width):
 			if _ult_hit.has(e):
 				continue
 			_ult_hit[e] = true
@@ -2560,7 +2515,7 @@ func _trinity() -> void:
 		Game.camera_rig.punch(1.15, 0.8)
 	ELEMENTS.light_pop(parent, global_position, c, 12.0, 20.0, 0.8)
 	Fx.ring(parent, global_position, Color(c, 0.95), TRINITY.radius, 0.6)
-	var targets := Ascendancy.enemies_near(get_tree(), global_position, TRINITY.radius)
+	var targets := FOES.near(get_tree(), global_position, TRINITY.radius)
 	if targets.is_empty():
 		for i in 6:
 			var ang := TAU * i / 6.0
@@ -2586,16 +2541,6 @@ func _awaken_len() -> float:
 ## Animation speed before per-move boosts (Awakening is faster).
 func _base_anim_mult() -> float:
 	return 1.3 if awakened else 1.0
-
-
-func _on_level_up(level: int) -> void:
-	max_hp += level_hp
-	heal(level_hp, false)
-	health_changed.emit(hp, max_hp)
-	Game.announced.emit("LEVEL %d" % level)
-	Game.sfx("wave_clear", -6.0, 0.0)
-	Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.4, 0.9), 2.5, 0.4)
-	Fx.burst(get_parent(), global_position + Vector3.UP * 0.4, Color(1.0, 0.85, 0.4), 18, 5.0, 0.1, 0.5, Vector3.UP, 30.0)
 
 
 func _on_enemy_killed(e: Node) -> void:
@@ -2706,7 +2651,7 @@ func try_awaken() -> void:
 	Game.hitstop(0.25, 0.05)
 	Game.shake(0.6)
 	var r := AWAKEN_BURST_RADIUS
-	Fx.awaken_burst(get_parent(), global_position, Ascendancy.color(ascendancy), r)
+	Fx.awaken_burst(get_parent(), global_position, AWAKEN_COLOR, r)
 	if Game.camera_rig:
 		Game.camera_rig.punch(0.85, 0.35)
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -2723,12 +2668,6 @@ func _rest_overlay(mi: MeshInstance3D) -> Material:
 	return mi.get_meta("rest_overlay") if mi.has_meta("rest_overlay") else null
 
 
-## A tuning number of the chosen Ascendancy path, or `fallback` without one.
-func _path(key: String, fallback: float) -> float:
-	return Ascendancy.PATHS[ascendancy].get(key, fallback) if ascendancy != "" else fallback
-
-
-## COMBOS name, with the finisher renamed by the Ascendancy path.
 ## The COMBOS id the current move lands as: Triple Chop from the top of the
 ## air string is Skyfall, otherwise the move itself.
 func named_id() -> String:
@@ -2739,140 +2678,11 @@ func named_id() -> String:
 	return _move_id
 
 
+## COMBOS name (ultimates are named per element).
 func combo_name(id: String) -> String:
 	if ULTIMATES.has(id):
 		return ULTIMATES[id].names[element()]
-	if id == "AF" and ascendancy != "":
-		return Ascendancy.PATHS[ascendancy].finisher
 	return COMBOS[id].name
-
-
-func ascend(path: String) -> void:
-	ascendancy = path
-	if _form != null:
-		_form.queue_free()
-	if _comic_hero:
-		ComicLook.tint_fractures(model, path)
-	else:
-		_form = HERO_LOOK.add_form(model, path)
-	for c in _coats:
-		c.queue_free()
-	_coats = _coat_axes()
-	HERO_LOOK.charge_coats(_coats, awakened)
-	if _asc_aura != null:
-		_asc_aura.queue_free()
-	_asc_aura = preload("res://scripts/ascend_aura.gd").new()
-	add_child(_asc_aura)
-	_asc_aura.setup(path)
-	Game.announced.emit(Ascendancy.PATHS[path].title)
-	Game.sfx("synergy", 0.0, 0.0)
-	var c := Ascendancy.color(path)
-	Fx.ring(get_parent(), global_position, Color(c, 0.95), 5.0, 0.5)
-	Fx.burst(get_parent(), global_position + Vector3.UP * 0.6, c, 40, 9.0, 0.15, 0.6, Vector3.UP, 60.0)
-	_orbit.setup(element(), awakened)
-	for trail in _trails:
-		trail.color = _trail_rest_color()
-	if awakened:
-		_set_awakened(true)
-
-
-## Ascended heavies (RITE): set off every prime of his element near him,
-## naming it over his head when anything answered.
-func _rite_set_off(mult: float) -> void:
-	var m := mult * _dmg_mult * _cast_power() * (RITE.AWAKENED_MULT if awakened else 1.0)
-	var at := global_position + Vector3.UP * model.position.y
-	var n := RITE.set_off(get_parent(), at, ascendancy, m, _cast_hit)
-	if n == 0:
-		return
-	rites += 1
-	Game.hitstop(0.05)
-	Game.shake(0.35 + 0.05 * mini(n, 5))
-	if not _callout.visible:
-		_rite_callout(RITE.NAMES[ascendancy] + (" x%d" % n if n > 1 else ""))
-	if bot_enabled:
-		print("[autotest] rite %s x%d" % [RITE.NAMES[ascendancy], n])
-
-
-## Earth's heavies well up lava: under the foes a spin hits (round him where
-## there are none), a line down the thrust, otherwise one well on the target.
-func _rite_wells(fwd: Vector3, struck: Array[Vector3]) -> void:
-	var parent := get_parent()
-	if _move.arc >= 360.0 and not _move.has("width"):
-		var n := 4 if awakened else 3
-		var spots: Array[Vector3] = []
-		for p in struck:
-			if spots.size() < n and spots.all(func(q: Vector3) -> bool: return q.distance_to(p) > RITE.WELL_RADIUS * 1.2):
-				spots.append(p)
-		for i in n:
-			if spots.size() >= n:
-				break
-			var dir := fwd.rotated(Vector3.UP, TAU * (i + 0.5) / n)
-			var p := global_position + dir * minf(2.4, _clear_ahead(dir, 2.4))
-			if spots.all(func(q: Vector3) -> bool: return q.distance_to(p) > RITE.WELL_RADIUS * 1.2):
-				spots.append(p)
-		for p in spots:
-			RITE.well(parent, p, awakened)
-	elif _move.has("width"):
-		for d in [1.6, 3.2, 4.8]:
-			RITE.well(parent, global_position + fwd * minf(d, _clear_ahead(fwd, d)), awakened)
-	else:
-		RITE.well(parent, _cast_target(fwd, 4.5, minf(1.8, _clear_ahead(fwd, 1.8))), awakened)
-
-
-func _rite_callout(text: String) -> void:
-	_callout.text = text
-	_callout.modulate = ELEMENTS.LOOK[ascendancy].color.lerp(Color.WHITE, 0.25)
-	_callout.position = Vector3(0.0, 2.9, 0.0)
-	_callout.scale = Vector3.ONE * 0.6
-	_callout.visible = true
-	if _callout_tw:
-		_callout_tw.kill()
-	_callout_tw = _callout.create_tween()
-	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * 1.1, 0.08)
-	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * 0.95, 0.08)
-	_callout_tw.parallel().tween_property(_callout, "position:y", 3.3, 0.6).set_ease(Tween.EASE_OUT)
-	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.25).set_delay(0.4)
-	_callout_tw.tween_callback(_callout.hide)
-
-
-## Awakened per-hit element effect (Wind lightning, Water chill).
-func _element_hit(e: Node) -> void:
-	match ascendancy:
-		"wind":
-			_wind_hits += 1
-			var w: Dictionary = Ascendancy.PATHS.wind
-			if _wind_hits % int(w.strike_every) == 0:
-				element_procs += 1
-				Ascendancy.lightning(get_parent(), Vector3(e.global_position.x, 0.0, e.global_position.z),
-					w.strike_damage, w.strike_radius, "lightning")
-		"water":
-			if e.is_alive():
-				var was: int = e.chill_hits
-				Ascendancy.chill_hit(e)
-				if e.chill_hits < was:
-					element_procs += 1
-
-
-## The Awakened L L L H finisher: Cataclysm, or the Ascendancy's own.
-func _finisher(fwd: Vector3) -> void:
-	match ascendancy:
-		"wind":
-			cataclysms += 1
-			var t := Ascendancy.Tempest.new()
-			get_parent().add_child(t)
-			t.global_position = Vector3(global_position.x, 0.0, global_position.z) + fwd * 2.0
-			Game.sfx("awaken", -4.0, 0.1)
-		"earth":
-			cataclysms += 1
-			var v := Ascendancy.Volcano.new()
-			get_parent().add_child(v)
-			v.global_position = Vector3(global_position.x, 0.0, global_position.z) + fwd * 2.5
-			Game.sfx("awaken", -4.0, 0.1)
-		"water":
-			cataclysms += 1
-			Ascendancy.glacier(get_parent(), Vector3(global_position.x, 0.0, global_position.z))
-		_:
-			_cataclysm()
 
 
 func _set_awakened(on: bool) -> void:
@@ -2886,19 +2696,14 @@ func _set_awakened(on: bool) -> void:
 	var tw := create_tween().set_parallel()
 	tw.tween_property(model, "scale", Vector3.ONE * (1.18 if on else 1.0), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(_awaken_light, "light_energy", 3.0 if on else 0.0, 0.2)
-	var c := Ascendancy.color(ascendancy)
+	var c := AWAKEN_COLOR
 	_awaken_light.light_color = c
 	_awaken_rim.set_shader_parameter("glow_color", c)
 	for mi: MeshInstance3D in _meshes:
 		mi.material_overlay = _awaken_rim if on else _rest_overlay(mi)
 	for trail in _trails:
 		trail.color = Color(c, 0.9) if on else _trail_rest_color()
-	_aura.color = c
-	_aura.emitting = on and ascendancy != ""
-	if _asc_aura != null:
-		_asc_aura.set_awakened(on)
 	HERO_LOOK.charge_coats(_coats, on)
-	HERO_LOOK.charge_form(_form, on)
 	HERO_LOOK.set_eyes(model, on, c)
 	_orbit.setup(element(), on)
 	if on:
@@ -3023,7 +2828,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 		if _since_dash <= perfect_dodge_window and not _perfect_this_dash:
 			_perfect_dodge(attacker)
 		return
-	hp = maxf(hp - damage * (_path("armor", 0.6) if awakened else 1.0), 0.0)
+	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
 	last_hit_by = cause if cause != "" else _describe_attacker(attacker)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()

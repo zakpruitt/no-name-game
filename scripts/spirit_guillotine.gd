@@ -6,6 +6,7 @@ extends Node3D
 ## Spike drives juggled foes down. Spawned by player._cast for casts of kind
 ## "guillotine" (elements.CASTS) at the target point.
 
+const FOES := preload("res://scripts/foes.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const SPIRIT_AVATAR := preload("res://scripts/spirit_avatar.gd")
 const DROP := 9.0  # m above its resting height it falls from
@@ -102,7 +103,7 @@ func _impact() -> void:
 		Game.camera_rig.punch(0.85, 0.22)
 	if damage <= 0.0:
 		return
-	for e in Ascendancy.enemies_near(get_tree(), at, radius):
+	for e in FOES.near(get_tree(), at, radius):
 		if shared != null:
 			if shared.has(e):
 				continue

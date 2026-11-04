@@ -3,6 +3,7 @@ extends RefCounted
 ## (Reap), the pool (Black Tide, Overwhelm), the jaws (Maw). What they do to foes is in void_element.gd,
 ## except the hole's pull. See docs/features/void-element.md.
 
+const FOES := preload("res://scripts/foes.gd")
 const SELF := preload("res://scripts/dark_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
 const SPLAT_SHADER := preload("res://shaders/dark_splat.gdshader")
@@ -266,7 +267,7 @@ class Hole extends Node3D:
 		var again := _t >= _next_stagger
 		if again:
 			_next_stagger += STAGGER_EVERY
-		for e: Node3D in Ascendancy.enemies_near(get_tree(), global_position, RADIUS):
+		for e: Node3D in FOES.near(get_tree(), global_position, RADIUS):
 			if e.has_meta(FLYING):
 				continue
 			var to := global_position - e.global_position

@@ -45,9 +45,6 @@ var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (
 @export var dodge_cooldown := 1.6
 ## Elite: tougher, bigger, gold aura, and pays out extra Awakening on death.
 @export var elite := false
-## Bone shards dropped on death (elites drop ELITE_BONES_MULT times as many).
-@export var bones := 1
-const ELITE_BONES_MULT := 3
 const ELITE_HP_MULT := 2.5
 const ELITE_DAMAGE_MULT := 1.4
 const ELITE_SCALE_MULT := 1.3
@@ -215,7 +212,7 @@ var _glow_mat: ShaderMaterial  # set_glow() rim, kept on through hit flashes
 var _glow_meshes: Array[Node] = []
 var _attack_cd := 0.0
 var _freeze_t := 0.0
-# Water Ascendancy: chilled foes move and act at chill_mult speed; frozen ones
+# Cold (the void ice moves): chilled foes move and act at chill_mult speed; frozen ones
 # are encased (stunned) and the next hit shatters the ice for frozen_mult damage.
 var chill_t := 0.0
 var chill_mult := 1.0
@@ -249,7 +246,6 @@ var _aim_line: Node3D
 
 func _ready() -> void:
 	if elite:
-		bones *= ELITE_BONES_MULT
 		max_hp *= ELITE_HP_MULT
 		attack_damage *= ELITE_DAMAGE_MULT
 		model_scale *= ELITE_SCALE_MULT

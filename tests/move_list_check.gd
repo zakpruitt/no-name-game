@@ -150,12 +150,9 @@ func _check_panel() -> void:
 	main.clear_room()
 	var p: Node3D = main.player
 	# Every row names itself in every element.
-	for el: String in ["", "wind", "earth", "water"]:
-		p.ascendancy = el
-		for section: Dictionary in LIST.SECTIONS:
-			for row: Dictionary in section.rows:
-				_check(LIST.row_name(row, p) != "", "%s has no name (%s)" % [row.input, el])
-	p.ascendancy = ""
+	for section: Dictionary in LIST.SECTIONS:
+		for row: Dictionary in section.rows:
+			_check(LIST.row_name(row, p) != "", "%s has no name" % row.input)
 	var menu: Node = main.get_children().filter(func(n: Node) -> bool: return n.has_method("_build_moves"))[0]
 	menu._open()
 	for i in 4:

@@ -3,9 +3,9 @@ extends Node
 ## piles on, Black Tide has none and is only the floor. Small foes are pinned where they stand, big ones are only slowed, and everyone takes
 ## damage as it goes. See docs/features/void-element.md.
 
+const ELEMENTS := preload("res://scripts/elements.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
-const RITE := preload("res://scripts/element_rite.gd")
 const VOID_GRAB_HOLD := 0.9  # s a pinned foe is staggered for, renewed
 const RESTAGGER := 0.25  # s (see void_grab.RESTAGGER)
 const SINK_RATE := 5.0  # m/s they go down
@@ -83,7 +83,7 @@ func _physics_process(delta: float) -> void:
 			s.at = e.global_position
 		elif wells and not s.welled:
 			s.welled = true
-			RITE.well(hero.get_parent(), e.global_position)
+			ELEMENTS.well(hero.get_parent(), e.global_position)
 		if not s.big and not flying:
 			e.global_position = Vector3(s.at.x, e.global_position.y, s.at.z)
 			e.velocity = Vector3.ZERO

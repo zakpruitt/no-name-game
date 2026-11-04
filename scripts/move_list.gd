@@ -8,13 +8,11 @@ extends RefCounted
 ## "Air:" = mid air string, "Air Dash" = an air dash); `kind`:
 ##   move     `id` is a player.MOVES / COMBOS / ULTIMATES id; the check routes it
 ##   breaker  `id` is a player.BREAKERS id; input is the ender's + " > H"
-##   trinity, rite  named per element, not a routed press
+##   trinity  named per element, not a routed press
 ##   text     `name` is literal, not a routed press
 ## `alt`: another way into a move listed above (no landed count or powers).
 ## `tier`: colour for rows that aren't COMBOS (player.COMBO_TIER_COLORS).
 ## `note`: what it does; the wiki shows it.
-
-const RITES := preload("res://scripts/element_rite.gd")
 
 ## The comic hero's moves while the void arm is being worked out (player.void_route()).
 const VOID_SECTIONS := [
@@ -110,14 +108,11 @@ const SECTIONS := [
 		{"input": "Dash > H > H", "kind": "breaker", "id": "DH", "tier": 2, "note": "Spins up pulling foes in, then flings a ring of tomahawks."},
 	]},
 	{"title": "AWAKENED", "awake": true, "rows": [
-		{"input": "L L L H", "kind": "move", "id": "AF", "note": "The finisher: erupts all around. An Ascendancy replaces it with its own."},
+		{"input": "L L L H", "kind": "move", "id": "AF", "note": "The finisher: erupts all around."},
 		{"input": "L H H", "kind": "move", "id": "SKY", "note": "Ultimate: leaps at a foe and smashes down on everything round it."},
 		{"input": "Dash L H", "kind": "move", "id": "RUSH", "note": "Ultimate: charges through everything ahead, then the whole line erupts."},
 		{"input": "Air: H", "kind": "move", "id": "SKY", "alt": true, "note": "Heavy from any other air move or air dash is the same ultimate (Sky Rend is Updraft until the gale is used)."},
 		{"input": "All three", "kind": "trinity", "tier": 3, "note": "All three ultimates in one Awakening call the storm down on every foe near him."},
-	]},
-	{"title": "ASCENDED", "rows": [
-		{"input": "any H, then any H", "kind": "rite", "tier": 2, "note": "Each heavy lays down his element and the next sets it off."},
 	]},
 ]
 
@@ -132,8 +127,6 @@ static func row_name(row: Dictionary, player: Node) -> String:
 			return player.BREAKERS[row.id].names[el]
 		"trinity":
 			return player.TRINITY.names[el]
-		"rite":
-			return RITES.NAMES.get(el, "Element Rite")
 	return row.name
 
 

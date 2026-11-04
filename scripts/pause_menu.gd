@@ -41,15 +41,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Training's pause menu: free powers, Awakening and Ascendancy (main.train_*).
+## Training's pause menu: Fill Awakening (main.train_awaken), Settings, a fresh room.
 func _open(focus := 0) -> void:
 	var main := get_parent()
 	var items: Array = [
 		["Resume", close_menu],
 		["Fill Awakening", _train.bind("train_awaken")],
 	]
-	if main.player.ascendancy == "":
-		items.append(["Ascend", _train.bind("train_ascend")])
 	var settings := items.size()
 	items.append_array([
 		["Settings", open_settings.bind(_open.bind(settings), 0.7)],

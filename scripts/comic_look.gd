@@ -160,7 +160,7 @@ const HERO_MOVE_FORMS := {"L2": "spear", "DL": "spear", "L3": "hammer", "CH": "h
 const VOID_COLOR := Color(0.62, 0.34, 0.92)
 const HERO_AXES := {"hand.r": "axe_void_blade"}
 const HERO_AXE_EDGES := {"hand.r": "axe_void_edge"}
-## Before an Ascendancy his axe is the storm: its aura and floor mark are wind's, in its own materials.
+## His spirit axe is the storm: its aura and floor mark are wind's, in its own materials.
 const HERO_AURA_AS := {"spirit": "wind"}
 ## Element -> the blade and edge materials both axes take (infuse_axes).
 const AXE_INFUSIONS := {
@@ -175,8 +175,6 @@ const HERO_FIDGETS := ["Idle_Heft", "Idle_Listen", "Idle_Swing"]
 const HERO_READY := "Idle_Ready"
 ## Of the motes circling him: at full size they outshine the veins they should echo.
 const HERO_ORBIT_SIZE := 0.5
-## What an Ascendancy changes on his body: every lit vein takes its element's colour.
-const HERO_FRACTURES := ["fracture"]
 const READY_HOLD := 3.0  # s in the guard after his last attack or hit
 const FIDGET_EVERY := 8.0  # s standing relaxed between fidgets
 ## Dungeon materials that get an ink hull, and how wide in px (env_kit.HULL, scaled so
@@ -356,7 +354,7 @@ static func hero_blades(model: Node3D) -> Array[MeshInstance3D]:
 
 ## The element on the hero's axe: blade and edge recoloured, tongues along the edge, motes
 ## behind the swing and a mark where the blade scrapes the floor. Returns the auras so the caller can
-## swap them (player.ascend).
+## free them.
 static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 	var made: Array[Node3D] = []
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
@@ -377,14 +375,6 @@ static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 		aura.setup(aura_as, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
 		made.append(aura)
 	return made
-
-
-## His veins in an element's colour (AXE_INFUSIONS). The body stays as it is: same mesh, new material.
-static func tint_fractures(model: Node3D, element: String) -> void:
-	for mesh_name: String in HERO_FRACTURES:
-		var mi: MeshInstance3D = model.find_child(mesh_name, true, false)
-		if mi != null:
-			_axe_material(mi, AXE_INFUSIONS[element][1])
 
 
 ## A skinned mesh's vertices in the hand's space, ordered along the edge.

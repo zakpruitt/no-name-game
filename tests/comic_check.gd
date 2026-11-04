@@ -360,12 +360,6 @@ func _check_axe_auras(comic: CharacterBody3D) -> void:
 			_expect(aura.tongues[0].global_basis.y.length() > small, "%s: bigger while Awakened" % el)
 			aura.charge(false)
 			aura.free()
-	comic.ascendancy = "wind"
-	var after: Array = comic._coat_axes()
-	_expect(after.size() == Look.HERO_AXES.size() and after[0].look == after[0].LOOKS.wind, "his Ascendancy's element goes on the axe")
-	for aura: Node in after:
-		aura.free()
-	comic.ascendancy = ""
 
 
 func _role_clips(spec: Dictionary) -> Array:

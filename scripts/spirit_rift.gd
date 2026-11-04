@@ -6,6 +6,7 @@ extends Node3D
 ## camera behind the hero. Each foe is hit once by the first axe it stands by.
 ## Spawned by player._cast for casts of kind "rift" (elements.CASTS).
 
+const FOES := preload("res://scripts/foes.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const LEAN := 22.0  # degrees each axe leans along the charge
@@ -83,7 +84,7 @@ func _burst(i: int) -> void:
 			Game.camera_rig.kick(fwd, 0.3)
 	if damage <= 0.0:  # visual only (Spirit Stampede's wake deals its own)
 		return
-	for e in Ascendancy.enemies_near(get_tree(), world, radius * lerpf(1.0, 1.4, f)):
+	for e in FOES.near(get_tree(), world, radius * lerpf(1.0, 1.4, f)):
 		if e in _hit:
 			continue
 		_hit.append(e)

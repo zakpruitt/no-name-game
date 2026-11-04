@@ -7,6 +7,7 @@ extends Node3D
 ## `detonate()` (the breaker's dive landing) blows it out of the floor;
 ## otherwise it sinks away after `life`.
 
+const FOES := preload("res://scripts/foes.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const TOP := 0.97  # axe-local Y of the head's far edge (spirit_guillotine)
@@ -86,7 +87,7 @@ func _land() -> void:
 	Fx.shards(parent, at, c.darkened(0.3), 5, Vector3.UP, 7.0, 0.16, 0.5)
 	Fx.scorch(parent, at, c, 0.7, life + 0.4)
 	Fx.element_hit(parent, at + Vector3.UP * 0.3, el, Vector3.DOWN)
-	for e in Ascendancy.enemies_near(get_tree(), at, 0.9):
+	for e in FOES.near(get_tree(), at, 0.9):
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("breaker")
 		if on_hit.is_valid():
@@ -113,7 +114,7 @@ func detonate() -> void:
 		Fx.burst(parent, at + Vector3.UP * 0.4, color, 14, 9.0, 0.16, 0.4, Vector3.UP, 60.0, -10.0)
 	Fx.flare(parent, at + Vector3.UP * 0.5, Color(color, 0.95), 2.4, 0.14, "flare")
 	Fx.shards(parent, at, c.darkened(0.2), 8, Vector3.UP, 10.0, 0.2, 0.7)
-	for e in Ascendancy.enemies_near(get_tree(), at, 1.5):
+	for e in FOES.near(get_tree(), at, 1.5):
 		if blasted.has(e):
 			continue
 		blasted[e] = true

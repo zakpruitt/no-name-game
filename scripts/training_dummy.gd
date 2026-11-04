@@ -48,7 +48,6 @@ var _was_down := false  # knocked down: kick the spring once it's back up
 
 func _ready() -> void:
 	max_hp = 1000.0
-	bones = 0
 	body_tint = Color(0.85, 0.7, 0.5)
 	super()
 

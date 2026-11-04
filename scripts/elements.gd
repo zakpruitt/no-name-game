@@ -1,6 +1,6 @@
 extends RefCounted
 ## The shaman's elements. Every attack summons the hero's element alongside
-## the axes (spirit before an Ascendancy, then wind / earth / water), and the
+## the axes (spirit; wind / earth / water also dress the void moves), and the
 ## Awakened ultimates (player.ULTIMATES) are built from the same pieces.
 ## CASTS is the per-move tuning; LOOK is each element's palette. Effects only
 ## deal damage where a caller passes it (hit_area, Bolt.damage).
@@ -28,6 +28,14 @@ extends RefCounted
 ##            target and burying itself in the floor (spirit_guillotine.gd; LHH)
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
+const FOES := preload("res://scripts/foes.gd")
+const WELL_TIME := 4.0  # s a lava well burns before it drains
+const WELL_RADIUS := 1.5
+const WELL_MAX := 9  # oldest wells drain first past this
+const WELL_DAMAGE := 3.0  # each WELL_TICK s to foes standing in lava
+const WELL_TICK := 0.5
+const LAVA := Color(1.0, 0.35, 0.05)
+const LAVA_HOT := Color(1.0, 0.8, 0.3)
 const CASTS := {
 	"L1": {"kind": "echo", "damage": 5.0, "radius": 3.4, "arc": 160.0, "delay": 0.05, "time": 0.18},
 	"L2": {"kind": "echo", "damage": 6.0, "radius": 3.9, "arc": 200.0, "delay": 0.04, "time": 0.2},
@@ -53,6 +61,10 @@ const LOOK := {
 }
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const COMIC_GEYSER := preload("res://scripts/comic_geyser.gd")
+const GEYSER_SQUASH := 0.7  # of the asked height: at 0.85 five of them walled off the whole landing
+const GEYSER_WIDTH := 0.75  # of the radius: the column's width at the top (1.5 hid every foe)
+const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)
 const DARK_FX := preload("res://scripts/dark_fx.gd")
 const COMIC_GALE := preload("res://scripts/comic_gale.gd")
 const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
@@ -90,11 +102,11 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	root.add_child(_mi(crescent(0.16), rock()))
 	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(true)))
 	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(false)))
-	# Ascendancy's finisher pieces (magma, volcano, glacier, bombs).
+	# Flat glows (glow_mat: the magma pool) and a lit box.
 	var lit := StandardMaterial3D.new()
 	lit.emission_enabled = true
 	var box := BoxMesh.new()
-	for mat: Material in [Ascendancy.glow_mat(Color.WHITE), Ascendancy.glow_mat(Color.WHITE, 0.5), lit]:
+	for mat: Material in [glow_mat(Color.WHITE), glow_mat(Color.WHITE, 0.5), lit]:
 		var mi := MeshInstance3D.new()
 		mi.mesh = box
 		mi.material_override = mat
@@ -392,7 +404,7 @@ static func gather(parent: Node, pos: Vector3, c: Color, radius := 3.0, amount :
 static func hit_area(tree: SceneTree, pos: Vector3, radius: float, damage: float, launch: float, big: bool,
 		source: String, on_hit := Callable()) -> int:
 	var n := 0
-	for e in Ascendancy.enemies_near(tree, pos, radius):
+	for e in FOES.near(tree, pos, radius):
 		var kb: Vector3 = e.global_position - pos
 		kb.y = 0.0
 		e.take_hit(damage, kb.normalized() * 4.0, launch, big)
@@ -718,7 +730,7 @@ class Bolt extends Node3D:
 				_spike_d = 0.0
 				E.spikes(get_parent(), global_position, "earth", 0.75 * size, 2, 0.45)
 		if damage > 0.0:
-			for e in Ascendancy.enemies_near(get_tree(), global_position, 0.9 * size):
+			for e in FOES.near(get_tree(), global_position, 0.9 * size):
 				if _hit.has(e):
 					continue
 				_hit[e] = true
@@ -788,7 +800,7 @@ static func sky_impact(parent: Node, pos: Vector3, el: String, radius: float) ->
 			for i in 10:
 				var ang := TAU * i / 10.0
 				spikes(parent, pos + Vector3(sin(ang), 0.0, cos(ang)) * radius * 0.7, el, 1.5, 3, 1.1)
-			Ascendancy.magma_pool(parent, pos, 2.4)
+			magma_pool(parent, pos, 2.4)
 		"water":
 			for i in 14:
 				var ang := TAU * i / 14.0
@@ -901,3 +913,163 @@ static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 		_:
 			pillar(parent, pos, el, 8.0, 1.3, 0.7)
 	light_pop(parent, pos, LOOK[el].color, 5.0, 5.0, 0.25)
+
+
+## A flat unshaded colour (no glow pass): the magma pool's disc.
+static func glow_mat(c: Color, alpha := 1.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(c, alpha)
+	if alpha < 1.0:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return m
+
+
+## A burning patch of lava at `pos` (earth's sky impact).
+static func magma_pool(parent: Node, pos: Vector3, radius: float) -> void:
+	var p := MagmaPool.new()
+	p.radius = radius
+	parent.add_child(p)
+	p.global_position = Vector3(pos.x, 0.0, pos.z)
+
+
+## Burning patch: damages enemies standing in it every TICK.
+class MagmaPool extends Node3D:
+	const E := preload("res://scripts/elements.gd")
+	const DAMAGE := 5.0
+	const TICK := 0.4
+	const LIFE := 3.0
+	var radius := 1.5
+	var _age := 0.0
+	var _tick := 0.0
+	var _disc: MeshInstance3D
+
+	func _ready() -> void:
+		_disc = MeshInstance3D.new()
+		var m := CylinderMesh.new()
+		m.top_radius = radius
+		m.bottom_radius = radius
+		m.height = 0.04
+		_disc.mesh = m
+		_disc.material_override = E.glow_mat(Color(1.0, 0.35, 0.05), 0.75)
+		add_child(_disc)
+		_disc.position.y = 0.05
+
+	func _physics_process(delta: float) -> void:
+		_age += delta
+		if _age >= LIFE:
+			queue_free()
+			return
+		_disc.transparency = clampf((_age - LIFE + 0.5) / 0.5, 0.0, 1.0)
+		if randf() < 0.35:
+			Fx.burst(get_parent(), global_position + Vector3(randf_range(-radius, radius) * 0.7, 0.1, randf_range(-radius, radius) * 0.7),
+				Color(1.0, 0.55, 0.1), 2, 2.0, 0.12, 0.4, Vector3.UP, 20.0, 1.0)
+		_tick -= delta
+		if _tick <= 0.0:
+			_tick = TICK
+			for e in E.FOES.near(get_tree(), global_position, radius):
+				e.take_hit(DAMAGE, Vector3.ZERO, 0.0, false)
+				Game.register_hit("magma")
+
+
+# --- Lava and lightning the void moves share (were element_rite.gd) --------
+
+static func _flat(v: Vector3) -> Vector3:
+	return Vector3(v.x, 0.0, v.z)
+
+
+## Lava welling up at `pos` (floor_bind: Molten Palm's hold). `big` = 30% wider.
+static func well(parent: Node, pos: Vector3, big := false) -> void:
+	var wells := parent.get_tree().get_nodes_in_group("lava_wells")
+	if wells.size() >= WELL_MAX:
+		wells[0].drain()
+	var w := Well.new()
+	w.radius = WELL_RADIUS * (1.3 if big else 1.0)
+	parent.add_child(w)
+	w.global_position = Vector3(pos.x, 0.0, pos.z)
+
+
+## A jagged lightning arc between two points: a flat inked zigzag on twos (comic_bolt.gd). The storm's
+## palette is fixed (ink, green, pale core), so `c` is only kept for the callers.
+static func arc(parent: Node, a: Vector3, b: Vector3, _c: Color) -> void:
+	COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 1 if a.distance_to(b) > 2.5 else 0)
+
+
+## A lava geyser at `pos`: a flat inked column punching up on twos, fat lava blobs off the top and a
+## hard splash at its foot (comic_geyser.gd), magma spikes round it and a scorch left behind.
+## `h`: how tall. `hot_core` is kept for the callers: the core is always the hot yellow band now.
+static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:
+	var at := _flat(pos)
+	COMIC_GEYSER.spawn(parent, at, h * GEYSER_SQUASH, radius * GEYSER_WIDTH)
+	spikes(parent, at, "earth", 1.2, 4, 0.8)
+	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
+
+
+## A pool of lava welled up through the floor: a cracked crust round a bright
+## core, bubbling and spitting; burns foes standing in it.
+class Well extends Node3D:
+	const E := preload("res://scripts/elements.gd")
+	var radius := 1.5
+	var _age := 0.0
+	var _tick := 0.2
+	var _bubble := 0.0
+	var _core: MeshInstance3D
+	var _done := false
+
+	func _ready() -> void:
+		add_to_group("lava_wells")
+		var pool := CylinderMesh.new()
+		pool.top_radius = radius
+		pool.bottom_radius = radius
+		pool.height = 0.04
+		pool.radial_segments = 14
+		add_child(E._mi(pool, E.glow(Color(E.LAVA, 0.85), 1.6)))
+		var hot := CylinderMesh.new()
+		hot.top_radius = radius * 0.55
+		hot.bottom_radius = radius * 0.55
+		hot.height = 0.06
+		hot.radial_segments = 10
+		_core = E._mi(hot, E.glow(E.LAVA_HOT, 2.2))
+		add_child(_core)
+		for i in 7:  # crust chunks round the rim
+			var b := BoxMesh.new()
+			b.size = Vector3(randf_range(0.3, 0.55), randf_range(0.12, 0.25), randf_range(0.2, 0.35))
+			var rock := E._mi(b, E.rock())
+			var ang := TAU * (i + randf_range(-0.3, 0.3)) / 7.0
+			rock.position = Vector3(sin(ang), 0.0, cos(ang)) * radius * randf_range(0.85, 1.05)
+			rock.rotation = Vector3(randf_range(-0.3, 0.3), ang, randf_range(-0.3, 0.3))
+			add_child(rock)
+		scale = Vector3(0.2, 1.0, 0.2)
+		create_tween().tween_property(self, "scale", Vector3.ONE, 0.18).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		var parent := get_parent()
+		Fx.burst(parent, global_position + Vector3.UP * 0.2, E.LAVA, 14, 7.0, 0.14, 0.5, Vector3.UP, 45.0, -18.0, radius * 0.4, "dot", true)
+		Fx.scorch(parent, global_position, E.LAVA, radius * 1.3, E.WELL_TIME)
+		Fx.dust(parent, global_position, 6, 0.6)
+
+	func _physics_process(delta: float) -> void:
+		if _done:
+			return
+		_age += delta
+		if _age >= E.WELL_TIME:
+			drain()
+			return
+		_core.scale = Vector3.ONE * (1.0 + 0.12 * sin(_age * 9.0))
+		_bubble -= delta
+		if _bubble <= 0.0:
+			_bubble = randf_range(0.12, 0.25)
+			var off := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * radius * 0.6
+			Fx.burst(get_parent(), global_position + off + Vector3.UP * 0.1, E.LAVA_HOT, 3, 3.0, 0.1, 0.45, Vector3.UP, 20.0, -6.0, 0.0, "dot", true)
+		_tick -= delta
+		if _tick <= 0.0:
+			_tick = E.WELL_TICK
+			for e in E.FOES.near(get_tree(), global_position, radius):
+				e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
+				Game.register_hit("lava")
+
+	## Cools and sinks away.
+	func drain() -> void:
+		if _done:
+			return
+		_done = true
+		remove_from_group("lava_wells")
+		E._fade_free(self, 0.0, 0.4)

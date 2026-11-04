@@ -3,6 +3,7 @@ extends Node3D
 ## on it, and that's all it does until he slams down onto it (void_element._deep_freeze). Only one at
 ## a time. See docs/features/void-element.md.
 
+const FOES := preload("res://scripts/foes.gd")
 const GROUP := "frost_spear"
 const RADIUS := 6.0  # m the frost reaches
 const GROW := 0.6  # s to get there
@@ -197,7 +198,7 @@ func _physics_process(delta: float) -> void:
 	_frost.scale = Vector3(maxf(_r, 0.01), 1.0, maxf(_r, 0.01))
 	if _t >= _next_tick:
 		_next_tick += TICK
-		for e: Node3D in Ascendancy.enemies_near(get_tree(), global_position, _r):
+		for e: Node3D in FOES.near(get_tree(), global_position, _r):
 			if e.has_method("chill"):
 				e.chill(SLOW_TIME, SLOW)
 	if _t >= _next_pulse:

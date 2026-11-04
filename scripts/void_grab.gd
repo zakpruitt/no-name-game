@@ -5,6 +5,7 @@ extends Node
 ## each move asks for, and the tentacles that hold foes through a breaker.
 ## The comic hero only; player.gd makes one of these and calls in. See docs/features/void-arm.md.
 
+const FOES := preload("res://scripts/foes.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const QUAKE := preload("res://scripts/breaker_quake.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
@@ -413,7 +414,7 @@ func seize(b := {}) -> void:
 	if b.has("no_hold"):
 		return
 	if b.has("press"):
-		for e: Node3D in Ascendancy.enemies_near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
+		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
 			if VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
 				VOID_ELEMENT.encase(e)  # (they stay frozen for the whole window)
 				var cord: Node3D = _spare.pop_back() if not _spare.is_empty() else null

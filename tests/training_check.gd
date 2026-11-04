@@ -52,17 +52,10 @@ func _initialize() -> void:
 	pause._open()
 	await create_timer(0.4).timeout
 	var labels: Array = pause._buttons.map(func(b: Button) -> String: return b.text)
-	_check("Fill Awakening" in labels and "Ascend" in labels and "Restart training" in labels, "training pause menu (%s)" % ", ".join(labels))
+	_check("Fill Awakening" in labels and "Ascend" not in labels and "Restart training" in labels, "training pause menu (%s)" % ", ".join(labels))
 	_save("user://training_pause.png")
 	pause._buttons[labels.find("Fill Awakening")].pressed.emit()
 	_check(game.awakening >= game.AWAKEN_MAX, "Fill Awakening fills the meter")
-	pause._open()
-	await create_timer(0.2).timeout
-	pause._buttons[labels.find("Ascend")].pressed.emit()
-	await create_timer(0.3).timeout
-	main.ascend_menu.pick(0)
-	await create_timer(0.9).timeout
-	_check(main.player.ascendancy != "", "Ascend picks an Ascendancy")
 	print("[training] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	game.stop_all_sfx()
 	await create_timer(0.2).timeout
