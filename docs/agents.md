@@ -135,6 +135,23 @@ fast-forward, so no agent edits another's files or index.
   frame with 0 hits. Measure a baseline in your own worktree with `git checkout <base> -- scripts tests`, then restore.
 - **To find what a mystery shape on a sheet is**, copy the shot test, and at that shot print every visible
   MeshInstance3D near the hero with its parent's script and albedo; one run named the "ice glass" (a spirit tomahawk).
+- **Splitting a big GDScript node (round 31, player.gd -> hero_*.gd):** the checks, the bot and void_grab read ~60 of
+  the hero's fields and call ~30 underscored methods, so the state stays on the node and each new file is
+  `extends RefCounted` with `static func f(hero: CharacterBody3D, ...)` (the void_element.gd pattern). Keep a one-line
+  forwarder on the node for every name called from outside (grep `\.name\b` over scripts/ and tests/ first) and
+  re-export read constants (`const MOVES := HERO_MOVES.MOVES` is a valid constant expression). The helpers never
+  preload player.gd, so there is no preload cycle; they reach the enum and constants through the instance
+  (`hero.State.LEAP`, `hero.CHARGE_TIME`).
+- **Typed locals off an untyped `hero.x`:** `var t := hero._state_t * k` won't infer (Variant), so give the type. And
+  never `var lock: Node3D = hero._aim_lock` before `is_instance_valid()`: assigning a freed object to a typed var is a
+  runtime SCRIPT ERROR ("Trying to assign invalid previously freed instance"). Keep it `Variant` until checked.
+- **Checks that grep the source:** comic_check scanned player.gd for `_play("clip")` lines. After a split it must scan
+  the new files too (it now reads player.gd + `scripts/hero_*.gd`), or it passes while covering fewer clips.
+- **Capture a baseline before the first edit, from a clean tree.** Each test is a fresh Godot reading the worktree's
+  files: a baseline run in the background while you edit measures a mix. `git stash -u`, run, `git stash pop`.
+- **Autotest run-to-run variance, same code:** breakers 5-7, max_combo 127-197, hits 163-227, `[rhythm]` beats within
+  about 15 ms. rhythm_check's table is exact except `L1->L2 buffered ... hit` (218 or 221 ms, frame timing). Compare
+  those, not the totals.
 
 ## When you're done
 

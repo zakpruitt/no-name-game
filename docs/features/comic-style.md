@@ -28,7 +28,8 @@ There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Set
 | `scripts/enemy.gd` | `comic_kind`, the mapping in `_play`, `_hold_clip`, `_clip_speed`, `_attach_comic_spark` |
 | `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
 | `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` |
-| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move`, `_axe_mesh`; mouse aim: `_mouse_aiming`, `_mouse_dir`, `_turned`, `_aim_want`, `_play_locomotion` |
+| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move` (`hero_moves.effective_move`), `_axe_mesh`, `_turned`, `_play_locomotion` |
+| `scripts/hero_input.gd` | mouse aim: `mouse_aiming`, `mouse_dir`, `steer`, `aim`, `aim_want` |
 | `tools/comic_glb.py` | Copies GLBs into `assets/comic`, moving `g` to `COLOR_0` |
 | `assets/fonts/` | Bangers + `OFL.txt` (see `CREDITS.md`) |
 
@@ -174,7 +175,7 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 - Axe size: `AXE_SIZE` in `abilities.py`, then re-export. Marks: `LOOKS` in `comic_drag_mark.gd`.
 - Carries: `DRAG_HAND`, `DRAG_HEAD`, `GUARD_*`, `COILED_*`, `STREAM_*`, `FLUNG_*` in `abilities.py`, then re-export.
 - Stance timing: `READY_HOLD`, `FIDGET_EVERY` in `comic_look.gd`. Axe effects: `LOOKS` in `comic_axe_aura.gd`, `AXE_INFUSIONS` in `comic_look.gd`.
-- Mouse aim: `AIM_HEIGHT`, `AIM_DEAD_ZONE`, `AIM_ASSIST_MOUSE_ANGLE`, `COMBO_REDIRECT`, `COMBO_TURN_WINDUP`, `COMBO_TURN_ACTIVE` in `player.gd`.
+- Mouse aim: `AIM_HEIGHT`, `AIM_DEAD_ZONE`, `AIM_ASSIST_MOUSE_ANGLE`, `COMBO_REDIRECT`, `COMBO_TURN_WINDUP`, `COMBO_TURN_ACTIVE` in `hero_input.gd`.
 - Ink at the game's camera, where the hero is about 130 px tall: `Fx.COMIC_INK_PX`, `COMIC_INK_WOBBLE`,
   `COMIC_INK_PUSH`, `ComicLook.PIECE_INK_PX`, `PIECE_INK_PUSH`, `INNER_SCALE`. Models are built from many
   parts with a hull each, so a wide hull with no push covers the model in black. The POC's own widths

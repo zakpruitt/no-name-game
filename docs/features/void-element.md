@@ -111,7 +111,7 @@ and each has a public `tick(delta)` and a local `RandomNumberGenerator`.
 | Hit flash: the foe's own outline goes paper then the hero's colour for half the flash each, no overlay | `Fx.flash_tint`, `Fx.flash` | every hit on a foe with its own ink (`Fx.outline_own`) |
 | Bursts and burns: `Fx.burst` is 2-6 two-tone chips (smoke draws nothing); `Fx.scorch` is an inked splat with jagged cracks out to 0.8 of its radius, hot for two steps, then a darker tone, shrinking at the end; depth tested | `comic_pop.gd`, `scripts/comic_crack.gd` | floor_bind ticks, wells, rites, Molten Palm, geysers |
 | Hit flourishes: a hot inked impact star, fat paper speed strokes along the blow, two-tone element chips, a halo in his colour behind the star from chain tier 1, radial strokes round him for a named combo, a held kill star with bone chips; no flares, dot sprays, smoke or soft rings | `scripts/comic_pop.gd` | `Fx.hit_spark`, `impact`, `chain_spark`, `element_hit`, `combo_pop`, `death`, `shards`, `ring` with the comic style; `Fx.dust` draws nothing |
-| Breaker dive: a fat inked comet streak with a hot core, ending in a held impact star; the cue is crisp inked bands | `scripts/comic_comet.gd`, `breaker_cue.gd` | `player._comet()`, every breaker (see combo-breakers.md) |
+| Breaker dive: a fat inked comet streak with a hot core, ending in a held impact star; the cue is crisp inked bands | `scripts/comic_comet.gd`, `breaker_cue.gd` | `hero_leap._comet()`, every breaker (see combo-breakers.md) |
 | Molten Palm's fist: flat, wider than long, four fat knuckles glowing molten, stretched in flight, squashed with a star on arrival | `scripts/comic_fist.gd` | the one-line hook at the top of `void_element._fist()` |
 | Abyss spikes: flat inked violet spikes round a hot core, 1.3x the asked height, coming up `SPOUT_DELAY` 0.12 s late so the impact frame doesn't swallow them; spouts asked for together keep `SPOUT_SPACING` 2 m apart, at most `SPOUT_MAX` 3 | `dark_fx.Spout` | `dark_fx.spout()` |
 | Dash Stab's spirit tomahawk with the comic style: a flat inked axe at 30% of a light tone of its colour, drawn with a depth pre-pass so its overlapping faces don't stack into a solid slab (the 60% rim-lit glass was the "cyan slab" over every Ice Cube frame); no rim, no fade | `scripts/spirit_tomahawk.gd` | `player._cast` ("tomahawk") |
@@ -134,7 +134,8 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 | `scripts/comic_bolt.gd`, `comic_geyser.gd`, `comic_gale.gd`, `comic_pop.gd`, `comic_comet.gd`, `comic_fist.gd` | The flat comic bolt, geyser, whirlwind, hit flourishes, dive comet and palm fist (see "Look") |
 | `scripts/dark_fx.gd` | The dark element's things in the world: `Hole`, `Mark`, `Pool`, `Maw`, `Splat`, `ink_drops()`, `spout()`, `reap()`, `burst()` |
 | `shaders/dark_ink.gdshader` | Churning floor ink (spiral streaks, wobbling rim, stepped time, `open`, `erode`) |
-| `scripts/player.gd` | `MOVES` and `COMBOS` rows, `void_route()`, `_breaker_for()`, `_breaker_pressed()`, the `tentacle` branches of `State.LEAP` |
+| `scripts/hero_moves.gd` | `MOVES` and `COMBOS` rows, `void_route()` |
+| `scripts/hero_leap.gd` | `entry_for()` (`player._breaker_for()`), `_pressed()`, State.LEAP's `tick()` |
 | `scripts/void_grab.gd` | `reachable()`, `seize()`, `seized_tick()`, `slam_seized()`, `freeze_seized()`, `held_foes()`, `release_seized()`, `_tick_sweep()` |
 | `scripts/breaker_prompt.gd` | Shows both buttons and names when a breaker has an `alt` |
 | `scripts/comic_look.gd` | `HERO_MOVE_FORMS`: which weapon each move forms |
@@ -142,7 +143,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 
 ## Invariants
 
-- `player._breaker_for()` reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
+- `player._breaker_for()` (`hero_leap.entry_for()`) reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
 - A breaker entry is `_WINDOW` merged with its row (`entry()`).
 - `leap` must be at or before the move's `cancel`.
 - Every exit from the hang lets go: no press, dash out and `_end_leap` all call `release_seized()`. The tendrils stay in `_spare` for the next one.
@@ -155,9 +156,9 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 - These moves skip `_swoosh` and the weapon trail. All of them land on him and hid what the tentacle was doing.
 - `AL1` and `L3` skip their casts for him (`NO_CAST`): their giant axes stood in front of the tentacle move that follows.
 - His element and tentacle moves skip `Fx.combo_pop` entirely, and `ComicFx` spaces words by `WORD_GAP_HERETIC_MS` for him, since these moves hit whole crowds at once.
-- Maw is the test of the new effect style: the jaws rise during the dive (`player._start_dive`) and `bite()` snaps them shut on impact, so the breaker's hitstop holds the shut frame. Its hit goes through `enemy.burn_hit(damage, true)`, one word for the bite, and `Splat` and `ink_drops` in place of gold sparks. A foe killed by it still gets the normal death effect.
+- Maw is the test of the new effect style: the jaws rise during the dive (`hero_leap._start_dive`) and `bite()` snaps them shut on impact, so the breaker's hitstop holds the shut frame. Its hit goes through `enemy.burn_hit(damage, true)`, one word for the bite, and `Splat` and `ink_drops` in place of gold sparks. A foe killed by it still gets the normal death effect.
 - On this hero a style rank climb is a thin `hoop_run`, not the soft ring and star, which sat on him and fought his effects.
-- While the frost spear stands, either button vaults (`vaults()`, from `player._routed`), not only during the plant's animation: that ends before the frost has finished spreading, so a player watching it got a plain slice. `tests/void_arm_check.gd` `_spear_by_hand` plays this with real button presses.
+- While the frost spear stands, either button vaults (`vaults()`, from `hero_moves.routed`), not only during the plant's animation: that ends before the frost has finished spreading, so a player watching it got a plain slice. `tests/void_arm_check.gd` `_spear_by_hand` plays this with real button presses.
 - Black Tide's flight is capped at `TIDE_ARRIVE`: far foes fly faster, so an early Maw press can't bite before they reach the pool.
 - Damage that ticks on a whole crowd (`dark_fx.Hole`, `floor_bind.gd`) goes through `enemy.burn_hit`: the damage and number with no sparks, word or flash, which buried the thing holding them.
 - Tentacle breakers (and every comic hero) use the `crisp` version of `breaker_cue.gd`, flat inked bands, since they land right on that spot.
@@ -169,7 +170,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 - New moves go in `VOID_ONLY`, or `move_list_check` expects `route()` to reach them.
 - Clips come straight from `MOVES.anim`, as with `GR` and `VS`, so hit fractions are frame / frames of that clip.
 - **Timing contract (round 30, `tests/rhythm_check.gd`).** A press is held `player.BUFFER_MS` (300) and fires on the first frame
-  past `player.cancel_point()`: the move's `cancel` on a whiff, `CANCEL_ON_HIT` (0.5) of the way back to its last hit once it
+  past `player.cancel_point()` (`hero_input.cancel_point()`): the move's `cancel` on a whiff, `CANCEL_ON_HIT` (0.5) of the way back to its last hit once it
   connected (`fire()` above 0 counts), never before `HIT_CONFIRM_MIN` (0.03 s) after it or before the breaker's `leap`. A dash
   cancels every one of these moves once its first hit is out (or `DASH_CANCEL_WHIFF` into a whiff), and a breaker's hang
   too. The breaker windows share one rhythm off the rise (`BREAKER_HANG`, `BREAKER_TO_SWEET`, `BREAKER_TO_CLOSE`; see

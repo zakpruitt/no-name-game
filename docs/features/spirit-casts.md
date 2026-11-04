@@ -10,7 +10,7 @@ light flashes, and they swell with the chain.
 |---|---|---|
 | L1, L2 | echo (`scripts/spirit_echo.gd`) | A giant axe laid flat sweeps the swing's arc a beat after the real hit (L2 wider), each foe once, leaving a swoosh |
 | DL (Dash Stab) | tomahawk (`scripts/spirit_tomahawk.gd`) | A giant axe flung spinning flat like a sawblade, piercing out to `range` and boomeranging back to him, each foe once per leg |
-| air dash | echo (`player.AIR_DASH_CUT`, `_air_dash_cut()`) | An echo parented to him at his height, sweeping round the dash direction |
+| air dash | echo (`hero_moves.AIR_DASH_CUT`, `air_dash_cut()`) | An echo parented to him at his height, sweeping round the dash direction |
 
 `AL1` and `L3` have no cast (`VOID_ELEMENT.NO_CAST`): their axes stood in front of the
 tentacle move that follows. The element moves (`void_element.gd`) are not spirit casts.

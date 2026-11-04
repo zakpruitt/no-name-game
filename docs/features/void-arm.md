@@ -4,7 +4,7 @@ The heretic's right arm is a purple tentacle that shapes itself into his weapons
 
 ## His moves
 
-`player.void_route()` replaces `route()` for him (through `player._routed()`, which `_next_move` and the combo guide share). What right click does off each weapon, and the kit still to come, are in [void-element.md](void-element.md).
+`player.void_route()` (`hero_moves.void_route()`) replaces `route()` for him (through `hero_moves.routed()`, which `_next_move` and the combo guide share). What right click does off each weapon, and the kit still to come, are in [void-element.md](void-element.md).
 
 | Input | Move | Shape |
 |---|---|---|
