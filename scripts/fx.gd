@@ -529,7 +529,7 @@ static func _star(outer: float, inner: float) -> ArrayMesh:
 
 
 ## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
-## soot and fades over `time` (Cataclysm, fire waves). Blend mix so it reads on light tiles.
+## soot and fades over `time` (magma, breaker landings). Blend mix so it reads on light tiles.
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()

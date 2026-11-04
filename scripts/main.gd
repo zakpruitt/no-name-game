@@ -50,9 +50,22 @@ var _autotest := false
 var _autotest_t := 0.0
 var _hits := 0
 var _max_combo := 0
-var _bot_charge_t := 0.0  # bot is holding heavy to charge while > 0
-var _bot_next_charge := 3.0
-var _bot_next_spin := 2.0  # when the bot next spins from neutral (Whirlwind)
+## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
+## click (Overwhelm). Each runs into its breaker where it has one (player presses it at
+## the sweet spot for the bot), so the autotest walks every element and the dark.
+const BOT_STRINGS := [["L", "H"], ["L", "L", "H"], ["H", "H"], ["L", "H", "H"], ["L", "L", "L", "H"],
+	["H", "L", "H"], ["L", "H", "L", "H"], ["D", "L", "H"], ["L", "L", "H", "L", "H"], ["hold"],
+	["L", "L", "L", "H", "H"], ["D", "L", "H", "H"], ["D", "H"], ["L", "L", "L"]]
+const BOT_GAP := 0.35  # s standing between strings
+var _bot_string := 0  # BOT_STRINGS index playing
+var _bot_step := 0  # next token in it
+var _bot_wait := 1.0  # s before the next string starts
+var _bot_hold_t := 0.0  # holding right click while > 0
+var _bot_pending := ""  # the token just pressed, until he takes it (or BOT_TAKE s pass)
+var _bot_pending_t := 0.0
+var _bot_starts := 0  # moves started (player.attack_started), to see a press taken
+var _bot_starts_at := 0
+const BOT_TAKE := 0.7
 var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
 # Autotest frame stats (real time, so hitstop slow-mo doesn't skew them).
 var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemies": 0, "draws": 0, "nodes": 0}
@@ -69,7 +82,6 @@ var _quitting := false
 
 func _ready() -> void:
 	Game.reset()
-	Game.sync_comic()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	if _autotest:
 		Game.save_hints = false
@@ -107,6 +119,7 @@ func _ready() -> void:
 			Game.reduce_flashing = true
 	if _autotest:
 		player.bot_enabled = true
+		player.attack_started.connect(func(_id: String) -> void: _bot_starts += 1)
 	_start_training()
 
 
@@ -450,9 +463,9 @@ func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d chain=%d breakers=%d moves=%s" % [
+	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.max_chain, player.ground_breakers, ",".join(_bot_moves.keys())])
+		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, ",".join(_bot_moves.keys())])
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
 	print("[training] strings=%d best=%.0f last=%.0f/%d dummy_hp=%.0f" % [_strings, _best_string,
@@ -479,64 +492,61 @@ func _drive_bot() -> void:
 		if d < nd:
 			nd = d
 			nearest = e
-	Input.action_release("attack_light")
-	if _bot_charge_t > 0.0:
-		_bot_charge_t -= get_process_delta_time()
-		if nearest != null:
-			player.bot_move = (nearest.global_position - player.global_position).normalized()
-		# Knocked out of the charge: let go and try again soon.
-		if player.state != player.State.CHARGE and _bot_charge_t < player.CHARGE_TIME:
-			_bot_charge_t = 0.0
-			_bot_next_charge = _autotest_t + 1.5
-		return  # keep holding heavy (and nothing else) until the charge releases
+	var dt := get_process_delta_time()
+	for a in ["attack_light", "dash", "awaken"]:
+		Input.action_release(a)
+	if _bot_hold_t > 0.0:  # hold right click until Overwhelm goes
+		_bot_hold_t -= dt
+		if player.state == player.State.CHARGE or _bot_hold_t > 0.0:
+			return
 	Input.action_release("attack_heavy")
-	Input.action_release("dash")
-	Input.action_release("awaken")
-	if player.state == player.State.ATTACK or player.state == player.State.ULT:
+	if player.state == player.State.ATTACK:
 		_bot_moves[player._move_id] = true
 	if nearest == null:
 		player.bot_move = Vector3.ZERO
 		return
 	var to := nearest.global_position - player.global_position
 	to.y = 0.0
-	player.bot_move = to.normalized() if nd > 2.0 else Vector3.ZERO
-	var f := Engine.get_physics_frames()
-	# The pause and dash routes: light again once L2 has finished (Flurry),
-	# heavy just out of a dash near a foe (Whirlwind). On a flurry turn the
-	# bot lets L2 play out instead of chaining it.
-	if not player.awakened and int(_autotest_t / 2.0) % 2 == 1 and player.state == player.State.ATTACK \
-			and player._move_id == "L2":
-		return
-	if not player.awakened and nd < 4.5 and player.state == player.State.MOVE and player._move_id == "L2" \
-			and player._chain_i == 2 and player._chain_reset_t > 0.0 and player._chain_reset_t < 0.28:
-		Input.action_press("attack_light")
-		return
-	if not player.awakened and nd < 4.5 and player._post_dash_t > 0.0 and player.state == player.State.MOVE:
-		Input.action_press("attack_heavy")
-		return
-	# Now and then, from neutral, hold heavy for a charged slam.
-	if nd > 2.8 and nd < 6.0 and player.state == player.State.MOVE and not player.awakened and _autotest_t >= _bot_next_charge:
-		Input.action_press("attack_heavy")
-		_bot_charge_t = player.CHARGE_TIME + 0.15
-		_bot_next_charge = _autotest_t + 5.0
-		return
-	if not player.awakened and player.state == player.State.ATTACK and player._move_id == "LH" and f % 9 == 0 \
-			and int(_autotest_t / 2.0) % 2 == 0:
-		Input.action_press("attack_heavy")  # L H H: spike the juggled foe
-		return
-	if nd < 3.0:
-		# Now and then a Spin from neutral: hold off until the string resets, then heavy.
-		if not player.awakened and _autotest_t >= _bot_next_spin and player.state == player.State.MOVE:
-			if player._chain_i == 0 and player._post_dash_t <= 0.0:
-				Input.action_press("attack_heavy")
-				_bot_next_spin = _autotest_t + 4.0
-			return
-		# Cycle through routes: L H (launch), L L H (ground breaker), L L L.
-		var step := (f / 9) % 8
-		var heavy: bool = step in [1, 4]
-		if f % 9 == 0:
-			Input.action_press("attack_heavy" if heavy else "attack_light")
-	elif nd < 7.0 and f % 40 == 0:
-		Input.action_press("dash")
-	if Game.awakening >= Game.AWAKEN_MAX:
+	var string: Array = BOT_STRINGS[_bot_string]
+	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
+	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 else Vector3.ZERO
+	if Game.awakening >= Game.AWAKEN_MAX and idle:
 		Input.action_press("awaken")
+	if _bot_step >= string.size():  # the string is done: let it (and any breaker) play out
+		if idle:
+			_bot_wait -= dt
+			if _bot_wait <= 0.0:
+				_bot_string = (_bot_string + 1) % BOT_STRINGS.size()
+				_bot_step = 0
+				_bot_wait = BOT_GAP
+		return
+	if _bot_pending != "":  # wait for the last press to be taken before the next one
+		_bot_pending_t += dt
+		var taken: bool = _bot_starts > _bot_starts_at or player.state == player.State.LEAP
+		if _bot_pending == "D":
+			taken = player.state == player.State.DASH or player._post_dash_t > 0.0
+		if not taken and _bot_pending_t < BOT_TAKE:
+			return
+		_bot_pending = ""
+	if _bot_step == 0 and (not idle or nd > 3.0):
+		return  # walk up first
+	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
+	if player.state == player.State.ATTACK:
+		ready = player.combo_window().ready
+	if not ready or player.state == player.State.LEAP:
+		return
+	match string[_bot_step]:
+		"L":
+			Input.action_press("attack_light")
+		"H":
+			Input.action_press("attack_heavy")
+		"D":
+			Input.action_press("dash")
+		"hold":
+			Input.action_press("attack_heavy")
+			_bot_hold_t = player.CHARGE_TIME + 0.15
+	_bot_pending = string[_bot_step]
+	_bot_pending_t = 0.0
+	_bot_starts_at = _bot_starts
+	_bot_step += 1
+

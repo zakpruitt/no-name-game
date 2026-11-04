@@ -1,7 +1,7 @@
 extends RefCounted
 ## The barbaric side of the combo breakers: the war cry as the window opens,
 ## the crater a landing smashes into the floor, and the element erupting round
-## it on a PERFECT. Visual only; the damage lives in player.BREAKERS.
+## it on a PERFECT. Visual only; the damage lives in void_element.gd BREAKERS.
 ##   war_cry   a roar: a shockwave shell bursting off his chest + floor rings
 ##   crater    glowing cracks splitting out from the impact (the element
 ##             venting from their ends), a rim of floor slabs heaved up and
@@ -71,7 +71,7 @@ static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble
 			Fx.burst(parent, floor_at + Vector3.UP * 0.3, look.glow, 14, 3.0, 0.18, 0.8, Vector3.UP, 12.0, 4.0, 1.6, "dot", true)
 
 
-## A shockwave dome bursting out flat from an impact at `pos` (Stormfall):
+## A shockwave dome bursting out flat from an impact at `pos`:
 ## a low see-through shell racing out to `radius` and thinning away.
 static func shockwave(parent: Node, pos: Vector3, c: Color, radius: float) -> void:
 	var s := SphereMesh.new()

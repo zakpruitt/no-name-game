@@ -100,7 +100,7 @@ func _make_label() -> Label:
 func _word(world: Vector3, tier: int) -> void:
 	var now := Time.get_ticks_msec()
 	var reduced := Game.reduce_flashing
-	if now - _last_word_ms < (WORD_GAP_REDUCED_MS if reduced else WORD_GAP_HERETIC_MS if Game.heretic else WORD_GAP_MS):
+	if now - _last_word_ms < (WORD_GAP_REDUCED_MS if reduced else WORD_GAP_HERETIC_MS):
 		return
 	_last_word_ms = now
 	var i := _next

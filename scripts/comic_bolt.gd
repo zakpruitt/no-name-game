@@ -2,7 +2,7 @@ extends Node3D
 ## A comic lightning bolt from `a` to `b`: a flat camera-facing zigzag in three bands (ink, storm green,
 ## pale core), with a fork or two, redrawn on twos with a new zigzag each time and gone in a quarter of a
 ## second. With `star` it lands in a hard yellow-orange impact star. Replaces the soft glowing tubes
-## (element_rite.arc) and the green funnel (elements.storm_strike), which read as a smudge at the game
+## (elements.arc, was element_rite.arc) and the green funnel (elements.storm_strike), which read as a smudge at the game
 ## camera. Uses heretic_form_fx's shared material, so there's nothing new to compile.
 
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")

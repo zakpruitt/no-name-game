@@ -3,7 +3,7 @@ extends Node3D
 ## lava orange, hot yellow core), a hard splash star at its foot and fat inked blobs of lava thrown off
 ## the top. Redrawn on twos: it peaks tall on the first frame with an overshoot, settles, breaks into
 ## blobs and is gone in about a third of a second. Replaces the soft glowing swirl cone and its rain of
-## dots, which piled into a fire soup over the foes (element_rite.geyser). Uses heretic_form_fx's
+## dots, which piled into a fire soup over the foes (elements.geyser, was element_rite.geyser). Uses heretic_form_fx's
 ## shared material, so there's nothing new to compile.
 
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")

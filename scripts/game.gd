@@ -11,8 +11,6 @@ signal air_combo_changed(count: int)
 ## Any enemy died.
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
-## An Awakened ultimate began (chain: its number this Awakening; 0 = the Trinity storm).
-signal ultimate(ult_name: String, color: Color, chain: int)
 
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
@@ -31,7 +29,7 @@ const SFX_MIN_GAP_MS := 35  # same sound can't restart faster than this
 # shape and the slowest one wins each frame. Slow motion at or above
 # HITSTOP_FLAT_SCALE (the breaker window) holds flat so its timing reads true.
 const HITSTOP_EASE := 0.3  # fraction of a freeze (scale < SLOWMO_SCALE) spent ramping back up
-const SLOWMO_EASE := 0.45  # fraction of a slow-motion stop (last kill, Cataclysm) spent ramping back
+const SLOWMO_EASE := 0.45  # fraction of a slow-motion stop (last kill, a breaker) spent ramping back
 const HITSTOP_EASE_CURVE := 0.45  # ease() curve of the ramp; < 1 = ease-out
 const HITSTOP_OPENER := 0.8  # a string's first hit (combo_count <= 1) freezes this fraction as long: snappier
 const SLOWMO_SCALE := 0.1  # time scales below this are freezes; from here to HITSTOP_FLAT_SCALE, slow motion
@@ -99,15 +97,9 @@ var rumble_on := true
 var reduce_flashing := false
 ## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
 var combo_guide := true
-## Comic-book art style, see docs/features/comic-style.md. Read this one; it only
-## changes between runs (sync_comic). On with --comic (never saved) or the setting.
-var comic_style := false
-var comic_setting := false
-var _comic_cli := false
-## --comic-moves only: the comic hero's moves play his Ab_ clips (ComicLook.HERO_MOVES).
-var comic_moves := false
-## --heretic, with --comic: plays the Meshy hero (assets/comic/heretic.glb) instead. Never saved.
-var heretic := false
+## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
+## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
+var comic_style := true
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
@@ -136,10 +128,6 @@ func _ready() -> void:
 	enemy_killed.connect(func(_e: Node) -> void: impact.flash(impact.IMPACT_KILL, true))
 	_setup_input()
 	_load_settings()
-	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
-	comic_moves = not ("--no-comic-moves" in OS.get_cmdline_user_args() or "--no-comic-moves" in OS.get_cmdline_args())
-	heretic = "--heretic" in OS.get_cmdline_user_args() or "--heretic" in OS.get_cmdline_args()
-	sync_comic()
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -167,7 +155,6 @@ func _process(delta: float) -> void:
 func _exit_tree() -> void:
 	stop_all_sfx()
 	Fx.release()
-	preload("res://scripts/hero_look.gd").release()
 	preload("res://scripts/elements.gd").release()
 	preload("res://scripts/breaker_quake.gd").release()
 	_sfx_streams.clear()
@@ -376,26 +363,6 @@ func guide_label() -> String:
 	return "Combo guide: %s" % ("On" if combo_guide else "Off")
 
 
-func toggle_comic() -> void:
-	comic_setting = not comic_setting
-	_save_settings()
-
-
-func comic_label() -> String:
-	return "Comic style (next run): %s" % ("On" if comic_setting else "Off")
-
-
-## Called as a run's scene loads, so one run never mixes the two looks.
-func sync_comic() -> void:
-	var on := _comic_cli or comic_setting
-	if on == comic_style:
-		return
-	comic_style = on
-	Fx.release()  # the outline's ink width and the cached copies follow the flag
-	if not on:
-		ComicLook.restore_shadows()
-
-
 ## Step to the next screen shake level and save it.
 func cycle_shake() -> void:
 	var i := SHAKE_LEVELS.find(shake_scale)
@@ -415,7 +382,6 @@ func _load_settings() -> void:
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
-		comic_setting = cfg.get_value("video", "comic_style", false)
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -426,8 +392,6 @@ func _save_settings() -> void:
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("video", "combo_guide", combo_guide)
-	if comic_setting:  # flag off leaves settings.cfg exactly as it was
-		cfg.set_value("video", "comic_style", true)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
 

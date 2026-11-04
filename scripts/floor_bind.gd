@@ -103,7 +103,6 @@ func _physics_process(delta: float) -> void:
 			else:
 				e.take_hit(tick_damage, Vector3.ZERO, 0.0, false)
 			Game.register_hit("cast")
-			hero._cast_hit(e)
 			Fx.burst(hero.get_parent(), e.global_position + Vector3.UP * 0.4, color, 5, 5.0, 0.1, 0.25, Vector3.UP, 50.0)
 	if _t >= time:
 		_let_go()

@@ -30,8 +30,6 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game._comic_cli = true
-	game.heretic = true
 	game._hints_seen = game.HINTS.keys()
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)

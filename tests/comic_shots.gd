@@ -41,7 +41,6 @@ func _initialize() -> void:
 	_game = get_root().get_node("Game")
 	_look_script = load("res://scripts/comic_look.gd")
 	_game.save_hints = false
-	_game._comic_cli = true
 	_game._hints_seen = _game.HINTS.keys()  # no hint text over the shots
 	_main = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(_main)
@@ -162,8 +161,7 @@ func _boss() -> void:
 		_shot("boss_enrage", "Enrage: arms wide, heart blazing.")
 
 
-## The same foe near and far: the dots must stay one size on screen.
-## Him, every Ab_ clip on its hit frame, and hero_look's Ascendancy gear on his rig.
+## Him (the heretic), every Ab_ clip on its hit frame.
 func _hero() -> void:
 	_clear_enemies()
 	var p: Node3D = _main.player
@@ -175,7 +173,7 @@ func _hero() -> void:
 	p.anim.speed_scale = 0.0
 	_look(p.global_position + Vector3.UP * 1.2, CLOSE_VIEW)
 	await create_timer(SETTLE).timeout
-	_shot("hero_idle", "Compare comic_poc/out renders. His hair, mantle, feathers and two axes are the model's, nothing floats beside them. Toon tones, hull ink, no magenta. Head and cape aren't cut by the hull.")
+	_shot("hero_idle", "The heretic at rest: toon tones, hull ink, no magenta, nothing floating beside him. Head and skirt chains aren't cut by the hull.")
 	for id: String in _look_script.HERO_MOVES:
 		var h: Dictionary = _look_script.HERO_MOVES[id]
 		p.anim.play(h.clip, 0.0)
@@ -189,6 +187,7 @@ func _hero() -> void:
 	p.set_physics_process(true)
 
 
+## The same foe near and far: the dots must stay one size on screen.
 func _dots() -> void:
 	_clear_enemies()
 	var e: Node3D = _main._spawn("minion", false, _at(Vector3(0.0, 0.0, 3.0)))

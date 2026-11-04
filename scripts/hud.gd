@@ -27,10 +27,6 @@ var air_label: Label
 var wave_label: Label
 var readout_label: Label  # under the room title: the training readout (each string's damage)
 var center_label: Label
-var ult_label: Label
-var ult_sub: Label
-var ult_flash: ColorRect
-var _ult_tw: Tween
 var hint_label: Label
 var hint_panel: PanelContainer
 var _hint_tween: Tween
@@ -135,24 +131,6 @@ func _ready() -> void:
 	boss_break_bar = _bar(boss_root, Vector2(80, 66), Vector2(480, 6), Color(1.0, 0.8, 0.3))
 	boss_root.visible = false
 
-	# Ultimate banner: a full-screen tint flash and the move's name in its element colour.
-	ult_flash = ColorRect.new()
-	ult_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ult_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	ult_flash.color = Color(1, 1, 1, 0)
-	root.add_child(ult_flash)
-	ult_flash.move_to_front()
-	ult_label = _label(root, "", 78, Color.WHITE)
-	_anchor(ult_label, 0.5, 0.3, Rect2(-600, -60, 1200, 110))
-	ult_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ult_label.add_theme_constant_override("outline_size", 22)
-	ult_label.pivot_offset = Vector2(600, 55)
-	ult_sub = _label(root, "", 30, Color(1.0, 0.95, 0.8))
-	_anchor(ult_sub, 0.5, 0.3, Rect2(-300, 50, 600, 44))
-	ult_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ult_label.modulate.a = 0.0
-	ult_sub.modulate.a = 0.0
-	Game.ultimate.connect(_on_ultimate)
 	Game.combo_changed.connect(_on_combo)
 	Game.announced.connect(func(text: String) -> void: flash_message(text, 0.5))
 	Game.awakening_changed.connect(_on_awakening)
@@ -245,24 +223,6 @@ func flash_message(text: String, duration := 0.0) -> void:
 		var tw := create_tween()
 		tw.tween_interval(duration)
 		tw.tween_property(center_label, "modulate:a", 0.0, 0.4)
-
-
-func _on_ultimate(ult_name: String, color: Color, chain: int) -> void:
-	ult_label.text = ult_name.to_upper()
-	ult_label.add_theme_color_override("font_color", color.lightened(0.25))
-	ult_sub.text = "TRINITY" if chain == 0 else ("CHAIN x%d" % chain if chain > 1 else "ULTIMATE")
-	ult_flash.color = Color(color, 0.12 if Game.reduce_flashing else 0.38)
-	if _ult_tw:
-		_ult_tw.kill()
-	ult_label.modulate.a = 1.0
-	ult_sub.modulate.a = 1.0
-	ult_label.scale = Vector2.ONE * 1.6
-	# Real-time tween: ultimates start in slow motion.
-	_ult_tw = create_tween().set_parallel().set_ignore_time_scale()
-	_ult_tw.tween_property(ult_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_ult_tw.tween_property(ult_flash, "color:a", 0.0, 0.35)
-	_ult_tw.tween_property(ult_label, "modulate:a", 0.0, 0.35).set_delay(0.9)
-	_ult_tw.tween_property(ult_sub, "modulate:a", 0.0, 0.35).set_delay(0.9)
 
 
 func _on_combo(count: int, rank: String) -> void:

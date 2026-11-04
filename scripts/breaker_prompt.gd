@@ -1,5 +1,5 @@
 extends Control
-## Combo breaker timing prompt (player.BREAKERS): a circle affixed to the
+## Combo breaker timing prompt (void_element.gd BREAKERS): a circle affixed to the
 ## hero, above his left shoulder on screen (the combo guide sits on his
 ## right), so the timing stays in the middle of the screen. It fills up while the hero is in a breaker's leap, with
 ## the button to press (heavy) in the middle. Full = the sweet spot (press

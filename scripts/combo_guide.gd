@@ -83,7 +83,7 @@ func _notification(what: int) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Real time: hitstop and ultimate slow motion scale delta down.
+	# Real time: hitstop and breaker slow motion scale delta down.
 	var now := Time.get_ticks_usec()
 	var dt := minf((now - _last_us) / 1000000.0, 0.1)
 	_last_us = now
@@ -151,8 +151,6 @@ func _row_pos(i: int) -> Vector2:
 
 
 func _row_color(row: Dictionary) -> Color:
-	if row.ult:
-		return Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25)
 	return player.COMBO_TIER_COLORS[row.tier - 1] if row.tier > 0 else PLAIN_COLOR
 
 
@@ -202,12 +200,7 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 	var x0 := pos.x if _side > 0.0 else pos.x - width
 	var base := _anchor + Vector2(x0, pos.y)
 
-	# Backing pill; ultimates glow, a press flashes it.
-	var glow := 0.0
-	if row.ult:
-		glow = 0.6 + 0.3 * sin(t * 9.0) if usable else 0.25
-	if glow > 0.0:
-		_pill(Rect2(base + Vector2(-4.0, -ROW_H * 0.5 - 4.0), Vector2(width + 8.0, ROW_H + 8.0)), Color(col, glow * 0.45 * alpha))
+	# Backing pill; a press flashes it.
 	_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(BACK_COLOR, BACK_COLOR.a * alpha))
 	if pressed > 0.0:
 		_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(col, 0.45 * pressed * alpha))
@@ -238,8 +231,7 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 				var a := Vector2(px, base.y)
 				draw_polyline([a + Vector2(0, -5), a + Vector2(5, 0), a + Vector2(0, 5)], Color(1, 1, 1, 0.45 * alpha), 2.0, true)
 			"next":
-				var nc: Color = Color(player.ELEMENTS.LOOK[player.element()].color).lightened(0.25) if row.next.ult \
-					else player.COMBO_TIER_COLORS[row.next.tier - 1]
+				var nc: Color = player.COMBO_TIER_COLORS[row.next.tier - 1]
 				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(nc, 0.9 * alpha * lit))
 			"pause":
 				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(player.COMBO_TIER_COLORS[row.pause.tier - 1], 0.6 * alpha * lit))

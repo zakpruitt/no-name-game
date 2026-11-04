@@ -1,31 +1,16 @@
 extends RefCounted
-## The shaman's elements. Every attack summons the hero's element alongside
-## the axes (spirit; wind / earth / water also dress the void moves), and the
-## Awakened ultimates (player.ULTIMATES) are built from the same pieces.
-## CASTS is the per-move tuning; LOOK is each element's palette. Effects only
-## deal damage where a caller passes it (hit_area, Bolt.damage).
-##   bolt     flying blade that pierces: wind/spirit crescent, water ice
-##            shards, earth a run of stone spikes along the ground
+## The elements. The hero's own casts are spirit; wind / earth / water / void
+## dress the void moves (void_element.gd). CASTS is the per-move tuning (the
+## moves that summon a spirit axe); LOOK is each element's palette. Effects
+## only deal damage where a caller passes it (hit_area, Bolt.damage).
+##   bolt     flying blade that pierces (nova's blades)
 ##   pillar   column at a point: tornado / stone pillar / geyser / spirit beam
 ##   fissure  a march of small pillars or spikes along a line
 ##   nova     burst all around: spikes or blades outward
-##   vortex   pieces whirling round the hero during the spin
 ##   echo     the axe's bound spirit finishes the swing: a giant spectral axe
 ##            sweeping the same arc a beat later (spirit_echo.gd; L1, L2 bigger)
-##   cleave   two colossal spectral axes rise either side of the target and slam
-##            inward, meeting in a V on it: blast round the heads (spirit_cleave.gd; L3)
-##   avatar   a towering spectral copy of the shaman rises round him and brings
-##            the great axe down ahead: blast + the element's nova (spirit_avatar.gd; CH)
-##   crown    three colossal spectral axes burst blade-up from the floor under the
-##            target round the element's column, launching it (spirit_crown.gd; LH)
-##   rift     a wave of colossal spectral axes bursting from the floor one after
-##            another along the thrust, growing (spirit_rift.gd; LLH)
-##   wheel    a ring of giant spectral axes laid flat like a sawblade, whirling
-##            round the hero through the spin, grinding (spirit_wheel.gd; H, DH)
 ##   tomahawk giant spectral axe flung spinning flat like a sawblade, piercing out
-##            to `range` and boomeranging back to the hero (spirit_tomahawk.gd; DL, LPL fan)
-##   guillotine colossal spectral axe dropping blade-first from the sky onto the
-##            target and burying itself in the floor (spirit_guillotine.gd; LHH)
+##            to `range` and boomeranging back to the hero (spirit_tomahawk.gd; DL)
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
 const FOES := preload("res://scripts/foes.gd")
@@ -39,17 +24,7 @@ const LAVA_HOT := Color(1.0, 0.8, 0.3)
 const CASTS := {
 	"L1": {"kind": "echo", "damage": 5.0, "radius": 3.4, "arc": 160.0, "delay": 0.05, "time": 0.18},
 	"L2": {"kind": "echo", "damage": 6.0, "radius": 3.9, "arc": 200.0, "delay": 0.04, "time": 0.2},
-	"AL1": {"kind": "echo", "damage": 4.0, "radius": 3.2, "arc": 170.0, "delay": 0.05, "time": 0.18},
-	"AL2": {"kind": "echo", "damage": 5.0, "radius": 3.6, "arc": 210.0, "delay": 0.04, "time": 0.2},
-	"AL3": {"kind": "echo", "damage": 4.0, "radius": 3.8, "arc": 240.0, "delay": 0.03, "time": 0.18},
-	"L3": {"kind": "cleave", "damage": 12.0, "reach": 5.0, "ahead": 3.0, "size": 3.2, "blast": 2.8, "launch": 4.0},
 	"DL": {"kind": "tomahawk", "damage": 6.0, "back_damage": 4.0, "range": 8.0, "size": 2.6},
-	"LPL": {"kind": "tomahawk", "damage": 4.0, "back_damage": 3.0, "range": 6.5, "size": 1.5, "fan": 2, "spread": 34.0},
-	"H": {"kind": "wheel", "radius": 3.1, "time": 0.95, "count": 4, "turns": 2.5, "damage": 2.0},
-	"DH": {"kind": "wheel", "radius": 3.0, "time": 0.9, "count": 6, "turns": 3.0, "damage": 2.0},
-	"LH": {"kind": "crown", "damage": 6.0, "radius": 1.9, "height": 4.0, "launch": 9.0, "reach": 4.5, "ahead": 2.4, "size": 3.4},
-	"LHH": {"kind": "guillotine", "damage": 7.0, "radius": 2.4, "size": 3.8, "reach": 4.5, "ahead": 2.0},
-	"CH": {"kind": "avatar", "damage": 14.0, "radius": 4.2, "launch": 8.0, "size": 3.0},
 }
 ## color: main glow; glow: hot core; rock: solid pieces (earth).
 const LOOK := {
@@ -81,13 +56,12 @@ static var casts := 0  # casts summoned (autotest)
 
 ## Drop cached materials and meshes so nothing is left alive at exit (Game._exit_tree).
 static func release() -> void:
-	SPIRIT_ECHO._form_meshes.clear()
 	_mats.clear()
 	_meshes.clear()
 
 
 ## Draw every element material once, hidden under the hero, so their shaders
-## compile at load instead of hitching the first cast or ultimate.
+## compile at load instead of hitching the first cast.
 static func prewarm(parent: Node, at: Vector3) -> void:
 	var root := Node3D.new()
 	parent.add_child(root)
@@ -102,16 +76,13 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	root.add_child(_mi(crescent(0.16), rock()))
 	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(true)))
 	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(false)))
-	# Flat glows (glow_mat: the magma pool) and a lit box.
+	# A lit box (emissive StandardMaterial3D).
 	var lit := StandardMaterial3D.new()
 	lit.emission_enabled = true
-	var box := BoxMesh.new()
-	for mat: Material in [glow_mat(Color.WHITE), glow_mat(Color.WHITE, 0.5), lit]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = box
-		mi.material_override = mat
-		root.add_child(mi)
-	gather(root, at, Color.WHITE, 0.1, 1)
+	var mi := MeshInstance3D.new()
+	mi.mesh = BoxMesh.new()
+	mi.material_override = lit
+	root.add_child(mi)
 	# Fx sprite materials (particle textures, flares, ground ring).
 	for tex: String in ["dot", "smoke", "spark"]:
 		for add: bool in [false, true]:
@@ -135,8 +106,6 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color, true)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.spirit.color, true, 3.0, 2.0)))
-	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(Color(0.95, 0.25, 0.05))))  # Cataclysm vortex
-	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(Color(0.95, 0.25, 0.05), true)))
 	var ghost: MeshInstance3D = SPIRIT_ECHO.ghost(BoxMesh.new(), Color.WHITE)  # spirit casts
 	ghost.material_override.albedo_color.a = 0.5
 	root.add_child(ghost)
@@ -358,7 +327,7 @@ static func _fade_free(node: Node3D, delay: float, time: float) -> void:
 	tw.tween_callback(node.queue_free)
 
 
-## A short burst of light in the element's colour (big casts and ultimates).
+## A short burst of light in the element's colour (big casts and breakers).
 static func light_pop(parent: Node, pos: Vector3, c: Color, energy := 5.0, reach := 7.0, time := 0.35) -> void:
 	var l := OmniLight3D.new()
 	l.light_color = c
@@ -369,35 +338,6 @@ static func light_pop(parent: Node, pos: Vector3, c: Color, energy := 5.0, reach
 	var tw := l.create_tween()
 	tw.tween_property(l, "light_energy", 0.0, time).set_ease(Tween.EASE_IN)
 	tw.tween_callback(l.queue_free)
-
-
-## Motes pulled in from all around `pos` (a charge-up before an ultimate).
-static func gather(parent: Node, pos: Vector3, c: Color, radius := 3.0, amount := 30) -> void:
-	var p := CPUParticles3D.new()
-	p.one_shot = true
-	p.explosiveness = 0.6
-	p.amount = amount
-	p.lifetime = 0.45
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE_SURFACE
-	p.emission_sphere_radius = radius
-	p.gravity = Vector3.ZERO
-	p.radial_accel_min = -radius * 9.0
-	p.radial_accel_max = -radius * 7.0
-	p.scale_amount_min = 0.7
-	p.scale_amount_max = 1.4
-	var fade := Gradient.new()
-	fade.offsets = PackedFloat32Array([0.0, 0.3, 1.0])
-	fade.colors = PackedColorArray([Color(c, 0.0), c, Color(c.lightened(0.5), 1.0)])
-	p.color_ramp = fade
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 0.32
-	quad.material = Fx.particle_mat("dot", true)  # soft round sprite
-	p.mesh = quad
-	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	p.position = parent.to_local(pos) if parent is Node3D else pos
-	parent.add_child(p)
-	p.emitting = true
-	p.finished.connect(p.queue_free)
 
 
 ## Damage everything within `radius` of `pos`; `on_hit` gets each enemy hit. Returns the count.
@@ -597,32 +537,6 @@ static func nova(parent: Node, pos: Vector3, el: String, radius: float, count: i
 		Fx.burst(parent, pos + Vector3.UP * 0.3, c, 30, 10.0, 0.16, 0.45, Vector3.UP, 85.0, -6.0)
 
 
-## Pieces whirling round `hero` for the spin.
-static func vortex(hero: Node3D, el: String, radius: float, time: float) -> void:
-	var root := Node3D.new()
-	hero.add_child(root)
-	root.position.y = 0.9
-	var n := 7
-	for i in n:
-		var p := piece(el, 2.0)
-		var ang := TAU * i / n
-		p.position = Vector3(sin(ang), randf_range(-0.25, 0.35), cos(ang)) * Vector3(radius * 0.8, 1.0, radius * 0.8)
-		p.rotation.y = ang + PI * 0.5
-		root.add_child(p)
-	var t := TorusMesh.new()
-	t.inner_radius = radius * 0.85
-	t.outer_radius = radius
-	var ring := _mi(t, glow(Color(LOOK[el].color, 0.55), 1.4))
-	ring.position.y = -0.75
-	ring.scale.y = 0.15
-	root.add_child(ring)
-	root.scale = Vector3.ONE * 0.3
-	var tw := root.create_tween().set_parallel()
-	tw.tween_property(root, "rotation:y", -TAU * 2.5, time)
-	tw.tween_property(root, "scale", Vector3.ONE, 0.15).set_ease(Tween.EASE_OUT)
-	_fade_free(root, time * 0.65, time * 0.35)
-
-
 ## A jagged bolt from the sky onto `pos` (visual only).
 static func lightning_fx(parent: Node, pos: Vector3, c: Color, height := 10.0) -> void:
 	var root := Node3D.new()
@@ -777,127 +691,8 @@ class Orbit extends Node3D:
 			p.rotation.y = ang + PI * 0.5
 
 
-# --- Ultimates (player.ULTIMATES) ---------------------------------------------
-
-## SKY lands at `pos`: the element's big impact (visual; the hero deals the damage).
-static func sky_impact(parent: Node, pos: Vector3, el: String, radius: float) -> void:
-	var c: Color = LOOK[el].color
-	Fx.ring(parent, pos, Color(c, 0.95), radius + 1.0, 0.45)
-	Fx.ring(parent, pos, Color(LOOK[el].glow, 0.9), radius * 0.6, 0.3)
-	Fx.ring(parent, pos, Color(1, 1, 1, 0.7), radius * 0.3, 0.2)
-	light_pop(parent, pos, c, 10.0, radius * 2.5, 0.5)
-	Fx.dust(parent, pos, 24, 1.3)
-	match el:
-		"wind":
-			pillar(parent, pos, el, 7.0, 2.4, 1.0)
-			for i in 6:
-				var ang := TAU * i / 6.0
-				var at := pos + Vector3(sin(ang), 0.0, cos(ang)) * radius * 0.75
-				var tw := parent.create_tween()
-				tw.tween_interval(0.04 * i)
-				tw.tween_callback(lightning_fx.bind(parent, at, c, 10.0))
-		"earth":
-			for i in 10:
-				var ang := TAU * i / 10.0
-				spikes(parent, pos + Vector3(sin(ang), 0.0, cos(ang)) * radius * 0.7, el, 1.5, 3, 1.1)
-			magma_pool(parent, pos, 2.4)
-		"water":
-			for i in 14:
-				var ang := TAU * i / 14.0
-				spikes(parent, pos + Vector3(sin(ang), 0.0, cos(ang)) * randf_range(1.2, radius), el, 1.6, 3, 1.4)
-			spikes(parent, pos, el, 2.6, 5, 1.4)
-		_:
-			pillar(parent, pos, el, 9.0, 2.6, 1.0)
-	Fx.burst(parent, pos + Vector3.UP * 0.5, c, 60, 16.0, 0.22, 0.7, Vector3.UP, 75.0, -10.0, 1.0)
-	Fx.burst(parent, pos + Vector3.UP * 0.5, LOOK[el].glow, 30, 22.0, 0.14, 0.45, Vector3.UP, 120.0, -4.0)
-
-
-## Earth's SKY: a meteor falls from the sky onto `pos` over `time`.
-static func meteor(parent: Node, pos: Vector3, time: float) -> void:
-	var root := Node3D.new()
-	parent.add_child(root)
-	var from := pos + Vector3(-4.0, 16.0, -6.0)
-	root.global_position = from
-	var s := SphereMesh.new()
-	s.radius = 1.0
-	s.height = 2.0
-	var core := _mi(s, rock())
-	root.add_child(core)
-	var h := SphereMesh.new()
-	h.radius = 1.45
-	h.height = 2.9
-	root.add_child(_mi(h, glow(Color(LOOK.earth.color, 0.55), 2.0)))
-	var trail := CPUParticles3D.new()
-	trail.amount = 60
-	trail.lifetime = 0.5
-	trail.local_coords = false
-	trail.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	trail.emission_sphere_radius = 1.0
-	trail.gravity = Vector3.ZERO
-	trail.scale_amount_min = 1.0
-	trail.scale_amount_max = 2.5
-	var fade := Gradient.new()
-	fade.set_color(0, LOOK.earth.glow)
-	fade.set_color(1, Color(LOOK.earth.color, 0.0))
-	trail.color_ramp = fade
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 0.8
-	quad.material = Fx.particle_mat("dot", true)  # soft round sprite
-	trail.mesh = quad
-	root.add_child(trail)
-	var tw := root.create_tween()
-	tw.tween_property(root, "global_position", pos + Vector3.UP * 0.5, time).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.parallel().tween_property(core, "rotation", Vector3(4.0, 2.0, 1.0), time)
-	tw.tween_callback(root.queue_free)
-
-
-## RUSH: the element trails behind the hero as he charges, one step at `pos`.
-static func rush_step(parent: Node, pos: Vector3, dir: Vector3, el: String) -> void:
-	match el:
-		"water":
-			pillar(parent, pos, el, 2.2, 1.1, 0.5)
-		"earth":
-			var side := dir.cross(Vector3.UP)
-			spikes(parent, pos + side * 0.9, el, 1.0, 2, 0.8)
-			spikes(parent, pos - side * 0.9, el, 1.0, 2, 0.8)
-		_:
-			pillar(parent, pos, el, 2.6, 0.9, 0.45)
-
-
-## RUSH ends: the whole line erupts a moment later.
-static func rush_wake(parent: Node, from: Vector3, dir: Vector3, length: float, el: String) -> void:
-	fissure(parent, from, dir, length, 8, el, 1.4, 0.03)
-	if el == "wind":
-		for i in 4:
-			var tw := parent.create_tween()
-			tw.tween_interval(0.05 * i)
-			tw.tween_callback(lightning_fx.bind(parent, from + dir * (1.5 + i * length / 4.0), LOOK.wind.color, 10.0))
-	light_pop(parent, from + dir * length * 0.5, LOOK[el].color, 8.0, length, 0.4)
-
-
-## Water's RUSH: a wall of water in front of the hero (child of the hero).
-static func wave_wall(hero: Node3D, time: float) -> void:
-	var root := Node3D.new()
-	hero.add_child(root)
-	root.position = Vector3(0.0, 0.0, 0.0)
-	var b := BoxMesh.new()
-	b.size = Vector3(3.6, 2.4, 0.5)
-	var wall := _mi(b, glow(Color(LOOK.water.color, 0.55), 1.2))
-	wall.position = Vector3(0.0, 1.1, 1.0)
-	root.add_child(wall)
-	var crest := CylinderMesh.new()
-	crest.top_radius = 0.35
-	crest.bottom_radius = 0.35
-	crest.height = 3.8
-	var c := _mi(crest, glow(Color(LOOK.water.glow, 0.85), 2.0))
-	c.rotation.z = PI * 0.5
-	c.position = Vector3(0.0, 2.35, 1.2)
-	root.add_child(c)
-	_fade_free(root, time * 0.7, time * 0.3)
-
-
-## Trinity: all three ultimates in one Awakening call down a storm on every
-## enemy near `pos`, one strike each (`strike` deals the damage per target).
+## A strike from above on `pos` in the element: lightning, spikes or a beam (the void
+## breakers' landings, breaker_quake).
 static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 	match el:
 		"wind":  # a fat flat bolt out of the sky into a hot star, on twos (comic_bolt.gd)
@@ -913,63 +708,6 @@ static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 		_:
 			pillar(parent, pos, el, 8.0, 1.3, 0.7)
 	light_pop(parent, pos, LOOK[el].color, 5.0, 5.0, 0.25)
-
-
-## A flat unshaded colour (no glow pass): the magma pool's disc.
-static func glow_mat(c: Color, alpha := 1.0) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(c, alpha)
-	if alpha < 1.0:
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return m
-
-
-## A burning patch of lava at `pos` (earth's sky impact).
-static func magma_pool(parent: Node, pos: Vector3, radius: float) -> void:
-	var p := MagmaPool.new()
-	p.radius = radius
-	parent.add_child(p)
-	p.global_position = Vector3(pos.x, 0.0, pos.z)
-
-
-## Burning patch: damages enemies standing in it every TICK.
-class MagmaPool extends Node3D:
-	const E := preload("res://scripts/elements.gd")
-	const DAMAGE := 5.0
-	const TICK := 0.4
-	const LIFE := 3.0
-	var radius := 1.5
-	var _age := 0.0
-	var _tick := 0.0
-	var _disc: MeshInstance3D
-
-	func _ready() -> void:
-		_disc = MeshInstance3D.new()
-		var m := CylinderMesh.new()
-		m.top_radius = radius
-		m.bottom_radius = radius
-		m.height = 0.04
-		_disc.mesh = m
-		_disc.material_override = E.glow_mat(Color(1.0, 0.35, 0.05), 0.75)
-		add_child(_disc)
-		_disc.position.y = 0.05
-
-	func _physics_process(delta: float) -> void:
-		_age += delta
-		if _age >= LIFE:
-			queue_free()
-			return
-		_disc.transparency = clampf((_age - LIFE + 0.5) / 0.5, 0.0, 1.0)
-		if randf() < 0.35:
-			Fx.burst(get_parent(), global_position + Vector3(randf_range(-radius, radius) * 0.7, 0.1, randf_range(-radius, radius) * 0.7),
-				Color(1.0, 0.55, 0.1), 2, 2.0, 0.12, 0.4, Vector3.UP, 20.0, 1.0)
-		_tick -= delta
-		if _tick <= 0.0:
-			_tick = TICK
-			for e in E.FOES.near(get_tree(), global_position, radius):
-				e.take_hit(DAMAGE, Vector3.ZERO, 0.0, false)
-				Game.register_hit("magma")
 
 
 # --- Lava and lightning the void moves share (were element_rite.gd) --------

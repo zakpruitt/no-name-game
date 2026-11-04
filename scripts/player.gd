@@ -9,25 +9,15 @@ signal died
 signal attack_started(move_id: String)
 signal combo_found(id: String)  # a named combo landed for the first time this run
 
-enum State { MOVE, ATTACK, DASH, HURT, CHARGE, ULT, DEAD, LEAP, SWING }
+enum State { MOVE, ATTACK, DASH, HURT, CHARGE, DEAD, LEAP, SWING }
 
-const FOES := preload("res://scripts/foes.gd")
-const MODEL := preload("res://assets/kaykit/characters/Barbarian.glb")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
-const HERO_LOOK := preload("res://scripts/hero_look.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
+const AXE_SOURCE := "res://assets/kaykit/characters/Barbarian.glb"  # the 1H_Axe spirit casts ghost (_axe_mesh)
 const CAST_GROW := 0.15  # spirit cast size per chain tier (_cast_grow)
 const CAST_POWER := 0.12  # spirit cast damage per chain tier
-const SPIRIT_CLEAVE := preload("res://scripts/spirit_cleave.gd")
-const SPIRIT_AVATAR := preload("res://scripts/spirit_avatar.gd")
-const SPIRIT_CROWN := preload("res://scripts/spirit_crown.gd")
-const SPIRIT_RIFT := preload("res://scripts/spirit_rift.gd")
-const SPIRIT_WHEEL := preload("res://scripts/spirit_wheel.gd")
 const SPIRIT_TOMAHAWK := preload("res://scripts/spirit_tomahawk.gd")
-const SPIRIT_GUILLOTINE := preload("res://scripts/spirit_guillotine.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
-const TRAIL_MESHES := ["1H_Axe", "1H_Axe_Offhand"]
-const HIDDEN_MESHES := ["Barbarian_Round_Shield", "2H_Axe", "Mug", "Barbarian_Hat", "Barbarian_Cape"]
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Idle_Ready"]
 
 @export var move_speed := 7.5
@@ -63,8 +53,6 @@ const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Straf
 #        between those fractions (the model lifts, the body stays). A move
 #        started in the air (out of a hop) comes down by its first hit
 #        (`land` overrides), so L H's rise carries into L H H's drop.
-#   weave: (optional) metres the model sways side to side, one way per hit,
-#        between the first and last hit (Flurry dances through its cuts)
 #   air: (optional) holds the height the move started at; `climb` adds this
 #        many metres by its first hit (the air string goes up cut by cut)
 const MOVES := {
@@ -81,13 +69,6 @@ const MOVES := {
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
 		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9]},
-	# Light after a pause once L2 has finished (L L · L): Flurry, a quick run
-	# of small cuts that keeps foes in reach (low knockback).
-	"LPL": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.5, "range": 2.6, "arc": 170.0,
-		"hits": [0.22, 0.32, 0.42, 0.52, 0.62], "cancel": 0.66, "end": 0.85, "lunge": 5.0, "knockback": 0.8,
-		"launch": 0.0, "stop": 0.03, "shake": 0.1, "weave": 0.45},
-	# Heavy from neutral: spinning AoE, multi-hit. A leaping whirl: he spins
-	# up off the floor through all three hits and lands with a slam.
 	# The void arm's right click (void_element.gd). The tentacle and the element do the work.
 	"EE": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.24], "cancel": 0.42, "end": 0.6,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
@@ -117,69 +98,20 @@ const MOVES := {
 		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
 	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [0.51], "cancel": 0.68, "end": 0.85,
 		"speed": 1.6, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
-	"H": {"anim": "2H_Melee_Attack_Spin", "damage": 6.0, "range": 3.2, "arc": 360.0,
-		"hits": [0.3, 0.45, 0.6], "cancel": 0.7, "end": 0.85, "lunge": 4.0, "knockback": 3.0, "launch": 0.0,
-		"stop": 0.035, "shake": 0.12, "hop": [0.15, 0.68, 0.8]},
-	# Heavy after any light hit: launcher (raises a pillar of the element under
-	# the target). Juggled enemies take bonus style.
-	"LH": {"anim": "Spellcast_Raise", "damage": 14.0, "range": 2.8, "arc": 120.0,
-		"hits": [0.3], "cancel": 0.42, "end": 0.58, "lunge": 3.0, "knockback": 2.0, "launch": 9.0,
-		"stop": 0.09, "shake": 0.3, "big": true, "hop": [0.28, 0.58, 1.5]},
-	# Light after the launcher (L H L, then L H L L): air slashes. He stays up
-	# with the foe he launched (`air`: holds the height he started at) and
-	# each cut re-juggles it; a third light is Triple Chop slamming down, a
-	# heavy is Spike from the air.
+	# Light after Updraft Lash (L H L): an air slash. He stays up with the foe
+	# the lash threw (`air`: holds the height he started at) and the cut
+	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).
 	"AL1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 7.0, "range": 2.6, "arc": 170.0,
 		"hits": [0.32], "cancel": 0.42, "end": 0.7, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
 		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4},
-	"AL2": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.6, "arc": 190.0,
-		"hits": [0.24, 0.4], "cancel": 0.5, "end": 0.75, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
-		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.5},
-	# Heavy after Sky Rend (L H L L H): Updraft. He calls a gale under his feet
-	# and spins up on it (`gust`: air_gust.gd), climbing past AIR_MAX_HEIGHT
-	# toward AIR_GUST_HEIGHT and launching the foes round him up with him. The
-	# gale gives the air dash back; one gust per trip up.
-	"AH": {"anim": "2H_Melee_Attack_Spin", "damage": 5.0, "range": 3.0, "arc": 360.0,
-		"hits": [0.3, 0.48], "cancel": 0.56, "end": 0.8, "lunge": 1.0, "knockback": 0.5, "launch": 8.0,
-		"stop": 0.05, "shake": 0.2, "air": true, "climb": 1.6, "gust": true},
-	# Light off the Updraft (L H L L H L): Gale Waltz, a whirl of cuts riding
-	# the gale (weaving), each flinging a spectral axe. Then L is Triple Chop
-	# from the very top (Stormfall), H is Spike.
-	"AL3": {"anim": "Dualwield_Melee_Attack_Slice", "damage": 4.0, "range": 2.8, "arc": 220.0,
-		"hits": [0.22, 0.36, 0.5], "cancel": 0.58, "end": 0.8, "lunge": 2.0, "knockback": 0.5, "launch": 5.0,
-		"stop": 0.04, "shake": 0.14, "air": true, "climb": 0.3, "weave": 0.35, "blades": true},
-	# Heavy right after the launcher (L H H): Spike, an overhead chop that
-	# slams juggled foes into the floor (SPIKE_*). Awakened, it's Ancestor's Fall.
-	"LHH": {"anim": "1H_Melee_Attack_Chop", "damage": 13.0, "range": 2.8, "arc": 140.0,
-		"hits": [0.38], "cancel": 0.55, "end": 0.8, "lunge": 5.0, "knockback": 3.0, "launch": 0.0,
-		"stop": 0.1, "shake": 0.4, "big": true},
-	# Heavy right after L2 (L L H): Ground Breaker, a lunging thrust that
-	# knocks down everything in a strip ahead (launch > 0 also breaks guards).
-	"LLH": {"anim": "2H_Melee_Attack_Stab", "damage": 18.0, "range": 5.0, "width": 1.1, "arc": 360.0,
-		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 8.0, "knockback": 12.0, "launch": 4.0,
-		"stop": 0.1, "shake": 0.4, "big": true},
-	# Charged heavy: hold heavy from neutral for CHARGE_TIME, then release.
-	# Big launching slam; breaks shield guards (launch > 0).
-	"CH": {"anim": "2H_Melee_Attack_Chop", "damage": 30.0, "range": 3.4, "arc": 160.0,
-		"hits": [0.4], "cancel": 0.6, "end": 0.85, "lunge": 10.0, "knockback": 12.0, "launch": 8.0,
-		"stop": 0.14, "shake": 0.55, "big": true, "hop": [0.12, 0.4, 1.1]},
 	# Light right out of a dash: long lunging stab, pouncing onto the foe
 	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
 		"stop": 0.07, "shake": 0.22, "hop": [0.03, 0.3, 0.6]},
-	# Heavy right out of a dash: Cyclone, a spin that keeps travelling
-	# through the crowd (low lunge decay).
-	"DH": {"anim": "2H_Melee_Attack_Spinning", "damage": 5.0, "range": 2.9, "arc": 360.0,
-		"hits": [0.2, 0.38, 0.56, 0.74], "cancel": 0.78, "end": 0.9, "lunge": 9.0, "decay": 1.2, "speed": 0.55,
-		"knockback": 4.0, "launch": 0.0, "stop": 0.035, "shake": 0.16},
-	# Awakened only: heavy right after L3. Huge two-handed swing that erupts all around.
-	"AF": {"anim": "2H_Melee_Attack_Slice", "damage": 30.0, "range": 4.5, "arc": 360.0,
-		"hits": [0.45], "cancel": 0.7, "end": 0.9, "lunge": 5.0, "knockback": 6.0, "launch": 10.0,
-		"stop": 0.16, "shake": 0.7, "big": true},
 }
 # The named combos: landing one plays its tier's sound and shows its name
-# above the hero. Moves not listed here (L1, L2, H) stay quiet. Also the
+# above the hero. Moves not listed here (L1, L2, AL1) stay quiet. Also the
 # pause menu's move list. tier: 1 string, 2 heavy route, 3 finisher.
 const COMBOS := {
 	"L3": {"name": "Triple Chop", "input": "L L L", "tier": 1},
@@ -197,111 +129,21 @@ const COMBOS := {
 	"EA": {"name": "Ice Cube", "input": "Dash L H H", "tier": 2},
 	"EM": {"name": "Molten Palm", "input": "L L L H", "tier": 1},
 	"EV": {"name": "Undertow", "input": "L L L H H", "tier": 2},
-	"LPL": {"name": "Flurry", "input": "L L, pause, L", "tier": 1},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
-	"DH": {"name": "Cyclone", "input": "Dash > H", "tier": 2},
-	"LH": {"name": "Launcher", "input": "L H", "tier": 2},
-	"AL2": {"name": "Sky Rend", "input": "L H L L", "tier": 2},
-	# Not a move: Triple Chop plunging from the top of the air string
-	# (PLUNGE_AXES_FROM) is named this instead (named_id()).
-	"SKYFALL": {"name": "Skyfall", "input": "L H L L L", "tier": 2},
-	"AH": {"name": "Updraft", "input": "L H L L H", "tier": 2},
-	"AL3": {"name": "Gale Waltz", "input": "L H L L H L", "tier": 2},
-	# Not a move: Triple Chop from the top of the Updraft (STORMFALL_FROM).
-	"STORMFALL": {"name": "Stormfall", "input": "L H L L H L L", "tier": 3},
-	"LLH": {"name": "Ground Breaker", "input": "L L H", "tier": 2},
-	"LHH": {"name": "Spike", "input": "L H H", "tier": 2},
-	"CH": {"name": "Charged Slam", "input": "hold H", "tier": 2},
-	"AF": {"name": "Cataclysm", "input": "L L L H (Awakened)", "tier": 3},
-	"SKY": {"name": "Ancestor's Fall", "input": "L H H (Awakened)", "tier": 3},
-	"RUSH": {"name": "Spirit Stampede", "input": "Dash L H (Awakened)", "tier": 3},
 }
-# Awakened ultimates: these combos turn into a cinematic move (AF, the
-# finisher, is the third). The hero is invulnerable throughout. Each ultimate
-# in the same Awakening adds ULT_CHAIN_BONUS damage to the next, and landing
-# all three calls down the TRINITY storm. Names per element (spirit = no
-# Ascendancy yet). Damage is before the Awakened damage multiplier.
-#   SKY   leap toward a foe within `reach`, gather the element overhead, smash
-#         down at `impact` (fraction of `time`) hitting everything in `radius`
-#   RUSH  wind up for `go`, charge `length` ahead over `dash` hitting what's in
-#         `width`, then the whole line erupts `wake` later for `wake_damage`
-const ULTIMATES := {
-	"SKY": {"time": 1.05, "impact": 0.62, "rise": 3.2, "reach": 6.0, "damage": 36.0, "radius": 4.8, "launch": 10.0,
-		"names": {"spirit": "Ancestor's Fall", "wind": "Thunder Dive", "earth": "Meteor Fall", "water": "Frozen Comet"}},
-	"RUSH": {"time": 0.85, "go": 0.16, "dash": 0.26, "length": 9.0, "width": 1.6, "damage": 26.0, "launch": 6.0,
-		"wake": 0.12, "wake_damage": 12.0,
-		"names": {"spirit": "Spirit Stampede", "wind": "Gale Rush", "earth": "Tectonic Charge", "water": "Tidal Surge"}},
-}
-const ULT_CHAIN_BONUS := 0.3
-const CATACLYSM_AXES := 6  # colossal spirit axes slamming down round the hero
-const CATACLYSM_AXE_RING := 3.8  # m from him
-# Combo breakers: timed finishers. The move leaps into the air at `leap`
+# Combo breakers (VOID_ELEMENT.BREAKERS, timed finishers). The move leaps into the air at `leap`
 # (fraction of its anim), hops `back` m while rising `height` m over `rise` s,
 # hurls `spikes` spikes onto a zone `zone` m ahead (spread `spread`), and a
 # cue rings that zone: press heavy between `open` and `close` s after take-off
 # (rings meet at `sweet`; within `perfect` of it = PERFECT, x`perfect_mult`)
 # to dive onto it in `dive` s, detonating the spikes and hitting `radius` for
 # `damage`. Too early locks it out; no press = he floats down in `fall` s.
-const BREAKERS := {
-	"LLH": {"leap": 0.5, "rise": 0.3, "height": 3.2, "back": 1.4, "spikes": 7, "zone": 3.8, "spread": 2.0,
-		"spike_damage": 4.0, "detonate": 6.0, "throw": 0.12, "cue": 0.12, "open": 0.36, "sweet": 0.5, "close": 0.66,
-		"perfect": 0.06, "dive": 0.14, "damage": 22.0, "radius": 3.4, "launch": 7.0, "perfect_mult": 1.5,
-		"fall": 0.24, "awaken": 6.0, "awaken_perfect": 14.0,
-		"names": {"spirit": "Ancestor Meteor", "wind": "Thunderfall", "earth": "Meteor Breaker", "water": "Comet Breaker"}},
-	# Charged Slam: leaps forward after the foes it launched (negative `back`)
-	# and spins up among them inside a spectral sawblade (`juggle`: a
-	# spirit_wheel on the model, `juggle_damage` a tick, keeping them airborne
-	# within `juggle_radius`), then the press slams him down onto them.
-	"CH": {"leap": 0.55, "rise": 0.26, "height": 2.6, "back": -1.4, "spikes": 0, "zone": 2.8, "spread": 0.0,
-		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.1, "cue": 0.1, "open": 0.34, "sweet": 0.48, "close": 0.64,
-		"perfect": 0.06, "dive": 0.12, "damage": 26.0, "radius": 3.6, "launch": 9.0, "perfect_mult": 1.5,
-		"fall": 0.24, "awaken": 6.0, "awaken_perfect": 14.0,
-		"juggle": true, "juggle_damage": 2.5, "juggle_radius": 3.0, "juggle_axes": 5,
-		"names": {"spirit": "Ancestor Skyfall", "wind": "Cyclone Drop", "earth": "Landslide", "water": "Whirlpool Drop"}},
-	# Flurry: a low hop back into a ready stance, then the press is a dash
-	# (`dash`) through everything along the line to the zone: `pass_damage` to
-	# each foe within `width` as he passes, then the line erupts in spectral
-	# axes (a spirit_rift) for `damage` (no radius blast at the end).
-	"LPL": {"leap": 0.64, "rise": 0.18, "height": 0.45, "back": 1.2, "spikes": 0, "zone": 6.5, "spread": 0.0,
-		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.08, "cue": 0.08, "open": 0.3, "sweet": 0.42, "close": 0.56,
-		"perfect": 0.06, "dive": 0.16, "damage": 18.0, "radius": 0.0, "launch": 6.0, "perfect_mult": 1.5,
-		"fall": 0.18, "awaken": 5.0, "awaken_perfect": 12.0,
-		"dash": true, "pass_damage": 8.0, "width": 1.4, "hang_anim": "2H_Melee_Idle",
-		"names": {"spirit": "Spirit Step", "wind": "Lightning Step", "earth": "Fault Rush", "water": "Riptide Rush"}},
-	# Cyclone: spins up on the spot inside the sawblade (`juggle`), the
-	# whirlwind dragging foes within `pull_radius` in at `pull` m/s; the press
-	# flings `fan` spectral tomahawks out in a ring (`fan_range`, each hits
-	# out and back for `fan_damage` / `fan_back`), plus a `radius` blast round him.
-	"DH": {"leap": 0.76, "rise": 0.22, "height": 1.2, "back": 0.0, "spikes": 0, "zone": 0.0, "spread": 0.0,
-		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.08, "cue": 0.08, "open": 0.32, "sweet": 0.46, "close": 0.6,
-		"perfect": 0.06, "dive": 0.1, "damage": 12.0, "radius": 2.6, "launch": 5.0, "perfect_mult": 1.5,
-		"fall": 0.2, "awaken": 5.0, "awaken_perfect": 12.0,
-		"juggle": true, "juggle_damage": 2.0, "juggle_radius": 2.6, "juggle_axes": 6, "pull": 4.5, "pull_radius": 6.0,
-		"fan": 6, "fan_damage": 8.0, "fan_back": 5.0, "fan_range": 7.0,
-		"names": {"spirit": "Spirit Maelstrom", "wind": "Tempest Ring", "earth": "Shrapnel Storm", "water": "Hailstorm"}},
-	# Spike: bounces straight up off the slam while a spectral axe appears
-	# hovering point-down over each foe within `volley_radius` of the zone (up
-	# to `volley_max`, following them); the press dives him in and every axe
-	# drops with him (`volley_damage` each, one hit per foe for the volley).
-	"LHH": {"leap": 0.48, "rise": 0.24, "height": 3.0, "back": 0.0, "spikes": 0, "zone": 1.6, "spread": 0.0,
-		"spike_damage": 0.0, "detonate": 0.0, "throw": 0.1, "cue": 0.1, "open": 0.34, "sweet": 0.48, "close": 0.62,
-		"perfect": 0.06, "dive": 0.13, "damage": 16.0, "radius": 2.8, "launch": 0.0, "perfect_mult": 1.5,
-		"fall": 0.24, "awaken": 6.0, "awaken_perfect": 14.0,
-		"volley": true, "volley_damage": 12.0, "volley_radius": 6.0, "volley_max": 6, "volley_size": 2.6,
-		"names": {"spirit": "Spirit Verdict", "wind": "Storm Verdict", "earth": "Mountain Verdict", "water": "Frost Verdict"}},
-}
 # The breaker window plays in slow motion (BREAKER_FOCUS time scale, camera
 # pushed in to BREAKER_FOCUS_ZOOM), and a perfect press freezes the frame for
 # BREAKER_PERFECT_STOP real s before the dive.
 const BREAKER_FOCUS := 0.6
 const BREAKER_FOCUS_ZOOM := 0.86
 const BREAKER_PERFECT_STOP := 0.07
-# Awakened, the dive breakers summon a BREAKER_ANCESTOR-times spectral
-# ancestor as the window opens, timed to bring its axe down with the hero's
-# dive at the sweet spot (visual; gone if he doesn't dive). The dash breaker's
-# wake axes grow by BREAKER_AWAKENED_WAKE instead.
-const BREAKER_ANCESTOR := 4.0
-const BREAKER_AWAKENED_WAKE := 1.4
 # Forgiving presses: a heavy in the first BREAKER_SPILL s after take-off is the
 # ender's own mashed press spilling over and is ignored (no lockout), and one
 # within BREAKER_EARLY s before `open` is held and fires as the window opens
@@ -309,17 +151,13 @@ const BREAKER_AWAKENED_WAKE := 1.4
 const BREAKER_SPILL := 0.12
 const BREAKER_EARLY := 0.08
 const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
-const BREAKER_SPIKE := preload("res://scripts/breaker_spike.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
-const SKY_ANCESTOR := 5.0  # Ancestor's Fall: the ancestor's size vs the hero
-const TRINITY := {"damage": 24.0, "radius": 12.0, "delay": 0.35, "gap": 0.06,
-	"names": {"spirit": "Ancestral Storm", "wind": "Skyfall", "earth": "Worldbreaker", "water": "Absolute Zero"}}
 const CAST_SFX_DB := -11.0
 # Names of the moves that aren't combos, for the combo guide.
-const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "H": "Spin", "AL1": "Air Slash", "IJ": "Vault"}
+const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "AL1": "Air Slash", "IJ": "Vault"}
 # After landing a combo this many times in a run, the guide stops hinting it
-# as a follow-up (it still shows as a row); ultimates are always hinted.
+# as a follow-up (it still shows as a row).
 const GUIDE_LEARNED := 6
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
@@ -344,14 +182,12 @@ const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
 const AWAKEN_BURST_RADIUS := 7.0  # the activation shockwave blows foes back this far
 const AWAKEN_BURST_DAMAGE := 10.0
 const AWAKEN_COLOR := Color(1.0, 0.78, 0.3)  # Awakening's ancestral gold: light, rim, trails, burst
-const FIRE_WAVE := preload("res://scripts/fire_wave.gd")
-const CATACLYSM_WAVES := 6  # fire waves radiating from the Awakened finisher
 
 var hp := max_hp
 var state := State.MOVE
 var awakened := false
 var model: Node3D
-var _coats: Array[Node3D] = []  # HERO_LOOK.coat_axes for the current element
+var _coats: Array[Node3D] = []  # ComicLook.infuse_axes for the current element
 var rank_ups := 0  # style rank climbs that burst at the hero (autotest)
 var _rank_i := 0  # current style rank as a step above D (Game.RANKS)
 var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
@@ -374,11 +210,6 @@ const SLAM_SCALE := 2.0
 # the launcher, Triple Chop off Sky Rend) deals +PLUNGE_PER_M damage per metre
 # it started above 0.4 m, so the air string pays for going high (2.6 m: +33%).
 const PLUNGE_PER_M := 0.15
-# A plunge from at least PLUNGE_AXES_FROM (only the top of the air string,
-# Sky Rend) also slams a fan of spectral axes into the floor ahead of him
-# (visual: _plunge_axes), PLUNGE_AXES_SPREAD degrees apart.
-const PLUNGE_AXES_FROM := 2.0
-const PLUNGE_AXES_SPREAD := 32.0
 # Juggle tracking: a move started in the air (the air slashes, a plunge) turns
 # to the nearest airborne foe within AIR_HOME_RANGE and lunges far enough to
 # reach it (`_air_home`), so a launched foe that drifted doesn't make the
@@ -393,22 +224,14 @@ const COMBO_REDIRECT := 55.0  # deg a chained move may turn as it starts
 const COMBO_TURN_WINDUP := 420.0  # deg/s before a move's first hit
 const COMBO_TURN_ACTIVE := 140.0  # deg/s from then on
 const AIR_HOME_MAX := 22.0
-# Air dash: dashing out of the launcher or an air slash while at least
-# AIR_DASH_MIN up keeps him at that height, and the press after it carries
-# on in the air (route() `from` "AD": light = Air Slash, heavy = Spike /
-# Ancestor's Fall) instead of Dash Stab / Cyclone.
-const AIR_DASH_FROM := ["LH", "AL1", "AL2", "AH", "AL3"]
+# Air dash: dashing out of the air slash while at least AIR_DASH_MIN up keeps
+# him at that height (the press after it is Dash Stab / Tow Line as on the floor).
+const AIR_DASH_FROM := ["AL1"]
 const AIR_DASH_MIN := 0.6
 # One air dash per trip up (reset on landing), and `climb` stops at
 # AIR_MAX_HEIGHT, so dash-slash loops can't keep him up or lift him forever.
 const AIR_DASHES := 1
 const AIR_MAX_HEIGHT := 2.8
-# The Updraft's gale lifts him past that, up to AIR_GUST_HEIGHT, for the rest
-# of the trip up. Triple Chop from STORMFALL_FROM lands as Stormfall: the
-# floor breaks (breaker_quake crater) and the element erupts round him.
-const AIR_GUST_HEIGHT := 4.2
-const STORMFALL_FROM := 3.4
-const AIR_GUST := preload("res://scripts/air_gust.gd")
 # The air dash's cut: a giant spectral axe (spirit_echo) rides with him at his
 # height and sweeps through the dash, nicking what it passes.
 const AIR_DASH_CUT := {"damage": 3.0, "radius": 3.0, "arc": 150.0, "time": 0.16}
@@ -423,8 +246,6 @@ var _dash_dir := Vector3.FORWARD
 var _post_dash_t := 0.0
 var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
 var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
-var _gusted := false  # the Updraft's gale has lifted him this trip up (one per trip)
-var _gust_cloud: Node3D  # the gale under his feet while he's up there (air_gust.cloud)
 var _awaken_t := 0.0
 var _facing_yaw := 0.0
 var _mouse_active := true  # false once a gamepad is the last thing touched
@@ -434,18 +255,10 @@ var _dmg_mult := 1.0
 var _charged := false
 var _charge_fx_t := 0.0
 var _charge_light: OmniLight3D
-var charged_slams := 0  # reported by the autotest
-var ground_breakers := 0  # reported by the autotest
 var spikes := 0  # juggled foes spiked down (autotest)
 var _last_combo := ""  # the last named combo landed (War Chant pays more for a new one)
 var combos_landed := {}  # COMBOS id -> times landed this run (pause menu, run summary)
-# Spike (LHH) on a juggled foe: damage multiplier, how hard it's slammed
-# down (m/s), and the impact that knocks down foes around where it lands.
-const SPIKE_AIR_MULT := 1.6
-const SPIKE_DOWN := 24.0
-const SPIKE_IMPACT := {"radius": 2.6, "damage": 6.0, "knockback": 5.0}
 var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
-var cataclysms := 0  # finishers landed (reported by the autotest)
 var callouts := 0  # combo callouts shown (autotest)
 var last_callout_tier := 0  # (autotest screenshot)
 var _callout: Label3D
@@ -455,7 +268,6 @@ var _awaken_light: OmniLight3D
 var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _trails: Array = []
-var _comic_hero := false  # model is ComicLook.HERO, not the KayKit Barbarian
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 var _void: Node  # his grab and slam (void_grab.gd), the comic hero only
 var _swing_cd := 0.0  # s until R swings again
@@ -470,23 +282,6 @@ var _fidget_t: float = ComicLook.FIDGET_EVERY  # comic hero: s until he next fid
 var _fidget_i := 0
 static var _kaykit_axe: Mesh  # the spirit casts' axe under the comic hero (see _axe_mesh)
 var _orbit: Node3D
-var _ult_id := ""
-var _ult_from := Vector3.ZERO
-var _ult_at := Vector3.ZERO
-var _ult_dir := Vector3.FORWARD
-var _ult_len := 0.0  # RUSH distance, cut short by walls
-var _ult_hit := {}
-var _ult_step_d := 0.0
-var _ult_phase := 0
-var _ult_fired := false
-var _ult_fx_t := 0.0
-var _ult_chain := 0  # ultimates so far this Awakening
-var _ult_kinds: Array[String] = []
-var _trinity_done := false
-var ults := 0  # ultimates started (autotest)
-var max_chain := 0
-var ult_impacts := 0  # SKY/RUSH impacts (autotest screenshot)
-var trinities := 0
 var _ghost_t := 0.0
 var _since_dash := 99.0
 var _perfect_this_dash := false
@@ -495,7 +290,6 @@ var _perfect_this_dash := false
 var bot_move := Vector3.ZERO
 
 var bot_enabled := false
-var stormfalls := 0  # landings from the top of the Updraft (tests)
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
 var _brk: Dictionary = {}  # the breaker in play (BREAKERS entry)
@@ -504,21 +298,14 @@ var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
 var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
 var _brk_locked := false
 var _brk_held := false  # pressed just before `open`: dives as the window opens (BREAKER_EARLY)
-var _brk_thrown := 0
 var _brk_zone := Vector3.ZERO
 var _brk_dir := Vector3.FORWARD
 var _brk_dive_from := Vector3.ZERO
-var _brk_spikes: Array = []
-var _brk_blasted: Dictionary = {}  # foes the spikes' detonation already hit
 var _brk_cue: Node3D
 var _brk_meteor: Node3D  # the fire round him on the way down (void_element.meteor_shell)
-var _brk_wheel: Node3D  # the juggle's sawblade (BREAKERS `juggle`)
 var _brk_focus := false  # the window's slow motion has started
 var _brk_ended := ""  # how the last breaker's press went (breaker_window)
 var _brk_prompt: Control  # the timing circle (breaker_prompt.gd), made on the first leap
-var _brk_ancestor: Node3D  # Awakened: the ancestor slamming down with the dive
-var _brk_volley: Array = []  # Spike's breaker: the axes hovering over its foes
-var _brk_passed: Dictionary = {}  # foes the dash breaker has cut through
 
 
 func _ready() -> void:
@@ -536,41 +323,26 @@ func _ready() -> void:
 	shape.position.y = 0.9
 	add_child(shape)
 
-	var comic := ComicLook.scene(ComicLook.hero_kind())
-	_comic_hero = comic != null
-	model = comic.instantiate() if _comic_hero else MODEL.instantiate()
+	model = ComicLook.scene(ComicLook.HERETIC).instantiate()
 	add_child(model)
-	if _comic_hero:
-		ComicLook.apply(model, ComicLook.hero_kind())
-	else:
-		HERO_LOOK.dress(model)
+	ComicLook.apply(model, ComicLook.HERETIC)
 	Fx.outline(model)
-	if not _comic_hero:  # he's modelled with his hair, mantle, feathers and axes
-		HERO_LOOK.add_kit(model)
 	_meshes = model.find_children("*", "MeshInstance3D", true, false)
 	_awaken_rim = Fx.rim_material().duplicate()
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		if mi.name in HIDDEN_MESHES:
-			mi.visible = false
-		elif mi.name in TRAIL_MESHES:
-			_add_trail(mi)
-	if _comic_hero:
-		for blade in ComicLook.hero_blades(model):
-			_add_trail(blade)
+	for blade in ComicLook.hero_blades(model):
+		_add_trail(blade)
 	anim = model.find_child("AnimationPlayer", true, false)
 	_coats = _coat_axes()  # after _meshes
-	if _comic_hero:
-		var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
-		var void_arm := VOID_ARM.new()
-		void_arm.setup(self, model, skel)
-		if ComicLook.hero_kind() == ComicLook.HERETIC:  # free tentacle at rest; weapons only form to strike
-			void_arm.rest_form = "hand"
-			void_arm.pops = false
-			void_arm.shape("hand", false)
-			HERETIC_RIG.new().setup(void_arm, skel)
-		_void = VOID_GRAB.new()
-		add_child(_void)
-		_void.setup(self, void_arm, skel)
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var void_arm := VOID_ARM.new()
+	void_arm.setup(self, model, skel)
+	void_arm.rest_form = "hand"  # a free tentacle at rest; weapons only form to strike
+	void_arm.pops = false
+	void_arm.shape("hand", false)
+	HERETIC_RIG.new().setup(void_arm, skel)
+	_void = VOID_GRAB.new()
+	add_child(_void)
+	_void.setup(self, void_arm, skel)
 	for a in LOOPING:
 		if anim.has_animation(a):
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -597,8 +369,7 @@ func _ready() -> void:
 	_callout.visible = false
 	add_child(_callout)
 	_orbit = ELEMENTS.Orbit.new()
-	if _comic_hero:
-		_orbit.piece_size = ComicLook.HERO_ORBIT_SIZE
+	_orbit.piece_size = ComicLook.HERO_ORBIT_SIZE
 	add_child(_orbit)
 	_orbit.setup(element(), false)
 
@@ -614,48 +385,32 @@ func _add_trail(weapon: MeshInstance3D) -> void:
 	_trails.append(trail)
 
 
-## The mesh spirit casts ghost. The comic hero's axes are skinned in place, far from any
-## usable origin, so his spirits keep throwing KayKit's axe.
+## The mesh spirit casts ghost. His axes are skinned in place, far from any
+## usable origin, so his spirits throw KayKit's axe (AXE_SOURCE).
 func _axe_mesh() -> Mesh:
-	if not _comic_hero:
-		return (model.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
 	if _kaykit_axe == null:
-		var kaykit := MODEL.instantiate()
+		var kaykit: Node3D = load(AXE_SOURCE).instantiate()
 		_kaykit_axe = (kaykit.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
 		kaykit.free()
 	return _kaykit_axe
 
 
 func _coat_axes() -> Array[Node3D]:
-	if _comic_hero:
-		return ComicLook.infuse_axes(model, element())
-	return HERO_LOOK.coat_axes(model, element())
+	return ComicLook.infuse_axes(model, element())
 
 
 ## What the rig calls a clip the game asks for.
 func _clip_name(wanted: String) -> String:
-	return ComicLook.clip(anim, ComicLook.hero_kind(), wanted) if _comic_hero else wanted
-
-
-func _comic_moves_on() -> bool:
-	return _comic_hero and Game.comic_moves
-
-
-## A beat of an ultimate; under Game.comic_moves one Ab_ clip covers them all.
-func _ult_anim(clip: String, blend: float, seek_to := 0.0) -> void:
-	if _comic_moves_on():
-		return
-	_play(clip, blend, true)
-	if seek_to > 0.0:
-		anim.seek(anim.current_animation_length * seek_to, true)
+	return ComicLook.clip(anim, ComicLook.HERETIC, wanted)
 
 
 func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
-	# Fx.flash clears overlays on hit; put the Awakening rim or axe runes back.
-	for mi: MeshInstance3D in _meshes:
-		if mi.material_overlay == null and (awakened or mi.has_meta("rest_overlay")):
-			mi.material_overlay = _awaken_rim if awakened else _rest_overlay(mi)
+	# Fx.flash clears overlays on hit; put the Awakening rim back.
+	if awakened:
+		for mi: MeshInstance3D in _meshes:
+			if mi.material_overlay == null:
+				mi.material_overlay = _awaken_rim
 	_read_input()
 
 	if not is_on_floor():
@@ -669,7 +424,6 @@ func _physics_process(delta: float) -> void:
 		State.DASH: _state_dash(delta)
 		State.HURT: _state_hurt(delta)
 		State.CHARGE: _state_charge(delta)
-		State.ULT: _state_ult(delta)
 		State.LEAP: _state_leap(delta)
 		State.SWING: _void.travel_tick(delta)
 		State.DEAD:
@@ -681,16 +435,12 @@ func _physics_process(delta: float) -> void:
 	if state in [State.MOVE, State.DASH, State.HURT, State.CHARGE, State.DEAD] and model.position.y > 0.0 and not air_hold:
 		model.position.y = move_toward(model.position.y, 0.0, 16.0 * delta)  # out of a hop
 	if state != State.ATTACK and (model.position.x != 0.0 or model.position.z != 0.0):
-		model.position.x = move_toward(model.position.x, 0.0, 6.0 * delta)  # out of a weave
+		model.position.x = move_toward(model.position.x, 0.0, 6.0 * delta)  # back under him
 		model.position.z = move_toward(model.position.z, 0.0, 6.0 * delta)
 	if model.position.y < 0.05:
 		_air_dashes = 0  # back on the floor: the air dash comes back
-		_gusted = false
-		if is_instance_valid(_gust_cloud):
-			AIR_GUST.vanish(_gust_cloud, get_parent())
-		_gust_cloud = null
-	var swinging: bool = state == State.ULT or (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
-	if swinging and _void != null and VOID_ELEMENT.is_element_move(_move_id):
+	var swinging: bool = (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
+	if swinging and VOID_ELEMENT.is_element_move(_move_id):
 		swinging = false  # the element is the swing (void_element.gd)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -731,7 +481,7 @@ func _read_input() -> void:
 	elif Input.is_action_just_pressed("attack_heavy"):
 		_buffered = "heavy"
 		_buffer_t = input_buffer
-	if _void != null and Input.is_action_just_pressed("traverse"):
+	if Input.is_action_just_pressed("traverse"):
 		_swing_buffer_t = input_buffer
 	if Input.is_action_just_pressed("dash"):
 		_dash_buffer_t = input_buffer
@@ -748,7 +498,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _mouse_aiming() -> bool:
-	return _comic_hero and _mouse_active and not bot_enabled and DisplayServer.get_name() != "headless"
+	return _mouse_active and not bot_enabled and DisplayServer.get_name() != "headless"
 
 
 ## Flat direction from him to the cursor; zero with no camera or a cursor on top of him.
@@ -819,12 +569,7 @@ func _state_move(delta: float) -> void:
 ## one cycle, so a change of clip carries on from the same step.
 func _play_locomotion(dir: Vector3) -> void:
 	if dir.length() <= 0.1:
-		if _comic_hero:
-			_comic_stand()
-		else:
-			_play("Idle", 0.12)
-	elif not _comic_hero:
-		_play("Running_A", 0.12)
+		_comic_stand()
 	else:
 		_fidget_t = ComicLook.FIDGET_EVERY
 		var clip := ComicLook.run_clip(dir, _facing(), anim.current_animation)
@@ -891,7 +636,7 @@ func _hop(t: float) -> void:
 	var y := 0.0
 	if _move.get("air", false):  # air move: hold the height it started at
 		# `climb`: rise this much more by the hit, so each air cut goes higher.
-		var cap := AIR_GUST_HEIGHT if _gusted else AIR_MAX_HEIGHT
+		var cap := AIR_MAX_HEIGHT
 		var climb: float = minf(_move.get("climb", 0.0), maxf(0.0, cap - _hop_y0))
 		var up: float = climb * smoothstep(0.0, _move.hits[0], t)
 		y = minf(_hop_y0 + up + sin(t * PI) * 0.15, cap + 0.15)
@@ -922,97 +667,35 @@ func plunge_mult() -> float:
 	return 1.0 + PLUNGE_PER_M * maxf(0.0, _hop_y0 - 0.4)
 
 
-## MOVES `weave`: sway the model sideways, crossing over on each hit (a
-## sine from the first hit to the last), easing back to centre after.
-func _weave(t: float) -> void:
-	var w: float = _move.get("weave", 0.0)
-	var side := Vector3.ZERO
-	if w > 0.0:
-		var hits: Array = _move.hits
-		var a: float = hits[0] - 0.08
-		var b: float = hits[hits.size() - 1]
-		if t > a and t < b:
-			var k := (t - a) / (b - a)
-			var right := _facing().cross(Vector3.UP)
-			side = right * sin(k * PI * hits.size()) * w * sin(k * PI)
-	model.position.x = side.x
-	model.position.z = side.z
-
-
 ## Landing from a hop: dust, a ring in the hero's colour and a shake, all
 ## bigger the further he fell (an air-string Triple Chop lands hardest).
 func _land_slam(peak: float) -> void:
 	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
 	Fx.dust(get_parent(), global_position, int(6 * k), 0.5 * k)
-	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: it hid them)
+	if not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: it hid them)
 		Fx.ring(get_parent(), global_position + _facing() * 0.8, Color(_fx_color(), 0.8), 2.2 * k, 0.22)
 	Game.shake(0.12 * k)
-	if _hop_y0 >= PLUNGE_AXES_FROM and not _move.get("air", false):
-		_plunge_axes()
-	if _hop_y0 >= STORMFALL_FROM and not _move.get("air", false):
-		_stormfall()
-
-
-## The top-of-the-air-string plunge's crater: three giant spectral axes
-## (visual guillotines, `_axe_fall`) bury themselves in a fan ahead of him,
-## the middle one first, sized with the chain like the casts.
-func _plunge_axes() -> void:
-	var fwd := _facing()
-	var size := 2.4 * _cast_grow()
-	for i in 3:
-		var side := i - 1  # -1, 0, 1
-		var dir := fwd.rotated(Vector3.UP, deg_to_rad(PLUNGE_AXES_SPREAD * side))
-		var at := global_position + dir * (2.4 if side == 0 else 2.0)
-		_axe_fall(at, dir, size * (1.0 if side == 0 else 0.8), 0.05 * absi(side))
-
-
-## Landing from the top of the Updraft: the floor breaks under him, and off
-## a Triple Chop (Stormfall) the element erupts in a ring round the crater.
-func _stormfall() -> void:
-	var el := element()
-	var at := global_position + _facing() * 1.2
-	BREAKER_QUAKE.crater(get_parent(), at, el, 3.2, true, _move_id == "L3")
-	BREAKER_QUAKE.shockwave(get_parent(), at, _fx_color(), 5.5 if _move_id == "L3" else 4.0)
-	Game.sfx("quake", -3.0, 0.05)
-	Game.shake(0.5)
-	if _move_id == "L3":
-		BREAKER_QUAKE.eruption(get_parent(), at, el, 4.2, 0.05)
-		ELEMENTS.sky_impact(get_parent(), at, el, 3.0)
-	stormfalls += 1
 
 
 func _state_attack(delta: float) -> void:
 	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
 	if _void != null:
 		_void.attack_tick(t, delta)
-	if _mouse_aiming() and not _hop_air and _move_id != "AF":  # (in the air _air_home has him; AF has its spot)
+	if _mouse_aiming() and not _hop_air:  # (in the air _air_home has him)
 		_face(_turned(_aim_want(), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
 	# Lunge decays quickly so attacks feel snappy, not slidey.
 	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
 	var fwd := _facing()
 	velocity.x = fwd.x * lunge
 	velocity.z = fwd.z * lunge
-	if _void != null and _move_id in VOID_ELEMENT.SPEAR_RUN and _hits_done == 0:
+	if _move_id in VOID_ELEMENT.SPEAR_RUN and _hits_done == 0:
 		VOID_ELEMENT.run_to_spear(self, delta)
 
 	_hop(t)
-	if model.position.y > 0.3 and named_id() == "STORMFALL":  # the comet trail down
-		_ghost_t -= delta
-		if _ghost_t <= 0.0:
-			_ghost_t = AIR_GUST.COMET_STEP
-			AIR_GUST.comet(get_parent(), model, _fx_color(), element())
-	_weave(t)
 	var hits: Array = _move.hits
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
-		if _move.get("blades", false):  # Gale Waltz: a wind blade rakes down off each cut, left, right, then a big one dead ahead
-			var last := _hits_done == hits.size()
-			var side := 0.0 if last else (-30.0 if _hits_done % 2 == 1 else 30.0)
-			AIR_GUST.wind_blade(get_parent(), global_position + Vector3.UP * (model.position.y + 1.0),
-				_facing().rotated(Vector3.UP, deg_to_rad(side)), _fx_color(), element(), 5.5 if last else 4.5, last)
-		if _move.has("weave"):  # each cut of the dance leaves a spectral copy of him behind
-			Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.4))
 	var brk := _breaker_for(_move_id)
 	if not brk.is_empty() and _connected and t >= _move.get("leap", brk.leap):  # (a whiff plays out normally)
 		_start_leap(_move_id, brk)
@@ -1065,27 +748,20 @@ func _set_state(s: State) -> void:
 
 
 ## Combo breaker, part 1: leap up and back, hurl spikes onto the zone ahead,
-## ring it with the timing cue (BREAKERS).
-func _start_leap(id: String, entry: Dictionary = {}) -> void:
+## ring it with the timing cue (VOID_ELEMENT.BREAKERS via _breaker_for).
+func _start_leap(id: String, entry: Dictionary) -> void:
 	_brk_id = id
-	_brk = entry if not entry.is_empty() else BREAKERS[id]
+	_brk = entry
 	_brk_phase = 0
 	_brk_press = -1.0
 	_brk_locked = false
 	_brk_held = false
-	_brk_thrown = 0
-	_brk_spikes.clear()
-	_brk_blasted = {}
 	_brk_cue = null
-	_brk_wheel = null
-	_brk_passed = {}
 	_brk_focus = false
 	_brk_ended = ""
 	_brk_alt = false
-	_brk_y0 = model.position.y if _brk.has("tentacle") else 0.0
-	_brk_volley.clear()
+	_brk_y0 = model.position.y
 	_breaker_prompt()
-	_brk_ancestor = null
 	_brk_dir = _facing()
 	var ahead := minf(_brk.zone, _clear_ahead(_brk_dir, _brk.zone) + 0.3)
 	_brk_zone = Vector3(global_position.x, 0.0, global_position.z) + _brk_dir * ahead
@@ -1147,22 +823,13 @@ func _state_leap(delta: float) -> void:
 			model.position.y = lerpf(_brk_y0, b.height, 1.0 - pow(1.0 - k, 3.0))
 		else:
 			model.position.y = b.height + sin((t - b.rise) * 9.0) * 0.06  # hangs
-			var hang: String = b.get("hang_anim", "Jump_Idle")
-			if anim.current_animation != hang and _brk_thrown >= b.spikes and not b.has("juggle"):
-				_play(hang, 0.15)
+			if anim.current_animation != "Jump_Idle":
+				_play("Jump_Idle", 0.15)
 		_face(_brk_dir)
-		if b.spikes > 0 and t >= b.throw and _brk_thrown == 0:
-			_play("Spellcast_Shoot", 0.05, true)
-		if b.has("juggle") and t >= b.throw:
-			_juggle()
-		if b.has("volley") and t >= b.throw and _brk_volley.is_empty():
-			_volley_raise()
-		while _brk_thrown < b.spikes and t >= b.throw + _brk_thrown * 0.03:
-			_throw_spike()
 		if t >= b.cue and _brk_cue == null:
 			_brk_cue = BREAKER_CUE.new()
 			_brk_cue.color = _brk_color()
-			_brk_cue.crisp = b.has("tentacle")
+			_brk_cue.crisp = true
 			_brk_cue.open = b.open - b.cue
 			_brk_cue.sweet = b.sweet - b.cue
 			_brk_cue.close = b.close - b.cue
@@ -1176,9 +843,7 @@ func _state_leap(delta: float) -> void:
 			Game.sfx("heartbeat", -6.0, 0.0)
 			# The war cry marks the window: he roars in the slowed hang.
 			Game.sfx("war_cry", -3.0, 0.06)
-			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _brk_color(), _brk_element(), not b.has("tentacle"))  # (its bubble hid him and filled the floor)
-			if awakened and not b.has("dash") and not b.has("fan"):
-				_breaker_ancestor()
+			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _brk_color(), _brk_element(), false)  # (its bubble hid him and filled the floor)
 		if not _brk_locked and not _brk_held and _breaker_pressed(t):
 			if t < BREAKER_SPILL:
 				pass  # the ender's own press spilling over: ignored
@@ -1201,14 +866,7 @@ func _state_leap(delta: float) -> void:
 		if t > b.close:
 			if _brk_ended == "":
 				_brk_ended = "miss"
-			for g in _brk_volley:
-				if is_instance_valid(g):
-					g.cancel()
-			_brk_volley.clear()
-			if is_instance_valid(_brk_ancestor):
-				_brk_ancestor.queue_free()  # no dive: it never lands
-			if b.has("tentacle"):
-				_void.release_seized()
+			_void.release_seized()
 			_brk_phase = 2
 			_state_t = 0.0
 			_play("Jump_Idle", 0.1)
@@ -1222,16 +880,12 @@ func _state_leap(delta: float) -> void:
 		_ghost_t -= delta
 		if _ghost_t <= 0.0:
 			_ghost_t = 0.02
-			if b.has("dash"):
-				Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.5))
-			elif b.has("meteor"):  # (the tail on the shell does the work: this is what comes off it)
+			if b.has("meteor"):  # (the tail on the shell does the work: this is what comes off it)
 				Fx.burst(get_parent(), model.global_position + Vector3.UP, VOID_ELEMENT.METEOR_HOT, 5, 3.0, 0.14, 0.3, Vector3.UP, 60.0)
 			else:  # the dive comes down like a comet in his element
-				AIR_GUST.comet(get_parent(), model, _brk_color(), _brk_element())
+				_comet(_brk_color(), _brk_element())
 		if is_instance_valid(_brk_meteor):
 			_brk_meteor.global_position = model.global_position + Vector3.UP
-		if b.has("dash"):
-			_dash_cut()
 		if k >= 1.0:
 			_breaker_impact()
 	else:
@@ -1240,96 +894,6 @@ func _state_leap(delta: float) -> void:
 		if k >= 1.0:
 			_end_leap()
 			Fx.dust(get_parent(), global_position, 8, 0.6)
-
-
-## The juggle (BREAKERS `juggle`): spin in the air inside a spectral
-## sawblade that grinds the launched foes and keeps them up.
-func _juggle() -> void:
-	var b := _brk
-	if anim.current_animation != "2H_Melee_Attack_Spinning" or not anim.is_playing():
-		_play("2H_Melee_Attack_Spinning", 0.05, true)
-	if b.has("pull"):  # the whirlwind drags foes in (never closer than 1.2 m)
-		var step: float = b.pull * get_physics_process_delta_time()
-		for e in FOES.near(get_tree(), global_position, b.pull_radius):
-			if e.has_method("is_boss"):
-				continue
-			var to: Vector3 = global_position - e.global_position
-			to.y = 0.0
-			if to.length() > 1.2:
-				e.global_position += to.normalized() * minf(step, to.length() - 1.2)
-	if _brk_wheel != null:
-		return
-	var wh = _spirit(SPIRIT_WHEEL.new(), {"damage": b.juggle_damage}, element())
-	wh.count = b.juggle_axes
-	wh.radius = b.juggle_radius * _cast_grow()
-	wh.time = b.close - b.throw + 0.1
-	wh.turns = 3.5
-	model.add_child(wh)  # rides up with him
-	_brk_wheel = wh
-	Game.sfx("swing", -6.0, 0.1)
-
-
-## Awakened dive breakers: a giant ancestor rises behind the zone as the
-## window opens and brings its axe down on it as the hero dives (visual).
-func _breaker_ancestor() -> void:
-	var b := _brk
-	var av = _spirit(SPIRIT_AVATAR.new(), {"damage": 0.0}, element())
-	av.fwd = _brk_dir
-	av.scale_to = BREAKER_ANCESTOR
-	av.speed = SPIRIT_AVATAR.speed_for(b.sweet - b.open + b.dive)
-	av.impact_fx = false
-	get_parent().add_child(av)
-	av.global_position = _brk_zone
-	av.global_position += _brk_zone - av.land_point()  # its axe head lands on the zone
-	_brk_ancestor = av
-
-
-## Spike's breaker: a spectral axe hovering point-down over each foe near the
-## zone (one over the zone if there are none), following them (BREAKERS `volley`).
-func _volley_raise() -> void:
-	var b := _brk
-	var foes: Array = FOES.near(get_tree(), _brk_zone, b.volley_radius)
-	foes.sort_custom(func(a: Node3D, c: Node3D) -> bool:
-		return a.global_position.distance_squared_to(_brk_zone) < c.global_position.distance_squared_to(_brk_zone))
-	var shared := {}
-	var n := maxi(mini(foes.size(), b.volley_max), 1)
-	for i in n:
-		var gu = _spirit(SPIRIT_GUILLOTINE.new(), {"damage": b.volley_damage * _cast_power()}, element())
-		gu.fwd = _brk_dir
-		gu.size = b.volley_size * _cast_grow()
-		gu.radius = 1.6
-		gu.heavy = false
-		gu.wait = true
-		gu.shared = shared
-		if i < foes.size():
-			gu.target = foes[i]
-		get_parent().add_child(gu)
-		gu.global_position = Vector3(foes[i].global_position.x, 0.0, foes[i].global_position.z) if i < foes.size() else _brk_zone
-		_brk_volley.append(gu)
-	Game.sfx("ult", -10.0, 0.1)
-
-
-## The dash breaker cuts each foe it passes once (BREAKERS `dash`).
-func _dash_cut() -> void:
-	var b := _brk
-	for e in FOES.near(get_tree(), global_position, b.width):
-		if _brk_passed.has(e):
-			continue
-		_brk_passed[e] = true
-		var side: Vector3 = e.global_position - global_position
-		side.y = 0.0
-		side = (side - _brk_dir * side.dot(_brk_dir)).normalized()
-		e.take_hit(b.pass_damage * _dmg_mult * _cast_power(), side * 6.0 + _brk_dir * 2.0, 0.0, true)
-		Game.register_hit("breaker")
-		_cast_hit(e)
-		Fx.element_hit(get_parent(), e.global_position + Vector3.UP, element(), _brk_dir)
-		Game.hitstop(0.03)
-
-
-func _drop_wheel() -> void:
-	if is_instance_valid(_brk_wheel):
-		_brk_wheel.queue_free()
-	_brk_wheel = null
 
 
 ## The breaker press this frame: heavy, light where the breaker has an `alt`, or the autotest bot at the
@@ -1343,32 +907,6 @@ func _breaker_pressed(t: float) -> bool:
 		return true
 	_brk_alt = false
 	return Input.is_action_just_pressed("attack_heavy")
-
-
-func _throw_spike() -> void:
-	var b := _brk
-	var i := _brk_thrown
-	_brk_thrown += 1
-	var s := BREAKER_SPIKE.new()
-	s.axe_mesh = _axe_mesh()
-	s.el = element()
-	s.color = _fx_color()
-	s.damage = b.spike_damage * _dmg_mult
-	s.detonate_damage = b.detonate * _dmg_mult * _cast_power()
-	s.on_hit = _cast_hit
-	s.blasted = _brk_blasted
-	s.size = 1.5 * _cast_grow()
-	# Centre one, then spiralling out (golden angle, so they spread evenly).
-	var off := Vector3.ZERO
-	if i > 0:
-		var ang := i * 2.39996
-		off = Vector3(sin(ang), 0.0, cos(ang)) * b.spread * sqrt(float(i) / b.spikes)
-	s.from = global_position + Vector3.UP * (model.position.y + 1.3)
-	s.to = _brk_zone + off
-	s.life = b.close - b.throw + 0.5
-	get_parent().add_child(s)
-	_brk_spikes.append(s)
-	Game.sfx("swing", -10.0, 0.2)
 
 
 func _start_dive() -> void:
@@ -1389,14 +927,9 @@ func _start_dive() -> void:
 		_brk_meteor.global_position = model.global_position + Vector3.UP
 	_brk_phase = 1
 	_state_t = 0.0
-	_drop_wheel()
 	_brk_dive_from = global_position
 	var perfect: bool = absf(_brk_press - _brk.sweet) <= _brk.perfect
 	_brk_ended = "perfect" if perfect else "hit"
-	for i in _brk_volley.size():  # the axes fall with him
-		if is_instance_valid(_brk_volley[i]):
-			_brk_volley[i].drop(maxf(_brk.dive - _brk_volley[i].fall, 0.0) + 0.02 * i)
-	_brk_volley.clear()
 	if is_instance_valid(_brk_cue):
 		_brk_cue.hit(perfect)
 	if _brk_focus:
@@ -1404,17 +937,8 @@ func _start_dive() -> void:
 	if perfect:
 		Game.hitstop(BREAKER_PERFECT_STOP, 0.05)
 		Game.sfx("perfect", -4.0, 0.0)
-	if _brk.has("dash"):
-		_play("Dodge_Forward", 0.03, true)
-		Game.sfx("dash", 0.0, 0.0)
-		var run := (_brk_zone - global_position).length()
-		Fx.dash_streak(get_parent(), global_position, _brk_dir, run, Color(_fx_color(), 0.8))
-	elif _brk.has("tentacle"):
-		_play("Ab_VS", 0.03, true)
-		anim.seek(anim.current_animation_length * 0.3, true)
-	else:
-		_play("2H_Melee_Attack_Chop", 0.04, true)
-		anim.seek(anim.current_animation_length * 0.3, true)
+	_play("Ab_VS", 0.03, true)
+	anim.seek(anim.current_animation_length * 0.3, true)
 	Game.sfx("ult", -6.0, 0.0)
 	Fx.flash(model)
 	if Game.camera_rig:
@@ -1430,33 +954,13 @@ func _breaker_impact() -> void:
 	var mult: float = (b.perfect_mult if perfect else 1.0) * _cast_power()
 	if is_instance_valid(_brk_meteor):
 		_brk_meteor.queue_free()
-	if b.has("dash"):
-		_dash_wake(b.damage * _dmg_mult * mult, perfect)
-	elif b.has("fan"):
-		_fan_release(mult, perfect)
-		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius, Vector3.ZERO, false)
-	elif b.has("tentacle"):
-		VOID_ELEMENT.breaker_impact(self, b, at, _void.held_foes() if b.has("cubes") or b.has("rip") else _void.slam_seized(), mult)
-	else:
-		ELEMENTS.sky_impact(get_parent(), at, el, b.radius)
-		SPIRIT_AVATAR.slam_fx(get_parent(), at, el, b.radius * 0.9, _brk_dir)
-		_axe_fall(at, _brk_dir, 4.6 if perfect else 3.8)
-	# Barbaric landing: the floor breaks (the dash breaker's wake is its own
-	# crater), and a perfect makes the element answer the blow all round it.
-	if b.has("dash"):
-		if perfect:
-			BREAKER_QUAKE.eruption_line(get_parent(), _brk_dive_from, _brk_dir, (at - Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)).length(), el)
-	else:
-		if not b.has("press") and not b.has("at_spot"):  # (its ice buried the cubes as they left; the dark ones have their own)
-			BREAKER_QUAKE.crater(get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
-		if perfect and not b.has("tentacle"):  # (his erupts under each foe already)
-			BREAKER_QUAKE.eruption(get_parent(), at, el, maxf(b.radius, 2.4) * 1.35)
-		Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
-	for s in _brk_spikes:
-		if is_instance_valid(s):
-			s.detonate()
+	VOID_ELEMENT.breaker_impact(self, b, at, _void.held_foes() if b.has("cubes") or b.has("rip") else _void.slam_seized(), mult)
+	# Barbaric landing: the floor breaks (the element erupts under each foe already).
+	if not b.has("press") and not b.has("at_spot"):  # (its ice buried the cubes as they left; the dark ones have their own)
+		BREAKER_QUAKE.crater(get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
+	Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
 	if b.radius > 0.0:
-		ELEMENTS.hit_area(get_tree(), at, b.radius, b.damage * _dmg_mult * mult, b.launch, true, "breaker", _cast_hit)
+		ELEMENTS.hit_area(get_tree(), at, b.radius, b.damage * _dmg_mult * mult, b.launch, true, "breaker")
 	Game.hitstop(0.18 if perfect else 0.12, 0.05)
 	Game.shake(0.8 if perfect else 0.6)
 	if Game.camera_rig:
@@ -1471,65 +975,10 @@ func _breaker_impact() -> void:
 	_end_leap()
 
 
-## The Cyclone breaker's release: a ring of spectral tomahawks flung out in
-## every direction, each boomeranging back to him (BREAKERS `fan`). Awakened:
-## half as many again, bigger.
-func _fan_release(mult: float, perfect: bool) -> void:
-	var b := _brk
-	var n: int = b.fan + (b.fan / 2 if awakened else 0)
-	var g := _cast_grow() * (1.3 if awakened else 1.0) * (1.15 if perfect else 1.0)
-	var fwd := _facing()
-	var shared := {}  # each foe hit once per leg by the whole ring
-	for i in n:
-		var th = _spirit(SPIRIT_TOMAHAWK.new(), {"damage": b.fan_damage * mult}, element())
-		th.shared = shared
-		th.dir = fwd.rotated(Vector3.UP, TAU * i / n)
-		th.hero = self
-		th.size = 2.2 * g
-		th.reach = minf(b.fan_range, _clear_ahead(th.dir, b.fan_range) + 0.4)
-		th.back_damage = b.fan_back * _dmg_mult * mult
-		get_parent().add_child(th)
-		th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
-	Game.sfx("swing_heavy", 0.0, 0.05)
-
-
-## The dash breaker's end: he turns out of the dash with a slash and the line
-## behind him erupts in spectral axes, hitting everything along it.
-func _dash_wake(damage: float, perfect: bool) -> void:
-	var b := _brk
-	var line := global_position - _brk_dive_from
-	line.y = 0.0
-	var length := maxf(line.length(), 2.0)
-	_play("2H_Melee_Attack_Slice", 0.04, true)
-	anim.seek(anim.current_animation_length * 0.3, true)
-	var rf = _spirit(SPIRIT_RIFT.new(), {"damage": 0.0}, element())
-	rf.fwd = _brk_dir
-	rf.length = length + 0.6
-	rf.steps = clampi(int(length / 1.0), 4, 9)
-	rf.step_time = 0.025
-	rf.size_from = 2.2
-	rf.size_to = 4.2 if perfect else 3.4
-	if awakened:
-		rf.size_from *= BREAKER_AWAKENED_WAKE
-		rf.size_to *= BREAKER_AWAKENED_WAKE
-	get_parent().add_child(rf)
-	rf.global_position = Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)
-	var from := Vector3(_brk_dive_from.x, 0.0, _brk_dive_from.z)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - from
-		to.y = 0.0
-		if e.is_alive() and _in_strip(to, _brk_dir, length, b.width, e.radius):
-			e.take_hit(damage, Vector3.UP, b.launch, true)
-			Game.register_hit("breaker")
-			_cast_hit(e)
-
-
 func _breaker_callout(text: String, perfect: bool) -> void:
 	Game.sfx(COMBO_TIER_SFX[2], COMBO_SFX_DB, 0.0)
 	_callout.text = text + ("\nPERFECT" if perfect else "")
 	_callout.modulate = COMBO_TIER_COLORS[2] if perfect else _fx_color().lerp(Color.WHITE, 0.3)
-	if not _brk.has("tentacle"):  # (it covered what the tentacles do on landing)
-		Fx.combo_pop(get_parent(), global_position, _callout.modulate, 3 if perfect else 2)
 	_callout.position = Vector3(0.0, 2.9, 0.0)
 	_callout.scale = Vector3.ONE * 0.6
 	_callout.visible = true
@@ -1543,26 +992,17 @@ func _breaker_callout(text: String, perfect: bool) -> void:
 	_callout_tw.tween_callback(_callout.hide)
 
 
-## Dash out of a breaker's hang (before the press): the breaker is off, its
-## pieces go (hovering axes, ancestor, floor cue, sawblade), the slow motion
-## ends and he dashes. The prompt shows it as a miss.
+## Dash out of a breaker's hang (before the press): the breaker is off, what
+## he holds drops, the floor cue goes, the slow motion ends and he dashes. The
+## prompt shows it as a miss.
 func _leap_dash_out() -> void:
 	_brk_ended = "miss"
-	if _brk.has("tentacle"):
-		_void.release_seized()
-	for g in _brk_volley:
-		if is_instance_valid(g):
-			g.cancel()
-	_brk_volley.clear()
-	if is_instance_valid(_brk_ancestor):
-		_brk_ancestor.queue_free()
+	_void.release_seized()
 	if is_instance_valid(_brk_cue):
 		_brk_cue.queue_free()
 	if _brk_focus:
 		Game.end_slowmo()
-	_drop_wheel()
 	velocity = Vector3.ZERO
-	_brk_spikes.clear()
 	_brk_cue = null
 	_chain_i = 0
 	_set_state(State.MOVE)  # (the model settles from the hang during the dash)
@@ -1570,13 +1010,10 @@ func _leap_dash_out() -> void:
 
 
 func _end_leap() -> void:
-	if _brk.has("tentacle"):
-		_void.release_seized()
-		_buffered = ""  # the press that dove him isn't a grab as well
-	_drop_wheel()
-	velocity = Vector3.ZERO  # (the dive / dash speed would carry on)
+	_void.release_seized()
+	_buffered = ""  # the press that dove him isn't a grab as well
+	velocity = Vector3.ZERO  # (the dive speed would carry on)
 	model.position.y = 0.0
-	_brk_spikes.clear()
 	_brk_cue = null
 	_chain_i = 0
 	_set_state(State.MOVE)
@@ -1585,22 +1022,22 @@ func _end_leap() -> void:
 # --- Actions ----------------------------------------------------------------
 
 func _next_move(kind: String) -> String:
-	return _routed(kind, _route_from(), state == State.ATTACK, _chain_i, _post_dash_t > 0.0, awakened, _gusted)
+	return _routed(kind, _move_id, state == State.ATTACK, _chain_i, _post_dash_t > 0.0)
 
 
-## route() for the hero he is: the comic hero has his own, smaller move set for now.
-func _routed(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool, gusted: bool) -> String:
-	if _comic_hero:
-		if VOID_ELEMENT.vaults(get_tree(), from, attacking, post_dash):
-			return "IJ"
-		return void_route(kind, from, attacking, chain, post_dash)
-	return route(kind, from, attacking, chain, post_dash, awake, gusted)
+## void_route(), plus the vault: while his frost spear stands, either press takes him up over it.
+func _routed(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
+	if VOID_ELEMENT.vaults(get_tree(), from, attacking, post_dash):
+		return "IJ"
+	return void_route(kind, from, attacking, chain, post_dash)
 
 
-## The comic hero's presses. Lights run the weapons: axe, spear, hammer. H (right click) is the tentacle:
+## The move a "light" or "heavy" press starts. `from` is the move playing (or the last one), `attacking`
+## whether it's still going, `chain` the light chain position, `post_dash` just out of a dash. The combo
+## guide asks this too (with made-up states to look one press ahead), so they always agree.
+## Lights run the weapons: axe, spear, hammer. H (right click) is the tentacle:
 ## what it does off a weapon depends on that weapon's element, on its own it's the grab (void_element.gd).
 ## L off Updraft Lash goes into the air, L off the grab flails what it holds, H off a dash is Tow Line.
-## route() below is untouched for the other heroes.
 static func void_route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
 	if kind == "light":
 		if attacking and VOID_ELEMENT.LIGHT_AFTER.has(from):
@@ -1609,11 +1046,6 @@ static func void_route(kind: String, from: String, attacking: bool, chain: int, 
 	if post_dash and not attacking:
 		return VOID_ELEMENT.DASH_MOVE
 	return VOID_ELEMENT.heavy_after(from, attacking)
-
-
-## The `from` route() sees: "AD" just out of an air dash, else the last move.
-func _route_from() -> String:
-	return "AD" if _air_dash and (state == State.DASH or (state == State.MOVE and _post_dash_t > 0.0)) else _move_id
 
 
 ## The air dash's spectral axe (AIR_DASH_CUT): a spirit_echo parented to the
@@ -1636,51 +1068,9 @@ func _can_air_dash() -> bool:
 	return _move_id in AIR_DASH_FROM and model.position.y >= AIR_DASH_MIN and _air_dashes < AIR_DASHES
 
 
-## What dash-then-light starts from here (the combo guide's dash row).
+## What dash-then-light starts from here (the combo guide's dash row): Dash Stab, in the air too.
 func dash_light() -> String:
-	return "AL1" if _can_air_dash() else "DL"
-
-
-## The move a "light" or "heavy" press starts. `from` is the move playing (or
-## the last one), `attacking` whether it's still going, `chain` the light
-## chain position, `post_dash` just out of a dash. The combo guide asks this
-## too (with made-up states to look one press ahead), so they always agree.
-static func route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool, awake: bool, gusted := false) -> String:
-	if kind == "light":
-		if post_dash:
-			return "AL1" if from == "AD" else "DL"  # (an air dash keeps the air string going)
-		if attacking and from == "LH":
-			return "AL1"  # off the launcher: into the air
-		if attacking and from == "AL1":
-			return "AL2"
-		if attacking and from == "AH":
-			return "AL3"  # riding the gale
-		if attacking and from in ["AL2", "AL3"]:
-			return "L3"  # Triple Chop slams down from the air
-		if not attacking and from == "L2" and chain == 2:
-			return "LPL"  # L2 has finished: the pause turns the third light into Flurry
-		return LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
-	# Heavy: Cyclone out of a dash, Awakened ultimates off L3 / LH / DL,
-	# launcher if mid-string, spin from neutral.
-	if post_dash and not attacking:
-		if from == "AD":
-			return "SKY" if awake else "LHH"  # Spike down out of the air dash
-		return "DH"
-	if awake and attacking and from == "L3":
-		return "AF"
-	if attacking and from == "AL2" and not gusted:
-		return "AH"  # Updraft: the gale lifts him higher (once per trip up)
-	if awake and attacking and from in ["LH", "AL1", "AL2", "AH", "AL3"]:
-		return "SKY"
-	if attacking and from in ["LH", "AL1", "AL2", "AH", "AL3"]:
-		return "LHH"  # Spike, from the air
-	if awake and attacking and from == "DL":
-		return "RUSH"
-	if (attacking and from == "L2") or (not attacking and chain == 2):
-		return "LLH"
-	if (attacking and from != "H") or chain > 0:
-		return "LH"
-	return "H"
+	return void_route("light", _move_id, false, _chain_i, true)
 
 
 ## Light chain position after `id` starts.
@@ -1695,35 +1085,40 @@ static func chain_after(id: String) -> int:
 ## What the combo guide shows right now: one row per input that continues the
 ## string ("light", "heavy", "dash" = dash then light), each with the move it
 ## starts and the best named combo one more press past it, plus `pause` when
-## waiting for the move to finish first starts a different named combo (L2:
-## Flurry). Empty when there's no string to continue.
+## waiting for the move to finish first starts a different named combo.
+## Empty when there's no string to continue.
 func combo_options() -> Array:
 	var attacking := state == State.ATTACK
 	var dashing := state == State.DASH or _post_dash_t > 0.0
 	var live := attacking or dashing or state == State.CHARGE or (state == State.MOVE and _chain_i > 0)
-	if not live or (attacking and _move_id == "AF"):
-		return []  # (the finisher has the screen to itself)
+	if not live:
+		return []
 	if state == State.CHARGE:
-		return [_option("heavy", VOID_ELEMENT.CHARGED if _void != null else "CH", true)]
+		return [_option("heavy", VOID_ELEMENT.CHARGED, true)]
 	var rows := []
 	var kinds: Array[String] = ["light", "heavy"]
 	for kind: String in kinds:
-		var id := _routed(kind, _route_from(), attacking, _chain_i, dashing, awakened, _gusted)
-		if kind == "heavy" and id in ["H", VOID_ELEMENT.NEUTRAL]:
-			continue  # the plain spin, or a lone grab, isn't a continuation
+		var id := _routed(kind, _move_id, attacking, _chain_i, dashing)
+		if kind == "heavy" and id == VOID_ELEMENT.NEUTRAL:
+			continue  # a lone grab isn't a continuation
 		var o := _option(kind, id)
-		if id == "L3" and attacking and model.position.y >= PLUNGE_AXES_FROM:
-			var fall := "STORMFALL" if model.position.y >= STORMFALL_FROM else "SKYFALL"
-			o.name = combo_name(fall)  # from up here it plunges as Skyfall / Stormfall (named_id())
-			o.tier = COMBOS[fall].tier
 		if attacking:
-			var wait := _routed(kind, _move_id, false, _chain_i, false, awakened, _gusted)
+			var wait := _routed(kind, _move_id, false, _chain_i, false)
 			if wait != id and COMBOS.has(wait):
 				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
 		rows.append(o)
 	if attacking and not dashing:
 		rows.append(_option("dash", dash_light()))
 	return rows
+
+
+## One beat of a breaker dive's comet trail (every 0.02 s as he drops): a ghost
+## of him plus sparks in the element.
+func _comet(c: Color, el: String) -> void:
+	Fx.afterimage(get_parent(), model, Color(c, 0.55), 0.2)
+	var at := model.global_position + Vector3.UP * 1.0
+	Fx.burst(get_parent(), at, c.lerp(Color.WHITE, 0.25), 6, 4.0, 0.14, 0.3, Vector3.UP, 40.0, 2.0, 0.4)
+	Fx.burst(get_parent(), at, ELEMENTS.LOOK[el].glow, 3, 2.0, 0.1, 0.25, Vector3.UP, 60.0, 0.0, 0.3)
 
 
 ## The breaker timing prompt (breaker_prompt.gd) reads this every frame:
@@ -1748,10 +1143,8 @@ func _breaker_prompt() -> void:
 	layer.add_child(_brk_prompt)
 
 
-## The breaker this move leads to, if any. The void arm has his own (void_element.BREAKERS).
+## The breaker this move leads to, if any (void_element.BREAKERS).
 func _breaker_for(id: String) -> Dictionary:
-	if _void == null:
-		return BREAKERS.get(id, {})
 	return VOID_ELEMENT.entry(id) if VOID_ELEMENT.BREAKERS.has(id) else {}
 
 
@@ -1772,17 +1165,17 @@ func breaker_name() -> String:
 
 func _option(kind: String, id: String, hold := false) -> Dictionary:
 	var o := {"kind": kind, "id": id, "name": guide_name(id), "tier": COMBOS[id].tier if COMBOS.has(id) else 0,
-		"ult": ULTIMATES.has(id) or id == "AF", "hold": hold, "next": {}}
+		"hold": hold, "next": {}}
 	if o.tier < 3 and not hold:
 		var best := 0
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties
-			var n := _routed(k, id, true, chain_after(id), false, awakened, _gusted or id == "AH")
-			var tier: int = COMBOS[n].tier if COMBOS.has(n) and n != "CH" else 0
-			if combos_landed.get(n, 0) >= GUIDE_LEARNED and not (ULTIMATES.has(n) or n == "AF"):
+			var n := _routed(k, id, true, chain_after(id), false)
+			var tier: int = COMBOS[n].tier if COMBOS.has(n) else 0
+			if combos_landed.get(n, 0) >= GUIDE_LEARNED:
 				tier = 0  # learned: no need to hint it any more
 			if tier > best:
 				best = tier
-				o.next = {"kind": k, "id": n, "name": guide_name(n), "tier": tier, "ult": ULTIMATES.has(n) or n == "AF"}
+				o.next = {"kind": k, "id": n, "name": guide_name(n), "tier": tier}
 	return o
 
 
@@ -1807,9 +1200,6 @@ func combo_window() -> Dictionary:
 func _start_attack(id: String) -> void:
 	_buffered = ""
 	_ready_t = ComicLook.READY_HOLD
-	if ULTIMATES.has(id):
-		_start_ult(id)
-		return
 	if id == "GR" and _void.begin():
 		return
 	var prev_id := _move_id
@@ -1829,29 +1219,16 @@ func _start_attack(id: String) -> void:
 	_aim(state == State.ATTACK)
 	if _hop_air:
 		_air_home()
-	if is_instance_valid(_gust_cloud) and not _move.get("air", false):
-		AIR_GUST.vanish(_gust_cloud, get_parent())  # he dives off the gale
-		_gust_cloud = null
-	if _move.get("gust", false):
-		_gusted = true
-		_air_dashes = 0  # the gale gives the air dash back
-		AIR_GUST.gust(get_parent(), global_position, model, _fx_color(), element())
-		if not is_instance_valid(_gust_cloud):
-			_gust_cloud = AIR_GUST.cloud(model, _fx_color())
 	_set_state(State.ATTACK)
-	if _void != null:
-		_void.on_move(id, prev_id)
+	_void.on_move(id, prev_id)
 	attack_started.emit(id)
-	Game.sfx("swing_heavy" if id in ["H", "LH", "LLH", "AF", "CH", "DH", "LHH", "AH"] else "swing", -3.0, 0.12)
+	Game.sfx("swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
-	if id == "AF":
-		_ult_begin(id)
-		_move.damage *= _ult_mult()
 
 
 ## R: the void arm swings him, if it's ready. True if it did.
 func _try_swing() -> bool:
-	if _void == null or _swing_buffer_t <= 0.0 or _swing_cd > 0.0:
+	if _swing_buffer_t <= 0.0 or _swing_cd > 0.0:
 		return false
 	_swing_buffer_t = 0.0
 	_swing_cd = SWING_COOLDOWN
@@ -1965,7 +1342,7 @@ func _do_hit() -> void:
 	var fwd := _facing()
 	var named_before := _callout_done  # a combo ender lands its extra punch once
 	# (not on H's moves: the element is the swing, and the arc hides it)
-	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):
+	if not VOID_ELEMENT.is_element_move(_move_id):
 		_swoosh(fwd)
 	var hit_any := false
 	var any_airborne := false
@@ -1986,35 +1363,17 @@ func _do_hit() -> void:
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
 		var dmg: float = _move.damage * _dmg_mult * plunge_mult()
-		if _move_id == "LHH" and was_airborne:
-			dmg *= SPIKE_AIR_MULT
 		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
 		Fx.element_hit(get_parent(), e.global_position, element(), kb_dir, _move.get("big", false))
 		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
 		hit_any = true
 		_connected = true
-		if _move_id == "LHH" and was_airborne:
-			_spike(e)
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
 		_cast(fwd)
-		if _void != null and VOID_ELEMENT.is_element_move(_move_id) and VOID_ELEMENT.fire(self, _move_id, fwd) > 0:
+		if VOID_ELEMENT.is_element_move(_move_id) and VOID_ELEMENT.fire(self, _move_id, fwd) > 0:
 			hit_any = true
 			_connected = true
-		if _move_id in ["AF", "LLH"]:
-			_combo_callout(_move_id)  # big enough to name even on a whiff
-		if _move_id == "AF":
-			_cataclysm()
-			_ult_landed()
-		if _move_id == "LLH":
-			ground_breakers += 1
-			_crack_line(fwd, Color(0.85, 0.75, 0.6))
-		if _move_id == "CH":
-			charged_slams += 1
-			var at := global_position + fwd * 1.6
-			Fx.ring(get_parent(), at, Color(CHARGE_COLOR, 0.9), _move.range, 0.3)
-			Fx.burst(get_parent(), at + Vector3.UP * 0.2, CHARGE_COLOR, 24, 9.0, 0.14, 0.35, Vector3.UP, 80.0)
-			Fx.dust(get_parent(), at, 16, 1.0)
 	if _move_id == "VS":
 		_void.slam_landed()
 	if hit_any:
@@ -2056,8 +1415,8 @@ func _combo_callout(id: String) -> void:
 	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
 	_callout.text = combo_name(id)
 	_callout.modulate = COMBO_TIER_COLORS[tier - 1]
-	var pop_color: Color = VOID_ELEMENT.color_of(_move_id, _fx_color()) if _void != null else _fx_color()
-	if _void == null or not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: a pop there hides what they're doing)
+	var pop_color: Color = VOID_ELEMENT.color_of(_move_id, _fx_color())
+	if not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: a pop there hides what they're doing)
 		Fx.combo_pop(get_parent(), global_position, pop_color if tier < 3 else _callout.modulate, tier)
 	_callout.position = Vector3(0.0, 2.9, 0.0)
 	_callout.scale = Vector3.ONE * 0.6
@@ -2072,7 +1431,7 @@ func _combo_callout(id: String) -> void:
 	_callout_tw.tween_callback(_callout.hide)
 
 
-# --- Elements and ultimates ---------------------------------------------------
+# --- Casts -------------------------------------------------------------------
 
 ## The hero's element for his own casts and trails: spirit. (Each void move
 ## takes its element from the weapon it forms: VOID_ELEMENT.ELEMENT_OF.)
@@ -2114,7 +1473,7 @@ func _trail_rest_color() -> Color:
 
 ## The element cast that comes with the current move (ELEMENTS.CASTS), on its first active frame.
 func _cast(fwd: Vector3) -> void:
-	if not ELEMENTS.CASTS.has(_move_id) or (_void != null and _move_id in VOID_ELEMENT.NO_CAST):
+	if not ELEMENTS.CASTS.has(_move_id) or _move_id in VOID_ELEMENT.NO_CAST:
 		return
 	var c: Dictionary = ELEMENTS.CASTS[_move_id]
 	var el := element()
@@ -2123,20 +1482,6 @@ func _cast(fwd: Vector3) -> void:
 	Game.sfx(ELEMENTS.LOOK[el].sfx, CAST_SFX_DB, 0.1)
 	var g := _cast_grow()  # spirit weapons swell with the chain
 	match c.kind:
-		"bolt":
-			var n: int = c.get("fan", 1)
-			for i in n:
-				var b := ELEMENTS.Bolt.new()
-				b.el = el
-				b.dir = fwd.rotated(Vector3.UP, deg_to_rad(c.get("spread", 0.0) * (i - (n - 1) * 0.5)))
-				b.speed = c.speed
-				b.reach = minf(c.range, _clear_ahead(b.dir, c.range) + 0.6)  # stops at walls
-				b.damage = c.damage * _dmg_mult
-				b.size = c.get("size", 1.0)
-				b.tilt = c.tilt
-				b.on_hit = _cast_hit
-				parent.add_child(b)
-				b.global_position = global_position + b.dir * 0.7 + Vector3.UP * (0.25 if el == "earth" else 1.0)
 		"echo":
 			var echo = _spirit(SPIRIT_ECHO.new(), c, el)
 			echo.fwd = fwd
@@ -2147,49 +1492,6 @@ func _cast(fwd: Vector3) -> void:
 			echo.time = c.time
 			parent.add_child(echo)
 			echo.global_position = Vector3(global_position.x, model.position.y, global_position.z)  # (air slashes: in the air)
-		"cleave":
-			var cl = _spirit(SPIRIT_CLEAVE.new(), c, el)
-			cl.fwd = fwd
-			cl.size = c.size * g
-			cl.blast = c.blast * g
-			cl.launch = c.launch
-			parent.add_child(cl)
-			cl.global_position = _cast_target(fwd, c.reach, minf(c.ahead, _clear_ahead(fwd, c.ahead)))
-		"avatar":
-			var av = _spirit(SPIRIT_AVATAR.new(), c, el)
-			av.fwd = fwd
-			av.scale_to = c.size * g
-			av.radius = c.radius * g
-			av.launch = c.launch
-			parent.add_child(av)
-			av.global_position = Vector3(global_position.x, 0.0, global_position.z)
-		"crown":
-			var cr = _spirit(SPIRIT_CROWN.new(), c, el)
-			cr.fwd = fwd
-			cr.size = c.size * g
-			cr.radius = c.radius * g
-			cr.height = c.height * g
-			cr.launch = c.launch
-			parent.add_child(cr)
-			cr.global_position = _cast_target(fwd, c.reach, c.ahead)
-		"rift":
-			var rf = _spirit(SPIRIT_RIFT.new(), c, el)
-			rf.fwd = fwd
-			rf.length = minf(c.length * g, _clear_ahead(fwd, c.length * g) + 0.5)
-			rf.steps = c.steps
-			rf.size_from *= g
-			rf.size_to *= g
-			rf.radius *= g
-			rf.launch = c.launch
-			parent.add_child(rf)
-			rf.global_position = Vector3(global_position.x, 0.0, global_position.z)
-		"wheel":
-			var wh = _spirit(SPIRIT_WHEEL.new(), c, el)
-			wh.count = c.count
-			wh.radius = c.radius * g
-			wh.time = c.time
-			wh.turns = c.turns
-			add_child(wh)  # follows the hero (Cyclone dashes)
 		"tomahawk":
 			var n: int = c.get("fan", 1)
 			for i in n:
@@ -2201,25 +1503,6 @@ func _cast(fwd: Vector3) -> void:
 				th.back_damage = c.back_damage * _dmg_mult * _cast_power()
 				parent.add_child(th)
 				th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
-		"guillotine":
-			var gu = _spirit(SPIRIT_GUILLOTINE.new(), c, el)
-			gu.fwd = fwd
-			gu.size = c.size * g
-			gu.radius = c.radius * g
-			parent.add_child(gu)
-			gu.global_position = _cast_target(fwd, c.reach, c.ahead)
-		"vortex":
-			ELEMENTS.vortex(self, el, c.radius, c.time)
-		"pillar":
-			var at := _cast_target(fwd, c.reach, c.ahead)
-			ELEMENTS.pillar(parent, at, el, c.height, c.radius)
-			ELEMENTS.hit_area(get_tree(), at, c.radius, c.damage * _dmg_mult, c.launch, false, "cast", _cast_hit)
-		"fissure":
-			ELEMENTS.fissure(parent, global_position, fwd, c.length, c.steps, el)
-		"nova":
-			var at := global_position + fwd * 1.6
-			ELEMENTS.nova(parent, at, el, c.radius, c.count)
-			ELEMENTS.hit_area(get_tree(), at, c.radius, c.damage * _dmg_mult, 6.0, true, "cast", _cast_hit)
 
 
 ## The common setup of a spirit cast node (spirit_*.gd): the hero's axe,
@@ -2230,7 +1513,6 @@ func _spirit(node: Node3D, c: Dictionary, el: String) -> Node3D:
 	node.color = _fx_color()
 	node.el = el
 	node.damage = c.damage * _dmg_mult * _cast_power()
-	node.on_hit = _cast_hit
 	return node
 
 
@@ -2242,12 +1524,6 @@ func _cast_grow() -> float:
 
 func _cast_power() -> float:
 	return 1.0 + CAST_POWER * Fx.chain_tier(Game.combo_count)
-
-
-## Element casts and void moves hitting `e` call this: the hook for an effect
-## on every such hit (none since the Ascendancy passives went).
-func _cast_hit(_e: Node) -> void:
-	pass
 
 
 ## Ground point for a targeted cast: the nearest foe roughly ahead within `reach`, else `ahead` m in front.
@@ -2267,209 +1543,6 @@ func _cast_target(fwd: Vector3, reach: float, ahead: float) -> Vector3:
 	return Vector3(at.x, 0.0, at.z)
 
 
-func _ult_mult() -> float:
-	return 1.0 + ULT_CHAIN_BONUS * maxi(_ult_chain - 1, 0)
-
-
-## An ultimate starts: chain count, banner, slow-mo, camera punch, light.
-func _ult_begin(id: String) -> void:
-	_ult_chain += 1
-	if id not in _ult_kinds:
-		_ult_kinds.append(id)
-	ults += 1
-	max_chain = maxi(max_chain, _ult_chain)
-	_callout_done = true  # the banner names it
-	var c: Color = ELEMENTS.color(element())
-	if id == "AF":
-		c = COMBO_TIER_COLORS[2]
-	Game.ultimate.emit(combo_name(id), c, _ult_chain)
-	Game.sfx("ult", -3.0, 0.0)
-	Game.hitstop(0.16, 0.2)
-	Game.rumble("awaken")
-	if Game.camera_rig:
-		Game.camera_rig.punch(0.78, 0.6)
-	Fx.flash(model)
-	ELEMENTS.light_pop(get_parent(), global_position, c, 6.0, 7.0, 0.5)
-	ELEMENTS.gather(get_parent(), global_position + Vector3.UP, c, 3.5, 40)
-
-
-## An ultimate hit home; once all three have landed this Awakening, the Trinity follows.
-func _ult_landed() -> void:
-	if _ult_kinds.size() >= ULTIMATES.size() + 1 and not _trinity_done:
-		_trinity_done = true
-		_trinity()
-
-
-func _start_ult(id: String) -> void:
-	_ult_id = id
-	_move_id = id
-	_ult_fired = false
-	_ult_hit.clear()
-	_ult_step_d = 0.0
-	_ult_phase = 0
-	_ult_fx_t = 0.0
-	_chain_i = 0
-	_post_dash_t = 0.0
-	_aim()
-	_ult_dir = _facing()
-	_ult_from = global_position
-	if id == "SKY":
-		_ult_at = _cast_target(_ult_dir, ULTIMATES.SKY.reach, 3.0)
-		_sky_ancestor()
-	if id == "RUSH":
-		_ult_len = _clear_ahead(_ult_dir, ULTIMATES.RUSH.length)
-	_set_state(State.ULT)
-	_ult_begin(id)
-	attack_started.emit(id)
-	if _comic_moves_on():
-		var clip: String = ComicLook.HERO_MOVES[id].clip
-		_play(clip, 0.05, true)
-		var hit_t: float = ULTIMATES.SKY.time * ULTIMATES.SKY.impact if id == "SKY" else ULTIMATES.RUSH.go
-		anim.speed_scale = ComicLook.ult_speed(id, anim.get_animation(clip).length, hit_t)
-	else:
-		_ult_anim("Jump_Start" if id == "SKY" else "Spellcasting", 0.05)
-
-
-func _state_ult(delta: float) -> void:
-	var u: Dictionary = ULTIMATES[_ult_id]
-	var t := _state_t
-	var el := element()
-	var c := ELEMENTS.color(el)
-	_invuln_t = maxf(_invuln_t, 0.15)
-	_ghost_t -= delta
-	if _ghost_t <= 0.0 and (_ult_id == "RUSH" or t < u.time * u.get("impact", 1.0)):
-		_ghost_t = afterimage_interval * 1.5
-		Fx.afterimage(get_parent(), model, Color(c, 0.4))
-	if _ult_id == "SKY":
-		_state_sky(u, t, el, c, delta)
-	else:
-		_state_rush(u, t, el, delta)
-	if t >= u.time:
-		_end_ult()
-
-
-## SKY: leap toward the target, gather the element overhead, smash down.
-func _state_sky(u: Dictionary, t: float, el: String, c: Color, delta: float) -> void:
-	var hit_t: float = u.time * u.impact
-	var k := clampf(t / hit_t, 0.0, 1.0)
-	var to := _ult_at - _ult_from
-	to.y = 0.0
-	velocity.x = to.x / hit_t if k < 1.0 else 0.0
-	velocity.z = to.z / hit_t if k < 1.0 else 0.0
-	_face(to)
-	var rise: float = u.rise
-	model.position.y = rise * (1.0 - pow(1.0 - k / 0.7, 3.0)) if k < 0.7 else rise * (1.0 - pow((k - 0.7) / 0.3, 2.0))
-	if k >= 0.3 and _ult_phase == 0:
-		_ult_phase = 1
-		_ult_anim("Spellcast_Raise", 0.08)
-		if el == "earth":
-			ELEMENTS.meteor(get_parent(), _ult_at, hit_t * 0.7)
-	if _ult_phase == 1:
-		_ult_fx_t -= delta
-		if _ult_fx_t <= 0.0:
-			_ult_fx_t = 0.1
-			ELEMENTS.gather(get_parent(), global_position + Vector3.UP * (model.position.y + 2.4), c, 2.2, 14)
-	if k >= 0.72 and _ult_phase == 1:
-		_ult_phase = 2
-		_ult_anim("2H_Melee_Attack_Chop", 0.04, 0.25)
-	if k >= 1.0 and not _ult_fired:
-		_ult_fired = true
-		model.position.y = 0.0
-		var at := Vector3(global_position.x, 0.0, global_position.z)
-		ELEMENTS.sky_impact(get_parent(), at, el, u.radius)
-		ELEMENTS.hit_area(get_tree(), at, u.radius, u.damage * _dmg_mult * _ult_mult(), u.launch, true, "ult",
-			func(e: Node) -> void:
-				_cast_hit(e)
-				if el == "water" and e.is_alive() and not e.has_method("is_boss"):
-					e.freeze(2.5, 1.5))
-		_ult_impact()
-
-
-## Ancestor's Fall: a colossal ancestor (SKY_ANCESTOR x the hero) rises behind
-## the target and brings his axe down on it exactly as the hero lands (visual:
-## the ultimate's own impact deals the damage).
-func _sky_ancestor() -> void:
-	var u: Dictionary = ULTIMATES.SKY
-	var av = _spirit(SPIRIT_AVATAR.new(), {"damage": 0.0}, element())
-	av.fwd = _ult_dir
-	av.scale_to = SKY_ANCESTOR
-	av.speed = SPIRIT_AVATAR.speed_for(u.time * u.impact)
-	av.impact_fx = false
-	get_parent().add_child(av)
-	var back: float = SPIRIT_AVATAR.LAND.z * SKY_ANCESTOR - 0.6  # model offset: land point ahead of its origin
-	av.global_position = _ult_at - _ult_dir * back
-
-
-## Spirit Stampede's wake: a wave of colossal axes bursts up along the whole
-## charge line (visual: the wake deals the damage).
-func _rush_blades(length: float, el: String) -> void:
-	var rf = _spirit(SPIRIT_RIFT.new(), {"damage": 0.0}, el)
-	rf.fwd = _ult_dir
-	rf.length = length + 1.0
-	rf.steps = clampi(int(length / 1.1), 4, 10)
-	rf.step_time = 0.03
-	rf.size_from = 2.6
-	rf.size_to = 4.6
-	get_parent().add_child(rf)
-	rf.global_position = Vector3(_ult_from.x, 0.0, _ult_from.z)
-
-
-## RUSH: wind up, charge through everything ahead, then the line erupts.
-func _state_rush(u: Dictionary, t: float, el: String, delta: float) -> void:
-	var go: float = u.go
-	var dash_end: float = go + u.dash
-	_face(_ult_dir)
-	if t < go:
-		velocity.x = 0.0
-		velocity.z = 0.0
-	elif t < dash_end:
-		if _ult_phase == 0:
-			_ult_phase = 1
-			_ult_anim("Dodge_Forward", 0.03)
-			Game.sfx("dash", 0.0, 0.0)
-			if el == "water":
-				ELEMENTS.wave_wall(model, u.dash + 0.25)
-		var spd: float = _ult_len / u.dash
-		velocity.x = _ult_dir.x * spd
-		velocity.z = _ult_dir.z * spd
-		_ult_step_d += spd * delta
-		if _ult_step_d >= 1.2:
-			_ult_step_d = 0.0
-			ELEMENTS.rush_step(get_parent(), global_position, _ult_dir, el)
-		for e in FOES.near(get_tree(), global_position, u.width):
-			if _ult_hit.has(e):
-				continue
-			_ult_hit[e] = true
-			var side: Vector3 = e.global_position - global_position
-			side.y = 0.0
-			side = (side - _ult_dir * side.dot(_ult_dir)).normalized()
-			e.take_hit(u.damage * _dmg_mult * _ult_mult(), side * 6.0 + _ult_dir * 3.0, u.launch, true)
-			Game.register_hit("ult")
-			_cast_hit(e)
-			Game.hitstop(0.03)
-	else:
-		velocity.x = move_toward(velocity.x, 0.0, 80.0 * delta)
-		velocity.z = move_toward(velocity.z, 0.0, 80.0 * delta)
-		if _ult_phase == 1:
-			_ult_phase = 2
-			_ult_anim("2H_Melee_Attack_Slice", 0.04, 0.3)
-		if not _ult_fired and t >= dash_end + u.wake:
-			_ult_fired = true
-			var line := global_position - _ult_from
-			line.y = 0.0
-			var length := maxf(line.length(), 2.0)
-			ELEMENTS.rush_wake(get_parent(), _ult_from, _ult_dir, length, el)
-			_rush_blades(length, el)
-			for e in get_tree().get_nodes_in_group("enemies"):
-				var to: Vector3 = e.global_position - _ult_from
-				to.y = 0.0
-				if e.is_alive() and _in_strip(to, _ult_dir, length, u.width, e.radius):
-					e.take_hit(u.wake_damage * _dmg_mult * _ult_mult(), Vector3.UP, 7.0, true)
-					Game.register_hit("ult")
-					_cast_hit(e)
-			_ult_impact()
-
-
 ## How far the hero can travel along `dir` (up to `length`) before a wall.
 func _clear_ahead(dir: Vector3, length: float) -> float:
 	var from := global_position + Vector3.UP * 0.9
@@ -2478,59 +1551,6 @@ func _clear_ahead(dir: Vector3, length: float) -> float:
 	if hit.is_empty():
 		return length
 	return maxf(from.distance_to(hit.position) - 0.6, 0.0)
-
-
-## A SKY or RUSH impact: the big hit juice.
-func _ult_impact() -> void:
-	ult_impacts += 1
-	Game.sfx("ult_impact", 0.0, 0.05)
-	Game.hitstop(0.12)
-	Game.shake(0.9)
-	Game.rumble("hit_big")
-	_ult_landed()
-
-
-func _end_ult() -> void:
-	model.position.y = 0.0
-	_buffered = ""
-	_chain_reset_t = 0.0
-	_ghost_t = 0.0
-	_set_state(State.MOVE)
-
-
-## All three ultimates in one Awakening: a strike of the element on every foe around.
-func _trinity() -> void:
-	trinities += 1
-	var el := element()
-	var c := ELEMENTS.color(el)
-	var parent := get_parent()
-	await get_tree().create_timer(TRINITY.delay, false).timeout
-	if not is_inside_tree():
-		return
-	Game.ultimate.emit(TRINITY.names[el], c, 0)
-	Game.sfx("ult", 0.0, 0.0)
-	Game.hitstop(0.25, 0.15)
-	Game.shake(1.0)
-	if Game.camera_rig:
-		Game.camera_rig.punch(1.15, 0.8)
-	ELEMENTS.light_pop(parent, global_position, c, 12.0, 20.0, 0.8)
-	Fx.ring(parent, global_position, Color(c, 0.95), TRINITY.radius, 0.6)
-	var targets := FOES.near(get_tree(), global_position, TRINITY.radius)
-	if targets.is_empty():
-		for i in 6:
-			var ang := TAU * i / 6.0
-			ELEMENTS.storm_strike(parent, global_position + Vector3(sin(ang), 0.0, cos(ang)) * 4.0, el)
-	for e in targets:
-		if not is_instance_valid(e) or not e.is_alive():
-			continue
-		ELEMENTS.storm_strike(parent, e.global_position, el)
-		_axe_fall(e.global_position, _facing(), 4.6)
-		e.take_hit(TRINITY.damage * _dmg_mult, Vector3.ZERO, 6.0, true)
-		Game.register_hit("trinity")
-		_cast_hit(e)
-		await get_tree().create_timer(TRINITY.gap, false).timeout
-		if not is_inside_tree():
-			return
 
 
 ## How long an Awakening lasts.
@@ -2555,11 +1575,8 @@ func _on_combo_changed(_count: int, rank: String) -> void:
 		rank_ups += 1
 		var c: Color = RANK_COLORS.get(rank, Color.WHITE)
 		var at := global_position + Vector3.UP * 1.1
-		if Game.heretic:  # thin and hard: the soft ring and star sat on him and fought his effects
-			VOID_ELEMENT.DARK.hoop_run(get_parent(), global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
-		else:
-			Fx.ring(get_parent(), global_position, Color(c, 0.9), 1.8 + i * 0.45, 0.3)
-			Fx.flare(get_parent(), at, c, 1.8 + i * 0.5, 0.2, "star8")
+		# Thin and hard: a soft ring and star sat on him and fought his effects.
+		VOID_ELEMENT.DARK.hoop_run(get_parent(), global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
 		Fx.burst(get_parent(), at, c, 6 + i * 4, 9.0, 0.14, 0.35, Vector3.UP, 120.0, -6.0, 0.3, "spark")
 		if i >= 4 and Game.camera_rig != null:  # S and up
 			Game.camera_rig.punch(0.94, 0.15)
@@ -2597,40 +1614,13 @@ static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: floa
 	return ahead > -0.5 and ahead <= length + pad and side <= half_width + pad
 
 
-func _crack_line(fwd: Vector3, color: Color, from := Vector3.INF) -> void:
-	var start := global_position if from == Vector3.INF else from
-	var length: float = MOVES.LLH.range
-	for i in 5:
-		var at := start + fwd * (1.0 + i * (length - 1.0) / 4.0)
-		Fx.dust(get_parent(), at, 6, 0.7)
-		Fx.burst(get_parent(), at + Vector3.UP * 0.1, color, 5, 4.0, 0.08, 0.25, Vector3.UP, 40.0)
-
-
 ## A copy of the MOVES entry for this press (never mutates MOVES itself), retimed for his clips.
 func _effective_move(id: String) -> Dictionary:
 	var m: Dictionary = MOVES[id].duplicate(true)
-	if _comic_moves_on() and ComicLook.HERO_MOVES.has(id):
+	if ComicLook.HERO_MOVES.has(id):
 		var length := anim.get_animation(ComicLook.HERO_MOVES[id].clip).length
-		ComicLook.retime(id, m, length, MOVES[id].hits[0], BREAKERS.get(id, {}).get("leap", -1.0))
+		ComicLook.retime(id, m, length, MOVES[id].hits[0], VOID_ELEMENT.BREAKERS.get(id, {}).get("leap", -1.0))
 	return m
-
-
-## Spike: slam a juggled foe into the floor; the impact knocks down foes
-## around it.
-func _spike(e: Node3D) -> void:
-	spikes += 1
-	if e.is_alive():
-		e.velocity.y = -SPIKE_DOWN
-	var at: Vector3 = e.global_position
-	at.y = global_position.y
-	Fx.ring(get_parent(), at, Color(1.0, 0.85, 0.5, 0.9), SPIKE_IMPACT.radius, 0.25)
-	Fx.dust(get_parent(), at, 14, 1.0)
-	for o in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = o.global_position - at
-		to.y = 0.0
-		if o != e and o.is_alive() and not o.is_airborne() and to.length() < SPIKE_IMPACT.radius + o.radius:
-			o.take_hit(SPIKE_IMPACT.damage * _dmg_mult, to.normalized() * SPIKE_IMPACT.knockback, 0.0, true)
-			Game.register_hit("spike")
 
 
 func is_invulnerable() -> bool:
@@ -2663,25 +1653,12 @@ func try_awaken() -> void:
 			e.take_hit(AWAKEN_BURST_DAMAGE, to.normalized() * 12.0, 5.0, true)
 
 
-## The overlay a mesh wears when not Awakened (HERO_LOOK's axe runes), or null.
-func _rest_overlay(mi: MeshInstance3D) -> Material:
-	return mi.get_meta("rest_overlay") if mi.has_meta("rest_overlay") else null
-
-
-## The COMBOS id the current move lands as: Triple Chop from the top of the
-## air string is Skyfall, otherwise the move itself.
+## The COMBOS id the current move lands as.
 func named_id() -> String:
-	if _move_id == "L3" and _hop_y0 >= STORMFALL_FROM:
-		return "STORMFALL"
-	if _move_id == "L3" and _hop_y0 >= PLUNGE_AXES_FROM:
-		return "SKYFALL"
 	return _move_id
 
 
-## COMBOS name (ultimates are named per element).
 func combo_name(id: String) -> String:
-	if ULTIMATES.has(id):
-		return ULTIMATES[id].names[element()]
 	return COMBOS[id].name
 
 
@@ -2700,16 +1677,13 @@ func _set_awakened(on: bool) -> void:
 	_awaken_light.light_color = c
 	_awaken_rim.set_shader_parameter("glow_color", c)
 	for mi: MeshInstance3D in _meshes:
-		mi.material_overlay = _awaken_rim if on else _rest_overlay(mi)
+		mi.material_overlay = _awaken_rim if on else null
 	for trail in _trails:
 		trail.color = Color(c, 0.9) if on else _trail_rest_color()
-	HERO_LOOK.charge_coats(_coats, on)
-	HERO_LOOK.set_eyes(model, on, c)
+	for coat: Node in _coats:  # ComicLook.infuse_axes: the axe's element flares up
+		if is_instance_valid(coat):
+			coat.charge(on)
 	_orbit.setup(element(), on)
-	if on:
-		_ult_chain = 0
-		_ult_kinds.clear()
-		_trinity_done = false
 	awakened_changed.emit(on)
 
 
@@ -2726,75 +1700,6 @@ func _perfect_dodge(attacker: Node) -> void:
 	Fx.afterimage(get_parent(), model, Color(0.8, 0.95, 1.0, 0.6), 0.5)
 	if attacker and attacker.has_method("stagger"):
 		attacker.stagger(perfect_dodge_stun)
-
-
-## Cataclysm's eruption: fire rings, embers and radiating fire waves on top of the move's own hit.
-func _cataclysm() -> void:
-	cataclysms += 1
-	Game.sfx("awaken", -4.0, 0.1)
-	Fx.ring(get_parent(), global_position, Color(1.0, 0.5, 0.15, 0.95), _move.range + 0.5, 0.4)
-	Fx.ring(get_parent(), global_position, Color(1.0, 0.85, 0.4, 0.8), _move.range * 0.5, 0.25)
-	Fx.burst(get_parent(), global_position + Vector3.UP * 0.3, Color(1.0, 0.5, 0.15), 36, 11.0, 0.14, 0.5, Vector3.UP, 160.0, -8.0, 1.0, "star")
-	Fx.dust(get_parent(), global_position, 24, 1.2)
-	# Crisp core: a pillar of fire, a hot flare, molten debris and a burn mark left behind.
-	_fire_vortex(global_position, _move.range * 0.6, 5.5, 0.6)
-	Fx.flare(get_parent(), global_position + Vector3.UP * 1.0, Color(1.0, 0.55, 0.15), 6.0, 0.2)
-	Fx.shards(get_parent(), global_position + Vector3.UP * 0.4, Color(1.0, 0.42, 0.1), 16, Vector3.UP, 10.0, 0.22, 0.8)
-	Fx.scorch(get_parent(), global_position, Color(1.0, 0.45, 0.1), _move.range * 0.75, 1.6)
-	for i in CATACLYSM_AXES:  # the ancestors' axes slam down in a ring round him
-		var ang := TAU * (i + 0.5) / CATACLYSM_AXES
-		_axe_fall(global_position + Vector3(sin(ang), 0.0, cos(ang)) * CATACLYSM_AXE_RING, _facing(), 4.2, i * 0.04)
-	for i in CATACLYSM_WAVES:
-		var ang := TAU * i / CATACLYSM_WAVES
-		var w := FIRE_WAVE.new()
-		w.direction = Vector3(cos(ang), 0.0, sin(ang))
-		w.damage = 8.0
-		get_parent().add_child(w)
-		w.global_position = global_position + w.direction * 1.0
-
-
-## A visual-only spirit guillotine at `at` (light impact, no hitstop) after
-## `delay` s: volleys for Cataclysm's ring and the Trinity storm.
-func _axe_fall(at: Vector3, fwd: Vector3, size: float, delay := 0.0) -> void:
-	if delay > 0.0:
-		await get_tree().create_timer(delay, false).timeout
-		if not is_inside_tree():
-			return
-	var gu = _spirit(SPIRIT_GUILLOTINE.new(), {"damage": 0.0}, element())
-	gu.fwd = fwd
-	gu.size = size
-	gu.heavy = false
-	gu.fall = 0.11
-	get_parent().add_child(gu)
-	gu.global_position = Vector3(at.x, 0.0, at.z)
-
-
-## Cataclysm's pillar: two counter-spinning fire funnels (the wind tornado's swirl
-## shader in fire colours) that flare out and fade.
-func _fire_vortex(at: Vector3, radius: float, height: float, life: float) -> void:
-	var c := Color(0.95, 0.25, 0.05)  # deep red-orange: paler fire washes out on the floor
-	var root := Node3D.new()
-	get_parent().add_child(root)
-	root.global_position = Vector3(at.x, 0.0, at.z)
-	var outer := ELEMENTS._mi(ELEMENTS.funnel(radius, radius * 0.3, height), _fire_mat(c, false))
-	outer.position.y = height * 0.5
-	root.add_child(outer)
-	var inner := ELEMENTS._mi(ELEMENTS.funnel(radius * 0.55, radius * 0.15, height * 0.85), _fire_mat(c, true))
-	inner.position.y = height * 0.425
-	root.add_child(inner)
-	root.scale = Vector3(0.2, 0.4, 0.2)
-	var tw := root.create_tween().set_parallel()
-	tw.tween_property(root, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(outer, "rotation:y", TAU * 1.5, life)
-	tw.tween_property(inner, "rotation:y", -TAU * 2.5, life)
-	ELEMENTS._fade_free(root, life * 0.4, life * 0.6)
-
-
-## The swirl material with gold streaks: its default (colour toward white) reads salmon pink in fire.
-func _fire_mat(c: Color, inner: bool) -> ShaderMaterial:
-	var m: ShaderMaterial = ELEMENTS.swirl_mat(c, inner).duplicate()  # same shader: no compile hitch
-	m.set_shader_parameter("streak_color", Color(1.0, 0.78, 0.25))
-	return m
 
 
 ## Restore HP (capped at max). `show` pops a green number and sparkle.

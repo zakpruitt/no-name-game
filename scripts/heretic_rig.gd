@@ -1,5 +1,5 @@
 extends SkeletonModifier3D
-## The Meshy heretic hero (--heretic). Keeps his tentacle tips alive between clips, turns the limb
+## The Meshy heretic hero. Keeps his tentacle tips alive between clips, turns the limb
 ## into each weapon (ComicLook.HERO_FORMS through void_arm.form), and hangs the skirt chains on
 ## spring bones. Clips never key any of these bones.
 ##

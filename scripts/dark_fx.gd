@@ -284,7 +284,6 @@ class Hole extends Node3D:
 			if tick:
 				SELF.quiet_hit(e, TICK_DAMAGE * power)
 				Game.register_hit("cast")
-				hero._cast_hit(e)
 		if _t >= LIFE:
 			fade()
 

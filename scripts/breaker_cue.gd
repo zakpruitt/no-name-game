@@ -1,5 +1,5 @@
 extends Node3D
-## Combo breaker timing cue (player.BREAKERS): a fixed target ring on the
+## Combo breaker timing cue (void_element.gd BREAKERS): a fixed target ring on the
 ## floor where the dive will land and a closing ring shrinking onto it. The
 ## rings meet at `sweet` s after spawning, the press window is `open`..`close`
 ## (the target ring lights up gold through it). lock() = pressed too early

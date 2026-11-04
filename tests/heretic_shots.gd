@@ -67,8 +67,6 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_game = get_root().get_node("Game")
 	_game.save_hints = false
-	_game._comic_cli = true
-	_game.heretic = true
 	_game.combo_guide = false  # the shots set his state with no move behind it
 	_game._hints_seen = _game.HINTS.keys()
 	_main = load("res://scenes/main.tscn").instantiate()

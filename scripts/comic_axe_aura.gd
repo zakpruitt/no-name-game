@@ -7,7 +7,7 @@ extends BoneAttachment3D
 ## shard  ice crystals fixed to the edge, pointing out of it (water)
 ## Where the blade's tip scrapes the floor it leaves a comic_drag_mark.
 
-const HERO_LOOK := preload("res://scripts/hero_look.gd")
+const DRIP_AMOUNT := 5  # motes the blade sheds at rest (x3 Awakened)
 const MARK := preload("res://scripts/comic_drag_mark.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const LOOKS := {
@@ -65,7 +65,7 @@ func setup(element: String, meshes: Array[ArrayMesh], edge: PackedVector3Array, 
 			t.basis = Basis(Quaternion(Vector3.UP, out)).scaled(Vector3.ONE * look.size)
 		add_child(t)
 		tongues.append(t)
-	drip = HERO_LOOK._drip(element, ELEMENTS.LOOK[element].color)
+	drip = _drip(element, ELEMENTS.LOOK[element].color)
 	drip.position = centre
 	add_child(drip)
 
@@ -94,7 +94,7 @@ func tip_position() -> Vector3:
 ## Awakened: bigger and shedding more.
 func charge(on: bool) -> void:
 	_size = CHARGED if on else 1.0
-	drip.amount = HERO_LOOK.DRIP_AMOUNT * (3 if on else 1)
+	drip.amount = DRIP_AMOUNT * (3 if on else 1)
 	drip.speed_scale = 1.6 if on else 1.0
 	if look.mode == "shard":
 		for t in tongues:
@@ -181,3 +181,37 @@ static func _tongue(radius: float, wiggle: float, frame: int, length: float) -> 
 	arrays[Mesh.ARRAY_VERTEX] = v
 	arrays[Mesh.ARRAY_INDEX] = idx
 	return arrays
+
+
+## Motes shed by a coated blade, in world space so they trail the swing:
+## embers rise off magma, frost drips off ice, wisps float off spirit, wind gusts back.
+static func _drip(element: String, c: Color) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = DRIP_AMOUNT
+	p.lifetime = 0.7
+	p.local_coords = false
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.25
+	p.spread = 40.0
+	p.initial_velocity_min = 0.3
+	p.initial_velocity_max = 0.8
+	match element:
+		"earth":
+			p.direction = Vector3.UP
+			p.gravity = Vector3(0, 2.5, 0)
+		"water":
+			p.direction = Vector3.DOWN
+			p.gravity = Vector3(0, -3.0, 0)
+		_:
+			p.direction = Vector3.UP
+			p.gravity = Vector3(0, 0.8, 0)
+	var fade := Gradient.new()
+	fade.set_color(0, Color(c, 0.9))
+	fade.set_color(1, Color(c, 0.0))
+	p.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * 0.14
+	quad.material = Fx.particle_mat("dot", true)
+	p.mesh = quad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return p

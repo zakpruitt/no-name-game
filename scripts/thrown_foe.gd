@@ -201,9 +201,8 @@ func _burst(other: Node3D) -> void:
 	_finish()
 
 
-func _count(e: Node3D) -> void:
+func _count(_e: Node3D) -> void:
 	Game.register_hit("breaker")
-	hero._cast_hit(e)
 
 
 func _finish() -> void:

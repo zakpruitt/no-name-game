@@ -259,7 +259,6 @@ static func zap(hero: CharacterBody3D, foes: Array, hand: Vector3) -> void:
 		Fx.burst(parent, to, ELEMENTS.LOOK.wind.glow, 6, 7.0, 0.07, 0.16, Vector3.UP, 180.0, 0.0, 0.3, "spark", true)
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		last = to
 	Game.sfx("hit_big", -8.0, 0.15)
 
@@ -306,7 +305,6 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 	for e: Node3D in foes:
 		e.take_hit(damage, Vector3.ZERO, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		encase(e)
 	return foes.size()
 
@@ -325,7 +323,6 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: f
 	for e: Node3D in foes:
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		encase(e)
 		if hero._void.is_heavy(e):
 			continue
@@ -367,7 +364,6 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	for e: Node3D in foes:
 		e.take_hit(PALM_DAMAGE * power, fwd * 4.0, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		if not hero._void.is_heavy(e) and e.is_alive():
 			THROWN.launch(hero, e, e.global_position + fwd * PALM_SHOVE, PALM_SPLAT * power,
 				{"quiet": true, "solid": false, "el": "earth", "speed": PALM_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
@@ -529,7 +525,6 @@ static func _reap(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: floa
 			continue
 		e.take_hit(damage, to.normalized() * 3.0 if to.length() > 0.01 else Vector3.ZERO, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		DARK.mark(e)
 		n += 1
 	return n
@@ -552,7 +547,6 @@ static func _black_tide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 		DARK.unmark(e)
 		e.take_hit(TIDE_DAMAGE * power, Vector3.ZERO, 0.0, true)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 		if hero._void.is_heavy(e):
 			continue
 		var a := TAU * i / maxf(foes.size(), 1.0)
@@ -579,7 +573,6 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 		if hero._void.is_heavy(e):
 			e.take_hit(damage * 0.5, Vector3.ZERO, 0.0, true)
 			Game.register_hit("cast")
-			hero._cast_hit(e)
 		else:
 			THROWN.launch(hero, e, to, damage, {"el": "void", "tether": true, "speed": TOW_SPEED, "land_y": 0.0})
 		n += 1
@@ -619,7 +612,6 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		var spot := _flat(e.global_position)
 		e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 		under(parent, spot, b.erupt)
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if struck.has(e):
@@ -627,7 +619,6 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		var from := _flat(e.global_position - at)
 		e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	under(parent, at, b.erupt)
 	_pop(parent, at, {"wind": "axe", "water": "spear", "earth": "hammer"}[b.erupt])
 
@@ -661,7 +652,6 @@ static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 		var from := _flat(e.global_position - spot)
 		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	Game.shake(0.6)
 
 
@@ -676,7 +666,6 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS):
 		DARK.quiet_hit(e, damage, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)  # one word for the one bite
 	Game.shake(0.6)
 
@@ -693,7 +682,6 @@ static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 		DARK.spout(parent, e.global_position)
 		e.take_hit(damage, Vector3.ZERO, ABYSS_LAUNCH, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	if foes.is_empty():
 		DARK.spout(parent, spot)
 	Game.shake(0.6)
@@ -736,12 +724,10 @@ static func _avalanche(hero: CharacterBody3D, b: Dictionary, cubes: Array, mult:
 		Fx.shards(parent, e.global_position + Vector3.UP * 0.8, THROWN.CUBE_COLOR, 8, Vector3.UP, 7.0, 0.16, 0.5)
 		DARK.quiet_hit(e, damage, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 	for e: Node3D in FOES.near(hero.get_tree(), mid, CRUSH_RADIUS):
 		if not e in cubes:
 			DARK.quiet_hit(e, damage * PRESS_NO_CUBE, true)
 			Game.register_hit("breaker")
-			hero._cast_hit(e)
 	ComicFx.hit(mid + Vector3.UP * 1.5, true)  # one word for the one crash
 
 
@@ -758,7 +744,6 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 			e.rip_shield()
 		e.take_hit(damage * (1.0 if hero._void.is_heavy(e) else RIP_SMALL_MULT), Vector3.ZERO, 0.0, true)
 		Game.register_hit("breaker")
-		hero._cast_hit(e)
 		under(parent, spot, "earth")
 		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 22, Vector3.UP, 12.0, 0.2, 0.8)
 		_pop(parent, spot, "hammer")
@@ -768,7 +753,6 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 			var from := _flat(o.global_position - spot)
 			o.take_hit(damage * 0.4, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 8.0, 0.0, true)
 			Game.register_hit("breaker")
-			hero._cast_hit(o)
 	var at := _flat(hero.global_position)
 	for i in METEOR_GEYSERS:
 		var a := TAU * i / METEOR_GEYSERS
@@ -827,7 +811,6 @@ static func _pull(hero: CharacterBody3D, at: Vector3, radius: float, damage: flo
 		var to := _flat(at - e.global_position)
 		e.take_hit(damage, (to.normalized() if to.length() > 0.01 else Vector3.ZERO) * strength, launch, false)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 	return foes.size()
 
 
@@ -838,7 +821,6 @@ static func _strike(hero: CharacterBody3D, at: Vector3, radius: float, damage: f
 		var from := _flat(e.global_position - at)
 		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 4.0, launch, big)
 		Game.register_hit("cast")
-		hero._cast_hit(e)
 	return foes
 
 

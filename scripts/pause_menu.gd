@@ -96,7 +96,7 @@ func _build_moves() -> void:
 	list.add_theme_constant_override("separation", 3)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	for section: Dictionary in MOVE_LIST.sections_for(player):
+	for section: Dictionary in MOVE_LIST.SECTIONS:
 		_move_header(list, section)
 		for row: Dictionary in section.rows:
 			_move_row(list, row, player)
