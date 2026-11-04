@@ -222,7 +222,15 @@ func _check_run_clips(comic: CharacterBody3D) -> void:
 ## He carries the axes: their heads aren't out in front of him in anything he holds.
 func _check_stances(comic: CharacterBody3D) -> void:
 	var skel: Skeleton3D = comic.model.find_children("*", "Skeleton3D", true, false)[0]
+	# a clip keyed for the claw itself (heretic_rig.KEYED_ARM, on a model whose clips key the claws) holds
+	# no axe: he only forms one to strike, so the claw may reach out in front
+	var rig: Node = null
+	for n: Node in skel.get_children():
+		if n.has_method("form_weight"):
+			rig = n
 	for clip: String in ["Idle", "Idle_Ready", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "2H_Melee_Idle", "Jump_Idle"]:
+		if rig != null and rig.keyed and clip in rig.KEYED_ARM:
+			continue
 		comic.anim.play(clip, 0.0)
 		for at: float in [0.0, 0.5]:
 			comic.anim.seek(comic.anim.current_animation_length * at, true)
