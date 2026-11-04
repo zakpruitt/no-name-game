@@ -13,13 +13,12 @@ func _initialize() -> void:
 	A = load("res://scripts/ascendancy.gd")
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
-	main._queue.clear()
+	main.clear_room()
 	var at: Vector3 = main.player.global_position + Vector3(0.0, 0.0, 5.0)
 
 	# Water: 4 chill hits freeze; the next hit deals shatter_mult damage and thaws.

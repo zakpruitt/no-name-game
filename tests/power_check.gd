@@ -13,14 +13,13 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	var upgrades: GDScript = load("res://scripts/upgrades.gd")
 	_check_data(upgrades)
 
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
-	main._queue.clear()
+	main.clear_room()
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
 	var p: Node3D = main.player
@@ -157,11 +156,6 @@ func _check_effects(main: Node, p: Node3D, U: GDScript) -> void:
 	p._callout_done = false
 	p._combo_callout("LPL")
 	_check(main.hud.hint_label.text.begins_with("New combo: Flurry"), "a first-time combo shows on the HUD")
-	p.combos_landed["LPL"] = 99
-	_check(main._signature_combo() == "Flurry ×99", "the run summary names the most-landed combo")
-	p.power_procs["war_chant"] = 999
-	_check(main._busiest_power() == "War Chant ×999", "the run summary names the power that fired most")
-	p.power_procs.erase("war_chant")
 	p.add_upgrade("rebound")
 	p._spike(e)
 	await create_timer(p.REBOUND_DELAY + 0.1).timeout

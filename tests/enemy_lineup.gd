@@ -6,13 +6,12 @@ extends SceneTree
 func _initialize() -> void:
 	await process_frame
 	get_root().get_node("Game").save_hints = false  # don't use up the player's first-run hints
-	get_root().get_node("Game").skip_title = true
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
-	main._queue.clear()
+	main.clear_room()
 	var kinds: Array = main.ENEMY_TYPES.keys()
 	var spawned: Array = []
 	var spots: Array = []

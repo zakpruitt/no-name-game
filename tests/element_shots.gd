@@ -30,7 +30,6 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	game._comic_cli = true
 	game.heretic = true
 	game._hints_seen = game.HINTS.keys()
@@ -42,8 +41,6 @@ func _initialize() -> void:
 		await create_timer(0.1).timeout
 		waited += 0.1
 	await create_timer(1.5).timeout
-	if "_queue" in main:
-		main._queue.clear()
 	var only := ""  # -- --only=maw films just that one
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--only="):

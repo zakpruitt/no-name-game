@@ -10,13 +10,12 @@ const STAGES := [0.25, 0.5, 0.75, 0.95]
 func _initialize() -> void:
 	await process_frame
 	get_root().get_node("Game").save_hints = false
-	get_root().get_node("Game").skip_title = true
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
-	main._queue.clear()
+	main.clear_room()
 	main.player.set_physics_process(false)
 	var kind: String = main.ENEMY_TYPES.keys()[0]
 	var spawned: Array = []

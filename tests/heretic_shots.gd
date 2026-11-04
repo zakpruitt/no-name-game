@@ -67,7 +67,6 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_game = get_root().get_node("Game")
 	_game.save_hints = false
-	_game.skip_title = true
 	_game._comic_cli = true
 	_game.heretic = true
 	_game.combo_guide = false  # the shots set his state with no move behind it
@@ -77,8 +76,7 @@ func _initialize() -> void:
 	await create_timer(0.3).timeout
 	for e in get_nodes_in_group("enemies"):
 		e.queue_free()
-	if "_queue" in _main:
-		_main._queue.clear()
+	_main.clear_room()
 	var p: Node3D = _main.player
 	var look: GDScript = load("res://scripts/comic_look.gd")
 

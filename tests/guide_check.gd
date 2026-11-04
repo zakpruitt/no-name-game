@@ -16,12 +16,11 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	game.combo_guide = true  # (not saved)
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
-	main._queue.clear()
+	main.clear_room()
 	for e in main.get_tree().get_nodes_in_group("enemies"):
 		e.queue_free()
 	var p: Node3D = main.player

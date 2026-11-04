@@ -26,8 +26,8 @@ fast-forward, so no agent edits another's files or index.
    worktree. It does four things:
    - checks your worktree is clean;
    - rebases onto `dev`;
-   - runs the headless checks (every PASS/FAIL test, the autotest and the
-     tour; `--quick` runs the autotest only);
+   - runs the headless checks (every PASS/FAIL test and the autotest;
+     `--quick` runs the autotest only);
    - fast-forwards `dev`.
 
    If another agent landed first, the fast-forward refuses. Run `land` again.

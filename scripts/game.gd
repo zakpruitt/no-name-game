@@ -83,8 +83,6 @@ var bones := 0  # run currency, dropped by slain skeletons (bone_pickup.gd)
 var bones_total := 0  # collected this run (bones may be spent)
 var air_hits := 0
 var best_air := 0
-## Survives scene reloads: start the next run without the title screen.
-var skip_title := false
 ## Multiplier on all screen shake (accessibility / taste).
 var shake_scale := 1.0
 var music_scale := 1.0

@@ -1,8 +1,8 @@
 extends "res://scripts/menu_screen.gd"
-## Pause menu: Esc / Start toggles it during a run (backs out of Settings
-## first). Won't open over other screens that already pause the game (title,
-## rewards, run summary). A panel on the left lists the run's powers; the
-## footer shows the room and the run's seed (replay with --seed).
+## Pause menu: Esc / Start toggles it in the training room (backs out of
+## Settings first). Won't open over other screens that already pause the game
+## (the power pick). A panel on the left lists the powers taken, one on the
+## right every move.
 
 const MOVE_LIST := preload("res://scripts/move_list.gd")
 const MOVES_WIDTH := 500.0
@@ -42,25 +42,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func _open(focus := 0) -> void:
-	var main := get_parent()
-	if main != null and main.get("training"):
-		_open_training(focus)
-		return
-	show_menu("PAUSED", "", [
-		["Resume", close_menu],
-		["Map", _show_map],
-		["Settings", open_settings.bind(_open.bind(2), 0.7)],
-		["Restart run", _restart.bind(true)],
-		["Quit to title", _restart.bind(false)],
-		["Quit game", _quit],
-	], _run_info(), 0.7, focus)
-	_build_powers()
-	_build_moves()
-
-
 ## Training's pause menu: free powers, Awakening and Ascendancy (main.train_*).
-func _open_training(focus := 0) -> void:
+func _open(focus := 0) -> void:
 	var main := get_parent()
 	var items: Array = [
 		["Resume", close_menu],
@@ -73,7 +56,6 @@ func _open_training(focus := 0) -> void:
 	items.append_array([
 		["Settings", open_settings.bind(_open.bind(settings), 0.7)],
 		["Restart training", _restart_training],
-		["Quit to title", _restart.bind(false)],
 		["Quit game", _quit],
 	])
 	show_menu("TRAINING", "", items, "Restart training clears your powers", 0.7, focus)
@@ -89,18 +71,6 @@ func _train(method: String) -> void:
 func _restart_training() -> void:
 	close_menu()
 	get_parent().restart_training()
-
-
-## "Room 3 / 8   ·   daily run 2026-10-31   ·   seed 975604274"
-func _run_info() -> String:
-	var main := get_parent()
-	if main == null or not "run_seed" in main:
-		return ""
-	var parts: Array[String] = ["Room %d / %d" % [main.room, main.RUN_LENGTH]]
-	if main.daily_date != "":
-		parts.append("daily run " + main.daily_date)
-	parts.append("seed %d" % main.run_seed)
-	return "   ·   ".join(parts)
 
 
 ## "YOUR BUILD": the owned powers grouped by path (fusions last), each with
@@ -279,19 +249,6 @@ func _move_row(list: Control, row: Dictionary, player: Node) -> void:
 			var hook := _label(list, "      + %s%s" % [u.name, Upgrades.level_tag(player.upgrades[pid])], 14,
 				Upgrades.color(u).lightened(0.3))
 			hook.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-
-
-## The run map, read-only, over the pause menu (main.show_map()).
-func _show_map() -> void:
-	var main := get_parent()
-	if main.has_method("show_map"):
-		main.show_map()
-
-
-func _restart(skip_title: bool) -> void:
-	Game.skip_title = skip_title
-	close_menu()
-	get_tree().reload_current_scene()
 
 
 func _quit() -> void:

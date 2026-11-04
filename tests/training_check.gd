@@ -1,5 +1,5 @@
 extends SceneTree
-## Training mode: boots straight into it (as "Restart training" does), checks
+## Training mode: the game boots straight into it. Checks
 ## the dummy takes hits without dying or fighting back, that a dropped combo
 ## records the string, and that the pause menu's power pick, Awakening and
 ## Ascend work. Prints [training] PASS/FAIL; windowed it also saves
@@ -13,8 +13,6 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	var main_script: GDScript = load("res://scripts/main.gd")
-	main_script.set("_train_next", true)
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(1.5).timeout
@@ -50,7 +48,7 @@ func _initialize() -> void:
 	_save("user://training_room.png")
 	# Pause menu: training items.
 	var pause: Node = main.get_children().filter(func(n: Node) -> bool:
-		return n.has_method("_open_training"))[0]
+		return n.has_method("_build_moves"))[0]
 	pause._open()
 	await create_timer(0.4).timeout
 	var labels: Array = pause._buttons.map(func(b: Button) -> String: return b.text)

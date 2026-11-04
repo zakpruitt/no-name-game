@@ -438,7 +438,7 @@ func _has_g(model: Node) -> bool:
 ## nodes code reaches for. The names come from the scripts, so a new piece can't slip by.
 func _check_dungeon() -> void:
 	var pieces := _pieces_in_sources()
-	_expect(pieces.size() >= 15, "source scan found the dungeon pieces (%d)" % pieces.size())
+	_expect(pieces.size() >= 14, "source scan found the dungeon pieces (%d)" % pieces.size())
 	for f in DirAccess.get_files_at("res://assets/kaykit/dungeon"):
 		if f.ends_with(".glb") and f.get_basename() not in pieces:
 			pieces.append(f.get_basename())
@@ -460,9 +460,6 @@ func _check_dungeon() -> void:
 		comic.free()
 		kaykit.free()
 	_expect(missing.is_empty(), "comic set has every dungeon piece, missing %s" % [missing])
-	var tile: Node3D = load(Look.PIECE_PATH % "floor_tile_big_spikes").instantiate()
-	_expect(tile.find_child("spikes", true, false) != null, "spike tile keeps its `spikes` node (spike_trap.gd)")
-	tile.free()
 	_expect(Look.comic_piece("no_such_piece") == null, "absent piece: null, caller keeps KayKit")
 
 
@@ -475,11 +472,6 @@ func _pieces_in_sources() -> Array:
 			for m in quoted.search_all(line):
 				if m.get_string(1) not in found:
 					found.append(m.get_string(1))
-	for path: String in ["res://scripts/shrine_prop.gd", "res://scripts/vault_prop.gd"]:
-		for row: Array in load(path).PIECES:
-			if row[0] not in found:
-				found.append(row[0])
-	found.append("floor_tile_big_spikes")  # spike_trap.gd
 	return found
 
 

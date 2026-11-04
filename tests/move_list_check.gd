@@ -144,11 +144,10 @@ func _press(input: String, awake: bool) -> String:
 
 
 func _check_panel() -> void:
-	get_root().get_node("Game").skip_title = true
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
-	main._queue.clear()
+	main.clear_room()
 	var p: Node3D = main.player
 	# Every row names itself in every element.
 	for el: String in ["", "wind", "earth", "water"]:

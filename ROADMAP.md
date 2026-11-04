@@ -254,3 +254,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Port the Blender comic effects (bursts, ghost axes, smears) into the game's casts
 - [ ] Foot skate at game speeds on warrior, rogue and maybe bomber; watch the generic `Hit_B` and `Lie_StandUp` on minion, shield, bomber, necromancer
 - [ ] Comic pass on HUD, menus and power icons
+
+## Round 28 (strip to the heretic)
+Zak: "reduce the game to JUST the heretic combat system for now. Remove the roguelike layer, keep the training ground." Decisions made while he was away, each open to veto:
+- [x] The game boots straight into the training room: no title screen, no runs, rooms, doors, waves, map, rewards, camp, shrine, vault, altar, records or run summary. Settings live on the pause menu
+- [x] Foes stay as code and data (`enemy.gd`, `boss.gd`, `scripts/enemy_types.gd`, `main._spawn()` / `_spawn_boss()`), but nothing spawns them outside tests for now. Necromancer raising, elite twists and bone drops went with the run
+- [x] The training room keeps the first layout's four pillars (R swings on them) and drops the spike traps
+- [x] The autotest boots training, lets the bot play the dummies for 16 s and prints `[autotest] done ...`; `--seed`, `--tour`, `--pace` and the room / twist / altar / camp flags are gone

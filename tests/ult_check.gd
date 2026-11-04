@@ -12,11 +12,10 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
-	main._queue.clear()
+	main.clear_room()
 	var p: Node3D = main.player
 	p.bot_enabled = true  # no real input
 	var home: Vector3 = p.global_position

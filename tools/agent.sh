@@ -34,7 +34,7 @@ godot_run() { timeout "$1" godot --headless --path "$(root)" "${@:2}" < /dev/nul
 check() {
 	local quick=${1:-}
 	local fail=0 out
-	local tests=(void_arm_check map_check guide_check power_check ult_check ascend_check hop_check breaker_check training_check prompt_follow_check rite_check move_list_check comic_check)
+	local tests=(void_arm_check guide_check power_check ult_check ascend_check hop_check breaker_check training_check prompt_follow_check rite_check move_list_check comic_check)
 	[ "$quick" = "--quick" ] && tests=()
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue
@@ -45,11 +45,10 @@ check() {
 			echo "ok    $t"
 		fi
 	done
-	for args in "--autotest" "--autotest --tour"; do
-		[ "$quick" = "--quick" ] && [ "$args" != "--autotest" ] && continue
+	for args in "--autotest"; do
 		# shellcheck disable=SC2086
 		out=$(godot_run 180 -- $args)
-		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error\|\[tour\] FAIL" || ! echo "$out" | grep -q "\[autotest\] seed"; then
+		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error" || ! echo "$out" | grep -q "\[autotest\] done"; then
 			echo "FAIL  $args"; echo "$out" | grep "FAIL\|SCRIPT ERROR\|Parse Error" | sort | uniq -c | head -5; fail=1
 		else
 			echo "ok    $args"
