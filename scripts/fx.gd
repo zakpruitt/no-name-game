@@ -467,6 +467,67 @@ static func _crater_layer(parent: Node, at: Vector3, radius: float, tex: String,
 	tw.tween_callback(m.queue_free)
 
 
+## Cartoon dizzy stars circling a dazed head (training_dummy._shake_off):
+## DAZE_STARS solid five-point stars inked in ComicFx.INK, on a DAZE_RING m
+## ring `height` above `node`, spinning DAZE_SPIN rad/s, popping in and
+## shrinking away over `time`. Named "DazeStars".
+const DAZE_STARS := 3
+const DAZE_RING := 0.5  # m, the ring's radius
+const DAZE_SIZE := 0.2  # m, a star's outer radius
+const DAZE_INNER := 0.45  # a star's inner points, as a share of its outer radius
+const DAZE_INK := 1.35  # the ink star behind, as a share of the star
+const DAZE_SPIN := 7.0  # rad/s
+const DAZE_COLOR := Color(1.0, 0.86, 0.2)
+static var _star_mesh: ArrayMesh
+static func daze(node: Node3D, height: float, time := 0.9) -> void:
+	if _star_mesh == null:
+		_star_mesh = _star(DAZE_SIZE, DAZE_INNER)
+	var pivot := Node3D.new()
+	pivot.name = "DazeStars"
+	node.add_child(pivot)
+	pivot.position.y = height
+	var fill := unshaded_mat(DAZE_COLOR)
+	fill.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fill.render_priority = 1  # over its ink
+	var ink := unshaded_mat(Color(0.012, 0.01, 0.02))
+	ink.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	ink.billboard_keep_scale = true  # a billboard drops the node's scale otherwise: the ink would hide
+	for i in DAZE_STARS:
+		var a := TAU * i / DAZE_STARS
+		for layer in 2:
+			var star := MeshInstance3D.new()
+			star.mesh = _star_mesh
+			star.material_override = ink if layer == 0 else fill
+			star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			star.position = Vector3(cos(a), 0.0, sin(a)) * DAZE_RING
+			star.scale = Vector3.ONE * (DAZE_INK if layer == 0 else 1.0)
+			pivot.add_child(star)
+	pivot.scale = Vector3.ONE * 0.2
+	var tw := pivot.create_tween().set_parallel()
+	tw.tween_property(pivot, "rotation:y", DAZE_SPIN * time, time)
+	tw.tween_property(pivot, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(pivot, "scale", Vector3.ONE * 0.01, 0.15).set_delay(time - 0.15)
+	tw.chain().tween_callback(pivot.queue_free)
+
+
+## A flat five-point star facing +z, `outer` m to its points, `inner` of that to its notches.
+static func _star(outer: float, inner: float) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	for i in 10:
+		var a := PI * 0.5 + TAU * i / 10.0
+		var r := outer if i % 2 == 0 else outer * inner
+		var p := Vector3(cos(a) * r, sin(a) * r, 0.0)
+		var q_a := PI * 0.5 + TAU * (i + 1) / 10.0
+		var q_r := outer if (i + 1) % 2 == 0 else outer * inner
+		verts.append_array([Vector3.ZERO, Vector3(cos(q_a) * q_r, sin(q_a) * q_r, 0.0), p])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
 ## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
 ## soot and fades over `time` (Cataclysm, fire waves). Blend mix so it reads on light tiles.
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:
@@ -559,6 +620,7 @@ static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
 static func release() -> void:
 	_flash_mat = null
 	_tint_mats.clear()
+	_star_mesh = null
 	_rim_mat = null
 	_outline_mat = null
 	_outlined.clear()

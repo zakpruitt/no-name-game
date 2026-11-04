@@ -80,6 +80,63 @@ func _extra() -> void:
 	await _juggle()
 	await _wave()
 	await _direction()
+	await _bag()
+
+
+## The training dummy as a punching bag: a tap snaps it over BAG_LEAN_MULT as
+## far, the spring rocks it back past upright and settles it; squashes are
+## exaggerated; it boings back up after a knockdown; refilling, it shakes off a daze.
+func _bag() -> void:
+	for old in _main.get_tree().get_nodes_in_group("enemies"):
+		old.queue_free()
+	var d: Node = load("res://scripts/training_dummy.gd").new()
+	d.model_scene = _main._model("Skeleton_Warrior")
+	_main.add_child(d)
+	d.home = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
+	d.global_position = d.home
+	await create_timer(1.1).timeout
+	d.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	var tip: Vector2 = d._bag_tilt
+	_check(absf(tip.length() - d.LEAN * d.BAG_LEAN_MULT) < 0.001, "the dummy tips %.2f rad on a tap (%.2f)" % [d.LEAN * d.BAG_LEAN_MULT, tip.length()])
+	var want: float = 1.0 - (1.0 - d.SQUASH.tap.y) * d.BAG_SQUASH_MULT
+	_check(is_equal_approx(d.last_squash.y, want), "its squash is exaggerated (%.2f, a skeleton %.2f)" % [d.last_squash.y, d.SQUASH.tap.y])
+	var along := tip.normalized()
+	var back := 0.0  # furthest past upright, against the blow
+	var settled := -1
+	for i in 240:
+		await physics_frame
+		var t: Vector2 = Vector2(d.model.rotation.x, d.model.rotation.z)
+		back = minf(back, t.dot(along))
+		if settled < 0 and t == Vector2.ZERO and i > 5:
+			settled = i
+	_check(back < -0.25 * tip.length(), "the spring overshoots past upright (%.2f rad back from %.2f)" % [back, tip.length()])
+	_check(settled > 0 and settled < 180, "and settles dead upright (%d frames)" % settled)
+	# A knockdown: once it's up, the spring kicks it past upright.
+	d.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 9.0, true)
+	var boing := 0.0
+	for i in 400:
+		await physics_frame
+		if d.state == d.State.CHASE:
+			boing = maxf(boing, d._bag_tilt.length())
+			if i > 30 and d._bag_tilt == Vector2.ZERO and boing > 0.0:
+				break
+	_check(boing > 0.2, "it boings back upright after a knockdown (%.2f rad)" % boing)
+	# Left alone, it refills and shakes off the daze.
+	var before: int = d.shakeoffs
+	d.hp = d.max_hp - 10.0
+	d.last_hit_ms = -100000
+	await physics_frame
+	await physics_frame
+	_check(d.shakeoffs == before + 1 and d.hp == d.max_hp and d.find_child("DazeStars", false, false) != null,
+		"refilling, it shakes off a daze under stars (%d)" % d.shakeoffs)
+	var wobble := 0.0
+	for i in 30:
+		await physics_frame
+		wobble = maxf(wobble, absf(d.model.rotation.z))
+	_check(wobble > 0.15, "the shake-off rocks it side to side (%.2f rad)" % wobble)
+	print("[enemy_feel] bag: tap tips %.2f rad, swings %.2f back, still after %d frames; knockdown boing %.2f rad; shake-off %.2f rad" \
+		% [tip.length(), back, settled, boing, wobble])
+	d.queue_free()
 
 
 ## Hit direction: a side launch rolls, a downward hit craters (from the air,
