@@ -109,6 +109,8 @@ const SQUASH := {
 	"launch": Vector3(0.72, 1.45, 0.72),  # stretched tall as it leaves the ground
 	"juggle": Vector3(1.2, 0.84, 1.2),  # a sharp snap on each hit that keeps it up
 	"kill": Vector3(1.4, 0.6, 1.4),
+	"land": Vector3(1.35, 0.65, 1.35),  # flattened on the floor
+	"bounce": Vector3(0.9, 1.15, 0.9),
 }
 const LEAN := 0.2
 const LEAN_BIG := 0.42
@@ -117,6 +119,33 @@ const FLASH_TAP := 0.07
 const FLASH_BIG := 0.12
 const FLASH_TINT := 0.55
 const KILL_FREEZE := 0.14
+# Juggles (_gravity, _tumble, _land_from_air, _skid): AIR_GRAVITY while
+# launched (GROUND_GRAVITY otherwise), HANG_GRAVITY of it while |vy| <
+# HANG_SPEED so a launched foe hangs a beat at the apex (a 9 m/s launch
+# spends ~0.67 s within 0.3 m of its top instead of 0.41); it tumbles
+# over backwards at TUMBLE_SPEED rad/s (big hits TUMBLE_BIG), slowing by
+# TUMBLE_DRAG per s, and rights itself over TUMBLE_SETTLE on landing. Falling
+# faster than BOUNCE_MIN_FALL it bounces once at BOUNCE_KEEP of the fall
+# speed (SQUASH.bounce), skating on along the launch at LAND_SLIDE of the fall
+# speed, and the knockdown slides out at SKID_FRICTION with a
+# dust puff every SKID_DUST_EVERY s while faster than SKID_MIN_SPEED (AIR_DRAG
+# is the slide in the air, low so a launch carries). launch_speed_for() is the
+# inverse of the gravity profile (training_dummy caps its rise with it).
+const AIR_GRAVITY := 14.0
+const GROUND_GRAVITY := 30.0
+const HANG_SPEED := 2.0
+const HANG_GRAVITY := 0.55
+const TUMBLE_SPEED := 2.5
+const TUMBLE_BIG := 4.0
+const TUMBLE_DRAG := 1.5
+const TUMBLE_SETTLE := 0.12
+const BOUNCE_MIN_FALL := 7.0
+const BOUNCE_KEEP := 0.35
+const AIR_DRAG := 2.5
+const LAND_SLIDE := 0.4  # the hard touchdown's horizontal speed, as a share of the fall speed, along the launch
+const SKID_FRICTION := 6.0
+const SKID_DUST_EVERY := 0.08
+const SKID_MIN_SPEED := 1.0
 
 static var dodges := 0  # running count, reported by the autotest
 static var blocks := 0
@@ -151,6 +180,11 @@ var _ice: MeshInstance3D
 var _frozen_speed := -1.0
 var _squash_tween: Tween
 var _lean_tween: Tween
+var _fall_vy := 0.0  # last in-air vertical speed (the landing frame has already zeroed velocity.y)
+var _bounced := false
+var _tumble_v := 0.0  # rad/s around the model's side axis while airborne
+var _air_dir := Vector3.ZERO  # the launch's horizontal direction (the knockdown skates along it)
+var _skid_dust_t := 0.0
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
 var _guard_broken_t := 0.0
@@ -265,9 +299,11 @@ func _physics_process(delta: float) -> void:
 	_guard_broken_t -= delta
 	if _fuse >= 0.0 and state != State.DEAD:
 		_burn_fuse(delta)
-	velocity.y -= (14.0 if state == State.AIRBORNE else 30.0) * delta
+	velocity.y -= _gravity() * delta
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
+	else:
+		_fall_vy = velocity.y
 
 	match state:
 		State.SPAWN:
@@ -282,17 +318,17 @@ func _physics_process(delta: float) -> void:
 			if _state_t >= attack_recover:
 				_set_state(State.CHASE)
 		State.HURT:
-			_friction(delta, 18.0)
+			if _state_t < 0.0:  # knocked down: sliding out
+				_skid(delta)
+			else:
+				_friction(delta, 18.0)
 			if _state_t >= 0.4:
 				_set_state(State.CHASE)
 		State.AIRBORNE:
-			_friction(delta, 4.0)
+			_friction(delta, AIR_DRAG)
+			_tumble(delta)
 			if is_on_floor() and _state_t > 0.15:
-				_play("Lie_StandUp", 0.1, 2.0)
-				Fx.dust(get_parent(), global_position, 14, 0.6)
-				Game.shake(0.1)
-				_set_state(State.HURT)
-				_state_t = -0.35  # lying on the ground a bit longer
+				_land_from_air()
 		State.DODGE:
 			_friction(delta, 26.0)
 			if _state_t >= 0.35:
@@ -637,6 +673,9 @@ func _react(kind: String, knockback: Vector3, big: bool) -> void:
 			_lean(knockback, LEAN)
 		"big", "kill":
 			_lean(knockback, LEAN_BIG)
+		"launch", "juggle":
+			_kick_tumble(knockback, big)
+			_bounced = false  # every hit that keeps it up earns a bounce on the way down
 
 
 ## The hero's current hit colour (element, Ascendancy when Awakened), white
@@ -646,6 +685,82 @@ func _hit_color() -> Color:
 	if hero != null and hero.has_method("_fx_color"):
 		return Color.WHITE.lerp(hero._fx_color(), FLASH_TINT)
 	return Color.WHITE
+
+
+## Gravity this frame: lighter near a juggle's apex so it hangs there.
+func _gravity() -> float:
+	if state != State.AIRBORNE:
+		return GROUND_GRAVITY
+	return AIR_GRAVITY * (HANG_GRAVITY if absf(velocity.y) < HANG_SPEED else 1.0)
+
+
+## The launch speed that peaks `height` above the floor under _gravity()'s
+## profile (a frame's integration lands it a few cm under that).
+static func launch_speed_for(height: float) -> float:
+	var hang_h := HANG_SPEED * HANG_SPEED / (2.0 * AIR_GRAVITY * HANG_GRAVITY)
+	if height <= hang_h:
+		return sqrt(2.0 * AIR_GRAVITY * HANG_GRAVITY * maxf(height, 0.0))
+	return sqrt(HANG_SPEED * HANG_SPEED + 2.0 * AIR_GRAVITY * (height - hang_h))
+
+
+## Start (or renew) the backwards tumble: the top goes with the blow.
+func _kick_tumble(knockback: Vector3, big: bool) -> void:
+	if _lean_tween:
+		_lean_tween.kill()
+	model.rotation.z = 0.0
+	var flat := Vector3(knockback.x, 0.0, knockback.z)
+	var dir := 1.0
+	if flat.length_squared() > 0.001:
+		_air_dir = flat.normalized()
+		var local := Basis(Vector3.UP, model.rotation.y).inverse() * _air_dir
+		dir = 1.0 if local.z >= 0.0 else -1.0
+	_tumble_v = dir * (TUMBLE_BIG if big else TUMBLE_SPEED)
+
+
+func _tumble(delta: float) -> void:
+	if _tumble_v == 0.0:
+		return
+	model.rotation.x += _tumble_v * delta
+	_tumble_v = move_toward(_tumble_v, 0.0, TUMBLE_DRAG * delta)
+
+
+## Touching down from a juggle: a hard fall bounces once, then it flops flat,
+## rights itself and slides out (HURT with _state_t < 0 = lying there).
+func _land_from_air() -> void:
+	var fall := -_fall_vy
+	if not _bounced and fall >= BOUNCE_MIN_FALL:
+		_bounced = true
+		velocity.y = fall * BOUNCE_KEEP
+		velocity.x = _air_dir.x * fall * LAND_SLIDE
+		velocity.z = _air_dir.z * fall * LAND_SLIDE
+		_state_t = 0.0
+		_squash(SQUASH.bounce)
+		Fx.dust(get_parent(), global_position, 8, 0.45)
+		return
+	_play("Lie_StandUp", 0.1, 2.0)
+	Fx.dust(get_parent(), global_position, 14, 0.6)
+	Game.shake(0.1)
+	_squash(SQUASH.land)
+	_tumble_v = 0.0
+	if _lean_tween:
+		_lean_tween.kill()
+	_lean_tween = create_tween()
+	_lean_tween.tween_property(model, "rotation:x", roundf(model.rotation.x / TAU) * TAU, TUMBLE_SETTLE)
+	_lean_tween.tween_callback(func() -> void: model.rotation.x = 0.0)
+	_set_state(State.HURT)
+	_state_t = -0.35  # lying on the ground a bit longer
+	_skid_dust_t = 0.0
+
+
+## The knockdown slide: low friction and a dust puff while it still moves.
+func _skid(delta: float) -> void:
+	_friction(delta, SKID_FRICTION)
+	if Vector2(velocity.x, velocity.z).length() < SKID_MIN_SPEED:
+		return
+	_skid_dust_t -= delta
+	if _skid_dust_t <= 0.0:
+		_skid_dust_t = SKID_DUST_EVERY
+		Fx.dust(get_parent(), global_position, 2, 0.3)
 
 
 ## Tip the model over along the knockback (the top goes with the blow) and

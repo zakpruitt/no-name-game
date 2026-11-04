@@ -73,7 +73,64 @@ func _initialize() -> void:
 
 ## Further checks (juggle feel, crowd waves) go here as the rounds add them.
 func _extra() -> void:
-	pass
+	await _juggle()
+
+
+## A launch hangs at its apex, tumbles, bounces once off the floor and skids.
+func _juggle() -> void:
+	var at: Vector3 = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
+	var e: Node = await _fresh(at)
+	e.model.rotation.y = PI
+	var launch := 9.0
+	e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), launch, true)
+	var top := 0.0
+	var hang_frames := 0  # frames within 0.3 m of the apex
+	var tumbled := 0.0
+	var landed := -1  # frame of the first floor contact
+	var bounce_top := 0.0
+	var frames := 0
+	var skid_v := -1.0  # horizontal speed one frame into the knockdown
+	for i in 300:
+		await physics_frame
+		frames = i
+		if e.state == e.State.AIRBORNE:
+			top = maxf(top, e.global_position.y)
+			tumbled = maxf(tumbled, absf(e.model.rotation.x))
+			if landed < 0 and e.is_on_floor() and i > 10:
+				landed = i
+			if landed >= 0 and i > landed:
+				bounce_top = maxf(bounce_top, e.global_position.y)
+		else:
+			if skid_v < 0.0:
+				skid_v = Vector2(e.velocity.x, e.velocity.z).length()
+			break
+	var expect: float = e.launch_speed_for(top)
+	_check(absf(expect - launch) < 0.35, "launch %.1f peaks at %.2f m (launch_speed_for -> %.2f)" % [launch, top, expect])
+	_check(tumbled > 1.0, "it tumbles while up (%.2f rad)" % tumbled)
+	_check(landed > 0 and bounce_top > 0.1, "it bounces once off the floor (%.2f m)" % bounce_top)
+	_check(e.state == e.State.HURT and e._state_t < 0.0 and e.model.scale.y < 0.95 * e.model_scale,
+		"it lands flat (%.2f, springing back from %.2f) and lies there" % [e.model.scale.y, e.SQUASH.land.y])
+	_check(skid_v > 0.3, "the knockdown keeps sliding (%.2f m/s)" % skid_v)
+	_check(frames < 299, "the juggle ends (%d frames)" % frames)
+	await create_timer(0.3).timeout
+	_check(absf(e.model.rotation.x) < 0.01, "it rights itself on the floor (%.3f)" % e.model.rotation.x)
+	# Hang time: a second launch, timing the frames spent near the apex.
+	await create_timer(1.0).timeout
+	e.take_hit(1.0, Vector3.ZERO, launch, false)
+	var y_top := 0.0
+	var ys: Array[float] = []
+	for i in 300:
+		await physics_frame
+		if e.state != e.State.AIRBORNE:
+			break
+		ys.append(e.global_position.y)
+		y_top = maxf(y_top, e.global_position.y)
+	for y in ys:
+		if y > y_top - 0.3:
+			hang_frames += 1
+	var plain_hang: float = 2.0 * sqrt(2.0 * 0.3 / e.AIR_GRAVITY) * 60.0
+	_check(hang_frames > plain_hang * 1.25, "it hangs %d frames within 0.3 m of the apex (plain gravity %.0f)" % [hang_frames, plain_hang])
+	print("[enemy_feel] juggle: launch %.1f apex %.2f m, %d frames within 0.3 m of it (plain gravity %.0f), tumble %.2f rad, bounce %.2f m, skid %.2f m/s, %d frames up" 		% [launch, top, hang_frames, plain_hang, tumbled, bounce_top, skid_v, frames])
 
 
 ## A sturdy minion at `at`, past its spawn animation, standing still and harmless.

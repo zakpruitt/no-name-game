@@ -13,7 +13,6 @@ const HOME_SPEED := 2.0
 # climbs past MAX_HEIGHT m, so long strings don't juggle it out of reach.
 const LAUNCH_SCALE := 0.55
 const MAX_HEIGHT := 3.0
-const AIR_GRAVITY := 14.0  # (enemy.gd's airborne gravity)
 
 var home := Vector3.ZERO
 
@@ -57,7 +56,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		hp = max_hp
 	var before := hp
 	super(damage, knockback, launch * LAUNCH_SCALE, big)
-	if state == State.AIRBORNE:  # rise no higher than MAX_HEIGHT: v^2 = 2 g h
-		velocity.y = minf(velocity.y, sqrt(2.0 * AIR_GRAVITY * maxf(MAX_HEIGHT - global_position.y, 0.0)))
+	if state == State.AIRBORNE:  # rise no higher than MAX_HEIGHT
+		velocity.y = minf(velocity.y, launch_speed_for(MAX_HEIGHT - global_position.y))
 	if hp < before:
 		hit_taken.emit(before - hp)
