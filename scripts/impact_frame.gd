@@ -3,8 +3,12 @@ extends CanvasLayer
 ## few real-time frames into a high-contrast negative (ink where it was light,
 ## paper where it was dark) with a dark vignette, then fades. One ColorRect
 ## reading the screen, on layer -1 (above the 3D view, under every HUD layer),
-## owned by the Game autoload: Game.hitstop() fires it for stops of
-## IMPACT_STOP or more and Game.enemy_killed for kills. With
+## owned by the Game autoload. It is saved for slams and kills (feel audit
+## 2026-11-04 item 1: on every ender it flipped about every 1.2 s): a combo
+## breaker's landing (watched here: the hero's breakers_landed goes up),
+## Game.enemy_killed, and hitstops of IMPACT_STOP or more, which is above any
+## ender's stop (move stop x1.3 airborne + ENDER_HITSTOP per tier, ~0.23 s) and
+## Awakening's 0.25 s, so only the last kill's slow motion and the like qualify. With
 ## Game.reduce_flashing the negative is dropped and only a soft vignette
 ## pulse remains (and kills get nothing). The vignette leans the way the last
 ## blow went (Game.last_hit_dir) and its ink takes a dark tone of his element.
@@ -29,13 +33,15 @@ void fragment() {
 	COLOR = vec4(c, 1.0);
 }
 """
-const IMPACT_STOP := 0.1  # hitstops this long (real s) or longer flash a frame: enders, slams, breakers
-const IMPACT_FULL_STOP := 0.25  # a stop this long flashes at full strength (shorter ones scale down)
-const IMPACT_MIN := 0.45  # strength of the lightest big-hit frame (a 0.1 s stop: enders)
+const IMPACT_STOP := 0.3  # hitstops this long (real s) or longer flash a frame: above every ender's stop
+const IMPACT_FULL_STOP := 0.5  # a stop this long flashes at full strength (shorter ones scale down)
+const IMPACT_MIN := 0.45  # strength of the lightest big-hit frame (an IMPACT_STOP stop)
+const IMPACT_SLAM := 0.85  # a combo breaker's landing
+const IMPACT_SLAM_PERFECT := 1.0  # a perfect one
 const IMPACT_KILL := 0.4  # strength of a kill's frame
 const IMPACT_HOLD := 0.05  # real seconds held at full strength (about three frames)
 const IMPACT_FADE := 0.09  # real seconds fading out after the hold
-const IMPACT_GAP_MS := 240  # no new frame closer than this to the last (no strobing on a crowd)
+const IMPACT_GAP_MS := 900  # no new frame closer than this to the last: one string never flips twice
 const REDUCED_SCALE := 0.45  # strength multiplier with Game.reduce_flashing (vignette only)
 const DIR_SHIFT := 0.2  # UV the vignette's middle moves back against the blow
 const TINT_MIX := 0.5  # how far the vignette's ink goes to a dark tone of his element
@@ -51,6 +57,7 @@ var _start_ms := 0
 var _last_ms := -100000
 var dir := Vector2.ZERO  # what the shader's dir is set to (read by impact_frame_check)
 var tint := INK  # and its tint
+var _breakers_seen := -1  # the hero's breakers_landed last frame (-1: not read yet)
 
 
 func _ready() -> void:
@@ -112,7 +119,28 @@ func current() -> float:
 	return _strength * clampf(1.0 - (t - IMPACT_HOLD) / IMPACT_FADE, 0.0, 1.0)
 
 
+## A combo breaker landed: the frame at slam strength, and the camera's ender FOV punch.
+func slam(perfect: bool) -> bool:
+	if not flash(IMPACT_SLAM_PERFECT if perfect else IMPACT_SLAM, false, Game.hit_dir_screen(), Game.hero_hit_color()):
+		return false
+	if Game.camera_rig and Game.camera_rig.has_method("fov_punch"):
+		Game.camera_rig.fov_punch(Game.camera_rig.FOV_ENDER)
+	return true
+
+
+## Watches the hero (read only) for a breaker landing.
+func _watch_hero() -> void:
+	var hero := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
+	if hero == null or not "breakers_landed" in hero:
+		return
+	var n: int = hero.breakers_landed
+	if _breakers_seen >= 0 and n > _breakers_seen:
+		slam(hero.get("_brk_ended") == "perfect")
+	_breakers_seen = n
+
+
 func _process(_delta: float) -> void:
+	_watch_hero()
 	if _strength <= 0.0:
 		return
 	var s := current()
