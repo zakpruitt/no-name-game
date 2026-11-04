@@ -19,6 +19,9 @@ extends RefCounted
 const ELEMENTS := preload("res://scripts/elements.gd")
 const RITE := preload("res://scripts/element_rite.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const COMIC_GEYSER := preload("res://scripts/comic_geyser.gd")
+const GEYSER_SQUASH := 0.7  # of the asked height: at 0.85 five of them walled off the whole landing
+const GEYSER_WIDTH := 0.75  # of the radius: the column's width at the top (1.5 hid every foe)
 const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)  # (inner classes reach the static funcs through it)
 const HEAVIES := ["H", "LH", "LHH", "LLH", "CH", "DH", "AH"]
 const PRIME_TIME := 4.0  # s a charge / soak / well waits for the next heavy
@@ -203,45 +206,14 @@ static func _encase(parent: Node, e: Node3D, dmg: float, shatter: float, on_hit:
 
 # --- Earth: lava wells and Magma Burst ----------------------------------------
 
-## The geyser's lava: the swirl shader with gold streaks (as Cataclysm's fire).
-static func _lava_mat(inner: bool) -> ShaderMaterial:
-	var m: ShaderMaterial = ELEMENTS.swirl_mat(LAVA, inner, 0.8, 4.0).duplicate()
-	m.set_shader_parameter("streak_color", LAVA_HOT)
-	return m
-
-
-## A lava geyser at `pos`: a molten column punching up, lava raining back
-## down, magma spikes round its foot.
-## `h`: how tall. `hot`: the glowing core, which blows out white when several go up together.
-static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, hot_core := true) -> void:
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.global_position = _flat(pos)
-	var col := ELEMENTS._mi(ELEMENTS.funnel(radius * 0.75, radius * 0.45, h), _lava_mat(false))
-	col.position.y = h * 0.5
-	root.add_child(col)
-	var core := CylinderMesh.new()
-	core.top_radius = radius * 0.22
-	core.bottom_radius = radius * 0.3
-	core.height = h * 1.05
-	if hot_core:
-		var hot := ELEMENTS._mi(core, ELEMENTS.glow(LAVA_HOT, 2.6))
-		hot.position.y = h * 0.52
-		root.add_child(hot)
-	root.scale = Vector3(0.5, 0.05, 0.5)
-	var tw := root.create_tween().set_parallel()
-	tw.tween_property(root, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(col, "rotation:y", TAU * 1.5, 0.6)
-	ELEMENTS._fade_free(root, 0.25, 0.3)
-	var top := root.global_position + Vector3.UP * h
-	Fx.burst(parent, top, LAVA, 22, 9.0, 0.2, 0.9, Vector3.UP, 55.0, -22.0, 0.4, "dot", true)  # lava raining back down
-	Fx.burst(parent, top, LAVA_HOT, 10, 6.0, 0.12, 0.6, Vector3.UP, 70.0, -18.0, 0.3, "dot", true)
-	Fx.shards(parent, root.global_position + Vector3.UP * 0.3, ELEMENTS.LOOK.earth.rock.lightened(0.2), 10, Vector3.UP, 11.0, 0.2, 0.8)
-	Fx.burst(parent, root.global_position + Vector3.UP * 0.5, Color(0.15, 0.12, 0.11, 0.65), 6, 3.0, 0.7, 1.0, Vector3.UP, 30.0, 1.5, 0.4, "smoke")
-	ELEMENTS.spikes(parent, root.global_position, "earth", 1.2, 4, 0.8)
-	Fx.ring(parent, root.global_position, Color(LAVA, 0.9), radius * 1.8, 0.3)
-	Fx.scorch(parent, root.global_position, LAVA, radius * 1.4, 1.6)
-	ELEMENTS.light_pop(parent, root.global_position + Vector3.UP * 1.5, LAVA, 6.0, 6.0, 0.35)
+## A lava geyser at `pos`: a flat inked column punching up on twos, fat lava blobs off the top and a
+## hard splash at its foot (comic_geyser.gd), magma spikes round it and a scorch left behind.
+## `h`: how tall. `hot_core` is kept for the callers: the core is always the hot yellow band now.
+static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:
+	var at := _flat(pos)
+	COMIC_GEYSER.spawn(parent, at, h * GEYSER_SQUASH, radius * GEYSER_WIDTH)
+	ELEMENTS.spikes(parent, at, "earth", 1.2, 4, 0.8)
+	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
 
 
 ## A pool of lava welled up through the floor: a cracked crust round a bright
