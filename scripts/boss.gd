@@ -344,7 +344,7 @@ func take_hit(damage: float, knockback: Vector3, _launch: float, big: bool) -> v
 	if state == State.DEAD or state == State.SPAWN:
 		return
 	hp -= damage
-	Fx.damage_number(get_parent(), global_position + Vector3.UP * 1.2, damage, big)
+	Fx.damage_number(get_parent(), global_position + Vector3.UP * 1.2, damage, big, self)
 	Fx.hit_spark(get_parent(), global_position + Vector3.UP * 0.8 + knockback.normalized() * -0.6, Color(1.0, 0.9, 0.6), 1.5 if big else 1.0)
 	Fx.impact(get_parent(), global_position + Vector3.UP * 0.8, knockback + Vector3.UP * 2.0, big)
 	ComicFx.hit(global_position, big)

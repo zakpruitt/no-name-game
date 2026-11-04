@@ -659,7 +659,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		_thaw(true)
 	hp -= damage
 	last_hit_ms = Time.get_ticks_msec()
-	Fx.damage_number(get_parent(), global_position, damage, big)
+	Fx.damage_number(get_parent(), global_position, damage, big, self)
 	if not _quiet_hit:
 		Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
 		Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)

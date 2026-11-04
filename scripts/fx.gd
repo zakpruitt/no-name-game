@@ -27,6 +27,7 @@ const EDGE_OUTLINE := 0.07  # m, dark outline
 ## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
 ## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
+const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 ## Flat two-tone chip colour off the axes per element (element_hit).
 const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
 	"spirit": Color(0.2, 0.85, 0.78)}
@@ -108,7 +109,11 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	tw.tween_callback(m.queue_free)
 
 
-static func damage_number(parent: Node, pos: Vector3, amount: float, big := false) -> void:
+## `foe`: who took it, so the comic number merges that foe's hits (comic_number.gd).
+static func damage_number(parent: Node, pos: Vector3, amount: float, big := false, foe: Object = null) -> void:
+	if Game.comic_style:  # one chunky inked number per foe, growing as hits add in, drifting off the pile
+		COMIC_NUMBER.add(parent, pos, amount, big, foe)
+		return
 	var l := _label(str(roundi(amount)), 96 if big else 64,
 		Color(1.0, 0.85, 0.3) if big else Color.WHITE, Color(0.1, 0.05, 0.1))
 	parent.add_child(l)
