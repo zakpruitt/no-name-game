@@ -804,7 +804,7 @@ func _crater() -> void:
 	Game.shake(CRATER_SHAKE)
 
 
-## The hero's current hit colour (element, Ascendancy when Awakened), white
+## The hero's current hit colour (the move's element, gold when Awakened), white
 ## without a hero (lineups, previews).
 func _hit_color() -> Color:
 	var hero := get_tree().get_first_node_in_group("player")
