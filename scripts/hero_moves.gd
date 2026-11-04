@@ -178,6 +178,11 @@ static func chain_after(id: String) -> int:
 	return VOID_ELEMENT.CHAIN.get(id, 0)
 
 
+## Progress through the current move: a fraction of its clip (MOVES timings are in these).
+static func progress(hero: CharacterBody3D) -> float:
+	return hero._state_t * hero.anim_speed * hero._anim_mult / hero._move_len
+
+
 ## A copy of the MOVES entry for this press (never mutates MOVES itself), retimed for his clips.
 static func effective_move(anim: AnimationPlayer, id: String) -> Dictionary:
 	var m: Dictionary = MOVES[id].duplicate(true)

@@ -111,30 +111,8 @@ var _connected := false  # the current move has hit something (combo breakers ne
 var _hop_y0 := 0.0  # model height the current move started at (MOVES `hop`)
 var _hop_air := false  # off the ground this move (for the landing dust)
 var _hop_peak := 0.0  # highest the model got this time up (scales the landing slam)
-## Mouse aim, the comic hero only (_mouse_aiming). He faces the cursor while free and turns toward
-## it at a limited rate through a combo, so a string can be redirected but not spun on the spot.
-const AIM_HEIGHT := 0.8  # m: the cursor is read on this plane, about where a foe's body is
-const AIM_DEAD_ZONE := 0.35  # m round him where the cursor stops steering, or he'd spin
-const AIM_ASSIST_MOUSE_ANGLE := 25.0  # deg: the cursor says where, so the soft lock is narrower
-const COMBO_REDIRECT := 55.0  # deg a chained move may turn as it starts
-const COMBO_TURN_WINDUP := 420.0  # deg/s before a move's first hit
-const COMBO_TURN_ACTIVE := 140.0  # deg/s from then on
-## Input feel (round 30; tests/rhythm_check.gd).
-## A press of L / right click / dash / R is remembered this long and fires on the first frame it's legal
-## (the next move's cancel point, the end of a dash). 300: L1 cancels 0.275 s in, so a press as a move
-## starts still carries; much longer and a mashed ender spills into a whole extra string.
-const BUFFER_MS := 300
-## Hit-confirm: once the move has connected, its cancel point comes CANCEL_ON_HIT of the way back from
-## `cancel` toward its last hit, so a string that lands flows faster than one swung at air (a whiff keeps
-## the table's `cancel`: the recovery is the whiff's price). Never before HIT_CONFIRM_MIN s (move time)
-## after the last hit, nor before a breaker's `leap`.
-const CANCEL_ON_HIT := 0.5
-const HIT_CONFIRM_MIN := 0.03
-## A dash cancels any move once its first hit is out, or this far into it on a whiff (fraction).
-const DASH_CANCEL_WHIFF := 0.2
-## Mouse aim keeps the foe a move started on (_aim_lock) while the cursor stays within AIM_LOCK_BREAK deg
-## of it, so the per-frame turn doesn't flick between two foes mid-string; past that the cursor wins.
-const AIM_LOCK_BREAK := 40.0
+const HERO_INPUT := preload("res://scripts/hero_input.gd")
+const BUFFER_MS := HERO_INPUT.BUFFER_MS  # (rhythm_check reads it off the hero)
 var _swoosh_flip := false  # alternate swing direction each swoosh
 var _chain_i := 0
 var _chain_reset_t := 0.0
@@ -315,7 +293,7 @@ func _physics_process(delta: float) -> void:
 		for mi: MeshInstance3D in _meshes:
 			if mi.material_overlay == null:
 				mi.material_overlay = _awaken_rim
-	_read_input()
+	HERO_INPUT.read_input(self)
 
 	if not is_on_floor():
 		velocity.y -= 30.0 * delta
@@ -343,7 +321,7 @@ func _physics_process(delta: float) -> void:
 		model.position.z = move_toward(model.position.z, 0.0, 6.0 * delta)
 	if model.position.y < 0.05:
 		_air_dashes = 0  # back on the floor: the air dash comes back
-	var swinging: bool = (state == State.ATTACK and _state_t * anim_speed * _anim_mult / _move_len < _move.cancel)
+	var swinging: bool = state == State.ATTACK and HERO_MOVES.progress(self) < _move.cancel
 	if swinging and VOID_ELEMENT.is_element_move(_move_id):
 		swinging = false  # the element is the swing (void_element.gd)
 	for trail in _trails:
@@ -376,49 +354,17 @@ func _tick_timers(delta: float) -> void:
 			_set_awakened(false)
 
 
-func _read_input() -> void:
-	if state == State.DEAD:
-		return
-	if Input.is_action_just_pressed("attack_light"):
-		_buffered = "light"
-		_buffer_t = input_buffer
-	elif Input.is_action_just_pressed("attack_heavy"):
-		_buffered = "heavy"
-		_buffer_t = input_buffer
-	if Input.is_action_just_pressed("traverse"):
-		_swing_buffer_t = input_buffer
-	if Input.is_action_just_pressed("dash"):
-		_dash_buffer_t = input_buffer
-	if Input.is_action_just_pressed("awaken"):
-		try_awaken()
-
-
 ## The last device touched decides, so a gamepad goes back to facing the way he runs.
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		_mouse_active = true
-	elif event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.4):
-		_mouse_active = false
+	HERO_INPUT.note_device(self, event)
 
 
 func _mouse_aiming() -> bool:
-	return _mouse_active and not bot_enabled and DisplayServer.get_name() != "headless"
+	return HERO_INPUT.mouse_aiming(self)
 
 
-## Flat direction from him to the cursor; zero with no camera or a cursor on top of him.
 func _mouse_dir() -> Vector3:
-	var cam := get_viewport().get_camera_3d()
-	if cam == null:
-		return Vector3.ZERO
-	var at := get_viewport().get_mouse_position()
-	var ray := cam.project_ray_normal(at)
-	if absf(ray.y) < 0.001:
-		return Vector3.ZERO
-	var from := cam.project_ray_origin(at)
-	var hit := from + ray * ((global_position.y + AIM_HEIGHT - from.y) / ray.y)
-	var to := hit - global_position
-	to.y = 0.0
-	return to.normalized() if to.length() > AIM_DEAD_ZONE else Vector3.ZERO
+	return HERO_INPUT.mouse_dir(self)
 
 
 ## _facing turned at most `max_deg` toward `want`.
@@ -428,10 +374,7 @@ func _turned(want: Vector3, max_deg: float) -> Vector3:
 
 
 func _input_dir() -> Vector3:
-	if bot_enabled:
-		return bot_move
-	var v := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	return Vector3(v.x, 0.0, v.y)
+	return HERO_INPUT.input_dir(self)
 
 
 func facing_dir() -> Vector3:
@@ -535,11 +478,11 @@ func _state_charge(delta: float) -> void:
 
 
 func _state_attack(delta: float) -> void:
-	var t := _state_t * anim_speed * _anim_mult / _move_len  # normalized progress
+	var t := HERO_MOVES.progress(self)
 	if _void != null:
 		_void.attack_tick(t, delta)
 	if _mouse_aiming() and not _hop_air:  # (in the air hero_moves.air_home has him)
-		_face(_turned(_aim_want(true), (COMBO_TURN_WINDUP if _hits_done == 0 else COMBO_TURN_ACTIVE) * delta))
+		HERO_INPUT.steer(self, delta)
 	# Lunge decays quickly so attacks feel snappy, not slidey.
 	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
 	var fwd := _facing()
@@ -559,10 +502,11 @@ func _state_attack(delta: float) -> void:
 		return
 
 	# Dash cancels anything once the first hit has come out (or early on whiff).
-	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and (_hits_done > 0 or t > DASH_CANCEL_WHIFF):
+	var can_cancel := HERO_INPUT.can_dash_cancel(self, t)
+	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and can_cancel:
 		_start_dash()
 		return
-	if (_hits_done > 0 or t > DASH_CANCEL_WHIFF) and _try_swing():
+	if can_cancel and _try_swing():
 		return
 	if t >= cancel_point() and _buffered != "":
 		_start_attack(_next_move(_buffered))
@@ -572,18 +516,9 @@ func _state_attack(delta: float) -> void:
 		_set_state(State.MOVE)
 
 
-## Where the current move takes the next press (fraction of its clip): `cancel`, or earlier once it has
-## connected (CANCEL_ON_HIT, HIT_CONFIRM_MIN), never before a breaker's leap.
+## Where the current move takes the next press (hero_input.cancel_point; rhythm_check reads it).
 func cancel_point() -> float:
-	var c: float = _move.get("cancel", 0.0)
-	if not _connected or _hits_done < _move.hits.size():
-		return c
-	var last: float = _move.hits[-1]
-	var early := maxf(lerpf(c, last, CANCEL_ON_HIT), last + HIT_CONFIRM_MIN * anim_speed * _anim_mult / _move_len)
-	var brk := _breaker_for(_move_id)
-	if not brk.is_empty():
-		early = maxf(early, _move.get("leap", brk.leap))
-	return minf(c, early)
+	return HERO_INPUT.cancel_point(self)
 
 
 func _state_dash(delta: float) -> void:
@@ -964,19 +899,9 @@ func guide_name(id: String) -> String:
 	return HERO_MOVES.guide_name(id)
 
 
-## How soon a press is taken: `progress` 0..1 toward the move's cancel point,
-## `ready` once a press now would be buffered into the next move (input_buffer);
-## while charging, how far the charge is and whether it's full.
+## How soon a press is taken (hero_input.combo_window; combo_guide.gd and the bot read it).
 func combo_window() -> Dictionary:
-	if state == State.CHARGE:
-		return {"progress": clampf(_state_t / CHARGE_TIME, 0.0, 1.0), "ready": _charged, "dash": _dash_cd <= 0.0}
-	if state != State.ATTACK:
-		return {"progress": 1.0, "ready": true, "dash": _dash_cd <= 0.0}
-	var t := _state_t * anim_speed * _anim_mult / _move_len
-	var cancel := cancel_point()
-	var left: float = (cancel - t) * _move_len / (anim_speed * _anim_mult)
-	return {"progress": clampf(t / cancel, 0.0, 1.0), "ready": left <= input_buffer,
-		"dash": _dash_cd <= 0.0 and (_hits_done > 0 or t > DASH_CANCEL_WHIFF)}
+	return HERO_INPUT.combo_window(self)
 
 
 func _start_attack(id: String) -> void:
@@ -998,7 +923,7 @@ func _start_attack(id: String) -> void:
 	_chain_i = HERO_MOVES.chain_after(id)
 	_post_dash_t = 0.0
 	_air_dash = false
-	_aim(state == State.ATTACK)
+	HERO_INPUT.aim(self, state == State.ATTACK)
 	if _hop_air:
 		HERO_MOVES.air_home(self)
 	_set_state(State.ATTACK)
@@ -1043,52 +968,9 @@ func _start_dash() -> void:
 	Game.sfx("dash", -4.0)
 
 
-## Soft lock-on: rotate toward the best enemy roughly in front of us. `chained`: this move
-## follows another, so under mouse aim it only turns part of the way (see COMBO_REDIRECT).
-func _aim(chained := false) -> void:
-	var want := _aim_want()
-	if chained and _mouse_aiming():
-		_face(_turned(want, COMBO_REDIRECT))
-		return
-	_face(want)
-	model.rotation.y = _facing_yaw  # snap: attacks must point where they hit
-
-
-## Where an attack wants to point: the cursor (else the stick, else ahead), pulled onto a foe near that line.
-## `held`: mid-move, stay on the foe the move started on while the cursor is near it (AIM_LOCK_BREAK).
+## Where an attack wants to point (hero_input.aim_want; rhythm_check asks it mid-move).
 func _aim_want(held := false) -> Vector3:
-	var mouse := _mouse_aiming()
-	var dir := _mouse_dir() if mouse else _input_dir()
-	var want := dir.normalized() if dir.length() > 0.1 else _facing()
-	if held and is_instance_valid(_aim_lock) and _aim_lock.is_alive():
-		var to_lock := _aim_lock.global_position - global_position
-		to_lock.y = 0.0
-		if to_lock.length() > 0.01 and rad_to_deg(want.angle_to(to_lock.normalized())) <= AIM_LOCK_BREAK:
-			return to_lock
-	var max_angle := AIM_ASSIST_MOUSE_ANGLE if mouse else aim_assist_angle
-	var best: Node3D = null
-	var best_score := INF
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.is_alive():
-			continue
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		var d := to.length()
-		if d > aim_assist_range or d < 0.01:
-			continue
-		var ang := rad_to_deg(want.angle_to(to / d))
-		if ang > max_angle:
-			continue
-		var score := d + ang * 0.05
-		if score < best_score:
-			best_score = score
-			best = e
-	if best:
-		want = best.global_position - global_position
-		want.y = 0.0
-	if not held:
-		_aim_lock = best
-	return want
+	return HERO_INPUT.aim_want(self, held)
 
 
 func _do_hit() -> void:
