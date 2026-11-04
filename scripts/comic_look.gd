@@ -116,7 +116,7 @@ const CLIPS := {
 const HERETIC := "heretic"
 ## Game.hero_model -> the GLB the HERETIC kind loads (assets/comic/<file>.glb). Every model
 ## keeps the same rig contract, clips and material name, so everything keyed by HERETIC
-## (tones, clips, heretic_rig.gd) works for each. Default "heretic" until Zak picks.
+## (tones, clips, heretic_rig.gd) works for each. Default: Game.HERO_DEFAULT ("chibi").
 const HERETIC_MODELS := {"heretic": "heretic", "chibi": "heretic_chibi"}
 ## Materials drawn from their own texture through the cut tones, not from a TONES palette.
 const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12}}

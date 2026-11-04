@@ -3,7 +3,8 @@ extends SceneTree
 ##   godot --headless --path . -s tests/heretic_shots.gd     PASS/FAIL, no pictures
 ##   godot --path . -s tests/heretic_shots.gd                also user://heretic_shots/*.png
 ## Sets the flags for this process only. Windowed, it opens a window for about 30 s.
-## -- --hero=chibi checks the chibi model instead, its pictures in user://heretic_shots_chibi/.
+## Checks the default model (the chibi, pictures in user://heretic_shots_chibi/); -- --hero=heretic
+## checks the round-28 heretic instead, its pictures in user://heretic_shots/.
 
 var DIR := "user://heretic_shots"
 const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
@@ -16,8 +17,11 @@ const STRIP_FORMS := [["axe", "Ab_L1", 0.3], ["spear", "Ab_L2", 0.34], ["hammer"
 const POSES := [
 	["idle", "Idle", 0.3, "hand"], ["ready", "Idle_Ready", 0.3, "hand"], ["run", "Run_F", 0.25, "hand"],
 	["axe_L1", "Ab_L1", 0.32, "axe"], ["spear_L2", "Ab_L2", 0.34, "spear"], ["hammer_L3", "Ab_L3", 0.4, "hammer"],
-	["grab_GR", "Ab_GR", 0.4, "hand"], ["slam_VS", "Ab_VS", 0.5, "hand"],
+	["reach_GR", "Ab_GR", 0.18, "hand"], ["grab_GR", "Ab_GR", 0.4, "hand"],
+	["lift_VS", "Ab_VS", 0.3, "hand"], ["slam_VS", "Ab_VS", 0.5, "hand"],
 ]
+## Clip -> the move whose claw grip (heretic_rig.GRIP_MOVES) the pose shows.
+const POSE_MOVES := {"Ab_GR": "GR", "Ab_VS": "VS"}
 
 var _game: Node
 var _main: Node
@@ -154,6 +158,27 @@ func _initialize() -> void:
 	await skel.skeleton_updated
 	_check(skel.get_bone_pose_scale(tip).x > 0.9, "tips open again (%.2f)" % skel.get_bone_pose_scale(tip).x)
 
+	# the claw grips on the grab and lets go on the slam (visual only)
+	p.state = p.State.ATTACK
+	for g: Array in [["GR", "Ab_GR", 0.15, -0.3, "splays reaching out on GR"], ["GR", "Ab_GR", 0.4, 0.5, "clenches on GR's catch"],
+			["VS", "Ab_VS", 0.3, 0.5, "holds clenched lifting on VS"], ["VS", "Ab_VS", 0.5, -0.5, "flings open on VS's slam"]]:
+		p._move_id = g[0]
+		anim.play(g[1])
+		anim.seek(anim.get_animation(g[1]).length * g[2], true)
+		anim.pause()
+		await create_timer(0.25).timeout
+		await skel.skeleton_updated
+		var gr: Vector2 = rig.grip()
+		var ok: bool = gr.x < g[3] if g[3] < 0.0 else gr.x > g[3]
+		_check(ok and gr.y > 0.9, "claw %s (%.2f, on %.2f)" % [g[4], gr.x, gr.y])
+	p._move_id = ""
+	p.state = p.State.MOVE
+	await create_timer(0.3).timeout
+	await skel.skeleton_updated
+	_check(rig.grip().y < 0.05, "and lets the claw go after (%.2f)" % rig.grip().y)
+	if _game.hero_model == "chibi":
+		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the chibi has glowing eyes")
+
 	# skirt: at rest it holds; yank him sideways and it should lag behind
 	var sb := skel.find_bone("skirt.03.3")
 	await skel.skeleton_updated
@@ -185,6 +210,7 @@ func _initialize() -> void:
 		for pose: Array in POSES:
 			arm.shape(pose[3], false)
 			p.state = p.State.ATTACK if pose[1].begins_with("Ab_") else p.State.MOVE
+			p._move_id = POSE_MOVES.get(pose[1], "")
 			anim.play(pose[1])
 			anim.seek(anim.get_animation(pose[1]).length * pose[2], true)
 			anim.pause()

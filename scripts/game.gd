@@ -100,11 +100,13 @@ var combo_guide := true
 ## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
 ## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
 var comic_style := true
-## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "heretic" (default, until Zak
-## picks) or "chibi" (assets/comic/heretic_chibi.glb). --hero=chibi for this process only, or the
-## Settings entry (saved). Read as the player is built, so a change shows from the next run.
-var hero_model := "heretic"
-var hero_setting := "heretic"
+## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "chibi" (default since round 29,
+## assets/comic/heretic_chibi.glb; an orchestrator call Zak can veto) or "heretic" (the round-28
+## model, heretic.glb). --hero=heretic for this process only, or the Settings entry (saved).
+## Read as the player is built, so a change shows from the next run.
+const HERO_DEFAULT := "chibi"
+var hero_model := HERO_DEFAULT
+var hero_setting := HERO_DEFAULT
 const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic"}
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
@@ -382,7 +384,7 @@ func cycle_hero() -> void:
 
 
 func hero_label() -> String:
-	return "Hero model (next run): %s" % HERO_MODELS.get(hero_setting, "Heretic")
+	return "Hero model (next run): %s" % HERO_MODELS.get(hero_setting, HERO_MODELS[HERO_DEFAULT])
 
 
 ## Step to the next screen shake level and save it.
@@ -404,9 +406,9 @@ func _load_settings() -> void:
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
-		hero_setting = cfg.get_value("video", "hero_model", "heretic")
+		hero_setting = cfg.get_value("video", "hero_model", HERO_DEFAULT)
 		if not HERO_MODELS.has(hero_setting):
-			hero_setting = "heretic"
+			hero_setting = HERO_DEFAULT
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -417,7 +419,7 @@ func _save_settings() -> void:
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("video", "combo_guide", combo_guide)
-	if hero_setting != "heretic":  # the default leaves settings.cfg as it was
+	if hero_setting != HERO_DEFAULT:  # the default leaves settings.cfg as it was
 		cfg.set_value("video", "hero_model", hero_setting)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
