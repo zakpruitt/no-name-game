@@ -15,6 +15,7 @@ const BOSS := preload("res://scripts/boss.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
 const SPAR := preload("res://scripts/spar.gd")
+const WARMUP := preload("res://scripts/warmup.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
@@ -84,6 +85,9 @@ var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemi
 var _perf_last_us := 0
 var _probe: Node  # perf_probe.gd: times each frame's node work (autotest only)
 var _perf_last_frame := 0
+# Spike lines, printed at the end: a print costs 2-10 ms with stdout piped,
+# which showed up as its own spike the frame after.
+var _perf_log: Array[String] = []
 var _shots_taken := 0
 var _hit_shot_taken := false
 var _dash_shot_taken := false
@@ -91,11 +95,13 @@ var _dash_shot_at := 0
 var _guide_shot_taken := false
 var _cast_shot_taken := false
 var _quitting := false
+var _collect_shaders := false  # --collect-shaders: note every material shader seen (warmup.gd)
 
 
 func _ready() -> void:
 	Game.reset()
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
+	_collect_shaders = "--collect-shaders" in OS.get_cmdline_user_args()
 	if _autotest:
 		Game.save_hints = false
 		Game._hints_seen.clear()  # show them all, without touching the saved ones
@@ -108,6 +114,8 @@ func _ready() -> void:
 	add_child(player)
 	player.died.connect(_on_player_died)
 	player.ELEMENTS.prewarm(self, player.global_position)
+	WARMUP.keep_scripts()
+	WARMUP.prewarm(self, player.global_position)
 
 	var rig := CAMERA.new()
 	rig.target = player
@@ -188,7 +196,7 @@ func _train_text() -> void:
 		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
 	if _best_string > 0.0:
 		parts.append("BEST  %d" % _best_string)
-	hud.set_readout("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here")
+	hud.set_readout("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here  ·  Esc: moves, Fill Awakening")
 
 
 func _hits_text(n: float) -> String:
@@ -413,6 +421,8 @@ func _process(delta: float) -> void:
 	if not player.is_dead():
 		_time += delta
 		_check_hints(delta)
+	if _collect_shaders:  # slow (every material's property list): dev runs only
+		WARMUP.scan(self)
 	if not _autotest:
 		return
 	_autotest_t += delta
@@ -439,6 +449,11 @@ func _process(delta: float) -> void:
 		_snap("user://autotest_cast.png")
 	if _autotest_t >= AUTOTEST_MAX or (_autotest_t >= AUTOTEST_TIME and _bot_strings_done.size() >= BOT_STRINGS.size()):
 		_autotest_finish()
+
+
+func _exit_tree() -> void:
+	if _collect_shaders:  # (autotest or tests/element_shots.gd -- --collect-shaders)
+		WARMUP.save()
 
 
 ## First-run hints (Game.HINTS), each when it first becomes relevant.
@@ -481,7 +496,7 @@ func _sample_perf(node_ms: float) -> void:
 		if ms > 25.0 or cpu > 8.0:
 			_perf.spikes += 1 if ms > 25.0 else 0
 			_perf.cpu_spikes += 1 if cpu > 8.0 else 0
-			print("[perf] spike %.1fms at t=%.2f cpu=%.1fms gpu=%.1fms move=%s pipelines=%s nodes=%d" % [ms, _autotest_t, cpu, gpu,
+			_perf_log.append("[perf] spike %.1fms at t=%.2f cpu=%.1fms gpu=%.1fms move=%s pipelines=%s nodes=%d" % [ms, _autotest_t, cpu, gpu,
 				player._move_id, _pipelines(), Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
 		_perf.enemies = maxi(_perf.enemies, get_tree().get_nodes_in_group("enemies").size())
 		_perf.draws = maxi(_perf.draws, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
@@ -509,6 +524,8 @@ func _autotest_finish() -> void:
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
 		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, ",".join(_bot_moves.keys())])
 	var n := maxi(_perf.frames, 1)
+	for line in _perf_log:
+		print(line)
 	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d cpu avg=%.1fms worst=%.1fms cpu_spikes(>8ms)=%d gpu avg=%.1fms worst=%.1fms max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
 		_perf.total_ms / n, _perf.worst_ms, _perf.spikes, _perf.frames, _perf.cpu_ms / n, _perf.cpu_worst, _perf.cpu_spikes,
 		_perf.gpu_ms / n, _perf.gpu_worst, _perf.enemies, _perf.draws, _perf.nodes])
