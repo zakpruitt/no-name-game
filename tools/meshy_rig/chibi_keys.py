@@ -392,7 +392,8 @@ CLIPS["Ab_VS"] = (46, "hand", STEP_ATTACK, None, [
 
 
 # Idle: 4 s, loose and menacing: slow breath through the chest, the hood bobbing behind it, the claw
-# hanging at his side curling and uncurling on the breath, one claw flex half way.
+# held out a little at his side, swollen, slowly opening and closing once a loop and drifting out and
+# back (from the game camera a claw hanging low read small and dead), one claw flex half way.
 def idle_keys():
     keys = []
     n = 121
@@ -401,10 +402,12 @@ def idle_keys():
         br = math.sin(ph * 2)  # two breaths per loop
         lag = math.sin(ph * 2 - 0.7)
         flex = max(0.0, math.sin(ph - 1.2)) ** 3
+        drift = math.sin(ph + 0.6)  # the claw wanders out and back once a loop, so it reads alive from above
         keys.append((f, pose(NEUTRAL, hip=(0.01 * math.sin(ph), 0, -0.045 + 0.012 * br), hipr=(4 * math.sin(ph), 0, 2 * math.sin(ph)),
                              chest=(2 * math.sin(ph), 6 - 2.5 * br, 0), head=(-3 + 6 * math.sin(ph - 0.5), 5 + 4 * lag, 2 * math.sin(ph)),
-                             hsq=0.03 * lag, rh=(40, -30 + 4 * br, 0.52), w=(45, -12 + 6 * lag), lh=(-45, -60 + 3 * br, 0.37),
-                             claw=0.15 + 0.3 * lag - 0.9 * flex, clawph=180 * ph / math.pi, hs=1.1), "lin"))
+                             hsq=0.03 * lag, rh=(45 + 8 * drift, -20 + 4 * br, 0.54), w=(50 + 16 * drift, 2 + 8 * lag),
+                             lh=(-45, -60 + 3 * br, 0.37), claw=0.1 + 0.55 * math.sin(ph) + 0.15 * lag - 0.6 * flex,
+                             clawph=180 * ph / math.pi, hs=1.2), "lin"))
     keys[-1] = (n, keys[0][1], "hold")
     return keys
 
