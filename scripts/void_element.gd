@@ -685,7 +685,7 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	Game.shake(0.6)
 
 
-## They've gone down through the floor (player._start_dive), and black spikes throw them back up.
+## They've gone down through the floor (hero_leap._start_dive), and black spikes throw them back up.
 static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var spot: Vector3 = hero._void.dark_spot

@@ -46,28 +46,9 @@ const MOVES := HERO_MOVES.MOVES
 const COMBOS := HERO_MOVES.COMBOS
 const GUIDE_LEARNED := HERO_MOVES.GUIDE_LEARNED
 
-# Combo breakers (VOID_ELEMENT.BREAKERS, timed finishers). The move leaps into the air at `leap`
-# (fraction of its anim), hops `back` m while rising `height` m over `rise` s
-# with the tentacles on the foes, and a cue rings a zone `zone` m ahead: press
-# right click between `open` and `close` s after take-off (rings meet at `sweet`;
-# within `perfect` of it = PERFECT, x`perfect_mult`) to dive onto it in `dive` s,
-# slamming what he holds. Too early locks it out; no press = he floats down in `fall` s.
-# The breaker window plays in slow motion (BREAKER_FOCUS time scale, camera
-# pushed in to BREAKER_FOCUS_ZOOM), and a perfect press freezes the frame for
-# BREAKER_PERFECT_STOP real s before the dive.
-const BREAKER_FOCUS := 0.6
-const BREAKER_FOCUS_ZOOM := 0.86
-const BREAKER_PERFECT_STOP := 0.07
-# Forgiving presses: a heavy in the first BREAKER_SPILL s after take-off is the
-# ender's own mashed press spilling over and is ignored (no lockout), and one
-# within BREAKER_EARLY s before `open` is held and fires as the window opens
-# (a normal hit). Only a press between the two locks the breaker out.
-const BREAKER_SPILL := 0.12
-const BREAKER_EARLY := 0.12  # (was 0.08) a press up to 120 ms early is held, not locked out: on a 0.2 s rise that
-# leaves only 0.12-0.18 s after take-off as the lockout, a press nowhere near the window
-const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
-const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
-const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
+const HERO_LEAP := preload("res://scripts/hero_leap.gd")
+const BREAKER_SPILL := HERO_LEAP.BREAKER_SPILL  # (rhythm_check reads these off the hero)
+const BREAKER_EARLY := HERO_LEAP.BREAKER_EARLY
 const CAST_SFX_DB := -11.0
 const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
 const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
@@ -306,7 +287,7 @@ func _physics_process(delta: float) -> void:
 		State.DASH: _state_dash(delta)
 		State.HURT: _state_hurt(delta)
 		State.CHARGE: _state_charge(delta)
-		State.LEAP: _state_leap(delta)
+		State.LEAP: HERO_LEAP.tick(self, delta)
 		State.SWING: _void.travel_tick(delta)
 		State.DEAD:
 			velocity.x = move_toward(velocity.x, 0.0, 40.0 * delta)
@@ -553,270 +534,9 @@ func _set_state(s: State) -> void:
 		_charge_light.light_energy = 0.0
 
 
-## Combo breaker, part 1: leap up and back with the tentacles on what the string hit,
-## and ring the landing with the timing cue (VOID_ELEMENT.BREAKERS via _breaker_for).
+## Combo breaker: off a connected ender into State.LEAP (hero_leap.gd; rhythm_check starts one directly).
 func _start_leap(id: String, entry: Dictionary) -> void:
-	_brk_id = id
-	_brk = entry
-	_brk_phase = 0
-	_brk_press = -1.0
-	_brk_locked = false
-	_brk_held = false
-	_brk_cue = null
-	_brk_focus = false
-	_brk_ended = ""
-	_brk_alt = false
-	_brk_y0 = model.position.y
-	_breaker_prompt()
-	_brk_dir = _facing()
-	var ahead := minf(_brk.zone, _clear_ahead(_brk_dir, _brk.zone) + 0.3)
-	_brk_zone = Vector3(global_position.x, 0.0, global_position.z) + _brk_dir * ahead
-	_buffered = ""
-	_set_state(State.LEAP)
-	_play("Jump_Start", 0.05, true)
-	Game.sfx("dash", -4.0, 0.05)
-	Fx.dust(get_parent(), global_position, 10, 0.8)
-	_void.seize(_brk)  # the tentacles go out for what the string hit
-	_brk_aim()
-
-
-## Some of his breakers land where the string put them, however far off that is: Meteor Fall on whoever
-## the tentacle has hold of, the dark ones `short` of dark_spot.
-func _brk_aim() -> void:
-	var spot: Vector3
-	if _brk.has("at_spot"):
-		spot = _void.dark_spot
-	elif _brk.has("meteor") and not _void.held_foes().is_empty():
-		spot = Vector3(_void.held_foes()[0].global_position.x, 0.0, _void.held_foes()[0].global_position.z)
-	else:
-		return
-	var to := spot - Vector3(global_position.x, 0.0, global_position.z)
-	if to.length() > 0.1:
-		_brk_dir = to.normalized()
-	var short: float = _brk.get("short", 0.0)
-	_brk_zone = spot - _brk_dir * minf(short, _clear_ahead(-_brk_dir, short) + to.length())  # (back off if he's already that close)
-	if is_instance_valid(_brk_cue):
-		_brk_cue.global_position = spot
-
-
-## Combo breaker, part 2: rise and hang, throw, wait for the timed press, then
-## dive (pressed in the window) or float down (missed / locked out).
-func _state_leap(delta: float) -> void:
-	var b := _brk
-	var t := _state_t
-	_invuln_t = maxf(_invuln_t, 0.12)  # airborne: untouchable
-	velocity.x = 0.0
-	velocity.z = 0.0
-	# Dash cancels anything, a breaker's hang included. (Not for the autotest
-	# bot: its dodge presses would throw away the breakers it's there to test;
-	# he's untouchable in the hang anyway.)
-	if _brk_phase == 0 and _dash_buffer_t > 0.0 and _dash_cd <= 0.0 and not bot_enabled:
-		_leap_dash_out()
-		return
-	_void.seized_tick(_brk_phase, t, b)
-	if _brk_phase == 0:
-		_brk_aim()
-		if t < b.rise:  # hop back (forward if `back` < 0) while rising
-			var k: float = t / b.rise
-			velocity.x = -_brk_dir.x * b.back / b.rise
-			velocity.z = -_brk_dir.z * b.back / b.rise
-			model.position.y = lerpf(_brk_y0, b.height, 1.0 - pow(1.0 - k, 3.0))
-		else:
-			model.position.y = b.height + sin((t - b.rise) * 9.0) * 0.06  # hangs
-			if anim.current_animation != "Jump_Idle":
-				_play("Jump_Idle", 0.15)
-		_face(_brk_dir)
-		if t >= b.cue and _brk_cue == null:
-			_brk_cue = BREAKER_CUE.new()
-			_brk_cue.color = _brk_color()
-			_brk_cue.crisp = true
-			_brk_cue.open = b.open - b.cue
-			_brk_cue.sweet = b.sweet - b.cue
-			_brk_cue.close = b.close - b.cue
-			get_parent().add_child(_brk_cue)
-			_brk_cue.global_position = _brk_zone
-		if not _brk_locked and not _brk_focus and t >= b.open:
-			_brk_focus = true  # the window opens: slow down, push in
-			Game.hitstop((b.close - b.open) / BREAKER_FOCUS, BREAKER_FOCUS)
-			if Game.camera_rig:
-				Game.camera_rig.punch(BREAKER_FOCUS_ZOOM, (b.close - b.open) / BREAKER_FOCUS)
-			Game.sfx("heartbeat", -6.0, 0.0)
-			# The war cry marks the window: he roars in the slowed hang.
-			Game.sfx("war_cry", -3.0, 0.06)
-			BREAKER_QUAKE.war_cry(get_parent(), global_position + Vector3.UP * (model.position.y + 1.5), _brk_color(), _brk_element(), false)  # (its bubble hid him and filled the floor)
-		if not _brk_locked and not _brk_held and _breaker_pressed(t):
-			if t < BREAKER_SPILL:
-				pass  # the ender's own press spilling over: ignored
-			elif t >= b.open - BREAKER_EARLY and t < b.open:
-				_brk_held = true  # a hair early: dives as the window opens
-			elif t < b.open:
-				_brk_locked = true  # too early: no breaker this time
-				_brk_ended = "lock"
-				if is_instance_valid(_brk_cue):
-					_brk_cue.lock()
-				Game.sfx("player_hurt", -14.0, 0.0)
-			else:
-				_brk_press = t
-				_start_dive()
-				return
-		if _brk_held and t >= b.open:
-			_brk_press = t
-			_start_dive()
-			return
-		if t > b.close:
-			if _brk_ended == "":
-				_brk_ended = "miss"
-			_void.release_seized()
-			_brk_phase = 2
-			_state_t = 0.0
-			_play("Jump_Idle", 0.1)
-	elif _brk_phase == 1:
-		var k: float = clampf(t / b.dive, 0.0, 1.0)
-		var to := _brk_zone - _brk_dive_from
-		to.y = 0.0
-		velocity.x = to.x / b.dive
-		velocity.z = to.z / b.dive
-		model.position.y = b.height * (1.0 - k * k)
-		_ghost_t -= delta
-		if _ghost_t <= 0.0:
-			_ghost_t = 0.02
-			if b.has("meteor"):  # (the tail on the shell does the work: this is what comes off it)
-				Fx.burst(get_parent(), model.global_position + Vector3.UP, VOID_ELEMENT.METEOR_HOT, 5, 3.0, 0.14, 0.3, Vector3.UP, 60.0)
-			else:  # the dive comes down like a comet in his element
-				_comet(_brk_color(), _brk_element())
-		if is_instance_valid(_brk_meteor):
-			_brk_meteor.global_position = model.global_position + Vector3.UP
-		if k >= 1.0:
-			_breaker_impact()
-	else:
-		var k: float = clampf(t / b.fall, 0.0, 1.0)
-		model.position.y = b.height * (1.0 - k * k)
-		if k >= 1.0:
-			_end_leap()
-			Fx.dust(get_parent(), global_position, 8, 0.6)
-
-
-## The breaker press this frame: heavy, light where the breaker has an `alt`, or the autotest bot at the
-## sweet spot. Which one it was is in _brk_alt.
-func _breaker_pressed(t: float) -> bool:
-	if bot_enabled:
-		_brk_alt = bot_alt
-		return t >= _brk.sweet
-	if _brk.has("alt") and Input.is_action_just_pressed("attack_light"):
-		_brk_alt = true
-		return true
-	_brk_alt = false
-	return Input.is_action_just_pressed("attack_heavy")
-
-
-func _start_dive() -> void:
-	if _brk_alt and _brk.has("alt"):
-		_brk.merge(_brk.alt, true)
-	if _brk.has("cubes"):
-		_void.freeze_seized()
-	if _brk.has("maw"):
-		_void.dark_maw = VOID_ELEMENT.DARK.maw(get_parent(), _void.dark_spot, VOID_ELEMENT.MAW_RADIUS)
-	if _brk.has("abyss") and is_instance_valid(_void.dark_bind):
-		_void.dark_bind.sink = VOID_ELEMENT.ABYSS_SINK
-	if _brk.has("press"):
-		_void.aim_crush()
-	_brk_aim()
-	if _brk.has("meteor"):
-		var run := _brk_zone - Vector3(global_position.x, 0.0, global_position.z)
-		_brk_meteor = VOID_ELEMENT.meteor_shell(get_parent(), Vector3(run.x, -_brk.height, run.z))
-		_brk_meteor.global_position = model.global_position + Vector3.UP
-	_brk_phase = 1
-	_state_t = 0.0
-	_brk_dive_from = global_position
-	var perfect: bool = absf(_brk_press - _brk.sweet) <= _brk.perfect
-	_brk_ended = "perfect" if perfect else "hit"
-	if is_instance_valid(_brk_cue):
-		_brk_cue.hit(perfect)
-	if _brk_focus:
-		Game.end_slowmo()
-	if perfect:
-		Game.hitstop(BREAKER_PERFECT_STOP, 0.05)
-		Game.sfx("perfect", -4.0, 0.0)
-	_play("Ab_VS", 0.03, true)
-	anim.seek(anim.current_animation_length * 0.3, true)
-	Game.sfx("ult", -6.0, 0.0)
-	Fx.flash(model)
-	if Game.camera_rig:
-		Game.camera_rig.punch(0.85, 0.3)
-
-
-## The dive lands: the element's slam (VOID_ELEMENT.breaker_impact), the crater, name the breaker.
-func _breaker_impact() -> void:
-	var b := _brk
-	var el := _brk_element()
-	var at := Vector3(global_position.x, 0.0, global_position.z)
-	var perfect: bool = absf(_brk_press - b.sweet) <= b.perfect
-	var mult: float = (b.perfect_mult if perfect else 1.0) * _cast_power()
-	if is_instance_valid(_brk_meteor):
-		_brk_meteor.queue_free()
-	VOID_ELEMENT.breaker_impact(self, b, at, _void.held_foes() if b.has("cubes") or b.has("rip") else _void.slam_seized(), mult)
-	# Barbaric landing: the floor breaks (the element erupts under each foe already).
-	if not b.has("press") and not b.has("at_spot"):  # (its ice buried the cubes as they left; the dark ones have their own)
-		BREAKER_QUAKE.crater(get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
-	Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
-	if b.radius > 0.0:
-		ELEMENTS.hit_area(get_tree(), at, b.radius, b.damage * _dmg_mult * mult, b.launch, true, "breaker")
-	Game.hitstop(0.18 if perfect else 0.12, 0.05)
-	Game.shake(0.8 if perfect else 0.6)
-	if Game.camera_rig:
-		Game.camera_rig.punch(0.75 if perfect else 0.82, 0.35)
-	Game.add_awakening(b.awaken_perfect if perfect else b.awaken)
-	breakers_landed += 1
-	if perfect:
-		breaker_perfects += 1
-	_breaker_callout(breaker_name(), perfect)
-	if bot_enabled:
-		bot_log.append("[autotest] combo_breaker #%d %s perfect=%s" % [breakers_landed, _brk_id, perfect])
-	_end_leap()
-
-
-func _breaker_callout(text: String, perfect: bool) -> void:
-	Game.sfx(COMBO_TIER_SFX[2], COMBO_SFX_DB, 0.0)
-	_callout.text = text + ("\nPERFECT" if perfect else "")
-	_callout.modulate = COMBO_TIER_COLORS[2] if perfect else _fx_color().lerp(Color.WHITE, 0.3)
-	_callout.position = Vector3(0.0, 2.9, 0.0)
-	_callout.scale = Vector3.ONE * 0.6
-	_callout.visible = true
-	if _callout_tw:
-		_callout_tw.kill()
-	_callout_tw = _callout.create_tween()
-	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * (1.35 if perfect else 1.15), 0.08)
-	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * (1.15 if perfect else 1.0), 0.08)
-	_callout_tw.parallel().tween_property(_callout, "position:y", 3.3, 0.7).set_ease(Tween.EASE_OUT)
-	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.5)
-	_callout_tw.tween_callback(_callout.hide)
-
-
-## Dash out of a breaker's hang (before the press): the breaker is off, what
-## he holds drops, the floor cue goes, the slow motion ends and he dashes. The
-## prompt shows it as a miss.
-func _leap_dash_out() -> void:
-	_brk_ended = "miss"
-	_void.release_seized()
-	if is_instance_valid(_brk_cue):
-		_brk_cue.queue_free()
-	if _brk_focus:
-		Game.end_slowmo()
-	velocity = Vector3.ZERO
-	_brk_cue = null
-	_chain_i = 0
-	_set_state(State.MOVE)  # (the model settles from the hang during the dash)
-	_start_dash()
-
-
-func _end_leap() -> void:
-	_void.release_seized()
-	_buffered = ""  # the press that dove him isn't a grab as well
-	velocity = Vector3.ZERO  # (the dive speed would carry on)
-	model.position.y = 0.0
-	_brk_cue = null
-	_chain_i = 0
-	_set_state(State.MOVE)
+	HERO_LEAP.start(self, id, entry)
 
 
 # --- Actions ----------------------------------------------------------------
@@ -847,52 +567,19 @@ func combo_options() -> Array:
 	return HERO_MOVES.combo_options(self)
 
 
-## One beat of a breaker dive's comet (every 0.02 s as he drops): one fat inked streak that ends in a
-## held impact star when the beats stop (comic_comet.gd).
-func _comet(c: Color, _el: String) -> void:
-	load("res://scripts/comic_comet.gd").beat(get_parent(), model, c)
-
-
-## The breaker timing prompt (breaker_prompt.gd) reads this every frame:
-## `live` while the press is still to come (times in s since take-off, the
-## hero's colour); otherwise how the last one `ended` ("perfect", "hit",
-## "lock" = too early, "miss" = no press).
+## The breaker window breaker_prompt.gd draws (hero_leap.window).
 func breaker_window() -> Dictionary:
-	if state == State.LEAP and _brk_phase == 0 and not _brk_locked:
-		var b := _brk
-		return {"live": true, "t": _state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": _brk_color(),
-			"name": breaker_name(), "alt_name": b.alt.names.spirit if b.has("alt") else ""}
-	return {"ended": _brk_ended}
-
-
-func _breaker_prompt() -> void:
-	if _brk_prompt != null:
-		return
-	var layer := CanvasLayer.new()
-	add_child(layer)
-	_brk_prompt = BREAKER_PROMPT.new()
-	_brk_prompt.player = self
-	layer.add_child(_brk_prompt)
+	return HERO_LEAP.window(self)
 
 
 ## The breaker this move leads to, if any (void_element.BREAKERS).
 func _breaker_for(id: String) -> Dictionary:
-	return VOID_ELEMENT.entry(id) if VOID_ELEMENT.BREAKERS.has(id) else {}
+	return HERO_LEAP.entry_for(id)
 
 
-## A breaker's shared effects: in what it lands in, if it says, instead of his axe's teal.
-func _brk_color() -> Color:
-	return VOID_ELEMENT.ELEMENTS.LOOK[_brk.erupt].color if _brk.has("erupt") else _fx_color()
-
-
-## The element a breaker's effects come in: his own, unless the breaker says otherwise.
-func _brk_element() -> String:
-	return VOID_ELEMENT.breaker_element(_brk) if _brk.has("erupt") else element()
-
-
-## The breaker in play's name for the current element.
+## The breaker in play's name for the current element (comic_fx.gd shouts it).
 func breaker_name() -> String:
-	return _brk.names.get(element(), _brk.names.spirit) if not _brk.is_empty() else ""
+	return HERO_LEAP.breaker_name(self)
 
 
 func guide_name(id: String) -> String:

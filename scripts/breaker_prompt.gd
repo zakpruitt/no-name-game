@@ -7,7 +7,7 @@ extends Control
 ## it (gold if perfect) and it goes; too early greys it out. Separate from the
 ## combo guide (combo_guide.gd), which only shows the next combo inputs.
 ## Reads player.breaker_window() every frame; the player adds it on its own
-## CanvasLayer the first time it leaps (player._breaker_prompt()).
+## CanvasLayer the first time it leaps (hero_leap._make_prompt()).
 
 const OFFSET := Vector2(-92.0, -78.0)  # px from the hero's chest on screen: up and to his left
 const CHEST := 1.1  # metres above the feet it hangs off (as combo_guide.CHEST)
