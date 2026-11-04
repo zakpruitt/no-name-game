@@ -33,6 +33,8 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
   flash recolours its own ink (paper, then the hero's colour) instead of an
   overlay, which read as a soft blob over a crowd being zapped. The
   training readout is unchanged: it counts the hit signal, not the numbers.
+  A flash outlives nothing: `Fx._overlay` takes its overlay off when the foe
+  leaves the tree mid-flash, and the ink flash stops (`tests/fx_free_check.gd`).
 
 ## Files
 

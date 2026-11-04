@@ -107,6 +107,11 @@ fast-forward, so no agent edits another's files or index.
 - **"Parameter material is null" (10 lines, headless) has one reproducible cause:** `queue_free()` on a foe
   within a frame or so of hitting it (its flash / squash / ink tweens still running). Waiting ~1 s before freeing
   made it go away in `enemy_feel_check`; a foe killed and freed by the game mid-flash is the likely autotest source.
+  **Cause (round 29 fx 4):** a MeshInstance3D freed with `Fx.flash`'s `material_overlay` still on it (the dummy's
+  KayKit meshes; ten meshes, ten lines, no GDScript backtrace). `Fx._overlay` now takes it off on the root's
+  `tree_exiting`; `tests/fx_free_check.gd` (in `agent.sh check`) catches engine errors with an `OS.add_logger` Logger.
+- **To assert "no errors" in a headless test**, add a `Logger` subclass with `OS.add_logger` and count `_log_error`
+  calls; engine errors with no script backtrace reach it too (the dummy renderer's material errors do).
 - **Bisect a stray headless error by early `return`s** in the test body (one Godot run per marker, in a background
   loop), not by disabling features: it took four runs to pin the line that mattered.
 - **A line-end `\\` typed into a Bash heredoc reached the Python edit script as one `\`**, so an edit whose old text

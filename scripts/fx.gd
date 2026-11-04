@@ -696,13 +696,7 @@ static func flash(root: Node, duration := 0.08) -> void:
 	if _flash_mat == null:
 		_flash_mat = unshaded_mat()
 	_flash_mat.albedo_color = Color(1, 1, 1, 0.3 if Game.reduce_flashing else 0.85)
-	var meshes := root.find_children("*", "MeshInstance3D", true, false)
-	for mi in meshes:
-		mi.material_overlay = _flash_mat
-	await root.get_tree().create_timer(duration, true, false, true).timeout
-	for mi in meshes:  # (untyped: a mesh freed during the wait can't be assigned to a typed loop variable)
-		if is_instance_valid(mi) and mi.material_overlay == _flash_mat:
-			mi.material_overlay = null
+	_overlay(root, _flash_mat, duration)
 
 
 ## flash() in a colour (enemy hit confirms in the hero's element): one shared
@@ -713,7 +707,6 @@ static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
 		_tint_mats[key] = unshaded_mat()
 	var mat: StandardMaterial3D = _tint_mats[key]
 	mat.albedo_color = Color(color, 0.3 if Game.reduce_flashing else 0.85)
-	var meshes := root.find_children("*", "MeshInstance3D", true, false)
 	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
 		# Comic: the foe's own ink goes paper, then his colour, for two short steps, round its own tones.
 		# An overlay fill (even a solid one) turned each foe into a flat inkless blob over a zapped crowd.
@@ -721,19 +714,37 @@ static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
 		var tone := Color.from_hsv(color.h, maxf(color.s, 0.6), 1.0)
 		for ink: ShaderMaterial in inks:
 			ink.set_shader_parameter("outline_color", COMIC_FLASH)
-		await root.get_tree().create_timer(duration * 0.5, true, false, true).timeout
+		var tree := root.get_tree()  # (held: root may be freed during the wait; the inks are kept alive here)
+		await tree.create_timer(duration * 0.5, true, false, true).timeout
+		if not is_instance_valid(root):
+			return
 		for ink: ShaderMaterial in inks:
 			ink.set_shader_parameter("outline_color", tone)
-		await root.get_tree().create_timer(duration * 0.5, true, false, true).timeout
+		await tree.create_timer(duration * 0.5, true, false, true).timeout
+		if not is_instance_valid(root):
+			return
 		for ink: ShaderMaterial in inks:
 			ink.set_shader_parameter("outline_color", ComicLook.INK)
 		return
+	_overlay(root, mat, duration)
+
+
+## Lays `mat` over every mesh under `root` for `duration`. If `root` leaves the tree first (a foe freed
+## a frame after its hit), the overlay comes off as it goes: freed with an overlay still on, each mesh
+## printed "Parameter material is null" (agents.md).
+static func _overlay(root: Node, mat: Material, duration: float) -> void:
+	var meshes := root.find_children("*", "MeshInstance3D", true, false)
 	for mi in meshes:
 		mi.material_overlay = mat
+	var clear := func() -> void:
+		for mi in meshes:  # (untyped: a mesh freed during the wait can't be assigned to a typed loop variable)
+			if is_instance_valid(mi) and mi.material_overlay == mat:
+				mi.material_overlay = null
+	root.tree_exiting.connect(clear, CONNECT_ONE_SHOT)
 	await root.get_tree().create_timer(duration, true, false, true).timeout
-	for mi in meshes:
-		if is_instance_valid(mi) and mi.material_overlay == mat:
-			mi.material_overlay = null
+	if is_instance_valid(root) and root.tree_exiting.is_connected(clear):
+		root.tree_exiting.disconnect(clear)
+		clear.call()
 
 
 ## The outline materials of `root`'s own (outline_own), not the shared one: what a comic flash recolours.
