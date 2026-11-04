@@ -659,6 +659,30 @@ static func outline(root: Node) -> void:
 			mi.set_surface_override_material(i, _outlined[src])
 
 
+## Fx.outline with an outline material of `root`'s own (enemy.gd thickens it
+## on big hits): each surface gets its own copy, so one character's ink can
+## change width alone. Returns that material (null headless, as outline()).
+static func outline_own(root: Node) -> ShaderMaterial:
+	if DisplayServer.get_name() == "headless":
+		return null
+	outline(root)  # sets up the shared material's look (comic width, wobble, ink)
+	var own: ShaderMaterial = _outline_mat.duplicate()
+	var copies := {}  # this character's shared copy -> its own copy
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var shared := mi.get_surface_override_material(i)
+			if shared == null or shared.next_pass != _outline_mat:
+				continue
+			if not copies.has(shared):
+				var copy: Material = shared.duplicate()
+				copy.next_pass = own
+				copies[shared] = copy
+			mi.set_surface_override_material(i, copies[shared])
+	return own
+
+
 ## Telegraph rim: a light ring just inside radius r (EDGE_WIDTH) with a dark
 ## outline just outside it (EDGE_OUTLINE), so attack areas read on bright tiles
 ## without relying on colour. Add it under the telegraph mesh; colour it each

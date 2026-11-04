@@ -42,6 +42,7 @@ func _initialize() -> void:
 	_check(absf(absf(e.model.rotation.z) - e.LEAN_BIG) < 0.001 and absf(e.model.rotation.x) < 0.001,
 		"big hit leans %.2f sideways (x %.2f z %.2f)" % [e.LEAN_BIG, e.model.rotation.x, e.model.rotation.z])
 	_check(e._freeze_t == e.hit_freeze_big, "big hit freezes hit_freeze_big")
+	_check(e.last_ink == e.INK.big, "a big hit swells the ink %.1fx" % e.last_ink)
 	var tinted: MeshInstance3D = e.model.find_children("*", "MeshInstance3D", true, false)[0]
 	_check(tinted.material_overlay != null and tinted.material_overlay.albedo_color.a > 0.0, "the hit flash is on")
 	await create_timer(0.6).timeout

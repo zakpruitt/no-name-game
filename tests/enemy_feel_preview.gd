@@ -51,10 +51,11 @@ func _initialize() -> void:
 	if DisplayServer.get_name() != "headless":
 		get_root().get_texture().get_image().save_png("user://enemy_feel.png")
 		print("saved ", ProjectSettings.globalize_path("user://enemy_feel.png"))
-	print("[enemy_feel_preview] tap lean x=%.2f  big lean z=%.2f scale=%.2f  air y=%.2f tumble=%.2f  down state=%d squash=%.2f  roll y=%.2f z=%.2f  crater scale=%.2f" % [
+	print("[enemy_feel_preview] tap lean x=%.2f  big lean z=%.2f scale=%.2f  air y=%.2f tumble=%.2f  down state=%d squash=%.2f  roll y=%.2f z=%.2f  crater scale=%.2f  ink tap %.2f big %.2f px" % [
 		foes[0].model.rotation.x, foes[1].model.rotation.z, foes[1].model.scale.y,
 		foes[2].global_position.y, foes[2].model.rotation.x, foes[3].state, foes[3].last_squash.y,
-		foes[4].global_position.y, foes[4].model.rotation.z, foes[5].model.scale.y])
+		foes[4].global_position.y, foes[4].model.rotation.z, foes[5].model.scale.y,
+		_ink(foes[0]), _ink(foes[1])])
 	game.stop_all_sfx()
 	await create_timer(0.2).timeout
 	quit()
@@ -83,3 +84,8 @@ func _bag(main: Node) -> void:
 	print("[enemy_feel_preview] bag tip z=%.2f scale=%.2f  swing z=%.2f  shake z=%.2f stars=%s" % [
 		bags[0].model.rotation.z, bags[0].model.scale.y, bags[1].model.rotation.z, bags[2].model.rotation.z,
 		bags[2].find_child("DazeStars", false, false) != null])
+
+
+## A foe's outline width right now (0 headless: no outline there).
+func _ink(e: Node) -> float:
+	return e._ink_mat.get_shader_parameter("width_px") if e._ink_mat != null else 0.0

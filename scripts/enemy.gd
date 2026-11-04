@@ -124,6 +124,10 @@ const FLASH_TAP := 0.07
 const FLASH_BIG := 0.12
 const FLASH_TINT := 0.55
 const KILL_FREEZE := 0.14
+# Ink (_ink_pulse): big hits swell this foe's own outline to INK[kind] times
+# its width and ease it back over INK_TIME, so the blow reads in the line too.
+const INK := {"big": 2.0, "launch": 2.0, "spike": 2.4, "crater": 2.6, "kill": 2.8}
+const INK_TIME := 0.28  # s back to the resting width
 # Crowd hits read as a wave, not one frame: of the foes hit in the same
 # physics frame, each after the first reacts WAVE_STEP s later than the one
 # before (its freeze runs that much longer and its flash/squash/lean wait),
@@ -217,6 +221,10 @@ var frozen_mult := 1.0
 var _ice: MeshInstance3D
 var _frozen_speed := -1.0
 var _squash_tween: Tween
+var _ink_mat: ShaderMaterial  # this foe's own outline (Fx.outline_own; null headless), thickened by _ink_pulse
+var _ink_px := 0.0  # its resting width_px
+var _ink_tween: Tween
+var last_ink := 1.0  # the last _ink_pulse multiplier (enemy_feel_check reads it)
 var last_squash := Vector3.ONE  # the last _squash() amount (enemy_feel_check reads it)
 var _lean_tween: Tween
 var _fall_vy := 0.0  # last in-air vertical speed (the landing frame has already zeroed velocity.y)
@@ -272,7 +280,9 @@ func _ready() -> void:
 		var bow: Node3D = CROSSBOW_SCENE.instantiate()
 		bow.rotation_degrees.y = 90.0  # point down the aim
 		_attach_to_hand("handslot.r", bow)
-	Fx.outline(model)
+	_ink_mat = Fx.outline_own(model)
+	if _ink_mat != null:
+		_ink_px = _ink_mat.get_shader_parameter("width_px")
 	anim = model.find_child("AnimationPlayer", true, false)
 	for a in LOOPING:
 		if anim.has_animation(a):
@@ -741,6 +751,8 @@ func _react(kind: String, knockback: Vector3, big: bool) -> void:
 	Fx.flash_tint(model, _hit_color(), FLASH_BIG if big or kind == "kill" else FLASH_TAP)
 	if kind == "none":
 		return
+	if INK.has(kind):
+		_ink_pulse(INK[kind])
 	_squash(SQUASH[kind])
 	match kind:
 		"tap":
@@ -754,6 +766,19 @@ func _react(kind: String, knockback: Vector3, big: bool) -> void:
 			_kick_tumble(knockback, true)
 		"crater":
 			_crater()
+
+
+## Swell this foe's outline to `mult` times its width and ease it back.
+func _ink_pulse(mult: float) -> void:
+	last_ink = mult
+	if _ink_mat == null:
+		return
+	if _ink_tween:
+		_ink_tween.kill()
+	_ink_mat.set_shader_parameter("width_px", _ink_px * mult)
+	_ink_tween = create_tween()
+	_ink_tween.tween_method(func(w: float) -> void: _ink_mat.set_shader_parameter("width_px", w),
+		_ink_px * mult, _ink_px, INK_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 ## A downward hit: a negative launch, or knockback pointing into the floor.
