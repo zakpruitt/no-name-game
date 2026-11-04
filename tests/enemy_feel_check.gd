@@ -118,7 +118,7 @@ func _bag() -> void:
 	for old in _main.get_tree().get_nodes_in_group("enemies"):
 		old.queue_free()
 	var d: Node = load("res://scripts/training_dummy.gd").new()
-	d.model_scene = _main._model("Skeleton_Warrior")
+	_main._set_model(d, "dummy", "Skeleton_Warrior")  # the comic bag, as main._start_training
 	_main.add_child(d)
 	d.home = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
 	d.global_position = d.home

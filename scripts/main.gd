@@ -102,7 +102,7 @@ func _start_training() -> void:
 	hud.wave_label.text = "TRAINING"  # (no big centre banner: it sat over the first strings)
 	for spot: Vector3 in DUMMY_SPOTS:
 		var dummy: Node = DUMMY.new()
-		dummy.model_scene = _model("Skeleton_Warrior")
+		_set_model(dummy, "dummy", "Skeleton_Warrior")  # the comic punching bag (assets/comic/dummy.glb)
 		dummy.set_meta("kind", "dummy")
 		dummy.set_meta("title", "training dummy")
 		add_child(dummy)

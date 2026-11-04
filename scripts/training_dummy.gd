@@ -1,5 +1,5 @@
 extends "res://scripts/enemy.gd"
-## Training dummy: a skeleton that never fights back or dies. It takes hits,
+## Training dummy: a cartoon punching bag (assets/comic/dummy.glb, KayKit's skeleton if it's missing) that never fights back or dies. It takes hits,
 ## staggers, launches and juggles like any foe (but heavier: LAUNCH_SCALE,
 ## MAX_HEIGHT), then walks back to its spot and refills once left alone. Reports each hit's damage for the training
 ## readout (main._train_hit). It reacts like a punching bag: hits tip it on an
@@ -46,6 +46,8 @@ const DAZE_BEAT := 0.13  # s between shakes (about half the spring's period)
 const DAZE_STRETCH := Vector3(0.85, 1.2, 0.85)  # the boing as it shakes it off (before BAG_SQUASH_MULT)
 const DAZE_HEIGHT := 2.0  # m above its feet, around the head
 const DAZE_TIME := 0.9  # s the stars circle
+## The comic bag's own daze (assets/comic/dummy.glb): pupils spin, head lolls, played over DAZE_TIME.
+const DAZE_CLIP := "Dazed"
 const BAG_FLAGS := {"--bag-damping=": "bag_damping", "--bag-stiffness=": "bag_stiffness",
 	"--bag-lean=": "bag_lean_mult", "--bag-squash=": "bag_squash_mult"}
 # The last-string tag: TAG_HEIGHT m over its feet, Bangers at TAG_SIZE, popping TAG_POP big when a string
@@ -198,6 +200,8 @@ func _knock_down(lie: float) -> void:
 func _shake_off() -> void:
 	shakeoffs += 1
 	Fx.daze(self, DAZE_HEIGHT * model_scale, DAZE_TIME)
+	if comic_kind != "" and anim.has_animation(DAZE_CLIP) and state == State.CHASE:
+		_hold_clip(DAZE_CLIP, 0.1, anim.get_animation(DAZE_CLIP).length / DAZE_TIME)
 	_daze_tween = create_tween()
 	for i in DAZE_SHAKES:
 		_daze_tween.tween_callback(func() -> void: _bag_vel.y += DAZE_KICK * (1.0 if i % 2 == 0 else -1.0))
@@ -211,6 +215,7 @@ func _cut_shake_off() -> void:
 		return
 	_daze_tween.kill()
 	shakeoffs_cut += 1
+	_clip_hold_ms = 0  # the daze clip lets go: the hit's own clip and then idle take over
 	var stars := get_node_or_null("DazeStars")
 	if stars != null:
 		stars.name = "DazeStarsGone"

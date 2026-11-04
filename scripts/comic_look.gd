@@ -60,6 +60,11 @@ const TONES := {
 	"P_Hat": {"shadow": Color(0.1, 0.05, 0.4), "mid": Color(0.2, 0.11, 0.68), "light": Color(0.36, 0.24, 0.95), "hi": Color(0.66, 0.52, 1), "rim": Color(0.32, 0.14, 0.62), "brush": 0.18, "spot": 0.02},
 	"P_Wrap": {"shadow": Color(0.1, 0.02, 0.14), "mid": Color(0.32, 0.07, 0.28), "light": Color(0.58, 0.16, 0.4), "hi": Color(0.8, 0.34, 0.52), "rim": Color(0.26, 0.08, 0.24), "brush": 0.26, "inner": 0.14},
 	"P_Forest": {"shadow": Color(0.03, 0.16, 0.1), "mid": Color(0.07, 0.36, 0.16), "light": Color(0.17, 0.6, 0.22), "hi": Color(0.48, 0.86, 0.38), "rim": Color(0.1, 0.3, 0.12), "brush": 0.2, "spot": 0.02},
+	# the training dummy (enemy_dummy.py): pale canvas, red straps and gloves, straw rope, grey boots
+	"P_Canvas": {"shadow": Color(0.44, 0.24, 0.2), "mid": Color(0.86, 0.7, 0.48), "light": Color(1, 0.92, 0.72), "hi": Color(1, 0.98, 0.86), "rim": Color(0.5, 0.3, 0.2), "brush": 0.22},
+	"P_BagRed": {"shadow": Color(0.26, 0.02, 0.07), "mid": Color(0.7, 0.08, 0.09), "light": Color(0.96, 0.22, 0.13), "hi": Color(1, 0.5, 0.32), "rim": Color(0.32, 0.04, 0.06), "brush": 0.16},
+	"P_Rope": {"shadow": Color(0.3, 0.14, 0.05), "mid": Color(0.72, 0.5, 0.2), "light": Color(0.96, 0.8, 0.4), "rim": Color(0.3, 0.16, 0.05), "brush": 0.24},
+	"P_Boot": {"shadow": Color(0.12, 0.07, 0.1), "mid": Color(0.38, 0.27, 0.3), "light": Color(0.62, 0.5, 0.48), "rim": Color(0.2, 0.12, 0.14), "brush": 0.2},
 	"P_Lining": {"shadow": Color(0.08, 0.01, 0.14), "mid": Color(0.28, 0.05, 0.34), "light": Color(0.5, 0.12, 0.5), "rim": Color(0.2, 0.05, 0.2), "brush": 0.2},
 }
 ## Material name -> flat stepped colour [low, high, mid] (comic_lib.emit, sRGB). Without a mid it sits between them.

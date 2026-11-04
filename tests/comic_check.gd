@@ -55,6 +55,12 @@ func _initialize() -> void:
 		with_glb.append("warden")
 	else:
 		absent.append("warden")
+	# the training dummy: what enemy.gd plays on it, plus its own daze (training_dummy._shake_off)
+	var dummy_asks: Array = COMMON + ["Running_A", load("res://scripts/training_dummy.gd").DAZE_CLIP]
+	if _check_model("dummy", dummy_asks):
+		with_glb.append("dummy")
+	else:
+		absent.append("dummy")
 	_check_dungeon()
 	_check_floors_face_up()
 	await _check_fx(game)

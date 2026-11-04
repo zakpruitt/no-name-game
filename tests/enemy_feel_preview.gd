@@ -74,7 +74,7 @@ func _bag(main: Node) -> void:
 	var bags: Array = []
 	for i in 4:
 		var d: Node = load("res://scripts/training_dummy.gd").new()
-		d.model_scene = main._model("Skeleton_Warrior")
+		main._set_model(d, "dummy", "Skeleton_Warrior")  # the comic bag, as main._start_training
 		main.add_child(d)
 		d.home = row + Vector3(i * 2.4 - 3.6, 0.0, 0.0)
 		d.global_position = d.home
