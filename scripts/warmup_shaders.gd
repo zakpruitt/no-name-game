@@ -27,4 +27,5 @@ const LIST := [
 	{ "class": "StandardMaterial3D", "emission_enabled": true, "transparency": 1 },
 	{ "class": "StandardMaterial3D" },
 	{ "class": "StandardMaterial3D", "cull_mode": 2, "shading_mode": 0 },
+	{ "billboard_keep_scale": true, "billboard_mode": 1, "class": "StandardMaterial3D", "cull_mode": 2, "disable_fog": true, "no_depth_test": true, "shading_mode": 0, "transparency": 1, "vertex_color_is_srgb": true, "vertex_color_use_as_albedo": true },
 ]
