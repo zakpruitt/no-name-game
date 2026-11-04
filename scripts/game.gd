@@ -86,6 +86,9 @@ const RUMBLE := {
 const RANK_AWAKEN_MULT := {"D": 1.0, "C": 1.2, "B": 1.4, "A": 1.7, "S": 2.0, "SS": 2.4, "SSS": 3.0}
 
 var camera_rig: Node = null
+## The comic impact frame over the 3D view (scripts/impact_frame.gd), fired
+## by big hitstops and kills.
+var impact: CanvasLayer = null
 var combo_count := 0
 var style := 0.0
 var awakening := 0.0
@@ -137,6 +140,9 @@ var _combat_level := 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	enemy_killed.connect(func(e: Node) -> void: add_xp(e.bones))
+	impact = preload("res://scripts/impact_frame.gd").new()
+	add_child(impact)
+	enemy_killed.connect(func(_e: Node) -> void: impact.flash(impact.IMPACT_KILL, true))
 	_setup_input()
 	_load_settings()
 	_comic_cli = "--comic" in OS.get_cmdline_user_args() or "--comic" in OS.get_cmdline_args()
@@ -237,6 +243,8 @@ func add_bones(count: int) -> void:
 func hitstop(duration: float, time_scale := 0.03) -> void:
 	if duration <= 0.0:
 		return
+	if impact and time_scale < HITSTOP_FLAT_SCALE:
+		impact.on_hitstop(duration)
 	if combo_count <= 1 and time_scale < SLOWMO_SCALE:
 		duration *= HITSTOP_OPENER  # the string's opener: a snap, not a stall
 	var ramp := 0.0
