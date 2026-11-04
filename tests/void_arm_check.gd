@@ -54,6 +54,7 @@ func _initialize() -> void:
 	await _dash_out()
 	await _slam_finisher()
 	await _whiff()
+	await _elements()
 	print("void_arm_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 	quit(1 if fails > 0 else 0)
 
@@ -69,8 +70,15 @@ func _routing() -> void:
 	_check(r.call("special", "VS", true, 0, false) == "GR", "E off the slam grabs again")
 	_check(r.call("light", "GR", true, 0, false) == "L1", "a grab flows into the string")
 	_check(r.call("light", "", false, 0, true) == "DL", "dash L: the spear lunge")
-	_check(r.call("heavy", "", false, 0, true) == "DH", "dash H")
-	_check(r.call("heavy", "L1", true, 1, false) == "H", "no launcher for now: heavy is the spin")
+	_check(r.call("heavy", "", false, 0, true) == "DS", "dash H: a fan of shots, not a spin")
+	_check(r.call("heavy", "", false, 0, false) == "EB", "H alone: a shot")
+	_check(r.call("heavy", "EB", true, 0, false) == "EB", "H H: another shot")
+	_check(r.call("heavy", "L1", false, 1, false) == "EB", "H after the string has lapsed: a shot")
+	for from: String in ["L1", "L2", "L3", "EC", "EF", "EM", "DL", "GR"]:
+		_check(r.call("heavy", from, true, 0, false) == {"L1": "EC", "L2": "EF", "L3": "EM", "EC": "EE", "EF": "EA", "EM": "EV", "DL": "EG", "GR": "EX"}[from], "H off %s" % from)
+	_check(hero.chain_after("EC") == 1 and hero.chain_after("EF") == 2 and hero.chain_after("EM") == 0, "L carries on down the string after an element")
+	for id: String in ["EB", "DS", "EC", "EE", "EF", "EA", "EG", "EM", "EV", "EX"]:
+		_check(hero.anim.has_animation(hero._clip_name(hero.MOVES[id].anim)), "%s has its clip" % id)
 	# The pause menu lists every move he can reach, and only real ones.
 	var list: GDScript = load("res://scripts/move_list.gd")
 	var listed := {}
@@ -79,7 +87,7 @@ func _routing() -> void:
 			if row.kind == "move":
 				listed[row.id] = true
 				_check(hero.MOVES.has(row.id) or hero.COMBOS.has(row.id), "listed move %s exists" % row.id)
-	for id: String in ["L1", "L2", "L3", "H", "CH", "DL", "DH", "VS", "SHAPEBREAKER"]:
+	for id: String in ["L1", "L2", "L3", "CH", "DL", "VS", "SHAPEBREAKER", "EB", "DS", "EC", "EE", "EF", "EA", "EG", "EM", "EV", "EX", "STORMSNARE", "COLD_SNAP", "MOLTEN_SLAM", "CONVERGENCE"]:
 		_check(listed.has(id), "%s is on his move list" % id)
 	_check(list.sections_for(hero) == list.VOID_SECTIONS, "the menu shows him his own list")
 	_check(hero.COMBOS.has("SHAPEBREAKER") and hero.COMBOS.SHAPEBREAKER.tier == 3, "the finisher is top tier")
@@ -245,6 +253,80 @@ func _whiff() -> void:
 	_check(hero.state == hero.State.ATTACK, "E at nothing whips")
 	await _until(func() -> bool: return hero.state == hero.State.MOVE, 2.0)
 	_check(hero.state == hero.State.MOVE and not hero._connected, "and plays out")
+
+
+## Each H move hurts what's in front of him, the slams name their finish, E in a window is a breaker
+## that holds the foe and lands in its element, and all three elements in one string open Convergence.
+func _elements() -> void:
+	hero.global_position = Vector3.ZERO
+	hero.bot_enabled = true  # presses each breaker at its sweet spot
+	var foe := _foe(hero._facing() * 2.5)
+	for id: String in ["EB", "DS", "EC", "EF", "EM", "EX"]:
+		await _settle()
+		foe.global_position = hero.global_position + hero._facing() * 2.5
+		var hp := foe.hp
+		hero._start_attack(id)
+		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+		await create_timer(0.4).timeout  # (shots take a moment to land)
+		_check(foe.hp < hp, "%s hurts the foe in front (%.0f)" % [id, hp - foe.hp])
+	for pair: Array in [["EC", "STORMSNARE"], ["EF", "COLD_SNAP"], ["EM", "MOLTEN_SLAM"]]:
+		await _settle()
+		foe.global_position = hero.global_position + hero._facing() * 2.5
+		hero._start_attack(pair[0])
+		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+		var hp := foe.hp
+		hero._start_attack("VS")
+		_check(hero.named_id() == pair[1], "%s into E is %s (%s)" % [pair[0], pair[1], hero.named_id()])
+		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+		_check(foe.hp < hp, "%s lands" % pair[1])
+	var breakers: Dictionary = load("res://scripts/void_element.gd").BREAKERS
+	for id: String in ["EE", "EA", "EV", "EG", "CH"]:
+		await _settle()
+		foe.global_position = hero.global_position + hero._facing() * 2.5
+		var landed: int = hero.breakers_landed
+		foe.hp = 500.0  # (the strings' chain outgrows one foe)
+		hero._start_attack(id)
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		_check(hero.state == hero.State.LEAP, "%s opens its breaker" % id)
+		await create_timer(0.28).timeout
+		_check(foe.global_position.y > 0.5, "%s: the tentacle holds the foe up (%.1f m)" % [id, foe.global_position.y])
+		var hp := foe.hp
+		await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+		_check(hero.breakers_landed == landed + 1, "%s: E lands %s" % [id, breakers[id].names.spirit])
+		_check(foe.hp <= hp - breakers[id].damage, "%s: it takes the slam (%.0f)" % [id, hp - foe.hp])
+		_check(hero._void._seized.is_empty(), "%s: the tentacles let go" % id)
+		foe.global_position.y = 0.0
+	# With no press the foe is let go and nothing lands.
+	await _settle()
+	hero.bot_enabled = false
+	foe.global_position = hero.global_position + hero._facing() * 2.5
+	var before: int = hero.breakers_landed
+	hero._start_attack("EE")
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+	_check(hero.breakers_landed == before, "no press, no breaker")
+	_check(hero._void._seized.is_empty(), "a miss lets go")
+	foe.global_position.y = 0.0
+	hero.bot_enabled = true
+	await _settle()
+	foe.hp = 500.0
+	for id: String in ["L1", "EC", "L2", "EF", "L3", "EM"]:
+		foe.global_position = Vector3(hero.global_position.x, 0.0, hero.global_position.z) + hero._facing() * 2.5
+		hero._start_attack(id)
+		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(hero.named_id() == "CONVERGENCE", "L H L H L H lands as Convergence (%s)" % hero.named_id())
+	before = hero.breakers_landed
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+	_check(hero.breakers_landed == before + 1, "and E is the Convergence Breaker")
+	await _settle()
+	foe.global_position = Vector3(hero.global_position.x, 0.0, hero.global_position.z) + hero._facing() * 2.5
+	hero._start_attack("EM")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(hero.named_id() == "EM" and hero._breaker_for("EM").is_empty(), "Magma Heart alone opens nothing")
+	hero.bot_enabled = false
+	await _settle()
+	foe.queue_free()
 
 
 func _foe(at: Vector3) -> Foe:

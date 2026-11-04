@@ -9,7 +9,7 @@ The comic hero's right arm is a purple tentacle that shapes itself into his weap
 | Input | Move | Shape |
 |---|---|---|
 | L, L L, L L L | `L1`, `L2`, `L3` | axe, spear, hammer |
-| H | `H` | axe |
+| H | `EB`, or the weapon's element ([void-element.md](void-element.md)) | axe, spear, hammer |
 | hold H | `CH` | hammer |
 | Dash L, Dash H | `DL`, `DH` | spear, axe |
 | E from neutral | `GR` (or travel, below) | bare |

@@ -22,22 +22,44 @@ const VOID_SECTIONS := [
 		{"input": "L", "kind": "move", "id": "L1", "note": "Axe: the arm's resting shape, chopped across."},
 		{"input": "L L", "kind": "move", "id": "L2", "note": "Spear: the arm draws out and drives ahead."},
 		{"input": "L L L", "kind": "move", "id": "L3", "note": "Hammer: a leap, then down with lava."},
-		{"input": "H", "kind": "move", "id": "H", "note": "Axe spin for crowds."},
 		{"input": "hold H", "kind": "move", "id": "CH", "note": "Hammer: a charged slam."},
 		{"input": "Dash L", "kind": "move", "id": "DL", "note": "Spear: a lunge off a dash, or off a swing."},
-		{"input": "Dash H", "kind": "move", "id": "DH", "note": "Axe: a spinning dash."},
+	]},
+	{"title": "ELEMENTS", "rows": [
+		{"input": "H", "kind": "move", "id": "EB", "note": "Shoots his last weapon's element. Keep pressing to keep shooting."},
+		{"input": "Dash H", "kind": "move", "id": "DS", "note": "A fan of three shots off a dash."},
+		{"input": "L H", "kind": "move", "id": "EC", "note": "Axe into storm: a gale throws them in the air."},
+		{"input": "L H H", "kind": "move", "id": "EE", "note": "Shoots lightning at them. E in the window: Worldbreaker."},
+		{"input": "L L H", "kind": "move", "id": "EF", "note": "Spear into ice: a line of spikes freezes them. L shatters them with the hammer."},
+		{"input": "L L H H", "kind": "move", "id": "EA", "note": "Shoots an ice lance at each. E in the window: Shatterstorm."},
+		{"input": "L L L H", "kind": "move", "id": "EM", "note": "Hammer into lava: the floor breaks, wells up and throws them."},
+		{"input": "L L L H H", "kind": "move", "id": "EV", "note": "Shoots molten rock and sets off the wells. E in the window: Absolute Zero."},
+		{"input": "Dash L H", "kind": "move", "id": "EG", "note": "A second lunge along a line of ice. E in the window: Thunderclap."},
+		{"input": "L H L H L H", "kind": "move", "id": "CONVERGENCE", "note": "All three elements in one string. E in the window: Convergence Breaker."},
+	]},
+	{"title": "BREAKERS (E IN THE WINDOW)", "rows": [
+		{"input": "L H H E", "kind": "text", "name": "Worldbreaker", "tier": 3, "note": "Tentacles seize them all and slam them down. Magma erupts under each."},
+		{"input": "L L H H E", "kind": "text", "name": "Shatterstorm", "tier": 3, "note": "The slam brings lightning down on each."},
+		{"input": "L L L H H E", "kind": "text", "name": "Absolute Zero", "tier": 3, "note": "Slammed out of the lava into ice that freezes them."},
+		{"input": "Dash L H E", "kind": "text", "name": "Thunderclap", "tier": 3, "note": "A quick slam with lightning off the dash."},
+		{"input": "hold H, E", "kind": "text", "name": "Landslide", "tier": 3, "note": "Off the charged slam: down into magma."},
+		{"input": "L H L H L H E", "kind": "text", "name": "Convergence Breaker", "tier": 3, "note": "Magma, ice and lightning under each of them, all at once."},
 	]},
 	{"title": "TENTACLE", "rows": [
 		{"input": "E", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
 		{"input": "E at a pillar", "kind": "text", "name": "Swing", "note": "Swings round it and flings him off the way he was going. Hold E to go round longer."},
 		{"input": "E off any move", "kind": "move", "id": "VS", "note": "Heaves the foe overhead and slams it into the floor."},
 		{"input": "L L L E", "kind": "move", "id": "SHAPEBREAKER", "note": "Axe, spear, hammer, then the slam, at full power."},
+		{"input": "E H", "kind": "move", "id": "EX", "note": "Charges the foe it holds with his last weapon's element, and it bursts."},
+		{"input": "L H E", "kind": "move", "id": "STORMSNARE", "note": "The slam lands in the storm: lightning where it hits."},
+		{"input": "L L H E", "kind": "move", "id": "COLD_SNAP", "note": "The slam lands in ice and freezes what's near."},
+		{"input": "L L L H E", "kind": "move", "id": "MOLTEN_SLAM", "note": "The slam lands in lava: a geyser where it hits."},
 	]},
 ]
 
 
 ## Only the comic hero has these, so route() and SECTIONS never see them (tests/void_arm_check.gd walks them).
-const VOID_ONLY := ["GR", "VS", "SHAPEBREAKER"]
+const VOID_ONLY := ["GR", "VS", "SHAPEBREAKER", "EB", "DS", "EC", "EE", "EF", "EA", "EG", "EM", "EV", "EX", "STORMSNARE", "COLD_SNAP", "MOLTEN_SLAM", "CONVERGENCE"]
 
 
 ## What the pause menu lists for this hero.

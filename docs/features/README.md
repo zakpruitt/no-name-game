@@ -15,6 +15,7 @@ invariants and the gotchas.
 | Meshy models into the game: how to generate them, rebuild the rig, bring them in | [meshy-pipeline.md](meshy-pipeline.md) | `tools/meshy_rig/` |
 | The Meshy heretic hero behind `--comic --heretic`: rebuilt rig, tentacle chains, skirt springs | [heretic-hero.md](heretic-hero.md) | `scripts/heretic_rig.gd`, `tools/meshy_rig/` |
 | The void arm: E, weapon shapes, grab, swing, slam (comic hero) | [void-arm.md](void-arm.md) | `scripts/void_grab.gd`, `scripts/void_arm.gd`, `scripts/void_tendril.gd`, `player.void_route()` |
+| H on the void arm: element shots and E breakers (comic hero) | [void-element.md](void-element.md) | `scripts/void_element.gd`, `player.void_route()` |
 | Combo guide (next-input hints beside the hero) | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `player.route()` |
 | Powers: paths, masteries, fusions, icons | [powers.md](powers.md) | `scripts/upgrades.gd`, `scripts/power_icon.gd`, `reward_screen.gd` |
 | Run map, vaults and trials | [run-map.md](run-map.md) | `scripts/run_map.gd`, `scripts/map_screen.gd`, `main._choose_path()` |

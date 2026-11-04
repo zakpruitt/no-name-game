@@ -7,6 +7,7 @@ extends Node
 
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const QUAKE := preload("res://scripts/breaker_quake.gd")
+const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 
 const FOE_RANGE := 9.0  # m
 const ANCHOR_RANGE := 8.0  # m
@@ -44,11 +45,22 @@ const STRING_SLAM_MULT := 1.6  # off the whole weapon string (L L L E)
 const HOLD := 0.9  # s a held foe is staggered for, renewed as it runs out
 const CHEST := Vector3(0.0, 0.9, 0.0)
 
+const SEIZE_RANGE := 8.0  # m: a breaker's tentacles reach this far
+const SEIZE_MAX := 5  # one tentacle each
+const SEIZE_SHOOT := 0.1  # s for them to arrive
+const SEIZE_LIFT := 2.8  # m up they're held
+const SEIZE_LIFT_RATE := 12.0  # how quickly they're hauled there
+const SEIZE_IN := 0.45  # how far they land towards him, of where they stood
+
 var hero: CharacterBody3D
 var arm: Node  # void_arm.gd
 var tendril: Node3D
 var after_string := false  # this slam finishes the weapon string: player.named_id() names it
+var finisher := ""  # this slam finishes an elemental move: its COMBOS id (void_element.FINISHERS)
+var weapon_element := "wind"  # the element of the weapon he last formed: E H (Conduit) uses it
 
+var _seized := []  # {foe, from, tendril}: held through a breaker
+var _spare := []  # tendrils from earlier breakers
 var _skel: Skeleton3D
 var _hand := -1
 var _target: Node3D  # the foe the tentacle has
@@ -161,16 +173,22 @@ func _clear_target() -> void:
 
 ## A move has started: the arm takes that move's shape, and a slam finds what it's slamming.
 func on_move(id: String, prev: String) -> void:
-	arm.shape(ComicLook.HERO_MOVE_FORMS.get(id, "axe"))
+	var form: String = ComicLook.HERO_MOVE_FORMS.get(id, "axe")
+	arm.shape(form)
+	if id in hero.LIGHT_CHAIN or id == "DL":
+		weapon_element = VOID_ELEMENT.FORM_ELEMENT.get(form, weapon_element)
 	_done = false
 	if id == "GR":
 		hero._face(_flat_to(_aim_at))
 	elif id == "VS":
 		after_string = prev == "L3"
+		finisher = VOID_ELEMENT.FINISHERS.get(prev, "")
 		if after_string:
 			hero._move.damage *= STRING_SLAM_MULT
+		elif finisher != "":
+			hero._move.damage *= VOID_ELEMENT.FINISH_MULT[finisher]
 		_begin_slam()
-	else:
+	elif id != "EX":  # Conduit lets go when it strikes (let_go())
 		_clear_target()
 
 
@@ -302,7 +320,16 @@ func slam_landed() -> void:
 	Fx.burst(parent, _aim_at + Vector3.UP * 0.2, ComicLook.VOID_COLOR, 22, 8.0, 0.14, 0.35, Vector3.UP, 80.0)
 	Fx.dust(parent, _aim_at, 14, 1.0)
 	Game.sfx("hit_big")
+	if finisher != "":
+		VOID_ELEMENT.finish(hero, _aim_at, finisher)
 	_target = null
+
+
+## Conduit: who the tentacle is holding, if anyone, and it lets go of them.
+func let_go() -> Node3D:
+	var held: Node3D = _target if _target_alive() else null
+	_clear_target()
+	return held
 
 
 func _target_alive() -> bool:
@@ -311,6 +338,74 @@ func _target_alive() -> bool:
 
 func _target_chest() -> Vector3:
 	return _target.global_position + CHEST
+
+
+# --- A breaker's hold (void_element.BREAKERS): a tentacle on each foe, up over the floor, then down ---
+
+## Airborne ones first: they're what the string put up there.
+func seize() -> void:
+	release_seized()
+	arm.shape("hand")
+	var at: Vector3 = hero.global_position
+	var foes: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node3D) -> bool:
+		return e.is_alive() and not is_heavy(e) and (e.global_position - at).length() <= SEIZE_RANGE + float(e.radius))
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		if a.is_airborne() != b.is_airborne():
+			return a.is_airborne()
+		return (a.global_position - at).length() < (b.global_position - at).length())
+	for e: Node3D in foes.slice(0, SEIZE_MAX):
+		var t: Node3D = _spare.pop_back() if not _spare.is_empty() else null
+		if t == null:
+			t = TENDRIL.new()
+			hero.add_child(t)
+		_seized.append({"foe": e, "from": e.global_position, "tendril": t, "land": Vector3.ZERO})
+		e.stagger(HOLD)
+
+
+## phase 0: the tentacles arrive and haul them up. phase 1: the dive brings them down with him.
+func seized_tick(phase: int, t: float, b: Dictionary) -> void:
+	_time += hero.get_physics_process_delta_time()
+	var hand := _hand_pos()
+	var delta := hero.get_physics_process_delta_time()
+	for s: Dictionary in _seized:
+		var e: Node3D = s.foe
+		if not is_instance_valid(e) or not e.is_alive():
+			s.tendril.visible = false
+			continue
+		if e.has_method("stagger"):
+			e.stagger(HOLD)
+		e.velocity = Vector3.ZERO
+		if phase == 0:
+			var shoot := smoothstep(0.0, SEIZE_SHOOT, t)
+			if shoot >= 1.0:
+				var up: Vector3 = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
+				e.global_position = e.global_position.lerp(up, 1.0 - exp(-SEIZE_LIFT_RATE * delta))
+			s.tendril.draw(hand, e.global_position + CHEST, shoot, 0.06, float(e.radius) + 0.05, _time)
+		else:
+			var k := clampf(t / float(b.dive), 0.0, 1.0)
+			var was: Vector3 = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
+			var land: Vector3 = hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - SEIZE_IN)
+			e.global_position = was.lerp(land, k * k)
+			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.02, float(e.radius) + 0.05, _time)
+
+
+## The slam lands: who's still held, on the floor. The caller hits them, then release_seized() lets go.
+func slam_seized() -> Array:
+	var foes := []
+	for s: Dictionary in _seized:
+		var e: Node3D = s.foe
+		if is_instance_valid(e) and e.is_alive():
+			e.global_position.y = 0.0
+			foes.append(e)
+	return foes
+
+
+## Lets go of everyone (a miss drops them where they hang). The tentacles are kept for next time.
+func release_seized() -> void:
+	for s: Dictionary in _seized:
+		s.tendril.visible = false
+		_spare.append(s.tendril)
+	_seized.clear()
 
 
 # --- Travelling (player.State.SWING) ------------------------------------------

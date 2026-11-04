@@ -141,6 +141,9 @@ func _name(at: Vector2, a: float, col: Color) -> void:
 ## The button to press in the middle (the combo guide's key style).
 func _key(c: Vector2, a: float, rim: Color) -> void:
 	var label := _label
+	var window: Dictionary = player.breaker_window() if player != null else {}
+	if window.get("button", "") == "special":
+		label = load("res://scripts/combo_guide.gd").LABELS.special
 	var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, KEY_SIZE).x
 	var w := maxf(KEY_H, tw + KEY_H * 0.6)
 	var rect := Rect2(c - Vector2(w, KEY_H) * 0.5, Vector2(w, KEY_H))

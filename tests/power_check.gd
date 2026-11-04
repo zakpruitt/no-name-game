@@ -193,7 +193,7 @@ const DPS_LIMIT := 1.75  # x the median
 func _check_move_dps(p: Node) -> void:
 	var dps := {}
 	for id: String in p.MOVES:
-		if id in ["CH", "AF", "GR", "VS"]:  # (GR, VS: the comic hero's, with clips this hero lacks)
+		if id in ["CH", "AF"] or (p.MOVES[id].anim as String).begins_with("Ab_"):  # (Ab_: the comic hero's, with clips this hero lacks)
 			continue
 		var m: Dictionary = p.MOVES[id]
 		var t: float = p.anim.get_animation(m.anim).length * m.get("cancel", m.get("end", 1.0)) / m.get("speed", 1.0)
