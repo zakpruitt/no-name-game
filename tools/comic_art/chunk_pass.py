@@ -35,10 +35,16 @@ PROPS = ('weapon', 'shield', 'bow', 'arrow', 'nock', 'staff', 'bomb', 'fuse', 'c
 # clip's mean pose (q = mean * (mean^-1 q)^k), so the swing widens and the stance bend stays.
 # enemy.gd plays the run faster for the rest (run_clip_speed, tests/foe_stride_check.gd).
 STRIDE_BONES = ('upperleg.', 'lowerleg.', 'foot.')
+# A cartoon hit face (EYES): the two glowing eyes on the head (EYE_MAT islands) and the dark sockets
+# around them move onto new bones eye.l / eye.r, whose scale is keyed on every clip (1 = open):
+# shut on Hit_A / Hit_B, shut from early in Death_A, opening late in Lie_StandUp. Like the dummy's.
+EYE_MAT = 'necro'
+SOCKET_MAT = 'socket'
 KIND = {
-    'rogue': {'STRIDE': {'Running_C': 1.3}},
-    'warrior': {'STRIDE': {'Running_A': 1.5}},
-    'shield': {'STRIDE': {'Walking_D_Skeletons': 2.0}},
+    'minion': {'EYES': True},
+    'rogue': {'STRIDE': {'Running_C': 1.3}, 'EYES': True},
+    'warrior': {'STRIDE': {'Running_A': 1.5}, 'EYES': True},
+    'shield': {'STRIDE': {'Walking_D_Skeletons': 2.0}, 'EYES': True},
     'bomber': {'STRIDE': {'Running_C': 1.25}},
 }
 cfg = KIND.get(NAME, {})
@@ -294,6 +300,69 @@ for clip, k in STRIDE.items():
                 kp.co.y += dy; kp.handle_left.y += dy; kp.handle_right.y += dy
         for fc in chans.values(): fc.update()
     print('[chunk] %s stride %s x%.2f on %d leg bones' % (NAME, clip, k, len(by)))
+
+# ------------------------------------------------------------------ eyes that shut on a hit
+def eye_keys(name, length):
+    if name in ('Hit_A', 'Hit_B'):
+        return [(0, 1.0), (1, 0.0), (round(length * .55), 0.0), (round(length * .8), 1.0)]
+    if name == 'Death_A':
+        return [(0, 1.0), (3, 0.0)]
+    if name == 'Lie_StandUp':
+        return [(0, 0.0), (round(length * .5), 0.0), (round(length * .65), 1.0)]
+    return [(0, 1.0)]
+
+def obj_by_mat(key):
+    return next((o for o in meshes() if o.name == key or (o.data.materials and o.data.materials[0].name[2:].lower() == key)), None)
+
+if cfg.get('EYES'):
+    glow = obj_by_mat(EYE_MAT)
+    eyes = []
+    if glow:
+        for isl in islands(glow.data):
+            if top_bone(glow, glow.data.vertices[isl[0]]) == 'head':
+                c = sum((glow.data.vertices[i].co for i in isl), V()) / len(isl)
+                eyes.append((c, glow, isl))
+    if len(eyes) != 2:
+        print('[chunk] %s eyes: %d head islands in %s, skipped' % (NAME, len(eyes), EYE_MAT))
+    else:
+        eyes.sort(key=lambda e: -e[0].x)   # +X is the foe's left
+        parts = {'l': [eyes[0][1:]], 'r': [eyes[1][1:]]}
+        sock = obj_by_mat(SOCKET_MAT)
+        if sock:
+            for isl in islands(sock.data):
+                c = sum((sock.data.vertices[i].co for i in isl), V()) / len(isl)
+                for side, (ec, _o, _i) in zip('lr', eyes):
+                    if (c - ec).length < .09 and top_bone(sock, sock.data.vertices[isl[0]]) == 'head':
+                        parts[side].append((sock, isl))
+        bpy.context.view_layer.objects.active = rig
+        bpy.ops.object.mode_set(mode='EDIT')
+        for side, (ec, _o, _i) in zip('lr', eyes):
+            eb = arm.edit_bones.new('eye.' + side)
+            eb.head = ec; eb.tail = ec + V((0, -.12, 0)); eb.roll = 0
+            eb.parent = arm.edit_bones['head']; eb.use_deform = True
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for side in 'lr':
+            rig.pose.bones['eye.' + side].rotation_mode = 'QUATERNION'
+            for o, isl in parts[side]:
+                vg = o.vertex_groups.get('eye.' + side) or o.vertex_groups.new(name='eye.' + side)
+                hg = o.vertex_groups.get('head')
+                if hg: hg.remove(isl)
+                vg.add(isl, 1.0, 'REPLACE')
+        ad0 = rig.animation_data
+        for a in [a for a in bpy.data.actions if a.use_fake_user]:
+            f0, f1 = (int(x) for x in a.frame_range)
+            ad0.action = a
+            if a.slots: ad0.action_slot = a.slots[0]
+            for side in 'lr':
+                pb = rig.pose.bones['eye.' + side]
+                for idx in range(3):
+                    fc = a.fcurve_ensure_for_datablock(rig, pb.path_from_id('scale'), index=idx)
+                    for f, o_ in eye_keys(a.name, f1 - f0):
+                        # bone y runs out of the face, z up the eye: shutting squashes z, widens x a touch
+                        v = (1 + .25 * (1 - o_)) if idx == 0 else (1.0 if idx == 1 else max(.08, o_))
+                        kp = fc.keyframe_points.insert(f0 + f, v); kp.interpolation = 'LINEAR'
+                    fc.update()
+        print('[chunk] %s eyes: eye.l %d parts, eye.r %d parts, keyed on every clip' % (NAME, len(parts['l']), len(parts['r'])))
 
 tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in meshes())
 height = max((o.matrix_world @ v.co).z for o in meshes() for v in o.data.vertices)
