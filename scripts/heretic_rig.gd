@@ -6,9 +6,11 @@ extends SkeletonModifier3D
 ## A change: the old weapon pulls back into the limb, the new one stretches out along its haft
 ## and overshoots, the loose tips coil away, and the main tentacle straightens to grip the haft.
 
-const TIPS := {"up": 4, "out": 5, "mid": 3, "low": 4}
+## The loose tips' chains, tent.<tip>.01.. as long as the skeleton has them (heretic: 4/5/3/4 and
+## no back; the chibi: six claws, back included). Missing chains are skipped.
+const TIPS := ["up", "out", "mid", "low", "back"]
 const MAIN_TIP := "tent.main.%02d"
-const MAIN_COUNT := 6
+const MAX_CHAIN := 12
 const SWAY_DEG := 7.0  # per bone: small, because it adds up along a chain
 const SWAY_SPEED := 1.7  # rad/s
 const SWAY_PHASE := 0.8  # rad between bones
@@ -63,16 +65,19 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	var seed_phase := 0.0
 	for tip: String in TIPS:
 		var bones := PackedInt32Array()
-		for i in TIPS[tip]:
+		for i in MAX_CHAIN:
 			var b := skel.find_bone("tent.%s.%02d" % [tip, i + 1])
-			if b >= 0:
-				bones.append(b)
-		_chains.append({"bones": bones, "phase": seed_phase})
+			if b < 0:
+				break
+			bones.append(b)
+		if not bones.is_empty():
+			_chains.append({"bones": bones, "phase": seed_phase})
 		seed_phase += 1.9
-	for i in MAIN_COUNT:
+	for i in MAX_CHAIN:
 		var b := skel.find_bone(MAIN_TIP % (i + 1))
-		if b >= 0:
-			_main.append(b)
+		if b < 0:
+			break
+		_main.append(b)
 	for b: String in ARM_BONES:
 		_arm.append(skel.find_bone(b))
 	for f: String in FORM_BONES:

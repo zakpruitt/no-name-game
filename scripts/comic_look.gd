@@ -114,6 +114,10 @@ const CLIPS := {
 }
 ## The hero: the Meshy heretic (assets/comic/heretic.glb), one painted texture.
 const HERETIC := "heretic"
+## Game.hero_model -> the GLB the HERETIC kind loads (assets/comic/<file>.glb). Every model
+## keeps the same rig contract, clips and material name, so everything keyed by HERETIC
+## (tones, clips, heretic_rig.gd) works for each. Default "heretic" until Zak picks.
+const HERETIC_MODELS := {"heretic": "heretic", "chibi": "heretic_chibi"}
 ## Materials drawn from their own texture through the cut tones, not from a TONES palette.
 const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12}}
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
@@ -204,10 +208,13 @@ static var _piece_ink := {}  # width -> shared outline ShaderMaterial
 static func scene(kind: String) -> PackedScene:
 	if not Game.comic_style:
 		return null
-	if not _scenes.has(kind):
-		var path := MODEL_PATH % kind
-		_scenes[kind] = load(path) if ResourceLoader.exists(path) else null
-	return _scenes[kind]
+	var file := kind
+	if kind == HERETIC:
+		file = HERETIC_MODELS.get(Game.hero_model, HERETIC)
+	if not _scenes.has(file):
+		var path := MODEL_PATH % file
+		_scenes[file] = load(path) if ResourceLoader.exists(path) else null
+	return _scenes[file]
 
 
 ## A new comic dungeon piece, or null (flag off, or no GLB: caller keeps KayKit).
@@ -238,7 +245,8 @@ static func hero_kind() -> String:
 
 ## A PAINTED material: the GLB's texture lit through comic_toon's cut tones.
 static func painted(src: BaseMaterial3D) -> ShaderMaterial:
-	var key := "painted/" + src.resource_name
+	# per texture too: the heretic models share a material name but not their paint
+	var key := "painted/%s/%s" % [src.resource_name, src.albedo_texture.resource_path if src.albedo_texture else ""]
 	if _mats.has(key):
 		return _mats[key]
 	var t: Dictionary = PAINTED[src.resource_name]

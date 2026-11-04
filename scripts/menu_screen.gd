@@ -43,7 +43,8 @@ func open_settings(back: Callable, dim := 0.7, focus := 0) -> void:
 		[Game.rumble_label(), _setting.bind(Game.toggle_rumble, 2, dim)],
 		[Game.flashing_label(), _setting.bind(Game.toggle_reduce_flashing, 3, dim)],
 		[Game.guide_label(), _setting.bind(Game.toggle_combo_guide, 4, dim)],
-		["Reset hints", _setting.bind(Game.reset_hints, 5, dim)],
+		[Game.hero_label(), _setting.bind(Game.cycle_hero, 5, dim)],
+		["Reset hints", _setting.bind(Game.reset_hints, 6, dim)],
 		["Back", settings_back],
 	], "", dim, focus)
 
