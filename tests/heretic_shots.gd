@@ -3,8 +3,9 @@ extends SceneTree
 ##   godot --headless --path . -s tests/heretic_shots.gd     PASS/FAIL, no pictures
 ##   godot --path . -s tests/heretic_shots.gd                also user://heretic_shots/*.png
 ## Sets the flags for this process only. Windowed, it opens a window for about 30 s.
+## -- --hero=chibi checks the chibi model instead, its pictures in user://heretic_shots_chibi/.
 
-const DIR := "user://heretic_shots"
+var DIR := "user://heretic_shots"
 const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
 const CLOSE := Vector3(0.0, 1.5, 4.2)
 const TURN := -0.55  # rad: towards the camera, his right side (the tentacle) showing
@@ -64,8 +65,10 @@ func _check(ok: bool, what: String) -> void:
 func _initialize() -> void:
 	_headless = DisplayServer.get_name() == "headless"
 	await process_frame
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_game = get_root().get_node("Game")
+	if _game.hero_model != "heretic":
+		DIR += "_" + _game.hero_model
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_game.save_hints = false
 	_game.combo_guide = false  # the shots set his state with no move behind it
 	_game._hints_seen = _game.HINTS.keys()
@@ -79,6 +82,8 @@ func _initialize() -> void:
 	var look: GDScript = load("res://scripts/comic_look.gd")
 
 	_check(look.hero_kind() == "heretic", "the game picked the heretic hero")
+	var file: String = look.HERETIC_MODELS[_game.hero_model]
+	_check(look.scene(look.HERETIC).resource_path.ends_with("/%s.glb" % file), "the %s model loaded (%s)" % [_game.hero_model, file])
 	var skel: Skeleton3D = p.model.find_children("*", "Skeleton3D", true, false)[0]
 	for b in ["hand.r", "handslot.r", "head", "chest", "tent.main.01", "tent.up.01", "skirt.00.1"]:
 		_check(skel.find_bone(b) >= 0, "bone " + b)
