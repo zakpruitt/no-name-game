@@ -261,6 +261,10 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Comic impact frame (`scripts/impact_frame.gd`): stops of 0.1 s+ and kills flip the view into a negative with a vignette for 50 ms then fade over 90 ms (0.45 strength for enders, full at 0.25 s stops, 0.4 on kills, at most one per 240 ms); reduce flashing keeps a soft vignette pulse only. `tests/impact_frame_check.gd`, `tests/impact_preview.gd`
 - [x] Weapon trail swells with the chain (+10% reach per tier) and the hit's weight (+25% right after a 0.12 s+ freeze, fading over 0.25 s), with a fuller crescent and longer life. `tests/trail_check.gd`, `tests/trail_preview.gd -- --swell`
 - [ ] Hand play-test the feel numbers (ease curve, roll, impact frame strength, swell): all judged headless or from stills
+- [x] fx.gd: one `Fx.unshaded_mat()` for the nine unshaded alpha material setups and `_label()` for the floating numbers; constants gathered at the top (refactor, no numbers changed)
+- [x] spirit casts: `spirit_echo.strike()` replaces the six copies of hit / register / debris / hook and `fade_ghosts()` the four per-cast fades; `cast_dump` for all eight kinds unchanged on every cast triangle
+- [x] projectile halo on the shared material, typed loops in weapon_trail / air_gust
+- [x] `docs/cleanup-audit.md`: every script, test, tool and feature doc classified KEEP / TANGLED / DROP / OLD HERO against the heretic hero + training target, the seams in player / main / game / hud / elements / element_rite / ascendancy, and a 10-step ordered deletion plan (about 9 000 of 20 700 script lines) with two open questions (Awakening, Ascendancy). No deletions
 
 ## Round 28 (strip to the heretic)
 Zak: "reduce the game to JUST the heretic combat system for now. Remove the roguelike layer, keep the training ground." Decisions made while he was away, each open to veto:
