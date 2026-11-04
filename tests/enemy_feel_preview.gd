@@ -9,11 +9,10 @@ func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
 	game.save_hints = false
-	game.skip_title = true
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(0.3).timeout
-	main._queue.clear()
+	main.clear_room()
 	main.player.bot_enabled = true
 	for old in main.get_tree().get_nodes_in_group("enemies"):
 		old.queue_free()
