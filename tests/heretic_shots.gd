@@ -8,6 +8,9 @@ const DIR := "user://heretic_shots"
 const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
 const CLOSE := Vector3(0.0, 1.5, 4.2)
 const TURN := -0.55  # rad: towards the camera, his right side (the tentacle) showing
+const STRIP_STEP := 0.02  # s of the change between frames
+const STRIP_FRAMES := 24
+const STRIP_FORMS := [["axe", "Ab_L1", 0.3], ["spear", "Ab_L2", 0.34], ["hammer", "Ab_L3", 0.4], ["hand", "Ab_GR", 0.4]]
 ## name, clip, fraction of the clip, shape.
 const POSES := [
 	["idle", "Idle", 0.3, "hand"], ["ready", "Idle_Ready", 0.3, "hand"], ["run", "Run_F", 0.25, "hand"],
@@ -20,6 +23,36 @@ var _main: Node
 var _cam: Camera3D
 var _fails := 0
 var _headless := false
+
+
+## The change itself, one exact STRIP_STEP at a time (a timer can't sample it: one slow frame
+## swallows the whole change), to user://heretic_shots/strip_*.png.
+func _strip(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
+	p.state = p.State.ATTACK
+	var skel: Skeleton3D = p.model.find_children("*", "Skeleton3D", true, false)[0]
+	var hand := skel.find_bone("hand.r")
+	for view: String in ["close", "game"]:
+		for step: Array in STRIP_FORMS:
+			anim.play(step[1])
+			anim.seek(anim.get_animation(step[1]).length * step[2], true)
+			anim.pause()
+			await create_timer(0.1).timeout
+			var at := skel.global_transform * skel.get_bone_global_pose(hand).origin
+			var off := Vector3(-0.3, 0.9, 3.0) if view == "close" else GAME_VIEW
+			_cam.look_at_from_position(at + off, at, Vector3.UP)
+			Engine.time_scale = 0.02
+			skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
+			arm.shape(step[0], false)
+			for i in STRIP_FRAMES:
+				skel.advance(STRIP_STEP)  # only queues it: the modifiers run on the skeleton's next update
+				await skel.skeleton_updated
+				for fx: Node in get_nodes_in_group("heretic_form_fx"):
+					fx.set_process(false)
+					fx.tick(STRIP_STEP)
+				await RenderingServer.frame_post_draw
+				get_root().get_texture().get_image().save_png("%s/strip_%s_%s_%d.png" % [DIR, view, step[0], i])
+			skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
+			Engine.time_scale = 1.0
 
 
 func _check(ok: bool, what: String) -> void:
@@ -87,6 +120,34 @@ func _initialize() -> void:
 	await skel.skeleton_updated
 	_check(skel.get_bone_pose_scale(tip).x < 0.15, "tips pull in for a weapon (%.2f)" % skel.get_bone_pose_scale(tip).x)
 	_check(p.model.find_child("spear_void_ice", true, false).visible, "the spear shows")
+	var rig: Node = skel.find_children("*", "", false, false).filter(func(n: Node) -> bool: return n.has_method("form_weight"))[0]
+	_check(rig.form_weight("spear") > 0.99, "the spear finished growing")
+	for f: String in rig.FORM_BONES:
+		_check(rig.haft_alignment(f) > 0.98, "%s bone runs along its haft (%.3f)" % [f, rig.haft_alignment(f)])
+	var main1 := skel.find_bone("tent.main.01")
+	_check(skel.get_bone_pose_scale(main1).x > 0.9, "the main tentacle stays to grip the weapon")
+	for old: Node in get_nodes_in_group("heretic_form_fx"):  # the spear's, if it's still going
+		old.tick(1.0)
+	await process_frame
+	skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
+	arm.shape("hammer", false)
+	skel.advance(0.01)
+	await skel.skeleton_updated
+	_check(p.model.find_child("spear_void_ice", true, false).visible, "the old weapon stays while it pulls back")
+	_check(rig.form_weight("hammer") == 0.0, "the new one waits for it")
+	await process_frame
+	var bursts := get_nodes_in_group("heretic_form_fx")
+	_check(bursts.size() == 1, "one burst for one change (%d)" % bursts.size())
+	if bursts.size() == 1:
+		bursts[0].tick(1.0)
+		await process_frame
+		_check(get_nodes_in_group("heretic_form_fx").is_empty(), "the burst cleans itself up")
+	for i in 12:
+		skel.advance(0.02)
+		await skel.skeleton_updated
+	skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
+	_check(not p.model.find_child("spear_void_ice", true, false).visible, "then it has gone")
+	_check(rig.form_weight("hammer") > 0.99, "and the new one has grown")
 	arm.shape("hand", false)
 	await create_timer(0.35).timeout
 	await skel.skeleton_updated
@@ -119,6 +180,7 @@ func _initialize() -> void:
 		_main.add_child(_cam)
 		_cam.current = true
 		p.model.rotation.y = TURN
+		await _strip(p, arm, anim)
 		for pose: Array in POSES:
 			arm.shape(pose[3], false)
 			p.state = p.State.ATTACK if pose[1].begins_with("Ab_") else p.State.MOVE

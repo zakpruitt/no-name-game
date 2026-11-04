@@ -88,11 +88,28 @@ for nm in FORMS:
     n = bpy.data.objects.new(nm + "__new", m)
     scene.collection.objects.link(n)
     n.parent = arm
-    g = n.vertex_groups.new(name="hand.r")
+    g = n.vertex_groups.new(name="weapon." + nm.split("_")[0])
     g.add(list(range(len(m.vertices))), 1.0, "REPLACE")
     n.modifiers.new("rig", "ARMATURE").object = arm
     weapons.append((n, nm))
 print("weapons", len(weapons))
+# one bone per weapon, from the hand along its haft, so each can stretch out of the limb on its own
+hand_head = new_hand.translation.copy()
+far = {}
+for n, nm in weapons:
+    form = nm.split("_")[0]
+    for v in n.data.vertices:
+        d = (v.co - hand_head).length
+        if d > far.get(form, (0.0, None))[0]:
+            far[form] = (d, v.co.copy())
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode="EDIT")
+for form, (d, tip) in far.items():
+    eb = arm.data.edit_bones.new("weapon." + form)
+    eb.head, eb.tail = hand_head, tip
+    eb.parent = arm.data.edit_bones["hand.r"]
+    print("  weapon bone", form, "length %.2f" % d)
+bpy.ops.object.mode_set(mode="OBJECT")
 
 # ---- read every source clip
 clips = [a for a in bpy.data.actions if a.users or a.use_fake_user or True]

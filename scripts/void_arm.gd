@@ -9,6 +9,7 @@ const SNAP_PEAK_AT := 0.4  # of SNAP_TIME
 
 var form := ""
 var rest_form := "axe"  # the shape outside an attack
+var pops := true  # false when something else animates the change (heretic_rig.gd)
 var hero: Node3D
 var _parts := {}  # form -> Array[MeshInstance3D]
 var _bone := -1
@@ -39,7 +40,7 @@ func shape(to: String, pop := true) -> void:
 			mi.visible = f == to
 	for coat in hero._coats:  # the element on the axe goes with the axe
 		coat.visible = to == "axe"
-	if pop:
+	if pop and pops:
 		_t = 0.0
 		_settled = false
 

@@ -541,6 +541,7 @@ func _ready() -> void:
 		void_arm.setup(self, model, skel)
 		if ComicLook.hero_kind() == ComicLook.HERETIC:  # free tentacle at rest; weapons only form to strike
 			void_arm.rest_form = "hand"
+			void_arm.pops = false
 			void_arm.shape("hand", false)
 			HERETIC_RIG.new().setup(void_arm, skel)
 		_void = VOID_GRAB.new()

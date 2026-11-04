@@ -1,7 +1,10 @@
 extends SkeletonModifier3D
-## The Meshy heretic hero (--heretic). Keeps his tentacle tips alive between clips, coils them
-## into the limb while a weapon is out (ComicLook.HERO_FORMS through void_arm.form), and hangs
-## the skirt chains on spring bones. Clips never key any of these bones.
+## The Meshy heretic hero (--heretic). Keeps his tentacle tips alive between clips, turns the limb
+## into each weapon (ComicLook.HERO_FORMS through void_arm.form), and hangs the skirt chains on
+## spring bones. Clips never key any of these bones.
+##
+## A change: the old weapon pulls back into the limb, the new one stretches out along its haft
+## and overshoots, the loose tips coil away, and the main tentacle straightens to grip the haft.
 
 const TIPS := {"up": 4, "out": 5, "mid": 3, "low": 4}
 const MAIN_TIP := "tent.main.%02d"
@@ -9,15 +12,27 @@ const MAIN_COUNT := 6
 const SWAY_DEG := 7.0  # per bone: small, because it adds up along a chain
 const SWAY_SPEED := 1.7  # rad/s
 const SWAY_PHASE := 0.8  # rad between bones
-const ATTACK_SWAY := 2.2  # sway runs faster while a weapon is forming
-const COLLAPSED := 0.04  # scale at a tip's base with a weapon out
+const ATTACK_SWAY := 2.2  # sway runs faster while a weapon is out
+const COLLAPSED := 0.04  # scale at a loose tip's base with a weapon out
 const COIL_DEG := 35.0  # per bone as it pulls in
-const FORM_TIME := 0.09  # s to pull in: quick, the weapon pops at the same moment
+const FORM_TIME := 0.09  # s for the tips to pull in
 const OPEN_TIME := 0.22  # s to unfurl again
 ## Off an attack the limb lets go of the clip's arm pose and settles into the model's own spread:
 ## his clips were keyed for a man carrying an axe, which crushes the tentacles into a clump.
 const ARM_BONES := ["upperarm.r", "lowerarm.r", "wrist.r", "hand.r"]
 const ARM_FREE_TIME := 0.18  # s
+
+## Form -> its bone, running from the hand along the haft (heretic_bake.py).
+const FORM_BONES := {"axe": "weapon.axe", "spear": "weapon.spear", "hammer": "weapon.hammer"}
+const GROW_TIME := 0.1  # s for a weapon to stretch out: strikes land from about 0.25 s
+const RETRACT_TIME := 0.05  # s for the old one to pull back
+const RETRACT_FIRST := 0.35  # the new weapon waits until the old one is below this
+const OVERSHOOT := 1.2  # of its length, at PEAK_AT of the growth
+const PEAK_AT := 0.7
+const GONE := 0.001  # a bone can't scale to nothing
+const GRIP := 0.85  # how far the main tentacle straightens along the haft
+
+const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 
 const SKIRT_N := 12
 const SKIRT_STIFFNESS := 2.2
@@ -29,10 +44,18 @@ const LEG_CAPSULES := {"upperleg.l": [0.11, 0.42], "upperleg.r": [0.11, 0.42]}
 
 var void_arm: Node
 var _chains := []  # [{bones: PackedInt32Array, phase: float}]
+var _main := PackedInt32Array()
 var _time := 0.0
 var _out := 0.0  # 0 = tentacle free, 1 = weapon form
 var _arm := PackedInt32Array()
 var _free := 1.0  # 1 = limb in its own spread, 0 = following the clip
+var _form_bone := {}  # form -> bone index
+var _form_axis := {}  # form -> which local axis runs along the haft
+var _form_dir := {}  # form -> haft direction, skeleton rest space
+var _form_len := {}  # form -> m
+var _grip_q := {}  # form -> Array[Quaternion], each main bone's pose gripping that haft
+var _w := {}  # form -> 0..1 grown
+var _last_form := ""
 
 
 func setup(arm: Node, skel: Skeleton3D) -> void:
@@ -44,18 +67,61 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 			var b := skel.find_bone("tent.%s.%02d" % [tip, i + 1])
 			if b >= 0:
 				bones.append(b)
-		_chains.append({"bones": bones, "phase": seed_phase, "collapse": true})
+		_chains.append({"bones": bones, "phase": seed_phase})
 		seed_phase += 1.9
-	var main := PackedInt32Array()
 	for i in MAIN_COUNT:
 		var b := skel.find_bone(MAIN_TIP % (i + 1))
 		if b >= 0:
-			main.append(b)
-	_chains.append({"bones": main, "phase": seed_phase, "collapse": true})
+			_main.append(b)
 	for b: String in ARM_BONES:
 		_arm.append(skel.find_bone(b))
+	for f: String in FORM_BONES:
+		_read_form(f, skel)
+	_last_form = arm.form
 	skel.add_child(self)
+	_warm_fx(skel)
 	_add_springs(skel)
+
+
+## The haft's direction from the form's own meshes, then how the main tentacle lies along it.
+func _read_form(form: String, skel: Skeleton3D) -> void:
+	var bone := skel.find_bone(FORM_BONES[form])
+	if bone < 0:
+		return
+	_form_bone[form] = bone
+	_w[form] = 0.0
+	var rest := skel.get_bone_global_rest(bone)
+	var tip := rest.origin
+	for mi: MeshInstance3D in void_arm._parts[form]:
+		for v: Vector3 in mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			if v.distance_squared_to(rest.origin) > tip.distance_squared_to(rest.origin):
+				tip = v
+	var dir := (tip - rest.origin).normalized()
+	_form_dir[form] = dir
+	_form_len[form] = tip.distance_to(rest.origin)
+	var local := rest.basis.inverse() * dir
+	var axis := 0
+	for k in 3:
+		if absf(local[k]) > absf(local[axis]):
+			axis = k
+	_form_axis[form] = axis
+	# Each main bone in turn: which pose, under the one before it, points it down the haft.
+	var above := skel.get_bone_global_rest(skel.find_bone("hand.r")).basis.get_rotation_quaternion()
+	var poses: Array[Quaternion] = []
+	for j in _main.size():
+		var q_rest := skel.get_bone_rest(_main[j]).basis.get_rotation_quaternion()
+		var along := _bone_dir(skel, j)
+		var q := q_rest * Quaternion(along, ((above * q_rest).inverse() * dir).normalized())
+		poses.append(q)
+		above = above * q
+	_grip_q[form] = poses
+
+
+## A main bone's direction in its own space: towards the next bone, or the last one's way.
+func _bone_dir(skel: Skeleton3D, j: int) -> Vector3:
+	if j + 1 < _main.size():
+		return skel.get_bone_rest(_main[j + 1]).origin.normalized()
+	return Vector3.UP
 
 
 func _add_springs(skel: Skeleton3D) -> void:
@@ -82,19 +148,53 @@ func _add_springs(skel: Skeleton3D) -> void:
 		sim.add_child(cap)
 
 
+## One empty triangle in the burst's material, so its shader is ready before the first swing.
+func _warm_fx(skel: Skeleton3D) -> void:
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
+	arrays[Mesh.ARRAY_COLOR] = PackedColorArray([Color.BLACK, Color.BLACK, Color.BLACK])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, FORM_FX.material())
+	var warm := MeshInstance3D.new()
+	warm.name = "FormFxWarm"
+	warm.mesh = mesh
+	warm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	warm.set_meta("no_ghost", true)
+	skel.add_child(warm)
+
+
+func form_weight(form: String) -> float:
+	return _w.get(form, 0.0)
+
+
+## How well a form's bone axis lies along its haft (1 = exactly). The stretch needs this.
+func haft_alignment(form: String) -> float:
+	var skel := get_skeleton()
+	var bone: int = _form_bone[form]
+	var local: Vector3 = skel.get_bone_global_rest(bone).basis.orthonormalized().inverse() * _form_dir[form]
+	return absf(local[_form_axis[form]])
+
+
 func _process_modification_with_delta(delta: float) -> void:
 	var skel := get_skeleton()
 	if skel == null:
 		return
-	var want := 0.0 if void_arm == null or void_arm.form == "hand" else 1.0
+	var form: String = void_arm.form
+	if form != _last_form:
+		_last_form = form
+		_form_burst.call_deferred(form, skel.global_transform * skel.get_bone_global_pose(_arm[3]))
+	var want := 0.0 if form == "hand" else 1.0
 	_out = move_toward(_out, want, delta / (FORM_TIME if want > _out else OPEN_TIME))
 	_time += delta * lerpf(1.0, ATTACK_SWAY, _out)
-	var striking: bool = void_arm != null and void_arm.hero.state in [void_arm.hero.State.ATTACK, void_arm.hero.State.SWING]
+	var striking: bool = void_arm.hero.state in [void_arm.hero.State.ATTACK, void_arm.hero.State.SWING]
 	_free = move_toward(_free, 0.0 if striking or want > 0.0 else 1.0, delta / ARM_FREE_TIME)
 	if _free > 0.0:
 		for b in _arm:
 			var rest_q := skel.get_bone_rest(b).basis.get_rotation_quaternion()
 			skel.set_bone_pose_rotation(b, skel.get_bone_pose_rotation(b).slerp(rest_q, _free))
+	_step_forms(delta, skel, form)
 	for c: Dictionary in _chains:
 		var bones: PackedInt32Array = c.bones
 		for j in bones.size():
@@ -104,3 +204,56 @@ func _process_modification_with_delta(delta: float) -> void:
 			skel.set_bone_pose_rotation(b, skel.get_bone_rest(b).basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, angle))
 		if bones.size() > 0:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(1.0, COLLAPSED, _out))
+	_pose_main(skel)
+
+
+## Grow the current weapon and pull back the others, showing whichever is still out.
+func _step_forms(delta: float, skel: Skeleton3D, form: String) -> void:
+	var clear := true
+	for f: String in _w:
+		if f != form and _w[f] > RETRACT_FIRST:
+			clear = false
+	for f: String in _w:
+		if f == form:
+			if clear:
+				_w[f] = minf(_w[f] + delta / GROW_TIME, 1.0)
+		else:
+			_w[f] = maxf(_w[f] - delta / RETRACT_TIME, 0.0)
+		var w: float = _w[f]
+		for mi: MeshInstance3D in void_arm._parts[f]:
+			mi.visible = w > 0.0
+		var along := lerpf(GONE, OVERSHOOT, w / PEAK_AT) if w < PEAK_AT else lerpf(OVERSHOOT, 1.0, (w - PEAK_AT) / (1.0 - PEAK_AT))
+		var girth := maxf(GONE, minf(w * 1.6, 1.0))
+		var s := Vector3.ONE * girth
+		s[_form_axis[f]] = along
+		skel.set_bone_pose_scale(_form_bone[f], s)
+
+
+## The main tentacle sways with the rest, and lies along whatever haft is out.
+func _pose_main(skel: Skeleton3D) -> void:
+	for j in _main.size():
+		var b := _main[j]
+		var rest_q := skel.get_bone_rest(b).basis.get_rotation_quaternion()
+		var wave := sin(_time * SWAY_SPEED + j * SWAY_PHASE)
+		var q := rest_q * Quaternion(Vector3.RIGHT, deg_to_rad(SWAY_DEG * wave))
+		for f: String in _grip_q:
+			q = q.slerp(_grip_q[f][j], _w[f] * GRIP)
+		skel.set_bone_pose_rotation(b, q)
+
+
+## The burst as it reshapes (heretic_form_fx.gd). Back to the bare limb there's no haft to follow.
+func _form_burst(form: String, at: Transform3D) -> void:
+	var parent: Node = void_arm.hero.get_parent()
+	if parent == null:
+		return
+	var dir: Vector3 = skel_dir(form) if _form_dir.has(form) else Vector3.ZERO
+	FORM_FX.spawn(parent, at.origin, form, dir, _form_len.get(form, 0.0))
+
+
+## The haft's direction in the world, on the hand as it is now.
+func skel_dir(form: String) -> Vector3:
+	var skel := get_skeleton()
+	var hand := skel.find_bone("hand.r")
+	var now := skel.global_transform * skel.get_bone_global_pose(hand)
+	var was := skel.get_bone_global_rest(hand)
+	return (now.basis.orthonormalized() * was.basis.orthonormalized().inverse() * (_form_dir[form] as Vector3)).normalized()
