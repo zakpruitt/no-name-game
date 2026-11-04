@@ -81,6 +81,17 @@ element from their ends `VENT_DELAY` (0.1 s) after the impact
 wisps). Rim craters vent from every other crack, or from every crack on a
 perfect. The vents are particles, so headless renders don't show them.
 
+With the comic style (`Game.comic_style`) the breaker draws flat and inked instead:
+the cue is always `crisp` (a paper target ring that turns gold in the window and a
+fat closing ring in the breaker's colour, each between two ink bands, rebuilt every
+frame so the band keeps its width as it closes), the war cry is radial speed strokes
+round him and one inked hoop under him (no shell, no glow dots, no smoke), and the
+dive is `scripts/comic_comet.gd`: one fat streak back along his path (ink, element
+colour, hot core, at least `MIN_TAIL` m long because a tentacle breaker barely moves
+him) that ends, when `comet()` stops being called, in a held-frame impact star at
+his feet (`STAR_HOLD` steps). `Fx.ring` there is an inked floor hoop on twos. Before,
+the soft ring texture and the afterimages piled into a big soft orange or green disc.
+
 **The window plays in slow motion.** When it opens, the game drops to
 `BREAKER_FOCUS` speed (0.6), the camera pushes in and a heartbeat plays.
 The window is 0.3 s of game time, so about 0.5 s in real time. A press ends
@@ -259,7 +270,10 @@ him, and a light shake.
   the slab material for spirit and wind, freed in `release()` from
   `Game._exit_tree`. Sounds: `war_cry`, `quake` in `tools/gen_sfx.py`.
 - `scripts/breaker_cue.gd`: the floor rings. `lock()` greys them out (too
-  early); `hit(perfect)` flashes them.
+  early); `hit(perfect)` flashes them. `crisp` (the tentacle breakers and any
+  comic hero) draws them as flat inked bands with heretic_form_fx's material.
+- `scripts/comic_comet.gd`: the comic dive streak and landing star (`beat()` from
+  `air_gust.comet()`; the comet hangs off the model as the `comic_comet` meta).
 - `scripts/breaker_prompt.gd`: the timing prompt. It's a circle affixed to
   the hero, above his left shoulder on screen (`OFFSET` from his chest,
   kept `MARGIN` inside the screen; the combo guide sits on his right), so

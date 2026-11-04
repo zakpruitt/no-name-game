@@ -81,6 +81,12 @@ fast-forward, so no agent edits another's files or index.
   "0.06 s later" screenshot is often 0.12+ s later. Print the numbers you're
   photographing alongside the shot.
 - The scratchpad is shared between agents: keep your files in a subfolder.
+  Name helper scripts uniquely too (`fxh2_sheet.py`): another agent's `sheet.py` replaced one mid-run.
+- When splicing text into a doc with a script, check `git diff --stat` before committing: a slice
+  that forgot the tail (`s[:j] + new` without `+ s[j:]`) silently deleted 70 lines.
+- A visual that lives in a locked file (another lane's gameplay script) can often be driven from
+  your own file by reading state: `ComicFx` watches `_move_id`, `_hits_done` and `breakers_landed`
+  instead of adding hooks to void_element.gd.
 
 ## When you're done
 
