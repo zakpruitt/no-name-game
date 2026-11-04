@@ -65,6 +65,20 @@ Commands are in [heretic-hero.md](heretic-hero.md). The agent skill `meshy-asset
 - Cloth simulation doesn't suit a thick, fused shell.
 - `heretic_bake.py` has the old hero's bone and weapon names written in, so a character with other clips needs those changed.
 
+## Refining without a new model
+
+A model that is nearly right can be refined on its rig blend without rebuilding the rig: `heretic_refine.py` swaps the texture pixels and moves vertices (thicken a limb along its normals, grow the head or a hand about a joint by skin weight). Bones and weights stay, so the bake runs as before. Commands: [heretic-hero.md](heretic-hero.md).
+
+Flatten a Meshy texture before it goes under the cut tones (`flatten_texture.py`): its baked light and speckle fight the shader. The atlas is hundreds of small islands, so filter inside islands found from the UVs and pad each one for mipmaps.
+
+## Generating, round 29
+
+- `generate_3d` with a text prompt runs a preview (20 credits) and a refine (10): 30 credits per textured model. The balance is at `GET https://api.meshy.ai/openapi/v1/balance` with the key from the Blender add-on preferences; check it before and after each call.
+- Meshy 7.1 returns 0.9-1.2 M triangles. Decimate before rigging.
+- `pose_mode="a-pose"` dropped the tentacle arm completely. Without it, and "arms held out away from the sides" in the text, the tentacles came through.
+- The chibi prompt gave the right proportions but a patchwork texture (wrong-coloured blotches on the hood and clothes). Look at the texture before paying for anything else on a model.
+- A generated model has no rig. `heretic_rig.py` needs Meshy's auto-rigged FBX for body joints and weights, so budget its rigging too (not tried yet), or a new joint-placement step.
+
 ## Open questions
 
 - Whether prompting can stop Meshy fusing parts.

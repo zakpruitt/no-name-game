@@ -51,6 +51,13 @@ fast-forward, so no agent edits another's files or index.
    Zak's `settings.cfg`, `records.cfg` or `altar.cfg`.
 8. **Windowed Godot steals focus.** Only open it when Zak has said that's OK.
 
+## Lessons
+
+- **`vendor_src/.gdignore` first.** Copying sources into a new worktree's `vendor_src/` without it makes `godot --import` scan the FBX and `.blend` files, fail on the blend importer, and silently skip re-importing your changed assets: the game keeps the old GLB and a shot looks unchanged. Check `.godot/imported/<name>.glb-*.md5` timestamps if a change doesn't show.
+- **Extracted textures are never overwritten.** Godot keeps an existing `<name>_<material>.png` beside a GLB. Copy the new texture over it yourself.
+- **Revert import noise in one loop:** for each `git ls-files -m` with an empty `git diff --ignore-cr-at-eol`, `git checkout` it. Leave your own assets out of the loop.
+- **Meshy credits:** read the balance before and after each paid call (`GET /openapi/v1/balance`); the balance can also rise when Zak tops up, so count the change in `monthly_credits`.
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes

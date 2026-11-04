@@ -277,3 +277,11 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] The training room keeps the first layout's four pillars (R swings on them) and drops the spike traps
 - [x] The autotest boots training, lets the bot play the dummies for 16 s and prints `[autotest] done ...`; `--seed`, `--tour`, `--pace` and the room / twist / altar / camp flags are gone
 - [x] Powers (combo-slot upgrades), their paths, masteries, synergies, icons, reward cards and the training room's "Pick a power" are gone, with every hook in `player.gd`. The Awakening burst keeps its old default numbers (`AWAKEN_BURST_RADIUS`, `AWAKEN_BURST_DAMAGE`)
+
+## Round 29 (assets)
+- [x] Audit of the heretic GLB: 15.9k tris body (17.1k with weapons), one 2048 texture, 101 bones, 1.95 m against KayKit's 2.18 m; at the game camera the mane dominated, the tentacle read as a thin clump and the paint broke into speckle under the cut tones
+- [x] Refined it without touching the rig (`tools/meshy_rig/heretic_refine.py`, `flatten_texture.py`): flat colour regions, tentacle thickened 2 cm, head 1.22x and left fist 1.3x, baked at 2.2 m, `PAINTED.brush` 0.12. Seen in windowed stills only
+- [x] Meshy: 60 credits spent (cap 60): a realistic A-pose candidate (30, came out with no tentacle arm and a floor-length cape) and a chibi candidate (30, right proportions, broken patchwork texture). Neither used; both kept in `vendor_src/meshy/source/`
+- [x] `docs/features/art-direction.md`: "chibi but badass", from Zak
+- [ ] Chibi base: retexture the chibi candidate in Meshy (about 10 credits) and auto-rig it (about 5), or generate again from the art-direction template, then run it through `tools/meshy_rig` with new `TIPS`
+- [ ] Hand play-test of the refined heretic: does 2.2 m and the bigger head feel right in motion
