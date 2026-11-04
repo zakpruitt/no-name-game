@@ -55,6 +55,7 @@ func _initialize() -> void:
 	await _aim_lock()
 	await _dash_out_of_everything()
 	await _breaker_windows()
+	await _dash_stab_lash()
 	print("rhythm_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 	quit(1 if fails > 0 else 0)
 
@@ -256,6 +257,24 @@ func _breaker_windows() -> void:
 				_check(hero._brk_ended == "lock", "%s: a press at %.2f s, nowhere near the window, locks it out (%s)" % [id, press_at, hero._brk_ended])
 			await _until(func() -> bool: return hero.state != hero.State.LEAP, 3.0)
 			game.end_slowmo()
+
+
+## Dash Stab's cast is the claw's lash (claw_lash.gd, elements.CASTS.DL "lash"): out to its reach and back, it cuts
+## a foe 5 m ahead on each leg, with the tomahawk's damage.
+func _dash_stab_lash() -> void:
+	await _settle()
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var foe := _foe(Vector3(0, 0, 8.0))  # (past the stab itself: its lunge and reach end ~6.5 m out)
+	var hp0 := foe.hp
+	hero._start_attack("DL")
+	await _until(func() -> bool: return foe.hits >= 2, 2.5)
+	var c: Dictionary = load("res://scripts/elements.gd").CASTS.DL
+	_check(c.kind == "lash", "Dash Stab casts the claw's lash")
+	_check(foe.hits == 2, "the lash cuts a foe 8 m ahead going out and coming back (%d hits)" % foe.hits)
+	_check(is_equal_approx(hp0 - foe.hp, c.damage + c.back_damage), "for %.0f + %.0f (took %.1f)" % [c.damage, c.back_damage, hp0 - foe.hp])
+	foe.free()
+	game.end_slowmo()
 
 
 func _tap(action: String) -> void:

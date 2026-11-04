@@ -9,7 +9,7 @@ light flashes, and they swell with the chain.
 | Move | Kind | What it does |
 |---|---|---|
 | L1, L2 | echo (`scripts/spirit_echo.gd`) | A giant axe laid flat sweeps the swing's arc a beat after the real hit (L2 wider), each foe once, leaving a swoosh |
-| DL (Dash Stab) | tomahawk (`scripts/spirit_tomahawk.gd`) | A giant axe flung spinning flat like a sawblade, piercing out to `range` and boomeranging back to him, each foe once per leg |
+| DL (Dash Stab) | lash (`scripts/claw_lash.gd`) | Not a spirit: the claw whips the tentacle's inked ribbon (`void_tendril.gd`) straight out to `range` and snaps it back, the tip cutting each foe once per leg. It replaced the shaman's spinning spirit tomahawk (round 30, second pass) with the same damage (6 out, 4 back), reach (8 m), cut size (2.6 m) and timing (0.3 s out, 0.32 s back) |
 | air dash | echo (`hero_moves.AIR_DASH_CUT`, `air_dash_cut()`) | An echo parented to him at his height, sweeping round the dash direction |
 
 `AL1` and `L3` have no cast (`VOID_ELEMENT.NO_CAST`): their axes stood in front of the
@@ -22,7 +22,7 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
   setup: axe mesh, colour, element, damage), `_cast_grow()` / `_cast_power()`, `_axe_mesh()`.
 - `scripts/spirit_echo.gd`: the echo, plus the shared `ghost(mesh, color)` (translucent unshaded
   body, rim overlay) and `strike()` (hit, register, element debris, `on_hit`).
-- `scripts/spirit_tomahawk.gd`: the tomahawk.
+- `scripts/claw_lash.gd`: Dash Stab's lash (draws one `void_tendril` from his claw, `void_grab._hand_pos()`, to the tip; hits through `spirit_echo.strike()`).
 
 ## How it works
 
@@ -36,7 +36,7 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 ## Invariants
 
 - **Face the camera.** The camera sits behind the hero looking down at ~55 degrees. A blade
-  whose flat side faces sideways is edge-on and vanishes. Echo and tomahawk lie flat.
+  whose flat side faces sideways is edge-on and vanishes. The echo lies flat; the lash is the tentacle's camera-facing ribbon.
 - **Ghost materials are per cast** (fades tween them).
 - The axe is the KayKit `1H_Axe` (`player.AXE_SOURCE`, `assets/kaykit/characters/Barbarian.glb`,
   loaded once on the first cast). The heretic's own weapons are skinned into his rig, so they
@@ -46,10 +46,10 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 ## Tuning
 
 - `elements.CASTS`: per move `damage`, `radius` / `arc` / `delay` / `time` (echo),
-  `range` / `size` / `back_damage` (tomahawk).
+  `range` / `size` / `back_damage` (lash).
 - `player.CAST_GROW` (0.15) / `CAST_POWER` (0.12): size and damage per `Fx.CHAIN_TIERS` tier.
 - `player.AIR_DASH_CUT`; per script constants: `spirit_echo.FADE_IN` / `FADE_OUT` / `HEIGHT`,
-  `spirit_tomahawk.SPIN`.
+  `claw_lash.HEIGHT` / `WAVE` / `SNAP_WAVE`.
 
 ## Extending
 
@@ -61,6 +61,7 @@ look at it windowed from the game camera before tuning.
 ## Testing
 
 - `godot --headless --path . -- --autotest`: no errors; the `casts=` count.
+- `tests/rhythm_check.gd` `_dash_stab_lash()`: the lash cuts a foe 8 m ahead out and back for 6 + 4.
 - Windowed look: `godot --path . -- --autotest` saves `autotest_cast.png`; `tests/fx_preview.gd`
   for the shared effects.
 

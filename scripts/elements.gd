@@ -9,8 +9,8 @@ extends RefCounted
 ##   nova     burst all around: spikes or blades outward
 ##   echo     the axe's bound spirit finishes the swing: a giant spectral axe
 ##            sweeping the same arc a beat later (spirit_echo.gd; L1, L2 bigger)
-##   tomahawk giant spectral axe flung spinning flat like a sawblade, piercing out
-##            to `range` and boomeranging back to the hero (spirit_tomahawk.gd; DL)
+##   lash     the claw whips the tentacle's inked ribbon straight out to `range` and
+##            snaps it back, cutting what its tip passes each way (claw_lash.gd; DL)
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
 const FOES := preload("res://scripts/foes.gd")
@@ -24,7 +24,7 @@ const LAVA_HOT := Color(1.0, 0.8, 0.3)
 const CASTS := {
 	"L1": {"kind": "echo", "damage": 5.0, "radius": 3.4, "arc": 160.0, "delay": 0.05, "time": 0.18},
 	"L2": {"kind": "echo", "damage": 6.0, "radius": 3.9, "arc": 200.0, "delay": 0.04, "time": 0.2},
-	"DL": {"kind": "tomahawk", "damage": 6.0, "back_damage": 4.0, "range": 8.0, "size": 2.6},
+	"DL": {"kind": "lash", "damage": 6.0, "back_damage": 4.0, "range": 8.0, "size": 2.6},
 }
 ## color: main glow; glow: hot core; rock: solid pieces (earth).
 const LOOK := {

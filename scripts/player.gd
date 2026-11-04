@@ -29,7 +29,7 @@ const HERETIC_RIG := preload("res://scripts/heretic_rig.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
-const SPIRIT_TOMAHAWK := preload("res://scripts/spirit_tomahawk.gd")
+const CLAW_LASH := preload("res://scripts/claw_lash.gd")
 const RANK_COLORS: Dictionary = preload("res://scripts/hud.gd").RANK_COLORS
 
 # Names other scripts and the checks read off the hero; the data lives in the hero_*.gd files.
@@ -763,15 +763,15 @@ func _cast(fwd: Vector3) -> void:
 			echo.time = c.time
 			parent.add_child(echo)
 			echo.global_position = Vector3(global_position.x, model.position.y, global_position.z)  # (air slashes: in the air)
-		"tomahawk":
-			var th = _spirit(SPIRIT_TOMAHAWK.new(), c, el)
-			th.dir = fwd
-			th.hero = self
-			th.size = c.size * g
-			th.reach = minf(c.range, _clear_ahead(th.dir, c.range) + 0.4)
-			th.back_damage = c.back_damage * _dmg_mult * _cast_power()
-			parent.add_child(th)
-			th.global_position = Vector3(global_position.x, 0.0, global_position.z) + th.dir * 0.6
+		"lash":  # Dash Stab: the claw whips its ribbon out ahead and back (claw_lash.gd)
+			var lash = _spirit(CLAW_LASH.new(), c, el)
+			lash.dir = fwd
+			lash.hero = self
+			lash.size = c.size * g
+			lash.reach = minf(c.range, _clear_ahead(lash.dir, c.range) + 0.4)
+			lash.back_damage = c.back_damage * _dmg_mult * _cast_power()
+			parent.add_child(lash)
+			lash.global_position = Vector3(global_position.x, 0.0, global_position.z) + lash.dir * 0.6
 
 
 ## The common setup of a spirit cast node (spirit_*.gd): the hero's axe,
