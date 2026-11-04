@@ -47,6 +47,14 @@ const GRIP_SNAP := 0.05  # s to swap at the hit: a snap, not a blend
 const GRIP_SHAKE_DEG := 6.0  # the strain while clenched
 const GRIP_SHAKE_HZ := 19.0
 const GRIP_FADE := 0.15  # s back to the free sway after the move
+## A model whose clips key the claws (the chibi: tools/meshy_rig/chibi_keys.py) gets its grip, splay
+## and curl from them: the sway adds on top of the keyed pose, GRIP_MOVES is skipped, and the clips
+## below, keyed for this rig's own arm, are followed as they are instead of easing to the rest spread.
+const KEYED_ARM := ["Idle", "Idle_Ready", "Run_F", "Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3", "Ab_DL", "Ab_GR", "Ab_VS"]
+const CLAW_TRACK := ":tent.up.01"
+## With keyed claws the loose ones stay out round a weapon's haft, clenched by the clip, instead of
+## pulling right in: the claw gripping the axe is the chibi's silhouette.
+const KEYED_COLLAPSED := 0.8
 
 ## Glowing eyes under the hood, per Game.hero_model, in skeleton rest space (Godot axes, metres):
 ## measured from the texture's cyan eyes on chibi_rig_v1.blend, x1.088 for the 1.85 m bake, then
@@ -86,6 +94,7 @@ var _last_form := ""
 var _grip := 0.0  # -1 splayed .. 1 clenched (GRIP_MOVES)
 var _grip_on := 0.0  # 1 while a grip move plays, fading out after
 var eyes: Node3D  # the glow, when this model has one (EYES)
+var keyed := false  # the clips key the claws (KEYED_ARM, CLAW_TRACK)
 
 
 func setup(arm: Node, skel: Skeleton3D) -> void:
@@ -111,10 +120,27 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	for f: String in FORM_BONES:
 		_read_form(f, skel)
 	_last_form = arm.form
+	keyed = _clips_key_claws(arm.hero.anim)
 	skel.add_child(self)
 	_warm_fx(skel)
 	_add_springs(skel)
 	_add_eyes(skel)
+
+
+func _clips_key_claws(ap: AnimationPlayer) -> bool:
+	if ap == null or not ap.has_animation("Idle"):
+		return false
+	var a := ap.get_animation("Idle")
+	for i in a.get_track_count():
+		if str(a.track_get_path(i)).ends_with(CLAW_TRACK):
+			return true
+	return false
+
+
+## The clip playing is keyed for this rig's arm (KEYED_ARM), so the limb follows it even off attacks.
+func _arm_keyed() -> bool:
+	var ap: AnimationPlayer = void_arm.hero.anim
+	return keyed and ap != null and ap.assigned_animation in KEYED_ARM
 
 
 ## The haft's direction from the form's own meshes, then how the main tentacle lies along it.
@@ -287,7 +313,10 @@ func _process_modification_with_delta(delta: float) -> void:
 	_out = move_toward(_out, want, delta / (FORM_TIME if want > _out else OPEN_TIME))
 	_time += delta * lerpf(1.0, ATTACK_SWAY, _out)
 	var striking: bool = void_arm.hero.state in [void_arm.hero.State.ATTACK, void_arm.hero.State.SWING]
-	_free = move_toward(_free, 0.0 if striking or want > 0.0 else 1.0, delta / ARM_FREE_TIME)
+	if _arm_keyed():
+		_free = 0.0
+	else:
+		_free = move_toward(_free, 0.0 if striking or want > 0.0 else 1.0, delta / ARM_FREE_TIME)
 	if _free > 0.0:
 		for b in _arm:
 			var rest_q := skel.get_bone_rest(b).basis.get_rotation_quaternion()
@@ -301,10 +330,10 @@ func _process_modification_with_delta(delta: float) -> void:
 		for j in bones.size():
 			var b := bones[j]
 			var wave := sin(_time * SWAY_SPEED + c.phase + j * SWAY_PHASE)
-			var angle := deg_to_rad(SWAY_DEG * wave + COIL_DEG * _out + flex)
-			skel.set_bone_pose_rotation(b, skel.get_bone_rest(b).basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, angle))
+			var angle := deg_to_rad(SWAY_DEG * wave + (0.0 if keyed else COIL_DEG * _out) + flex)
+			skel.set_bone_pose_rotation(b, skel.get_bone_pose_rotation(b) * Quaternion(Vector3.RIGHT, angle))
 		if bones.size() > 0:
-			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, COLLAPSED, _out))
+			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
 
 
@@ -324,7 +353,7 @@ func _face_eyes(skel: Skeleton3D) -> void:
 func _step_grip(delta: float) -> void:
 	var hero: Node = void_arm.hero
 	var id: String = hero._move_id if hero.state == hero.State.ATTACK else ""
-	var on: bool = GRIP_MOVES.has(id) and void_arm.form == "hand" and hero.anim != null
+	var on: bool = not keyed and GRIP_MOVES.has(id) and void_arm.form == "hand" and hero.anim != null
 	_grip_on = move_toward(_grip_on, 1.0 if on else 0.0, delta / (GRIP_SNAP if on else GRIP_FADE))
 	if not on:
 		return
@@ -375,7 +404,7 @@ func _step_forms(delta: float, skel: Skeleton3D, form: String) -> void:
 func _pose_main(skel: Skeleton3D, flex := 0.0) -> void:
 	for j in _main.size():
 		var b := _main[j]
-		var rest_q := skel.get_bone_rest(b).basis.get_rotation_quaternion()
+		var rest_q := skel.get_bone_pose_rotation(b)  # the rest, or the clip's curl on a keyed model
 		var wave := sin(_time * SWAY_SPEED + j * SWAY_PHASE)
 		var q := rest_q * Quaternion(Vector3.RIGHT, deg_to_rad(SWAY_DEG * wave + flex))
 		for f: String in _grip_q:
