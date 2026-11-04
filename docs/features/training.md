@@ -30,6 +30,8 @@ The MOVES panel beside it lists every input (`scripts/move_list.gd`).
   - `_train_hit` / `_train_combo` / `_train_text` drive the readout;
   - `train_awaken` and `restart_training` serve the pause menu;
   - `clear_room()` removes the dummies and every foe, for tests that set up their own room.
+  - the room has no centre banner: the HUD's top line says TRAINING and the empty readout says "Esc: moves, Fill Awakening".
+- `scripts/training_bot.gd`: the autotest bot, added by `main._ready` with `--autotest` (`BOT_STRINGS`, screenshots, the `[autotest]`, `[perf]` and `[training]` lines). `scripts/perf_probe.gd` times each frame's node work for `[perf]`.
 - `scripts/pause_menu.gd`: `_open()` builds the items above.
 - `scripts/spar.gd`: `--spar=<kind>`. `main._start_training` calls `SPAR.start(self)` (null without the flag) and `_autotest_finish` calls `report()`: `[spar] type= hits_taken= kills=`. It spawns through `main._spawn` at `SPOT` from the hero, scales `attack_damage` by `DAMAGE_SCALE`, respawns after `RESPAWN`. `enemy.hits_taken` counts landed hits (blocks not).
 
