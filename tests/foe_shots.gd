@@ -4,7 +4,8 @@ extends SceneTree
 ## Saves user://foe_shots/<tag>_room.png (the training room as it opens, game camera),
 ## <tag>_row_game.png (hero, dummy and every foe in two rows, game camera) and
 ## <tag>_row_close.png (the same, closer, ortho along the game's angle) and <tag>_row_front.png
-## (ortho from the front). Headless it saves nothing.
+## (ortho from the front). Headless it saves nothing. `-- --bars` shows every foe's health bar
+## (enemy_bars.gd at each kind's bar_height) in the row shots.
 
 const FRONT := ["hero", "dummy", "minion", "rogue", "shield", "warrior"]
 const BACK := ["mage", "archer", "bomber", "necromancer", "warden"]
@@ -15,6 +16,8 @@ const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset: the game's angl
 const CLOSE_SIZE := 9.0  # m tall, ortho, along the game's angle
 const FRONT_SIZE := 7.5  # m tall, ortho, from the front at chest height
 
+var _bars := false
+
 
 func _initialize() -> void:
 	await process_frame
@@ -22,6 +25,8 @@ func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--tag="):
 			tag = arg.substr(6)
+		elif arg == "--bars":
+			_bars = true
 	var dir := "user://foe_shots"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
 	var game: Node = get_root().get_node("Game")
@@ -31,7 +36,7 @@ func _initialize() -> void:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
 	await create_timer(1.6).timeout
-	_save("%s/%s_room.png" % [dir, tag])
+	await _save("%s/%s_room.png" % [dir, tag])
 
 	var p: Node3D = main.player
 	p.set_physics_process(false)
@@ -70,7 +75,7 @@ func _initialize() -> void:
 			anim.seek(0.3, true)
 			anim.pause()
 	await create_timer(0.3).timeout
-	_save("%s/%s_row_game.png" % [dir, tag])
+	await _save("%s/%s_row_game.png" % [dir, tag])
 	var cam := Camera3D.new()
 	get_root().add_child(cam)
 	var centre := at + Vector3(0.0, 1.0, FRONT_Z * 0.5)
@@ -80,12 +85,12 @@ func _initialize() -> void:
 	cam.look_at(centre)
 	cam.make_current()
 	await create_timer(0.3).timeout
-	_save("%s/%s_row_close.png" % [dir, tag])
+	await _save("%s/%s_row_close.png" % [dir, tag])
 	cam.size = FRONT_SIZE
 	cam.global_position = centre + Vector3(0.0, 1.2, 9.0)
 	cam.look_at(centre + Vector3(0.0, 0.2, 0.0))
 	await create_timer(0.2).timeout
-	_save("%s/%s_row_front.png" % [dir, tag])
+	await _save("%s/%s_row_front.png" % [dir, tag])
 	game.stop_all_sfx()
 	await create_timer(0.2).timeout
 	quit()
@@ -94,5 +99,13 @@ func _initialize() -> void:
 func _save(path: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
+	if _bars:
+		for e in get_nodes_in_group("enemies"):
+			if "last_hit_ms" in e:
+				e.last_hit_ms = Time.get_ticks_msec()
+				if e.state == e.State.SPAWN:  # bars skip spawning foes; physics is off, so nothing else reads it
+					e.state = e.State.CHASE
+		await process_frame
+		await process_frame
 	get_root().get_texture().get_image().save_png(path)
 	print("saved ", ProjectSettings.globalize_path(path))
