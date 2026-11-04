@@ -15,6 +15,20 @@ const BIND := preload("res://scripts/floor_bind.gd")
 const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
 
+## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
+## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
+## as a fraction of the clip, and their cancel / end / breaker leap keep the time after the hit they had.
+const GR_HIT := 7.0 / 31.0  # Ab_GR: the claws snap shut on f7 (hand arrives f5, held to f12). Was 0.24 (f7.4)
+const VS_HIT := 17.0 / 46.0  # Ab_VS: the slam lands on f17 (held to f23). Was 0.39 (f17.9, a frame late)
+const LH_HIT := 14.0 / 51.0  # Ab_LH: the rake arrives on f14. Was 0.29 (f14.8)
+const H_HIT := 15.0 / 63.0  # Ab_H: the crescent arrives on f15. Was 0.24 (f15.1)
+const LLH_HIT := 20.0 / 59.0  # Ab_LLH: the spear drives in on f20. Was 0.34 (f20.1)
+const AF_HIT := 50.0 / 99.0  # Ab_AF: the palm lands on f50. Was 0.51 (f50.5)
+## A breaker's leap comes this long (clip fraction) after the ender's hit, as round 30 had it.
+const LEAP_AFTER_GRAB := 0.02  # Grounded / Worldbreaker / Meteor Fall off a grab-clip ender (was 0.26 - 0.24)
+const LEAP_AFTER_SLAM := 0.11  # Collapse / Abyss off the slam clip (0.5 - 0.39)
+const LEAP_AFTER_TIDE := 0.26  # Maw off Black Tide's grab clip (0.5 - 0.24)
+
 ## The move right click plays off each move. From nothing, the grab.
 const AFTER := {"L1": "EC", "L2": "IP", "L3": "EM", "EC": "EE", "AL1": "EW", "DL": "EF", "EF": "EA", "IP": "IJ", "IJ": "IS", "EM": "EV", "GR": "VS", "VR": "VD"}
 const NEUTRAL := "GR"
@@ -38,21 +52,21 @@ const BREAKER_TO_CLOSE := 0.32  # s from open to close
 ## tentacles through the hang. `alt` is what L in the window changes it to, instead of right click.
 ## Copies of _WINDOW in effect (entry()).
 const BREAKERS := {
-	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": 0.26, "awaken": 8.0, "awaken_perfect": 16.0,
+	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 8.0, "awaken_perfect": 16.0,
 		"names": {"spirit": "Grounded"}},
-	"EW": {"erupt": "earth", "wire": true, "damage": 36.0, "leap": 0.26, "height": 2.6, "awaken": 12.0, "awaken_perfect": 22.0,
+	"EW": {"erupt": "earth", "wire": true, "damage": 36.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "height": 2.6, "awaken": 12.0, "awaken_perfect": 22.0,
 		"names": {"spirit": "Worldbreaker"},
 		"alt": {"erupt": "water", "cubes": true, "damage": 40.0, "names": {"spirit": "Cold Front"}}},
 	"IS": {"erupt": "water", "press": true, "at_spot": true, "short": 3.0, "dive": 0.3, "damage": 34.0, "leap": 0.5, "awaken": 12.0, "awaken_perfect": 22.0,
 		"height": 1.2, "names": {"spirit": "Avalanche"}},
-	"EV": {"erupt": "earth", "rip": true, "meteor": true, "damage": 60.0, "leap": 0.26, "awaken": 10.0, "awaken_perfect": 20.0,
+	"EV": {"erupt": "earth", "rip": true, "meteor": true, "damage": 60.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 10.0, "awaken_perfect": 20.0,
 		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"}},
 	# Dark: he comes down at dark_spot, where the string gathered them (`at_spot`, `short` m this side of it).
-	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": 0.5,
+	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Collapse"}},
-	"VD": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 4.6, "maw": true, "damage": 52.0, "leap": 0.5,
+	"VD": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 4.6, "maw": true, "damage": 52.0, "leap": GR_HIT + LEAP_AFTER_TIDE,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Maw"}},
-	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": 0.5,
+	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"}},
 }
 

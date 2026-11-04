@@ -178,6 +178,20 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 		if leap >= 0.0:
 			_expect(m.leap >= hit and m.leap < m.end, what + " breaker leaps after the hit")
 		_expect(base.hash() == before, what + " left MOVES itself alone")
+	# The tentacle moves play their clips raw: MOVES' first hit is the clip's keyed contact (claw snap, slam, rake).
+	var keyed: Node3D = _contact_models[CONTACT.KEYED_MODEL]
+	var keyed_rig: AnimationPlayer = keyed.find_child("AnimationPlayer", true, false)
+	var void_moves := 0
+	for id: String in hero_script.MOVES:
+		var mv: Dictionary = hero_script.MOVES[id]
+		if not CONTACT.VOID_CLIPS.has(mv.anim) or id in CONTACT.VOID_EXEMPT:
+			continue
+		var clip: Animation = keyed_rig.get_animation(mv.anim)
+		var frames := roundi(clip.length * Look.HERO_CLIP_FPS)
+		var contact: int = CONTACT.void_contact(keyed, clip, frames, Look.HERO_CLIP_FPS, Look.HERO_CONTACT_SPEED, CONTACT.VOID_CLIPS[mv.anim][0])
+		_expect(absf(mv.hits[0] * frames - contact) < 0.01, "%s hits on %s's contact frame %d/%d (%.2f; tests/contact_frames.gd)" % [id, mv.anim, contact, frames, mv.hits[0] * frames])
+		void_moves += 1
+	_expect(void_moves >= 14, "the tentacle moves are checked against their clips (%d)" % void_moves)
 	kaykit.free()
 	for m: Node3D in _contact_models.values():
 		m.free()
