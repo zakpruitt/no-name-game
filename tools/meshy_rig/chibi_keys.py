@@ -24,10 +24,10 @@ STEP_ATTACK = 4  # frames per drawing at 30 fps for clips played at 1.7: 12.75 d
 STEP_STANCE = 3  # at 1.1: 11 a second
 # From the game camera (54 degrees down) up-and-down barely reads, so a squash also widens the hood
 # past volume (x this per unit of squash) and the runs sway sideways over the planted foot.
-HSQ_WIDE = 0.0
-COPIED_STEP = 6
-RUN_SWAY = 0.02  # m the hips shift sideways per footfall (+ his right on the left foot's contact)
-RUN_ROLL = 4.0  # degrees of roll per footfall  # frames per claw drawing on the clips still copied from the shaman (claws only)
+HSQ_WIDE = 0.6
+COPIED_STEP = 6  # frames per claw drawing on the clips still copied from the shaman (claws only)
+RUN_SWAY = -0.05  # m the hips shift sideways per footfall, over the planted foot (- his left on the left foot)
+RUN_ROLL = -10.0  # degrees of roll per footfall, leaning over the planted foot
 
 arm = bpy.data.objects["Armature"]
 BONES = arm.data.bones
