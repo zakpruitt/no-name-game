@@ -26,6 +26,12 @@ A launch across the foe rolls it sideways instead of flipping it. Big hits
 swell the foe's own ink outline for a beat. Killed in the air, the corpse
 spins all the way down; a crowd killed by one blow pops one after another.
 
+Round 3: the element slams that come down on a foe crater it: ice Deep Freeze
+(before the cube closes), magma Meteor Fall (the foe it lands on) and dark Maw
+(the jaws shutting). The Bone Warden gets a reduced set: a flash in the hero's
+colour on every hit, and on big hits its outline swells and it squashes a
+little; it never leans, tumbles or leaves the floor.
+
 ## Files
 
 - `scripts/enemy.gd`:
@@ -71,6 +77,18 @@ spins all the way down; a crowd killed by one blow pops one after another.
   `daze()` + `_star()` (the dummy's inked dizzy stars).
 - `scripts/training_dummy.gd` (punching bag): `_lean` / `_squash` /
   `_knock_down` overrides, the `_bag_step` spring, `_shake_off`.
+
+- Round 3: `scripts/void_element.gd` passes `Vector3.DOWN * DEEP_FREEZE_DOWN`
+  (`_deep_freeze`), `* METEOR_DOWN` (`_tear`, the seized foe only; the splash
+  stays flat) and `* MAW_DOWN` (`_maw`, through `dark_fx.quiet_hit(e, damage,
+  big, knockback)`) as the knockback. Avalanche, timings, damage and routing are
+  untouched. `enemy.burn_hit(damage, big, knockback)`: a quiet hit that spikes
+  still runs `_hit_reaction` (the crater), with no sparks or word. A kill from
+  a slam calls `_die` with `knockback.y` clamped to 0, so the death pop goes up.
+- `scripts/boss.gd`: `_boss_reaction(big)` replaces its plain `Fx.flash`:
+  `Fx.flash_tint` in `_hit_color()` (FLASH_TAP / FLASH_BIG), and on big hits
+  `_ink_pulse(BOSS_INK)` + `_squash(BOSS_SQUASH)`. Its `take_hit` still never
+  calls super, so no lean, tumble, launch or crater.
 
 ## How it works
 
@@ -118,6 +136,9 @@ spins all the way down; a crowd killed by one blow pops one after another.
   `_set_state(HURT)` clears `_spiked`.
 - `Fx.outline_own` is a no-op headless (like `outline`): `_ink_mat` is null
   there and `_ink_pulse` only records `last_ink`.
+- A move that should crater passes a negative `knockback.y` (or `launch < 0`)
+  and nothing else: the reaction, motion and crater all follow from
+  `_is_spike`. Keep the flat part zero when the move pins the foe (cubes, jaws).
 
 ## Tuning (top of `enemy.gd`)
 
@@ -138,6 +159,9 @@ spins all the way down; a crowd killed by one blow pops one after another.
   `SQUASH_TIME`, `INK` per kind, `INK_TIME`, `AIR_KILL_SPIN`. Measured: a
   spiked skid 2.61 m against 0.25 m for a plain landing; a side launch rolls
   5.2 rad; an air kill spins 3.5 rad before it lands.
+- Round 3: `void_element.DEEP_FREEZE_DOWN` / `METEOR_DOWN` / `MAW_DOWN` (6 m/s:
+  only the sign matters to `_is_spike`; the size points the comic speed
+  strokes down), `boss.BOSS_SQUASH` (1.08, 0.9, 1.08), `boss.BOSS_INK` 1.6.
 
 ## Testing
 
@@ -155,6 +179,12 @@ spins all the way down; a crowd killed by one blow pops one after another.
   boing, shake-off, the ink multiplier, air-kill spin, multi-kill pop wave.
   The preview row is six foes (adds a roll and a crater); `-- --bag` shows
   three dummies (tipped, swinging back, dazed) → `user://enemy_feel_bag.png`.
+- Round 3 adds to `enemy_feel_check`: Deep Freeze, Meteor Fall and Maw each run
+  for real on a minion and crater it; the Warden's tap only flashes, its big
+  hit squashes 0.90 and inks 1.6x with zero tilt; the bag's flags, a shake-off
+  cut by a hit, the last-string tag; `--spar`. Preview `-- --slams`: each slam
+  on its own minion, then the Warden → `user://enemy_feel_slams_<move>.png`;
+  `-- --bag` adds a fourth dummy with its `LAST n` tag.
 
 ## Gotchas
 
@@ -165,3 +195,7 @@ spins all the way down; a crowd killed by one blow pops one after another.
   `last_squash` instead.
 - The wave tween starts on the next idle frame, so the first step lands a
   frame or two late headless; the check allows ±2 frames.
+- At 0.1 s Maw's jaws cover the foe's crater in a still; the crater is there
+  (`last_squash`), the jaws own that beat.
+- Freeing a foe right after hitting it (mid flash / squash) floods headless
+  runs with `Parameter "material" is null` (10 lines); tests wait ~1 s first.

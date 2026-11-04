@@ -98,6 +98,15 @@ fast-forward, so no agent edits another's files or index.
   combo (`--only=`) and compare. Two of round 29's three "worst" items turned out to be a different effect.
 - **Killing Godot:** never `taskkill //IM godot.exe` (it hits other agents' runs and is refused); stop your own background command with TaskStop, and always wrap Godot in `timeout N`.
 - **An eye or decal that draws nothing:** check face culling before position. A hand-built fan wound counter-clockwise is back-facing in Godot; set `cull_mode = CULL_DISABLED` like `heretic_form_fx.gd`.
+- **"Parameter material is null" (10 lines, headless) has one reproducible cause:** `queue_free()` on a foe
+  within a frame or so of hitting it (its flash / squash / ink tweens still running). Waiting ~1 s before freeing
+  made it go away in `enemy_feel_check`; a foe killed and freed by the game mid-flash is the likely autotest source.
+- **Bisect a stray headless error by early `return`s** in the test body (one Godot run per marker, in a background
+  loop), not by disabling features: it took four runs to pin the line that mattered.
+- **A line-end `\\` typed into a Bash heredoc reached the Python edit script as one `\`**, so an edit whose old text
+  held a GDScript line continuation never matched. Anchor the edit on the next line instead.
+- **To film one move on one foe in a crowd**, take the others out of the `"enemies"` group for the call
+  (`FOES.near` reads it) or film each on its own: three slams side by side were one purple blot.
 
 ## When you're done
 

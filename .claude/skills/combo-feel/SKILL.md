@@ -30,6 +30,9 @@ Pillar 1 is combat feel first. Strings should read as motion, not as standing st
 - **Direction is a contract.** `take_hit(..., knockback, launch, ...)`: `launch >= enemy.RELAUNCH_MIN` (7) while up re-launches with the stretch; `launch < 0` or `knockback.y < 0` is a slam (crater, long skid); any fall past `SPIKE_FALL` (15 m/s) craters too. A new move that should crater passes a negative `knockback.y`.
 - **Side vs facing.** Knockback across the foe's facing rolls it; along it backflips. Aim knockback where the hit visually goes.
 - Visual reactions go in `_hit_reaction` / `_react` only. Sample `last_squash` / `last_ink` in headless tests, not `model.scale` (tweens run on idle frames).
+- **Making a move crater:** next to its `take_hit`, pass `Vector3.DOWN * <MOVE>_DOWN` (a named const, 6 m/s) as the knockback, flat part zero if it pins the foe (Deep Freeze, Meteor Fall, Maw do). A quiet hit (`burn_hit` / `dark_fx.quiet_hit`) takes the same knockback and still craters, with no sparks. Check it with `last_squash == SQUASH.crater` after calling the real `void_element` function on a minion in `enemy_feel_check`.
+- **Bosses** don't call `enemy.take_hit`: their reaction is `boss._boss_reaction` (flash, and ink + small squash on big hits). Don't add lean or tumble there: super armour must read as unmoved.
+- **Trying a string on a foe that moves:** `godot --path . -- --spar=rogue` (or minion / shield / warrior), 1/3 damage; the autotest with `--spar=` prints its `hits_taken`.
 
 ## Process
 1. **Change the data.** Prefer table edits (`MOVES`, `COMBOS`, the `VOID_ELEMENT` tables, `CASTS`, `BREAKERS`), each with a short tuning comment.
