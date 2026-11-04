@@ -6,7 +6,6 @@ extends RefCounted
 const FOES := preload("res://scripts/foes.gd")
 const SELF := preload("res://scripts/dark_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
-const SPLAT_SHADER := preload("res://shaders/dark_splat.gdshader")
 
 const INK := Color(0.03, 0.01, 0.06)
 const VIOLET := Color(0.62, 0.3, 1.0)
@@ -440,7 +439,7 @@ class Maw extends Node3D:
 		tw.tween_callback(queue_free)
 
 
-## A burst of ink that plays as a few held frames, not a smooth fade.
+## A burst of ink tentacles that plays as a few held frames, not a smooth fade.
 static func splat(parent: Node, at: Vector3, size: float) -> void:
 	var s := Splat.new()
 	parent.add_child(s)
@@ -449,31 +448,121 @@ static func splat(parent: Node, at: Vector3, size: float) -> void:
 
 
 class Splat extends Node3D:
-	const FRAMES := [0.12, 0.3, 0.52, 0.74, 0.92]
+	## Ink tentacles lashing out of a blob, flat and facing the camera, on twos: an inked edge, a violet
+	## body and a hot core line down each, tapering in segments, curling as they go. The old spiky shader
+	## splat read as flat black slabs (four of them over a towed pile), not as tentacles.
+	const FRAMES := [0.12, 0.3, 0.52, 0.74, 0.92]  # how far through it each held frame is
 	const FRAME_TIME := 0.05  # s
+	const REACH_BY_FRAME := [0.6, 1.0, 1.05, 0.95, 0.7]
+	const WIDTH_BY_FRAME := [1.15, 1.05, 0.95, 0.75, 0.45]
+	const ARMS := Vector2i(5, 7)
+	const ARM_W := 0.14  # of the size: the ink half-width at the root
+	const SEGMENTS := 4  # each narrows to its joint, so the arm reads as a tentacle
+	const POINTS := 16
+	const BLOB := 0.3  # of the size: the middle
 
 	var size := 3.0
 	var _t := 0.0
-	var _mat: ShaderMaterial
+	var _frame := -1
+	var _right := Vector3.RIGHT
+	var _up := Vector3.UP
+	var _arms := []  # [angle, reach, curl, width]
+	var _blob := PackedFloat32Array()
+	var _rng := RandomNumberGenerator.new()
+	var _mesh := ArrayMesh.new()
+	var _verts := PackedVector3Array()
+	var _colors := PackedColorArray()
 
 	func _ready() -> void:
-		_mat = ShaderMaterial.new()
-		_mat.shader = SPLAT_SHADER
-		_mat.set_shader_parameter("seed", randf() * 40.0)
-		_mat.set_shader_parameter("progress", FRAMES[0])
-		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * 2.0
-		var m := SELF.part(self, quad, _mat)
-		m.extra_cull_margin = 8.0
-		scale = Vector3.ONE * size
+		_rng.randomize()
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			_right = cam.global_basis.x
+			_up = cam.global_basis.y
+		var n := _rng.randi_range(ARMS.x, ARMS.y)
+		var turn := _rng.randf() * TAU
+		for i in n:
+			_arms.append([turn + TAU * (i + _rng.randf_range(-0.2, 0.2)) / n, _rng.randf_range(0.7, 1.0),
+				_rng.randf_range(0.5, 1.1) * (1.0 if _rng.randf() < 0.5 else -1.0), _rng.randf_range(0.8, 1.15)])
+		for i in 9:
+			_blob.append(_rng.randf_range(0.8, 1.2))
+		var mi := MeshInstance3D.new()
+		mi.mesh = _mesh
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.extra_cull_margin = size + 2.0
+		mi.set_meta("no_ghost", true)
+		add_child(mi)
+		tick(0.0)
 
 	func _process(delta: float) -> void:
+		tick(delta)
+
+	## Public so a test can step it exactly.
+	func tick(delta: float) -> void:
 		_t += delta
 		var frame := int(_t / FRAME_TIME)
 		if frame >= FRAMES.size():
 			queue_free()
 			return
-		_mat.set_shader_parameter("progress", FRAMES[frame])
+		if frame != _frame:
+			_frame = frame
+			_draw(frame)
+
+	func _draw(f: int) -> void:
+		_verts.clear()
+		_colors.clear()
+		var reach: float = size * REACH_BY_FRAME[f]
+		var w: float = size * ARM_W * WIDTH_BY_FRAME[f]
+		var last := f == FRAMES.size() - 1
+		for arm: Array in _arms:
+			_arm(arm, reach, w * 1.0, INK)
+		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 1.25, INK)
+		for arm: Array in _arms:
+			_arm(arm, reach * 0.97, w * 0.62, VIOLET)
+		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9, VIOLET)
+		if not last:
+			for arm: Array in _arms:
+				_arm(arm, reach * 0.85, w * 0.2, HOT)
+			_disc(size * BLOB * 0.42 * WIDTH_BY_FRAME[f], INK)  # the hole in the middle
+		_mesh.clear_surfaces()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = _verts
+		arrays[Mesh.ARRAY_COLOR] = _colors
+		_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_mesh.surface_set_material(0, load("res://scripts/heretic_form_fx.gd").material())
+
+	func _screen(a: float) -> Vector3:
+		return _right * cos(a) + _up * sin(a)
+
+	## One tentacle: out from the blob's edge along its angle, curling, segment by segment narrower.
+	func _arm(arm: Array, reach: float, w: float, c: Color) -> void:
+		var prev_l := Vector3.ZERO
+		var prev_r := Vector3.ZERO
+		for i in POINTS + 1:
+			var k := float(i) / POINTS
+			var a: float = arm[0] + arm[2] * k * k
+			var along := _screen(a)
+			var side := _screen(a + PI * 0.5)
+			var p: Vector3 = along * (size * BLOB * 0.5 + reach * float(arm[1]) * k)
+			var seg := fmod(k * SEGMENTS, 1.0)
+			var half: float = w * arm[3] * pow(1.0 - k, 0.7) * (1.0 - 0.3 * seg)
+			var l: Vector3 = p + side * half
+			var r: Vector3 = p - side * half
+			if i > 0:
+				_tri(prev_l, prev_r, l, c)
+				_tri(l, prev_r, r, c)
+			prev_l = l
+			prev_r = r
+
+	func _disc(r: float, c: Color) -> void:
+		var n := _blob.size()
+		for i in n:
+			_tri(Vector3.ZERO, _screen(TAU * i / n) * r * _blob[i], _screen(TAU * (i + 1) / n) * r * _blob[(i + 1) % n], c)
+
+	func _tri(a: Vector3, b: Vector3, c: Vector3, col: Color) -> void:
+		_verts.append_array([a, b, c])
+		_colors.append_array([col, col, col])
 
 
 ## Fat drops of ink flung out, falling and shrinking away.
@@ -507,12 +596,7 @@ static func ink_drops(parent: Node, at: Vector3, count: int, reach: float) -> vo
 
 ## Materials that want compiling before their first fight (elements.prewarm), at a real size.
 static func prewarm_pieces(root: Node3D) -> void:
-	part(root, floor_ink(), ink_mat())
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 2.0
-	var mat := ShaderMaterial.new()
-	mat.shader = SPLAT_SHADER
-	part(root, quad, mat)
+	part(root, floor_ink(), ink_mat())  # (Splat draws with heretic_form_fx's material, warmed with the form bursts)
 
 
 ## A hit that does its damage and number without sparks or a word per foe: the source draws its own.
