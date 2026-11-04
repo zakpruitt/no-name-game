@@ -28,6 +28,9 @@ const EDGE_OUTLINE := 0.07  # m, dark outline
 ## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
+const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
+const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
+const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
 const COMIC_FLASH := Color(1.0, 0.97, 0.88)  # a comic hit flash's paper ink
 ## Flat two-tone chip colour off the axes per element (element_hit).
@@ -233,6 +236,15 @@ static func flare(parent: Node, at: Vector3, color: Color, size: float, time := 
 static func burst(parent: Node, pos: Vector3, color: Color, amount := 14, speed := 7.0,
 		size := 0.12, lifetime := 0.3, dir := Vector3.UP, spread := 70.0, gravity := -12.0,
 		radius := 0.0, tex := "dot", add := false) -> void:
+	if Game.comic_style:  # a few chunky two-tone chips, no smoke and no dot spray
+		if tex == "smoke" or amount <= 1:  # (1: elements.prewarm; the chips' material is already warm)
+			return
+		var c := Color(color, 1.0)
+		var wide := spread >= 120.0 or dir.length() < 0.01
+		COMIC_POP.spawn(parent, pos, {"chips": clampi(amount / 3, 2, COMIC_BURST_CHIPS), "chip": c,
+			"chip_size": clampf(size * 0.9, 0.08, 0.17), "chip_speed": clampf(speed * 0.6, 2.5, 6.0),
+			"dir": Vector3.ZERO if wide else dir, "spread": deg_to_rad(clampf(spread, 20.0, 80.0)), "steps": 3})
+		return
 	# CPU particles: no shader compile hitch on first spawn, cheap at these counts.
 	var p := CPUParticles3D.new()
 	size *= TEX_SCALE.get(tex, 1.0)
@@ -581,6 +593,9 @@ static func _star(outer: float, inner: float) -> ArrayMesh:
 ## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
 ## soot and fades over `time` (magma, breaker landings). Blend mix so it reads on light tiles.
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:
+	if Game.comic_style:  # a flat inked splat and cracks, hot then soot; not a soft glowing decal
+		COMIC_CRACK.spawn(parent, pos, Color.from_hsv(color.h, maxf(color.s, 0.85), 1.0), radius * COMIC_CRACK_SIZE, time)
+		return
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2.ONE * 2.0
