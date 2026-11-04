@@ -56,9 +56,7 @@ func _ready() -> void:
 
 
 func _fade(a: float) -> void:
-	for i in _mats.size():
-		_mats[i].albedo_color.a = 0.55 * a
-		_rims[i].set_shader_parameter("intensity", 2.2 * a)
+	SPIRIT_ECHO.fade_ghosts(_mats, _rims, 0.55 * a, 2.2 * a)
 
 
 func _process(delta: float) -> void:
@@ -71,8 +69,5 @@ func _process(delta: float) -> void:
 		var out: Vector3 = e.global_position - at
 		out.y = 0.0
 		var tangent := out.normalized().cross(Vector3.DOWN)  # the way the blades are moving
-		e.take_hit(damage, (out.normalized() + tangent).normalized() * 3.0, 0.0, false)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent().get_parent(), e.global_position, el, tangent)
-		if on_hit.is_valid():
-			on_hit.call(e)
+		SPIRIT_ECHO.strike(e, damage, (out.normalized() + tangent).normalized() * 3.0, 0.0, false,
+			get_parent().get_parent(), el, tangent, false, on_hit)

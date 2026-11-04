@@ -73,9 +73,7 @@ func _rise(t: float) -> void:
 
 
 func _fade(a: float) -> void:
-	for i in _mats.size():
-		_mats[i].albedo_color.a = 0.6 * a
-		_rims[i].set_shader_parameter("intensity", 2.4 * a)
+	SPIRIT_ECHO.fade_ghosts(_mats, _rims, 0.6 * a, 2.4 * a)
 
 
 func _erupt() -> void:

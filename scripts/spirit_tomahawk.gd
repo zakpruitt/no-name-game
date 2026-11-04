@@ -27,7 +27,7 @@ var el := "spirit"
 var _axe: MeshInstance3D
 var _spinner: Node3D
 var _from := Vector3.ZERO
-var _hit: Array = []
+var _hit: Array[Node] = []
 var _back := false
 var _puff := 0.0
 
@@ -92,8 +92,5 @@ func _cut() -> void:
 			shared[key] = true
 		var push: Vector3 = e.global_position - at
 		push.y = 0.0
-		e.take_hit(back_damage if _back else damage, push.normalized() * 4.0, 0.0, false)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent(), e.global_position, el, push.normalized())
-		if on_hit.is_valid():
-			on_hit.call(e)
+		SPIRIT_ECHO.strike(e, back_damage if _back else damage, push.normalized() * 4.0, 0.0, false,
+			get_parent(), el, push.normalized(), false, on_hit)

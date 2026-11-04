@@ -8,7 +8,6 @@ extends Node3D
 ## Spawned by player._cast for casts of kind "cleave" (elements.CASTS) at the
 ## target point; built from spirit_echo.gd's ghost().
 
-const ELEMENTS := preload("res://scripts/elements.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const SPIRIT_AVATAR := preload("res://scripts/spirit_avatar.gd")
 const HEAD := 0.62  # axe-local Y of the head centre (hero_look.BLADE_CENTER)
@@ -39,7 +38,7 @@ func _ready() -> void:
 	rotation.y = atan2(fwd.x, fwd.z)
 	var reach := 0.4 + HEAD * size  # pivot to head centre
 	var height := EDGE * size * 0.92  # blade edge bites the floor
-	for sgn in [-1.0, 1.0]:
+	for sgn: float in [-1.0, 1.0]:
 		# Pivot out to the side and back toward the hero; local +Z points at the target.
 		var out := Vector3(sgn, 0.0, 0.0).rotated(Vector3.UP, deg_to_rad(-sgn * SWEEP))
 		var yaw := Node3D.new()
@@ -91,9 +90,7 @@ func _bury(t: float) -> void:
 
 
 func _fade(a: float) -> void:
-	for i in _mats.size():
-		_mats[i].albedo_color.a = 0.62 * a
-		_rims[i].set_shader_parameter("intensity", 2.4 * a)
+	SPIRIT_ECHO.fade_ghosts(_mats, _rims, 0.62 * a, 2.4 * a)
 
 
 func _impact() -> void:
@@ -122,8 +119,4 @@ func _hit(head: Vector3) -> void:
 		if not near:
 			continue
 		var kb := (p - head).normalized() if p.distance_to(head) > 0.3 else fwd
-		e.take_hit(damage, kb * 5.0, launch, true)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent(), e.global_position, el, kb, true)
-		if on_hit.is_valid():
-			on_hit.call(e)
+		SPIRIT_ECHO.strike(e, damage, kb * 5.0, launch, true, get_parent(), el, kb, true, on_hit)

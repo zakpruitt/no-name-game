@@ -37,7 +37,7 @@ var el := "spirit"  # element of the hit debris (Fx.element_hit)
 
 var _pivot: Node3D
 var _mat: StandardMaterial3D
-var _hit: Array = []
+var _hit: Array[Node] = []
 var _scale := 1.0
 
 
@@ -113,6 +113,26 @@ static func _form_mesh(radius: float, length: float, sides: int) -> Mesh:
 	return _form_meshes[key]
 
 
+## Fade every ghost at once: `body_a` on the bodies, `rim` intensity on the
+## rims (each cast's _fade, with its own full-strength numbers).
+static func fade_ghosts(mats: Array[StandardMaterial3D], rims: Array[ShaderMaterial],
+		body_a: float, rim: float) -> void:
+	for i in mats.size():
+		mats[i].albedo_color.a = body_a
+		rims[i].set_shader_parameter("intensity", rim)
+
+
+## One foe struck by a spirit cast: the hit, the combo counter, element debris
+## at the foe (`debris_dir`, `big`) under `fx_parent`, then the caller's hook.
+static func strike(e: Node, damage: float, knockback: Vector3, launch: float, heavy: bool,
+		fx_parent: Node, el: String, debris_dir: Vector3, big: bool, on_hit: Callable) -> void:
+	e.take_hit(damage, knockback, launch, heavy)
+	Game.register_hit("cast")
+	Fx.element_hit(fx_parent, e.global_position, el, debris_dir, big)
+	if on_hit.is_valid():
+		on_hit.call(e)
+
+
 ## Sweep position `t` (0 start .. 1 end of the arc); also hits enemies it passes.
 func pose(t: float) -> void:
 	var half := deg_to_rad(arc_deg) * 0.5
@@ -146,8 +166,4 @@ func _hit_swept(angle: float) -> void:
 		if bearing * side < start * side or bearing * side > angle * side:
 			continue
 		_hit.append(e)
-		e.take_hit(damage, to.normalized() * 5.0, 0.0, false)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent(), e.global_position, el, to.normalized())
-		if on_hit.is_valid():
-			on_hit.call(e)
+		strike(e, damage, to.normalized() * 5.0, 0.0, false, get_parent(), el, to.normalized(), false, on_hit)

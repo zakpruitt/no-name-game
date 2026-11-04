@@ -73,9 +73,7 @@ func _grow(t: float) -> void:
 
 
 func _fade(a: float) -> void:
-	for i in _mats.size():
-		_mats[i].albedo_color.a = 0.5 * a
-		_rims[i].set_shader_parameter("intensity", 2.6 * a)
+	SPIRIT_ECHO.fade_ghosts(_mats, _rims, 0.5 * a, 2.6 * a)
 
 
 ## Playback speed that lands the axe `seconds` after spawning.

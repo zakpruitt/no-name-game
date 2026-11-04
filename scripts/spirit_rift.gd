@@ -27,7 +27,7 @@ var launch := 5.0
 var on_hit := Callable()
 var el := "spirit"
 
-var _hit: Array = []
+var _hit: Array[Node] = []
 
 
 func _ready() -> void:
@@ -87,8 +87,4 @@ func _burst(i: int) -> void:
 		if e in _hit:
 			continue
 		_hit.append(e)
-		e.take_hit(damage, fwd * 5.0, launch, true)
-		Game.register_hit("cast")
-		Fx.element_hit(parent, e.global_position, el, fwd, true)
-		if on_hit.is_valid():
-			on_hit.call(e)
+		SPIRIT_ECHO.strike(e, damage, fwd * 5.0, launch, true, parent, el, fwd, true, on_hit)

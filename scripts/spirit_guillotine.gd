@@ -109,8 +109,4 @@ func _impact() -> void:
 			shared[e] = true
 		var kb: Vector3 = e.global_position - at
 		kb.y = 0.0
-		e.take_hit(damage, kb.normalized() * 3.0, 0.0, true)
-		Game.register_hit("cast")
-		Fx.element_hit(get_parent(), e.global_position, el, Vector3.DOWN, true)
-		if on_hit.is_valid():
-			on_hit.call(e)
+		SPIRIT_ECHO.strike(e, damage, kb.normalized() * 3.0, 0.0, true, get_parent(), el, Vector3.DOWN, true, on_hit)
