@@ -89,6 +89,9 @@ func _film(combo_name: String, moves: Array, alt: bool) -> void:
 	while _p.state != _p.State.LEAP and t < 1.0:
 		await process_frame
 		t += _p.get_process_delta_time()
+	if _p.state != _p.State.LEAP:
+		await create_timer(0.45).timeout
+		await _shot("%s_2" % combo_name)  # what it leaves on the floor (no hang to film)
 	if _p.state == _p.State.LEAP:
 		while _p.state == _p.State.LEAP and _state_t() < 0.3:
 			await process_frame
