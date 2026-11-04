@@ -82,6 +82,30 @@ func _extra() -> void:
 	await _wave()
 	await _direction()
 	await _bag()
+	await _air_kill()
+
+
+## Killed while up: the corpse spins faster all the way down, then settles on a full turn.
+func _air_kill() -> void:
+	var e: Node = await _fresh(_main.player.global_position + Vector3(0.0, 0.0, 4.0))
+	e.model.rotation.y = PI
+	e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 9.0, true)
+	await create_timer(0.3).timeout
+	e.hp = 1.0
+	e.take_hit(5.0, Vector3(0.0, 0.0, 6.0), 0.0, true)
+	_check(e.state == e.State.DEAD and e.last_squash == e.SQUASH.air_kill and absf(e._tumble_v) > e.TUMBLE_BIG * 1.5,
+		"an air kill spins on (%.1f rad/s)" % e._tumble_v)
+	var spun := 0.0
+	var start: float = e.model.rotation.x
+	for i in 120:
+		await physics_frame
+		spun = maxf(spun, absf(e.model.rotation.x - start))
+		if e._tumble_v == 0.0:
+			break
+	await create_timer(0.25).timeout
+	var off: float = absf(e.model.rotation.x - roundf(e.model.rotation.x / TAU) * TAU)
+	_check(spun > 2.0 and off < 0.01, "the corpse spins %.1f rad down and lands flat (%.3f off)" % [spun, off])
+	print("[enemy_feel] air kill: spins %.1f rad/s, %.1f rad before it lands" % [e._tumble_v if e._tumble_v != 0.0 else e.TUMBLE_BIG * e.AIR_KILL_SPIN, spun])
 
 
 ## The training dummy as a punching bag: a tap snaps it over BAG_LEAN_MULT as
@@ -258,6 +282,16 @@ func _wave() -> void:
 	await physics_frame
 	crowd[1].take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
 	_check(is_equal_approx(crowd[1]._freeze_t, crowd[1].hit_freeze), "a hit the next frame starts a new wave (%.3f)" % crowd[1]._freeze_t)
+	# Killed by one blow: the death pops wait out the same wave.
+	await create_timer(0.6).timeout
+	for e in crowd:
+		e.hp = 1.0
+		e.take_hit(5.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	var waits: Array = crowd.map(func(e: Node) -> float: return e._wave_delay)
+	var killed := true
+	for i in 4:
+		killed = killed and crowd[i].state == crowd[i].State.DEAD and is_equal_approx(waits[i], i * crowd[0].WAVE_STEP)
+	_check(killed, "a multi-kill's death pops step by WAVE_STEP (%s)" % [waits])
 
 
 ## A launch hangs at its apex, tumbles, bounces once off the floor and skids.

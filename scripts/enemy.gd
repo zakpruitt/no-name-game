@@ -110,6 +110,7 @@ const SQUASH := {
 	"launch": Vector3(0.72, 1.45, 0.72),  # stretched tall as it leaves the ground
 	"juggle": Vector3(1.2, 0.84, 1.2),  # a sharp snap on each hit that keeps it up
 	"kill": Vector3(1.4, 0.6, 1.4),
+	"air_kill": Vector3(1.4, 0.6, 1.4),  # killed while up: the same pop, then it spins down (_die)
 	"land": Vector3(1.35, 0.65, 1.35),  # flattened on the floor
 	"bounce": Vector3(0.9, 1.15, 0.9),
 	"spike": Vector3(0.7, 1.5, 0.7),  # stretched long as it's driven down
@@ -126,7 +127,10 @@ const FLASH_TINT := 0.55
 const KILL_FREEZE := 0.14
 # Ink (_ink_pulse): big hits swell this foe's own outline to INK[kind] times
 # its width and ease it back over INK_TIME, so the blow reads in the line too.
-const INK := {"big": 2.0, "launch": 2.0, "spike": 2.4, "crater": 2.6, "kill": 2.8}
+const INK := {"big": 2.0, "launch": 2.0, "spike": 2.4, "crater": 2.6, "kill": 2.8, "air_kill": 2.8}
+# A kill in the air tumbles AIR_KILL_SPIN times TUMBLE_BIG all the way down,
+# then the corpse settles flat over TUMBLE_SETTLE on touchdown.
+const AIR_KILL_SPIN := 1.8
 const INK_TIME := 0.28  # s back to the resting width
 # Crowd hits read as a wave, not one frame: of the foes hit in the same
 # physics frame, each after the first reacts WAVE_STEP s later than the one
@@ -224,6 +228,7 @@ var _squash_tween: Tween
 var _ink_mat: ShaderMaterial  # this foe's own outline (Fx.outline_own; null headless), thickened by _ink_pulse
 var _ink_px := 0.0  # its resting width_px
 var _ink_tween: Tween
+var _wave_delay := 0.0  # this hit's place in its frame's wave, s (_die waits it out for the death pop)
 var last_ink := 1.0  # the last _ink_pulse multiplier (enemy_feel_check reads it)
 var last_squash := Vector3.ONE  # the last _squash() amount (enemy_feel_check reads it)
 var _lean_tween: Tween
@@ -386,6 +391,7 @@ func _physics_process(delta: float) -> void:
 				_set_state(State.CHASE)
 		State.DEAD:
 			_friction(delta, 20.0)
+			_corpse_tumble(delta)
 
 	if slow < 1.0 and state != State.AIRBORNE:
 		velocity.x *= slow
@@ -668,6 +674,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 			knockback.normalized() + Vector3.UP * 0.5)
 	if _quiet_hit:  # a burn tick: the pose hold, none of the show
 		_freeze_t = hit_freeze_big if big else hit_freeze
+		_wave_delay = 0.0
 	else:
 		_hit_reaction(damage, knockback, launch, big)
 	_telegraph.visible = false
@@ -708,7 +715,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 ## (grounded flinches) or "none" (poise held: it still flashes).
 func _reaction_kind(knockback: Vector3, launch: float, big: bool) -> String:
 	if hp <= 0.0:
-		return "kill"
+		return "air_kill" if state == State.AIRBORNE else "kill"
 	if _is_spike(knockback, launch):
 		return "spike" if state == State.AIRBORNE or not is_on_floor() else "crater"
 	if state == State.AIRBORNE:
@@ -726,7 +733,8 @@ func _reaction_kind(knockback: Vector3, launch: float, big: bool) -> String:
 func _hit_reaction(_damage: float, knockback: Vector3, launch: float, big: bool) -> void:
 	var kind := _reaction_kind(knockback, launch, big)
 	var delay := _wave_slot() * WAVE_STEP
-	_freeze_t = (KILL_FREEZE if kind == "kill" else (hit_freeze_big if big else hit_freeze)) + delay
+	_wave_delay = delay
+	_freeze_t = (KILL_FREEZE if kind in ["kill", "air_kill"] else (hit_freeze_big if big else hit_freeze)) + delay
 	if delay <= 0.0:
 		_react(kind, knockback, big)
 		return
@@ -748,7 +756,7 @@ func _wave_slot() -> int:
 
 
 func _react(kind: String, knockback: Vector3, big: bool) -> void:
-	Fx.flash_tint(model, _hit_color(), FLASH_BIG if big or kind == "kill" else FLASH_TAP)
+	Fx.flash_tint(model, _hit_color(), FLASH_BIG if big or kind in ["kill", "air_kill"] else FLASH_TAP)
 	if kind == "none":
 		return
 	if INK.has(kind):
@@ -764,6 +772,9 @@ func _react(kind: String, knockback: Vector3, big: bool) -> void:
 			_bounced = false  # every hit that keeps it up earns a bounce on the way down
 		"spike":
 			_kick_tumble(knockback, true)
+		"air_kill":
+			_kick_tumble(knockback, true)
+			_tumble_v *= AIR_KILL_SPIN
 		"crater":
 			_crater()
 
@@ -923,6 +934,21 @@ func _lean(knockback: Vector3, amount: float) -> void:
 	_lean_tween.tween_interval(LEAN_HOLD)
 	_lean_tween.tween_property(model, "rotation:x", 0.0, LEAN_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_lean_tween.parallel().tween_property(model, "rotation:z", 0.0, LEAN_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## A corpse killed in the air spins on until it lands, then settles flat.
+func _corpse_tumble(delta: float) -> void:
+	if _tumble_v == 0.0:
+		return
+	if not is_on_floor() or _state_t < 0.15:
+		_tumble(delta)
+		return
+	_tumble_v = 0.0
+	if _lean_tween:
+		_lean_tween.kill()
+	_lean_tween = create_tween().set_parallel()
+	_lean_tween.tween_property(model, "rotation:x", roundf(model.rotation.x / TAU) * TAU, TUMBLE_SETTLE)
+	_lean_tween.tween_property(model, "rotation:z", roundf(model.rotation.z / TAU) * TAU, TUMBLE_SETTLE)
 
 
 ## Fall apart on the spot (e.g. when the boss that summoned it dies).
@@ -1135,7 +1161,12 @@ func _die(knockback: Vector3) -> void:
 	collision_mask = 1
 	velocity = Vector3(knockback.x * 1.3, 4.0, knockback.z * 1.3)
 	_play("Death_A", 0.05, 1.4, true)
-	Fx.death(get_parent(), global_position, knockback, elite, Color(1.0, 0.85, 0.45) if elite else Color(0.93, 0.89, 0.78))
+	var pop := func() -> void:
+		Fx.death(get_parent(), global_position, knockback, elite, Color(1.0, 0.85, 0.45) if elite else Color(0.93, 0.89, 0.78))
+	if _wave_delay > 0.0:  # a crowd killed by one blow pops one after another, as its reactions do
+		create_tween().tween_callback(pop).set_delay(_wave_delay)
+	else:
+		pop.call()
 	Game.add_awakening(4.0 + (ELITE_AWAKEN_BONUS if elite else 0.0))
 	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
