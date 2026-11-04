@@ -422,6 +422,51 @@ static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time :
 	tw.chain().tween_callback(m.queue_free)
 
 
+## Where a foe was spiked into the floor (enemy._crater): a dark hole (a hard
+## disc CRATER_HOLE of the radius) under a ragged splat, both popping out to
+## `radius`, a dust ring past it, the lot fading over `time`.
+const CRATER_COLOR := Color(0.16, 0.12, 0.1, 0.85)  # soot brown, reads on the light tiles
+const CRATER_HOLE := 0.45  # the solid disc's radius, as a share of `radius`
+const CRATER_SPLAT := 1.6  # the splat quad's half-size, as a share of `radius` (its texture fills ~half of it)
+const CRATER_SEGMENTS := 14  # a chunky low-poly edge, not a perfect circle
+const CRATER_RING := Color(0.62, 0.57, 0.5, 0.75)  # the dust colour of dust()
+const CRATER_RING_OUT := 1.5  # the dust ring's reach, in crater radii
+static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> void:
+	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
+	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)
+	ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
+
+
+static func _crater_layer(parent: Node, at: Vector3, radius: float, tex: String, time: float) -> void:
+	var m := MeshInstance3D.new()
+	var mesh: PrimitiveMesh
+	if tex == "":  # the hole: a hard-edged flat disc, 1 m radius
+		var disc := CylinderMesh.new()
+		disc.top_radius = 1.0
+		disc.bottom_radius = 1.0
+		disc.height = 0.01
+		disc.radial_segments = CRATER_SEGMENTS
+		disc.rings = 1
+		mesh = disc
+	else:
+		var quad := PlaneMesh.new()
+		quad.size = Vector2.ONE * 2.0
+		mesh = quad
+	var mat := unshaded_mat(CRATER_COLOR, tex)
+	mesh.material = mat
+	m.mesh = mesh
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(m)
+	m.global_position = at + Vector3.UP * randf() * 0.01  # jitter: overlapping marks don't z-fight
+	m.rotation.y = randf() * TAU
+	m.scale = Vector3(radius * 0.3, 1.0, radius * 0.3)
+	var tw := m.create_tween()
+	tw.tween_property(m, "scale", Vector3(radius, 1.0, radius), 0.08).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_interval(time * 0.5)
+	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5)
+	tw.tween_callback(m.queue_free)
+
+
 ## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
 ## soot and fades over `time` (Cataclysm, fire waves). Blend mix so it reads on light tiles.
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:

@@ -51,8 +51,11 @@ func _initialize() -> void:
 		"a launch stretches to %.2f" % e.SQUASH.launch.y)
 	await physics_frame
 	await physics_frame
-	e.take_hit(1.0, kb, 9.0, false)
+	e.take_hit(1.0, kb, 5.0, false)
 	_check(is_equal_approx(e.model.scale.y, e.SQUASH.juggle.y * e.model_scale), "a juggle hit snaps to %.2f" % e.SQUASH.juggle.y)
+	await physics_frame
+	e.take_hit(1.0, kb, e.RELAUNCH_MIN + 2.0, false)
+	_check(e.last_squash == e.SQUASH.launch, "a hit from below re-launches with the launch stretch (%.2f)" % e.last_squash.y)
 	# Poise held mid-windup: no squash, still a flash.
 	var w: Node = await _fresh(at)
 	w.poise = 100.0
@@ -76,6 +79,87 @@ func _initialize() -> void:
 func _extra() -> void:
 	await _juggle()
 	await _wave()
+	await _direction()
+
+
+## Hit direction: a side launch rolls, a downward hit craters (from the air,
+## Spike's fast fall, and on the floor) and skids further than a plain landing.
+func _direction() -> void:
+	var at: Vector3 = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
+	# Side launch: the turn is a roll around rotation.z, the flip axis stays put.
+	var e: Node = await _fresh(at)
+	e.model.rotation.y = PI
+	e.take_hit(1.0, Vector3(6.0, 0.0, 0.0), 9.0, true)
+	var roll := 0.0
+	var flip := 0.0
+	for i in 300:
+		await physics_frame
+		if e.state != e.State.AIRBORNE:
+			break
+		roll = maxf(roll, absf(e.model.rotation.z))
+		flip = maxf(flip, absf(e.model.rotation.x))
+	_check(roll > 1.0 and flip < 0.01, "a side launch rolls (z %.2f rad, x %.2f)" % [roll, flip])
+	await create_timer(0.3).timeout
+	_check(absf(e.model.rotation.z) < 0.01 and absf(e.model.rotation.x) < 0.01, "the roll rights itself (z %.3f)" % e.model.rotation.z)
+	# Downward hit while up (knockback.y < 0): driven down stretched, craters, no bounce.
+	e = await _fresh(at)
+	e.model.rotation.y = PI
+	e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 9.0, true)
+	await create_timer(0.35).timeout
+	e.take_hit(1.0, Vector3(0.0, -6.0, 6.0), 0.0, true)
+	_check(e.last_squash == e.SQUASH.spike and e.velocity.y <= -e.SPIKE_SPEED + 0.01,
+		"a downward hit drives it down stretched (%.1f m/s, %.2f)" % [e.velocity.y, e.last_squash.y])
+	var crater := await _until_down(e)
+	_check(crater.x == 1.0 and e.last_squash == e.SQUASH.crater, "it craters instead of bouncing (%.2f)" % e.last_squash.y)
+	_check(e._state_t < -e.SPIKE_LIE + 0.05, "it lies in the crater %.2f s (%.2f)" % [e.SPIKE_LIE, e._state_t])
+	var spike_skid := await _skid_length(e)
+	# Spike (player.gd): a plain hit, then the hero sets the fall speed itself.
+	e = await _fresh(at)
+	e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 9.0, true)
+	await create_timer(0.35).timeout
+	e.take_hit(1.0, Vector3(0.0, 0.0, 3.0), 0.0, true)
+	e.velocity.y = -24.0
+	crater = await _until_down(e)
+	_check(crater.x == 1.0 and e.last_squash == e.SQUASH.crater, "Spike's fast fall craters (%.2f)" % e.last_squash.y)
+	# A plain landing for comparison.
+	e = await _fresh(at)
+	e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 9.0, true)
+	await _until_down(e)
+	var plain_skid := await _skid_length(e)
+	_check(spike_skid > plain_skid * 1.5, "a spiked skid goes further (%.2f m vs %.2f m)" % [spike_skid, plain_skid])
+	# A downward hit on the floor: cratered where it stands, lying there.
+	e = await _fresh(at)
+	e.take_hit(1.0, Vector3(0.0, -6.0, 0.0), 0.0, true)
+	_check(e.last_squash == e.SQUASH.crater and e.state == e.State.HURT and e._state_t < 0.0,
+		"a grounded spike craters on the spot (%.2f, state %d)" % [e.last_squash.y, e.state])
+	print("[enemy_feel] direction: side roll %.2f rad, spiked skid %.2f m (plain %.2f m), spike %.0f m/s, crater squash %.2f" \
+		% [roll, spike_skid, plain_skid, e.SPIKE_SPEED, e.SQUASH.crater.y])
+
+
+## Waits for `e` to touch down for good; x = 1 if it never rose again after its first floor contact.
+func _until_down(e: Node) -> Vector2:
+	var touched := false
+	var rose := false
+	for i in 300:
+		await physics_frame
+		if e.state != e.State.AIRBORNE:
+			break
+		if e.is_on_floor():
+			touched = true
+		elif touched and e.velocity.y > 0.5:
+			rose = true
+	return Vector2(0.0 if rose else 1.0, 0.0)
+
+
+## Metres it slides from now until it's back on its feet.
+func _skid_length(e: Node) -> float:
+	var from: Vector3 = e.global_position
+	for i in 200:
+		await physics_frame
+		if e.state != e.State.HURT:
+			break
+	var d: Vector3 = e.global_position - from
+	return Vector2(d.x, d.z).length()
 
 
 ## Four foes hit in one frame: the first reacts now, each next one WAVE_STEP later.
