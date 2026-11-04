@@ -99,8 +99,9 @@ var _raising := false
 @export var hit_freeze_big := 0.11
 # Hit reactions (_hit_reaction, the one place every visual reaction to a hit
 # lives): the model snaps to SQUASH[kind] (x, y, z scale) and springs back,
-# leans away along the knockback (LEAN rad, LEAN_BIG on big hits, back over
-# LEAN_TIME) and flashes in the hero's hit colour mixed FLASH_TINT toward it
+# leans away along the knockback (LEAN rad, LEAN_BIG on big hits, held
+# LEAN_HOLD s through the freeze, then back upright over LEAN_TIME) and
+# flashes in the hero's hit colour mixed FLASH_TINT toward it
 # (FLASH_TAP / FLASH_BIG s). A kill holds the corpse's last pose KILL_FREEZE s
 # before it flies (longer than hit_freeze_big: the pop reads).
 const SQUASH := {
@@ -114,7 +115,8 @@ const SQUASH := {
 }
 const LEAN := 0.2
 const LEAN_BIG := 0.42
-const LEAN_TIME := 0.35
+const LEAN_HOLD := 0.08
+const LEAN_TIME := 0.3
 const FLASH_TAP := 0.07
 const FLASH_BIG := 0.12
 const FLASH_TINT := 0.55
@@ -801,9 +803,10 @@ func _lean(knockback: Vector3, amount: float) -> void:
 		_lean_tween.kill()
 	model.rotation.x = local.z * amount
 	model.rotation.z = -local.x * amount
-	_lean_tween = create_tween().set_parallel()
-	_lean_tween.tween_property(model, "rotation:x", 0.0, LEAN_TIME).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	_lean_tween.tween_property(model, "rotation:z", 0.0, LEAN_TIME).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	_lean_tween = create_tween()
+	_lean_tween.tween_interval(LEAN_HOLD)
+	_lean_tween.tween_property(model, "rotation:x", 0.0, LEAN_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_lean_tween.parallel().tween_property(model, "rotation:z", 0.0, LEAN_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Fall apart on the spot (e.g. when the boss that summoned it dies).

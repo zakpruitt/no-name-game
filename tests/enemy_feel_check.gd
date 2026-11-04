@@ -34,7 +34,7 @@ func _initialize() -> void:
 	_check(is_equal_approx(e.model.rotation.x, -e.LEAN) and absf(e.model.rotation.z) < 0.001,
 		"tap leans %.2f away from the blow (x %.2f z %.2f)" % [e.LEAN, e.model.rotation.x, e.model.rotation.z])
 	_check(e._freeze_t == e.hit_freeze, "tap freezes hit_freeze (%.2f)" % e._freeze_t)
-	await create_timer(e.LEAN_TIME + 0.3).timeout
+	await create_timer(e.LEAN_HOLD + e.LEAN_TIME + 0.3).timeout
 	_check(absf(e.model.rotation.x) < 0.02 and is_equal_approx(e.model.scale.y, e.model_scale),
 		"upright and unsquashed again (x %.3f scale %.2f)" % [e.model.rotation.x, e.model.scale.y])
 	# A big hit from the side: the lean is LEAN_BIG, around the other axis.
