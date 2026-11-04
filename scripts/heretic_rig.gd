@@ -69,6 +69,10 @@ const EYE_INK := 0.018  # m of ink round it
 const EYE_LOW := Color(0.2, 0.95, 0.95)
 const EYE_HIGH := Color(0.88, 1.0, 1.0)
 const EYE_FACING := 0.15  # cos of the angle off the camera past which they hide
+## Each eye also hides while the claw or a weapon is between it and the camera (the claw lifted in
+## front of the hood: VS, Updraft Lash, the leap), so it reads behind them and over the hood.
+const EYE_CLAW_R := 0.07  # m: the claw's half-thickness round its bones, times hand.r's scale
+const EYE_CLAW_GAP := 0.04  # m: a point this close in front of the eye is the hood's brim, not the claw
 
 const SKIRT_N := 12
 const SKIRT_STIFFNESS := 2.2
@@ -96,6 +100,7 @@ var _grip := 0.0  # -1 splayed .. 1 clenched (GRIP_MOVES)
 var _grip_on := 0.0  # 1 while a grip move plays, fading out after
 var eyes: Node3D  # the glow, when this model has one (EYES)
 var keyed := false  # the clips key the claws (KEYED_ARM, CLAW_TRACK)
+var _cover := PackedInt32Array()  # bones that can pass in front of the eyes (_cover_points)
 
 
 func setup(arm: Node, skel: Skeleton3D) -> void:
@@ -304,8 +309,6 @@ func _process_modification_with_delta(delta: float) -> void:
 	var skel := get_skeleton()
 	if skel == null:
 		return
-	if eyes != null:
-		_face_eyes(skel)
 	var form: String = void_arm.form
 	if form != _last_form:
 		_last_form = form
@@ -336,6 +339,8 @@ func _process_modification_with_delta(delta: float) -> void:
 		if bones.size() > 0:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
+	if eyes != null:
+		_face_eyes(skel)  # last: the claw is where this frame puts it
 
 
 ## The eyes show only while his face is towards the camera, since they draw over the hood.
@@ -348,6 +353,54 @@ func _face_eyes(skel: Skeleton3D) -> void:
 	var ahead := head.basis.orthonormalized() * (rest.basis.orthonormalized().inverse() * Vector3.BACK)
 	var to_cam := (cam.global_position - head.origin).normalized()
 	eyes.visible = ahead.normalized().dot(to_cam) > EYE_FACING
+	if not eyes.visible:
+		return
+	# They draw over the hood (no depth test), so they would also draw over the claw or a weapon
+	# lifted in front of his face: hide each eye that one of those covers from the camera.
+	var cover := _cover_points(skel)
+	var claw_r := EYE_CLAW_R * skel.get_bone_pose_scale(_arm[3]).x
+	for mi: Node3D in eyes.get_children():
+		mi.visible = not _covered(cam.global_position, head * mi.position, cover, claw_r)
+
+
+## Points along the claw (hand.r and every tentacle bone, with the midpoints of their bones) and along
+## any weapon that is out, in world space: what can pass in front of his eyes.
+func _cover_points(skel: Skeleton3D) -> PackedVector3Array:
+	if _cover.is_empty():
+		_cover.append(_arm[3])
+		for b in skel.get_bone_count():
+			if skel.get_bone_name(b).begins_with("tent."):
+				_cover.append(b)
+	var to_world := skel.global_transform
+	var out := PackedVector3Array()
+	for b: int in _cover:
+		var at := to_world * skel.get_bone_global_pose(b).origin
+		out.append(at)
+		var p := skel.get_bone_parent(b)
+		if p >= 0 and p in _cover:
+			out.append(at.lerp(to_world * skel.get_bone_global_pose(p).origin, 0.5))
+	var hand := to_world * skel.get_bone_global_pose(_arm[3]).origin
+	for f: String in _w:
+		if _w[f] > 0.3:
+			var dir := skel_dir(f)
+			for i in 8:
+				out.append(hand + dir * _form_len[f] * (i + 1) / 8.0)
+	return out
+
+
+## Whether any of `pts`, between the camera and the eye, passes within `r` (plus the eye's own size)
+## of the eye's line of sight.
+static func _covered(cam: Vector3, eye: Vector3, pts: PackedVector3Array, r: float) -> bool:
+	var v := eye - cam
+	var length := v.length()
+	var d := v / length
+	for p in pts:
+		var t := (p - cam).dot(d)
+		if t <= 0.0 or t >= length - EYE_CLAW_GAP:
+			continue
+		if ((p - cam) - d * t).length() < r + EYE_SIZE.x * 0.5 * t / length:
+			return true
+	return false
 
 
 ## Where the claw should be on a grip move (GRIP_MOVES), from how far the clip has played.

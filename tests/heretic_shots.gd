@@ -295,6 +295,12 @@ func _initialize() -> void:
 		"the keyed model's Idle keys the claws")
 	if _game.hero_model == "chibi":
 		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the chibi has glowing eyes")
+		var cam := Vector3(0.0, 13.0, 9.5)
+		var eye := Vector3(0.0, 1.25, 0.13)
+		_check(rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05)]), 0.07), "an eye goes behind the claw in front of it")
+		_check(not rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05) + Vector3(0.4, 0.0, 0.0)]), 0.07)
+			and not rig._covered(cam, eye, PackedVector3Array([eye + Vector3(0.0, -0.3, -0.3)]), 0.07),
+			"but not behind a claw beside it or behind him")
 
 	# skirt: at rest it holds; yank him sideways and it should lag behind
 	var sb := skel.find_bone("skirt.03.3")
