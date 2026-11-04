@@ -53,9 +53,11 @@ const LOOK := {
 }
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const DARK_FX := preload("res://scripts/dark_fx.gd")
 const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
 const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
 const STRIKE_STAR := 1.1  # m, the impact star at its foot
+const COMIC_SPIKE_FAT := 1.35  # comic spikes are chunkier
 const ORBIT_REST := 3
 const ORBIT_AWAKENED := 7
 
@@ -85,6 +87,8 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 			root.add_child(_mi(crescent(0.16), glow(Color(c, 0.5), hdr)))
 	root.add_child(_mi(crescent(0.16), ice()))
 	root.add_child(_mi(crescent(0.16), rock()))
+	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(true)))
+	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(false)))
 	# Ascendancy's finisher pieces (magma, volcano, glacier, bombs).
 	var lit := StandardMaterial3D.new()
 	lit.emission_enabled = true
@@ -225,6 +229,19 @@ static func ice() -> StandardMaterial3D:
 		m.rim = 1.0
 		_mats["ice"] = m
 	return _mats["ice"]
+
+
+## Comic ice: flat pale or mid ice with the ink hull, no shine or glow.
+static func comic_ice(light: bool) -> StandardMaterial3D:
+	var key := "comic_ice%d" % int(light)
+	if not _mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(0.74, 0.93, 1.0) if light else Color(0.34, 0.68, 1.0)
+		if DisplayServer.get_name() != "headless":
+			m.next_pass = Fx.ink_material()
+		_mats[key] = m
+	return _mats[key]
 
 
 ## Flat crescent in the XZ plane bulging toward +Z, radius 1, `width` thick in the middle.
@@ -494,28 +511,36 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 	var root := Node3D.new()
 	parent.add_child(root)
 	root.global_position = Vector3(pos.x, 0.0, pos.z)
+	var comic := Game.comic_style
 	var mat := rock() if el == "earth" else ice()
 	for i in count:
 		var h := randf_range(1.0, 1.8) * size
-		var s := _mi(_spike_mesh(randf_range(0.22, 0.34) * size, h, 5), mat)
+		var fat := COMIC_SPIKE_FAT if comic else 1.0
+		if comic and el == "water":  # flat inked ice in two tones: the shiny glowing ice was a soft blue blob
+			mat = comic_ice(i % 2 == 0)
+		var s := _mi(_spike_mesh(randf_range(0.22, 0.34) * size * fat, h, 5), mat)
 		var off := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4)) * size if i > 0 else Vector3.ZERO
 		s.position = off + Vector3.UP * -h * 0.5
 		s.rotation = Vector3(off.z * 0.8, randf() * TAU, -off.x * 0.8)
 		root.add_child(s)
 		var tw := s.create_tween()
 		tw.tween_interval(i * 0.03)
-		tw.tween_property(s, "position:y", h * 0.45, 0.07).set_ease(Tween.EASE_OUT)
+		var up := tw.tween_property(s, "position:y", h * 0.45, 0.07).set_ease(Tween.EASE_OUT)
+		if comic:
+			up.set_trans(Tween.TRANS_BACK)  # punches past and settles
 		tw.tween_interval(life * 0.6)
 		tw.tween_property(s, "position:y", -h * 0.5, life * 0.3).set_ease(Tween.EASE_IN)
+	var t0 := root.create_tween()
+	t0.tween_interval(life + 0.1)
+	t0.tween_callback(root.queue_free)
+	if comic:  # no soft dots or smoke round comic spikes
+		return
 	var c: Color = LOOK[el].color
 	Fx.burst(parent, root.global_position + Vector3.UP * 0.3, c, 8, 6.0, 0.12, 0.35, Vector3.UP, 60.0, -10.0)
 	if el == "earth":
 		Fx.dust(parent, root.global_position, 5, 0.6)
 	else:
 		Fx.burst(parent, root.global_position + Vector3.UP * 0.2, Color(0.9, 0.97, 1.0), 8, 4.0, 0.2, 0.5, Vector3.UP, 90.0, 0.0, 0.4)
-	var t := root.create_tween()
-	t.tween_interval(life + 0.1)
-	t.tween_callback(root.queue_free)
 
 
 ## Spikes or small pillars marching from `from` along `dir`.
@@ -530,9 +555,14 @@ static func fissure(parent: Node, from: Vector3, dir: Vector3, length: float, st
 ## Burst all around `pos`: a ring of spikes (earth, water) or blades flying outward (wind, spirit).
 static func nova(parent: Node, pos: Vector3, el: String, radius: float, count: int) -> void:
 	var c: Color = LOOK[el].color
-	Fx.ring(parent, pos, Color(c, 0.95), radius, 0.35)
-	Fx.ring(parent, pos, Color(LOOK[el].glow, 0.8), radius * 0.55, 0.25)
-	light_pop(parent, pos, c, 6.0, radius * 1.8)
+	var comic := Game.comic_style
+	if comic:  # hard thin hoops: the soft ring texture read as a blue glow pooled under the foes
+		DARK_FX.hoop_run(parent, pos, 0.4, radius * 1.1, 0.25, c, 0.08)
+		DARK_FX.hoop_run(parent, pos, 0.3, radius * 0.7, 0.2, LOOK[el].glow, 0.05)
+	else:
+		Fx.ring(parent, pos, Color(c, 0.95), radius, 0.35)
+		Fx.ring(parent, pos, Color(LOOK[el].glow, 0.8), radius * 0.55, 0.25)
+		light_pop(parent, pos, c, 6.0, radius * 1.8)
 	for i in count:
 		var ang := TAU * i / count
 		var d := Vector3(sin(ang), 0.0, cos(ang))
@@ -547,7 +577,8 @@ static func nova(parent: Node, pos: Vector3, el: String, radius: float, count: i
 			b.size = 0.8
 			parent.add_child(b)
 			b.global_position = pos + d * 0.6 + Vector3.UP * 0.6
-	Fx.burst(parent, pos + Vector3.UP * 0.3, c, 30, 10.0, 0.16, 0.45, Vector3.UP, 85.0, -6.0)
+	if not comic:  # (soft dots: comic spikes carry it)
+		Fx.burst(parent, pos + Vector3.UP * 0.3, c, 30, 10.0, 0.16, 0.45, Vector3.UP, 85.0, -6.0)
 
 
 ## Pieces whirling round `hero` for the spin.
