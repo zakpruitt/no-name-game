@@ -69,9 +69,7 @@ const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
 const CHARGE_TIME := 0.8
 const CHARGE_MOVE_MULT := 0.35
 const CHARGE_COLOR := Color(1.0, 0.85, 0.45)
-const AWAKEN_BURST_RADIUS := 7.0  # the activation shockwave blows foes back this far
-const AWAKEN_BURST_DAMAGE := 10.0
-const AWAKEN_COLOR := Color(1.0, 0.78, 0.3)  # Awakening's ancestral gold: light, rim, trails, burst
+const HERO_AWAKEN := preload("res://scripts/hero_awaken.gd")
 
 var hp := max_hp
 var state := State.MOVE
@@ -269,11 +267,7 @@ func _clip_name(wanted: String) -> String:
 
 func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
-	# Fx.flash clears overlays on hit; put the Awakening rim back.
-	if awakened:
-		for mi: MeshInstance3D in _meshes:
-			if mi.material_overlay == null:
-				mi.material_overlay = _awaken_rim
+	HERO_AWAKEN.keep_rim(self)
 	HERO_INPUT.read_input(self)
 
 	if not is_on_floor():
@@ -328,11 +322,7 @@ func _tick_timers(delta: float) -> void:
 		_buffered = ""
 	if _chain_reset_t <= 0.0 and state != State.ATTACK:
 		_chain_i = 0
-	if awakened:
-		_awaken_t -= delta
-		Game.add_awakening(-Game.AWAKEN_MAX / _awaken_len() * delta)
-		if _awaken_t <= 0.0:
-			_set_awakened(false)
+	HERO_AWAKEN.tick(self, delta)
 
 
 ## The last device touched decides, so a gamepad goes back to facing the way he runs.
@@ -375,7 +365,7 @@ func _face(dir: Vector3) -> void:
 
 func _state_move(delta: float) -> void:
 	var dir := _input_dir()
-	var speed := move_speed * (1.2 if awakened else 1.0)
+	var speed := move_speed * (HERO_AWAKEN.SPEED_MULT if awakened else 1.0)
 	var target := dir * speed
 	var grip := accel * (FLING_ACCEL_MULT if _fling_t > 0.0 else 1.0)
 	velocity.x = move_toward(velocity.x, target.x, grip * delta)
@@ -792,7 +782,7 @@ func _swoosh(fwd: Vector3) -> void:
 ## Colour for the hero's own effects (dash ghosts and streak): Awakening's
 ## gold while Awakened, otherwise the element's.
 func _fx_color() -> Color:
-	return AWAKEN_COLOR if awakened else ELEMENTS.color(element())
+	return HERO_AWAKEN.AWAKEN_COLOR if awakened else ELEMENTS.color(element())
 
 
 ## Swing trail colour outside Awakening: the current element's.
@@ -880,14 +870,9 @@ func _clear_ahead(dir: Vector3, length: float) -> float:
 	return maxf(from.distance_to(hit.position) - 0.6, 0.0)
 
 
-## How long an Awakening lasts.
-func _awaken_len() -> float:
-	return awaken_duration
-
-
 ## Animation speed before per-move boosts (Awakening is faster).
 func _base_anim_mult() -> float:
-	return 1.3 if awakened else 1.0
+	return HERO_AWAKEN.base_anim_mult(self)
 
 
 func _on_enemy_killed(e: Node) -> void:
@@ -953,26 +938,9 @@ func is_dead() -> bool:
 	return state == State.DEAD
 
 
+## Awakening with a full meter (hero_awaken.gd); the awaken press and the pause menu call it.
 func try_awaken() -> void:
-	if awakened or state == State.DEAD or Game.awakening < Game.AWAKEN_MAX:
-		return
-	_set_awakened(true)
-	Game.sfx("awaken", 0.0, 0.0)
-	Game.rumble("awaken")
-	# Activation burst: big freeze, shockwave that blows enemies back.
-	Game.hitstop(0.25, 0.05)
-	Game.shake(0.6)
-	var r := AWAKEN_BURST_RADIUS
-	Fx.awaken_burst(get_parent(), global_position, AWAKEN_COLOR, r)
-	if Game.camera_rig:
-		Game.camera_rig.punch(0.85, 0.35)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not e.is_alive():
-			continue
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		if to.length() < r:
-			e.take_hit(AWAKEN_BURST_DAMAGE, to.normalized() * 12.0, 5.0, true)
+	HERO_AWAKEN.try_awaken(self)
 
 
 ## The COMBOS id the current move lands as.
@@ -985,28 +953,7 @@ func combo_name(id: String) -> String:
 
 
 func _set_awakened(on: bool) -> void:
-	awakened = on
-	Game.awaken_locked = on
-	if not on:
-		Game.add_awakening(-Game.AWAKEN_MAX)  # always starts over from empty
-	_awaken_t = _awaken_len()
-	_anim_mult = 1.3 if on else 1.0
-	_dmg_mult = 1.6 if on else 1.0
-	var tw := create_tween().set_parallel()
-	tw.tween_property(model, "scale", Vector3.ONE * (1.18 if on else 1.0), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_awaken_light, "light_energy", 3.0 if on else 0.0, 0.2)
-	var c := AWAKEN_COLOR
-	_awaken_light.light_color = c
-	_awaken_rim.set_shader_parameter("glow_color", c)
-	for mi: MeshInstance3D in _meshes:
-		mi.material_overlay = _awaken_rim if on else null
-	for trail in _trails:
-		trail.color = Color(c, 0.9) if on else _trail_rest_color()
-	for coat: Node in _coats:  # ComicLook.infuse_axes: the axe's element flares up
-		if is_instance_valid(coat):
-			coat.charge(on)
-	_orbit.setup(element(), on)
-	awakened_changed.emit(on)
+	HERO_AWAKEN.set_awakened(self, on)
 
 
 ## Slow time, refund Awakening, stun the attacker, and allow an instant re-dash.
@@ -1055,7 +1002,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 		if _since_dash <= perfect_dodge_window and not _perfect_this_dash:
 			_perfect_dodge(attacker)
 		return
-	hp = maxf(hp - damage * (0.6 if awakened else 1.0), 0.0)
+	hp = maxf(hp - damage * (HERO_AWAKEN.DAMAGE_TAKEN if awakened else 1.0), 0.0)
 	last_hit_by = cause if cause != "" else _describe_attacker(attacker)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()
