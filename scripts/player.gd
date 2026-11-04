@@ -159,7 +159,8 @@ const BREAKER_PERFECT_STOP := 0.07
 # within BREAKER_EARLY s before `open` is held and fires as the window opens
 # (a normal hit). Only a press between the two locks the breaker out.
 const BREAKER_SPILL := 0.12
-const BREAKER_EARLY := 0.08
+const BREAKER_EARLY := 0.12  # (was 0.08) a press up to 120 ms early is held, not locked out: on a 0.2 s rise that
+# leaves only 0.12-0.18 s after take-off as the lockout, a press nowhere near the window
 const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")

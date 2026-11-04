@@ -54,6 +54,7 @@ func _initialize() -> void:
 	await _hit_confirm()
 	await _aim_lock()
 	await _dash_out_of_everything()
+	await _breaker_windows()
 	print("rhythm_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 	quit(1 if fails > 0 else 0)
 
@@ -219,6 +220,42 @@ func _dash_out_of_everything() -> void:
 			for f in get_nodes_in_group("enemies"):
 				f.queue_free()
 	print("[rhythm] dashed out of %d / %d moves after their first hit (whiff and on a foe)" % [dashes, hero.MOVES.size() * 2])
+
+
+## Every breaker keeps one rhythm from the top of its rise (BREAKER_HANG / TO_SWEET / TO_CLOSE), a press
+## a hair early (inside BREAKER_EARLY) is held and dives as the window opens, and one well before it locks.
+const EARLY_PRESS := 0.1  # s before `open`: locked out with round 29's 0.08 BREAKER_EARLY, held now
+func _breaker_windows() -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	hero.bot_enabled = false
+	for id: String in el.BREAKERS:
+		var b: Dictionary = el.entry(id)
+		print("[rhythm] breaker %s: rise %.2f open %.2f sweet %.2f close %.2f s after take-off" % [id, b.rise, b.open, b.sweet, b.close])
+		_check(is_equal_approx(b.open - b.rise, el.BREAKER_HANG) and is_equal_approx(b.sweet - b.open, el.BREAKER_TO_SWEET)
+			and is_equal_approx(b.close - b.open, el.BREAKER_TO_CLOSE), "%s keeps the shared window rhythm" % id)
+		_check(b.open - hero.BREAKER_EARLY > hero.BREAKER_SPILL, "%s: the held-early span starts after the ender's spill" % id)
+		for early: bool in [true, false]:
+			await _settle()
+			hero.global_position = Vector3.ZERO
+			hero.model.position.y = 0.0
+			hero._start_leap(id, el.entry(id))
+			var press_at: float = b.open - EARLY_PRESS if early else hero.BREAKER_SPILL + 0.02
+			await _until(func() -> bool: return hero._state_t >= press_at - 0.05, 2.0)
+			hero._state_t = press_at - 1.0 / 60.0  # (exact: the press is read on the next physics step)
+			var pressed_t: float = press_at
+			Input.action_press("attack_heavy")
+			await physics_frame
+			await physics_frame
+			Input.action_release("attack_heavy")
+			if early:
+				_check(hero._brk_held and not hero._brk_locked, "%s: a press %.0f ms before the window is held, not locked (pressed at %.3f s)" % [id, EARLY_PRESS * 1000.0, pressed_t])
+			await _until(func() -> bool: return hero.state != hero.State.LEAP or hero._brk_phase != 0, 3.0)
+			if early:
+				_check(hero._brk_ended in ["hit", "perfect"], "%s: and dives as it opens (%s)" % [id, hero._brk_ended])
+			elif press_at + 0.06 < b.open - hero.BREAKER_EARLY:  # (a headless press lands a frame or three late)
+				_check(hero._brk_ended == "lock", "%s: a press at %.2f s, nowhere near the window, locks it out (%s)" % [id, press_at, hero._brk_ended])
+			await _until(func() -> bool: return hero.state != hero.State.LEAP, 3.0)
+			game.end_slowmo()
 
 
 func _tap(action: String) -> void:

@@ -81,7 +81,13 @@ moves him) that ends, when `comet()` stops being called, in a held-frame impact 
 
 - `VOID_ELEMENT._WINDOW`: `rise`, `height`, `back`, `zone`, `cue`, `open`, `sweet`, `close`, `perfect`, `dive`,
   `perfect_mult`, `fall`. Per breaker overrides in `BREAKERS` (`damage`, `leap`, `awaken`, `awaken_perfect`, `height`, `short`, ...).
-- `player.BREAKER_FOCUS` (0.6), `BREAKER_FOCUS_ZOOM` (0.86), `BREAKER_PERFECT_STOP` (0.07), `BREAKER_SPILL` (0.12), `BREAKER_EARLY` (0.08).
+- `player.BREAKER_FOCUS` (0.6), `BREAKER_FOCUS_ZOOM` (0.86), `BREAKER_PERFECT_STOP` (0.07), `BREAKER_SPILL` (0.12), `BREAKER_EARLY` (0.12; 0.08 before round 30).
+- **One window rhythm for every element** (round 30): `entry()` sets `open` = `rise` + `VOID_ELEMENT.BREAKER_HANG` (0.1),
+  `sweet` = open + `BREAKER_TO_SWEET` (0.14), `close` = open + `BREAKER_TO_CLOSE` (0.32), unless a breaker sets `open`
+  itself. The default rise (0.2) keeps 0.3 / 0.44 / 0.62, so Avalanche and the dark ones are unchanged; Meteor Fall's
+  0.28 rise used to open 0.02 s after the top and now opens 0.38 / 0.52 / 0.70.
+- Press timeline from take-off (default rise): 0-0.12 spill (ignored), 0.12-0.18 locks, 0.18-0.30 held (dives as it opens),
+  0.30-0.62 the window, 0.38-0.50 PERFECT. `tests/rhythm_check.gd` prints each breaker's numbers and checks the held press.
 
 ## Extending
 

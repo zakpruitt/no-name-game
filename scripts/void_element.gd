@@ -30,6 +30,9 @@ const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 const _WINDOW := {"rise": 0.2, "height": 1.8, "back": 0.6, "spikes": 0, "zone": 1.5, "spread": 0.0, "spike_damage": 0.0,
 	"detonate": 0.0, "throw": 0.04, "cue": 0.08, "open": 0.3, "sweet": 0.44, "close": 0.62, "perfect": 0.06, "dive": 0.12,
 	"radius": 0.0, "launch": 0.0, "perfect_mult": 1.5, "fall": 0.22, "tentacle": true}
+const BREAKER_HANG := 0.1  # s from the top of the rise to the window opening: the beat to see the cue
+const BREAKER_TO_SWEET := 0.14  # s from open to the rings meeting
+const BREAKER_TO_CLOSE := 0.32  # s from open to close
 ## The breakers: `erupt` is what the slam lands in, under each foe. `wire` runs lightning along the
 ## tentacles through the hang. `alt` is what L in the window changes it to, instead of right click.
 ## Copies of _WINDOW in effect (entry()).
@@ -175,10 +178,17 @@ static func is_element_move(id: String) -> bool:
 	return ELEMENT_OF.has(id)
 
 
-## The breaker entry for a key in BREAKERS.
+## The breaker entry for a key in BREAKERS. Its window keeps one rhythm whatever the element (round 30): it
+## opens BREAKER_HANG s after the rise tops out, the sweet spot BREAKER_TO_SWEET later and it closes
+## BREAKER_TO_CLOSE after opening, unless the breaker sets `open` itself. With the default rise (0.2)
+## that's _WINDOW's 0.3 / 0.44 / 0.62; Meteor Fall's longer rise (0.28) used to open 0.02 s after the top.
 static func entry(key: String) -> Dictionary:
 	var made: Dictionary = _WINDOW.duplicate()
 	made.merge(BREAKERS[key], true)
+	if not BREAKERS[key].has("open"):
+		made.open = made.rise + BREAKER_HANG
+		made.sweet = made.open + BREAKER_TO_SWEET
+		made.close = made.open + BREAKER_TO_CLOSE
 	return made
 
 
