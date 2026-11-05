@@ -162,7 +162,7 @@ const RIP_SMALL_MULT := 3.0  # on a small foe: it's coming apart
 const RIP_SPLASH := 5.0  # m
 const METEOR_DOWN := 6.0  # m/s into the floor on Meteor Fall's hit on the seized foe: it craters (enemy._is_spike)
 const UNDERTOW_CHASE := 18.0  # m it'll follow those Molten Palm just shoved
-const METEOR_GEYSERS := 5
+const METEOR_GEYSERS := 3  # thin rim geysers (round 33, sleek 5: five full ones walled the pile in)
 const METEOR_GEYSER_OUT := 2.8  # m round where he lands
 const METEOR_R := 0.8  # m
 const METEOR_TAIL := 3.0  # m
@@ -1229,12 +1229,12 @@ static func _meteor_pile(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult
 			e.rip_shield()
 		e.take_hit(damage * (METEOR_HEAVY_MULT if hero._void.is_heavy(e) else 1.0), Vector3.DOWN * METEOR_DOWN, 0.0, true)
 		Game.register_hit("breaker")
-		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 14, Vector3.UP, 10.0, 0.2, 0.7)
-		ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 4, 1.0)
+		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 6, Vector3.UP, 10.0, 0.2, 0.7)
+		ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 2, 1.0)
 	_pop(parent, at, "hammer")
 	for i in METEOR_GEYSERS:
-		var a := TAU * i / METEOR_GEYSERS
-		ELEMENTS.geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
+		var a := TAU * (i + 0.5) / METEOR_GEYSERS  # (one behind the pile, none in front of it)
+		ELEMENTS.rim_geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
 	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, METEOR_GEYSER_OUT * 1.6, 1.6)
 	hero._void.pile = []
 	Game.shake(0.8)
@@ -1431,8 +1431,8 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 			Game.register_hit("breaker")
 	var at := _flat(hero.global_position)
 	for i in METEOR_GEYSERS:
-		var a := TAU * i / METEOR_GEYSERS
-		ELEMENTS.geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
+		var a := TAU * (i + 0.5) / METEOR_GEYSERS  # (one behind the pile, none in front of it)
+		ELEMENTS.rim_geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
 	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, METEOR_GEYSER_OUT * 1.6, 1.6)
 	Game.shake(0.7)
 

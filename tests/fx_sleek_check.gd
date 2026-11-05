@@ -9,7 +9,8 @@ extends SceneTree
 ##     clears itself;
 ##   - round 33, sleek 4: the combo-name callout over him fades after callout_cap.HOLD_S real s (slow motion
 ##     can't hold it) and as soon as the next string starts; a hit's word (every tier) and number (any total) draw
-##     the same on-screen ink (fx_palette.TEXT_INK_PX).
+##     the same on-screen ink (fx_palette.TEXT_INK_PX);
+##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser).
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -149,6 +150,15 @@ func _initialize() -> void:
 	var hi: float = inks.max()
 	_ok(inks.size() == cfx.WORD_SCALE.size() + 3 and lo > pal.TEXT_INK_PX * 0.8 and hi < pal.TEXT_INK_PX * 1.2,
 		"words and numbers share one ink weight (%.1f-%.1f px)" % [lo, hi])
+	# Round 33, sleek 5: a landing's rim geyser is one thin column, no spikes or scorch of its own.
+	var els: GDScript = load("res://scripts/elements.gd")
+	var rim_root := Node3D.new()
+	main.add_child(rim_root)
+	els.rim_geyser(rim_root, Vector3(0, 0, -6), 0.9, 3.2, false)
+	var rim: Array = rim_root.get_children()
+	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser") and rim[0].width < 0.9 * els.GEYSER_WIDTH,
+		"a rim geyser is one thin column (%d nodes)" % rim.size())
+	await _sleek5(main, p)
 	print("[fx_sleek] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	quit()
 
@@ -156,3 +166,8 @@ func _initialize() -> void:
 func _ok(cond: bool, what: String) -> void:
 	if not cond:
 		_fails.append(what)
+
+
+## Round 33, sleek 5 (the density pass): later items add their checks here.
+func _sleek5(_main: Node, _p: CharacterBody3D) -> void:
+	await process_frame
