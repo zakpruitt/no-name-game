@@ -157,3 +157,9 @@ The crossover strings (Rockslide, Fault Line, Steam Burst, Storm Pitch; `void-el
 Rockslide (it was a plain Slice), off Ice Cube it is Steam Burst, off Tow Line it is Storm Pitch, and off
 Rockslide the heavy row is Fault Line with Cataclysm behind it. Black Ice is an `alt` ending, so it shows on the
 breaker prompt (both buttons and names), not in the guide.
+
+Second pass: the three-element strings are routes too. Off Ice Cube the heavy row is Hailstorm (it was the
+grab) and off Hailstorm the light row is Meltdown with Eruption behind it; off Tow Line the heavy row is Impale and
+off Impale the light row is Backdraft with Anvil behind it. With the frost spear standing, presses off Tow Line,
+Impale, Backdraft and Storm Pitch no longer turn into the vault (`VOID_ELEMENT.NO_VAULT`), so the guide's rows
+off them stay true while the spear is up.

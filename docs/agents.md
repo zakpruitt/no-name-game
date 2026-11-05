@@ -251,3 +251,11 @@ the worktree, and deletes the branch once it has been merged.
   the full film is for before/after. Delete it before landing.
 - **Run `fx_free_check` on every new pooled effect:** it caught a typed pool array holding a freed node
   (an engine error, no GDScript backtrace) that every other check passed.
+- **A flaky timing check on a ~25 ms gap:** one run is quantised to the 16.7 ms step (a headless await can cover
+  two), so `hit < whiff - 10` failed now and then; a mean of 4 runs with an 8 ms margin is steady, and the
+  gameplay constant stays put (rhythm_check `HIT_CONFIRM_RUNS`).
+- **Heredocs with long GDScript bodies:** a large quoted `<<'EOF'` patch failed with "unexpected EOF while looking
+  for matching `'`" here; write the patch and the new code to scratchpad files and run `python <file>` (Windows
+  Python needs `C:/...` paths, not `/c/...`).
+- **Windowed tools from a subagent:** the memory rule is headless only unless Zak said so; a lane told to film
+  with `string_film.gd` left it as a follow-up and read the bot's `[rhythm]` lines instead.

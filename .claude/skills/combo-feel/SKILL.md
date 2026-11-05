@@ -137,3 +137,25 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   press half (`_brk_ended`, cue, slowmo end) on the press so the prompt and `rhythm_check` see a normal dive.
 - **The training room is wider than the camera.** A 14 m throw "into the wall" from the middle left the frame and
   read as the foes vanishing; 10 m kept them at the edge. Film it before trusting a throw distance.
+
+## Three-element strings and improvising (round 34, second pass)
+- **Dead ends for a long string:** heavy off EA and TW, light off IJ / EM / VR / XR / XT (and XG / XK before this
+  pass) went to `GR` / `L1`. A 7-9 press string is one crossover move per hand-over hung off those, ending in a new
+  breaker ender, since nothing passes through a breaker.
+- **The frost spear eats every press while it stands** (`vaults()`): a string that plants it and then routes on
+  (L L H, Dash H H L) needs its moves in `VOID_ELEMENT.NO_VAULT`, or H off Tow Line vaults.
+- **`enemy.freeze()` staggers**, which takes a foe out of AIRBORNE: ice on a foe you just launched is set by hand
+  (`freeze_aloft()`: `frozen_t`, `frozen_mult`, `cube_on`). A hit on ice queues the old cube's free, so `cube_on()`
+  sees it and adds none: rename the dying cube first.
+- **Void moves with `range` 0 still hit a foe inside his radius** (`_do_hit`'s `d > range + radius`): a 0-damage
+  touch that thaws a frozen foe standing on him before `fire()` reads it. Payoffs that read the ice should not
+  count on a foe at 0 m.
+- **The bot's Harpoon only reels in one dummy** (Dash Stab lunges into the fan), so a payoff "on every frozen foe"
+  must also take the one Ice Cube is bowling (`THROWN.cut` it) or the bot never connects and the breaker is missed
+  (`breakers=10/11`). Print the candidates' distance / airborne / frozen / flying once (`[dbg]`) before retuning.
+- **Improvise by state, not route:** a crossover marks its foes (`mark(e, "buried")`, metas with a real-time
+  expiry of `ELEMENT_HOLD`) and the paying element's base moves read the mark in `fire()` wrappers, so the round-1
+  bodies other lanes are editing stay untouched. Extra hits go before a move that throws (`THROWN.launch` refuses
+  a flying foe, and nothing may move one in flight).
+- **Shorten a hand-over with the second move's `speed`** (a named const, `XF_SPEED`): fractions keep the contact
+  frame and the breaker leap in sync; the bot's `[rhythm]` beats showed Rockslide -> Fault Line 454 -> 403 ms.

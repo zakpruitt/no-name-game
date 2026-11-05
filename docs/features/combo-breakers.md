@@ -12,7 +12,8 @@ it off.
 
 Which enders have breakers, and what each slam does, is the heretic's kit:
 `VOID_ELEMENT.BREAKERS`, described in [void-element.md](void-element.md) (Grounded, Worldbreaker /
-Cold Front, Avalanche, Meteor Fall, Collapse, Maw, Abyss). This doc is the shared machinery.
+Cold Front, Avalanche, Meteor Fall, Collapse, Maw, Abyss, and round 34's Cataclysm, Flash Freeze, Black Ice,
+Eruption and Anvil). This doc is the shared machinery.
 
 ### Movement in the strings
 
@@ -20,7 +21,8 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 - `hop` = [start, end, height]: an arc between those fractions of the move (L2, L3, EC, DL).
   A move started in the air comes down by its first hit (`land` overrides).
 - `air`: holds the height the move started at; `climb` adds metres by its first hit (AL1
-  climbs off Updraft Lash, IJ vaults 2.4 m onto the frost spear). The climb stops at `AIR_MAX_HEIGHT`.
+  climbs off Updraft Lash, IJ vaults 2.4 m onto the frost spear, XG Hailstorm climbs 2 m after the cubes and XM
+  Meltdown holds him up there for Eruption, which rises from that height: `_brk_y0`). The climb stops at `AIR_MAX_HEIGHT`.
 - Landing from a hop is a slam that grows with the fall (`land_slam()`, `SLAM_FULL_HEIGHT`,
   `SLAM_SCALE`); a move that starts in the air deals +`PLUNGE_PER_M` per metre (`plunge_mult()`).
 - Moves started in the air home in on the nearest airborne foe (`air_home()`, `AIR_HOME_RANGE`, `AIR_HOME_MAX`).
@@ -69,7 +71,9 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 7. A breaker with `gather` (Meteor Fall, round 34) doesn't dive on the press: phase 3 (`_tick_beats`) hangs him
    while `VOID_ELEMENT.meteor_wall()` throws them at the walls and then `meteor_gather()` drags them into a pile, and
    only then `_dive()` takes him down onto it. The press part (`_brk_ended`, the cue, the slow motion ending, the
-   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive.
+   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive. Beat 1 also
+   pulls the camera out (`_meteor_frame()`: `camera_rig.punch(METEOR_PULL_OUT 1.3, METEOR_PULL_HOLD 0.8 s)`, the
+   rig's public zoom; the dive's own punch takes it back in) so the wall throws stay in frame.
 
 ### Look
 
@@ -122,7 +126,8 @@ so the autotest lands it.
   `breakers=N/N perfect_breakers=` on the done line (round 34: N is distinct `BREAKERS` ids landed, so an `alt` ending
   doesn't count twice; `endings=` names every ending landed, Black Ice included). The bot resets the dummies to their homes and the hero to
   `training_bot.BOT_SPOT` before each string and presses `BOT_LEAD` before each cancel point, so the run repeats
-  exactly; `agent.sh check` fails unless `breakers=9/9` and `strings=17/17` (round 34).
+  exactly; `agent.sh check` fails unless every breaker and string landed (`breakers=11/11`, `strings=19/19` after round 34's
+  second pass).
 - Windowed: `godot --path . -s tests/breaker_prompt_preview.gd` → `user://breaker_prompt.png`; `tests/element_shots.gd`
   for each slam.
 

@@ -98,6 +98,41 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 Words (`ComicFx.MOVE_WORDS` / `BREAKER_WORDS`): XR KRUNCH!, XF SKRRRAK!, XS PSSHHHH!, XT ZZWANNG!, Cataclysm
 KRAKA-DOOM!, Flash Freeze FSSHINK!, Black Ice KLISSSH!.
 
+### Three-element strings (round 34, second pass)
+
+Two longer strings hand over twice, and each hand-over pays only for what the element before it left. Both end in
+a breaker window.
+
+| Input | Id | Name | Elements | Payoff |
+|---|---|---|---|---|
+| Dash L H H H | `XG` | Hailstorm | ice into storm | A whirlwind under every frozen foe within `HAIL_REACH` (Ice Cube's bowl too: `THROWN.cut`) carries it up at `HAIL_LAUNCH`, still in its ice (`freeze_aloft()`: `enemy.freeze()` staggers, which would drop it), and he climbs 2 m after them (`air`, `climb`). The warm only stagger up (`HAIL_WARM_*`) |
+| Dash L H H H L | `XM` | Meltdown | storm into magma, in the air | The molten hammer up there with them: everyone airborne or frozen within `MELT_REACH`, the ice bursting off (x `FREEZE_BREAK`), those in the air x`MELT_AIR_MULT`, all driven down burning (`MELT_DOWN`: craters) and `molten`. The window opens, from his height (`height` 3) |
+| Dash L H H H L, H in window | `XM` | Eruption | magma | The floor goes up under everyone near (`under()` earth, `ERUPT_LAUNCH`), the `molten` x`ERUPT_MOLTEN_MULT` |
+| (L L H,) Dash H H | `XK` | Impale | dark into ice | Whoever Tow Line bunched (`IMPALE_GRAB` round him) is cut off its tether and thrown onto the frost spear, frozen in a cube and `skewered`, in a ring `IMPALE_RING` round it. Onto a spear already standing it's x`IMPALE_SPEAR_MULT`; with none it plants one where Tow Line bunched them |
+| (L L H,) Dash H H L | `XW` | Backdraft | ice into storm | The gale off the axe blows the spear apart and hauls everyone within `BACKDRAFT_REACH` of it back to him and up (`BACKDRAFT_PULL`, `BACKDRAFT_LAUNCH`); the skewered (still frozen: x `FREEZE_BREAK`) take all of it, anyone else 0.6. The window opens |
+| (L L H,) Dash H H L, H in window | `XW` | Anvil | earth | The hammer drives everyone held into the floor, a crater each (`ANVIL_DOWN`, x`ANVIL_AIR_MULT`); anyone near still in the air comes down with them, the rest are thrown clear |
+
+With the spear standing, presses off `NO_VAULT` moves (TW, XK, XW, XT) go on down their own string instead of up
+the spear (`vaults()`), so L L H, Dash H H L is 8 presses with the breaker.
+
+### Improvising: dash routes out of the crossovers
+
+A crossover's state outlasts its string by `ELEMENT_HOLD` (2 s): the ice (`FREEZE_TIME` is `ELEMENT_HOLD`, was 1.8)
+and the metas `mark(e, "buried" | "molten" | "skewered")` (real time; `marked()`, `unmark()`). Every payoff reads
+the state, never the route, so a dash cancel and any move of the paying element cash it in:
+
+| State | Paid by (any route) | How |
+|---|---|---|
+| frozen | magma: Molten Palm (L L L H, Dash L L L H), Steam Burst, Meltdown | Molten Palm with anyone frozen in its strip goes off as Steam Burst (`fire()` "EM", `_frozen_ahead()`) |
+| buried (Rockslide) | storm: Updraft Lash, Storm Pitch (Dash H L) | the storm move's hit again on top, x`FAULT_BURIED_MULT` in all (`_cash_buried()`), once |
+| airborne | dark: Tow Line (Dash H) | ripped out of the air: an extra `TOW_AIR_MULT - 1` of Tow Line's damage on the way in |
+
+So, crossover by crossover: Rockslide, dash, H L (Storm Pitch throws the buried up crackling, x2); Fault Line,
+Steam Burst, Flash Freeze, Hailstorm, Backdraft (all launch), dash out of the hang or the move, H (Tow Line rips
+them out of the air); Ice Cube, Impale, Hailstorm (ice left on them), dash, L L L H (Molten Palm steams them) or
+L H H L off the dash for Steam Burst; Meltdown's `molten` lasts for Eruption only. Black Ice, Cataclysm, Meteor
+Fall, Eruption and Anvil end in craters: nothing to carry.
+
 ### Breakers (`VOID_ELEMENT.BREAKERS`)
 
 | Input | Off | Name | Ending |
@@ -234,6 +269,7 @@ Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_
 
 ## Checks
 
-`godot --headless --path . -s tests/void_arm_check.gd` covers routing, each move hurting a foe, each breaker holding and hurting a foe and letting go, both window endings, a missed window, cubes hitting foes and walls, the ice strings including the spear, the magma strings, the dark string and its breakers, and the snatch (PASS/FAIL, stand-in foes, in `agent.sh check`).
+`godot --headless --path . -s tests/void_arm_check.gd` covers the three-element strings and the improvised payoffs
+(`_three_elements`), routing, each move hurting a foe, each breaker holding and hurting a foe and letting go, both window endings, a missed window, cubes hitting foes and walls, the ice strings including the spear, the magma strings, the dark string and its breakers, and the snatch (PASS/FAIL, stand-in foes, in `agent.sh check`).
 
 `godot --path . -s tests/element_shots.gd` is windowed. It films each string against real foes at the game camera, through the hang and the slam, and R's swing, to `user://element_shots/`.

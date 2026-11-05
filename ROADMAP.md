@@ -446,6 +446,10 @@ Zak: "more combos that utilize multiple elements together", "a few more complica
 - [x] Bot plays all of them (17 strings, `breakers=9/9`, `endings=`); `string_film.gd -- --from=N`
 - [x] Looks for the crossovers and the beats (round 37)
 - [x] Beat 1 throws leave the frame in the middle of the room: a camera pull-out for Meteor Fall's hang (camera lane; Round 36, camera round 2)
+- [x] Second pass, three elements a string: Hailstorm, Meltdown, Eruption (Dash L H H H L, H: ice, storm, magma, in the air); Impale, Backdraft, Anvil (L L H, Dash H H L, H: dark, ice, storm into the hammer)
+- [x] Improvising: crossover states last `ELEMENT_HOLD` 2 s and every payoff reads the state, so a dash and the paying element cash it in (frozen into magma, buried into storm, airborne into dark)
+- [x] Fault Line 1.5x (`XF_SPEED`): Rockslide's hit to Fault Line's 454 -> 403 ms; rhythm_check's hit-confirm is a mean of 4 runs (the 224 < 233 ms flake)
+- [ ] Film the second pass (`string_film.gd -- --from=17`, windowed); looks for XG / XM / XK / XW, Eruption and Anvil (the `TODO(fx lane)` note)
 
 ## Round 37 (Crossover FX)
 The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geysers, shards, arcs). Each now has its own flat comic drawer on `scripts/comic_flat.gd` (two surfaces on twos: camera-facing on heretic_form_fx's material, floor on comic_crack's; nothing new to compile). See `docs/features/void-element.md` "Crossover looks".
