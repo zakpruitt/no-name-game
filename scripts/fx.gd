@@ -425,8 +425,9 @@ static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float
 	tw.chain().tween_callback(m.queue_free)
 
 
-const BEAM_SLEEK_R := 0.7  # of the asked radius, comic style
-const BEAM_SLEEK_TIME := 0.7  # of the asked time
+const BEAM_SLEEK_R := 0.42  # of the asked radius, comic style (round 33, sleek 5: 0.7 was a 2 m gold slab over a
+## breaker's pile whenever the meter filled on its landing)
+const BEAM_SLEEK_TIME := 0.55  # of the asked time (sleek 5: 0.7)
 
 
 ## Column of light that shoots up from `pos` and collapses inward over `time`:

@@ -48,9 +48,10 @@ const GEYSER_WIDTH := 0.75  # of the radius: the column's width at the top (1.5 
 const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)
 const DARK_FX := preload("res://scripts/dark_fx.gd")
 const COMIC_GALE := preload("res://scripts/comic_gale.gd")
-const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
-const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
-const STRIKE_STAR := 1.1  # m, the impact star at its foot
+const STRIKE_HIGH := 5.0  # m the storm strike's bolt drops from (round 33, sleek 5: 9.0; five on Grounded filled the frame)
+const STRIKE_WIDTH := 0.15  # m, its colour band; the ink is twice that (sleek 5: 0.4, comic_fault's Cataclysm bolts are 0.15)
+const STRIKE_STAR := 0.8  # m, the impact star at its foot (sleek 5: 1.1)
+const STRIKE_FORKS := 0  # (sleek 5: 2)
 const COMIC_SPIKE_FAT := 1.35  # comic spikes are chunkier
 ## Round 33 (sleek): comic earth spikes are the see-through halftone look (spirit_echo.ghost_mat, earth
 ## palette: thin ink and a light edge round a ~0.3 alpha fill fading up to the tips), not opaque brown rock,
@@ -734,7 +735,7 @@ static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 		"wind":  # a fat flat bolt out of the sky into a hot star, on twos (comic_bolt.gd)
 			var foot := Vector3(pos.x, 0.25, pos.z)
 			var sky := foot + Vector3(randf_range(-1.2, 1.2), STRIKE_HIGH, randf_range(-1.2, 1.2))
-			COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, STRIKE_STAR, 2)
+			COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, STRIKE_STAR, STRIKE_FORKS)
 			return
 		"earth":
 			spikes(parent, pos, el, 1.8, 4, 0.9)
