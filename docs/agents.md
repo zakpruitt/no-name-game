@@ -365,3 +365,18 @@ the worktree, and deletes the branch once it has been merged.
 - **A pixel assertion in a look test:** project the decal's node with `camera.unproject_position`, count pixels of its
   exact flat colour (unshaded albedo comes out as its sRGB bytes, +-2) inside its projected radius. Keep a headless
   geometric twin (`face_dot`) so `agent.sh check` still covers it.
+- **Removing a forwarder means grepping game scripts too, not just the checks** (cleanup round 2): of 21 player.gd
+  forwarders, combo_guide, move_list, hud, training_bot, comic_fx, void_grab, hero_input and hero_awaken called
+  half of them. Call through the hero's own preload (`hero.HERO_FX.cast_grow()`) from files hero_fx.gd itself
+  preloads (void_element, hero_moves, hero_leap), so no preload cycle; keep any method a test fake duck-types
+  (`breaker_window()`: prompt_follow_check and breaker_prompt_preview fake a player with only that).
+- **`godot --check-only -s <script>` is no static pass here:** every script that names an autoload fails with
+  "Identifier not found: Game". Use `python tools/dead_refs.py` for unused names and the real checks for compile
+  errors (`guide_check` loads main and every hero_*.gd in ~20 s, the quickest whole-game compile).
+- **Never run a check in the background and keep editing scripts:** Godot loads each script when the run reaches
+  it, so a half-done refactor fails the later tests in that run. Edit, then check; or edit only docs meanwhile.
+- **The autotest's `hits=` / `max_combo=` vary by a few run to run** (456 / 459 on the same commit): compare
+  `breakers=`, `strings=`, `endings=`, `moves=`, `casts=` and `[improv]` for "identical", and run dev once to see the spread.
+- **Camera framing in a hang:** a box test at the pushed-in distance trips for a foe 2 m ahead (its 1.6 m head
+  leaves the 72% band), so "respect the box in the window" also undoes ordinary breaker push-ins. Probe
+  `_frame_to` per breaker in the autotest before changing the window.

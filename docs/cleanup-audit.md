@@ -424,3 +424,27 @@ roughly 11 500 lines.
 - Step 6 before 7 and 8 keeps `void_arm_check` green while the files it
   reaches through are deleted.
 - Steps 7 and 9 wait for Zak's answers; nothing earlier depends on them.
+
+## Round 2 (2026-11-05, agent/cleanup2)
+
+After 22 lanes landed ~40 scripts in a day. Behaviour unchanged: every check in `agent.sh check` passes and
+the autotest's `breakers=`, `strings=`, `endings=`, `moves=` and `[improv]` counts match dev (`hits` and
+`max_combo` move by a few between any two runs).
+
+- **player.gd split, part 2** (1062 -> 784 lines): the swoosh, spirit casts (`cast`, `spirit`, `cast_grow`,
+  `cast_power`, `axe_mesh`, `AXE_SOURCE`), the combo callout, the ender camera kick (`ENDER_ZOOM`), the
+  rank-up burst and the last kill (`LAST_KILL_SLOWMO`) are `scripts/hero_fx.gd`.
+- **Forwarders removed** (21): `void_route`, `chain_after`, `_effective_move`, `_can_air_dash`, `dash_light`,
+  `combo_options`, `guide_name`, `combo_name`, `named_id`, `_input_dir`, `_mouse_aiming`, `_mouse_dir`,
+  `_aim_want`, `cancel_point`, `combo_window`, `_start_leap`, `_breaker_for`, `breaker_name`, `try_awaken`,
+  `_set_awakened`, `_base_anim_mult`. Callers use `hero.HERO_MOVES` / `HERO_INPUT` / `HERO_LEAP` /
+  `HERO_AWAKEN` / `HERO_FX`. Kept: `breaker_window()` (breaker_prompt's test fakes duck-type it) and the
+  constant re-exports (`MOVES`, `COMBOS`, `COMBO_TIER_COLORS`, ...).
+- **Death recap leftovers removed**: `player.last_hit_by`, `_describe_attacker`, `take_hit`'s `cause`, `bone_cage.CAUSE`,
+  bone_spike's and the bomber blast's cause strings, the foes' `title` meta.
+- **Dead names** (`tools/dead_refs.py`): `breaker_quake.eruption_line`, `enemy.chill_hits`, `enemy.fuse_left`,
+  `fx_palette.TAIL_ALPHA`, `void_element.MAGMA_RADIUS` / `MAGMA_DAMAGE` / `MAGMA_LAUNCH` / `MAGMA_WELLS` /
+  `MAGMA_WELL_R` / `CUBE_FOE_GAP`. Kept because a doc names them: `breaker_quake.shockwave`,
+  `comic_fx.WORD_GAP_MS`, `enemy.crumble`, `enemy.set_glow`, `fx.heal`.
+- Not done (stop-point): the constants comment pass (on `agent/cleanup2-style`: it shifted `[improv] buried_x_water`
+  1 -> 3 with the same values), the camera's timing-window framing and the CLAUDE.md script list (ROADMAP round 31 / 36).
