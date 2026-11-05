@@ -7,7 +7,6 @@ extends SceneTree
 ## checks the round-28 heretic instead, its pictures in user://heretic_shots/.
 
 var DIR := "user://heretic_shots"
-const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
 const CLOSE := Vector3(0.0, 1.5, 4.2)
 const TURN := -0.55  # rad: towards the camera, his right side (the tentacle) showing
 const STRIP_STEP := 0.02  # s of the change between frames
@@ -28,6 +27,8 @@ var _main: Node
 var _cam: Camera3D
 var _fails := 0
 var _headless := false
+var game_view := Vector3.ZERO  # camera_rig.rest_view(): the game camera's offset now (round 28's was (0, 13, 9.5))
+var game_fov := 0.0
 
 
 ## The change itself, one exact STRIP_STEP at a time (a timer can't sample it: one slow frame
@@ -43,7 +44,7 @@ func _strip(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 			anim.pause()
 			await create_timer(0.1).timeout
 			var at := skel.global_transform * skel.get_bone_global_pose(hand).origin
-			var off := Vector3(-0.3, 0.9, 3.0) if view == "close" else GAME_VIEW
+			var off := Vector3(-0.3, 0.9, 3.0) if view == "close" else game_view
 			_cam.look_at_from_position(at + off, at, Vector3.UP)
 			Engine.time_scale = 0.02
 			skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
@@ -116,7 +117,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 			anim.seek(times[i], true)
 			await create_timer(0.12).timeout
 			var at := p.global_position + Vector3(0.0, 0.5, 0.0)
-			_cam.look_at_from_position(at + GAME_VIEW * near, at, Vector3.UP)
+			_cam.look_at_from_position(at + game_view * near, at, Vector3.UP)
 			await process_frame
 			await RenderingServer.frame_post_draw
 			var img := get_root().get_texture().get_image()
@@ -176,6 +177,9 @@ func _check(ok: bool, what: String) -> void:
 func _initialize() -> void:
 	_headless = DisplayServer.get_name() == "headless"
 	await process_frame
+	var cam_rest: Dictionary = load("res://scripts/camera_rig.gd").rest_view(OS.get_cmdline_user_args())
+	game_view = cam_rest.offset
+	game_fov = cam_rest.fov
 	_game = get_root().get_node("Game")
 	if _game.hero_model != "heretic":
 		DIR += "_" + _game.hero_model
@@ -298,7 +302,7 @@ func _initialize() -> void:
 		"the keyed model's Idle keys the claws")
 	if _game.hero_model == "chibi":
 		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the chibi has glowing eyes")
-		var cam := Vector3(0.0, 13.0, 9.5)
+		var cam := game_view
 		var eye := Vector3(0.0, 1.25, 0.13)
 		_check(rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05)]), 0.07), "an eye goes behind the claw in front of it")
 		_check(not rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05) + Vector3(0.4, 0.0, 0.0)]), 0.07)
@@ -328,13 +332,13 @@ func _initialize() -> void:
 
 	if not _headless and "--clips" in OS.get_cmdline_user_args():
 		_cam = Camera3D.new()
-		_cam.fov = 42.0
+		_cam.fov = game_fov
 		_main.add_child(_cam)
 		_cam.current = true
 		await _clips(p, arm, anim)
 	elif not _headless:
 		_cam = Camera3D.new()
-		_cam.fov = 42.0
+		_cam.fov = game_fov
 		_main.add_child(_cam)
 		_cam.current = true
 		p.model.rotation.y = TURN
@@ -348,7 +352,7 @@ func _initialize() -> void:
 			anim.pause()
 			await create_timer(0.3).timeout
 			for view: String in ["close", "game"]:
-				var off: Vector3 = CLOSE if view == "close" else GAME_VIEW
+				var off: Vector3 = CLOSE if view == "close" else game_view
 				var aim := p.global_position + Vector3(0.0, 1.05 if view == "close" else 0.5, 0.0)
 				_cam.look_at_from_position(p.global_position + off, aim, Vector3.UP)
 				await process_frame

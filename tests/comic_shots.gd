@@ -10,9 +10,8 @@ extends SceneTree
 ## themselves don't error (and nothing about the look).
 
 const DIR := "user://comic_shots"
-const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
-const CLOSE_VIEW := GAME_VIEW * 0.42
-const FAR_VIEW := GAME_VIEW * 1.5
+const CLOSE := 0.42  # of the game camera's offset
+const FAR := 1.5
 const SETTLE := 0.15
 const RISE := 1.2  # enemies are in State.SPAWN for 1 s
 const CLIP_FPS := 24.0
@@ -32,11 +31,16 @@ var _cam: Camera3D
 var _n := 0
 var _index := PackedStringArray()
 var _headless := false
+var game_view := Vector3.ZERO  # camera_rig.rest_view(): the game camera's offset now (round 28's was (0, 13, 9.5))
+var game_fov := 0.0
 
 
 func _initialize() -> void:
 	_headless = DisplayServer.get_name() == "headless"
 	await process_frame
+	var view: Dictionary = load("res://scripts/camera_rig.gd").rest_view(OS.get_cmdline_user_args())
+	game_view = view.offset
+	game_fov = view.fov
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_game = get_root().get_node("Game")
 	_look_script = load("res://scripts/comic_look.gd")
@@ -48,7 +52,7 @@ func _initialize() -> void:
 	_clear_enemies()
 	_main.clear_room()
 	_cam = Camera3D.new()
-	_cam.fov = 42.0
+	_cam.fov = game_fov
 	_main.add_child(_cam)
 
 	await _room()
@@ -76,10 +80,10 @@ func _room() -> void:
 	_use_game_camera()
 	await create_timer(SETTLE).timeout
 	_shot("room_game_view", "Compare comic_poc/out/env/room_game.png. Dark indigo, hard black shadows falling up and right, halftone on the back wall, stepped flames with no glow, no warm light pools. Hero is the only other thing in frame.")
-	_look(Vector3(0.0, 0.0, -11.0), GAME_VIEW * 0.7)
+	_look(Vector3(0.0, 0.0, -11.0), game_view * 0.7)
 	await create_timer(SETTLE).timeout
 	_shot("room_back_wall", "Stone seams, per-stone tone differences, 3 px ink on banners, torches and wall. No shadow acne or blotches from the ink hull.")
-	_look(Vector3.ZERO, GAME_VIEW * 2.0)
+	_look(Vector3.ZERO, game_view * 2.0)
 	await create_timer(SETTLE).timeout
 	_shot("room_whole", "Whole arena: every wall piece meets its neighbour, corners and rubble line up, floor seams continue across tiles.")
 
@@ -97,7 +101,7 @@ func _pieces() -> void:
 		n.position = Vector3((i % 5 - 2) * 7.0, 0.0, (i / 5 - 2) * 7.0)
 		root.add_child(n)
 		i += 1
-	_look(root.position, GAME_VIEW * 3.0)
+	_look(root.position, game_view * 3.0)
 	await create_timer(SETTLE).timeout
 	_shot("pieces_all", "Every dungeon piece, one each, on the void. Magenta or KayKit textures = a missing material or piece.")
 	root.free()
@@ -123,7 +127,7 @@ func _each_enemy() -> void:
 		var e: Node3D = _main._spawn(kind, false, _at(Vector3(0.0, 0.0, 3.0)))
 		await create_timer(RISE).timeout
 		_hold(e, "Idle_Combat", 8)
-		_look(e.global_position + Vector3.UP, CLOSE_VIEW)
+		_look(e.global_position + Vector3.UP, game_view * CLOSE)
 		await create_timer(SETTLE).timeout
 		var has_comic: bool = e.comic_kind != ""
 		_shot("enemy_%s" % kind, "%s: %s. Cut tones, dots on the mid tone, hatching in shadow, thick ink." % [kind, "comic model" if has_comic else "KayKit fallback, no comic GLB"])
@@ -147,7 +151,7 @@ func _boss() -> void:
 	boss.set_physics_process(false)
 	boss.global_position = _at(Vector3(0.0, 0.0, -6.0))
 	_hold(boss, "Idle_Combat", 8)
-	_look(boss.global_position + Vector3.UP * 1.5, GAME_VIEW * 0.75)
+	_look(boss.global_position + Vector3.UP * 1.5, game_view * 0.75)
 	await create_timer(SETTLE).timeout
 	_shot("boss_idle", "Compare comic_poc/out/enemies/warden_game.png. 3.2 m tall, about twice the hero. Heart in three flat greens.")
 	if boss.comic_kind != "":
@@ -171,7 +175,7 @@ func _hero() -> void:
 	p.anim.play("Idle", 0.0)
 	p.anim.seek(0.0, true)
 	p.anim.speed_scale = 0.0
-	_look(p.global_position + Vector3.UP * 1.2, CLOSE_VIEW)
+	_look(p.global_position + Vector3.UP * 1.2, game_view * CLOSE)
 	await create_timer(SETTLE).timeout
 	_shot("hero_idle", "The heretic at rest: toon tones, hull ink, no magenta, nothing floating beside him. Head and skirt chains aren't cut by the hull.")
 	for id: String in _look_script.HERO_MOVES:
@@ -193,10 +197,10 @@ func _dots() -> void:
 	var e: Node3D = _main._spawn("minion", false, _at(Vector3(0.0, 0.0, 3.0)))
 	await create_timer(RISE).timeout
 	_hold(e, "Idle_Combat", 8)
-	_look(e.global_position + Vector3.UP, CLOSE_VIEW)
+	_look(e.global_position + Vector3.UP, game_view * CLOSE)
 	await create_timer(SETTLE).timeout
 	_shot("dots_near", "Halftone close up. Same dot size in pixels as dots_far.")
-	_look(e.global_position + Vector3.UP, FAR_VIEW)
+	_look(e.global_position + Vector3.UP, game_view * FAR)
 	await create_timer(SETTLE).timeout
 	_shot("dots_far", "Halftone far away. Dots haven't shrunk; ink line is the same width in pixels.")
 
@@ -207,7 +211,7 @@ func _ink_and_flash() -> void:
 	var e: Node3D = _main._spawn("warrior", false, _at(Vector3(0.0, 0.0, 3.0)))
 	await create_timer(RISE).timeout
 	_hold(e, "Idle_Combat", 8)
-	_look(e.global_position + Vector3.UP, CLOSE_VIEW)
+	_look(e.global_position + Vector3.UP, game_view * CLOSE)
 	load("res://scripts/fx.gd").flash(e.model, 0.5)
 	await create_timer(0.1).timeout
 	_shot("hit_flash", "White hit overlay covers the toon material, ink hull not poking through oddly.")

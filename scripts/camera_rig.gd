@@ -148,6 +148,15 @@ static func cam_overrides(args: PackedStringArray) -> Dictionary:
 	return out
 
 
+## The rest view a shot test copies (tests/comic_shots, foe_shots, heretic_shots), so its sheets match the game:
+## {"offset": the camera from the point it aims at, "aim": m above his feet that point is, "fov": degrees}, after
+## any --cam-dist= / --cam-fov= in `args`. A -s test can't preload this script (it names Game): `load()` it.
+static func rest_view(args: PackedStringArray) -> Dictionary:
+	var knobs := cam_overrides(args)
+	var d := clampf(float(knobs.get("dist", DIST)), 4.0, 60.0)
+	return {"offset": VIEW_DIR * d, "aim": AIM_HEIGHT, "fov": clampf(float(knobs.get("fov", FOV)), 10.0, 100.0)}
+
+
 ## Push the camera in (zoom < 1) or out for `hold` seconds of real time (breakers).
 func punch(zoom: float, hold: float) -> void:
 	_zoom_to = 1.0 - (1.0 - zoom) * PUNCH_GAIN if zoom < 1.0 else zoom

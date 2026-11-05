@@ -15,7 +15,6 @@ const BACK := ["mage", "archer", "bomber", "necromancer", "warden"]
 const STEP := 2.0  # m between models in a row
 const FRONT_Z := 3.0  # m in front of the hero's spot (towards the camera)
 const BACK_Z := 0.0
-const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset: the game's angle
 const CLOSE_SIZE := 9.0  # m tall, ortho, along the game's angle
 const FRONT_SIZE := 7.5  # m tall, ortho, from the front at chest height
 
@@ -29,10 +28,12 @@ var _turn := 0.0  # `--turn=deg`: every model turned this far from facing the ca
 var _clip := ""
 var _frames := 8
 var _only: PackedStringArray = []  # `--only=minion,rogue`: film just these, spread in a row
+var game_view := Vector3.ZERO  # camera_rig.rest_view(): the game camera's offset, the game's angle
 
 
 func _initialize() -> void:
 	await process_frame
+	game_view = load("res://scripts/camera_rig.gd").rest_view(OS.get_cmdline_user_args()).offset
 	var tag := "shot"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--tag="):
@@ -104,7 +105,7 @@ func _initialize() -> void:
 	var centre := at + Vector3(0.0, 1.0, FRONT_Z * 0.5)
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	cam.size = CLOSE_SIZE
-	cam.global_position = centre + GAME_VIEW
+	cam.global_position = centre + game_view
 	cam.look_at(centre)
 	cam.make_current()
 	await create_timer(0.3).timeout
@@ -130,7 +131,7 @@ func _film(nodes: Dictionary, placed: Dictionary, cam: Camera3D, dir: String, ta
 	nodes["hero"].visible = false
 	nodes["dummy"].visible = false
 	if not _only.is_empty():
-		var at := cam.global_position - GAME_VIEW - Vector3(0.0, 1.0, 0.0)  # the close camera's floor centre
+		var at := cam.global_position - game_view - Vector3(0.0, 1.0, 0.0)  # the close camera's floor centre
 		cam.size = 1.2 * _only.size() + 2.0
 		for kind: String in nodes:
 			if kind in ["hero", "dummy"]:
