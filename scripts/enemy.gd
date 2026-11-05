@@ -231,7 +231,6 @@ var _freeze_t := 0.0
 # are encased (stunned) and the next hit shatters the ice for frozen_mult damage.
 var chill_t := 0.0
 var chill_mult := 1.0
-var chill_hits := 0
 var frozen_t := 0.0
 var frozen_mult := 1.0
 var _ice: MeshInstance3D
@@ -326,10 +325,6 @@ func _ready() -> void:
 ## Shoots from a distance (doesn't need a melee slot).
 func is_ranged() -> bool:
 	return attack_kind in ["ranged", "line", "raise"]
-
-
-func fuse_left() -> float:
-	return _fuse
 
 
 ## Targetable: spawned, not dead, and not mid-dodge.

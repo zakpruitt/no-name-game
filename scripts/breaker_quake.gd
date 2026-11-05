@@ -239,13 +239,3 @@ static func eruption(parent: Node, pos: Vector3, el: String, radius: float, dela
 		tw.tween_interval(delay + i * ERUPT_STEP)
 		tw.tween_callback(ELEMENTS.storm_strike.bind(parent, at, el))
 
-
-## The same strikes marching down a line from `from` along `dir` (dash breaker).
-static func eruption_line(parent: Node, from: Vector3, dir: Vector3, length: float, el: String, delay := 0.08) -> void:
-	var n := clampi(int(length / 1.6), 3, 6)
-	for i in n:
-		var side := dir.cross(Vector3.UP).normalized() * (0.9 if i % 2 == 0 else -0.9)
-		var at := Vector3(from.x, 0.0, from.z) + dir * (length * (i + 0.5) / n) + side
-		var tw := parent.create_tween()
-		tw.tween_interval(delay + i * ERUPT_STEP * 1.4)
-		tw.tween_callback(ELEMENTS.storm_strike.bind(parent, at, el))
