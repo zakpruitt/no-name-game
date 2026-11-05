@@ -15,6 +15,9 @@ const HUD_INK := preload("res://scripts/hud_ink.gd")
 ## over the hero in the same font and ink.
 const COUNTER_DOTS := 0.3  # alpha of the panel's dots
 const CALLOUT_OUTLINE := 12  # px of the callout's ink at font 84 (24)
+const ANNOUNCE_SIZE := 44  # px: AIRBORNE, SKY DANCER, PERFECT, GUARD BREAK (64, mid-screen over the hero)
+const ANNOUNCE_Y := 0.2  # of the screen height (0.5)
+const ANNOUNCE_FADE := 0.25  # real s (0.4 of game time)
 
 
 ## The halftone panel behind the combo counter: dots in the rank's colour, biggest at the right edge, in a
@@ -120,8 +123,11 @@ func _ready() -> void:
 	_anchor(readout_label, 1.0, 1.0, Rect2(-844, -58, 820, 28))
 	readout_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
-	center_label = _label(root, "", 64, Color.WHITE)
-	_anchor(center_label, 0.5, 0.5, Rect2(-500, -120, 1000, 160))
+	# Round 33, sleek 4: the announcements sat at 64 px in the middle of the screen, which is where the hero is,
+	# and their tween ran on game time, so AIRBORNE covered Rockslide and Fault Line for 1.3 s. Now 44 px in the
+	# top fifth (clear of the hang, under the boss bar's row) and timed in real seconds.
+	center_label = _label(root, "", ANNOUNCE_SIZE, Color.WHITE)
+	_anchor(center_label, 0.5, ANNOUNCE_Y, Rect2(-500, -40, 1000, 80))
 	center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	# Round 33, sleek 4: the announcements (AIRBORNE, SKY DANCER, PERFECT, GUARD BREAK via Game.announced) were
@@ -259,9 +265,9 @@ func flash_message(text: String, duration := 0.0) -> void:
 	center_label.modulate.a = 1.0
 	center_label.scale = Vector2.ONE
 	if duration > 0.0:
-		var tw := create_tween()
+		var tw := create_tween().set_ignore_time_scale(true)  # (hitstop held it over the next hits)
 		tw.tween_interval(duration)
-		tw.tween_property(center_label, "modulate:a", 0.0, 0.4)
+		tw.tween_property(center_label, "modulate:a", 0.0, ANNOUNCE_FADE)
 
 
 func _on_combo(count: int, rank: String) -> void:
