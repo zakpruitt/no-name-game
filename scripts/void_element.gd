@@ -25,6 +25,7 @@ const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
 const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
 const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
 const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
+const COMIC_RIP := preload("res://scripts/comic_rip.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -383,6 +384,7 @@ static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 				if e.is_airborne() and not hero._void.is_heavy(e):
 					e.take_hit(TOW_DAMAGE * power * (TOW_AIR_MULT - 1.0), Vector3.ZERO, 0.0, true)
 					Game.register_hit("cast")
+					COMIC_RIP.spawn(hero.get_parent(), e, at)  # (a void tear across it as it's ripped down)
 			return _tow(hero, at, fwd, TOW_DAMAGE * power)
 		"XR":
 			var n := _rockslide(hero, at, fwd, power * hero.HERO_MOVES.plunge_mult(hero))
