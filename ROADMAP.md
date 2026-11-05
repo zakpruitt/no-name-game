@@ -397,3 +397,16 @@ From `docs/feel-audit-2026-11-04.md`'s top 10 (numbers are the audit's).
 ## Round 36 (camera distance)
 - [x] Zak: "zoom the camera out more, too close to the character". Rest camera 13 m (was 12.5) at FOV 37 (was 36), aimed `AIM_HEIGHT` 0.8 m up his body so the pile in front sits mid-screen instead of under the HUD: at 1080p the hero is 140 px (was 167; round 28 105) with +34% floor in frame. Fight framing: foes hit in the last 2.2 s pull the camera out up to x1.25 (~112 px) and lean it towards them, drifting back slowly. Kicks and shake scale with the distance, `PUNCH_GAIN` 1.25 on enders, `HANG_ZOOM` 0.12 -> 0.16. Flags `--cam-dist=` / `--cam-fov=` / `--cam-frame=` (`docs/features/camera.md`)
 - [ ] By hand: is 13 m far enough? Try `--cam-dist=14` / `15` and `--cam-frame=1` (framing off) and say which
+
+## Round 33 (FX sleek)
+Zak, after playing every combo: "very comicy, which I like, but ... sleeker and more put together. Right now it's very thick colours." Same comic language, less weight: `docs/features/comic-style.md` "Sleek effects".
+- [x] One palette per element (`scripts/fx_palette.gd`): hit stars and chips take the blow's element (gold Awakened), so a string reads as one colour family
+- [x] Trails: swoosh and weapon trail are a see-through gradient with one light line on the blade edge and a thin ink line (`body_alpha` 0.55 / 0.5; Awakened lines only / 0.18)
+- [x] Impacts: one gradient star in a 0.035 m ink line (was three opaque stars in a 1.2x hull), thin speed lines with no ink, 60% of the chips, half-thick hoops, a second hoop on the same spot dropped
+- [x] Element casts: bolts, gale, geysers, Molten Palm's fist and the frost disc thin-inked, see-through and with fewer shapes (gale 4 bands, geysers 3 blobs, frost 4 plates)
+- [x] Breakers: thinner comet and landing star, thinner splats and spouts, half the ink drops; comic cracks at most 0.9 s, dark pools' ink at most 1.1 s
+- [x] Words a quarter smaller with a thinner ink line, 14 frames (20); numbers smaller, 12 px ink (26), hold 0.38 s (0.5)
+- [x] The Awakening column see-through and shorter; two daze stars (three)
+- [ ] By hand: does the sleeker look still hit hard enough? Thin lines lean on the hitstop and the impact frame now
+- [ ] Still thick, other lanes: the spirit echo's ghost axe (teal on L2 / EC, gold Awakened: `spirit_echo.gd`), `elements.storm_strike`'s gold sky column, the breaker cue's floor rings (`breaker_cue.gd`), the brown earth spikes (`elements.spikes`), the cyan spirit motes round him (`elements.Orbit`)
+- [ ] Next: numbers: one total per breaker (audit 6); fade standing element effects when the next string's first hit lands (a Game "string started" signal)

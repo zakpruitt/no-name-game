@@ -193,3 +193,11 @@ the worktree, and deletes the branch once it has been merged.
 - **A camera aimed at the feet puts a top-down fight under the HUD.** From 53 deg the hero's body and the foes in front
   of him project up-screen; aiming 0.8 m up him centred the pile without changing the distance. Raising the aim also
   widens the floor in frame like a longer distance does, so re-measure the footprint after moving it.
+- **TaskStop on a background shell doesn't stop its Godot child.** A stopped `element_shots` run kept writing to the
+  same log and to `user://element_shots/` while the rerun started; rerun the film once the old window is gone.
+- **A Godot import reshuffles every `.import` file's line ends.** Run the revert loop with `2>/dev/null` on git, or
+  its CRLF warnings flood the output (130 lines per run here).
+- **Round 33 (FX sleek):** six commits, one effect family each (trails, impacts + palette, element casts, breakers +
+  floor marks, words / numbers, leftovers). Filming the whole `string_film` after each family (about 5 min) was
+  worth it: the leftovers (the Awakening column, daze stars) only showed in the after film.
+

@@ -250,6 +250,41 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 `ambient_light_disabled` keeps the palette exact. Dots and hatch use
 `FRAGCOORD / VIEWPORT_SIZE.y`, a fixed number of cells per screen height.
 
+## Sleek effects (round 33)
+
+Zak, after playing every combo: "very comicy, which I like, but I'd like them to look a bit sleeker and more
+put together. Right now it's very thick colours." The comic language stays (words, ink, flat tones, on-twos
+stepping); what changed is weight. The target is a clean motion-graphics comic (Hi-Fi Rush, Persona 5 UI),
+not thick crayon.
+
+- **One palette per element** (`scripts/fx_palette.gd`): five tones each (ink, deep, body, light, hot) for
+  wind, water, earth, void, spirit, the neutral "hit" and Awakened gold. `Fx.hit_spark` and `Fx.element_hit`
+  take the blow's palette from the hero's move (`VOID_ELEMENT.ELEMENT_OF`, gold Awakened, else "hit"), so a
+  storm string's stars, chips and bolts are one green family. Words and numbers keep their hot red-yellow.
+- **Thin lines, not hulls.** Ink is a line of `PAL.LINE` (0.035 m, about 2 px at the game camera) round a
+  shape, not a copy of it 1.2-2.1x its size. Applied in comic_pop (stars, chips, hoops), comic_bolt, comic_gale,
+  comic_geyser, comic_fist, comic_comet, comic_crack, dark_fx (splat, spout) and the frost spear's disc.
+- **Gradients and transparency instead of opaque fills.** A hit star is one shape, its light core fading to
+  its body colour at 85% alpha at the tips (was three opaque stars nested in ink). The swoosh and weapon trail
+  shaders draw a clear-to-tinted body (`body_alpha` 0.55 / 0.5; Awakened 0 / 0.18) with one crisp light line
+  on the blade edge and a thin ink line past it. Bolts, gales, geysers, splats and the comet body are 0.85-0.9
+  alpha with a narrower light core line.
+- **Fewer shapes.** Stars at most 8 spikes with sharper valleys (`STAR_INNER` 0.3), chips 60% as many and
+  75% as big, speed strokes 55% as wide with no ink, gale 4 bands (was 5) at 0.22 m (0.32), geysers 3 blobs
+  (6), Maw / Collapse ink drops halved, two speed lines behind Molten Palm's fist (three ink wedges), frost
+  plates 4 (7). `Fx.ring` drops a second hoop laid on the same spot within 40 ms (the colour + white pairs).
+- **Shorter-lived.** Words 14 frames (20), numbers hold 0.38 s (0.5), geysers lose their stub step, comic
+  cracks at most 0.9 s, dark pools' ink at most 1.1 s (`dark_fx.POOL_SHOW`; the binds still hold for the
+  gameplay time).
+- **Awakening and daze.** `Fx.beam` (the Awakening column) is 70% as wide at 0.32 alpha round a thin core
+  and gone in 70% of the time; daze shows two 0.16 m stars (three at 0.2).
+- **Smaller words.** `WORD_SCALE` 0.32-0.64 (0.42-0.84), breaker words 0.78 (1.0), outline FONT_SIZE / 9
+  (/ 4), print offset 3 / 4 px (4 / 6); numbers `PIXEL` 0.0036 (0.0042), outline 12 px (26).
+
+Not in this lane, still thick: the spirit echo's ghost axe (gold slab on Awakened L2, teal on EC), the
+storm strike's gold sky column (`elements.storm_strike`), the breaker cue's floor rings, the brown earth spikes
+(`elements.spikes`) and the cyan spirit motes round him. See ROADMAP round 33.
+
 ## Invariants
 
 - `settings.cfg` never gains a comic key.
