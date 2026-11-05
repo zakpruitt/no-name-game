@@ -6,6 +6,8 @@ extends RefCounted
 ## Numbers: tests/rhythm_check.gd.
 
 const HERO_MOVES := preload("res://scripts/hero_moves.gd")
+const HERO_LEAP := preload("res://scripts/hero_leap.gd")
+const HERO_AWAKEN := preload("res://scripts/hero_awaken.gd")
 
 ## Input feel (round 30; tests/rhythm_check.gd).
 ## A press of L / right click / dash / R is remembered this long and fires on the first frame it's legal
@@ -56,7 +58,7 @@ static func read_input(hero: CharacterBody3D) -> void:
 	if Input.is_action_just_pressed("dash"):
 		hero._dash_buffer_t = hero.input_buffer
 	if Input.is_action_just_pressed("awaken"):
-		hero.try_awaken()
+		HERO_AWAKEN.try_awaken(hero)
 
 
 ## The last device touched decides, so a gamepad goes back to facing the way he runs.
@@ -86,7 +88,7 @@ static func cancel_point(hero: CharacterBody3D) -> float:
 		return c
 	var last: float = move.hits[-1]
 	var early := maxf(lerpf(c, last, move.get("confirm", CANCEL_ON_HIT)), last + HIT_CONFIRM_MIN * hero.anim_speed * hero._anim_mult / hero._move_len)
-	var brk: Dictionary = hero._breaker_for(hero._move_id)
+	var brk: Dictionary = HERO_LEAP.entry_for(hero._move_id)
 	if not brk.is_empty():
 		early = maxf(early, move.get("leap", brk.leap))
 	return minf(c, early)

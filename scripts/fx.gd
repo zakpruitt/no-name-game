@@ -1,7 +1,7 @@
 class_name Fx
 ## Small throwaway visual effects: damage numbers, hit sparks, flashes.
 
-const SWOOSH_SECOND_HEIGHT := 1.0  # player._swoosh lifts its second (ender / chain) arc to 1.15 m, the first sits at 0.8
+const SWOOSH_SECOND_HEIGHT := 1.0  # hero_fx.swoosh lifts its second (ender / chain) arc to 1.15 m, the first sits at 0.8
 const AWAKEN_SWOOSH_BAND := 0.72  # Awakened: the swoosh keeps only its outer band past this UV.y, inked inside
 ## Particle and flare sprites (Kenney Particle Pack, CC0): white with alpha, tinted per use.
 const TEX := {
@@ -89,7 +89,7 @@ static func _label(text: String, font_size: int, color: Color, outline_color: Co
 ## across `arc_deg` (360 = full spin), sweeping across it over `time`.
 ## `flip` swings right-to-left instead of left-to-right.
 ## While the hero is Awakened (feel audit 2026-11-04 item 4: his gold crescents were opaque sheets 4-5x his
-## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and player._swoosh's second, wider
+## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and hero_fx.swoosh's second, wider
 ## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
 static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float,
 		color: Color, flip := false, time := 0.26, height := 0.8, lines_only := false) -> void:
@@ -293,7 +293,7 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 			burst(parent, at, Color(0.3, 0.95, 0.85), int(5 * k), 3.0, 0.12, 0.5, Vector3.UP, 50.0, -1.5, 0.25, "dot", true)
 
 
-## A named combo landing (player._combo_callout): star flare, ground ring and a
+## A named combo landing (hero_fx.combo_callout): star flare, ground ring and a
 ## spark spray at the hero, scaled by the combo's tier (1-3).
 static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> void:
 	var at := pos + Vector3.UP * 1.2

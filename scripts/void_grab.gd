@@ -155,9 +155,9 @@ static func is_heavy(e: Node) -> bool:
 
 
 func _aim_dir() -> Vector3:
-	if hero._mouse_aiming():
-		return hero._mouse_dir()
-	var d: Vector3 = hero._input_dir()
+	if hero.HERO_INPUT.mouse_aiming(hero):
+		return hero.HERO_INPUT.mouse_dir(hero)
+	var d: Vector3 = hero.HERO_INPUT.input_dir(hero)
 	return d.normalized() if d.length() > 0.1 else hero._facing()
 
 
@@ -639,7 +639,7 @@ func _begin_swing(a: Node3D) -> void:
 	_r = out.length()
 	_ang = atan2(out.z, out.x)
 	# Round whichever way carries him where he's pushing; left of the pillar by default.
-	var push: Vector3 = hero._input_dir()
+	var push: Vector3 = hero.HERO_INPUT.input_dir(hero)
 	if push.length() <= 0.1:
 		push = hero._facing()
 	_sign = -1.0 if out.cross(push).y > 0.0 else 1.0
@@ -720,7 +720,7 @@ func _drop_carry() -> void:
 	if not e.is_alive():
 		return
 	VOID_ELEMENT.THROWN.launch(hero, e, e.global_position + _tangent() * VOID_ELEMENT.CARRY_LENGTH,
-		VOID_ELEMENT.CARRY_DAMAGE * hero._dmg_mult * hero._cast_power(), {"el": "void"})
+		VOID_ELEMENT.CARRY_DAMAGE * hero._dmg_mult * hero.HERO_FX.cast_power(), {"el": "void"})
 
 
 func _tick_sky(delta: float) -> void:

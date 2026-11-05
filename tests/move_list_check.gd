@@ -76,9 +76,9 @@ func _check_reachable() -> void:
 			dashed.post_dash = true
 			todo.append(dashed)
 		for kind: String in ["light", "heavy"]:
-			var id: String = PLAYER.void_route(kind, s.from, s.attacking, s.chain, s.post_dash)
+			var id: String = PLAYER.HERO_MOVES.void_route(kind, s.from, s.attacking, s.chain, s.post_dash)
 			reached[id] = true
-			todo.append({"from": id, "attacking": true, "chain": PLAYER.chain_after(id), "post_dash": false})
+			todo.append({"from": id, "attacking": true, "chain": PLAYER.HERO_MOVES.chain_after(id), "post_dash": false})
 	for id: String in reached:
 		_check(id == VOID.NEUTRAL or _listed(id), "void_route() reaches %s, not on the move list" % id)
 
@@ -112,10 +112,10 @@ func _press(input: String) -> String:
 				i += 1  # "hold H": the held right click
 				last = VOID.CHARGED
 			"L", "H":
-				last = PLAYER.void_route("light" if t == "L" else "heavy", from, attacking, chain, post_dash)
+				last = PLAYER.HERO_MOVES.void_route("light" if t == "L" else "heavy", from, attacking, chain, post_dash)
 				from = last
 				attacking = true
-				chain = PLAYER.chain_after(last)
+				chain = PLAYER.HERO_MOVES.chain_after(last)
 				post_dash = false
 			_:
 				_check(false, "unknown token %s in '%s'" % [t, input])

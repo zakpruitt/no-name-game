@@ -113,7 +113,7 @@ func _film(combo_name: String, moves: Array, alt: bool) -> void:
 				await _shot("%s_b%d" % [combo_name, i])
 		await create_timer(0.2).timeout
 		await _shot("%s_4" % combo_name)  # what comes up through the floor
-	print("[element_shots] %s breakers=%d last=%s" % [combo_name, _p.breakers_landed, _p.breaker_name()])
+	print("[element_shots] %s breakers=%d last=%s" % [combo_name, _p.breakers_landed, _p.HERO_LEAP.breaker_name(_p)])
 	_p.bot_enabled = false
 	await create_timer(1.6).timeout
 

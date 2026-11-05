@@ -336,7 +336,7 @@ func _watch_hero() -> void:
 			_say(MOVE_WORDS[id], at, WORD_SCALE[tier])
 	if hero.breakers_landed > _breakers_seen:
 		_breakers_seen = hero.breakers_landed
-		var word: String = BREAKER_WORDS.get(hero.breaker_name(), "")
+		var word: String = BREAKER_WORDS.get(hero.HERO_LEAP.breaker_name(hero), "")
 		if word != "":
 			_say(word, hero.global_position, BREAKER_SCALE)
 

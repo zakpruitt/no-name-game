@@ -9,7 +9,7 @@ Read `docs/features/combo-breakers.md` (the shared leap / window / dive) and the
 `docs/features/void-element.md` (what each slam does) first.
 
 ## What a breaker is
-- When an ender **connects** and reaches `leap` (fraction of the move), `_state_attack` hands off to `_start_leap()` (`State.LEAP`).
+- When an ender **connects** and reaches `leap` (fraction of the move), `_state_attack` hands off to `hero_leap.start()` (`State.LEAP`).
 - He leaps (`rise`, `height`, `back`) with the tentacles on what the string hit (`void_grab.seize()`), and a cue rings the landing.
 - The window (`open`..`close` s after take-off) plays in slow motion; right click in it dives (`dive` s) and slams what he holds.
   Within `perfect` of `sweet` is a PERFECT (freeze, x`perfect_mult`, `awaken_perfect`). An `alt` makes L in the window a second ending.
@@ -19,7 +19,7 @@ Read `docs/features/combo-breakers.md` (the shared leap / window / dive) and the
 - `scripts/void_element.gd`: `_WINDOW` (shared defaults), `BREAKERS` (per breaker: `names.spirit`, `erupt`, `damage`, `leap`, `awaken`,
   `awaken_perfect`, and the keys its slam reads: `wire`, `press`, `at_spot` + `short`, `meteor`, `rip`, `collapse`, `maw`, `abyss`, `cubes`),
   `entry()`, `breaker_impact()`.
-- `scripts/player.gd`: `_breaker_for()`, `_start_leap()`, `_state_leap()`, `_start_dive()`, `_breaker_impact()`, `breaker_window()`, `BREAKER_*`.
+- `scripts/hero_leap.gd`: `entry_for()`, `start()`, `tick()`, the dive and impact, `window()` (`player.breaker_window()` forwards it for the prompt), `BREAKER_*`.
 - `scripts/void_grab.gd`: `seize()`, `seized_tick()`, `slam_seized()`, `release_seized()`.
 - `scripts/breaker_cue.gd`, `breaker_prompt.gd`, `breaker_quake.gd`: cue, prompt, war cry and crater.
 

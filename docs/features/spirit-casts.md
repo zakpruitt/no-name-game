@@ -18,8 +18,8 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 ## Files
 
 - `scripts/elements.gd` `CASTS`: the per-move tuning (kind, damage, sizes, timing). `LOOK.spirit` is the palette.
-- `scripts/player.gd`: `_cast(fwd)` (once per move, on its first hit), `_spirit()` (the common
-  setup: axe mesh, colour, element, damage), `_cast_grow()` / `_cast_power()`, `_axe_mesh()`.
+- `scripts/hero_fx.gd`: `cast(hero, fwd)` (once per move, on its first hit), `spirit()` (the common
+  setup: axe mesh, colour, element, damage), `cast_grow()` / `cast_power()`, `axe_mesh()`, `AXE_SOURCE`.
 - `scripts/spirit_echo.gd`: the echo, plus the shared `ghost(mesh, color)` / `ghost_mat(color)` (round 33
   sleek: a ~0.3 alpha halftone fill in the palette nearest the colour, teal spirit or gold Awakened, inside a
   thin ink line with a light edge; `shaders/ghost_halftone.gdshader` + `ghost_ink.gdshader`, `set_alpha()`;
@@ -28,9 +28,9 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 
 ## How it works
 
-1. `player._do_hit` calls `_cast(fwd)` once per move (`_hits_done == 1`).
-2. `_cast` reads `CASTS[_move_id]`, computes `g = _cast_grow()`, and builds the cast node
-   through `_spirit()`; size/reach fields are multiplied by `g`, damage by `_cast_power()`.
+1. `player._do_hit` calls `hero_fx.cast(self, fwd)` once per move (`_hits_done == 1`).
+2. `cast` reads `CASTS[_move_id]`, computes `g = cast_grow()`, and builds the cast node
+   through `spirit()`; size/reach fields are multiplied by `g`, damage by `cast_power()`.
 3. Each cast node orients itself to `fwd` in `_ready`, builds its ghost meshes, and drives
    everything with one tween: appear, move, hit, fade, `queue_free`.
 4. Hits go through `take_hit`, `Game.register_hit("cast")`, `Fx.element_hit` and `on_hit`.
@@ -40,7 +40,7 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 - **Face the camera.** The camera sits behind the hero looking down at ~55 degrees. A blade
   whose flat side faces sideways is edge-on and vanishes. The echo lies flat; the lash is the tentacle's camera-facing ribbon.
 - **Ghost materials are per cast** (fades tween them).
-- The axe is the KayKit `1H_Axe` (`player.AXE_SOURCE`, `assets/kaykit/characters/Barbarian.glb`,
+- The axe is the KayKit `1H_Axe` (`hero_fx.AXE_SOURCE`, `assets/kaykit/characters/Barbarian.glb`,
   loaded once on the first cast). The heretic's own weapons are skinned into his rig, so they
   can't be ghosted. Axe-local geometry: handle +Y (butt -0.27, top 0.97), blade toward -X
   (edge ~-0.59), head centre (-0.3, 0.62).
@@ -56,8 +56,8 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 ## Extending
 
 New cast kind: write `scripts/spirit_<kind>.gd` (vars `axe_mesh`, `color`, `el`, `damage`,
-`on_hit` so `_spirit()` can fill them; use `SPIRIT_ECHO.ghost(axe_mesh, color)`), add a
-`match` branch in `player._cast` with `const SPIRIT_<KIND>`, point a `CASTS` entry at it, and
+`on_hit` so `hero_fx.spirit()` can fill them; use `SPIRIT_ECHO.ghost(axe_mesh, color)`), add a
+`match` branch in `hero_fx.cast` with `const SPIRIT_<KIND>`, point a `CASTS` entry at it, and
 look at it windowed from the game camera before tuning.
 
 ## Testing

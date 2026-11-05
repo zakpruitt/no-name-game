@@ -28,7 +28,7 @@ There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Set
 | `scripts/enemy.gd` | `comic_kind`, the mapping in `_play`, `_hold_clip`, `_clip_speed`, `_attach_comic_spark` |
 | `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
 | `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` |
-| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move` (`hero_moves.effective_move`), `_axe_mesh`, `_turned`, `_play_locomotion` |
+| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `hero_moves.effective_move`, `_turned`, `_play_locomotion` |
 | `scripts/hero_input.gd` | mouse aim: `mouse_aiming`, `mouse_dir`, `steer`, `aim`, `aim_want` |
 | `tools/comic_glb.py` | Copies GLBs into `assets/comic`, moving `g` to `COLOR_0` |
 | `assets/fonts/` | Bangers + `OFL.txt` (see `CREDITS.md`) |
@@ -311,7 +311,7 @@ still have retargeted arms.
 (the hero's element is spirit, shown as wind's look through `HERO_AURA_AS`). `comic_axe_aura.gd` adds tongues along the edge, geometry stepped at 12 fps: `rise` flames stand up
 in the world and stream behind a swing, `spin` gusts whirl round the blade, `shard` crystals stay fixed. Each
 tongue is an outer colour on back faces round a hot core on front faces, so the core shows from any side.
-Motes come from `comic_axe_aura._drip` (`DRIP_AMOUNT`). `charge` grows them while Awakened (`player._set_awakened`).
+Motes come from `comic_axe_aura._drip` (`DRIP_AMOUNT`). `charge` grows them while Awakened (`hero_awaken.set_awakened`).
 
 **Drag marks.** Each aura has a `comic_drag_mark.gd` it feeds the blade's tip every frame. Within `LIFTED` of
 the floor the tip lays a point every `STEP_M`, and the points make a ribbon, an outer colour with a hot inner
@@ -660,7 +660,7 @@ KayKit assumptions the comic hero runs into:
   and imported the bone as `head_2`, so every `head` attachment would have silently landed at the
   origin. `comic_check` now resolves every attachment.
 - The spirit casts' `axe_mesh` stays the KayKit Barbarian's `1H_Axe`. His weapons are skinned in
-  place and can't be ghosted from an origin, hence `_axe_mesh`.
+  place and can't be ghosted from an origin, hence `hero_fx.axe_mesh`.
 - `weapon_trail.gd` follows a mesh's transform; skinned axes never move theirs, so
   `ComicLook.hero_blades` rides invisible boxes on the hands. Direction from the axe head's bounds.
 - `Fx.afterimage` bakes every skinned mesh. He's 67k tris in 29 meshes, so dash ghosts may

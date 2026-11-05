@@ -12,7 +12,7 @@ Pillar 1 is combat feel first. Strings should read as motion, not as standing st
   `hits`, `cancel`, `end`, `lunge` + `decay`, `range` / `arc` or `width`, `knockback`, `launch`, `stop` (hitstop), `shake`, `big`,
   `hop: [start, end, height]`, `air`, `climb`.
 - **`player.COMBOS`**: named combos (name, input, tier). Landing one plays `combo_<tier>` and shows the callout.
-- **`player.void_route()`**: the single routing function (`_routed()` adds the vault), used by `_next_move`, the combo guide and the checks.
+- **`hero_moves.void_route()`**: the single routing function (`_routed()` adds the vault), used by `_next_move`, the combo guide and the checks.
   Its tables are in `scripts/void_element.gd`: `LIGHT_AFTER`, `AFTER` (right click off each weapon), `DASH_MOVE`, `CHAIN`.
 - **`elements.CASTS`**: the spirit casts (see the `spirit-cast` skill). **`VOID_ELEMENT.BREAKERS`**: timed finishers (see `combo-breaker`).
 
@@ -203,7 +203,7 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - **A payoff's reach is the move's own shape, read from the body's constants.** `improv_reach()` duplicates each
   move's filter (strip, circle, cone, pool, `reachable()`) before the move fires; a test that puts a foe behind him
   inside the old radius must fail on the old code (it failed 5 ways). Zero `Game.combo_count` in such a test: the
-  chain's `_cast_grow()` swells Updraft Lash's gale circle until it reaches behind him.
+  chain's `hero_fx.cast_grow()` swells Updraft Lash's gale circle until it reaches behind him.
 - **A shape change can silently drop a bot cell.** `buried_x_water` went 1 -> 0 because the dash and Dash Stab carried
   him past the buried and the harpoon flew the other way; the bot's `face` token (aim at the nearest foe every press)
   brought it back. Read `[improv]` after any reach change, not only `breakers=`.

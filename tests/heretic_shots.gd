@@ -104,7 +104,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 		var end := length
 		var hit := -1.0
 		if id != "":
-			var m: Dictionary = p._effective_move(id)
+			var m: Dictionary = p.HERO_MOVES.effective_move(p.anim, id)
 			end = minf(length, m.end * length + 0.15)
 			hit = m.hits[0] * length
 		arm.shape(c[2], false)

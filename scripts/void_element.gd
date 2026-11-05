@@ -346,15 +346,15 @@ static func breaker_element(b: Dictionary) -> String:
 ## The move's first hit. Returns how many foes it reached, so a whiff stays quiet. A base element move first cashes
 ## in whatever state its element pays on the foes near him (improvise(), the element matrix), then does its own thing.
 static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
-	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero._cast_power(), fwd)
+	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero.HERO_FX.cast_power(), fwd)
 	return maxi(_fire(hero, id, fwd), paid)
 
 
 static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 	var parent: Node = hero.get_parent()
 	var at := _flat(hero.global_position)
-	var power: float = hero._dmg_mult * hero._cast_power()
-	var grow: float = hero._cast_grow()
+	var power: float = hero._dmg_mult * hero.HERO_FX.cast_power()
+	var grow: float = hero.HERO_FX.cast_grow()
 	Game.sfx(ELEMENTS.LOOK[ELEMENT_OF[id]].sfx, -2.0, 0.1)
 	match id:
 		"EC":
@@ -428,7 +428,7 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 static func zap(hero: CharacterBody3D, foes: Array, hand: Vector3) -> void:
 	var parent: Node = hero.get_parent()
 	var color: Color = ELEMENTS.LOOK.wind.color
-	var damage: float = WIRE_DAMAGE * hero._dmg_mult * hero._cast_power()
+	var damage: float = WIRE_DAMAGE * hero._dmg_mult * hero.HERO_FX.cast_power()
 	var last := hand
 	for e: Node3D in foes:
 		if not is_instance_valid(e) or not e.is_alive():
@@ -779,7 +779,7 @@ static func _tow_line(hero: CharacterBody3D, at: Vector3) -> Array:
 static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = at + fwd * minf(ROCKSLIDE_AHEAD, hero._clear_ahead(fwd, ROCKSLIDE_AHEAD))
-	var foes: Array = FOES.near(hero.get_tree(), spot, ROCKSLIDE_RADIUS * hero._cast_grow()).filter(func(e: Node3D) -> bool:
+	var foes: Array = FOES.near(hero.get_tree(), spot, ROCKSLIDE_RADIUS * hero.HERO_FX.cast_grow()).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e))
 	hero._void.buried = []
 	COMIC_BOULDER.spawn(parent, spot, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
@@ -800,7 +800,7 @@ static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 ## throws them back into the air, Rockslide's buried twice as hard. The window opens (Cataclysm).
 static func _fault_line(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
-	var foes: Array = FOES.near(hero.get_tree(), at, FAULT_REACH * hero._cast_grow()).filter(func(e: Node3D) -> bool:
+	var foes: Array = FOES.near(hero.get_tree(), at, FAULT_REACH * hero.HERO_FX.cast_grow()).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e))
 	if foes.is_empty():
 		COMIC_FAULT.spawn(parent, at, [at + fwd * 4.0])
@@ -1156,7 +1156,7 @@ static func meteor_wall(hero: CharacterBody3D) -> void:
 		void_grab.undertow._let_go()
 	void_grab.release_seized()
 	var at := _flat(hero.global_position)
-	var power: float = hero._dmg_mult * hero._cast_power()
+	var power: float = hero._dmg_mult * hero.HERO_FX.cast_power()
 	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_REACH)
 	for e: Variant in void_grab.bound:  # (whoever Undertow chased off past the reach)
 		if is_instance_valid(e) and e.is_alive() and not e in foes:
@@ -1611,7 +1611,7 @@ const IMPROV_ROLL_HALF_WIDTH := 1.0  # m either side of Ice Cube's roll: the cub
 ## reaches nobody; an id with no shape here falls back to its MOVES `range` / `arc` / `width`, then IMPROV_REACH.
 static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Vector3) -> Array:
 	var tree := hero.get_tree()
-	var grow: float = hero._cast_grow()
+	var grow: float = hero.HERO_FX.cast_grow()
 	match id:
 		"EC":  # the gale's circle where the sweep throws them up
 			var eye: Vector3 = at + fwd * minf(CUTTER_AHEAD, hero._clear_ahead(fwd, CUTTER_AHEAD))

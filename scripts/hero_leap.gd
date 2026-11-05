@@ -291,7 +291,7 @@ static func _impact(hero: CharacterBody3D) -> void:
 	var el := element(hero)
 	var at := Vector3(hero.global_position.x, 0.0, hero.global_position.z)
 	var perfect: bool = absf(hero._brk_press - b.sweet) <= b.perfect
-	var mult: float = (b.perfect_mult if perfect else 1.0) * hero._cast_power()
+	var mult: float = (b.perfect_mult if perfect else 1.0) * hero.HERO_FX.cast_power()
 	if is_instance_valid(hero._brk_meteor):
 		hero._brk_meteor.queue_free()
 	VOID_ELEMENT.breaker_impact(hero, b, at, void_grab.held_foes() if b.has("cubes") or b.has("rip") else void_grab.slam_seized(), mult)
@@ -320,9 +320,9 @@ static func _impact(hero: CharacterBody3D) -> void:
 ## The breaker's name over his head, bigger and gold on a perfect.
 static func _callout(hero: CharacterBody3D, text: String, perfect: bool) -> void:
 	var label: Label3D = hero._callout
-	Game.sfx(hero.COMBO_TIER_SFX[2], hero.COMBO_SFX_DB, 0.0)
+	Game.sfx(hero.HERO_FX.COMBO_TIER_SFX[2], hero.HERO_FX.COMBO_SFX_DB, 0.0)
 	label.text = text + ("\nPERFECT" if perfect else "")
-	label.modulate = hero.COMBO_TIER_COLORS[2] if perfect else hero._fx_color().lerp(Color.WHITE, 0.3)
+	label.modulate = hero.HERO_FX.COMBO_TIER_COLORS[2] if perfect else hero._fx_color().lerp(Color.WHITE, 0.3)
 	label.position = Vector3(0.0, 2.9, 0.0)
 	label.scale = Vector3.ONE * 0.6
 	label.visible = true

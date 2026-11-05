@@ -12,12 +12,12 @@ comic style (chibi but badass, `docs/features/art-direction.md`): flat inked sha
 Read `docs/features/spirit-casts.md`: the cast table, invariants, tuning and axe-local geometry.
 
 ## Building one
-1. **Shape.** Start from `spirit_echo.ghost(mesh, color)` (translucent unshaded body + rim) on the axe mesh `player._axe_mesh()` gives.
+1. **Shape.** Start from `spirit_echo.ghost(mesh, color)` (translucent unshaded body + rim) on the axe mesh `hero_fx.axe_mesh()` gives.
    Lay blades flat or turn their flat sides to the camera: edge-on blades vanish.
-2. **Script.** `scripts/spirit_<kind>.gd` with vars `axe_mesh`, `color`, `el`, `damage`, `on_hit` so `player._spirit()` fills them;
+2. **Script.** `scripts/spirit_<kind>.gd` with vars `axe_mesh`, `color`, `el`, `damage`, `on_hit` so `hero_fx.spirit()` fills them;
    one tween drives appear, move, hit, fade, `queue_free`. Hits go through `spirit_echo.strike()`.
-3. **Wire it.** A `match` branch in `player._cast` with `const SPIRIT_<KIND>`, and a `CASTS` entry in `scripts/elements.gd`.
-   Sizes multiply by `_cast_grow()` and damage by `_cast_power()`; both grow with the chain tiers. `VOID_ELEMENT.NO_CAST`
+3. **Wire it.** A `match` branch in `hero_fx.cast` with `const SPIRIT_<KIND>`, and a `CASTS` entry in `scripts/elements.gd`.
+   Sizes multiply by `hero_fx.cast_grow()` and damage by `cast_power()`; both grow with the chain tiers. `VOID_ELEMENT.NO_CAST`
    keeps a move's cast off when it would stand in front of the tentacle move that follows.
 4. **Prewarm** any new material in `elements.prewarm()` at real size.
 

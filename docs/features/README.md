@@ -20,7 +20,7 @@ invariants and the gotchas.
 | Element matrix: every crossover state x every element, the improvised payoffs | [element-matrix.md](element-matrix.md) | `void_element.IMPROV`, `improvise()`, `scripts/floor_bind.gd` (`holds()`) |
 | Combo breakers: the shared leap / window / dive, and strings that move (hops, air, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `scripts/hero_leap.gd`, `scripts/hero_moves.gd` (`hop()`), `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd`, `scripts/breaker_quake.gd` |
 | Combo guide (next-input hints beside the hero) and the pause MOVES list | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `scripts/move_list.gd`, `hero_moves.combo_options()`, `hero_input.combo_window()` |
-| Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `player._cast()`, `elements.CASTS` |
+| Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `hero_fx.cast()`, `elements.CASTS` |
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
 | Comic art style (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |

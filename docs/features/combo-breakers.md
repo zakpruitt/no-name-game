@@ -36,9 +36,9 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
   `entry()`), `breaker_impact()` (each slam's effect), `breaker_element()`.
 - `scripts/hero_leap.gd` (static functions over the hero; the `_brk_*` state stays on `player.gd`), with the
   `BREAKER_*` constants:
-  - `entry_for(id)` (`player._breaker_for`): the merged entry when the move has one; `player._state_attack`
+  - `entry_for(id)`: the merged entry when the move has one; `player._state_attack`
     starts the leap at the entry's `leap` once the move has connected.
-  - `start()` (`player._start_leap`): state `LEAP`, the zone `zone` m ahead (`_clear_ahead`), `void_grab.seize()`,
+  - `start()`: state `LEAP`, the zone `zone` m ahead (`_clear_ahead`), `void_grab.seize()`,
     `_aim()` (`at_spot` breakers land `short` of `void_grab.dark_spot`; Meteor Fall on the held foe).
   - `tick()` (State.LEAP each frame): phase 0 rise / hang / cue / window / press, phase 1 dive (comet trail
     `_comet()`), phase 2 float down. `_pressed()` (heavy, L for `alt`, or the bot at `sweet`).
@@ -57,7 +57,7 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 
 ## How it works
 
-1. The ender's hit lands with `_connected` and the move reaches `leap`: `_start_leap(id, entry)`.
+1. The ender's hit lands with `_connected` and the move reaches `leap`: `hero_leap.start(hero, id, entry)`.
 2. Phase 0: he rises `height` m over `rise` s, hopping `back` m; at `cue` s the cue spawns on the zone.
    At `open` the window opens: `Game.hitstop()` at `BREAKER_FOCUS` time scale, camera push to
    `BREAKER_FOCUS_ZOOM`, heartbeat and war cry.

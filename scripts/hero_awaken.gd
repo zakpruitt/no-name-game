@@ -82,7 +82,7 @@ static func set_awakened(hero: CharacterBody3D, on: bool) -> void:
 	for mi: MeshInstance3D in hero._meshes:
 		mi.material_overlay = rim if on else null
 	for trail in hero._trails:
-		trail.color = Color(c, 0.9) if on else hero._trail_rest_color()
+		trail.color = Color(c, 0.9) if on else hero.HERO_FX.trail_rest_color(hero)
 	for coat: Node in hero._coats:  # ComicLook.infuse_axes: the axe's element flares up
 		if is_instance_valid(coat):
 			coat.charge(on)

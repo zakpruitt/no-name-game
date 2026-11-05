@@ -137,7 +137,7 @@ func _process(delta: float) -> void:
 	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
 		_dash_shot_taken = true
 		_snap("user://autotest_dash.png")
-	if not _guide_shot_taken and hud.combo_guide._rows.size() >= 3 and hud.combo_guide._vis >= 1.0 and player.combo_window().ready:
+	if not _guide_shot_taken and hud.combo_guide._rows.size() >= 3 and hud.combo_guide._vis >= 1.0 and player.HERO_INPUT.combo_window(player).ready:
 		_guide_shot_taken = true
 		_snap("user://autotest_guide.png")
 	if not _cast_shot_taken and player.ELEMENTS.casts >= 6:
@@ -320,7 +320,7 @@ func _drive_bot() -> void:
 		return
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
-		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
+		var left: float = (player.HERO_INPUT.cancel_point(player) - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
 		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
 	var out: bool = player.bot_out and string[_bot_step] == "D" and player.state == player.State.LEAP and player._brk_phase == 0
 	if (not ready or player.state == player.State.LEAP) and not out:

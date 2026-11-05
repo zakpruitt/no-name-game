@@ -383,10 +383,10 @@ static func can_air_dash(hero: CharacterBody3D) -> bool:
 ## the dash direction. Grows with the chain like the casts.
 static func air_dash_cut(hero: CharacterBody3D) -> void:
 	var c: Dictionary = AIR_DASH_CUT
-	var echo: Node3D = hero._spirit(SPIRIT_ECHO.new(), c, hero.element())
+	var echo: Node3D = hero.HERO_FX.spirit(hero, SPIRIT_ECHO.new(), c, hero.element())
 	echo.fwd = hero._dash_dir
 	echo.arc_deg = c.arc
-	echo.radius = c.radius * hero._cast_grow()
+	echo.radius = c.radius * hero.HERO_FX.cast_grow()
 	echo.delay = 0.0
 	echo.time = c.time
 	hero.add_child(echo)

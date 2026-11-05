@@ -202,7 +202,7 @@ func bind_player(p: Node) -> void:
 	# A combo's first landing, unless a tutorial hint is still up.
 	p.combo_found.connect(func(id: String) -> void:
 		if hint_panel.modulate.a < 0.05:
-			show_found("New combo: %s   (%s)   ·   %d / %d found" % [p.combo_name(id), p.COMBOS[id].input,
+			show_found("New combo: %s   (%s)   ·   %d / %d found" % [p.COMBOS[id].name, p.COMBOS[id].input,
 				p.combos_landed.size(), p.COMBOS.size()]))
 
 

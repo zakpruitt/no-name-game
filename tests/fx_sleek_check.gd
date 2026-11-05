@@ -115,7 +115,7 @@ func _initialize() -> void:
 	p._chain_i = 0
 	p._hits_done = 0
 	standing.watch(p)
-	p._combo_callout("XR")
+	p.HERO_FX.combo_callout(p, "XR")
 	cap.watch(p)
 	_ok(p._callout.visible, "the callout goes up")
 	game.hitstop(2.0, 0.5)  # a breaker's slow motion (flat at 0.5): its own tween would hold it for ~2 s
@@ -126,7 +126,7 @@ func _initialize() -> void:
 	game.end_slowmo()
 	_ok(not p._callout.visible, "the callout is gone after ~1.1 s real in slow motion")
 	p._callout_done = false
-	p._combo_callout("XR")
+	p.HERO_FX.combo_callout(p, "XR")
 	cap.watch(p)
 	await create_timer(0.1).timeout
 	p.state = p.State.ATTACK
@@ -142,7 +142,7 @@ func _initialize() -> void:
 	p._chain_i = 0
 	standing.watch(p)
 	p._callout_done = false
-	p._combo_callout("XR")
+	p.HERO_FX.combo_callout(p, "XR")
 	cap.watch(p)
 	var cam: Camera3D = p.get_viewport().get_camera_3d()
 	var vh: float = p.get_viewport().get_visible_rect().size.y
@@ -268,7 +268,7 @@ func _audit2(main: Node, p: CharacterBody3D) -> void:
 	for id: String in ["DL", "EF", "EA", "L3", "EE", "XR", "XF"]:
 		p._callout_done = false
 		p._move_id = id
-		p._combo_callout(id)
+		p.HERO_FX.combo_callout(p, id)
 		cap.watch(p)
 		shown[id] = p._callout.visible
 		p._callout.hide()

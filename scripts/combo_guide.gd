@@ -1,10 +1,10 @@
 extends Control
 ## Combo guide: beside the hero mid-string, one row per input that continues
 ## it (button glyph + the move it starts, coloured by combo tier) and, dimmer,
-## the best named combo one press past that. Reads `player.combo_options()`
+## the best named combo one press past that. Reads `hero_moves.combo_options()`
 ## every frame, so it changes the instant a move starts. A ring round each
 ## glyph fills toward the move's cancel point and the rows light up once a
-## press would be taken (`player.combo_window()`); pressing flashes the row
+## press would be taken (`hero_input.combo_window()`); pressing flashes the row
 ## straight from `_input`, before the move even starts. Animates in real time
 ## so hitstop and slow motion don't stall it. Off in Settings (Game.combo_guide).
 
@@ -21,7 +21,7 @@ const SMALL_GLYPH_H := 18.0
 const NAME_SIZE := 19
 const NEXT_SIZE := 15
 const KEY_SIZE := 15
-const PAUSE_TEXT := "or pause: "  # before a row's pause combo (player.combo_options() `pause`)
+const PAUSE_TEXT := "or pause: "  # before a row's pause combo (hero_moves.combo_options() `pause`)
 ## Round 34, fourth pass: mixing elements shows on the rows. A crossover row carries its element change ("storm >
 ## magma", `mix`) and a row whose move would cash in a state on a foe in its reach the payoff's name ("+ Shatter",
 ## `pay`, from hero_moves.pays()); both only read the real routes and the foes, like every row.
@@ -100,7 +100,7 @@ func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var dt := minf((now - _last_us) / 1000000.0, 0.1)
 	_last_us = now
-	var rows: Array = player.combo_options() if Game.combo_guide and is_instance_valid(player) else []
+	var rows: Array = player.HERO_MOVES.combo_options(player) if Game.combo_guide and is_instance_valid(player) else []
 	if not rows.is_empty():
 		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s:%s" % [r.kind, r.id, r.next.get("id", ""), r.get("pay", "")]))
 		if sig != _sig:
@@ -148,7 +148,7 @@ func _draw() -> void:
 	elif _side < 0.0 and at.x < screen.x - EDGE - 80.0:
 		_side = 1.0
 	_anchor = at + Vector2(_side * SIDE_GAP, 0.0)
-	var win: Dictionary = player.combo_window()
+	var win: Dictionary = player.HERO_INPUT.combo_window(player)
 	var ready: bool = win.ready
 	if ready and not _was_ready:
 		_ready_t = 0.0

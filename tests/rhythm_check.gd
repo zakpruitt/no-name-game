@@ -70,10 +70,10 @@ func _table() -> void:
 	for id: String in hero.MOVES:
 		hero._start_attack(id)
 		var m: Dictionary = hero._move
-		var whiff: float = hero.cancel_point()
+		var whiff: float = hero.HERO_INPUT.cancel_point(hero)
 		hero._connected = true
 		hero._hits_done = m.hits.size()
-		var confirm: float = hero.cancel_point()
+		var confirm: float = hero.HERO_INPUT.cancel_point(hero)
 		print("[rhythm] %-3s hit=%4.0f cancel=%4.0f/%4.0f end=%4.0f ms (whiff/hit cancel) stop=%.3f%s" % [id, _ms(m.hits[0]),
 			_ms(whiff), _ms(confirm), _ms(m.end), m.stop, " shape=" + m.stop_shape if m.has("stop_shape") else ""])
 		_check(m.hits[0] > 0.0 and m.hits[-1] < whiff and whiff <= m.end and m.end <= 1.0, "%s hits inside its clip, before cancel and end" % id)
@@ -119,7 +119,7 @@ func _buffered() -> void:
 	await _tap("attack_light")
 	_check(hero._move_id == "L1", "L starts L1")
 	await _tap("attack_light")  # pressed about 2 frames into L1
-	var cancel: float = hero.cancel_point()
+	var cancel: float = hero.HERO_INPUT.cancel_point(hero)
 	var last_t := 0.0
 	var frames := 0
 	while hero._move_id == "L1" and frames < 120:
@@ -135,7 +135,7 @@ func _buffered() -> void:
 	hero._chain_reset_t = 1.0
 	await _tap("attack_light")
 	_check(hero._move_id == "L3", "L at chain 2 starts L3")
-	var early_ms := _ms(hero.cancel_point())
+	var early_ms := _ms(hero.HERO_INPUT.cancel_point(hero))
 	await _tap("attack_light")
 	await _until(func() -> bool: return hero.state != hero.State.ATTACK or hero._move_id != "L3", 3.0)
 	if early_ms > hero.BUFFER_MS + 50:
@@ -189,10 +189,10 @@ func _aim_lock() -> void:
 	hero._start_attack("L1")
 	_check(hero._aim_lock == a, "L1 locks onto the foe it aimed at")
 	hero.bot_move = (b.global_position - hero.global_position).normalized()
-	var held: Vector3 = hero._aim_want(true)
+	var held: Vector3 = hero.HERO_INPUT.aim_want(hero, true)
 	_check(held.normalized().dot(Vector3(0, 0, 1)) > 0.99, "aim drifting toward the next foe keeps the lock (no flick)")
 	hero.bot_move = Vector3(-1, 0, 0)
-	held = hero._aim_want(true)
+	held = hero.HERO_INPUT.aim_want(hero, true)
 	_check(held.normalized().dot(Vector3(-1, 0, 0)) > 0.99, "aim swung well away lets go")
 	hero.bot_move = Vector3.ZERO
 	hero.bot_enabled = false
@@ -246,7 +246,7 @@ func _breaker_windows() -> void:
 			await _settle()
 			hero.global_position = Vector3.ZERO
 			hero.model.position.y = 0.0
-			hero._start_leap(id, el.entry(id))
+			hero.HERO_LEAP.start(hero, id, el.entry(id))
 			var press_at: float = b.open - EARLY_PRESS if early else hero.BREAKER_SPILL + 0.02
 			await _until(func() -> bool: return hero._state_t >= press_at - 0.05, 2.0)
 			hero._state_t = press_at - 1.0 / 60.0  # (exact: the press is read on the next physics step)

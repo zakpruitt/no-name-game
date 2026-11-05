@@ -1,6 +1,6 @@
 extends RefCounted
 ## Round 33, sleek 4 (nothing lingering): the combo-name / breaker-name callout over the hero (player._callout,
-## raised by player._combo_callout and hero_leap._callout) fades on its tween, which runs on game time. Hitstop
+## raised by hero_fx.combo_callout and hero_leap._callout) fades on its tween, which runs on game time. Hitstop
 ## and a breaker's slow motion stretched it: CATACLYSM / ABYSS / GROUNDED PERFECT hung 1-1.3 s into the next
 ## string and FLASH FREEZE PERFECT for 5 s. ComicFx calls `watch(hero)` every frame (no edit to the hero's
 ## files): a new callout is a new `_callout_tw`; after HOLD_S of real time, or as soon as the next string starts
@@ -21,7 +21,7 @@ static var capped := 0  # callouts cut short (fx_sleek_check)
 ## Round 33, sleek 6: a breaker's name (hero_leap._callout: WORLDBREAKER / PERFECT) went up over his head as he
 ## landed on the pile, so in most of the densest frames it sat on the foes. A breaker callout is moved to the top
 ## band of the screen, centred, where the HUD's AIRBORNE / PERFECT announcements are (hud.ANNOUNCE_Y 0.2), just above
-## them, and held BREAKER_HOLD_S real s. The combo-name callout (player._combo_callout) stays over him.
+## them, and held BREAKER_HOLD_S real s. The combo-name callout (hero_fx.combo_callout) stays over him.
 const BREAKER_Y := 0.11  # of the screen height: the name's middle (the announcements' row is 0.2)
 const BREAKER_HOLD_S := 0.6  # real s whole, then FADE_S
 const BREAKER_SCALE := 0.85  # of the label's scale, settled (it pops from BREAKER_POP)

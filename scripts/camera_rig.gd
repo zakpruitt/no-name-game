@@ -182,7 +182,7 @@ func fov_punch(deg: float) -> void:
 
 
 ## Nudge the camera along `dir` (world, flattened) by `amount` m (at REF_DIST; scaled with the distance);
-## it springs back in real time. Heavy hits and combo enders (player._camera_hit).
+## it springs back in real time. Heavy hits and combo enders (hero_fx.camera_hit).
 func kick(dir: Vector3, amount: float) -> void:
 	dir.y = 0.0
 	if dir.length_squared() < 0.0001:

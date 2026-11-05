@@ -139,7 +139,7 @@ Breakers don't improvise (they read their own states in `breaker_impact()`), so 
 - Meteor Spike's falling line hides under Molten Palm's stars when the move plays; its word and dent carry it.
 - Five cells have a bot string; the rest are covered by the headless check. Still to try by hand: the timing of a
   real dash out of the hang (the bot dashes on the first hang frame).
-- The reach follows each move's own shape since round 4. A long chain grows the shapes (`_cast_grow()`): Updraft
+- The reach follows each move's own shape since round 4. A long chain grows the shapes (`hero_fx.cast_grow()`): Updraft
   Lash's 4.5 m gale circle 3.5 m ahead then reaches behind him, as its own hit does.
 - The bot's dash strings aim at the nearest foe (`face` token): the dash and Dash Stab's lunge carry him past the
   buried, and with the 5 m circle gone a harpoon thrown the other way paid nobody (`buried_x_water` 1 -> 0).

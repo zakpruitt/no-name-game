@@ -82,7 +82,7 @@ func _initialize() -> void:
 
 
 func _routing() -> void:
-	var r: Callable = load("res://scripts/player.gd").void_route
+	var r: Callable = load("res://scripts/hero_moves.gd").void_route
 	_check(not InputMap.has_action("special"), "E is gone")
 	_check(InputMap.has_action("traverse"), "R is bound")
 	_check(r.call("light", "", false, 0, false) == "L1", "L: axe")
@@ -325,7 +325,7 @@ func _slam() -> void:
 	var f := _foe(Vector3(0, 0, 2))
 	hero._face(Vector3(0, 0, 1))
 	hero._start_attack("VS")
-	_check(hero.named_id() == "VS", "the slam has its name")
+	_check(hero._move_id == "VS", "the slam has its name")
 	var top := 0.0
 	var frames := 0
 	while f.hits == 0 and frames < 120:
@@ -364,7 +364,7 @@ func _elements() -> void:
 		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 		await create_timer(0.2).timeout
 		_check(foe.hp < hp, "%s hurts the foe in front (%.0f)" % [id, hp - foe.hp])
-		_check(hero._breaker_for(id).is_empty(), "%s opens no window" % id)
+		_check(hero.HERO_LEAP.entry_for(id).is_empty(), "%s opens no window" % id)
 	await _settle()
 	hero._start_attack("L1")
 	hero._start_attack("EC")
@@ -468,7 +468,7 @@ func _cold_front() -> void:
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
 	_check(hero.state == hero.State.LEAP, "the showcase opens its window")
 	await _until(func() -> bool: return hero._brk_phase == 1, 2.0)
-	_check(hero.breaker_name() == "Cold Front", "L is Cold Front (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Cold Front", "L is Cold Front (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(near.frozen, "it freezes what it holds")
 	_check(near.get_node_or_null("ThrownCube") != null, "in a cube")
 	_check(near.global_position.y > 1.5, "held up (%.1f m)" % near.global_position.y)
@@ -610,7 +610,7 @@ func _spear_string() -> void:
 	_check(not out.frozen, "not those off it")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "the slam opens a window (%d)" % hero.state)
-	_check(hero.breaker_name() == "Avalanche", "Avalanche (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Avalanche", "Avalanche (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(hero._void.held_foes().size() == 3, "a tentacle on each cube (%d)" % hero._void.held_foes().size())
 	var apart := near.global_position.distance_to(far.global_position)
 	var top := 0.0
@@ -696,7 +696,7 @@ func _magma() -> void:
 	_check(world.get_children().any(func(n: Node) -> bool: return n.get_script() == load("res://scripts/floor_bind.gd")), "Undertow binds them")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "Undertow opens a window")
-	_check(hero.breaker_name() == "Meteor Fall", "Meteor Fall (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Meteor Fall", "Meteor Fall (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(hero._void.held_foes() == [big], "it goes for the big one")
 	await create_timer(0.1).timeout
 	_check(a.global_position.distance_to(pin) < 0.3, "the small one's stuck")
@@ -737,7 +737,7 @@ func _magma() -> void:
 	await create_timer(0.1).timeout
 	_check(shoved.global_position.distance_to(where) < 0.3, "and pins it where it landed")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
-	_check(hero.breaker_name() == "Meteor Fall", "the breaker's the meteor")
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Meteor Fall", "the breaker's the meteor")
 	var hp_before := shoved.hp
 	await _until(func() -> bool: return hero._brk_phase == 1, 3.0)
 	_check(is_instance_valid(hero._brk_meteor), "he comes down in fire")
@@ -757,7 +757,7 @@ func _magma() -> void:
 ## Round 34's crossovers: each cashes in what the element before it set up.
 func _crossovers() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
-	var r: Callable = load("res://scripts/player.gd").void_route
+	var r: Callable = load("res://scripts/hero_moves.gd").void_route
 	_check(r.call("light", "AL1", true, 0, false) == "XR", "L H L L: Rockslide")
 	_check(r.call("heavy", "XR", true, 0, false) == "XF", "L H L L H: Fault Line")
 	_check(r.call("light", "EA", true, 0, false) == "XS", "Dash L H H L: Steam Burst")
@@ -934,7 +934,7 @@ func _element_matrix() -> void:
 func _three_elements() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	var SPEAR: GDScript = load("res://scripts/frost_spear.gd")
-	var r: Callable = load("res://scripts/player.gd").void_route
+	var r: Callable = load("res://scripts/hero_moves.gd").void_route
 	_check(r.call("heavy", "EA", true, 0, false) == "XG", "Dash L H H H: Hailstorm")
 	_check(r.call("light", "XG", true, 0, false) == "XM", "Dash L H H H L: Meltdown")
 	_check(r.call("heavy", "TW", true, 0, false) == "XK", "Dash H H: Impale")
@@ -1030,7 +1030,7 @@ func _three_elements() -> void:
 	_check(warm.hp == hp_warm, "a foe on the floor out of the ice is left alone")
 	_check(el.marked(ice, "molten"), "and they're alight")
 	await _until(func() -> bool: return hero.state != hero.State.ATTACK, 3.0)
-	_check(hero.state == hero.State.LEAP and hero.breaker_name() == "Eruption", "the window opens: Eruption (%s)" % hero.breaker_name())
+	_check(hero.state == hero.State.LEAP and hero.HERO_LEAP.breaker_name(hero) == "Eruption", "the window opens: Eruption (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(hero._brk_y0 > 1.0, "from up there (%.1f m)" % hero._brk_y0)
 	await _until(func() -> bool: return hero.state != hero.State.LEAP, 3.0)
 	game_end_slowmo()
@@ -1136,7 +1136,7 @@ func _dark() -> void:
 	_check(Vector2(other.global_position.x - spot.x, other.global_position.z - spot.z).length() < gap - 0.5, "it drags them in")
 	_check(other.hp < hp, "and burns them")
 	_check(big.global_position.distance_to(big_at) < 0.5 and big.chill_t > 0.0, "a big one only slows")
-	_check(hero.breaker_name() == "Collapse", "the breaker's Collapse (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Collapse", "the breaker's Collapse (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	hp = other.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Collapse lands")
@@ -1178,7 +1178,7 @@ func _dark() -> void:
 	await _until(func() -> bool: return not other.has_meta("thrown_foe_flying"), 2.0)
 	_check(Vector2(other.global_position.x - spot.x, other.global_position.z - spot.z).length() < 1.5, "it fetches up in the pool")
 	_check(big.global_position.distance_to(big_stays) < 0.5, "and nobody else moved")
-	_check(hero.breaker_name() == "Maw", "the breaker's Maw (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Maw", "the breaker's Maw (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Maw lands")
 	_check(get_nodes_in_group("dark_maw").size() == 1, "its jaws are up")
@@ -1200,7 +1200,7 @@ func _dark() -> void:
 	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
 	_check(is_instance_valid(hero._void.dark_bind), "Overwhelm has them")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
-	_check(hero.breaker_name() == "Abyss", "the breaker's Abyss (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Abyss", "the breaker's Abyss (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	hp = held.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Abyss lands")

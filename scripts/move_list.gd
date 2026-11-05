@@ -1,7 +1,7 @@
 extends RefCounted
 ## Everything the heretic can press, grouped for reading: the pause menu's MOVES
 ## panel draws this, and tests/move_list_check.gd walks every row's input
-## through player.void_route(), so a new move that isn't listed here (or an
+## through hero_moves.void_route(), so a new move that isn't listed here (or an
 ## input that's wrong) fails the checks.
 ##
 ## A row: `input` as the player reads it (tokens L, H, Dash, "hold H", R;
@@ -114,7 +114,7 @@ static func mix_name(state: String, el: String) -> String:
 ## What the row is called.
 static func row_name(row: Dictionary, player: Node) -> String:
 	if row.kind == "move":
-		return player.guide_name(row.id)
+		return player.HERO_MOVES.guide_name(row.id)
 	return row.name
 
 

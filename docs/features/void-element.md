@@ -234,7 +234,7 @@ standing element effects outliving the string (pools, geysers, crack, frost disc
 | Breaker dive: a fat inked comet streak with a hot core, ending in a held impact star; the cue is crisp inked bands | `scripts/comic_comet.gd`, `breaker_cue.gd` | `hero_leap._comet()`, every breaker (see combo-breakers.md) |
 | Molten Palm's fist: flat, wider than long, four fat knuckles glowing molten, stretched in flight, squashed with a star on arrival | `scripts/comic_fist.gd` | the one-line hook at the top of `void_element._fist()` |
 | Abyss spikes: flat inked violet spikes round a hot core, 1.3x the asked height, coming up `SPOUT_DELAY` 0.12 s late so the impact frame doesn't swallow them; spouts asked for together keep `SPOUT_SPACING` 2 m apart, at most `SPOUT_MAX` 3 | `dark_fx.Spout` | `dark_fx.spout()` |
-| Dash Stab's lash: the claw whips the tentacle's inked ribbon out 8 m ahead and snaps it back (it replaced the shaman's spirit tomahawk, whose flat cyan axe was also the "cyan slab" over Ice Cube frames) | `scripts/claw_lash.gd` | `player._cast` ("lash") |
+| Dash Stab's lash: the claw whips the tentacle's inked ribbon out 8 m ahead and snaps it back (it replaced the shaman's spirit tomahawk, whose flat cyan axe was also the "cyan slab" over Ice Cube frames) | `scripts/claw_lash.gd` | `hero_fx.cast` ("lash") |
 | Words: each signature move says its own word on its first hit (`ComicFx.MOVE_WORDS`, sized by its combo tier), each breaker its own on landing (`BREAKER_WORDS`, `BREAKER_SCALE`); every word goes beside the hero towards the hit, in the direction with most room from the foes, the hero, the other words, his combo-name callout and the breaker prompt (`_place`, all as screen rects) | `scripts/comic_fx.gd` | it watches the hero's `_move_id`, `_hits_done`, `breakers_landed` (read only) |
 
 Sizes that read at the game camera (about 50 px a metre at 1080p): bolts 0.26-0.4 m for the colour band
@@ -255,7 +255,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 | `scripts/dark_fx.gd` | The dark element's things in the world: `Hole`, `Mark`, `Pool`, `Maw`, `Splat`, `ink_drops()`, `spout()`, `reap()`, `burst()` |
 | `shaders/dark_ink.gdshader` | Churning floor ink (spiral streaks, wobbling rim, stepped time, `open`, `erode`) |
 | `scripts/hero_moves.gd` | `MOVES` and `COMBOS` rows, `void_route()` |
-| `scripts/hero_leap.gd` | `entry_for()` (`player._breaker_for()`), `_pressed()`, State.LEAP's `tick()` |
+| `scripts/hero_leap.gd` | `entry_for()`, `_pressed()`, State.LEAP's `tick()` |
 | `scripts/void_grab.gd` | `reachable()`, `seize()`, `seized_tick()`, `slam_seized()`, `freeze_seized()`, `held_foes()`, `release_seized()`, `_tick_sweep()` |
 | `scripts/breaker_prompt.gd` | Shows both buttons and names when a breaker has an `alt` |
 | `scripts/comic_look.gd` | `HERO_MOVE_FORMS`: which weapon each move forms |
@@ -263,7 +263,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 
 ## Invariants
 
-- `player._breaker_for()` (`hero_leap.entry_for()`) reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
+- `hero_leap.entry_for()` reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
 - A breaker entry is `_WINDOW` merged with its row (`entry()`).
 - `leap` must be at or before the move's `cancel`.
 - Every exit from the hang lets go: no press, dash out and `_end_leap` all call `release_seized()`. The tendrils stay in `_spare` for the next one.
@@ -290,7 +290,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 - New moves go in `VOID_ONLY`, or `move_list_check` expects `route()` to reach them.
 - Clips come straight from `MOVES.anim`, as with `GR` and `VS`, so hit fractions are frame / frames of that clip.
 - **Timing contract (round 30, `tests/rhythm_check.gd`).** A press is held `player.BUFFER_MS` (300) and fires on the first frame
-  past `player.cancel_point()` (`hero_input.cancel_point()`): the move's `cancel` on a whiff, `CANCEL_ON_HIT` (0.5) of the way back to its last hit once it
+  past `hero_input.cancel_point()`: the move's `cancel` on a whiff, `CANCEL_ON_HIT` (0.5) of the way back to its last hit once it
   connected (`fire()` above 0 counts), never before `HIT_CONFIRM_MIN` (0.03 s) after it or before the breaker's `leap`. A dash
   cancels every one of these moves once its first hit is out (or `DASH_CANCEL_WHIFF` into a whiff), and a breaker's hang
   too. The breaker windows share one rhythm off the rise (`BREAKER_HANG`, `BREAKER_TO_SWEET`, `BREAKER_TO_CLOSE`; see
