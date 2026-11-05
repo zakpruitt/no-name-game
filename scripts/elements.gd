@@ -91,8 +91,8 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 			root.add_child(_mi(crescent(0.16), glow(Color(c, 0.5), hdr)))
 	root.add_child(_mi(crescent(0.16), ice()))
 	root.add_child(_mi(crescent(0.16), rock()))
-	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(true)))
-	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(false)))
+	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), SPIRIT_ECHO.ghost_mat(LOOK.water.color)))  # comic ice spikes
+	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").zone_material()))  # the frost's halftone
 	# A lit box (emissive StandardMaterial3D).
 	var lit := StandardMaterial3D.new()
 	lit.emission_enabled = true
@@ -228,19 +228,6 @@ static func ice() -> StandardMaterial3D:
 		m.rim = 1.0
 		_mats["ice"] = m
 	return _mats["ice"]
-
-
-## Comic ice: flat pale or mid ice with the ink hull, no shine or glow.
-static func comic_ice(light: bool) -> StandardMaterial3D:
-	var key := "comic_ice%d" % int(light)
-	if not _mats.has(key):
-		var m := StandardMaterial3D.new()
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(0.74, 0.93, 1.0) if light else Color(0.34, 0.68, 1.0)
-		if DisplayServer.get_name() != "headless":
-			m.next_pass = Fx.ink_material()
-		_mats[key] = m
-	return _mats[key]
 
 
 ## Flat crescent in the XZ plane bulging toward +Z, radius 1, `width` thick in the middle.
@@ -513,12 +500,11 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 	for i in count:
 		var h := randf_range(1.0, 1.8) * size
 		var fat := COMIC_SPIKE_FAT if comic else 1.0
-		if comic and el == "water":  # flat inked ice in two tones: the shiny glowing ice was a soft blue blob
-			mat = comic_ice(i % 2 == 0)
-		elif comic:  # see-through halftone earth in a thin line, fading up to the tip
-			mat = SPIRIT_ECHO.ghost_mat(LOOK.earth.color)
+		if comic:  # see-through halftone earth or ice in a thin line, fading up to the tip (round 33, part 3:
+			# ice too; its round-29 flat two-tone ice was the last opaque spike)
+			mat = SPIRIT_ECHO.ghost_mat(LOOK[el].color)
 		var s := _mi(_spike_mesh(randf_range(0.22, 0.34) * size * fat, h, 5), mat)
-		if comic and el == "earth":
+		if comic:
 			s.set_instance_shader_parameter("fade_height", h * 1.05)  # (the tip stands about h up)
 		var off := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4)) * size if i > 0 else Vector3.ZERO
 		s.position = off + Vector3.UP * -h * 0.5

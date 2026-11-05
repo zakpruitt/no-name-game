@@ -25,7 +25,8 @@ const EDGE_PX := 1.7  # px at 1080p: a crisp light-tone line inside the ink, so 
 ## body tint between the dots read as brown on indigo at 0.3 alpha (a light body under hot dots read as khaki);
 ## clean dots only (`base` 0.04, the share of the fill between the dots) at 0.42 read as printed orange.
 ## Unlisted palettes: body under light dots at FILL.
-const GHOST_TONES := {"earth": {"body": "body", "dot": "light", "fill": 0.42, "base": 0.04}}
+const GHOST_TONES := {"earth": {"body": "body", "dot": "light", "fill": 0.42, "base": 0.04},
+	"water": {"body": "body", "dot": "light", "fill": 0.4, "base": 0.12}}
 const HAFT_FADE := Vector2(0.1, 0.6)
 
 var axe_mesh: Mesh

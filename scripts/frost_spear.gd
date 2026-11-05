@@ -28,6 +28,14 @@ const FROST_INK := Color(0.03, 0.05, 0.12)
 const FROST_CRACKS := 11  # inked ice cracks running out from the spear
 const FROST_TEETH := 26  # the frost's jagged edge
 const FROST_PATCHES := 4  # ice plates scattered between the cracks (round 33, sleek: 7 cluttered it)
+## Round 33, part 3: the frost's fill is the halftone ice of the spikes and cubes (shaders/halftone_floor.gdshader:
+## the water palette's dots, clear in the middle, densest at the toothed edge, so it still reads as a zone),
+## in place of the round-29 plates' flat two-tone ice. Cracks and teeth keep their ink.
+const ZONE_SHADER := preload("res://shaders/halftone_floor.gdshader")
+const PAL := preload("res://scripts/fx_palette.gd")
+const ZONE_FILL := 0.26  # (0.34 read as a carpet 12 m across)
+const ZONE_INNER := 0.45  # of the radius: clear inside
+const ZONE_PLATES := false  # the round-29 plates (the zone's dots replace them)
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -36,6 +44,7 @@ var _r := 0.0
 var _gone := false
 var _cleared := false  # the frost's look has gone (standing_fx.gd)
 var _frost: MeshInstance3D
+var _zone: MeshInstance3D  # the halftone fill under the cracks (a child of _frost)
 var _stuck: Node3D
 
 
@@ -67,6 +76,12 @@ func _ready() -> void:
 	_frost.position.y = 0.05
 	_frost.scale = Vector3(0.01, 1.0, 0.01)
 	add_child(_frost)
+	_zone = MeshInstance3D.new()
+	_zone.mesh = zone_mesh()
+	_zone.material_override = zone_material()
+	_zone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_zone.position.y = 0.015  # over the cracks (0..0.008): below them it hid under the tiles but for the grout
+	_frost.add_child(_zone)
 	_stuck = Node3D.new()
 	add_child(_stuck)
 	var lean := randf() * TAU
@@ -144,7 +159,7 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 		var tip := Vector2(cos(am), sin(am)) * (1.0 - depth)
 		tri.call(o0 * 1.008, o1 * 1.008, tip * 0.985, FROST_INK, 0.0)
 		tri.call(o0, o1, tip, ICE if i % 2 == 0 else ICE_LIGHT, 0.004)
-	for i in FROST_PATCHES:  # chunky plates of ice between the cracks
+	for i in FROST_PATCHES if ZONE_PLATES else 0:  # chunky plates of ice between the cracks
 		var a := TAU * (i + 0.5) / FROST_PATCHES + rng.randf_range(-0.2, 0.2)
 		var at := Vector2(cos(a), sin(a)) * rng.randf_range(0.35, 0.75)
 		var size := rng.randf_range(0.06, 0.11)
@@ -160,6 +175,37 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 
 
 static var _frost_mat: StandardMaterial3D
+static var _zone_mat: ShaderMaterial
+static var _zone_mesh: ArrayMesh
+
+
+## The halftone frost fill: water palette dots, shared. Drawn in elements.prewarm().
+static func zone_material() -> ShaderMaterial:
+	if _zone_mat == null:
+		var pal := PAL.of("water")
+		_zone_mat = ShaderMaterial.new()
+		_zone_mat.shader = ZONE_SHADER
+		_zone_mat.set_shader_parameter("body_color", pal.body)
+		_zone_mat.set_shader_parameter("dot_color", pal.light)
+		_zone_mat.set_shader_parameter("fill", ZONE_FILL)
+		_zone_mat.set_shader_parameter("inner", ZONE_INNER)
+	return _zone_mat
+
+
+## A flat disc of radius 1 in XZ.
+static func zone_mesh() -> ArrayMesh:
+	if _zone_mesh == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var n := 48
+		for i in n:
+			var a := TAU * i / n
+			var b := TAU * (i + 1) / n
+			st.add_vertex(Vector3.ZERO)
+			st.add_vertex(Vector3(cos(a), 0.0, sin(a)))
+			st.add_vertex(Vector3(cos(b), 0.0, sin(b)))
+		_zone_mesh = st.commit()
+	return _zone_mesh
 
 
 ## Flat vertex colours, depth tested so foes stand on it. Shared, and drawn in elements.prewarm().
@@ -240,7 +286,9 @@ static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) 
 ## its chill stay for the ice breaker.
 func clear_standing() -> void:
 	_cleared = true
-	create_tween().tween_property(_frost, "transparency", 1.0, STANDING.CLEAR_S)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(_frost, "transparency", 1.0, STANDING.CLEAR_S)
+	tw.tween_method(func(a: float) -> void: _zone.set_instance_shader_parameter("alpha", a), 1.0, 0.0, STANDING.CLEAR_S)
 
 
 ## Gone quietly: time's up, or another took its place.
