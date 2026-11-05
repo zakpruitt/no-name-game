@@ -44,6 +44,7 @@ const MOVE_WORDS := {
 	"EF": "THUNK!", "EA": "KLONK!", "IP": "SHKKT!", "IS": "KRRSSH!",  # water
 	"EM": "KA-POW!", "EV": "GLORP!",  # earth
 	"VS": "VWOOM!", "VR": "SHUNK!", "VD": "SPLOOSH!", "OW": "SKRONCH!", "TW": "YOINK!",  # dark
+	"XR": "KRUNCH!",  # crossovers (round 37)
 }
 const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",

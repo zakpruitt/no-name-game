@@ -14,6 +14,7 @@ const THROWN := preload("res://scripts/thrown_foe.gd")
 const BIND := preload("res://scripts/floor_bind.gd")
 const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
+const COMIC_BOULDER := preload("res://scripts/comic_boulder.gd")  # crossover looks (round 37)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -690,16 +691,14 @@ static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	var foes: Array = FOES.near(hero.get_tree(), spot, ROCKSLIDE_RADIUS * hero._cast_grow()).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e))
 	hero._void.buried = []
-	QUAKE.crater(parent, spot, "earth", 1.6, false)
-	_pop(parent, spot, "hammer")
-	Fx.scorch(parent, spot, ELEMENTS.LOOK.earth.color, 2.2, 1.0)
+	COMIC_BOULDER.spawn(parent, spot, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
+	Fx.scorch(parent, spot, ELEMENTS.LOOK.earth.color, 2.2, 0.6)
 	for e: Node3D in foes:
 		var up: bool = e.is_airborne()
 		var to := _flat(spot - e.global_position)
 		var kb: Vector3 = (to.normalized() * ROCKSLIDE_IN if to.length() > 0.6 else Vector3.ZERO) + Vector3.DOWN * ROCKSLIDE_DOWN
 		e.take_hit(ROCKSLIDE_DAMAGE * power * (ROCKSLIDE_AIR_MULT if up else 1.0), kb, 0.0, true)
 		Game.register_hit("cast")
-		ELEMENTS.spikes(parent, _flat(e.global_position), "earth", 1.0, 3)
 		if up:
 			hero._void.buried.append(e)
 	Game.shake(0.5)
