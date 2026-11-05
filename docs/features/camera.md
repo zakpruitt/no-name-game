@@ -26,7 +26,7 @@ the pile) it pulls out further and faster, then comes back in for the dive. Hits
    up-screen), capped at `FRAME_LEAN_MAX`. The zoom-out is solved in camera space at the rest distance: a point
    at side offset `s` and depth offset `z` fits `|ndc| <= FRAME_SAFE` once `f >= (|s| / (FRAME_SAFE * tan(half
    fov)) - z) / dist`; the largest `f` over feet and `FRAME_HEAD` of every foe and the hero, capped at
-   `frame_max`. In a hang only the lean applies, except in the beats (below).
+   `frame_max`. In a hang he stays centred (no lean, no framing), except in the beats (below).
 3. `_frame` eases out at `FRAME_OUT` and back at `FRAME_BACK` (real time, measured with `Time.get_ticks_usec()`);
    the lean likewise.
 3b. **Breaker hang pull-out.** While the hero's `_brk_phase` is `BEATS_PHASE` (3: Meteor Fall between the press
@@ -62,11 +62,11 @@ the pile) it pulls out further and faster, then comes back in for the dive. Hits
 | `FRAME_MAX`, `FRAME_SAFE`, `FRAME_HEAD` | 1.25, (0.8, 0.72), 1.6 m | how far out, how much of the screen, foe height |
 | `FRAME_HIT_MS`, `FRAME_RANGE` | 2200 ms, 11 m | which foes count as the fight |
 | `FRAME_OUT`, `FRAME_BACK` | 2.5, 0.6 /s | ease out, slow return |
-| `FRAME_LEAN`, `FRAME_LEAN_MAX` | 0.6, 2.5 m | lean towards the fight |
+| `FRAME_LEAN`, `FRAME_LEAN_MAX`, `FRAME_LEAN_RAMP` | 0.6, 1.5 m, 0.25 | lean towards the fight, only as the fight needs room (none while it fits at rest) |
 | `HANG_ZOOM` | 0.16 | breaker hang push-in (0.12 at 12.5 m) |
-| `HANG_FRAME_GAIN` | 1.6 | beats cap: `frame_max` x this (x2.0, 26 m, hero ~70 px; an uncapped two-wall throw wants ~x3.5) |
-| `HANG_FRAME_OUT`, `HANG_FRAME_BACK` | 12, 4 /s | beats ease out (90% in 0.19 s; the throw is ~0.28 s), dive return |
-| `HANG_FRAME_RANGE`, `HANG_FRAME_HIT_MS`, `HANG_LEAN_MAX` | 22 m, 4000 ms, 5 m | who counts in the beats, lean |
+| `HANG_FRAME_GAIN` | 1.3 | beats cap: `frame_max` x this (x1.625, 21 m; was x2.0; an uncapped two-wall throw wants ~x3.5) |
+| `HANG_FRAME_OUT`, `HANG_FRAME_BACK` | 5, 3 /s | beats ease out (~70% in 0.25 s), dive return |
+| `HANG_FRAME_RANGE`, `HANG_FRAME_HIT_MS`, `HANG_LEAN_MAX` | 22 m, 4000 ms, 2.5 m | who counts in the beats, lean |
 | `PUNCH_GAIN`, `HIT_ZOOM`, `HIT_ZOOM_MAX` | 1.25, 0.014, 0.07 | enders / per-hit push-in at the wider distance |
 
 Measured at 1080p (16:9, `camera_feel_check`): round 28 (0, 13, 9.5) FOV 42: 105 px, 396 m2 of floor;
@@ -86,3 +86,13 @@ off). The rig prints `[camera] dist= fov= frame_max=` when a flag is given.
   beats are the INDEX lines with `brk=3`.
 - Look: `timeout 300 godot --path . -s tests/string_film.gd` and compare a string's sheet before / after (the
   film folders keep stale frames past the current count: read only the frames INDEX.txt lists).
+
+## Calm pass (2026-11-05)
+
+Zak, after playing: "the camera is all messed up, especially during the special moves; weird how it frames the
+player". A breaker stacked the hang push-in, the focus punch x `PUNCH_GAIN`, the per-hit push-in and a lean of up
+to 2.5 m, then Meteor Fall's x2.0 pull-out in 0.19 s. Now: no lean in a hang outside Meteor Fall's beats; the lean
+in normal play fades in only as the fight needs room (`FRAME_LEAN_RAMP`); the hang and a punch don't multiply
+(`_squeeze()` takes the deeper), no punch goes below `PUNCH_MIN` 0.8, `HANG_ZOOM` 0.16 -> 0.06, the per-hit push-in
+fades out in a hang; the beats pull out to x1.625 at 5 /s. Lesson: each camera behaviour was judged alone on film;
+judge them stacked, in one special, before landing another.

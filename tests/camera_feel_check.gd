@@ -236,7 +236,7 @@ var last_hit_ms := -100000
 	hero.state = 1
 	hero._brk_phase = 0  # the rise and the timing window
 	await _hang_hold(foe, 0.6)
-	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.9, "in the timing window the hang keeps its push-in (x%.3f, %.2f of %.2f m)" % [rig._frame, rig.camera.position.length(), rest])
+	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.97, "in the timing window the hang keeps its push-in (x%.3f, %.2f of %.2f m)" % [rig._frame, rig.camera.position.length(), rest])
 	hero._brk_phase = 3  # the press: beat 1 throws, beat 2 gathers
 	await _hang_hold(foe, 0.25)
 	var early: float = rig.camera.position.length() / rest
@@ -244,7 +244,7 @@ var last_hit_ms := -100000
 	var out: float = rig.camera.position.length() / rest
 	var cap: float = rig.FRAME_MAX * float(rig.get_script().get_script_constant_map().get("HANG_FRAME_GAIN", 1.0))  # (1: none)
 	_check(out > rig.FRAME_MAX + 0.05 and out <= cap + 0.01, "Meteor Fall's beats pull out past the framing cap x%.2f, to at most x%.2f (x%.3f)" % [rig.FRAME_MAX, cap, out])
-	_check(early >= 1.0 + (out - 1.0) * 0.8, "fast: most of the way out 0.25 s after the press (x%.3f of x%.3f)" % [early, out])
+	_check(early >= 1.0 + (out - 1.0) * 0.55 and early < out - 0.01, "eased, not snapped: over half way out 0.25 s after the press (x%.3f of x%.3f)" % [early, out])
 	var d: Vector3 = rig.camera.global_transform.affine_inverse() * foe.global_position
 	var ndc_x := d.x / (-d.z * tan(deg_to_rad(rig.camera.fov * 0.5)) * 16.0 / 9.0)
 	_check(absf(ndc_x) < 0.95, "so the foe thrown 12 m out is on a 16:9 screen (x at %.2f of the half-width)" % ndc_x)
@@ -256,7 +256,7 @@ var last_hit_ms := -100000
 	var back: float = rig._frame
 	_check(back < first - 0.05 and back > 1.0 + (first - 1.0) * 0.25, "the dive comes back in, slower than it went out (x%.3f after 0.25 s)" % back)
 	await _hang_hold(foe, 1.5)
-	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.95, "and lands back in the hang's push-in (x%.3f, %.2f m)" % [rig._frame, rig.camera.position.length()])
+	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.97, "and lands back in the hang's push-in (x%.3f, %.2f m)" % [rig._frame, rig.camera.position.length()])
 	foe.queue_free()
 	rig.queue_free()
 	hero.queue_free()

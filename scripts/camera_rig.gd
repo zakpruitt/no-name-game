@@ -67,9 +67,16 @@ const KICK_MAX := 0.8  # metres at REF_DIST (kicks scale with dist / REF_DIST, s
 # punch() (enders, breaker focus, Awakening, last kill): the callers' zooms were tuned at 12.5 m; from further out
 # the same fraction shows the push-in on a wider shot, so PUNCH_GAIN deepens it (ender tier 3: 0.895 -> 0.869).
 const PUNCH_GAIN := 1.25
+const PUNCH_MIN := 0.8  # the deepest any punch goes (a perfect landing's 0.75 x the gain was a 31% dive)
 # Breaker hangs (feel audit item 3 / 10): while the hero is in State.LEAP the camera pushes in a little
 # and its follow point rises with him, so the hang doesn't climb under the HUD.
-const HANG_ZOOM := 0.16  # fraction of the offset the hang pushes in (0.12 at 12.5 m: 13 m x 0.84 ~ the old 12.5 x 0.88 hang)
+# CALM PASS (Zak, 2026-11-05: "the camera is all messed up, especially during the special moves; weird how it
+# frames the player"). A breaker stacked the hang push-in, the focus punch x PUNCH_GAIN, the per-hit push-in, a
+# lean of up to 2.5 m off him, then Meteor Fall's x2.0 pull-out in 0.19 s: the view went from 0.64x to 2.0x and
+# slid sideways in one move. Now: he stays centred in a hang (no lean outside Meteor Fall's beats), the push-ins
+# don't multiply (the deeper of hang and punch wins, per-hit push-in fades out in a hang), and the pull-out is
+# shorter and slower.
+const HANG_ZOOM := 0.06  # fraction of the offset the hang pushes in (was 0.16)
 const HANG_IN := 6.0  # per real second, towards the push-in
 const HANG_OUT := 3.0  # per real second, back out after the slam
 const LIFT_FOLLOW := 0.75  # fraction of his height off the floor the follow point rises
@@ -93,7 +100,8 @@ const FRAME_HEAD := 1.6  # metres above a foe's feet that must fit too (a thrown
 const FRAME_OUT := 2.5  # per real second, easing out to fit
 const FRAME_BACK := 0.6  # per real second, the slow return
 const FRAME_LEAN := 0.6  # of the way from him to the middle of the fight's box (heads included); also in a hang
-const FRAME_LEAN_MAX := 2.5  # metres
+const FRAME_LEAN_MAX := 1.5  # metres (was 2.5: he sat visibly off-centre)
+const FRAME_LEAN_RAMP := 0.25  # the lean fades in over this much needed zoom-out; a fight that fits at rest has none
 # The camera aims AIM_HEIGHT m above his feet, not at them: from 53 deg his body and anything in front of him
 # (the dummies, a pile in the air) sits up-screen under the HUD, and the round-36 film put their heads on the top
 # edge. 0.8 m centres his chest.
@@ -107,12 +115,12 @@ const AIM_HEIGHT := 0.8
 # keeps its own punch(); once he lands the normal FRAME_BACK drift takes the rest. Uncapped, the round-36 room's
 # throw wanted ~3.5x (foes splat on both side walls, 26 m apart): x2.0 keeps the hero ~70 px and every splat but
 # the nearest wall's corner on screen.
-const HANG_FRAME_GAIN := 1.6  # cap in a hang: frame_max x this (1.25 x 1.6 = 2.0, 26 m; the round-28 view was 16 m)
+const HANG_FRAME_GAIN := 1.3  # cap in a hang: frame_max x this (1.25 x 1.3 = 1.625, 21 m; was 1.6 = x2.0, 26 m)
 const HANG_FRAME_RANGE := 22.0  # m: METEOR_REACH 12 + METEOR_WALL_LENGTH 10, who beat 1 can throw and beat 2 gathers
 const HANG_FRAME_HIT_MS := 4000  # a hang's foes were hit by the ender before the window's slow motion
-const HANG_FRAME_OUT := 12.0  # per real second: 90% out in 0.19 s, before the throw reaches the wall (~0.28 s)
-const HANG_FRAME_BACK := 4.0  # per real second on the dive (0.3 s): ~70% back in as he lands
-const HANG_LEAN_MAX := 5.0  # m: a throw to one side wall puts the fight's middle ~6.5 m off him; 2.5 cut the splats
+const HANG_FRAME_OUT := 5.0  # per real second: ~70% out in 0.25 s (was 12, a snap)
+const HANG_FRAME_BACK := 3.0  # per real second on the dive
+const HANG_LEAN_MAX := 2.5  # m, Meteor Fall's beats only (was 5: the hero slid to the frame edge)
 const BEATS_PHASE := 3  # hero_leap's _brk_phase between the press and the dive (Meteor Fall's beats 1 and 2)
 
 
@@ -159,7 +167,8 @@ static func rest_view(args: PackedStringArray) -> Dictionary:
 
 ## Push the camera in (zoom < 1) or out for `hold` seconds of real time (breakers).
 func punch(zoom: float, hold: float) -> void:
-	_zoom_to = 1.0 - (1.0 - zoom) * PUNCH_GAIN if zoom < 1.0 else zoom
+	var gain := 1.0 if target != null and _hanging(target) else PUNCH_GAIN  # (a hang is already pushed in)
+	_zoom_to = maxf(1.0 - (1.0 - zoom) * gain, PUNCH_MIN) if zoom < 1.0 else zoom
 	_zoom_until_ms = Time.get_ticks_msec() + int(hold * 1000.0)
 	if zoom < 1.0:  # (an ender's ENDER_ZOOM is 0.05-0.1 a tier)
 		fov_punch(FOV_ENDER * clampf((1.0 - zoom) / 0.1, 0.4, 1.0))
@@ -248,12 +257,18 @@ func _process(delta: float) -> void:
 	_fov_to = lerpf(_fov_to, 0.0, 1.0 - exp(-FOV_RETURN * real_delta))
 	_fov = lerpf(_fov, _fov_to, follow)
 	camera.fov = fov - _fov
-	camera.position = offset * _frame * _zoom * (1.0 - _hit_zoom) * (1.0 - HANG_ZOOM * _hang) + _kick
+	camera.position = offset * _frame * _squeeze() * (1.0 - _hit_zoom * (1.0 - _hang)) + _kick
 	var s := trauma * trauma
 	var shake := max_shake_offset * dist / REF_DIST * s
 	camera.h_offset = randf_range(-1.0, 1.0) * shake
 	camera.v_offset = randf_range(-1.0, 1.0) * shake
 	camera.rotation.z = deg_to_rad(randf_range(-1.0, 1.0) * max_shake_roll * s + _roll)
+
+
+## The push-in from the hang and any punch(): the deeper of the two, not their product (a punch out multiplies).
+func _squeeze() -> float:
+	var hang := 1.0 - HANG_ZOOM * _hang
+	return minf(_zoom, hang) if _zoom <= 1.0 else _zoom * hang
 
 
 ## Sets _frame_to / _lean_to so the hero (at `goal`) and the foes he's fighting fit FRAME_SAFE of the screen
@@ -284,10 +299,23 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 	if pts.is_empty():
 		return
 	var mid := (lo + hi) * 0.5
-	_lean_to = (Vector3(mid.x - hero.x, 0.0, mid.y - hero.z) * FRAME_LEAN).limit_length(HANG_LEAN_MAX if beats else FRAME_LEAN_MAX)
 	if hanging and not beats:
-		return  # (the rise, the window and the dive keep the hang's push-in; the dive comes back at HANG_FRAME_BACK)
+		return  # (the rise, the window and the dive keep him centred in the hang's push-in)
 	pts.append(hero)
+	var lean := (Vector3(mid.x - hero.x, 0.0, mid.y - hero.z) * FRAME_LEAN).limit_length(HANG_LEAN_MAX if beats else FRAME_LEAN_MAX)
+	# Lean only as far as the fight needs room: none while everyone fits around him at rest.
+	_lean_to = lean * clampf((_need(pts, goal) - 1.0) / FRAME_LEAN_RAMP, 0.0, 1.0)
+	var need := _need(pts, goal + _lean_to)
+	if not beats:
+		_frame_to = minf(need, frame_max)
+		return
+	# In a hang the push-in holds until the foes need more room than it leaves, then _frame undoes it and pulls
+	# out past it: the distance is max(push-in, need), continuous either way.
+	_frame_to = maxf(1.0, minf(need, frame_max * HANG_FRAME_GAIN) / maxf(minf(_squeeze(), 1.0), 0.1))
+
+
+## How far out (x the rest distance) the camera must be for `pts` and their heads to fit FRAME_SAFE around `centre`.
+func _need(pts: Array[Vector3], centre: Vector3) -> float:
 	# Camera space at the rest distance: depth of a point = dist * f + d.fwd, so it fits |ndc| <= FRAME_SAFE
 	# from f = (|d.side| / (FRAME_SAFE * tan(half fov)) - d.fwd) / dist.
 	var fwd := -VIEW_DIR
@@ -296,21 +324,13 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 	var size := get_viewport().get_visible_rect().size if get_viewport() else Vector2(16.0, 9.0)
 	var tx := ty * (size.x / maxf(size.y, 1.0))
 	var need := 1.0
-	var centre := goal + _lean_to
 	for p in pts:
 		for h in [0.0, FRAME_HEAD]:
 			var d: Vector3 = p + Vector3.UP * h - centre
 			var fx := (absf(d.dot(Vector3.RIGHT)) / (FRAME_SAFE.x * tx) - d.dot(fwd)) / dist
 			var fy := (absf(d.dot(up)) / (FRAME_SAFE.y * ty) - d.dot(fwd)) / dist
 			need = maxf(need, maxf(fx, fy))
-	if not beats:
-		_frame_to = minf(need, frame_max)
-		return
-	# In a hang the push-in (HANG_ZOOM, the breaker focus punch) holds until the foes need more room than it leaves,
-	# then _frame undoes it and pulls out past it: the distance is max(push-in, need), continuous either way.
-	var squeeze := (1.0 - HANG_ZOOM * _hang) * minf(_zoom, 1.0)
-	squeeze = maxf(squeeze, 0.1)
-	_frame_to = maxf(1.0, minf(need, frame_max * HANG_FRAME_GAIN) / squeeze)  # (the cap is on the distance seen)
+	return need
 
 
 ## True while `t` (the hero) is in his combo-breaker leap (player.State.LEAP).
