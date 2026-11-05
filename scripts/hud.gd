@@ -124,6 +124,9 @@ func _ready() -> void:
 	_anchor(center_label, 0.5, 0.5, Rect2(-500, -120, 1000, 160))
 	center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Round 33, sleek 4: the announcements (AIRBORNE, SKY DANCER, PERFECT, GUARD BREAK via Game.announced) were
+	# the last HUD text in the plain font with a size / 6 outline; same font and thin ink as the counter.
+	_comic(center_label)
 
 	_label(root, "WASD move   LMB light   RMB heavy   Space dash   Q awaken   Esc pause", 16, Color(1, 1, 1, 0.5)) \
 		.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
