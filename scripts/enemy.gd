@@ -12,6 +12,7 @@ enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 ## Spellcasting is out since round 38 b: the comic casters' windups are all tell, held on their last frame.
 const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"]
 const PROJECTILE := preload("res://scripts/projectile.gd")
+const FOE_LEAN := preload("res://scripts/foe_lean.gd")
 
 @export var model_scene: PackedScene
 ## ComicLook model name when model_scene is a comic GLB ("" = KayKit, nothing changes).
@@ -298,6 +299,13 @@ func _ready() -> void:
 	if _ink_mat != null:
 		_ink_px = _ink_mat.get_shader_parameter("width_px")
 	anim = model.find_child("AnimationPlayer", true, false)
+	if TURN_LEAN.has(comic_kind):
+		var skel: Skeleton3D = model.find_child("Skeleton3D", true, false)
+		if skel != null:
+			var lean := FOE_LEAN.new()
+			lean.foe = self
+			lean.deg_per_mps = TURN_LEAN[comic_kind]
+			skel.add_child(lean)
 	for a in LOOPING:
 		if anim.has_animation(a):
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -464,7 +472,7 @@ func _state_chase(delta: float) -> void:
 		dir = dir.normalized()
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 25.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 25.0 * delta)
-	_play(run_anim if moving else "Idle_Combat")
+	_play_locomotion(moving, dir)
 	if moving and comic_kind != "" and anim.current_animation == ComicLook.clip(anim, comic_kind, run_anim):
 		_clip_speed(run_clip_speed(Vector2(velocity.x, velocity.z).length()))
 
@@ -475,6 +483,27 @@ func chop_speed() -> float:
 	if hit <= 0.0:
 		hit = anim.get_animation("1H_Melee_Attack_Chop").length * CHOP_HIT_AT
 	return hit / attack_windup
+
+
+## Run or idle, with the comic run start / stop one-shots where the model has them (the rogue and
+## the minion, foe_cycles.py run_start / run_stop): Run_Start when it sets off on a full run from below
+## RUN_START_BELOW of move_speed, Run_Stop when it lets go above RUN_STOP_ABOVE. Both play out at 1x
+## (_hold_clip); setting off again cuts the skid short.
+func _play_locomotion(moving: bool, dir: Vector3) -> void:
+	if comic_kind != "" and anim.has_animation("Run_Start"):
+		var ground := Vector2(velocity.x, velocity.z).length()
+		var playing := anim.current_animation
+		var run := ComicLook.clip(anim, comic_kind, run_anim)
+		if moving and playing == "Run_Stop":
+			_clip_hold_ms = 0
+		elif dir.length() > RUN_START_DIR and playing != run and playing != "Run_Start" \
+				and ground < move_speed * RUN_START_BELOW and Time.get_ticks_msec() >= _clip_hold_ms:
+			_hold_clip("Run_Start", 0.06)
+			return
+		elif not moving and playing == run and ground > move_speed * RUN_STOP_ABOVE:
+			_hold_clip("Run_Stop", 0.06)
+			return
+	_play(run_anim if moving else "Idle_Combat")
 
 
 ## Push away from nearby enemies so groups spread out and surround.
@@ -1240,6 +1269,14 @@ func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
 	_play(anim_name, blend, speed, true)
 	_clip_hold_ms = Time.get_ticks_msec() + int(anim.get_animation(anim_name).length / speed * 1000.0)
 
+
+## Run start / stop one-shots (_play_locomotion), as the hero's (player.gd RUN_START_BELOW / RUN_STOP_ABOVE).
+const RUN_START_BELOW := 0.3
+const RUN_STOP_ABOVE := 0.6
+const RUN_START_DIR := 0.6  # a full run, not the slow circling at 0.4 of move speed
+## Turn lean (scripts/foe_lean.gd on the skeleton): degrees per m/s of velocity change across its facing,
+## per kind; the fast ones only.
+const TURN_LEAN := {"rogue": 3.5, "minion": 3.0}
 
 ## Clip speed range for the run matched to the ground (run_foot_speed).
 ## The runs are keyed for move_speed at 1x (round 38, foe_keys.py), so at full speed this is ~1;
