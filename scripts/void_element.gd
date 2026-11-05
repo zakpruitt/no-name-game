@@ -23,6 +23,7 @@ const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element look
 const COMIC_MELT := preload("res://scripts/comic_melt.gd")
 const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
 const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
+const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1069,7 +1070,7 @@ static func _backdraft(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	var spot: Vector3 = _flat(s.global_position) if s != null else at + fwd * TOW_AHEAD
 	if s != null:
 		s.shatter()
-	ELEMENTS.pillar(parent, spot, "wind", 2.6, 1.0)
+	COMIC_BACKDRAFT.blast(parent, spot)  # (was a 2.6 m wind pillar)
 	var foes: Array = FOES.near(hero.get_tree(), spot, BACKDRAFT_REACH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
 	var hand := at + Vector3.UP * 1.3 + fwd * 0.6
 	for e: Node3D in foes:
@@ -1079,7 +1080,7 @@ static func _backdraft(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 		var kb: Vector3 = back.normalized() * BACKDRAFT_PULL if back.length() > 0.6 else Vector3.ZERO
 		e.take_hit(BACKDRAFT_DAMAGE * power * (1.0 if skewered else 0.6), kb, 0.0 if hero._void.is_heavy(e) else BACKDRAFT_LAUNCH, true)
 		Game.register_hit("cast")
-		ELEMENTS.arc(parent, hand, e.global_position + Vector3.UP, ELEMENTS.LOOK.wind.color)
+		COMIC_BACKDRAFT.haul(parent, e, hand, skewered)  # (a wind ribbon to his hand: was a lightning arc each)
 	return foes.size()
 
 
