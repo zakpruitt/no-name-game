@@ -1,7 +1,7 @@
 extends SceneTree
 ## Films every autotest bot string (training_bot.BOT_STRINGS: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
-##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]]
+##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--dir=name]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ## Windowed only (headless draws nothing), about a minute. Frames are 800x450 (half the window); each grab stalls
@@ -11,6 +11,9 @@ extends SceneTree
 ## Contact sheets: tools are the caller's (PIL), the INDEX lines say what each frame shows.
 
 const DIR := "user://string_film"
+## `-- --dir=<name>`: film into user://<name> instead (user:// is shared by every worktree: two lanes filming at once
+## overwrote each other's frames).
+var _dir := DIR
 const FPS := 12.0
 const FREEPLAY_S := 10.0
 const SIZE := Vector2i(800, 450)
@@ -45,7 +48,10 @@ func _initialize() -> void:
 	for flag in ["_hit_shot_taken", "_dash_shot_taken", "_guide_shot_taken", "_cast_shot_taken"]:
 		_bot.set(flag, true)
 	_bot._shots_taken = 99
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--dir="):
+			_dir = "user://" + arg.get_slice("=", 1)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_dir))
 	var strings: Array = _bot.BOT_STRINGS
 	var filming := 0
 	# Scattered, dazed dummies after a breaker made the next string whiff whole (L L L H after Grounded): by
@@ -87,7 +93,7 @@ func _initialize() -> void:
 	for line: String in _bot._rhythm_log:
 		print(line)
 	print("[string_film] done strings=%d/%d breakers=%d moves=%s -> %s" % [_bot._bot_strings_done.size(), strings.size(),
-		_p.breakers_landed, ",".join(_bot._bot_moves.keys()), ProjectSettings.globalize_path(DIR)])
+		_p.breakers_landed, ",".join(_bot._bot_moves.keys()), ProjectSettings.globalize_path(_dir)])
 	quit(0)
 
 
@@ -136,7 +142,7 @@ func _grab() -> void:
 
 
 func _flush(film: String) -> void:
-	var dir := "%s/%s" % [DIR, film]
+	var dir := "%s/%s" % [_dir, film]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
 	var index := PackedStringArray(["%s at %d fps, %dx%d, game camera" % [film, int(FPS), SIZE.x, SIZE.y]])
 	for i in _frames.size():
