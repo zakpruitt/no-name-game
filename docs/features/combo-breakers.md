@@ -70,9 +70,15 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 
 ### Look
 
+The landing's damage is one number (round 33, sleek; feel audit item 6): hits while he is in State.LEAP open
+a breaker total over the middle of the pile (`comic_number.gd`, `BREAKER_SCALE` 1.15x a big number), and any
+hit within `BREAKER_BEAT_S` (0.3 s real) of its last add goes into it, for at most `BREAKER_SPAN_S` (1 s), so
+the thrown cubes and shoves that land a beat later add in. Check: `tests/fx_sleek_check.gd`.
+
 The breaker draws flat and inked: the cue is always `crisp` (a paper target ring that turns gold in the
 window and a closing ring in the breaker's colour, each between two ink bands, rebuilt every frame so
-the band keeps its width as it closes: `CRISP_TARGET_W` 0.12 m, `CRISP_CLOSING_W` 0.15, `CRISP_INK` 0.055; at
+the band keeps its width as it closes: `CRISP_TARGET_W` 0.06 m, `CRISP_CLOSING_W` 0.075, `CRISP_INK` 0.03
+since round 33's sleek pass (0.12 / 0.15 / 0.055 were the fattest shapes on a breaker's frames; at
 0.16 / 0.24 / 0.07 the closing ring was a fat green hoop over every Live Wire frame), the war cry is radial
 speed strokes round him and one thin inked hoop (`WAR_CRY_RING_W` 0.08 m)
 under him (no shell, no glow dots, no smoke), and the dive is `scripts/comic_comet.gd`: one fat streak back
