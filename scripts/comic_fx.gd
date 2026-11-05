@@ -9,6 +9,7 @@ extends CanvasLayer
 const STANDING := preload("res://scripts/standing_fx.gd")
 const COMIC_DUST := preload("res://scripts/comic_dust.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const FONT_PATH := "res://assets/fonts/Bangers-Regular.ttf"
 const FONT_SIZE := 96  # rendered big and scaled down, so one size serves every tier
 const INK := Color(0.012, 0.01, 0.02)
@@ -170,6 +171,7 @@ func _word(world: Vector3, tier: int) -> void:
 ## Puts word `i` up at `base` scale, in empty space near the hero on the way to `world`.
 func _show(i: int, world: Vector3, base: float) -> void:
 	var l := _words[i]
+	l.add_theme_constant_override("outline_size", PAL.text_ink(base))  # the hit's ink weight, at any tier
 	var reduced := Game.reduce_flashing
 	if replace:
 		for k in POOL:

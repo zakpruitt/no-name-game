@@ -13,6 +13,7 @@ extends Node3D
 
 const SELF := preload("res://scripts/comic_number.gd")
 const FONT := preload("res://assets/fonts/Bangers-Regular.ttf")
+const PAL := preload("res://scripts/fx_palette.gd")
 const STEPS_PER_S := 12.0  # on twos
 const MERGE_S := 0.32  # a hit this soon after the last one adds in (over the 0.25 s burn ticks)
 const HOLD_S := 0.38  # up for this long after the last add (round 33, sleek: 0.5 stayed into the next beat)
@@ -210,6 +211,10 @@ func _draw(step: int) -> void:
 	_step = step
 	var s := float(step) / STEPS_PER_S
 	var size := minf(1.0 + total * GROW_PER, GROW_MAX) * (BIG_SCALE if big else 1.0) * (BREAKER_SCALE if breaker else 1.0)
+	var ink := PAL.text_ink(PIXEL * PAL.PX_PER_M * size)  # the same on-screen ink as the words, whatever the total
+	if _front.outline_size != ink:
+		_front.outline_size = ink
+		_shadow.outline_size = ink
 	var since := step - _pop_from
 	if not _reduced and since >= 0 and since < POP.size():
 		size *= POP[since]

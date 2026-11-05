@@ -163,7 +163,11 @@ static func damage_number(parent: Node, pos: Vector3, amount: float, big := fals
 	tw.chain().tween_callback(l.queue_free)
 
 
-static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := 0.9) -> void:
+## Round 33, sleek 4: every hit on a foe (and the Warden, which drew 1.5 / 1.0) uses these star sizes: one grammar,
+## star + word + number, the same weight everywhere.
+const HIT_STAR := 0.9
+const HIT_STAR_BIG := 1.3
+static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := HIT_STAR) -> void:
 	var at := pos + Vector3.UP * 1.1
 	if Game.comic_style:  # the hot inked star in the blow's palette; impact() adds the strokes
 		var pal := PAL.of(_blow_element(parent))

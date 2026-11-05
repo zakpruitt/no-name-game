@@ -8,7 +8,8 @@ extends SceneTree
 ##     Dodge_Forward or Run_Start (not again while it plays, not on an air dodge), stays within its pool and
 ##     clears itself;
 ##   - round 33, sleek 4: the combo-name callout over him fades after callout_cap.HOLD_S real s (slow motion
-##     can't hold it) and as soon as the next string starts.
+##     can't hold it) and as soon as the next string starts; a hit's word (every tier) and number (any total) draw
+##     the same on-screen ink (fx_palette.TEXT_INK_PX).
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -131,6 +132,23 @@ func _initialize() -> void:
 	await create_timer(0.2, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the callout fades when the next string starts")
+	# Round 33, sleek 4: one ink weight for a hit's word and number, whatever its tier or total.
+	var pal: GDScript = load("res://scripts/fx_palette.gd")
+	var cfx: GDScript = load("res://scripts/comic_fx.gd")
+	var inks: Array = []
+	for base: float in cfx.WORD_SCALE + [cfx.BREAKER_SCALE]:
+		inks.append(pal.text_ink(base) * base)
+	var n1: Node3D = num.add(main, foes[1].global_position + Vector3(0, 0, 2), 8.0, false, null)
+	var n2: Node3D = num.add(main, foes[2].global_position + Vector3(0, 0, 2), 250.0, true, null)
+	await create_timer(0.3).timeout
+	for n: Node3D in [n1, n2]:
+		if is_instance_valid(n):
+			var settled: float = minf(1.0 + n.total * num.GROW_PER, num.GROW_MAX) * (num.BIG_SCALE if n.big else 1.0)
+			inks.append(n._front.outline_size * num.PIXEL * pal.PX_PER_M * settled)
+	var lo: float = inks.min()
+	var hi: float = inks.max()
+	_ok(inks.size() == cfx.WORD_SCALE.size() + 3 and lo > pal.TEXT_INK_PX * 0.8 and hi < pal.TEXT_INK_PX * 1.2,
+		"words and numbers share one ink weight (%.1f-%.1f px)" % [lo, hi])
 	print("[fx_sleek] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	quit()
 

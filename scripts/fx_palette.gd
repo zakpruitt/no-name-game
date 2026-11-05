@@ -14,6 +14,17 @@ extends RefCounted
 ##   var p: Dictionary = PAL.of("wind"); p.body, p.ink ...
 
 const LINE := 0.035  # m: the ink line round a flat effect (about 2 px at the game camera)
+## Round 33, sleek 4: one ink weight for a hit's three parts. The impact star is drawn in LINE; the word and the
+## number are text, scaled per tier and per total, so a fixed font outline gave 3.4-8.3 px of ink on words (a
+## breaker word was the heaviest thing on screen) and 2-3.3 px on numbers. Both now take TEXT_INK_PX on screen
+## whatever their scale (ComicFx._show, ComicNumber._draw_step).
+const TEXT_INK_PX := 3.0  # px of ink round a hit's word and number at 1080p
+const PX_PER_M := 48.0  # screen px per metre at the game camera, 1080p (a 0.42 m number is 20 px)
+
+
+## A text outline in font px that comes out `TEXT_INK_PX` on screen for text drawn at `px_per_font_px`.
+static func text_ink(px_per_font_px: float) -> int:
+	return maxi(1, roundi(TEXT_INK_PX / maxf(px_per_font_px, 0.01)))
 const EDGE_ALPHA := 0.55  # a fill's alpha at its outer edge (its middle is opaque)
 const TAIL_ALPHA := 0.0  # a stroke's or ribbon's alpha at its tail
 
