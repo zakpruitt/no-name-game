@@ -47,6 +47,8 @@ const LEAP_AFTER_SWING := 0.1  # Anvil off Backdraft's crescent clip: once the g
 const ANVIL_REEL := 0.65  # of the way to him Anvil's tentacles haul what they seize (void_grab `reel`): the leap comes
 # before the gale's knockback has moved anyone (their hit freeze), so the kebab's pull-back is the tentacles' to show
 const ANVIL_REEL_GAP := 1.4  # m in front of him they're hauled to
+const ANVIL_SPREAD := 1.5  # m between neighbours across his aim, held and landed: the reel fans them out so each gets
+# its own crater (comic_anvil's dent is 0.62 m round; all hauled to one point they landed in one pile)
 
 ## The move right click plays off each move. From nothing, the grab.
 const AFTER := {"L1": "EC", "L2": "IP", "L3": "EM", "EC": "EE", "AL1": "EW", "DL": "EF", "EF": "EA", "IP": "IJ", "IJ": "IS", "EM": "EV", "GR": "VS", "VR": "VD",

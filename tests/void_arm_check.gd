@@ -982,6 +982,25 @@ func _three_elements() -> void:
 	a.free()
 	b.free()
 	await _settle()
+	# Round 4: Anvil's reel fans the kebab out across his aim (ANVIL_SPREAD), held and landed, a crater each:
+	# hauled to one point, three foes stuck round the spear landed in one pile.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var kebab := [_foe(Vector3(0.3, 0, 3.0)), _foe(Vector3(-0.3, 0, 3.2)), _foe(Vector3(0.0, 0, 2.7))]
+	hero._brk_zone = Vector3(0, 0, 1.5)
+	hero._void.seize(bw)
+	var lands := []
+	for s: Dictionary in hero._void._seized:
+		lands.append(hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - hero._void.SEIZE_IN) + s.get("fan", Vector3.ZERO) * hero._void.SEIZE_IN)
+	var closest := INF
+	for i in lands.size():
+		for j in range(i + 1, lands.size()):
+			closest = minf(closest, (lands[i] - lands[j]).length())
+	_check(lands.size() == 3 and closest >= el.ANVIL_SPREAD * 0.95, "Anvil's reel lands them %.2f m apart at least (ANVIL_SPREAD %.1f)" % [closest, el.ANVIL_SPREAD])
+	hero._void.release_seized()
+	for k: Node in kebab:
+		k.free()
+	await _settle()
 	# Hailstorm: only the frozen go up, in their ice; he climbs.
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))

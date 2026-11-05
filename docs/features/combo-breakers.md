@@ -140,6 +140,8 @@ so the autotest lands it.
 - A breaker entry with `reel` (Anvil) has `void_grab.seize()` lift each foe at a spot `reel` of the way from where it
   stood to `ANVIL_REEL_GAP` in front of him, so phase 0's haul pulls them in. Use it when the move before the leap
   throws foes the leap comes too soon to show (the foe's hit freeze eats the first ~0.1 s of any knockback).
+  With `reel` the foes also take a slot across his aim (`ANVIL_SPREAD` apart, sorted by where they stand so the
+  tentacles don't cross), and the dive adds `fan * SEIZE_IN` to the landing so the slots survive the pull in.
 - Air strings: size a launch against the hero's height at the next hit, not the room. Hailstorm's 12 m/s flew a real
   foe past him (training dummies launch at `LAUNCH_SCALE` 0.55 and stayed under him); 9 m/s puts it in its apex hang
   at his ~2.5 m as Meltdown lands. Probe heights per physics frame (hero `global_position.y + model.position.y`,

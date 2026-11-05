@@ -162,7 +162,9 @@ the rules are [element-matrix.md](element-matrix.md). The "bound" state is `floo
 - **Backdraft's pull-back** never showed: Anvil leaps ~0.25 s after Backdraft's hit, before the gale's knockback has
   moved anyone (the foe's hit freeze), so the tentacles lifted them where they stood. Anvil's entry has
   `reel` (`ANVIL_REEL` 0.65 of the way to `ANVIL_REEL_GAP` in front of him, `void_grab.seize()`): the haul up is the
-  kebab coming back.
+  kebab coming back. Round 4: hauled to one point they landed in one pile (0.08 m apart); the reel now fans
+  them across his aim, `ANVIL_SPREAD` 1.5 m between neighbours in the order they stand, held there and kept
+  through the dive (the seized entry's `fan`), so each gets its own crater.
 - **Rockslide -> Fault Line:** Rockslide's stop is `ROCKSLIDE_STOP` 0.07 (was 0.1; with its tier-2 ender stop it was
   150 ms of the beat) and its hit-confirm cancel `ROCKSLIDE_CONFIRM` 0.8 of the way back (a move's `confirm`
   overrides `CANCEL_ON_HIT`); the contact frame is unchanged. Fault Line's beat 393 -> 310-325 ms.

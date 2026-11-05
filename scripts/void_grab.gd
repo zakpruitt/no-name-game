@@ -449,16 +449,30 @@ func seize(b := {}) -> void:
 		if a.is_airborne() != b.is_airborne():
 			return a.is_airborne()
 		return (a.global_position - at).length() < (b.global_position - at).length())
-	for e: Node3D in foes.slice(0, SEIZE_MAX):
+	var held: Array = foes.slice(0, SEIZE_MAX)
+	var side: Vector3 = hero._facing().cross(Vector3.UP).normalized()
+	var fan := {}  # (Anvil's reel: each its own slot across his aim, in the order they stand, so none cross)
+	if b.has("reel"):
+		var order := held.duplicate()
+		order.sort_custom(func(a: Node3D, c: Node3D) -> bool:
+			return (a.global_position - at).dot(side) < (c.global_position - at).dot(side))
+		for i in order.size():
+			fan[order[i]] = side * (i - (order.size() - 1) * 0.5) * VOID_ELEMENT.ANVIL_SPREAD
+	for e: Node3D in held:
 		var t: Node3D = _spare.pop_back() if not _spare.is_empty() else null
 		if t == null:
 			t = TENDRIL.new()
 			hero.add_child(t)
 		var from: Vector3 = e.global_position
+		var one := {"foe": e, "from": from, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER}
 		if b.has("reel"):  # (Anvil: hauled back towards him as they go up, the kebab coming back on the gale)
 			var to: Vector3 = at + hero._facing() * VOID_ELEMENT.ANVIL_REEL_GAP
 			from = Vector3(lerpf(from.x, to.x, b.reel), from.y, lerpf(from.z, to.z, b.reel))
-		_seized.append({"foe": e, "from": from, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER})
+			# (fanned out across his aim: held a slot apart, and the dive keeps the slot, so a crater each)
+			var lateral: float = (from - to).dot(side)
+			one.from = from - side * lateral * (1.0 - SEIZE_IN) + fan[e]
+			one.fan = fan[e]
+		_seized.append(one)
 		e.stagger(HOLD)
 
 
@@ -504,7 +518,7 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 		else:
 			var k := clampf(t / float(b.dive), 0.0, 1.0)
 			var was: Vector3 = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
-			var land: Vector3 = hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - SEIZE_IN)
+			var land: Vector3 = hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - SEIZE_IN) + s.get("fan", Vector3.ZERO) * SEIZE_IN
 			e.global_position = was.lerp(land, k * k)
 			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.02, float(e.radius) + 0.05, _time)
 
