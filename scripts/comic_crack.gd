@@ -21,6 +21,13 @@ const HOT_STEPS := 2  # steps the colour glows before it cools
 const MAX_TIME := 0.9  # s: round 33 (sleek; feel audit item 7), a 1.2-1.4 s mark sat under the next string
 const OUT_AT := 0.7  # of its time: from here it shrinks away
 const STANDING := preload("res://scripts/standing_fx.gd")
+## Round 33, sleek 4: a breaker-sized mark (Meteor Fall, the rip's landing) lies under the pile it was for, so its
+## splat and the roots of its cracks were all under the foes and nothing showed. From PILE_R up the cracks start
+## at the pile's edge (PILE_INNER), run out past it over RUN_STEPS steps, reach further, and there is no splat.
+const PILE_R := 2.0  # m: marks this big are under a pile
+const PILE_INNER := Vector2(0.38, 1.5)  # the cracks' start: this share of the radius, at most this many m
+const PILE_REACH := Vector2(0.95, 1.3)  # of the radius (CRACK_REACH)
+const RUN_STEPS := 3  # steps on twos the cracks take to run out to their tips
 
 static var _mat: StandardMaterial3D
 
@@ -65,15 +72,18 @@ func _ready() -> void:
 		_splat.append(_rng.randf_range(0.7, 1.25))
 	var n := _rng.randi_range(CRACKS.x, CRACKS.y)
 	var turn := _rng.randf() * TAU
+	var pile := radius >= PILE_R
+	var inner := minf(radius * PILE_INNER.x, PILE_INNER.y) if pile else 0.0
+	var span := PILE_REACH if pile else CRACK_REACH
 	for i in n:
 		var a := turn + TAU * (i + _rng.randf_range(-0.25, 0.25)) / n
-		var reach := radius * _rng.randf_range(CRACK_REACH.x, CRACK_REACH.y)
-		var pts := PackedVector2Array([Vector2.ZERO])
+		var reach := radius * _rng.randf_range(span.x, span.y)
+		var pts := PackedVector2Array([Vector2(cos(a), sin(a)) * inner])
 		var segs := 4
 		for k in range(1, segs + 1):
 			var f := float(k) / segs
 			var bend := a + _rng.randf_range(-0.35, 0.35)
-			pts.append(Vector2(cos(bend), sin(bend)) * reach * f)
+			pts.append(Vector2(cos(bend), sin(bend)) * lerpf(inner, reach, f))
 		_cracks.append(pts)
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh
@@ -110,25 +120,35 @@ func tick(delta: float) -> void:
 func _draw(step: int) -> void:
 	_verts.clear()
 	_colors.clear()
-	var hot := step < HOT_STEPS
+	var hot := step < (RUN_STEPS if radius >= PILE_R else HOT_STEPS)  # (a pile's cracks glow while they run)
 	var out := clampf((_t / time - OUT_AT) / (1.0 - OUT_AT), 0.0, 1.0)
 	var k := 1.0 - out * 0.85  # shrinks away at the end
+	var pile := radius >= PILE_R
 	var grow := 0.75 if step == 0 else 1.0  # punches out on the first frame
+	var run := minf(float(step + 1) / RUN_STEPS, 1.0) if pile else 1.0  # runs out from the pile's edge
+	if pile:
+		grow = 1.0
 	var w := minf(CRACK_W * radius, CRACK_W_MAX) * k
 	var tone := color if hot else color.darkened(COOL)
 	_y = 0.0
 	# Round 33 (sleek): a thin ink line round the colour (was ink 2.4x the colour's width).
 	for pts: PackedVector2Array in _cracks:
-		_crack(pts, w * 0.42 + LINE, grow * k, INK)
-	_blob(radius * SPLAT * grow * k * 0.8 + LINE * 2.0, INK)
+		_crack(pts, w * 0.42 + LINE, grow * k, INK, run)
+	if not pile:
+		_blob(radius * SPLAT * grow * k * 0.8 + LINE * 2.0, INK)
 	_y = 0.006
 	if out < 0.8:
 		for pts: PackedVector2Array in _cracks:
-			_crack(pts, w * 0.42, grow * k * 0.85, tone)
-		_blob(radius * SPLAT * grow * k * 0.8, tone)
+			_crack(pts, w * 0.42, grow * k * 0.85, tone, run)
+		if not pile:
+			_blob(radius * SPLAT * grow * k * 0.8, tone)
 	_y = 0.012
 	if hot:
-		_blob(radius * SPLAT * grow * 0.4, HOT)
+		if pile:  # a hot line down each crack while it runs
+			for pts: PackedVector2Array in _cracks:
+				_crack(pts, w * 0.14, grow * k * 0.85, HOT, run)
+		else:
+			_blob(radius * SPLAT * grow * 0.4, HOT)
 	_mesh.clear_surfaces()
 	if _verts.is_empty():
 		return
@@ -151,10 +171,11 @@ func _blob(r: float, c: Color) -> void:
 		_tri(lift, p0 + lift, p1 + lift, c)
 
 
-## A crack: a tapered strip along the points, fat at the root, to a point at the far end.
-func _crack(pts: PackedVector2Array, w: float, reach_k: float, c: Color) -> void:
+## A crack: a tapered strip along the points, fat at the root, to a point at the far end. `run`: the share of its
+## segments drawn so far (a pile's cracks run out).
+func _crack(pts: PackedVector2Array, w: float, reach_k: float, c: Color, run := 1.0) -> void:
 	var n := pts.size()
-	for i in n - 1:
+	for i in mini(n - 1, ceili(run * (n - 1) - 0.001)):
 		var a := pts[i] * reach_k
 		var b := pts[i + 1] * reach_k
 		var d := (b - a).normalized()
