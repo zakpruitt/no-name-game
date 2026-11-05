@@ -9,6 +9,28 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
 const FOUND_HOLD := 2.5  # s the "New combo" hint stays up
+const HUD_INK := preload("res://scripts/hud_ink.gd")
+## Round 33, part 3 (sleek HUD, hud_ink.gd): the combo counter, rank and air count in the words' font with a thin
+## ink outline (size / 9; was / 6) over a slanted halftone panel in the rank's colour; the combo-name callout
+## over the hero in the same font and ink.
+const COUNTER_DOTS := 0.3  # alpha of the panel's dots
+const CALLOUT_OUTLINE := 12  # px of the callout's ink at font 84 (24)
+
+
+## The halftone panel behind the combo counter: dots in the rank's colour, biggest at the right edge, in a
+## band behind the numbers, with a thin line in that colour (and ink under it) along its foot.
+class CounterPanel extends Control:
+	var color := Color.WHITE
+	var on := false
+
+	func _draw() -> void:
+		if not on:
+			return
+		var r := Rect2(Vector2(60.0, 6.0), size - Vector2(60.0, 12.0))
+		HUD_INK.dots(self, r, Color(color, COUNTER_DOTS), false, false)
+		draw_line(Vector2(r.position.x + 40.0, r.end.y), r.end, Color(color, 0.7), HUD_INK.LINE * 1.5, true)
+		draw_line(Vector2(r.position.x + 40.0, r.end.y + 2.0), r.end + Vector2(0.0, 2.0), Color(HUD_INK.INK, 0.8), HUD_INK.LINE, true)
+
 const VIGNETTE_SHADER := """
 shader_type canvas_item;
 uniform float strength = 0.0;
@@ -41,6 +63,7 @@ var _beat_t := 0.0
 var _pulse := 0.0
 var _vignette := 0.0
 var combo_guide: Control
+var counter_panel: CounterPanel
 
 
 func _ready() -> void:
@@ -69,6 +92,10 @@ func _ready() -> void:
 	awaken_hint.position = Vector2(32, 88)
 	awaken_hint.visible = false
 
+	counter_panel = CounterPanel.new()
+	counter_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(counter_panel)
+	_anchor(counter_panel, 1.0, 0.0, Rect2(-380, 120, 360, 170))
 	combo_label = _label(root, "", 56, Color.WHITE)
 	_anchor(combo_label, 1.0, 0.0, Rect2(-380, 120, 340, 70))
 	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -81,6 +108,8 @@ func _ready() -> void:
 	_anchor(air_label, 1.0, 0.0, Rect2(-380, 290, 340, 50))
 	air_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	air_label.pivot_offset = Vector2(300, 25)
+	for l: Label in [combo_label, rank_label, air_label]:
+		_comic(l)
 
 	# TRAINING and the string readout sit bottom right, out of the play area (feel audit 2026-11-04 items 3
 	# and 10: top centre, a breaker hang rose under them).
@@ -147,6 +176,11 @@ func bind_player(p: Node) -> void:
 	hp_bar.max_value = p.max_hp
 	hp_bar.value = p.hp
 	combo_guide.player = p
+	var callout: Variant = p.get("_callout")
+	if callout is Label3D:  # (visuals only: player.gd places and tweens it)
+		callout.font = HUD_INK.font()
+		callout.outline_size = CALLOUT_OUTLINE
+		callout.outline_modulate = HUD_INK.INK
 	# A combo's first landing, unless a tutorial hint is still up.
 	p.combo_found.connect(func(id: String) -> void:
 		if hint_panel.modulate.a < 0.05:
@@ -231,8 +265,14 @@ func _on_combo(count: int, rank: String) -> void:
 	if count < 2:
 		combo_label.text = ""
 		rank_label.text = ""
+		counter_panel.on = false
+		counter_panel.queue_redraw()
 		return
 	combo_label.text = "%d HITS" % count
+	if not counter_panel.on or counter_panel.color != RANK_COLORS.get(rank, Color.WHITE):
+		counter_panel.on = true
+		counter_panel.color = RANK_COLORS.get(rank, Color.WHITE)
+		counter_panel.queue_redraw()
 	if rank_label.text != rank:
 		rank_label.text = rank
 		rank_label.add_theme_color_override("font_color", RANK_COLORS[rank])
@@ -286,6 +326,13 @@ func _bar(parent: Control, pos: Vector2, size: Vector2, color: Color) -> Progres
 	b.add_theme_stylebox_override("fill", fg)
 	parent.add_child(b)
 	return b
+
+
+## The words' font and a thin ink outline (HUD_INK).
+func _comic(l: Label) -> void:
+	l.add_theme_font_override("font", HUD_INK.font())
+	l.add_theme_constant_override("outline_size", HUD_INK.outline(l.get_theme_font_size("font_size")))
+	l.add_theme_color_override("font_outline_color", HUD_INK.INK)
 
 
 func _label(parent: Control, text: String, size: int, color: Color) -> Label:

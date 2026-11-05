@@ -46,6 +46,9 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 - `scripts/breaker_cue.gd`: the floor cue: a target ring and a closing ring that meet at `sweet`; `lock()`, `hit(perfect)`.
 - `scripts/breaker_prompt.gd`: the timing circle up and to his left (the combo guide is on his right; `OFFSET`),
   filling to the sweet spot with the button(s) and the breaker's name; on the player's own CanvasLayer.
+  Round 33, part 3 (sleek HUD, `hud_ink.gd`): a see-through back disc (`BACK_ALPHA` 0.45) with halftone dots in
+  the breaker's colour round the key (`DOTS_ALPHA`), a 6 px track between 1.5 px ink lines, 2 px rings, and the
+  name in the words' font (Bangers, `NAME_SIZE` 18) with a thin ink outline.
 - `scripts/comic_comet.gd`: the inked dive streak and landing star (`beat()` from `hero_leap._comet()`; the comet hangs off the model as the `comic_comet` meta).
 - `scripts/breaker_quake.gd`: the barbaric look: `war_cry()` as the window opens, `crater()` on landing (not for
   `press` / `at_spot` breakers, which have their own), the element vents.
