@@ -54,7 +54,8 @@ func _take(e: Node3D) -> void:
 		var t := TENDRIL.new()
 		add_child(t)
 		rows.append({"tendril": t, "from": Vector3(e.global_position.x + cos(a) * r, 0.0, e.global_position.z + sin(a) * r)})
-	_held.append({"foe": e, "at": e.global_position, "big": big, "welled": false, "ropes": rows})
+	# (`flew`: taken in flight, it may land before this bind first runs; it takes the spot where it lands)
+	_held.append({"foe": e, "at": e.global_position, "big": big, "welled": false, "ropes": rows, "flew": e.has_meta(THROWN.FLYING)})
 	e.set_meta(BOUND, true)
 	if big:
 		if e.has_method("chill"):
