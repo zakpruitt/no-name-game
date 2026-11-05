@@ -183,7 +183,7 @@ frame; `Spellcasting` left `enemy.LOOPING`).
 | Kind | clip | tell | strike / hit | recovery |
 |---|---|---|---|---|
 | minion | 1H_Melee_Attack_Chop 28 | 4-11 coiled to its right, cleaver cocked back by its ear | 12-13 smear, hit 14 swiped across to its left | overshoot 20, guard 28 |
-| warrior | Chop 35 | 6-16 sword two-handed overhead, blade out past the right shoulder, on its toes | 17-18, hit 19 driven into the floor, squash 16% | down to 22, overshoot 25, guard 35 |
+| warrior | Chop 35 | 6-16 coiled to its right, sword held out wide past the right shoulder (az -100..-112, el 35-42), free arm thrown out at the target (round 39 b: overhead it hid under the helmet) | 17-18 whipped across its front, hit 19 low past its left foot (az 100), turned 30 deg, squash 16% | down to 22, overshoot 25, guard 35 |
 | shield | Chop 33 | 4-14 shoulder turned, sunk behind the shield (`keep`), sword cocked | 15-16, hit 17 shield rammed out at full reach, stepping in | overshoot 23, guard 33 |
 | rogue | Chop 23 | 3-9 both daggers raised over the shoulders pointing back, crouched | 9-10, hit 11 right stab, 13-14 left stab | skid back 19, guard 23 |
 | archer | 2H_Ranged_Aiming 24 / Shoot 32 | dip 6, rising into the draw leaning back, shaking 16-24 | shoot frame 0: kicked back 1-3, eyes shut | overshoot 7 |
