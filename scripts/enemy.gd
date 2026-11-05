@@ -1226,8 +1226,10 @@ func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
 
 
 ## Clip speed range for the run matched to the ground (run_foot_speed).
-const RUN_CLIP_SPEED_MIN := 0.5
-const RUN_CLIP_SPEED_MAX := 3.0  # the shield's shuffle needs it at 3.2 m/s; chibi legs pump fast
+## The runs are keyed for move_speed at 1x (round 38, foe_keys.py), so at full speed this is ~1;
+## the floor lets a foe circling at 0.4 of its speed slow its feet too.
+const RUN_CLIP_SPEED_MIN := 0.35
+const RUN_CLIP_SPEED_MAX := 1.6
 
 
 ## The run clip's speed that keeps planted feet on the floor at `ground` m/s.
