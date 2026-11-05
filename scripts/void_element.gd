@@ -26,6 +26,7 @@ const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
 const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
 const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
 const COMIC_RIP := preload("res://scripts/comic_rip.gd")
+const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element matrix's tells (round 37, third pass)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1534,7 +1535,7 @@ static func _flat(v: Vector3) -> Vector3:
 # Tow Line's rip, Ice Cube taking the frozen first, the crossovers and breakers that read their states); these are paid
 # by the element's base moves (not the X* crossovers, which read their own) through improvise(), at the top of fire(),
 # before the move's own hit, so a payoff never moves a foe the move is about to throw.
-# TODO(fx lane): each payoff borrows a placeholder (pillar, shards, steam, geyser, ink burst, scorch, arc); a tell per kind.
+# Each cell's look is a small tell in comic_improv.gd (LOOKS, keyed "<state>_x_<element>"), its word ComicFx.IMPROV_WORDS.
 
 ## state -> element -> payoff kind (_pay()).
 const IMPROV := {
@@ -1595,14 +1596,14 @@ static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: flo
 			due.append([e, state])
 	for d: Array in due:
 		if is_instance_valid(d[0]) and d[0].is_alive():
-			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power)
 			var cell: String = "%s_x_%s" % [d[1], el]
+			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power, cell)
 			improv_paid[cell] = int(improv_paid.get(cell, 0)) + 1
 	return due.size()
 
 
 ## One payoff (IMPROV's kinds): one hit, and a state, a chain to the neighbour, a launch or a crater.
-static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float) -> void:
+static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "") -> void:
 	var parent: Node = hero.get_parent()
 	var spot := _flat(e.global_position)
 	var heavy: bool = hero._void.is_heavy(e)
@@ -1610,16 +1611,15 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 	var down := Vector3.DOWN * IMPROV_DOWN
 	if state in ["buried", "molten", "skewered"]:
 		unmark(e, state)  # (spent: once)
+	var next: Variant = null  # the neighbour a chain reached (its tell draws the jump)
 	match kind:
 		"lift":  # frozen x wind: the gale takes the cube up, still in its ice
-			ELEMENTS.pillar(parent, spot, "wind", 2.4, 0.8)
 			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
 			freeze_aloft(e)
 		"shatter":  # frozen x dark: the dark crushes the ice, and the shards cut the one beside it
 			THROWN.remove_cube(e)
-			Fx.shards(parent, spot + Vector3.UP * 0.9, THROWN.CUBE_COLOR, 8, Vector3.UP, 8.0, 0.16, 0.5)
 			e.take_hit(damage, Vector3.ZERO, 0.0, true)
-			_chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "")
+			next = _chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "")
 		"encase":  # buried / bound x ice: frozen where it's stuck
 			e.take_hit(damage, Vector3.ZERO, 0.0, false)
 			encase(e)
@@ -1627,41 +1627,35 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 			e.take_hit(damage * IMPROV_MULT, down, 0.0, true)
 			if kind == "swallow" and not heavy:
 				e.stagger(IMPROV_HOLD)
-			if kind in ["swallow", "smother"]:
-				DARK.burst(parent, spot, 0.8)
-			else:
-				Fx.scorch(parent, spot, ELEMENTS.LOOK.earth.color, 1.2, 0.8)
 		"fan":  # molten x wind: the gale fans the flames up, and onto the one beside it
 			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
-			_chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "molten")
+			next = _chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "molten")
 		"quench":  # molten x water: it goes off in steam
-			COMIC_STEAM.spawn(parent, spot)
 			e.take_hit(damage * IMPROV_STEAM_MULT, Vector3.ZERO, 0.0 if heavy else STEAM_LAUNCH, true)
 		"erupt":  # molten x earth: the floor goes up under it
-			under(parent, spot, "earth")
 			e.take_hit(damage * ERUPT_MOLTEN_MULT, Vector3.ZERO, 0.0 if heavy else ERUPT_LAUNCH, true)
 		"spread":  # skewered x ice: the ice climbs on to the nearest foe not in it, and skewers it too
 			e.take_hit(damage, Vector3.ZERO, 0.0, false)
 			encase(e)
-			_chain(hero, e, 0.0, "skewered")
+			next = _chain(hero, e, 0.0, "skewered")
 		"tear":  # skewered x dark: torn off the spear towards him
 			THROWN.remove_cube(e)
 			var back := _flat(at - e.global_position)
 			e.take_hit(damage * IMPROV_MULT, back.normalized() * IMPROV_PULL if back.length() > 0.6 else Vector3.ZERO, 0.0, true)
-			DARK.burst(parent, spot, 0.8)
 		"freeze":  # airborne x ice: frozen up there; it comes down a cube
 			e.take_hit(damage, Vector3.ZERO, 0.0, false)
 			freeze_aloft(e)
 		"loose":  # bound x wind: the gale tears it out of the bind and up
 			BIND.let_go_of(hero.get_tree(), e)
-			ELEMENTS.pillar(parent, spot, "wind", 2.4, 0.8)
 			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+	if Game.comic_style:
+		COMIC_IMPROV.spawn(parent, cell, e, at, next)
 	Game.register_hit("cast")
 
 
 ## The chain to the neighbour: the nearest other foe within IMPROV_CHAIN_R takes `damage` and, for "molten" /
-## "skewered", the state too (the skewered frozen in a cube).
-static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: String) -> void:
+## "skewered", the state too (the skewered frozen in a cube). Returns where it jumped to (world), or null.
+static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: String) -> Variant:
 	var best: Node3D = null
 	var best_d := INF
 	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, IMPROV_CHAIN_R):
@@ -1670,9 +1664,11 @@ static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: St
 			best = o
 			best_d = d
 	if best == null:
-		return
-	var tone: String = {"molten": "earth", "skewered": "water"}.get(state, "void")
-	ELEMENTS.arc(hero.get_parent(), from.global_position + Vector3.UP, best.global_position + Vector3.UP, ELEMENTS.LOOK[tone].color)
+		return null
+	var to: Vector3 = best.global_position
+	if not Game.comic_style:
+		var tone: String = {"molten": "earth", "skewered": "water"}.get(state, "void")
+		ELEMENTS.arc(hero.get_parent(), from.global_position + Vector3.UP, to + Vector3.UP, ELEMENTS.LOOK[tone].color)
 	if damage > 0.0:
 		var out := _flat(best.global_position - from.global_position)
 		best.take_hit(damage, (out.normalized() if out.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, false)
@@ -1681,3 +1677,4 @@ static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: St
 		encase(best)
 	if state != "":
 		mark(best, state)
+	return to

@@ -57,6 +57,14 @@ const BREAKER_WORDS := {
 	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
 }
 const BREAKER_SCALE := 0.78
+## The element matrix's payoffs (void_element.IMPROV; comic_improv.gd draws each cell's tell), by cell: said over the
+## move's own word (ComicFx.improv), since the payoff is the news.
+const IMPROV_WORDS := {
+	"frozen_x_wind": "FWISSH!", "frozen_x_void": "SHA-KRAK!",
+	"buried_x_water": "KRRIK!", "buried_x_earth": "BA-DOOM!", "buried_x_void": "GULP!",
+}
+const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
+const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
 ## captions): round the contact point, in the clearest of these directions (degrees off the way from
 ## the hero to the hit), on the near ring unless it is covered.
@@ -89,6 +97,18 @@ var _hit_ms := -100000
 ## One word on the page at a time (item 2): a new word replaces the live one. Off in the look tests' lineups.
 var replace := true
 var _breakers_seen := 0
+var _improv_ms := -100000
+
+
+## An element-matrix payoff (comic_improv.gd) on the foe at `world`: its cell's word, once a move however many pay.
+static func improv(cell: String, world: Vector3) -> void:
+	if _inst == null or not IMPROV_WORDS.has(cell):
+		return
+	var now := Time.get_ticks_msec()
+	if now - _inst._improv_ms <= SAME_FRAME_MS:
+		return
+	_inst._improv_ms = now
+	_inst._say(IMPROV_WORDS[cell], world, IMPROV_SCALE)
 
 
 ## A hit landed at `world`.
@@ -303,7 +323,7 @@ func _watch_hero() -> void:
 		_move_seen = ""
 	elif id != _move_seen:
 		_move_seen = id
-		if MOVE_WORDS.has(id):
+		if MOVE_WORDS.has(id) and Time.get_ticks_msec() - _improv_ms > IMPROV_HOLD_MS:
 			var tier: int = hero.COMBOS[id].tier if hero.COMBOS.has(id) else 1
 			tier = mini(tier + (1 if Fx.chain_tier(Game.combo_count) >= 2 else 0), WORD_SCALE.size() - 1)
 			var at: Vector3 = _hit_world if Time.get_ticks_msec() - _hit_ms <= HIT_FRESH_MS else hero.global_position + hero._facing() * 1.4
