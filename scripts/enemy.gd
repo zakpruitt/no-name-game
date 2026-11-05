@@ -13,6 +13,7 @@ enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"]
 const PROJECTILE := preload("res://scripts/projectile.gd")
 const FOE_LEAN := preload("res://scripts/foe_lean.gd")
+const STATE_TELL := preload("res://scripts/comic_state_tell.gd")
 
 @export var model_scene: PackedScene
 ## ComicLook model name when model_scene is a comic GLB ("" = KayKit, nothing changes).
@@ -341,6 +342,7 @@ func is_airborne() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	STATE_TELL.sync(self)  # (a crossover state's tell: buried / molten / skewered, comic_state_tell.gd)
 	if _telegraph.visible:
 		_pulse_edge(delta)
 	# Fx.flash clears overlays on hit; put the glow back afterwards.
