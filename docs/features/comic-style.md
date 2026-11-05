@@ -140,6 +140,122 @@ backward speed while a foot is moving back in the lower half of its height range
 8% off the stored number or the feet end more than 15% off the ground at move_speed. The minion's
 shamble swings its feet low in both directions, so its forward swing still slides.
 
+**Foe locomotion (round 38).** The runs above were the kit's KayKit-era clips widened and sped up (up to
+3x). Since round 38 `tools/comic_art/foe_keys.py` re-keys every foe's run, and its Hit_B, Lie_StandUp
+and Death_A, on the chunky blends, from per-foe specs in `tools/comic_art/foe_cycles.py`: legs by
+two-bone IK onto ankle targets, a planted ankle sliding back exactly `move_speed / model_scale / 24` m a
+frame, so every run plays at ~1x with its feet on the floor (`run_clip_speed` 0.96-1.03; `RUN_CLIP_SPEED_MIN
+/ MAX` now 0.35 / 1.6). Legs, hips and the whole-body squash (root bone scale about the floor, feet
+corrected) are keyed every frame; arms, head and torso turns are held on twos. Loops run 0..N with N == 0.
+
+| Kind | clip | cycle | feet at 1x before -> after (m/s) | move / scale |
+|---|---|---|---|---|
+| minion | Running_A | scurry: 8 frames (6 steps a second), hunched 18 deg, free arm pumping, head bobbing | 3.11 -> 3.51 | 3.6 |
+| warrior | Running_A | stomp: 12 frames, knees high, slammed flat (squash 11%), shoulders rocking 8 deg | 0.96 -> 2.40 | 2.43 |
+| shield | Walking_D_Skeletons | plod: 10 frames, shield held square and steady, heavy roll 10 deg, low steps | 0.96 -> 3.07 | 3.05 |
+| rogue | Running_C | sneak-dash: 10 frames, low (10 cm drop) pitched 30 deg, long strides, daggers swept back | 2.18 -> 5.62 | 5.4 |
+| archer | Running_A | trot: 10 frames, upright and springy, bow arm steady, cape and loin trailing | 1.29 -> 3.21 | 3.2 |
+| mage | Running_A | float: 8 frames, 4.5 cm shuffle under the coat, body level (1 cm bob), coat flaring back | 1.53 -> 2.97 | 3.0 |
+| bomber | Running_C | waddle: 8 frames, feet wide, rolling 16 deg from foot to foot, short hops, squash 12% | 1.73 -> 4.53 | 4.67 |
+| necromancer | Walking_D_Skeletons | glide: 24 frames, no feet, a slow bob pitched 12 deg in, robe streaming back | no feet | - |
+| warden | Walking_D_Skeletons | heavy stomp: 20 frames, 20 cm lift, dropped 8 cm on contact; `boss._stomp_shake` shakes the floor (0.12) on each footfall | kit walk at 1x -> 1.68 | 1.67 |
+
+```
+blender -b <kit>/out/enemies_chunky/<name>.blend -P tools/comic_art/foe_keys.py -- <name>   # writes out/enemies_keyed/
+python tools/comic_glb.py <kit>/out/enemies_keyed <name>
+godot --headless --import --path . ; godot --headless --path . -s tests/foe_stride_check.gd  # copy the foot speed into run_foot_speed
+godot --path . -s tests/foe_shots.gd -- --tag=x --clip=run --frames=6 --only=minion,rogue --turn=-70   # windowed film
+```
+
+`foe_keys.py` also writes `<name>_keys.png` beside the GLB: a workbench side view of every keyed clip,
+a frame a tile (legs and falls read there; the run's lean and bob read from the game camera). Never
+pass `only=` for a GLB you ship: the script starts from the chunky blend, so an `only=` export puts the
+kit clips back on the others.
+
+**Foe attacks, idles and run start / stop (round 38 b).** `foe_keys.py` keys every foe's attack too, each
+as tell (held on twos, shaking: `tremble`), a 2-3 frame strike with a smear drawing (the striking hand
+swollen 1.3-1.5x) and a recovery with an overshoot. Melee foes hit on their clip frame `attack_hit`
+(enemy_types, 24 fps): `enemy.chop_speed()` plays the chop at `attack_hit / 24 / attack_windup`, so
+the keyed contact lands exactly as the windup ends (no `attack_hit`: `CHOP_HIT_AT` 0.45 of the clip).
+Ranged foes fire on the shoot clip's frame 0, so their windup clip is all tell (held on its last
+frame; `Spellcasting` left `enemy.LOOPING`).
+
+| Kind | clip | tell | strike / hit | recovery |
+|---|---|---|---|---|
+| minion | 1H_Melee_Attack_Chop 28 | 4-11 coiled to its right, cleaver cocked back by its ear | 12-13 smear, hit 14 swiped across to its left | overshoot 20, guard 28 |
+| warrior | Chop 35 | 6-16 sword two-handed overhead, blade out past the right shoulder, on its toes | 17-18, hit 19 driven into the floor, squash 16% | down to 22, overshoot 25, guard 35 |
+| shield | Chop 33 | 4-14 shoulder turned, sunk behind the shield (`keep`), sword cocked | 15-16, hit 17 shield rammed out at full reach, stepping in | overshoot 23, guard 33 |
+| rogue | Chop 23 | 3-9 both daggers raised over the shoulders pointing back, crouched | 9-10, hit 11 right stab, 13-14 left stab | skid back 19, guard 23 |
+| archer | 2H_Ranged_Aiming 24 / Shoot 32 | dip 6, rising into the draw leaning back, shaking 16-24 | shoot frame 0: kicked back 1-3, eyes shut | overshoot 7 |
+| mage | Spellcasting 36 / Spellcast_Shoot 18 | staff swung back over the right shoulder, palm out, creeping back to 36 | staff thrown forward 1-2, held to 4 | recoil 9, guard 18 |
+| necromancer | Spellcasting 36 / Summon 24 / Shoot 22 | low clawed gather, staff held upright (`keep`) | summon: arms ripped up 1-2, held shaking to 12; shoot: ember hand flung 1-2 | slump 17 / 10 |
+| bomber | Bomb_Windup 36 | hugs the bomb giggling, bomb swelling 1.05 -> 1.35 and shaking harder, crouch 31 | leap 32-33 arms up, bomb 1.5 (the blast is `_die`) | - |
+| warden | Attack_Slam 63 (the kit's, overlaid) | sink squashed 14-19% on 18-22, held on twos | take-off stretched 12% (24), landing squashed 20% (37) held to 40 | kit's |
+
+The archer's and the Warden's are overlays on the kit clips (`src`: each frame's base is the kit clip's
+own pose, so its keyed props move with it; `follow` carries the arrow with the hand). Every foe also
+gets its own `Idle_Combat` and `Hit_A` (`docs/features/enemy-hit-reactions.md` "Clips").
+
+Fast foes (rogue Running_C, minion Running_A) get **Run_Start** (6 frames: a crouch pitched in on 2,
+arms drawn back, the planted foot giving back the floor of a 25 m/s^2 ramp, ending on the run's frame
+0) and **Run_Stop** (9 frames: a skid with the front foot braced, thrown back, pitched forward past
+upright on 5, settled on the guard by 9). `enemy._play_locomotion` plays Run_Start when it sets off
+(ground under `RUN_START_BELOW` 0.3 of move speed, `RUN_START_DIR` 0.6 of intent) and Run_Stop when it
+stops from over `RUN_STOP_ABOVE` 0.6. A turn lean (`scripts/foe_lean.gd`, a SkeletonModifier3D on the
+root bone, heretic_rig's method: velocity less a 0.12 s lagged copy, spring 600 / 34, `LEAN_MAX` 14 deg,
+0.45 of it along the facing) banks them in the chase: `enemy.TURN_LEAN` rogue 3.5, minion 3.0 deg per m/s.
+
+`foe_keys.py ... sheet=<clip>,<clip>` writes `<name>_sheet.png` with two rows a clip: the side view and
+the game camera's angle (54 deg up, 35 deg round). Judge tells from the game row: the big head hides
+anything held behind or over it.
+
+**Foe models, chibi pass 2 (round 39).** Zak, on the chibi lineup: "I definitely like this chibi direction
+better ... we will refine them all going forward." `tools/comic_art/refine_pass.py` runs on the chunky blend
+before `foe_keys.py` and changes meshes and material names only: no bone, rest pose or clip moves, so every
+keyed clip plays as before (`foe_stride_check`, `enemy_feel_check` pass unchanged). Judged from the game
+camera with `foe_shots.gd`, where a foe is 60-90 px tall:
+
+- **Silhouette first: one signature prop each, bigger.** `grow` scales a part's vertices (by their weights on
+  its bones) about the grip; `thick` pushes them out from the bone's axis. Minion cleaver 1.45 x 1.25 across,
+  rogue daggers 1.2, shield 1.4 (and the skulls, arrows and bone clutter pinned to it dropped: a plain plank
+  wall with an orange boss), warrior blade 1.35, mage hat 1.22 (its star patches removed), archer bow limbs
+  1.8 across and orange, bomber bomb 1.18 about its top, necromancer hood 1.3, Warden arms 1.15 across.
+- **Families, one accent each, the element's colour in `fx_palette.gd`:** legion (minion, shield, warrior,
+  archer, bomber) earth orange, cult (rogue, mage) void violet, grave (necromancer, Warden) wind green. The
+  accent is the eyes and glows (`P_GlowEarth` / `P_GlowVoid` / `P_GlowWind` in `ComicLook.EMITS`) plus one
+  region (`P_FoeEarth` / `P_FoeVoid` / `P_FoeWind` in `TONES`): the minion's cap and loincloth, the warrior's
+  horns and trim, the shield's boss, the archer's bow, the rogue's wrap, the Warden's tabard. Odd fourth
+  colours went to a neighbour (the warrior's teal skirt to leather, the mage's gold trim to its lining).
+- **Faces.** Eyes x1.65 and sockets x1.3 about the eye bone's head, tipped back 30 degrees to face up the
+  camera (from 54 degrees up a hunched skull shows its cranium, not its face); a slanted black brow over each
+  eye, ray-cast onto the face and skinned to the eye bone, so the hit squint folds it into a shut-eye line;
+  the teeth widened 1.15 and bent down at the corners (scowl 0.6 of their height, the bomber 0.25).
+- **Thicker ink on the outside only.** `ComicLook.silhouette()` gives each skinned foe mesh a child
+  `Silhouette` drawing the same mesh and skin with `shaders/foe_silhouette.gdshader`: an inverted hull
+  `SILHOUETTE_PX` 4 wide (Fx.outline is 1.6) pushed `SILHOUETTE_PUSH` 0.3 m back, so it only shows where
+  nothing of the foe is behind the edge. A `material_override` on that child printed 36 "Parameter material is
+  null" at exit (Fx.outline's surface copies under an override); surface overrides fixed it.
+- **Budget:** every foe stays under its round 38 triangle count +20% (brows 72 tris; the shield and mage lost
+  more than they gained). Health bars moved with the taller hats: mage 2.55, necromancer 3.05, bomber 2.45.
+
+| Kind | tris before -> after | signature |
+|---|---|---|
+| minion | 7842 -> 7946 | cleaver, orange cap |
+| rogue | 9562 -> 9666 | twin daggers, violet wrap |
+| shield | 11247 -> 9953 | plank wall, orange boss |
+| warrior | 11026 -> 11130 | horned helmet, longer blade |
+| mage | 12278 -> 12262 | tall hat |
+| archer | 10860 -> 10964 | thick orange bow |
+| bomber | 10877 -> 10981 | bigger bomb |
+| necromancer | 11110 -> 11110 | taller hood |
+| warden | 22264 -> 22368 | bulk, green tabard |
+
+```
+blender -b <kit>/out/enemies_chunky/<name>.blend -P tools/comic_art/refine_pass.py -- <name>   # out/enemies_refined/
+blender -b <kit>/out/enemies_refined/<name>.blend -P tools/comic_art/foe_keys.py -- <name>      # out/enemies_keyed/
+python tools/comic_glb.py <kit>/out/enemies_keyed <name>
+```
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
 (`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`
@@ -249,6 +365,168 @@ The toon shader's `light()` turns each light into a tone and keeps the brightest
 sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 `ambient_light_disabled` keeps the palette exact. Dots and hatch use
 `FRAGCOORD / VIEWPORT_SIZE.y`, a fixed number of cells per screen height.
+
+## Sleek effects (round 33)
+
+Zak, after playing every combo: "very comicy, which I like, but I'd like them to look a bit sleeker and more
+put together. Right now it's very thick colours." The comic language stays (words, ink, flat tones, on-twos
+stepping); what changed is weight. The target is a clean motion-graphics comic (Hi-Fi Rush, Persona 5 UI),
+not thick crayon.
+
+- **One palette per element** (`scripts/fx_palette.gd`): five tones each (ink, deep, body, light, hot) for
+  wind, water, earth, void, spirit, the neutral "hit" and Awakened gold. `Fx.hit_spark` and `Fx.element_hit`
+  take the blow's palette from the hero's move (`VOID_ELEMENT.ELEMENT_OF`, gold Awakened, else "hit"), so a
+  storm string's stars, chips and bolts are one green family. Words and numbers keep their hot red-yellow.
+- **Thin lines, not hulls.** Ink is a line of `PAL.LINE` (0.035 m, about 2 px at the game camera) round a
+  shape, not a copy of it 1.2-2.1x its size. Applied in comic_pop (stars, chips, hoops), comic_bolt, comic_gale,
+  comic_geyser, comic_fist, comic_comet, comic_crack, dark_fx (splat, spout) and the frost spear's disc.
+- **Gradients and transparency instead of opaque fills.** A hit star is one shape, its light core fading to
+  its body colour at 85% alpha at the tips (was three opaque stars nested in ink). The swoosh and weapon trail
+  shaders draw a clear-to-tinted body (`body_alpha` 0.55 / 0.5; Awakened 0 / 0.18) with one crisp light line
+  on the blade edge and a thin ink line past it. Bolts, gales, geysers, splats and the comet body are 0.85-0.9
+  alpha with a narrower light core line.
+- **Fewer shapes.** Stars at most 8 spikes with sharper valleys (`STAR_INNER` 0.3), chips 60% as many and
+  75% as big, speed strokes 55% as wide with no ink, gale 4 bands (was 5) at 0.22 m (0.32), geysers 3 blobs
+  (6), Maw / Collapse ink drops halved, two speed lines behind Molten Palm's fist (three ink wedges), frost
+  plates 4 (7). `Fx.ring` drops a second hoop laid on the same spot within 40 ms (the colour + white pairs).
+- **Shorter-lived.** Words 14 frames (20), numbers hold 0.38 s (0.5), geysers lose their stub step, comic
+  cracks at most 0.9 s, dark pools' ink at most 1.1 s (`dark_fx.POOL_SHOW`; the binds still hold for the
+  gameplay time).
+- **Awakening and daze.** `Fx.beam` (the Awakening column) is 70% as wide at 0.32 alpha round a thin core
+  and gone in 70% of the time; daze shows two 0.16 m stars (three at 0.2).
+- **Smaller words.** `WORD_SCALE` 0.32-0.64 (0.42-0.84), breaker words 0.78 (1.0), outline FONT_SIZE / 9
+  (/ 4), print offset 3 / 4 px (4 / 6); numbers `PIXEL` 0.0036 (0.0042), outline 12 px (26).
+
+### Round 2 (the camera 34% further out, hero about 140 px at 1080p)
+
+- **Round 1 at the new distance:** filmed `string_film`, middle 60% of each frame. Hit stars, speed strokes,
+  swoosh lines, words and numbers all still read, so no width changed.
+- **See-through halftone shapes** (`shaders/ghost_halftone.gdshader` + `ghost_ink.gdshader`,
+  `spirit_echo.ghost_mat(colour)`, shared per palette): a depth-only pass, then screen-space halftone dots in
+  the palette's light tone over a faint body tone (`FILL` 0.3 mean alpha), then an inverted hull in ink
+  (`INK_PX` 3.2 px at 1080p) with a light-tone line over its inner half (`EDGE_PX` 1.7). The fill writes depth,
+  so the hulls only show past the silhouette and never darken it. Fade and gradient are instance uniforms
+  (`set_alpha()`, `fade_height` m: the fill fades out going up). Used by:
+  - the spirit echo's ghost axe (L1 / L2 / EC: teal spirit, gold Awakened), `FADE_OUT` 0.1 s (0.14);
+  - `elements.comic_column()`, the comic spirit / void strike from the sky (`storm_strike`): one 7 m column
+    0.45-0.7 m wide that fades out going up, an inked star at its foot, gone in 0.4 s (was an 8 m teal swirl
+    round a white-gold core, 0.7 s);
+  - comic earth spikes (`elements.spikes`): earth palette, fading up to the tips, standing `SPIKE_HOLD` 0.4
+    of their life (0.6), sinking in 0.25 (0.3). Ice spikes kept their flat two-tone ice until round 3.
+- **Breaker cue rings** 0.06 / 0.075 m in 0.03 m ink (0.12 / 0.15 in 0.055); timing colours unchanged.
+- **Spirit motes** (`elements.Orbit`, comic): a 0.075 m flat bead in the palette's light tone in a 1.6 px ink
+  hull (`mote_mat`), not a 3x HDR dot in a teal halo.
+- **One number per breaker** (`comic_number.gd` `BREAKER_*`): see combo-breakers.md.
+- **The last string's floor clears** (`scripts/standing_fx.gd`): the frost spear's floor frost and its rings,
+  dark pools, Reap's marks and comic cracks register with `STANDING.add(self)`; when the next string's first
+  hit lands, those born before that string started run `clear_standing()` (a 0.15 s fade of the look only;
+  the chill, the mark and the spear stay). ComicFx calls `STANDING.watch(hero)` every frame: a string starts
+  when he starts a move from no chain (`_chain_i` 0, not attacking or leaping). Check: `tests/fx_sleek_check.gd`.
+
+### Round 3 (judged at the 140 px hero, `string_film` and one-effect scratch shots)
+
+- **Echo axe fades along the haft** (`spirit_echo.HAFT_FADE`, `ghost_halftone` instance uniform `local_fade`: a
+  gradient along the mesh's own Y, clear at x, full from y; `ghost_ink` keeps 45% of its line there). The
+  3 m ghost reads as a blade sweeping, the handle a thin inked line, not a teal slab. (-0.2, 0.32) only faded
+  the grip and read as no change; (0.1, 0.6) fades to the blade's middle. Both ghost shaders declare the
+  instance uniforms in the same order (`alpha`, `fade_height`, `local_fade`): mismatched indices only draw
+  the first material's value.
+- **Per-palette ghost tones** (`spirit_echo.GHOST_TONES`): earth's orange body tint between the dots read as
+  brown on the indigo floor; earth is clean dots now (`base` 0.04, fill 0.42), water fill 0.4, base 0.12.
+- **Thin earth hoops** (`Fx.thin_hoop(parent, pos, element, radius)`: comic_pop's hoop at `ring_w` 0.12, a
+  0.06 m band in the light tone with 0.035 m ink, the breaker cue's weight) for the earth strike
+  (`elements.storm_strike`) and the earth war cry (`breaker_quake.war_cry`).
+- **Ice in the halftone look:** comic ice spikes use `ghost_mat` (water) fading up to their tips; frozen and
+  thrown ice cubes (`thrown_foe.comic_cube`) are a ghost block (corner normals point out of the corners so the
+  ink hull closes round the box) with the white glint on its own surface; the frost spear's floor is
+  `shaders/halftone_floor.gdshader` (`frost_spear.zone_material()`: water dots, clear inside `ZONE_INNER` 0.45 of
+  the radius, densest at the toothed edge, `ZONE_FILL` 0.26, no depth write) under its cracks and teeth, in place
+  of the round-29 plates. A disc under the cracks (y 0.046) only showed in the tile grout: it sits 0.015 above.
+- **Locomotion dust** (`scripts/comic_dust.gd`, `PAL.DUST`): a 2-3 blob inked paper cloud at his feet on
+  Run_Start (behind), Run_Stop (ahead) and a ground Dodge_Forward (behind), and on the skid and dodge two
+  tapered floor marks 0.9 / 0.55 m long, gone in 3-5 steps on twos. ComicFx calls `COMIC_DUST.watch(hero)`,
+  which reads `hero.anim.current_animation` (a new clip, or the same one restarted); player.gd is untouched.
+  Pooled (`POOL` 4 per parent; freed nodes drop out on the next spawn). Checks: `fx_sleek_check`,
+  `fx_free_check`.
+- **HUD** (`scripts/hud_ink.gd`): the combo counter, rank and air count and the combo-name callout in the
+  words' font (Bangers) with a size / 9 ink outline (/ 6; the callout 12 px at 84, was 24) over a slanted
+  halftone panel in the rank colour; the guide's rows and the breaker prompt as see-through pills / discs with
+  halftone dots and thin lines (combo-guide.md, combo-breakers.md).
+
+### Round 4 (whole-game polish, every `string_film` string on a sheet)
+
+- **Nothing lingering, text too.** The combo / breaker name over the hero (`player._callout`) fades on its own tween
+  in game time; `scripts/callout_cap.gd` (ComicFx calls `watch(hero)`) fades it after `HOLD_S` 0.95 s of real time
+  or as soon as the next string starts (standing_fx's start), over `FADE_S` 0.15 s. The HUD's announcements
+  (`Game.announced`: AIRBORNE, SKY DANCER, PERFECT, GUARD BREAK) are 44 px at 0.2 of the screen height on a
+  real-time tween, in the words' font (`hud.ANNOUNCE_*`; were 64 px in the middle, over the hero).
+- **Cataclysm's strike:** `comic_fault` `STRIKE_*` 0.15 m wide, 5.5 m tall, no fork, at most `STRIKES` 3 per landing.
+- **Marks under a pile:** a `comic_crack` of `PILE_R` 2 m or more starts its cracks at the pile's edge
+  (`PILE_INNER` 0.38 of the radius, at most 1.5 m), runs them out over `RUN_STEPS` 3 steps with a hot line down
+  each, reaches 0.95-1.3 of the radius, up to `PILE_W_MAX` 0.34 m wide, and draws no splat.
+- **Breaker craters:** in the comic style `breaker_quake.crater` draws no box cracks and no rock slabs (they cooled
+  to brown and stood 1.6 s); its `Fx.scorch` is 1.15 of the radius and each vent is a 0.34 m inked star in the
+  element's palette (`VENT_STAR`) instead of soft flares and dots. `Fx.crater` (a foe driven into the floor) is a
+  0.6 s inked dent in the dust's warm tone (`CRATER_COMIC*`).
+- **One hit grammar.** Every hit on a foe or the Warden: an inked star in the blow's palette (`Fx.HIT_STAR` 0.9 /
+  `HIT_STAR_BIG` 1.3, star 0.45 / 0.65 m), at most one word on the beat (ComicFx's gap and replace), one number
+  per foe. Words and numbers take `fx_palette.TEXT_INK_PX` (3 px at 1080p) on screen whatever their scale
+  (`PAL.text_ink()`; `PX_PER_M` 48); a fixed font outline under the tier and total scales gave words 3.4-8.3 px
+  and numbers 2-3.3 px. Burn ticks show a number only, and a shield block a star only, on purpose.
+- **Landing marks are a beat:** a `comic_crack` of `PILE_R` and up lasts `PILE_TIME` 0.5 s (it cooled into a brown
+  crater under the hero). Meltdown's tongues (`comic_melt`) splay out (`FLAME_SPLAY`), lick side to side each step
+  (`FLAME_LICK`) and hook at the tip with a second narrower wedge.
+
+### Round 5 (density: the moments where effects cover the fight)
+
+Coverage = the share of the middle 60% of a `string_film` HIT frame that is effect-coloured (saturated and bright,
+minus the dummies' red), peak of the HIT and the next two frames. Before: mean 0.11, Grounded 0.40, Worldbreaker 0.42.
+
+- **Meteor Fall's landing:** three column-only rim geysers (`elements.rim_geyser`: `RIM_GEYSER_WIDTH` 0.42,
+  `RIM_GEYSER_SQUASH` 0.55, no spikes or scorch), set at half-steps so none stands between the camera and the pile;
+  two spikes and six shards per foe (four, 14). The crater cracks carry the floor. 0.22 -> 0.17-0.19.
+- **Earth breakers per foe** (`void_element.under("earth")`, Worldbreaker, the rip): a rim geyser and three spikes
+  (a full geyser and five).
+- **Deep Freeze over a crowd:** the press's cords are one thin line (`void_tendril.line`: `LINE_ROOT_W` 0.075 m,
+  ink + violet, one coil turn; set by `void_grab.seize` for `press`, reset on release); each cratered foe's dust hoop
+  is a thin band at 1.1 of the radius (`Fx.CRATER_COMIC_RING_OUT`; was a 0.1 m band at 1.5); the frost spear's pulse
+  ring half as thick (0.985 inner), 0.55 alpha, every 1.2 s (0.7). The cubes are what reads.
+- **Spirit echo:** the ghost blade is drawn to `spirit_echo.VISUAL_REACH` 0.7 of `radius` and its swoosh is lines
+  only (`Fx.swoosh(..., lines_only)`) at the real reach; hits still read `radius`. `FADE_OUT` 0.06 s.
+- **Undertow's wells (comic):** no glowing pool, core or crust boxes (under the tiles the pool only lit the grout, an
+  orange web for `WELL_TIME` 4 s, and the grates glowed); one crack mark at `WELL_COMIC_CRACK` 0.85 of the radius
+  for `WELL_COMIC_SHOW` 0.9 s, placed deferred (the well is positioned after `add_child`). The burn keeps 4 s.
+- **Grounded's storm strikes:** `elements.STRIKE_*` 5 m, 0.15 m, no fork, 0.8 m star (9 m, 0.4 m, two forks).
+- **Awakening column:** `Fx.BEAM_SLEEK_R` 0.42, `BEAM_SLEEK_TIME` 0.55 (0.7 / 0.7); the bot Awakens as the meter
+  fills on a perfect landing, so it stood over the pile.
+- Checks: `fx_sleek_check` (rim geyser, cord line, echo blade vs reach, well look vs burn).
+
+### Round 6 (density: the breaker landings left over 0.25)
+
+Measured with `tests/fx_coverage.py` (the round 5 tool, now in the repo; `--max=0.40` fails a film with any HIT frame
+over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075, densest 0.34 -> 0.25.
+
+- **Abyss** (hold, 0.26 -> 0.10; round 5 measured 0.47): one thin splat (`dark_fx.Splat.thin`: 0.05 m violet strokes
+  in a line of ink, a small blob, no hot core) at the middle of the spouts, drawn by the batch's first spout; the
+  others throw chips. That spout also erodes the Overwhelm pool under the pile (group `dark_pool`), which the
+  landing's hitstop had held for seconds. Spouts 0.22 m half width (0.5), no overshoot.
+- **Breaker names** (`callout_cap.gd`): a callout whose first line is a breaker's name (every `BREAKERS` name, alts
+  too) sits centred in the top band (`BREAKER_Y` 0.11, above the announcements' 0.2) at the hero's depth for
+  `BREAKER_HOLD_S` 0.6 real s; the combo-name callout stays over him.
+- **Crowd hits in a breaker** (`Fx.in_breaker`: the hero in State.LEAP): the frame's hit stars merge into one at the
+  middle of the hits; the speed strokes and chain halo draw once per frame; at most `elements.BREAKER_ARC_MAX` 3
+  Live Wire bolts alive, those asked in one frame 0.06 real s apart; a batch of rim geysers stops at
+  `RIM_GEYSER_MAX` 3, 1.3 m apart. Worldbreaker 0.27 -> 0.25 (its earth spikes and the Awakening column are what's
+  left), Cataclysm 0.17 -> 0.16.
+- **Grounded** (0.34 -> 0.22): the frame's wind strikes are drawn together, deferred (`elements._flush_strikes`): at
+  most `STRIKE_MAX` 3, nearest the batch's middle first, `STRIKE_SPACING` 1.4 m, `STRIKE_STAGGER` 0.06 real s, a star
+  on the first only.
+- **Maw** (0.34 -> 0.18): one row of 9 fangs at 1.9 m (15 + 11 at 2.9 / 1.6), near ones 0.35 tall, a thin bite
+  splat at 0.8 of r (1.25 full width), a hoop at 0.025 of its radius, held and sunk on real time after the bite.
+  **Collapse** (0.19 -> 0.17): the hole's arcs 0.16 / 0.07 m (0.5 / 0.2), an inward hoop every 0.45 s at 0.02 of
+  the radius (0.3 s at 0.05: a 0.33 m band), the fall one hot hoop and a thin 2.2 m splat (hot + white + 2.8 m).
+- Checks: `fx_sleek_check` (breaker name in the top band and gone after its hold, combo name over him, one star a
+  breaker frame, three bolts, three rim geysers, three staggered strikes, a hit outside a breaker keeps its star).
 
 ## Invariants
 

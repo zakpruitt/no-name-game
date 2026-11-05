@@ -57,6 +57,121 @@ Right click with no weapon first. Dark gathers foes and swallows them, and the t
 | Dash H | `TW` | Tow Line | Latches onto foes along the dash, then yanks them into each other |
 | H during a swing | | Snatch | Takes a foe on the way past and carries it (`_carry_pick`, `_tick_carry`, `_drop_carry`) |
 
+### Crossovers (round 34)
+
+Strings that change element on the way, where the second element cashes in what the first set up. Each is a
+new move id (`X*`) reached off a move that used to restart the chain (`LIGHT_AFTER` / `AFTER`), on a tentacle
+clip with its `*_HIT` contact frame, with the arm's shape in `VOID_ELEMENT.FORM_OF`.
+
+| Input | Id | Name | Elements | Payoff |
+|---|---|---|---|---|
+| L H L L | `XR` | Rockslide | storm into earth | Off the air slash he comes down with the hammer (plunge) and everyone within `ROCKSLIDE_RADIUS` of the blow is driven into the floor together (`ROCKSLIDE_DOWN`, pulled `ROCKSLIDE_IN` towards it: craters). Foes the gale had in the air take `ROCKSLIDE_AIR_MULT`; they go in `void_grab.buried` |
+| L H L L H | `XF` | Fault Line | earth into storm | Cracks run to everyone in `FAULT_REACH` and the gale comes up out of each, launching them; Rockslide's `buried` take `FAULT_BURIED_MULT`. The window opens |
+| L H L L H, H in window | `XF` | Cataclysm | storm + earth | Held in the hang (no `wire` since round 37's review: Live Wire's bolts on every foe made it a wall of effects; `damage` 46 for the lost jolts), then down into the floor: a crater (`CATACLYSM_DOWN`), a sky strike and the earth under each |
+| Dash L H H L | `XS` | Steam Burst | ice into magma | The molten fist goes at the frozen: every foe in a cube or frozen within `STEAM_REACH` goes off (the cube Ice Cube is still bowling too: `THROWN.cut`, so the bot's string steams every run) in steam (`STEAM_DAMAGE` times the ice's `FREEZE_BREAK`, launched), scalding anyone within `STEAM_SPLASH`. Nobody frozen: a small shove. The window opens |
+| Dash L H H L, H in window | `XS` | Flash Freeze | magma into ice | The steam freezes on the held foes as he dives (`refreeze`: `freeze_seized()`), and the landing shatters it again |
+| Dash H L | `XT` | Storm Pitch | dark into storm | Whoever Tow Line bunched (`PITCH_GRAB` round `PITCH_AHEAD`) is cut off its tether (`thrown_foe.cut()`) and hurled on along his aim, fanned `PITCH_SPREAD`; in flight lightning jumps from each to anyone it passes (`thrown_foe` `zap`: `ZAP_STEP`, `ZAP_REACH`, `ZAP_MAX`) and it bursts in wind where it lands. Big foes stay and take the jolt |
+| H L H, L in window | `VD`, its `alt` | Black Ice | dark into ice | The press freezes the pool with everyone in it (`freeze_pool()`, instead of the jaws), and the landing shatters it (`_black_ice`: `BLACK_ICE_DOWN`, x `FREEZE_BREAK`) |
+
+Their looks (round 37) are their own flat drawers, below.
+
+#### Crossover looks (round 37)
+
+All on `scripts/comic_flat.gd`: a Node3D that rebuilds two meshes on twos, `screen` (camera-facing, heretic_form_fx's
+material, no depth test) and `floor` (flat, comic_crack's depth-tested material, so foes stand on it; its vertex
+colours go through `srgb_to_linear()` or the palette washes out pale). `real_time` runs it on wall time (breaker
+hangs, hit stops); `_follow()` runs every frame for an effect that rides something, kept untyped and checked with
+`is_instance_valid`. Palettes from `fx_palette.gd`, thin `PAL.LINE` ink, gone in under 0.6 s unless held.
+
+| Move | Look | Script, call |
+|---|---|---|
+| Rockslide | One boulder (7-sided, earth body to deep, a lit facet, two ink cracks) on the hammer's spot, squashed over a hot star with three fall strokes, holds 2 steps, splits into 4 chunks; a hot crack dent under each foe driven down. 0.55 s | `comic_boulder.gd` `spawn(parent, spot, foe_spots)` in `_rockslide` (with `Fx.scorch`) |
+| Fault Line | One jagged crack per foe from 0.55 m out of his feet, nearest first `STAGGER` 0.06 s apart at `RUN` 30 m/s on real time; ink edge, earth body, hot core line while it runs; a hot splat and `comic_gale` (2.4 m) where it arrives. No foes: one crack 4 m ahead | `comic_fault.gd` `spawn(parent, at, spots)` |
+| Cataclysm | `big`: the same cracks fatter (0.34 m) and slower (22 m/s, game time, so they wait out the impact frame) out of his landing, a `comic_bolt` sky strike (0.3 m, star 0.8) where each arrives. No per-foe geyser, spikes or hammer burst | `comic_fault.gd` `spawn(..., true)` in `_cataclysm` |
+| Steam Burst | Nine puffs, six in a ring round the frozen foe's body and three over its head, every puff's ink first then every fill (only the cloud's outer edge is inked), white to blue-grey, rising and swelling; a magma star and paper strokes on the first frame. 0.55 s | `comic_steam.gd` `spawn(parent, spot)` per frozen foe |
+| Flash Freeze | A see-through crystal shell (`SHELL` 0.88 x 1.5 m) climbs each held foe from its feet (half, then 1.1 overshoot), light rim inside thin ink, three ice tips and a glint, riding the foe, 0.5 s real time | `comic_freeze_over.gd` `foe(parent, e)` from `hero_leap._start_dive` (`refreeze`) |
+| Black Ice | The pool freezes over from the middle (0.45, 0.8, 1.0 of `MAW_RADIUS` + 0.3 in three steps): a two-ring mosaic of plates on shared edges, ink between, glint lines, lifted 0.06 m over the dark pool; held (real time, 2.2 s at most) until the landing's `shatter()` throws the plates up as inked chips | `comic_freeze_over.gd` `pool()` in `freeze_pool`, `shatter(parent, spot, r)` in `_black_ice` |
+| Storm Pitch | Three inked zigzag forks crackle off each thrown foe's chest, new each step, with two pale speed strokes behind it, for its flight + 0.1 s; the jolts it throws (`thrown_foe._zap`) and the axe's chain at the throw are thin `comic_bolt`s (0.18 m, star 0.42) | `comic_arc.gd` `ride(parent, e, flight)` in `_pitch`, `jump(parent, a, b)` |
+| Meteor Fall beat 1 | A watcher rides each throw; if it ends on a wall (`_walled` and all the way out) a hot star flattened against the wall (1.25 m across, half that along), four ink spatter strokes back off it. Open-floor landings keep their earth burst | `comic_splat.gd` `watch(parent, flight, e)` in `meteor_wall` |
+| Meteor Fall beat 2 | DOGPILE! over the pile once nobody is in flight (or 0.6 s), at 0.62 scale; the landing's KA-THOOOM! replaces it | `comic_splat.gd` `pile_word()` in `meteor_gather`, `ComicFx.say()` |
+| Hailstorm | A tight whirlwind under each frozen foe, four inked wind bands from the floor to its feet every step (so it stretches as the foe climbs), wider than the cube (1.05 m), three inked hail chips whirling round it; rides the foe, 0.5 s | `comic_hail.gd` `ride(parent, e)` in `_hailstorm` (was a full wind pillar each) |
+| Meltdown | One fat inked crescent (earth, hot leading edge) sweeping down round him, 0.25 s; per foe hit: the ice bursting off as four inked chips and a small star, three flame tongues streaming up off it while it falls, a hot splat with four cracks where it lands, cooling. Held in the hang (not down in `FALL_MAX` 0.3 s): no splat, it just goes | `comic_melt.gd` `swing(parent, at, fwd)`, `foe(parent, e, frozen)` in `_meltdown` (was shards, an earth burst and a scorch each) |
+| Eruption | Nearest first 0.05 s apart: a jagged hot break in the floor under each foe (bigger and with a hot star for the `molten`), three pointed rock slabs leaning out of it and three lava blobs off the top, sinking and cooling by 0.5 s; game time, so the hit stop holds it past the impact frame | `comic_erupt.gd` `spawn(parent, at, spots, hots)` in `_eruption` (was a geyser and five spikes each and a 3.5 m scorch) |
+| Impale | Eight ice spikes race out of the spear's foot across the floor (0.35 s); each foe gets a crystal stake from the spear's foot up through its chest and out past it once its throw lands, an ice star where it goes in, 0.45 s | `comic_impale.gd` `burst(parent, spot, r)`, `stake(parent, spot, e, flight)` in `_impale` (was frost_ring's torus) |
+| Backdraft | Eight inked wind strokes burst off the spear round a small star (0.3 s); per foe a see-through wind ribbon towards his hand (at most `RIBBON_MAX` 2.6 m of it, bowed 0.12) with three speed strokes, and the ice cracking off the skewered; rides the foe, 0.45 s | `comic_backdraft.gd` `blast(parent, spot)`, `haul(parent, e, hand, skewered)` in `_backdraft` (was a wind pillar and a lightning arc each) |
+| Anvil | Per crater, nearest first 0.04 s apart: three fat down strokes over it on the first two steps, an inked dent (hot then deep earth) with five cracks, two rubble chips; 0.5 s, game time | `comic_anvil.gd` `spawn(parent, at, spots)` in `_anvil` (was three earth spikes each) |
+| Tow Line's air rip | A jagged inked void tear across the airborne foe's chest, a small star, four ink drops flicked away from him; rides it, 0.3 s | `comic_rip.gd` `spawn(parent, e, at)` in `fire()` `TW` |
+
+Words (`ComicFx.MOVE_WORDS` / `BREAKER_WORDS`): XR KRUNCH!, XF SKRRRAK!, XS PSSHHHH!, XT ZZWANNG!, Cataclysm
+KRAKA-DOOM!, Flash Freeze FSSHINK!, Black Ice KLISSSH!; second pass XG WHIRRRL!, XM SIZZ-BLAM!, XK KSHUNK!,
+XW FWHOOOM!, Eruption BLOOORRM!, Anvil KLANNNG!.
+
+**State tells** (`scripts/comic_state_tell.gd`): a foe carrying an improvising state shows it until the state goes
+(`ELEMENT_HOLD`, real time, fading over its last 0.4 s; gone at once when a payoff spends it). `enemy._physics_process`
+calls `STATE_TELL.sync(self)` (three `has_meta` calls when it carries none); one tell node per foe, a child of the
+foe, draws every state it has and is out of `standing_fx` (it is meant to outlast the next string's first hit):
+molten is a see-through halftone glow over its lower body (earth dots, hot in the middle, pulsing on twos, an ember
+now and then), buried an inked crack ring on the floor round its feet (earth deep), skewered an ice stake stuck
+through its chest.
+
+### Three-element strings (round 34, second pass)
+
+Two longer strings hand over twice, and each hand-over pays only for what the element before it left. Both end in
+a breaker window.
+
+| Input | Id | Name | Elements | Payoff |
+|---|---|---|---|---|
+| Dash L H H H | `XG` | Hailstorm | ice into storm | A whirlwind under every frozen foe within `HAIL_REACH` (Ice Cube's bowl too: `THROWN.cut`) carries it up at `HAIL_LAUNCH`, still in its ice (`freeze_aloft()`: `enemy.freeze()` staggers, which would drop it), and he climbs 2 m after them (`air`, `climb`). The warm only stagger up (`HAIL_WARM_*`) |
+| Dash L H H H L | `XM` | Meltdown | storm into magma, in the air | The molten hammer up there with them: everyone airborne or frozen within `MELT_REACH`, the ice bursting off (x `FREEZE_BREAK`), those in the air x`MELT_AIR_MULT`, all driven down burning (`MELT_DOWN`: craters) and `molten`. The window opens, from his height (`height` 3) |
+| Dash L H H H L, H in window | `XM` | Eruption | magma | The floor goes up under everyone near (`under()` earth, `ERUPT_LAUNCH`), the `molten` x`ERUPT_MOLTEN_MULT` |
+| (L L H,) Dash H H | `XK` | Impale | dark into ice | Whoever Tow Line bunched (`IMPALE_GRAB` round him) is cut off its tether and thrown onto the frost spear, frozen in a cube and `skewered`, in a ring `IMPALE_RING` round it. Onto a spear already standing it's x`IMPALE_SPEAR_MULT`; with none it plants one where Tow Line bunched them |
+| (L L H,) Dash H H L | `XW` | Backdraft | ice into storm | The gale off the axe blows the spear apart and hauls everyone within `BACKDRAFT_REACH` of it back to him and up (`BACKDRAFT_PULL`, `BACKDRAFT_LAUNCH`); the skewered (still frozen: x `FREEZE_BREAK`) take all of it, anyone else 0.6. The window opens |
+| (L L H,) Dash H H L, H in window | `XW` | Anvil | earth | The hammer drives everyone held into the floor, a crater each (`ANVIL_DOWN`, x`ANVIL_AIR_MULT`); anyone near still in the air comes down with them, the rest are thrown clear |
+
+With the spear standing, presses off `NO_VAULT` moves (TW, XK, XW, XT) go on down their own string instead of up
+the spear (`vaults()`), so L L H, Dash H H L is 8 presses with the breaker.
+
+### Improvising: dash routes out of the crossovers
+
+A crossover's state outlasts its string by `ELEMENT_HOLD` (2 s): the ice (`FREEZE_TIME` is `ELEMENT_HOLD`, was 1.8)
+and the metas `mark(e, "buried" | "molten" | "skewered")` (real time; `marked()`, `unmark()`). Every payoff reads
+the state, never the route, so a dash cancel and any move of the paying element cash it in:
+
+| State | Paid by (any route) | How |
+|---|---|---|
+| frozen | magma: Molten Palm (L L L H, Dash L L L H), Steam Burst, Meltdown | Molten Palm with anyone frozen in its strip goes off as Steam Burst (`fire()` "EM", `_frozen_ahead()`) |
+| buried (Rockslide) | storm: Updraft Lash, Storm Pitch (Dash H L) | the storm move's hit again on top, x`FAULT_BURIED_MULT` in all (`_cash_buried()`), once |
+| airborne | dark: Tow Line (Dash H) | ripped out of the air: an extra `TOW_AIR_MULT - 1` of Tow Line's damage on the way in |
+
+So, crossover by crossover: Rockslide, dash, H L (Storm Pitch throws the buried up crackling, x2); Fault Line,
+Steam Burst, Flash Freeze, Hailstorm, Backdraft (all launch), dash out of the hang or the move, H (Tow Line rips
+them out of the air); Ice Cube, Impale, Hailstorm (ice left on them), dash, L L L H (Molten Palm steams them) or
+L H H L off the dash for Steam Burst; Meltdown's `molten` lasts for Eruption only. Black Ice, Cataclysm, Meteor
+Fall, Eruption and Anvil end in craters: nothing to carry.
+
+Third pass: every other state x element cell pays something too (Gale Lift, Shatter, Frozen In, Aftershock,
+Swallowed, Firestorm, Quench, Flare-up, Smother, Ice Spreads, Torn Off, Freeze Aloft, Meteor Spike, Torn Loose,
+Frozen in the Dark), paid by the element's base moves through `improvise()` at the top of `fire()`; the table and
+the rules are [element-matrix.md](element-matrix.md). The "bound" state is `floor_bind.holds()`.
+
+#### Third pass: air timing and fixes (round 34, filmed `string_film -- --from=17`)
+
+- **Meltdown** met the cubes on their way up: `HAIL_LAUNCH` 12 had a foe still rising at 7 m/s past him (peak 5.3 m,
+  his climb stops at 2.8); now 9 (peak ~3 m, into its apex hang by the slam), and Meltdown plays at
+  `hero_moves.MELT_SPEED` 1.5 (XG -> XM beat 467 -> 413-419 ms).
+- **Backdraft's pull-back** never showed: Anvil leaps ~0.25 s after Backdraft's hit, before the gale's knockback has
+  moved anyone (the foe's hit freeze), so the tentacles lifted them where they stood. Anvil's entry has
+  `reel` (`ANVIL_REEL` 0.65 of the way to `ANVIL_REEL_GAP` in front of him, `void_grab.seize()`): the haul up is the
+  kebab coming back.
+- **Rockslide -> Fault Line:** Rockslide's stop is `ROCKSLIDE_STOP` 0.07 (was 0.1; with its tier-2 ender stop it was
+  150 ms of the beat) and its hit-confirm cancel `ROCKSLIDE_CONFIRM` 0.8 of the way back (a move's `confirm`
+  overrides `CANCEL_ON_HIT`); the contact frame is unchanged. Fault Line's beat 393 -> 310-325 ms.
+- **Range-0 moves** no longer run `_do_hit`'s melee loop: `range` 0 still caught a foe standing on him with a
+  0-damage hit that broke its ice before `fire()` read it.
+- **The bot's Hailstorm string** is `line D L H H H L`: `line` stands the dummies in a column
+  (`training_bot.BOT_LINE_FROM` 5 m out, `BOT_LINE_GAP` 1.6) past where the dash and Dash Stab carry him, so Harpoon
+  reels three in and Hailstorm lifts them all (it lifted one).
+
 ### Breakers (`VOID_ELEMENT.BREAKERS`)
 
 | Input | Off | Name | Ending |
@@ -68,7 +183,7 @@ Right click with no weapon first. Dark gathers foes and swallows them, and the t
 | H H, H in window | `VS` | Collapse | He comes down at the hole (`at_spot`, `short`), it falls in on itself, and everyone near is thrown clear |
 | H L H, H in window | `VD` | Maw | He lands short of the pool and jaws of darkness shut on everyone in it |
 | hold H, H in window | `OW` | Abyss | They sink through the floor (`ABYSS_SINK`) as he comes down, then black spikes throw them back up |
-| L L L H H, H in window | `EV` | Meteor Fall | He goes up (`height`) with a tentacle on the biggest foe Undertow has (`bound`, `chased`, `rip_target`: a boss, the biggest, then whoever the palm shoved), then comes down on it inside `meteor_shell` wherever it is (`_meteor_aim`). Small foes come apart, shields come off (`rip_shield`), everyone within `RIP_SPLASH` takes some, and geysers erupt round him |
+| L L L H H, H in window | `EV` | Meteor Fall | He goes up (`height`) with a tentacle on the biggest foe Undertow has (`bound`, `chased`, `rip_target`). The press plays three beats (`gather`, round 34; `hero_leap` phase 3, `_tick_beats`): 1, `meteor_wall()`: Undertow lets go (`void_grab.undertow`) and the tentacles hurl everyone within `METEOR_REACH` out from him, `METEOR_WALL_LENGTH` at `METEOR_WALL_SPEED`, splatting on a wall (`METEOR_WALL_MULT`); 2, `meteor_gather()` once they've landed (`METEOR_GATHER_AT` .. `METEOR_GATHER_LATE`): tethered tentacles drag them all into one pile in `METEOR_DRAG_TIME`, on the big one if there is one, otherwise `METEOR_PILE_AHEAD` in front of him; 3, the meteor dive onto the pile (`_dive`, `meteor_shell`), a crater under every one in `METEOR_PILE_R` (`METEOR_DOWN`), the biggest x`METEOR_HEAVY_MULT`, shields off, geysers round him. `METEOR_BEAT_STOP` hitstop on beats 2 and 3, the splats their own. About 1.1 s from press to landing in game time |
 
 `alt` is merged over the breaker when the press was L (`_brk_alt`, `_start_dive`). The prompt shows both buttons and both names when a breaker has one (`breaker_window().alt_name`).
 
@@ -193,6 +308,7 @@ Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_
 
 ## Checks
 
-`godot --headless --path . -s tests/void_arm_check.gd` covers routing, each move hurting a foe, each breaker holding and hurting a foe and letting go, both window endings, a missed window, cubes hitting foes and walls, the ice strings including the spear, the magma strings, the dark string and its breakers, and the snatch (PASS/FAIL, stand-in foes, in `agent.sh check`).
+`godot --headless --path . -s tests/void_arm_check.gd` covers the three-element strings and the improvised payoffs
+(`_three_elements`), routing, each move hurting a foe, each breaker holding and hurting a foe and letting go, both window endings, a missed window, cubes hitting foes and walls, the ice strings including the spear, the magma strings, the dark string and its breakers, and the snatch (PASS/FAIL, stand-in foes, in `agent.sh check`).
 
 `godot --path . -s tests/element_shots.gd` is windowed. It films each string against real foes at the game camera, through the hang and the slam, and R's swing, to `user://element_shots/`.

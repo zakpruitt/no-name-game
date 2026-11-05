@@ -5,7 +5,8 @@ extends SceneTree
 ## target so two opposite kicks in one frame cancel instead of jittering, and
 ## Game.register_hit / Game.shake drive them. Round 36: the rest distance shows the hero 125-160 px tall at
 ## 1080p with 25-40% more floor than round 32's camera, --cam-*= flags override it, and the fight framing eases
-## out to fit a foe thrown wide, then drifts back. Prints PASS/FAIL.
+## out to fit a foe thrown wide, then drifts back; in Meteor Fall's beats (a breaker hang after the press) it
+## pulls out past that cap, fast, and comes back in slower on the dive. Prints PASS/FAIL.
 ## Run: godot --headless --path . -s tests/camera_feel_check.gd
 
 var fails := 0
@@ -103,6 +104,7 @@ func _initialize() -> void:
 	await _fov_and_blow(rig)
 	await _distance(rig)
 	await _framing(rig, world)
+	await _hang_pullout(world)
 	print("[camera] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
 
@@ -200,6 +202,72 @@ var last_hit_ms := -100000
 	await _settle(7.0)
 	_check(absf(rig._frame - 1.0) < 0.01 and Vector2(rig.global_position.x, rig.global_position.z).length() < 0.05, "and is home in a few seconds (x%.3f, %.2f m)" % [rig._frame, Vector2(rig.global_position.x, rig.global_position.z).length()])
 	foe.queue_free()
+
+
+## Breaker hang pull-out (camera round 2): Meteor Fall's beat 1 throws everyone ~10 m out into the walls. In the
+## timing window the hang keeps its push-in; in the beats (hero_leap phase 3) the camera eases out fast, past the
+## normal framing cap (to at most FRAME_MAX x HANG_FRAME_GAIN), so a foe 12 m off stays on a 16:9 screen; the dive
+## (phase 1) comes back in slower than it went out.
+func _hang_pullout(world: Node3D) -> void:
+	var hero_script := GDScript.new()
+	hero_script.source_code = "extends Node3D
+enum State { MOVE, LEAP }
+var state := 0
+var _brk_phase := -1
+"
+	hero_script.reload()
+	var hero: Node3D = hero_script.new()
+	world.add_child(hero)
+	hero.global_position = Vector3(100.0, 0.0, 0.0)  # (clear of the other checks' rig and foes)
+	var rig: Node3D = load("res://scripts/camera_rig.gd").new()
+	rig.target = hero
+	rig.max_shake_roll = 0.0
+	world.add_child(rig)
+	var foe_script := GDScript.new()
+	foe_script.source_code = "extends Node3D
+var last_hit_ms := -100000
+"
+	foe_script.reload()
+	var foe: Node3D = foe_script.new()
+	world.add_child(foe)
+	foe.add_to_group("enemies")
+	foe.global_position = hero.global_position + Vector3(12.0, 0.0, 2.0)  # thrown into the east wall
+	var rest: float = rig.offset.length()
+	hero.state = 1
+	hero._brk_phase = 0  # the rise and the timing window
+	await _hang_hold(foe, 0.6)
+	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.9, "in the timing window the hang keeps its push-in (x%.3f, %.2f of %.2f m)" % [rig._frame, rig.camera.position.length(), rest])
+	hero._brk_phase = 3  # the press: beat 1 throws, beat 2 gathers
+	await _hang_hold(foe, 0.25)
+	var early: float = rig.camera.position.length() / rest
+	await _hang_hold(foe, 0.5)
+	var out: float = rig.camera.position.length() / rest
+	var cap: float = rig.FRAME_MAX * float(rig.get_script().get_script_constant_map().get("HANG_FRAME_GAIN", 1.0))  # (1: none)
+	_check(out > rig.FRAME_MAX + 0.05 and out <= cap + 0.01, "Meteor Fall's beats pull out past the framing cap x%.2f, to at most x%.2f (x%.3f)" % [rig.FRAME_MAX, cap, out])
+	_check(early >= 1.0 + (out - 1.0) * 0.8, "fast: most of the way out 0.25 s after the press (x%.3f of x%.3f)" % [early, out])
+	var d: Vector3 = rig.camera.global_transform.affine_inverse() * foe.global_position
+	var ndc_x := d.x / (-d.z * tan(deg_to_rad(rig.camera.fov * 0.5)) * 16.0 / 9.0)
+	_check(absf(ndc_x) < 0.95, "so the foe thrown 12 m out is on a 16:9 screen (x at %.2f of the half-width)" % ndc_x)
+	hero._brk_phase = 1  # the dive
+	await process_frame
+	await process_frame
+	var first: float = rig._frame
+	await _hang_hold(foe, 0.25)
+	var back: float = rig._frame
+	_check(back < first - 0.05 and back > 1.0 + (first - 1.0) * 0.25, "the dive comes back in, slower than it went out (x%.3f after 0.25 s)" % back)
+	await _hang_hold(foe, 1.5)
+	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.95, "and lands back in the hang's push-in (x%.3f, %.2f m)" % [rig._frame, rig.camera.position.length()])
+	foe.queue_free()
+	rig.queue_free()
+	hero.queue_free()
+
+
+## `sec` of real time with `foe` still being hit.
+func _hang_hold(foe: Node3D, sec: float) -> void:
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < int(sec * 1000.0):
+		foe.last_hit_ms = Time.get_ticks_msec()
+		await process_frame
 
 
 ## Where `p` lands on a 1920x1080 view from a camera at `xf` with `fov`.

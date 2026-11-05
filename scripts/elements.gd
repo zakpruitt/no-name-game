@@ -14,9 +14,15 @@ extends RefCounted
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
 const FOES := preload("res://scripts/foes.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const WELL_TIME := 4.0  # s a lava well burns before it drains
 const WELL_RADIUS := 1.5
 const WELL_MAX := 9  # oldest wells drain first past this
+## Round 33, sleek 5 (comic): a well's look is a thin crack mark for the pull, not the glowing pool, core and crust
+## chunks: under the comic floor tiles (tops at 0.05 m) the pool only lit the grout, an orange web with brown boxes
+## that stood WELL_TIME 4 s under Undertow's foes. The burn keeps WELL_TIME; bubbles stop with the look.
+const WELL_COMIC_SHOW := 0.9  # s (comic_crack.MAX_TIME; Undertow's pull is UNDERTOW_TIME 1.6 s from the bind)
+const WELL_COMIC_CRACK := 0.85  # of the radius (the plain look's scorch is 1.3)
 const WELL_DAMAGE := 3.0  # each WELL_TICK s to foes standing in lava
 const WELL_TICK := 0.5
 const LAVA := Color(1.0, 0.35, 0.05)
@@ -42,13 +48,27 @@ const GEYSER_WIDTH := 0.75  # of the radius: the column's width at the top (1.5 
 const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)
 const DARK_FX := preload("res://scripts/dark_fx.gd")
 const COMIC_GALE := preload("res://scripts/comic_gale.gd")
-const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
-const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
-const STRIKE_STAR := 1.1  # m, the impact star at its foot
+const STRIKE_HIGH := 5.0  # m the storm strike's bolt drops from (round 33, sleek 5: 9.0; five on Grounded filled the frame)
+const STRIKE_WIDTH := 0.15  # m, its colour band; the ink is twice that (sleek 5: 0.4, comic_fault's Cataclysm bolts are 0.15)
+const STRIKE_STAR := 0.8  # m, the impact star at its foot (sleek 5: 1.1)
+const STRIKE_FORKS := 0  # (sleek 5: 2)
 const COMIC_SPIKE_FAT := 1.35  # comic spikes are chunkier
+## Round 33 (sleek): comic earth spikes are the see-through halftone look (spirit_echo.ghost_mat, earth
+## palette: thin ink and a light edge round a ~0.3 alpha fill fading up to the tips), not opaque brown rock,
+## and stand for less of their life.
+const SPIKE_HOLD := 0.4  # of `life` a comic spike stands at full height (0.6)
+const SPIKE_SINK := 0.25  # of `life` it takes to sink (0.3)
+## The spirit (and void) strike from the sky in the comic style: one see-through column in the element's
+## palette that fades out going up, not an 8 m x 1.4 m swirl round a white-gold core.
+const COLUMN_HIGH := 7.0  # m
+const COLUMN_R := 0.45  # m at the foot (0.7 at the top)
+const COLUMN_LIFE := 0.4  # s (the beam's 0.7)
+const COLUMN_STAR := 0.8  # m, the inked star at its foot
 const NOVA_HOOP_R := 0.9  # of the nova's radius: its one comic hoop
 const NOVA_HOOP_THIN := 0.035  # of the hoop's radius: about 0.1 m on a Live Wire nova
 const ORBIT_REST := 3
+const MOTE_R := 0.075  # m: a comic spirit mote (the glow dot was 0.08 in a 0.16 halo; 0.055 vanished)
+const MOTE_INK_PX := 1.6  # px at 1080p
 const ORBIT_AWAKENED := 7
 
 static var _mats := {}
@@ -59,6 +79,7 @@ static var casts := 0  # casts summoned (autotest)
 ## Drop cached materials and meshes so nothing is left alive at exit (Game._exit_tree).
 static func release() -> void:
 	_mats.clear()
+	SPIRIT_ECHO._mats.clear()
 	_meshes.clear()
 
 
@@ -76,8 +97,8 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 			root.add_child(_mi(crescent(0.16), glow(Color(c, 0.5), hdr)))
 	root.add_child(_mi(crescent(0.16), ice()))
 	root.add_child(_mi(crescent(0.16), rock()))
-	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(true)))
-	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), comic_ice(false)))
+	root.add_child(_mi(_spike_mesh(0.3, 1.0, 5), SPIRIT_ECHO.ghost_mat(LOOK.water.color)))  # comic ice spikes
+	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").zone_material()))  # the frost's halftone
 	# A lit box (emissive StandardMaterial3D).
 	var lit := StandardMaterial3D.new()
 	lit.emission_enabled = true
@@ -109,7 +130,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.spirit.color, true, 3.0, 2.0)))
 	var ghost: MeshInstance3D = SPIRIT_ECHO.ghost(BoxMesh.new(), Color.WHITE)  # spirit casts
-	ghost.material_override.albedo_color.a = 0.5
+	SPIRIT_ECHO.set_alpha(0.5, ghost)
 	root.add_child(ghost)
 	var ribbon := MeshInstance3D.new()  # the weapon trail's shader (it draws nothing until a swing)
 	ribbon.mesh = QuadMesh.new()
@@ -215,19 +236,6 @@ static func ice() -> StandardMaterial3D:
 	return _mats["ice"]
 
 
-## Comic ice: flat pale or mid ice with the ink hull, no shine or glow.
-static func comic_ice(light: bool) -> StandardMaterial3D:
-	var key := "comic_ice%d" % int(light)
-	if not _mats.has(key):
-		var m := StandardMaterial3D.new()
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(0.74, 0.93, 1.0) if light else Color(0.34, 0.68, 1.0)
-		if DisplayServer.get_name() != "headless":
-			m.next_pass = Fx.ink_material()
-		_mats[key] = m
-	return _mats[key]
-
-
 ## Flat crescent in the XZ plane bulging toward +Z, radius 1, `width` thick in the middle.
 static func crescent(width: float) -> ArrayMesh:
 	var key := "cres%.2f" % width
@@ -281,6 +289,23 @@ static func _mi(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return m
 
 
+## The comic spirit mote's look: the palette's light tone, flat and opaque, in a MOTE_INK_PX ink hull.
+static func mote_mat(el: String) -> StandardMaterial3D:
+	var key := "mote_" + el
+	if not _mats.has(key):
+		var pal := PAL.of(el if LOOK.has(el) and el != "void" else "spirit")
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = pal.light
+		var ink := ShaderMaterial.new()
+		ink.shader = SPIRIT_ECHO.INK_SHADER
+		ink.set_shader_parameter("ink_color", pal.ink)
+		ink.set_shader_parameter("width_px", MOTE_INK_PX)
+		m.next_pass = ink
+		_mats[key] = m
+	return _mats[key]
+
+
 ## A piece of the element (orbit motes, vortex pieces): wisp, leaf blade, rock chunk or ice shard.
 static func piece(el: String, size := 1.0) -> Node3D:
 	var root := Node3D.new()
@@ -304,6 +329,13 @@ static func piece(el: String, size := 1.0) -> Node3D:
 			c.scale = Vector3.ONE * 0.28 * size
 			c.rotation = Vector3(0.0, 0.0, 0.5)
 			root.add_child(c)
+		_ when Game.comic_style:  # round 33 (sleek): a small flat bead in a thin ink line, not a glowing dot in a halo
+			var s := SphereMesh.new()
+			s.radius = MOTE_R * size
+			s.height = MOTE_R * 2.0 * size
+			s.radial_segments = 10
+			s.rings = 5
+			root.add_child(_mi(s, mote_mat(el)))
 		_:
 			var s := SphereMesh.new()
 			s.radius = 0.08 * size
@@ -470,13 +502,16 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 	parent.add_child(root)
 	root.global_position = Vector3(pos.x, 0.0, pos.z)
 	var comic := Game.comic_style
-	var mat := rock() if el == "earth" else ice()
+	var mat: Material = rock() if el == "earth" else ice()
 	for i in count:
 		var h := randf_range(1.0, 1.8) * size
 		var fat := COMIC_SPIKE_FAT if comic else 1.0
-		if comic and el == "water":  # flat inked ice in two tones: the shiny glowing ice was a soft blue blob
-			mat = comic_ice(i % 2 == 0)
+		if comic:  # see-through halftone earth or ice in a thin line, fading up to the tip (round 33, part 3:
+			# ice too; its round-29 flat two-tone ice was the last opaque spike)
+			mat = SPIRIT_ECHO.ghost_mat(LOOK[el].color)
 		var s := _mi(_spike_mesh(randf_range(0.22, 0.34) * size * fat, h, 5), mat)
+		if comic:
+			s.set_instance_shader_parameter("fade_height", h * 1.05)  # (the tip stands about h up)
 		var off := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4)) * size if i > 0 else Vector3.ZERO
 		s.position = off + Vector3.UP * -h * 0.5
 		s.rotation = Vector3(off.z * 0.8, randf() * TAU, -off.x * 0.8)
@@ -486,8 +521,8 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 		var up := tw.tween_property(s, "position:y", h * 0.45, 0.07).set_ease(Tween.EASE_OUT)
 		if comic:
 			up.set_trans(Tween.TRANS_BACK)  # punches past and settles
-		tw.tween_interval(life * 0.6)
-		tw.tween_property(s, "position:y", -h * 0.5, life * 0.3).set_ease(Tween.EASE_IN)
+		tw.tween_interval(life * (SPIKE_HOLD if comic else 0.6))
+		tw.tween_property(s, "position:y", -h * 0.5, life * (SPIKE_SINK if comic else 0.3)).set_ease(Tween.EASE_IN)
 	var t0 := root.create_tween()
 	t0.tween_interval(life + 0.1)
 	t0.tween_callback(root.queue_free)
@@ -698,18 +733,98 @@ class Orbit extends Node3D:
 static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 	match el:
 		"wind":  # a fat flat bolt out of the sky into a hot star, on twos (comic_bolt.gd)
-			var foot := Vector3(pos.x, 0.25, pos.z)
-			var sky := foot + Vector3(randf_range(-1.2, 1.2), STRIKE_HIGH, randf_range(-1.2, 1.2))
-			COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, STRIKE_STAR, 2)
+			if _strike_batch.is_empty():
+				_flush_strikes.call_deferred()
+			_strike_batch.append([parent, pos])
 			return
 		"earth":
 			spikes(parent, pos, el, 1.8, 4, 0.9)
-			Fx.ring(parent, pos, Color(LOOK.earth.color, 0.9), 2.2, 0.3)
+			if Game.comic_style:  # round 33, part 3: the breaker cue's thin inked hoop, not a fat orange band
+				Fx.thin_hoop(parent, pos, "earth", 2.2, 0.3)
+			else:
+				Fx.ring(parent, pos, Color(LOOK.earth.color, 0.9), 2.2, 0.3)
 		"water":
 			spikes(parent, pos, el, 2.0, 5, 1.2)
 		_:
-			pillar(parent, pos, el, 8.0, 1.3, 0.7)
+			if Game.comic_style:
+				comic_column(parent, pos, el)
+			else:
+				pillar(parent, pos, el, 8.0, 1.3, 0.7)
 	light_pop(parent, pos, LOOK[el].color, 5.0, 5.0, 0.25)
+
+
+## Round 33, sleek 6: Grounded asks for a strike under every foe and one at the pile's middle, six bolts and six
+## stars in one frame. The frame's strikes are drawn together: at most STRIKE_MAX, nearest the middle of them first,
+## STRIKE_SPACING apart, STRIKE_STAGGER real s after each other (comic_fault's Cataclysm cadence), and only the first
+## (the pile's centre) lands in a star.
+const STRIKE_MAX := 3
+const STRIKE_SPACING := 1.4  # m
+const STRIKE_STAGGER := 0.06  # real s
+static var _strike_batch := []  # [parent, pos] asked this frame
+static var strikes_drawn := 0  # (fx_sleek_check)
+
+
+static func _flush_strikes() -> void:
+	var batch := _strike_batch
+	_strike_batch = []
+	var mid := Vector3.ZERO
+	for r: Array in batch:
+		mid += r[1]
+	mid /= maxf(batch.size(), 1.0)
+	batch.sort_custom(func(x: Array, y: Array) -> bool: return _flat(x[1] - mid).length() < _flat(y[1] - mid).length())
+	var picked := []
+	for r: Array in batch:
+		if picked.size() >= STRIKE_MAX or not is_instance_valid(r[0]):
+			continue
+		if picked.any(func(q: Array) -> bool: return _flat(q[1] - r[1]).length() < STRIKE_SPACING):
+			continue
+		picked.append(r)
+	for k in picked.size():
+		var parent: Node = picked[k][0]
+		var pos: Vector3 = picked[k][1]
+		if k == 0:
+			_strike_bolt(parent, pos, STRIKE_STAR)
+		elif parent.is_inside_tree():
+			parent.get_tree().create_timer(STRIKE_STAGGER * k, true, false, true).timeout.connect(func() -> void:
+				if is_instance_valid(parent) and parent.is_inside_tree():
+					_strike_bolt(parent, pos, 0.0))
+
+
+static func _strike_bolt(parent: Node, pos: Vector3, star: float) -> void:
+	strikes_drawn += 1
+	var foot := Vector3(pos.x, 0.25, pos.z)
+	var sky := foot + Vector3(randf_range(-1.2, 1.2), STRIKE_HIGH, randf_range(-1.2, 1.2))
+	COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, star, STRIKE_FORKS)
+
+
+## The comic strike from the sky (spirit, void): a see-through column (COLUMN_*) snapping open at `pos`
+## with an inked star at its foot, gone in COLUMN_LIFE.
+static func comic_column(parent: Node, pos: Vector3, el: String) -> void:
+	var c: Color = LOOK[el].color
+	var root := Node3D.new()
+	parent.add_child(root)
+	root.global_position = _flat(pos)
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = COLUMN_R * 1.55
+	cyl.bottom_radius = COLUMN_R
+	cyl.height = COLUMN_HIGH
+	cyl.radial_segments = 16
+	cyl.rings = 1
+	cyl.cap_top = false
+	var col := SPIRIT_ECHO.ghost(cyl, c)
+	col.set_instance_shader_parameter("fade_height", COLUMN_HIGH * 0.85)
+	SPIRIT_ECHO.set_alpha(1.0, col)
+	col.position.y = COLUMN_HIGH * 0.5
+	root.add_child(col)
+	root.scale = Vector3(0.25, 1.0, 0.25)
+	var tw := root.create_tween()
+	tw.tween_property(root, "scale", Vector3.ONE, 0.06).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_interval(COLUMN_LIFE * 0.35)
+	tw.tween_method(SPIRIT_ECHO.set_alpha.bind(col), 1.0, 0.0, COLUMN_LIFE * 0.5)
+	tw.tween_callback(root.queue_free)
+	var pal := PAL.of(el)
+	Fx.COMIC_POP.spawn(parent, root.global_position + Vector3.UP * 0.3, {"star": COLUMN_STAR, "steps": 3,
+		"star_color": pal.body, "star_core": pal.light})
 
 
 # --- Lava and lightning the void moves share (were element_rite.gd) --------
@@ -732,7 +847,44 @@ static func well(parent: Node, pos: Vector3, big := false) -> void:
 ## A jagged lightning arc between two points: a flat inked zigzag on twos (comic_bolt.gd). The storm's
 ## palette is fixed (ink, green, pale core), so `c` is only kept for the callers.
 static func arc(parent: Node, a: Vector3, b: Vector3, _c: Color) -> void:
+	if Game.comic_style and Fx.in_breaker(parent):
+		_breaker_arc(parent, a, b)
+		return
 	COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 1 if a.distance_to(b) > 2.5 else 0)
+
+
+## Round 33, sleek 6: Live Wire's hang (void_element.zap every WIRE_STEP 0.09 s) chains a bolt to every foe it holds,
+## each living a quarter second, so Worldbreaker and Grounded hung a dozen bolts over the pile. In a breaker at most
+## BREAKER_ARC_MAX bolts are alive (or due) at once, and the ones asked for in the same frame start
+## BREAKER_ARC_STAGGER real s apart (one designed run, as comic_fault's Cataclysm bolts are, not a wall).
+const BREAKER_ARC_MAX := 3
+const BREAKER_ARC_STAGGER := 0.06  # real s
+static var _breaker_arcs := []  # the live bolts (untyped: freed nodes are filtered)
+static var _arcs_due := 0  # staggered ones not yet drawn
+static var _arc_frame := -1
+static var _arc_in_frame := 0
+static var arcs_capped := 0  # bolts not drawn (fx_sleek_check)
+
+
+static func _breaker_arc(parent: Node, a: Vector3, b: Vector3) -> void:
+	_breaker_arcs = _breaker_arcs.filter(func(v: Variant) -> bool: return is_instance_valid(v))
+	if _breaker_arcs.size() + _arcs_due >= BREAKER_ARC_MAX:
+		arcs_capped += 1
+		return
+	var f := Engine.get_process_frames()
+	if f != _arc_frame:
+		_arc_frame = f
+		_arc_in_frame = 0
+	var delay := BREAKER_ARC_STAGGER * _arc_in_frame
+	_arc_in_frame += 1
+	if delay <= 0.0:
+		_breaker_arcs.append(COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 0))
+		return
+	_arcs_due += 1
+	parent.get_tree().create_timer(delay, true, false, true).timeout.connect(func() -> void:
+		_arcs_due -= 1
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			_breaker_arcs.append(COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 0)))
 
 
 ## A lava geyser at `pos`: a flat inked column punching up on twos, fat lava blobs off the top and a
@@ -743,6 +895,44 @@ static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_cor
 	COMIC_GEYSER.spawn(parent, at, h * GEYSER_SQUASH, radius * GEYSER_WIDTH)
 	spikes(parent, at, "earth", 1.2, 4, 0.8)
 	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
+
+
+## Round 33, sleek 5: a thin geyser at a breaker landing's rim (Meteor Fall, the rip): the column only, narrower and
+## lower than `geyser`, with no spikes or scorch of its own (the landing's crater mark is under it). Five full
+## geysers with four spikes and a scorch each walled the DOGPILE in.
+const RIM_GEYSER_WIDTH := 0.42  # of the radius (geyser: GEYSER_WIDTH 0.75)
+const RIM_GEYSER_SQUASH := 0.55  # of the asked height (geyser: GEYSER_SQUASH 0.7)
+static func rim_geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:
+	if not Game.comic_style:
+		geyser(parent, pos, radius, h, _hot_core)
+		return
+	if not _batch_take(_rim_batch, pos, RIM_GEYSER_MAX, RIM_GEYSER_SPACING):
+		return
+	COMIC_GEYSER.spawn(parent, _flat(pos), h * RIM_GEYSER_SQUASH, radius * RIM_GEYSER_WIDTH)
+
+
+## Round 33, sleek 6: Worldbreaker asks for a rim geyser under every foe on its pile (void_element.under("earth")), five
+## orange columns in one frame. At most RIM_GEYSER_MAX of one batch (asked inside BATCH_MS), RIM_GEYSER_SPACING apart.
+const RIM_GEYSER_MAX := 3
+const RIM_GEYSER_SPACING := 1.3  # m
+const BATCH_MS := 100
+static var _rim_batch := []  # [ms, flat position]
+
+
+## One batch of effects asked for together (a landing's per-foe calls): true if `pos` may draw, and records it.
+static func _batch_take(batch: Array, pos: Vector3, most: int, spacing: float) -> bool:
+	var now := Time.get_ticks_msec()
+	var flat := _flat(pos)
+	var live := batch.filter(func(r: Array) -> bool: return now - int(r[0]) <= BATCH_MS)
+	batch.clear()
+	batch.append_array(live)
+	if batch.size() >= most:
+		return false
+	for r: Array in batch:
+		if (r[1] as Vector3).distance_to(flat) < spacing:
+			return false
+	batch.append([now, flat])
+	return true
 
 
 ## A pool of lava welled up through the floor: a cracked crust round a bright
@@ -758,6 +948,11 @@ class Well extends Node3D:
 
 	func _ready() -> void:
 		add_to_group("lava_wells")
+		if Game.comic_style:
+			_core = MeshInstance3D.new()  # (nothing to draw: _physics_process still pulses it)
+			add_child(_core)
+			_comic_mark.call_deferred()  # (elements.well() places it after add_child)
+			return
 		var pool := CylinderMesh.new()
 		pool.top_radius = radius
 		pool.bottom_radius = radius
@@ -795,7 +990,7 @@ class Well extends Node3D:
 			return
 		_core.scale = Vector3.ONE * (1.0 + 0.12 * sin(_age * 9.0))
 		_bubble -= delta
-		if _bubble <= 0.0:
+		if _bubble <= 0.0 and (_age < E.WELL_COMIC_SHOW or not Game.comic_style):
 			_bubble = randf_range(0.12, 0.25)
 			var off := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * radius * 0.6
 			Fx.burst(get_parent(), global_position + off + Vector3.UP * 0.1, E.LAVA_HOT, 3, 3.0, 0.1, 0.45, Vector3.UP, 20.0, -6.0, 0.0, "dot", true)
@@ -805,6 +1000,10 @@ class Well extends Node3D:
 			for e in E.FOES.near(get_tree(), global_position, radius):
 				e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
 				Game.register_hit("lava")
+
+	func _comic_mark() -> void:
+		if is_inside_tree():
+			Fx.scorch(get_parent(), global_position, E.LAVA, radius * E.WELL_COMIC_CRACK, E.WELL_COMIC_SHOW)
 
 	## Cools and sinks away.
 	func drain() -> void:

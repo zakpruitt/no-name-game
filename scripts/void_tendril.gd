@@ -18,12 +18,19 @@ const WAVE_COUNT := 9.0  # radians of wave along it
 const WAVE_SPEED := 30.0
 const STEP_S := 1.0 / 12.0  # the whip moves on twos; the ends follow every frame
 const MIN_REACH := 0.02
+## Round 33, sleek 5: `line` draws one thin inked violet line (no hot core, one coil turn) for the holds that only
+## pin something in place: Deep Freeze's cords to each cube were 0.5 m three-layer ribbons in a crowd of cubes.
+const LINE_ROOT_W := 0.075  # m, the ink's half-width at his hand
+const LINE_TIP_W := 0.05
+const LINE_LAYERS := [[1.0, 0.0], [0.5, 0.015]]  # ink, violet
+const LINE_COIL_TURNS := 1.0
 
 static var _flat: StandardMaterial3D
 
 var _mi: MeshInstance3D
 var _mesh: ArrayMesh
 var _mat: Material
+var line := false  # one thin line (LINE_*); the pool owner sets it per hold
 
 
 ## Unshaded vertex colour, depth tested (so a coil goes behind what it holds), both sides.
@@ -58,12 +65,12 @@ func draw(from: Vector3, to: Vector3, reach: float, wave: float, coil: float, ti
 		visible = false
 		return
 	visible = true
-	var pts := spine(from, to, reach, wave, coil, floorf(time / STEP_S) * STEP_S)
+	var pts := spine(from, to, reach, wave, coil, floorf(time / STEP_S) * STEP_S, LINE_COIL_TURNS if line else COIL_TURNS)
 	_build(pts, STEPS + 1)
 
 
 ## The tube's centre line. Static so a check can read it without drawing.
-static func spine(from: Vector3, to: Vector3, reach: float, wave: float, coil: float, time: float) -> PackedVector3Array:
+static func spine(from: Vector3, to: Vector3, reach: float, wave: float, coil: float, time: float, turns := COIL_TURNS) -> PackedVector3Array:
 	var tip := from.lerp(to, reach)
 	var along := tip - from
 	var side := along.cross(Vector3.UP)
@@ -77,7 +84,7 @@ static func spine(from: Vector3, to: Vector3, reach: float, wave: float, coil: f
 	if coil > 0.0 and reach >= 1.0:
 		for j in range(1, COIL_STEPS + 1):
 			var k := float(j) / COIL_STEPS
-			var a := k * COIL_TURNS * TAU
+			var a := k * turns * TAU
 			pts.append(tip + Vector3(cos(a) * coil, (k - 0.5) * 0.6, sin(a) * coil))
 	return pts
 
@@ -96,7 +103,7 @@ func _build(pts: PackedVector3Array, straight: int) -> void:
 		var side := t.cross(view)
 		side = side.normalized() if side.length() > 0.0001 else Vector3.RIGHT
 		var f := clampf(float(i) / (straight - 1), 0.0, 1.0)
-		var w := lerpf(ROOT_W, TIP_W, f)
+		var w := lerpf(LINE_ROOT_W, LINE_TIP_W, f) if line else lerpf(ROOT_W, TIP_W, f)
 		if i < straight:
 			w *= 1.0 - 0.3 * fmod(f * SEGMENTS, 1.0)
 		if i == n - 1:
@@ -107,9 +114,10 @@ func _build(pts: PackedVector3Array, straight: int) -> void:
 	var verts := PackedVector3Array()
 	var colors := PackedColorArray()
 	var cols := [DARK.INK, DARK.VIOLET, DARK.HOT]
-	for k in LAYERS.size():
-		var lw: float = LAYERS[k][0]
-		var lift: float = LAYERS[k][1]
+	var layers: Array = LINE_LAYERS if line else LAYERS
+	for k in layers.size():
+		var lw: float = layers[k][0]
+		var lift: float = layers[k][1]
 		var c: Color = cols[k]
 		for i in n - 1:
 			var a := pts[i] + views[i] * lift

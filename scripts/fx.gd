@@ -29,15 +29,14 @@ const EDGE_OUTLINE := 0.07  # m, dark outline
 ## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
 ## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
+const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
 const COMIC_FLASH := Color(1.0, 0.97, 0.88)  # a comic hit flash's paper ink
-## Flat two-tone chip colour off the axes per element (element_hit).
-const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
-	"spirit": Color(0.2, 0.85, 0.78)}
 
 static var _flash_mat: StandardMaterial3D
 static var _tint_mats := {}  # flash_tint() overlays, one per colour
@@ -50,6 +49,10 @@ static var _particle_mats: Dictionary = {}
 ## Tick time of the last big impact (read by the autotest to snap a frame).
 static var last_big_hit_ms := 0
 static var last_afterimage_ms := 0
+static var _last_ring_ms := -100000
+static var _last_ring_at := Vector3.ZERO
+const RING_PAIR_MS := 40
+const RING_PAIR_M := 1.5
 
 
 ## The base of nearly every effect material: unshaded, alpha-blended (`add`:
@@ -87,7 +90,7 @@ static func _label(text: String, font_size: int, color: Color, outline_color: Co
 ## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and player._swoosh's second, wider
 ## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
 static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float,
-		color: Color, flip := false, time := 0.26, height := 0.8) -> void:
+		color: Color, flip := false, time := 0.26, height := 0.8, lines_only := false) -> void:
 	var gold := _hero_awakened(parent)
 	if gold and height > SWOOSH_SECOND_HEIGHT:
 		return
@@ -110,7 +113,7 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var a_mult := 0.5 if Game.reduce_flashing else 1.0
 	mat.set_shader_parameter("color", Color(color, color.a * a_mult))
 	mat.set_shader_parameter("edge_color", Color(color.lerp(Color.WHITE, 0.45), a_mult))
-	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold else 0.0)
+	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold or lines_only else 0.0)  # (lines_only: the spirit echo, whose ghost blade is the body)
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()
 	m.material_override = mat
@@ -121,6 +124,73 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var tw := m.create_tween()
 	tw.tween_method(func(p: float) -> void: mat.set_shader_parameter("progress", p), 0.0, 1.0, time)
 	tw.tween_callback(m.queue_free)
+
+
+## The palette name of the hero's current blow (round 33: one palette per element across a string): the
+## move's element (VOID_ELEMENT.ELEMENT_OF), gold while Awakened, else the plain hot "hit".
+static func _blow_element(node: Node) -> String:
+	if node == null or not node.is_inside_tree():
+		return "hit"
+	var hero := node.get_tree().get_first_node_in_group("player")
+	if hero == null:
+		return "hit"
+	if hero.get("awakened") == true:
+		return "gold"
+	var id: Variant = hero.get("_move_id")
+	return VOID_ELEMENT.ELEMENT_OF.get(id, "hit") if id is String else "hit"
+
+
+## Is the hero in a breaker (State.LEAP: the hang, the dive and the landing's hits)?
+static func in_breaker(node: Node) -> bool:
+	if node == null or not node.is_inside_tree():
+		return false
+	var hero := node.get_tree().get_first_node_in_group("player")
+	if hero == null or not "state" in hero:
+		return false
+	if _leap_state == -2:
+		var states: Variant = hero.get_script().get_script_constant_map().get("State", {})
+		_leap_state = states.get("LEAP", -1) if states is Dictionary else -1
+	return _leap_state >= 0 and hero.state == _leap_state
+
+
+## Round 33, sleek 6: in a breaker every foe hit in one frame drew its own star, strokes and chain halo: Live Wire's
+## jolts every 0.09 s and the landings put a star on every foe of the pile (Worldbreaker, Cataclysm, Grounded).
+## In a breaker the frame's hits draw ONE star at the middle of them (the pile's centre), and the strokes and halo
+## once per frame. Outside a breaker every hit keeps its own.
+static var _leap_state := -2  # the hero's State.LEAP, read once
+static var _crowd_stars := []  # [parent, at, size, pal] this frame, in a breaker
+static var _crowd_frame := {}  # what -> the process frame it last drew in a breaker
+static var crowd_merged := 0  # stars folded into another (fx_sleek_check)
+
+
+static func _once_in_breaker(parent: Node, what: String) -> bool:
+	if not in_breaker(parent):
+		return true
+	var f := Engine.get_process_frames()
+	if _crowd_frame.get(what, -1) == f:
+		return false
+	_crowd_frame[what] = f
+	return true
+
+
+static func _flush_crowd_stars() -> void:
+	var batch := _crowd_stars
+	_crowd_stars = []
+	if batch.is_empty():
+		return
+	var mid := Vector3.ZERO
+	var big := 0.0
+	var parent: Node = null
+	for r: Array in batch:
+		mid += r[1]
+		big = maxf(big, r[2])
+		if parent == null and is_instance_valid(r[0]):
+			parent = r[0]
+	if parent == null or not parent.is_inside_tree():
+		return
+	crowd_merged += batch.size() - 1
+	var pal: Dictionary = batch[0][3]
+	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 
 
 static func _hero_awakened(node: Node) -> bool:
@@ -146,10 +216,20 @@ static func damage_number(parent: Node, pos: Vector3, amount: float, big := fals
 	tw.chain().tween_callback(l.queue_free)
 
 
-static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := 0.9) -> void:
+## Round 33, sleek 4: every hit on a foe (and the Warden, which drew 1.5 / 1.0) uses these star sizes: one grammar,
+## star + word + number, the same weight everywhere.
+const HIT_STAR := 0.9
+const HIT_STAR_BIG := 1.3
+static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := HIT_STAR) -> void:
 	var at := pos + Vector3.UP * 1.1
-	if Game.comic_style:  # the hot inked star; impact() adds the strokes
-		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3})
+	if Game.comic_style:  # the hot inked star in the blow's palette; impact() adds the strokes
+		var pal := PAL.of(_blow_element(parent))
+		if in_breaker(parent):  # one star for the frame's hits, at their middle (_flush_crowd_stars)
+			if _crowd_stars.is_empty():
+				_flush_crowd_stars.call_deferred()
+			_crowd_stars.append([parent, at, size, pal])
+			return
+		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
 	# Pale colours vanish on the light floor tiles: push the flare's saturation up.
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.75), 1.0, color.a)
@@ -173,6 +253,8 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 		return
 	var at := pos + Vector3.UP * 1.1
 	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
+		if not _once_in_breaker(parent, "chain"):
+			return
 		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
 			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
 			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
@@ -191,7 +273,9 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 	var at := pos + Vector3.UP * 1.0
 	var k := 1.5 if big else 1.0
 	if Game.comic_style:  # chunky chips of the element, flung along the blow
-		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": COMIC_CHIP.get(element, COMIC_CHIP.spirit),
+		var el := _blow_element(parent)
+		var chip: Color = PAL.of(element if el == "hit" else el).body
+		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": chip,
 			"chip_size": 0.11 * k, "chip_speed": 6.0, "dir": dir, "spread": 0.6, "steps": 3})
 		return
 	match element:
@@ -401,6 +485,11 @@ static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float
 	tw.chain().tween_callback(m.queue_free)
 
 
+const BEAM_SLEEK_R := 0.42  # of the asked radius, comic style (round 33, sleek 5: 0.7 was a 2 m gold slab over a
+## breaker's pile whenever the meter filled on its landing)
+const BEAM_SLEEK_TIME := 0.55  # of the asked time (sleek 5: 0.7)
+
+
 ## Column of light that shoots up from `pos` and collapses inward over `time`:
 ## a coloured shell around a white-hot core.
 static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radius := 1.3,
@@ -409,7 +498,12 @@ static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radiu
 	parent.add_child(root)
 	root.global_position = pos
 	var mats: Array[StandardMaterial3D] = []
-	for layer: Array in [[radius, Color(color, 0.7)], [radius * 0.45, Color(1.0, 1.0, 1.0, 0.9)]]:
+	var layers := [[radius, Color(color, 0.7)], [radius * 0.45, Color(1.0, 1.0, 1.0, 0.9)]]
+	if Game.comic_style:  # round 33 (sleek): a see-through column with a thin hot core, not a gold slab over the pile
+		radius *= BEAM_SLEEK_R
+		layers = [[radius, Color(color, 0.32)], [radius * 0.22, Color(1.0, 1.0, 1.0, 0.75)]]
+		time *= BEAM_SLEEK_TIME
+	for layer: Array in layers:
 		var cyl := CylinderMesh.new()
 		cyl.top_radius = layer[0] * 0.7
 		cyl.bottom_radius = layer[0]
@@ -461,6 +555,8 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	if big:
 		last_big_hit_ms = Time.get_ticks_msec()
 	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
+		if not _once_in_breaker(parent, "impact"):
+			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
 			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
@@ -481,7 +577,15 @@ static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void
 ## Expanding flat ring on the ground (shockwaves, Awakening burst).
 static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time := 0.35) -> void:
 	if Game.comic_style:  # a hard inked hoop on twos, not a soft glowing disc
-		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 6)})
+		# Round 33 (sleek): callers often lay a colour hoop and a white one on the same spot at once; one
+		# deliberate hoop reads cleaner than two nested ones, so the second within RING_PAIR_MS is dropped.
+		var now := Time.get_ticks_msec()
+		var flat := Vector3(pos.x, 0.0, pos.z)
+		if now - _last_ring_ms <= RING_PAIR_MS and flat.distance_to(_last_ring_at) < RING_PAIR_M:
+			return
+		_last_ring_ms = now
+		_last_ring_at = flat
+		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 5)})
 		return
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
@@ -500,6 +604,17 @@ static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time :
 	tw.chain().tween_callback(m.queue_free)
 
 
+const THIN_HOOP_W := 0.12  # m asked of comic_pop (it draws half: a 0.06 m band, the breaker cue's)
+
+
+## Round 33, part 3 (sleek): a thin inked floor hoop in an element's palette (light tone band, its ink either
+## side), the breaker cue rings' weight. Comic only; the plain look calls ring().
+static func thin_hoop(parent: Node, pos: Vector3, element: String, radius: float, time := 0.3) -> void:
+	var pal: Dictionary = PAL.of(element)
+	COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": pal.light, "ring_w": THIN_HOOP_W,
+		"steps": clampi(int(time * 12.0) + 1, 3, 5)})
+
+
 ## Where a foe was spiked into the floor (enemy._crater): a dark hole (a hard
 ## disc CRATER_HOLE of the radius) under a ragged splat, both popping out to
 ## `radius`, a dust ring past it, the lot fading over `time`.
@@ -509,7 +624,17 @@ const CRATER_SPLAT := 1.6  # the splat quad's half-size, as a share of `radius` 
 const CRATER_SEGMENTS := 14  # a chunky low-poly edge, not a perfect circle
 const CRATER_RING := Color(0.62, 0.57, 0.5, 0.75)  # the dust colour of dust()
 const CRATER_RING_OUT := 1.5  # the dust ring's reach, in crater radii
+const CRATER_COMIC := Color(0.62, 0.5, 0.42)  # the dust's warm tone: comic_crack cools it a little, not to soot
+const CRATER_COMIC_SIZE := 0.7  # of the radius
+const CRATER_COMIC_TIME := 0.6  # s
+const CRATER_COMIC_RING_OUT := 1.1  # of the radius: the comic dust hoop (CRATER_RING_OUT 1.5 with a 0.2 m band)
 static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> void:
+	if Game.comic_style:  # round 33, sleek 4: the soft soot discs read as a brown smudge for 1.4 s; an inked dent instead
+		COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
+		# Round 33, sleek 5: one thin dust hoop just past the dent (a 2.4 m 0.1 m band round every cube Deep Freeze
+		# drove down was four cream rings over the crowd).
+		COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
+		return
 	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
 	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)
 	ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
@@ -549,11 +674,11 @@ static func _crater_layer(parent: Node, at: Vector3, radius: float, tex: String,
 ## DAZE_STARS solid five-point stars inked in ComicFx.INK, on a DAZE_RING m
 ## ring `height` above `node`, spinning DAZE_SPIN rad/s, popping in and
 ## shrinking away over `time`. Named "DazeStars".
-const DAZE_STARS := 3
+const DAZE_STARS := 2  # round 33 (sleek): three stars on each of four dummies was a crown of clutter
 const DAZE_RING := 0.5  # m, the ring's radius
-const DAZE_SIZE := 0.2  # m, a star's outer radius
+const DAZE_SIZE := 0.16  # m, a star's outer radius
 const DAZE_INNER := 0.45  # a star's inner points, as a share of its outer radius
-const DAZE_INK := 1.35  # the ink star behind, as a share of the star
+const DAZE_INK := 1.2  # the ink star behind, as a share of the star
 const DAZE_SPIN := 7.0  # rad/s
 const DAZE_COLOR := Color(1.0, 0.86, 0.2)
 static var _star_mesh: ArrayMesh

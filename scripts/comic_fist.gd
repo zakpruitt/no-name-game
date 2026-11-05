@@ -7,6 +7,7 @@ extends Node3D
 
 const SELF := preload("res://scripts/comic_fist.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const INK := Color(0.012, 0.01, 0.02)
 const LOW := Color(0.5, 0.08, 0.45)  # the limb's magenta (heretic_form_fx "hand", a touch brighter)
 const HIGH := Color(0.78, 0.24, 0.66)
@@ -95,14 +96,13 @@ func _draw_step() -> void:
 		if _t >= _time + HOLD_AFTER:
 			size *= 0.5
 	if not landed:
-		for i in 3:
-			var off := (float(i) - 1.0) * size * 0.55
-			_wedge(-_d * size * 0.7 + _s * off, -_d, size * _rng.randf_range(1.3, 1.9), size * 0.32, INK)
-			_wedge(-_d * size * 0.75 + _s * off, -_d, size * _rng.randf_range(1.0, 1.4), size * 0.16, MOLTEN)
+		for i in 2:  # round 33 (sleek): two thin speed lines, no ink wedges
+			var off := (float(i) - 0.5) * size * 0.9
+			_wedge(-_d * size * 0.75 + _s * off, -_d, size * _rng.randf_range(1.2, 1.7), size * 0.08, PAL.fade(MOLTEN, 0.9))
 	elif _t < _time + HOLD_AFTER:
-		_star(_d * size * 0.9, size * 1.15, INK)
-		_star(_d * size * 0.9, size * 0.95, MOLTEN)
-		_star(_d * size * 0.9, size * 0.45, MOLTEN_CORE)
+		_star(_d * size * 0.9, size * 0.8 + PAL.LINE, INK)
+		_star(_d * size * 0.9, size * 0.8, PAL.fade(MOLTEN, 0.9))
+		_star(_d * size * 0.9, size * 0.35, MOLTEN_CORE)
 	# The fist from above: wider than it is long, four fat knuckles making its front edge, a thumb
 	# tucked along one side, ink grooves between the fingers and the knuckles glowing molten.
 	var la := size * along * 0.8  # half length, along the flight
@@ -113,10 +113,11 @@ func _draw_step() -> void:
 		knuckles.append(_d * la * (0.72 - 0.12 * k * k) + _s * lb * k * 0.72)
 	var thumb := -_s * lb * 0.95 - _d * la * 0.05
 	var kr := lb * 0.32
-	_blob(Vector3.ZERO, la + 0.08, lb + 0.08, INK)
-	_blob(thumb, la * 0.55 + 0.07, kr * 0.9 + 0.07, INK)
+	var line := PAL.LINE * 1.2
+	_blob(Vector3.ZERO, la + line, lb + line, INK)
+	_blob(thumb, la * 0.55 + line, kr * 0.9 + line, INK)
 	for at: Vector3 in knuckles:
-		_blob(at, kr + 0.07, kr + 0.07, INK)
+		_blob(at, kr + line, kr + line, INK)
 	_blob(Vector3.ZERO, la, lb, LOW)
 	_blob(thumb, la * 0.55, kr * 0.9, LOW)
 	for at: Vector3 in knuckles:

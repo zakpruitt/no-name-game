@@ -41,6 +41,18 @@ const BREAKER_SPILL := HERO_LEAP.BREAKER_SPILL
 const BREAKER_EARLY := HERO_LEAP.BREAKER_EARLY
 
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Idle_Ready"]
+const LOOP_SPEED := 1.1  # loops, fidgets and the run one-shots (_loop_speed)
+## Runs play this much faster while Awakened (he moves HERO_AWAKEN.SPEED_MULT faster), so his feet stay
+## locked to the floor (tests/hero_stride_check.gd).
+const AWAKENED_RUN_CLIP := HERO_AWAKEN.SPEED_MULT
+## The lunge setting off from slower than RUN_START_BELOW of move_speed, the skid letting go above
+## RUN_STOP_ABOVE (_play_locomotion): one of each per run clip (RUN_SUFFIX), and each skid again ending
+## on the guard (`_Ready`) while he is still on guard after a fight (_ready_t).
+const RUN_SUFFIX := {"Run_F": "", "Run_B": "_B", "Strafe_L": "_L", "Strafe_R": "_R"}
+const RUN_ONESHOTS := ["Run_Start", "Run_Start_B", "Run_Start_L", "Run_Start_R", "Run_Stop", "Run_Stop_B",
+	"Run_Stop_L", "Run_Stop_R", "Run_Stop_Ready", "Run_Stop_B_Ready", "Run_Stop_L_Ready", "Run_Stop_R_Ready"]
+const RUN_START_BELOW := 0.3
+const RUN_STOP_ABOVE := 0.6
 const AXE_SOURCE := "res://assets/kaykit/characters/Barbarian.glb"  # the 1H_Axe spirit casts ghost (_axe_mesh)
 const CAST_GROW := 0.15  # spirit cast size per chain tier (_cast_grow)
 const CAST_POWER := 0.12  # spirit cast damage per chain tier
@@ -152,7 +164,8 @@ var _void: Node  # his tentacle: grab, slam, swing, breaker holds (void_grab.gd)
 # The breaker in play (hero_leap.gd).
 var _brk: Dictionary = {}  # its BREAKERS entry
 var _brk_id := ""
-var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
+var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed), 3 Meteor Fall's beats before the dive
+var _brk_beat := 0  # phase 3: 0 thrown at the walls, 1 dragged into the pile, 2 diving
 var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
 var _brk_locked := false
 var _brk_held := false  # pressed just before `open`: dives as the window opens (BREAKER_EARLY)
@@ -171,6 +184,8 @@ var _brk_prompt: Control  # the timing circle (breaker_prompt.gd), made on the f
 var combos_landed := {}  # COMBOS id -> times landed this run (pause menu, combo guide)
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
+var breakers_seen := {}  # BREAKERS id -> true once landed (autotest `breakers=`)
+var endings_seen := {}  # breaker name -> true once landed, alt endings too (autotest `endings=`)
 var rank_ups := 0  # style rank climbs that burst at the hero (autotest)
 var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
 
@@ -369,12 +384,25 @@ func _state_move(delta: float) -> void:
 ## Idle or a run. The comic hero has a clip per direction relative to where he faces; they share
 ## one cycle, so a change of clip carries on from the same step.
 func _play_locomotion(dir: Vector3) -> void:
+	var playing := anim.current_animation
+	var ground := Vector2(velocity.x, velocity.z).length() / move_speed
 	if dir.length() <= 0.1:
-		_comic_stand()
+		var stop := "Run_Stop%s%s" % [RUN_SUFFIX.get(playing, ""), "_Ready" if _ready_t > 0.0 else ""]
+		if ComicLook.is_run_clip(playing) and ground > RUN_STOP_ABOVE and anim.has_animation(stop):
+			_play(stop, 0.06, true)
+		elif not playing.begins_with("Run_Stop"):  # the skid plays out, then the stand
+			_comic_stand()
 	else:
 		_fidget_t = ComicLook.FIDGET_EVERY
-		var clip := ComicLook.run_clip(dir, _facing(), anim.current_animation)
-		if clip == anim.current_animation:
+		var clip := ComicLook.run_clip(dir, _facing(), playing)
+		var start: String = "Run_Start" + RUN_SUFFIX.get(clip, "")
+		if playing == start:
+			return  # the lunge lands on the run's first step
+		if not ComicLook.is_run_clip(playing) and ground < RUN_START_BELOW and anim.has_animation(start):
+			_play(start, 0.06, true)
+			return
+		if clip == playing:
+			anim.speed_scale = _loop_speed(clip)  # Awakened can start or end mid-run
 			return
 		var step := anim.current_animation_position if ComicLook.is_run_clip(anim.current_animation) else 0.0
 		_play(clip, 0.12)
@@ -584,7 +612,9 @@ func _do_hit() -> void:
 		_swoosh(fwd)
 	var hit_any := false
 	var any_airborne := false
-	for e in get_tree().get_nodes_in_group("enemies"):
+	# (a move with no reach is all fire(): its `range` 0 still caught a foe standing on him, a 0-damage touch that
+	# broke the ice before fire() read it)
+	for e in get_tree().get_nodes_in_group("enemies") if _move.range > 0.0 else []:
 		if not e.is_alive():
 			continue
 		var to: Vector3 = e.global_position - global_position
@@ -918,7 +948,13 @@ func _play(anim_name: String, blend := 0.1, restart := false) -> void:
 	if restart:
 		anim.seek(0.0, true)
 	# Locomotion plays at natural speed; actions are sped up for snappiness.
-	anim.speed_scale = 1.1 if anim_name in LOOPING or anim_name in ComicLook.HERO_FIDGETS else anim_speed * _anim_mult
+	var loop := anim_name in LOOPING or anim_name in RUN_ONESHOTS or anim_name in ComicLook.HERO_FIDGETS
+	anim.speed_scale = _loop_speed(anim_name) if loop else anim_speed * _anim_mult
+
+
+func _loop_speed(clip: String) -> float:
+	var run := ComicLook.is_run_clip(clip) or clip in RUN_ONESHOTS
+	return LOOP_SPEED * (AWAKENED_RUN_CLIP if awakened and run else 1.0)
 
 
 # --- Forwarders (names other scripts and the checks call; hero_*.gd do the work) ---

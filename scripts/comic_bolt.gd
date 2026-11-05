@@ -7,16 +7,21 @@ extends Node3D
 
 const SELF := preload("res://scripts/comic_bolt.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const STEPS_PER_S := 12.0  # on twos
 const WIDTH_BY_STEP := [1.0, 0.85, 0.5]  # full, a new zigzag, then colour only, then gone
 const INK := Color(0.012, 0.01, 0.02)
-const STORM := Color(0.16, 0.85, 0.38)
-const LIGHT := Color(0.9, 1.0, 0.78)
+const STORM := Color(0.18, 0.86, 0.46)  # fx_palette "wind"
+const LIGHT := Color(0.82, 1.0, 0.76)
 const HOT := Color(1.0, 0.45, 0.05)
 const HOT_CORE := Color(1.0, 0.88, 0.25)
 const SEG := 0.75  # m per zigzag segment
 const JAG := 0.32  # of a segment, sideways
-const STAR_SPIKES := 8
+const STAR_SPIKES := 7
+## Round 33 (sleek): a thin ink line round the bolt instead of a hull twice its width, the colour band a
+## touch see-through and narrower, the pale core a crisp line down its middle.
+const THIN := 0.75  # of the asked width
+const BODY_ALPHA := 0.88
 
 var width := 0.24  # m of the colour band; the ink is wider, the core narrower
 var star := 0.0  # m: the impact star's size at `b`, 0 for none
@@ -95,21 +100,24 @@ func _draw_step(step: int) -> void:
 		var side := _right * (1.0 if _rng.randf() < 0.5 else -1.0)
 		branches.append(_zigzag(from, from + ((_b - _a).normalized() * 0.6 + side * 0.8).normalized() * out))
 	# Ink under everything, then the colour, then the core, so the bands nest cleanly.
+	var w := width * THIN * k
+	var line := PAL.LINE * 2.0
+	var body := PAL.fade(STORM, BODY_ALPHA * (0.7 if last else 1.0))
 	if not last:
-		_ribbon(main, width * 2.1 * k, INK)
+		_ribbon(main, w + line, INK)
 		for f: PackedVector3Array in branches:
-			_ribbon(f, width * 1.4 * k, INK)
+			_ribbon(f, w * 0.55 + line, INK)
 		if star > 0.0:
-			_star(_b, star * 1.25 * k, INK)
-	_ribbon(main, width * k, STORM)
+			_star(_b, star * 0.85 * k + PAL.LINE, INK)
+	_ribbon(main, w, body)
 	for f: PackedVector3Array in branches:
-		_ribbon(f, width * 0.6 * k, STORM)
+		_ribbon(f, w * 0.55, body)
 	if star > 0.0:
-		_star(_b, star * k, HOT)
+		_star(_b, star * 0.85 * k, PAL.fade(HOT, 0.9))
 	if not last and not Game.reduce_flashing:
-		_ribbon(main, width * 0.38 * k, LIGHT)
+		_ribbon(main, w * 0.28, LIGHT)
 		if star > 0.0:
-			_star(_b, star * 0.5 * k, HOT_CORE)
+			_star(_b, star * 0.38 * k, HOT_CORE)
 	_mesh.clear_surfaces()
 	if _verts.is_empty():
 		return

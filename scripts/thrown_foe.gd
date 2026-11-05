@@ -22,16 +22,19 @@ const CUBE_NAME := "ThrownCube"
 const CUBE_COLOR := Color(0.62, 0.9, 1.0)
 const CUBE_HIGH := 1.5  # m
 const CUBE_SPIN := 9.0  # radians/s
-# The comic cube: two-tone flat ice (a pale top, thin blue sides) with the ink edge, clear enough to show the
-# foe inside. The old 55% cyan box hid the foe and was the loudest thing in every ice frame.
-const CUBE_TOP := Color(0.86, 0.97, 1.0, 0.42)
-const CUBE_SIDE := Color(0.34, 0.68, 1.0, 0.15)
+# The comic cube: see-through halftone ice (comic_cube) with the ink edge, clear enough to show the foe inside.
+# The old 55% cyan box hid the foe and was the loudest thing in every ice frame.
+const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const CUBE_GLINT := Color(1.0, 1.0, 1.0, 0.85)
 
 static var _cube_mat: StandardMaterial3D
 static var _cube_meshes := {}  # (radius, height) in cm -> mesh
 const WALL_MARGIN := 0.5  # m short of a wall
 const FLYING := "thrown_foe_flying"  # meta on a foe in flight: nothing else may move it
+const GROUP := "thrown_foes"  # every flight in progress (cut())
+const ZAP_STEP := 0.08  # s between a `zap` flight's jolts
+const ZAP_REACH := 3.2  # m it jumps to whoever it passes
+const ZAP_MAX := 5  # jolts a flight gives at most
 
 var hero: CharacterBody3D
 var foe: Node3D
@@ -44,6 +47,9 @@ var tether := false
 var wall_mult := 1.0
 var speed := SPEED
 var land_y := LAND_Y
+var zap := false  # Storm Pitch: lightning jumps from it to anyone it passes (ZAP_*)
+var _zaps := 0
+var _next_zap := 0.0
 var _from := Vector3.ZERO
 var _dir := Vector3.FORWARD
 var _length := 0.0
@@ -65,6 +71,7 @@ static func launch(by: Variant, e: Variant, to: Vector3, dmg: float, opts := {})
 	for k: String in opts:
 		t.set(k, opts[k])
 	by.get_parent().add_child(t)
+	t.add_to_group(GROUP)
 	e.set_meta(FLYING, true)
 	if float(e.get("frozen_t") if e.get("frozen_t") != null else 0.0) <= 0.0 and e.has_method("stagger"):
 		e.stagger(STUN)
@@ -80,6 +87,17 @@ static func flying(e: Node) -> bool:
 	return e.has_meta(FLYING)
 
 
+## Ends `e`'s flight where it is, so the next move can take it (Storm Pitch off Tow Line's tether, Meteor Fall's beats).
+static func cut(e: Variant) -> void:
+	if not is_instance_valid(e) or not e.has_meta(FLYING):
+		return
+	for t: Node in e.get_tree().get_nodes_in_group(GROUP):
+		if t.foe == e and not t.is_queued_for_deletion():
+			e.global_position.y = 0.0
+			t.quiet = true
+			t._finish()
+
+
 ## Encases a frozen foe in a cube, in place of the plain ice cylinder. enemy.gd's _thaw() takes it off.
 static func cube_on(e: Node3D) -> void:
 	if not is_instance_valid(e):
@@ -93,8 +111,7 @@ static func cube_on(e: Node3D) -> void:
 	var cube := MeshInstance3D.new()
 	cube.name = CUBE_NAME
 	if Game.comic_style:
-		cube.mesh = comic_cube(r)
-		cube.material_override = cube_material()
+		cube.mesh = comic_cube(r)  # (its surfaces carry their materials)
 	else:
 		var box := BoxMesh.new()
 		box.size = Vector3(r * 2.0, CUBE_HIGH, r * 2.0)
@@ -111,7 +128,7 @@ static func cube_on(e: Node3D) -> void:
 	cube.position.y = CUBE_HIGH * 0.5
 
 
-## One shared material for every comic cube: unshaded vertex colour, see-through, the hero's ink round it.
+## One shared material for the cube's glint: unshaded vertex colour (the block itself is spirit_echo.ghost_mat).
 static func cube_material() -> StandardMaterial3D:
 	if _cube_mat == null:
 		_cube_mat = StandardMaterial3D.new()
@@ -119,20 +136,21 @@ static func cube_material() -> StandardMaterial3D:
 		_cube_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_cube_mat.vertex_color_use_as_albedo = true
 		_cube_mat.vertex_color_is_srgb = true
-		_cube_mat.cull_mode = BaseMaterial3D.CULL_DISABLED  # (both sides of the thin walls: the far ones show through)
-		if DisplayServer.get_name() != "headless":
-			_cube_mat.next_pass = Fx.ink_material()
+		_cube_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return _cube_mat
 
 
-## A frozen foe's ice (enemy.freeze, comic style): the same flat two-tone block, `r` round and `high` tall.
+## A frozen foe's ice (enemy.freeze, comic style): the same halftone block, `r` round and `high` tall.
 static func comic_ice(ice: MeshInstance3D, r: float, high: float) -> void:
 	ice.mesh = comic_cube(r, high)
-	ice.material_override = cube_material()
+	ice.material_override = null  # (the mesh's surfaces carry the ghost block and the glint)
 	ice.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## A box `r` round and `high` tall, its top pale and its sides thin blue, with a white glint across the top.
+## Round 33, part 3: a block `r` round and `high` tall in the see-through halftone ice of the spikes (the water
+## palette's spirit_echo.ghost_mat: dots, a thin ink line and a light edge; the round-29 flat two-tone box was
+## the last opaque-looking ice), with a white glint across the top on its own surface. Corner normals point out
+## of the corner, so the ink hull (pushed out along them) closes round the box instead of splitting at its edges.
 static func comic_cube(r: float, high := CUBE_HIGH) -> ArrayMesh:
 	var key := Vector2i(roundi(r * 100.0), roundi(high * 100.0))
 	if _cube_meshes.has(key):
@@ -140,21 +158,29 @@ static func comic_cube(r: float, high := CUBE_HIGH) -> ArrayMesh:
 	var h := high * 0.5
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var quad := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color) -> void:
-		st.set_color(col)
+	var quad := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
 		for v: Vector3 in [a, b, c, a, c, d]:
+			st.set_normal(Vector3(v.x / r, v.y / h, v.z / r).normalized())
 			st.add_vertex(v)
 	var top := [Vector3(-r, h, -r), Vector3(r, h, -r), Vector3(r, h, r), Vector3(-r, h, r)]
 	var bot := [Vector3(-r, -h, -r), Vector3(r, -h, -r), Vector3(r, -h, r), Vector3(-r, -h, r)]
-	quad.call(top[0], top[1], top[2], top[3], CUBE_TOP)
-	quad.call(bot[3], bot[2], bot[1], bot[0], CUBE_SIDE)
+	quad.call(top[0], top[1], top[2], top[3])
+	quad.call(bot[3], bot[2], bot[1], bot[0])
 	for i in 4:
 		var j := (i + 1) % 4
-		quad.call(bot[i], bot[j], top[j], top[i], CUBE_SIDE)
-	# A glint: a fat white stroke across a corner of the top, just above it.
-	var g := h + 0.01
-	quad.call(Vector3(-r * 0.75, g, r * 0.15), Vector3(-r * 0.15, g, r * 0.75), Vector3(-r * 0.0, g, r * 0.6), Vector3(-r * 0.6, g, r * 0.0), CUBE_GLINT)
+		quad.call(bot[i], bot[j], top[j], top[i])
 	var mesh := st.commit()
+	mesh.surface_set_material(0, SPIRIT_ECHO.ghost_mat(CUBE_COLOR))
+	# A glint: a fat white stroke across a corner of the top, just above it.
+	var gl := SurfaceTool.new()
+	gl.begin(Mesh.PRIMITIVE_TRIANGLES)
+	gl.set_color(CUBE_GLINT)
+	var g := h + 0.01
+	for v: Vector3 in [Vector3(-r * 0.75, g, r * 0.15), Vector3(-r * 0.15, g, r * 0.75), Vector3(0.0, g, r * 0.6),
+			Vector3(-r * 0.75, g, r * 0.15), Vector3(0.0, g, r * 0.6), Vector3(-r * 0.6, g, 0.0)]:
+		gl.add_vertex(v)
+	gl.commit(mesh)
+	mesh.surface_set_material(1, cube_material())
 	_cube_meshes[key] = mesh
 	return mesh
 
@@ -187,6 +213,8 @@ func _clear(length: float) -> float:
 
 
 func _physics_process(delta: float) -> void:
+	if is_queued_for_deletion():
+		return  # (cut(): another move has it now)
 	if not is_instance_valid(foe) or not foe.is_alive():
 		_finish()
 		return
@@ -202,6 +230,8 @@ func _physics_process(delta: float) -> void:
 		cube.rotate_y(CUBE_SPIN * delta)
 	if _rope != null and hero._void != null:
 		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.get("radius")) + 0.05, _time)
+	if zap and _zaps < ZAP_MAX and _time >= _next_zap:
+		_zap(at)
 	if solid:
 		var other := _first_in_the_way()
 		if other != null:
@@ -217,6 +247,26 @@ func _physics_process(delta: float) -> void:
 			_finish()
 		else:
 			_burst(null)
+
+
+## One jolt from it to the nearest foe it's passing (Storm Pitch: the axe's storm rides the thrown foe).
+func _zap(at: Vector3) -> void:
+	var best: Node3D = null
+	var best_d := ZAP_REACH
+	for o: Node in foe.get_tree().get_nodes_in_group("enemies"):
+		if o == foe or not o.is_alive():
+			continue
+		var d: float = (o.global_position - at).length()
+		if d < best_d:
+			best_d = d
+			best = o
+	if best == null:
+		return
+	_zaps += 1
+	_next_zap = _time + ZAP_STEP
+	VOID_ELEMENT.COMIC_ARC.jump(hero.get_parent(), at + Vector3.UP, best.global_position + Vector3.UP)
+	best.take_hit(VOID_ELEMENT.WIRE_DAMAGE * float(hero.get("_dmg_mult")), Vector3.ZERO, 0.0, false)
+	Game.register_hit("cast")
 
 
 func _first_in_the_way() -> Node3D:

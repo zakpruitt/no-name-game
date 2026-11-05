@@ -7,13 +7,24 @@ extends Node3D
 ##   ComicPop.spawn(parent, at, {"star": 0.6, "strokes": 3, "dir": kb, "chips": 4, "chip": Color})
 
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const STEPS_PER_S := 12.0  # on twos, at 24 fps
 const INK := Color(0.012, 0.01, 0.02)
 const HOT := Color(1.0, 0.45, 0.05)  # the impact star, whatever the element
 const HOT_CORE := Color(1.0, 0.88, 0.25)
 const PAPER := Color(1.0, 0.96, 0.82)  # speed strokes
 const GRAVITY := 9.0
-const STAR_BY_STEP := [1.0, 0.72, 0.4]  # the last is colour only, no ink or core
+const STAR_BY_STEP := [1.0, 0.7, 0.36]  # the last is colour only, no ink or core
+## Round 33 (sleek, Zak: "sleeker and more put together ... very thick colours"): a star is one gradient
+## shape (its hot core at the middle fading to its colour, see-through at the tips) inside a thin ink line,
+## not three opaque stars nested in a fat ink hull; strokes are thin speed lines with no ink; chips are fewer
+## and smaller. The numbers below are those.
+const STAR_INNER := 0.3  # of the spike radius: the star's valleys (0.42 was a chunky blob)
+const STAR_TIP_ALPHA := 0.85
+const STROKE_THIN := 0.55  # of the asked stroke width
+const CHIP_KEEP := 0.6  # of the asked chips (rounded, at least one if any were asked)
+const CHIP_SHRINK := 0.75
+const RING_THIN := 0.5  # of the asked hoop band
 const STROKE_BY_STEP := [1.0, 0.75, 0.4]
 const CHIP_HEAD_START := 0.035  # s of flight on the first frame, so they don't start in a pile
 
@@ -160,6 +171,11 @@ func setup(at: Vector3, opts: Dictionary) -> void:
 
 func _throw_chips() -> void:
 	var low: Color = o.chip
+	var keep := 0 if int(o.chips) == 0 else maxi(1, roundi(int(o.chips) * CHIP_KEEP))
+	var keep_ink := 0 if int(o.chip_ink) == 0 else maxi(1, roundi(int(o.chip_ink) * CHIP_KEEP))
+	o.chips = keep
+	o.chip_ink = keep_ink
+	o.chip_size = float(o.chip_size) * CHIP_SHRINK
 	for i in int(o.chips) + int(o.chip_ink):
 		var out: Vector3
 		if _fwd != Vector3.ZERO:
@@ -179,8 +195,8 @@ func _throw_chips() -> void:
 
 func _new_star() -> void:
 	_spikes.clear()
-	for i in int(o.spikes):
-		_spikes.append(_rng.randf_range(0.72, 1.25))
+	for i in mini(int(o.spikes), 8):
+		_spikes.append(_rng.randf_range(0.7, 1.2))
 	_turn = _rng.randf() * TAU
 
 
@@ -227,13 +243,11 @@ func _draw_step(s: int) -> void:
 		var last := s == STAR_BY_STEP.size() - 1
 		var ring: Color = o.star_ring
 		if ring.a > 0.0 and not last:
-			_star(size * 1.55, INK, 1.0)
-			_star(size * 1.4, ring, 1.0)
+			_star_line(size * 1.4, ring, PAL.LINE * 1.4, 1.0)
+		var core: Color = o.star_core if not last and not _reduced else o.star_color
+		_star(size, core, PAL.fade(o.star_color, STAR_TIP_ALPHA * (0.7 if last else 1.0)))
 		if not last:
-			_star(size * 1.22, INK)
-		_star(size, o.star_color)
-		if not last and not _reduced:
-			_star(size * 0.48, o.star_core)
+			_star_line(size, INK, PAL.LINE)
 	_mesh.clear_surfaces()
 	if _verts.is_empty():
 		return
@@ -245,14 +259,24 @@ func _draw_step(s: int) -> void:
 	_mesh.surface_set_material(0, FORM_FX.material())
 
 
-func _star(size: float, color: Color, twist := 0.0) -> void:
+func _star_ring(size: float, twist: float) -> PackedVector3Array:
 	var n := _spikes.size()
 	var ring := PackedVector3Array()
 	for i in n * 2:
 		var a := _turn + twist * PI / n + TAU * i / (n * 2)
-		var r: float = size * _spikes[i / 2] if i % 2 == 0 else size * 0.42
+		var r: float = size * _spikes[i / 2] if i % 2 == 0 else size * STAR_INNER
 		ring.append(_screen(a) * r)
-	_fan(Vector3.ZERO, ring, color)
+	return ring
+
+
+## The filled star: `color` at the middle, `edge` at the points.
+func _star(size: float, color: Color, edge: Color, twist := 0.0) -> void:
+	_fan(Vector3.ZERO, _star_ring(size, twist), color, edge)
+
+
+## Just the star's outline, `w` m wide, outside its edge.
+func _star_line(size: float, color: Color, w: float, twist := 0.0) -> void:
+	_outline(Vector3.ZERO, _star_ring(size, twist), w, color)
 
 
 ## A speed stroke: a fat wedge flying outward, blunt at the back, pointed ahead.
@@ -262,21 +286,21 @@ func _stroke_layers(st: Array, s: int, k: float) -> void:
 	var base: float = o.gap if o.radial else o.star * 0.55
 	var start: float = base + (st[1] + s * 0.45) * o.stroke_len
 	var length: float = o.stroke_len * st[2] * k
-	var w: float = o.stroke_w * st[3] * k
+	var w: float = o.stroke_w * st[3] * k * STROKE_THIN
 	var p := d * start
-	if s < STROKE_BY_STEP.size() - 1:
-		_wedge(p - d * w * 0.3, d, length + w * 0.6, w * 1.9, side, INK)
 	_wedge(p, d, length, w, side, o.stroke_color)
 
 
+## A speed line: clear at the back, full colour at its widest, a sharp point ahead.
 func _wedge(p: Vector3, d: Vector3, length: float, w: float, side: Vector3, color: Color) -> void:
-	var a := p + side * w * 0.5
-	var b := p - side * w * 0.5
+	var back := PAL.fade(color, 0.0)
+	var a := p + side * w * 0.2
+	var b := p - side * w * 0.2
 	var tip := p + d * length
-	var mid := p + d * length * 0.3
-	_tri(a, b, mid + side * w * 0.42, color)
-	_tri(mid + side * w * 0.42, b, mid - side * w * 0.42, color)
-	_tri(mid + side * w * 0.42, mid - side * w * 0.42, tip, color)
+	var mid := p + d * length * 0.6
+	_tri3(a, b, mid + side * w * 0.5, back, back, color)
+	_tri3(mid + side * w * 0.5, b, mid - side * w * 0.5, color, back, color)
+	_tri(mid + side * w * 0.5, mid - side * w * 0.5, tip, color)
 
 
 func _chip(c: Dictionary, shrink: float) -> void:
@@ -293,12 +317,10 @@ func _chip(c: Dictionary, shrink: float) -> void:
 	if c.ink:
 		_fan(c.pos, ring, INK)
 		return
-	var hull := PackedVector3Array()
 	var face := PackedVector3Array()
 	for p in ring:
-		hull.append(p * 1.5)
 		face.append(p * 0.5)
-	_fan(c.pos, hull, INK)
+	_outline(c.pos, ring, PAL.LINE, INK)
 	_fan(c.pos, ring, c.low)
 	_fan(c.pos + (_up - _right) * size * 0.22, face, c.high)  # the lit facet
 
@@ -308,10 +330,10 @@ func _hoop(s: int) -> void:
 	var n: int = o.steps
 	var k := float(s) / maxf(n - 1, 1)
 	var r: float = o.ring * (1.0 - 0.5 * pow(1.0 - k, 2.0))
-	var w: float = o.ring_w * (1.0 - 0.55 * k)
-	var ink := 0.07 * (1.0 - 0.4 * k)
+	var w: float = o.ring_w * RING_THIN * (1.0 - 0.55 * k)
+	var ink := PAL.LINE
 	var col: Color = o.ring_color
-	col.a = maxf(col.a, 0.9)
+	col.a = maxf(col.a, 0.9) * (1.0 - 0.5 * k)
 	var y := Vector3.UP * (0.12 - global_position.y)  # on the floor, wherever the pop is
 	var segs := clampi(int(r * 14.0), 24, 72)
 	if s < n - 1:
@@ -335,9 +357,28 @@ func _angle(v: Vector3) -> float:
 	return atan2(v.dot(_up), v.dot(_right))
 
 
-func _fan(centre: Vector3, ring: PackedVector3Array, color: Color) -> void:
+## `edge`: the colour at the ring (a gradient out from `color` at the centre); unset, flat.
+func _fan(centre: Vector3, ring: PackedVector3Array, color: Color, edge := Color(0, 0, 0, -1)) -> void:
+	var e := color if edge.a < 0.0 else edge
 	for i in ring.size():
-		_tri(centre, centre + ring[i], centre + ring[(i + 1) % ring.size()], color)
+		_tri3(centre, centre + ring[i], centre + ring[(i + 1) % ring.size()], color, e, e)
+
+
+## A thin line `w` m wide just outside the ring (pushed out from `centre`).
+func _outline(centre: Vector3, ring: PackedVector3Array, w: float, color: Color) -> void:
+	var n := ring.size()
+	for i in n:
+		var p := ring[i]
+		var q := ring[(i + 1) % n]
+		var po := p + (p.normalized() if p.length() > 0.001 else _up) * w
+		var qo := q + (q.normalized() if q.length() > 0.001 else _up) * w
+		_tri(centre + p, centre + po, centre + qo, color)
+		_tri(centre + p, centre + qo, centre + q, color)
+
+
+func _tri3(a: Vector3, b: Vector3, c: Vector3, ca: Color, cb: Color, cc: Color) -> void:
+	_verts.append_array([a, b, c])
+	_colors.append_array([ca, cb, cc])
 
 
 func _tri(a: Vector3, b: Vector3, c: Vector3, color: Color) -> void:

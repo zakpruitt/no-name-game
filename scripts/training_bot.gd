@@ -12,7 +12,7 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 40.0
+const AUTOTEST_MAX := 80.0  # (was 60: 22 strings with the element matrix's three)
 
 var main: Node  # the training room
 var player: CharacterBody3D
@@ -21,14 +21,32 @@ var _autotest_t := 0.0
 var _hits := 0
 var _max_combo := 0
 ## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
-## click (Overwhelm). Each runs into its breaker where it has one (player presses it at
+## click (Overwhelm), "alt" (anywhere in it) makes the breaker press L, its `alt` ending. Each runs into its breaker where it has one (player presses it at
 ## the sweet spot for the bot), so the autotest walks every element and the dark. Frost Spear (L L H)
 ## only plays inside L L H L H, which sets the spear off: while it stands (5 s) any L or H press vaults onto
 ## it (void_element.vaults), and a lone L L H sent the next strings up the spear (Collapse and Grounded
 ## never played).
 const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "H"], ["H", "L", "H"],
 	["L", "H", "L", "H"], ["D", "L", "H"], ["D", "L", "H", "H"], ["D", "H"],
-	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"]]
+	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"],
+	# Crossovers (round 34): Rockslide into Fault Line and Cataclysm, Steam Burst into Flash Freeze, Storm Pitch,
+	# and Black Ice ("alt": the window's press is L, Maw's other ending).
+	["L", "H", "L", "L", "H"], ["D", "L", "H", "H", "L"], ["D", "H", "L"], ["alt", "H", "L", "H"],
+	# Three elements a string (second pass): Hailstorm, Meltdown and Eruption in the air; the spear, Impale, Backdraft
+	# and Anvil (Backdraft blows the spear apart, so it doesn't send the next string up it).
+	# ("line": the dummies stand in a column along his aim for it, so Harpoon reels in all four and Hailstorm has
+	# every cube to lift: from the fan Dash Stab lunged into the first and Harpoon only ever took that one.)
+	["line", "D", "L", "H", "H", "H", "L"], ["L", "L", "H", "D", "H", "H", "L"],
+	# The element matrix (third pass, void_element.IMPROV): a dash and a base move of another element on a state.
+	# Harpoon's ice, then Tow Line's dark shatters it (frozen x dark); Rockslide's buried, then Harpoon freezes them in
+	# the floor (buried x ice); Updraft Lash's air, then Harpoon freezes them up there (airborne x ice).
+	["line", "D", "L", "H", "D", "H"], ["L", "H", "L", "L", "D", "L", "H"], ["L", "H", "D", "L", "H"]]
+## Tokens that aren't presses (each sets something up for the whole string).
+const BOT_SETUP := ["alt", "line"]
+## A "line" string's column starts BOT_LINE_FROM m in front of him, BOT_LINE_GAP m apart: the dash and Dash Stab's
+## lunge carry him ~5 m, straight through a column that starts at BOT_SPOT (Harpoon then fired at nobody).
+const BOT_LINE_FROM := 5.0
+const BOT_LINE_GAP := 1.6
 const BOT_GAP := 0.35  # s standing between strings
 ## Every string starts from the same place (round 30, second pass): once the dummies stand again (or after
 ## BOT_SETTLE_MAX s) they're put back on their homes and the hero BOT_SPOT m from the first one, toward where
@@ -45,6 +63,7 @@ var _reset_done := false  # this string's start has been reset
 var _settle_t := 0.0
 var _press_frame := -1  # physics frame of the bot's last press
 var _bot_string := 0  # BOT_STRINGS index playing
+var _homes := {}  # dummy -> its home, while a "line" string has it standing elsewhere
 var _bot_step := 0  # next token in it
 var _bot_wait := 1.0  # s before the next string starts
 var _bot_hold_t := 0.0  # holding right click while > 0
@@ -166,9 +185,12 @@ func _autotest_finish() -> void:
 	_quitting = true
 	for line: String in player.bot_log + _rhythm_log:
 		print(line)
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d moves=%s" % [
+	var paid: Dictionary = player.VOID_ELEMENT.improv_paid
+	print("[improv] %s" % (", ".join(paid.keys().map(func(k: String) -> String: return "%s=%d" % [k, paid[k]])) if not paid.is_empty() else "none"))
+	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d endings=%s moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
+		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_seen.size(), player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(),
+		",".join(player.endings_seen.keys()).replace(" ", "_"), ",".join(_bot_moves.keys())])
 	var n := maxi(_perf.frames, 1)
 	for line in _perf_log:
 		print(line)
@@ -239,7 +261,7 @@ func _drive_bot() -> void:
 	to.y = 0.0
 	var string: Array = BOT_STRINGS[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
-	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 else Vector3.ZERO
+	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not "line" in string else Vector3.ZERO
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
 		Input.action_press("awaken")
 	if _bot_step >= string.size():  # the string is done: let it (and any breaker) play out
@@ -271,14 +293,18 @@ func _drive_bot() -> void:
 		_reset_spots()
 		_reset_done = true
 		return  # (the next frame starts the string from there)
-	if _bot_step == 0 and (not idle or nd > 3.0):
-		return  # walk up first
+	if _bot_step == 0 and (not idle or (nd > 3.0 and not "line" in string)):
+		return  # walk up first (not to a "line": the dash takes him there)
 	if _bot_step == 0:
 		_bot_rhythm.clear()
+		player.bot_alt = "alt" in string
+	if string[_bot_step] in BOT_SETUP:  # (not a press: bot_alt / the line is set for the whole string)
+		_bot_step += 1
+		return
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
-		ready = left <= BOT_LEAD
+		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
 	if not ready or player.state == player.State.LEAP:
 		return
 	match string[_bot_step]:
@@ -308,6 +334,10 @@ func _dummies_settled() -> bool:
 
 ## The start of every string (BOT_SPOT): dummies home and still, the hero in front of the first one, facing it.
 func _reset_spots() -> void:
+	for d: Node in _homes:  # (back from a "line" string)
+		if is_instance_valid(d):
+			d.home = _homes[d]
+	_homes.clear()
 	for d: Node in main._dummies:
 		if is_instance_valid(d):
 			d.global_position = d.home
@@ -320,3 +350,13 @@ func _reset_spots() -> void:
 	player._face(target - player.global_position)
 	player.model.rotation.y = player._facing_yaw
 	player.bot_move = Vector3.ZERO
+	if "line" in BOT_STRINGS[_bot_string]:  # a column along his aim (homes too, or they stroll back)
+		var fwd := target - player.global_position
+		fwd.y = 0.0
+		for i in main._dummies.size():
+			var d: Node = main._dummies[i]
+			if is_instance_valid(d):
+				_homes[d] = d.home
+				d.home = player.global_position + fwd.normalized() * (BOT_LINE_FROM + i * BOT_LINE_GAP)
+				d.home.y = target.y
+				d.global_position = d.home

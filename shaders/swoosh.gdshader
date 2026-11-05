@@ -17,25 +17,29 @@ uniform float band = 0.0;
 uniform vec3 ink : source_color = vec3(0.04, 0.02, 0.06);
 uniform sampler2D noise : hint_default_white, filter_linear_mipmap, repeat_enable;
 
+// Round 33 (sleek): the arc is a clear-to-tinted gradient with one crisp light line on its outer edge and a
+// thin ink line past it, not an opaque fan. `body_alpha` is the fill's alpha at its fullest.
+uniform float body_alpha = 0.55;
+
 void fragment() {
 	// Fast start, slow finish (reads as a strong swing); the head runs past the end.
 	float head = pow(progress, 0.4) * 1.35;
 	float behind = head - UV.x;
 	float trail = smoothstep(-0.03, 0.02, behind) * (1.0 - smoothstep(0.0, trail_length, behind));
-	// The outer (blade) edge lasts longest; the inner body thins out down the trail.
-	float inner = 1.0 - trail * 1.15;
-	float body = smoothstep(inner, inner + 0.2, UV.y);
-	float rim = 1.0 - smoothstep(0.93, 1.0, UV.y);
+	// The outer (blade) edge lasts longest; the inner body thins out fast down the trail.
+	float inner = 0.35 + (1.0 - trail) * 0.6;
+	float body = smoothstep(inner, inner + 0.25, UV.y);
 	float n = texture(noise, vec2(UV.x * 3.0 - progress * 2.0, UV.y * 0.6)).r;
-	float m = trail * body * rim * mix(1.0, n * 1.6, 0.35) * 1.5;
-	float hot = smoothstep(0.72, 0.95, UV.y) * trail;
-	// Past 1.0 the environment's glow blooms the edge (white alone vanishes on the light floor).
-	vec3 c = mix(color.rgb, edge_color.rgb * 1.8, hot);
-	if (band > 0.0) {
-		float keep = smoothstep(band - 0.06, band, UV.y);
-		float line = keep * (1.0 - smoothstep(band, band + 0.07, UV.y));
-		c = mix(c, ink, line);
-		m = max(trail * keep * rim * 1.5, 0.0);
+	float line = smoothstep(0.88, 0.91, UV.y) * (1.0 - smoothstep(0.955, 0.97, UV.y));
+	float inkline = smoothstep(0.96, 0.975, UV.y) * (1.0 - smoothstep(0.99, 1.0, UV.y));
+	vec3 c = mix(color.rgb, edge_color.rgb * 1.3, line);
+	c = mix(c, ink, inkline);
+	float m = body * body_alpha * mix(1.0, n * 1.4, 0.3) * smoothstep(inner, 0.9, UV.y);
+	m = max(m, line);
+	m = max(m, inkline * 0.85);
+	m *= trail;
+	if (band > 0.0) {  // Awakened: no fill at all, only the lines
+		m = trail * max(line, inkline * 0.85);
 	}
 	ALBEDO = c;
 	ALPHA = clamp(m * color.a * (1.0 - smoothstep(0.6, 1.0, progress)), 0.0, 1.0);

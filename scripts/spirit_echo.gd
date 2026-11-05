@@ -4,10 +4,34 @@ extends Node3D
 ## hit, laid flat so its silhouette reads from the top-down camera, hitting
 ## each enemy in its arc once and leaving a swoosh. Spawned by player._cast
 ## for casts of kind "echo" (elements.CASTS).
+## Round 33 (sleek): a thin ink line round a see-through halftone fill (about FILL alpha) in the element's
+## palette (fx_palette: teal spirit, gold Awakened), not a 60% slab under an additive rim. It sweeps in
+## `time` and is gone FADE_OUT later.
 
 const FADE_IN := 0.04
-const FADE_OUT := 0.14
+const FADE_OUT := 0.06  # (round 33, sleek: 0.14; sleek 5: 0.1 hung it into L3's wind-up)
+## Round 33, sleek 5: the ghost blade is drawn to VISUAL_REACH of `radius` (the hit reach, unchanged: _hit_swept
+## still reads `radius`, and the swoosh's thin line still marks it). The full-reach 3-3.5 m blade on L2 covered
+## about a third of the middle of the frame, over his own swing.
+const VISUAL_REACH := 0.7
 const HEIGHT := 1.0  # sweep height above the floor
+const PAL := preload("res://scripts/fx_palette.gd")
+const FILL_SHADER := preload("res://shaders/ghost_halftone.gdshader")
+const INK_SHADER := preload("res://shaders/ghost_ink.gdshader")
+const FILL := 0.3  # mean alpha of the halftone fill (the slab was 0.6 solid)
+const INK_PX := 3.2  # px at 1080p, the ink line's outer edge (ink alone vanished on the indigo floor)
+const EDGE_PX := 1.7  # px at 1080p: a crisp light-tone line inside the ink, so the edge reads on the floor
+## Round 33, part 3: the fill fades along the haft toward the hand (axe-local Y: the KayKit 1H_Axe's grip end is
+## at -0.27, the blade starts about 0.22), so the 3 m ghost reads as a blade sweeping, not a teal slab.
+## ghost_halftone `local_fade`: clear at x, full from y (the blade's middle). The ink line keeps 45% down the haft.
+## (-0.2, 0.32) faded only the grip and read the same as no fade at the game camera.
+## Round 33, part 3: per-palette fill tones where body + light at FILL sank into the indigo floor. Earth's orange
+## body tint between the dots read as brown on indigo at 0.3 alpha (a light body under hot dots read as khaki);
+## clean dots only (`base` 0.04, the share of the fill between the dots) at 0.42 read as printed orange.
+## Unlisted palettes: body under light dots at FILL.
+const GHOST_TONES := {"earth": {"body": "body", "dot": "light", "fill": 0.42, "base": 0.04},
+	"water": {"body": "body", "dot": "light", "fill": 0.4, "base": 0.12}}
+const HAFT_FADE := Vector2(0.1, 0.6)
 
 var axe_mesh: Mesh
 var color := Color(0.3, 0.95, 0.85)
@@ -22,7 +46,7 @@ var on_hit := Callable()
 var el := "spirit"  # element of the hit debris (Fx.element_hit)
 
 var _pivot: Node3D
-var _mat: StandardMaterial3D
+var _axe: MeshInstance3D
 var _hit: Array[Node] = []
 var _scale := 1.0
 
@@ -33,13 +57,13 @@ func _ready() -> void:
 	_pivot.position.y = HEIGHT
 	add_child(_pivot)
 	var axe := ghost(axe_mesh, color)
-	_mat = axe.material_override
-	var rim: ShaderMaterial = axe.material_overlay
+	axe.set_instance_shader_parameter("local_fade", HAFT_FADE)
+	_axe = axe
 	# Axe-local: handle +Y, blade toward -X, thin in Z. Lay it flat: handle points
 	# out from the hero (+Z), blade leads the sweep, flat side faces the camera.
 	var side := -1.0 if flip else 1.0
 	var basis := Basis(Vector3(-side, 0, 0), Vector3(0, 0, 1), Vector3(0, side, 0))
-	_scale = maxf(radius - 0.4, 0.5) / 0.95  # blade tip lands on the arc's edge
+	_scale = maxf(radius * VISUAL_REACH - 0.4, 0.5) / 0.95  # blade tip at VISUAL_REACH of the arc's edge
 	axe.transform = Transform3D(basis.scaled(Vector3.ONE * _scale), Vector3(0, 0, 0.4))
 	_pivot.add_child(axe)
 	pose(0.0)
@@ -47,29 +71,65 @@ func _ready() -> void:
 	tw.tween_interval(delay)
 	tw.tween_callback(_start)
 	tw.tween_method(pose, 0.0, 1.0, time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_mat, "albedo_color:a", 0.0, FADE_OUT)
-	tw.parallel().tween_property(rim, "shader_parameter/intensity", 0.0, FADE_OUT)
+	tw.tween_method(set_alpha.bind(_axe), 1.0, 0.0, FADE_OUT)
 	tw.tween_callback(queue_free)
 
 
-## A spectral copy of `mesh`: translucent unshaded body (starts invisible:
-## tween material_override's albedo alpha) with a bright rim overlay.
+static var _mats := {}  # palette name -> the shared ghost material chain
+
+
+## A spectral copy of `mesh` in the palette nearest `c` (ghost_mat). Starts invisible: set_alpha() fades it.
 static func ghost(mesh: Mesh, c: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var body := Color.from_hsv(c.h, 0.85, 0.85)
-	mat.albedo_color = Color(body, 0.0)
-	mi.material_override = mat
-	var rim: ShaderMaterial = Fx.rim_material().duplicate()
-	rim.set_shader_parameter("glow_color", c.lerp(Color.WHITE, 0.5))
-	rim.set_shader_parameter("intensity", 2.0)
-	mi.material_overlay = rim
+	mi.material_override = ghost_mat(c)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	set_alpha(0.0, mi)
 	return mi
+
+
+## The see-through comic look in the palette nearest `c`, shared: a depth-only pass, the halftone fill
+## (ghost_halftone.gdshader), the ink line and a light line inside it (ghost_ink.gdshader), chained as next
+## passes so the lines only show past the silhouette. The fade (set_alpha) and the height gradient
+## (`fade_height`) are instance parameters, so every ghost, spike and column of a palette shares these.
+static func ghost_mat(c: Color) -> Material:
+	var key := PAL.nearest(c)
+	if _mats.has(key):
+		return _mats[key]
+	var pal := PAL.of(key)
+	var depth := ShaderMaterial.new()
+	depth.shader = FILL_SHADER
+	depth.set_shader_parameter("depth_only", true)
+	depth.render_priority = 0
+	var fill := ShaderMaterial.new()
+	fill.shader = FILL_SHADER
+	var tones: Dictionary = GHOST_TONES.get(key, {})
+	fill.set_shader_parameter("body_color", pal[tones.get("body", "body")])
+	fill.set_shader_parameter("dot_color", pal[tones.get("dot", "light")])
+	fill.set_shader_parameter("fill", tones.get("fill", FILL))
+	if tones.has("base"):
+		fill.set_shader_parameter("base", tones.base)
+	fill.render_priority = 1
+	var ink := ShaderMaterial.new()
+	ink.shader = INK_SHADER
+	ink.set_shader_parameter("ink_color", pal.ink)
+	ink.set_shader_parameter("width_px", INK_PX)
+	ink.render_priority = 2
+	var edge := ShaderMaterial.new()  # same hull, narrower, drawn over the ink's inner half
+	edge.shader = INK_SHADER
+	edge.set_shader_parameter("ink_color", pal.light)
+	edge.set_shader_parameter("width_px", EDGE_PX)
+	edge.render_priority = 3
+	depth.next_pass = fill
+	fill.next_pass = ink
+	ink.next_pass = edge
+	_mats[key] = depth
+	return depth
+
+
+## A ghost's fade, 0..1 (fill and lines together).
+static func set_alpha(a: float, mi: GeometryInstance3D) -> void:
+	mi.set_instance_shader_parameter("alpha", a)
 
 
 ## One foe struck by a spirit cast: the hit, the combo counter, element debris
@@ -89,14 +149,15 @@ func pose(t: float) -> void:
 	var side := -1.0 if flip else 1.0
 	_pivot.rotation.y = lerpf(-half, half, t) * side
 	_pivot.scale = Vector3.ONE * lerpf(0.75, 1.0, minf(t * 3.0, 1.0))  # swells as it comes through
-	if _mat != null and t > 0.0:
-		_mat.albedo_color.a = minf(t / (FADE_IN / time), 1.0) * 0.6
+	if _axe != null and t > 0.0:
+		set_alpha(minf(t / (FADE_IN / time), 1.0), _axe)
 	if t > 0.0 and is_inside_tree():
 		_hit_swept(_pivot.rotation.y)
 
 
 func _start() -> void:
-	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT)
+	# Lines only at the real reach: the ghost blade is the body, and a 3.9 m teal crescent under it was the fan.
+	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT, true)
 
 
 ## Enemies within reach whose bearing the blade has passed are hit once.

@@ -20,8 +20,10 @@ tentacle move that follows. The element moves (`void_element.gd`) are not spirit
 - `scripts/elements.gd` `CASTS`: the per-move tuning (kind, damage, sizes, timing). `LOOK.spirit` is the palette.
 - `scripts/player.gd`: `_cast(fwd)` (once per move, on its first hit), `_spirit()` (the common
   setup: axe mesh, colour, element, damage), `_cast_grow()` / `_cast_power()`, `_axe_mesh()`.
-- `scripts/spirit_echo.gd`: the echo, plus the shared `ghost(mesh, color)` (translucent unshaded
-  body, rim overlay) and `strike()` (hit, register, element debris, `on_hit`).
+- `scripts/spirit_echo.gd`: the echo, plus the shared `ghost(mesh, color)` / `ghost_mat(color)` (round 33
+  sleek: a ~0.3 alpha halftone fill in the palette nearest the colour, teal spirit or gold Awakened, inside a
+  thin ink line with a light edge; `shaders/ghost_halftone.gdshader` + `ghost_ink.gdshader`, `set_alpha()`;
+  see comic-style.md "Sleek effects") and `strike()` (hit, register, element debris, `on_hit`).
 - `scripts/claw_lash.gd`: Dash Stab's lash (draws one `void_tendril` from his claw, `void_grab._hand_pos()`, to the tip; hits through `spirit_echo.strike()`).
 
 ## How it works

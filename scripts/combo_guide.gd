@@ -28,7 +28,12 @@ const EDGE := 330.0  # flip to the hero's left this close to the right edge (and
 const PILE_RADIUS := 6.0  # m: foes this near him count for which side the pile is on
 const PILE_SLACK := 30.0  # px the pile's middle must be off his to move the rows
 const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
-const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.74)
+const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.5)  # (round 33, part 3: 0.74 under the halftone)
+## Round 33, part 3 (sleek HUD, hud_ink.gd): each row's backing is a see-through pill with halftone dots in the
+## row's colour, densest at its key and fading across, inside a thin line in that colour, not a solid dark slab.
+const ROW_DOTS := 0.28  # alpha of the backing's dots
+const ROW_LINE := 0.55  # alpha of its line
+const HUD_INK := preload("res://scripts/hud_ink.gd")
 ## Button text: mouse and keyboard, the one control set shown in the game.
 const LABELS := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
 const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash"}
@@ -152,7 +157,7 @@ func _draw() -> void:
 		_draw_row(i, row, _row_pos(i) + Vector2(-_side * 14.0 * (1.0 - k), 0.0), _vis * k, usable, win.progress)
 	for f: Array in _flashes:
 		var a: float = f[2] / FLASH_TIME
-		draw_arc(_anchor + f[0], GLYPH_H * (0.6 + a * 0.9), 0.0, TAU, 40, Color(f[1], 1.0 - a), 3.0 * (1.0 - a) + 1.0, true)
+		draw_arc(_anchor + f[0], GLYPH_H * (0.6 + a * 0.9), 0.0, TAU, 40, Color(f[1], 1.0 - a), 2.0 * (1.0 - a) + 1.0, true)
 
 
 ## Left (right when flipped) middle of row `i`, relative to the anchor.
@@ -212,7 +217,9 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 	var base := _anchor + Vector2(x0, pos.y)
 
 	# Backing pill; a press flashes it.
-	_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(BACK_COLOR, BACK_COLOR.a * alpha))
+	var back := Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H))
+	_pill(back, Color(BACK_COLOR, BACK_COLOR.a * alpha), Color(col, ROW_LINE * alpha), 1)
+	HUD_INK.dots(self, back, Color(col, ROW_DOTS * alpha * lit), _side > 0.0)
 	if pressed > 0.0:
 		_pill(Rect2(base + Vector2(0.0, -ROW_H * 0.5), Vector2(width, ROW_H)), Color(col, 0.45 * pressed * alpha))
 
@@ -276,7 +283,7 @@ func _pill(r: Rect2, fill: Color, border := Color.TRANSPARENT, border_w := 0) ->
 ## Text with its left edge at `at.x`, vertically centred on `at.y`.
 func _text(at: Vector2, s: String, size: int, c: Color) -> void:
 	var p := Vector2(at.x, at.y + size * 0.36)
-	draw_string_outline(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, maxi(3, size / 5), Color(0.04, 0.02, 0.06, c.a))
+	draw_string_outline(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, HUD_INK.outline(size), Color(HUD_INK.INK, c.a))
 	draw_string(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, c)
 
 

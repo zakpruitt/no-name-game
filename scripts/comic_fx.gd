@@ -6,6 +6,10 @@ extends CanvasLayer
 ## Sits under the HUD (layer 0) so words never cover health or the combo count.
 ## The static calls do nothing when no instance exists, i.e. with the flag off.
 
+const STANDING := preload("res://scripts/standing_fx.gd")
+const COMIC_DUST := preload("res://scripts/comic_dust.gd")
+const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const FONT_PATH := "res://assets/fonts/Bangers-Regular.ttf"
 const FONT_SIZE := 96  # rendered big and scaled down, so one size serves every tier
 const INK := Color(0.012, 0.01, 0.02)
@@ -21,8 +25,11 @@ const WORDS := [
 	["KRAKOOM!", "SHIIING!", "SKRAAK!"],
 	["THOOOM!", "VRRRSH!", "RRAAAH!"],
 ]
-const WORD_SCALE := [0.42, 0.52, 0.66, 0.84]
-const WORD_FRAMES := 20
+## Round 33 (sleek; Zak: "sleeker and more put together"): words a quarter smaller with an ink line half as
+## thick and a tighter print offset, and gone in 14 frames (0.58 s) instead of 20 (0.83 s).
+const WORD_SCALE := [0.32, 0.4, 0.5, 0.64]
+const WORD_FRAMES := 14
+const OUTLINE_DIV := 9  # FONT_SIZE / this: the ink line (was / 4)
 const POOL := 6
 # Words can't stack into noise on a crowd: at most one per gap.
 const WORD_GAP_MS := 110
@@ -40,12 +47,28 @@ const MOVE_WORDS := {
 	"EF": "THUNK!", "EA": "KLONK!", "IP": "SHKKT!", "IS": "KRRSSH!",  # water
 	"EM": "KA-POW!", "EV": "GLORP!",  # earth
 	"VS": "VWOOM!", "VR": "SHUNK!", "VD": "SPLOOSH!", "OW": "SKRONCH!", "TW": "YOINK!",  # dark
+	"XR": "KRUNCH!", "XF": "SKRRRAK!", "XS": "PSSHHHH!", "XT": "ZZWANNG!",  # crossovers (round 37)
+	"XG": "WHIRRRL!", "XM": "SIZZ-BLAM!", "XK": "KSHUNK!", "XW": "FWHOOOM!",  # three-element strings (round 37, second pass)
 }
 const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
+	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
+	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
 }
-const BREAKER_SCALE := 1.0
+const BREAKER_SCALE := 0.78
+## The element matrix's payoffs (void_element.IMPROV; comic_improv.gd draws each cell's tell), by cell: said over the
+## move's own word (ComicFx.improv), since the payoff is the news.
+const IMPROV_WORDS := {
+	"frozen_x_wind": "FWISSH!", "frozen_x_void": "SHA-KRAK!",
+	"buried_x_water": "KRRIK!", "buried_x_earth": "BA-DOOM!", "buried_x_void": "GULP!",
+	"molten_x_wind": "FWAAASH!", "molten_x_water": "HSSSSK!", "molten_x_earth": "FWUMP!", "molten_x_void": "SMOOSH!",
+	"skewered_x_water": "KRIK-KRIK!", "skewered_x_void": "RRRIP!",
+	"airborne_x_water": "FRZZK!", "airborne_x_earth": "KA-CHUNK!",
+	"bound_x_wind": "SNAPP!", "bound_x_water": "KLINNK!",
+}
+const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
+const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
 ## captions): round the contact point, in the clearest of these directions (degrees off the way from
 ## the hero to the hit), on the near ring unless it is covered.
@@ -78,12 +101,30 @@ var _hit_ms := -100000
 ## One word on the page at a time (item 2): a new word replaces the live one. Off in the look tests' lineups.
 var replace := true
 var _breakers_seen := 0
+var _improv_ms := -100000
+
+
+## An element-matrix payoff (comic_improv.gd) on the foe at `world`: its cell's word, once a move however many pay.
+static func improv(cell: String, world: Vector3) -> void:
+	if _inst == null or not IMPROV_WORDS.has(cell):
+		return
+	var now := Time.get_ticks_msec()
+	if now - _inst._improv_ms <= SAME_FRAME_MS:
+		return
+	_inst._improv_ms = now
+	_inst._say(IMPROV_WORDS[cell], world, IMPROV_SCALE)
 
 
 ## A hit landed at `world`.
 static func hit(world: Vector3, big: bool) -> void:
 	if _inst != null:
 		_inst._word(world, mini(Fx.chain_tier(Game.combo_count) + (1 if big else 0), WORDS.size() - 1))
+
+
+## A word of an effect's own at `world` (Meteor Fall's pile-up), `base` its scale (WORD_SCALE / BREAKER_SCALE).
+static func say(text: String, world: Vector3, base: float) -> void:
+	if _inst != null:
+		_inst._say(text, world, base)
 
 
 ## Word size over its life in frames: pops past full size, settles, swells as it goes.
@@ -122,11 +163,11 @@ func _make_label() -> Label:
 	l.add_theme_font_size_override("font_size", FONT_SIZE)
 	l.add_theme_color_override("font_color", WORD_HIGH)
 	l.add_theme_color_override("font_outline_color", INK)
-	l.add_theme_constant_override("outline_size", FONT_SIZE / 4)
+	l.add_theme_constant_override("outline_size", FONT_SIZE / OUTLINE_DIV)
 	# The print-offset second colour: a hard red shadow, inked too.
 	l.add_theme_color_override("font_shadow_color", WORD_LOW)
-	l.add_theme_constant_override("shadow_offset_x", FONT_SIZE / 24)
-	l.add_theme_constant_override("shadow_offset_y", FONT_SIZE / 16)
+	l.add_theme_constant_override("shadow_offset_x", FONT_SIZE / 32)
+	l.add_theme_constant_override("shadow_offset_y", FONT_SIZE / 24)
 	l.add_theme_constant_override("shadow_outline_size", 0)
 	add_child(l)
 	return l
@@ -154,6 +195,7 @@ func _word(world: Vector3, tier: int) -> void:
 ## Puts word `i` up at `base` scale, in empty space near the hero on the way to `world`.
 func _show(i: int, world: Vector3, base: float) -> void:
 	var l := _words[i]
+	l.add_theme_constant_override("outline_size", PAL.text_ink(base))  # the hit's ink weight, at any tier
 	var reduced := Game.reduce_flashing
 	if replace:
 		for k in POOL:
@@ -277,12 +319,15 @@ func _watch_hero() -> void:
 	var hero := get_tree().get_first_node_in_group("player")
 	if hero == null or not "_move_id" in hero:
 		return
+	STANDING.watch(hero)  # the last string's floor fades on this one's first hit
+	COMIC_DUST.watch(hero)  # a puff (and skid marks) on his run start, skid and dodge
+	CALLOUT_CAP.watch(hero)  # the combo / breaker name over him fades on real time, and on the next string
 	var id: String = hero._move_id
 	if hero._hits_done == 0:
 		_move_seen = ""
 	elif id != _move_seen:
 		_move_seen = id
-		if MOVE_WORDS.has(id):
+		if MOVE_WORDS.has(id) and Time.get_ticks_msec() - _improv_ms > IMPROV_HOLD_MS:
 			var tier: int = hero.COMBOS[id].tier if hero.COMBOS.has(id) else 1
 			tier = mini(tier + (1 if Fx.chain_tier(Game.combo_count) >= 2 else 0), WORD_SCALE.size() - 1)
 			var at: Vector3 = _hit_world if Time.get_ticks_msec() - _hit_ms <= HIT_FRESH_MS else hero.global_position + hero._facing() * 1.4

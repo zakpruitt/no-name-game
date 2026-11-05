@@ -16,6 +16,9 @@ const BY_ROLE := {
 	"dodge": ["Dodge_Backward"],
 	"shield": ["Block_Hit", "1H_Melee_Attack_Chop"],
 }
+## Played only where the model has them (enemy._play_locomotion checks has_animation): the fast foes.
+const RUN_ONESHOTS := ["Run_Start", "Run_Stop"]
+const RUN_ONESHOT_KINDS := ["rogue", "minion"]
 const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
 const TIP_ON_FLOOR := 0.2  # m either way, a dragged blade's tip
 const AXE_AHEAD_MAX := 0.45  # m in front of him, axe head, in anything he holds
@@ -533,7 +536,16 @@ func _check_fx(game: Node) -> void:
 
 ## Every clip name the scripts ask for must be classified above.
 func _scan_sources() -> void:
-	var known: Array = COMMON + BOSS_ONLY + ["Running_A", "Running_C", "Walking_D_Skeletons"]
+	var known: Array = COMMON + BOSS_ONLY + RUN_ONESHOTS + ["Running_A", "Running_C", "Walking_D_Skeletons"]
+	for kind: String in RUN_ONESHOT_KINDS:
+		var scene: PackedScene = Look.scene(kind)
+		if scene == null:
+			continue
+		var m: Node = scene.instantiate()
+		var ap: AnimationPlayer = m.find_child("AnimationPlayer", true, false)
+		for c: String in RUN_ONESHOTS:
+			_expect(ap != null and ap.has_animation(c), "%s has %s" % [kind, c])
+		m.free()
 	for clips: Array in BY_ROLE.values():
 		known += clips
 	var re := RegEx.create_from_string("(?:_play|_hold_clip|get_animation)\\(\"([A-Za-z0-9_]+)\"")

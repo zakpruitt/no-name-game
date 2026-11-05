@@ -7,7 +7,6 @@ extends SceneTree
 ## checks the round-28 heretic instead, its pictures in user://heretic_shots/.
 
 var DIR := "user://heretic_shots"
-const GAME_VIEW := Vector3(0.0, 13.0, 9.5)  # camera_rig.offset
 const CLOSE := Vector3(0.0, 1.5, 4.2)
 const TURN := -0.55  # rad: towards the camera, his right side (the tentacle) showing
 const STRIP_STEP := 0.02  # s of the change between frames
@@ -28,6 +27,8 @@ var _main: Node
 var _cam: Camera3D
 var _fails := 0
 var _headless := false
+var game_view := Vector3.ZERO  # camera_rig.rest_view(): the game camera's offset now (round 28's was (0, 13, 9.5))
+var game_fov := 0.0
 
 
 ## The change itself, one exact STRIP_STEP at a time (a timer can't sample it: one slow frame
@@ -43,7 +44,7 @@ func _strip(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 			anim.pause()
 			await create_timer(0.1).timeout
 			var at := skel.global_transform * skel.get_bone_global_pose(hand).origin
-			var off := Vector3(-0.3, 0.9, 3.0) if view == "close" else GAME_VIEW
+			var off := Vector3(-0.3, 0.9, 3.0) if view == "close" else game_view
 			_cam.look_at_from_position(at + off, at, Vector3.UP)
 			Engine.time_scale = 0.02
 			skel.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
@@ -71,11 +72,17 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 			tag = a.get_slice("=", 1)
 	var only := ""
 	var near := 1.0  # --clips-near=0.4: the game camera's angle from closer, to check a pose
+	var clip_step := 0.0
+	var max_shots := 16
 	for a: String in OS.get_cmdline_user_args():
+		if a.begins_with("--clips-max="):  # shots per clip (16: a whole attack at 12 a second)
+			max_shots = int(a.get_slice("=", 1))
 		if a.begins_with("--clips-only="):
 			only = a.get_slice("=", 1)
 		if a.begins_with("--clips-near="):
 			near = float(a.get_slice("=", 1))
+		if a.begins_with("--clips-step="):  # s of clip time between shots (1/30: every frame of a run)
+			clip_step = float(a.get_slice("=", 1))
 	var out := "%s/clips_%s" % [DIR, tag]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 	var index := FileAccess.open(out + "/INDEX.txt", FileAccess.WRITE)
@@ -83,7 +90,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 	var real_step := 1.0 / 12.0
 	for c: Array in CLIP_SET:
 		var clip: String = c[0]
-		if only != "" and clip != only:
+		if only != "" and clip not in only.split(","):
 			continue
 		var id: String = c[1]
 		var speed: float = p.anim_speed if id != "" else 1.1
@@ -103,9 +110,9 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 		await create_timer(0.35).timeout
 		var times: Array[float] = []
 		var t := 0.0
-		while t <= end + 0.001 and times.size() < 16:
+		while t <= end + 0.001 and times.size() < max_shots:
 			times.append(t)
-			t += real_step * speed
+			t += clip_step if clip_step > 0.0 else real_step * speed
 		if hit >= 0.0 and not times.has(hit):
 			times.append(hit)
 			times.sort()
@@ -113,7 +120,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 			anim.seek(times[i], true)
 			await create_timer(0.12).timeout
 			var at := p.global_position + Vector3(0.0, 0.5, 0.0)
-			_cam.look_at_from_position(at + GAME_VIEW * near, at, Vector3.UP)
+			_cam.look_at_from_position(at + game_view * near, at, Vector3.UP)
 			await process_frame
 			await RenderingServer.frame_post_draw
 			var img := get_root().get_texture().get_image()
@@ -160,7 +167,9 @@ const CLIP_SET := [
 	["Ab_H", "VR", "hand"], ["Ab_LLH", "EF", "spear"], ["Ab_AF", "EM", "hand"],
 	["Idle", "", "hand"], ["Idle_Ready", "", "hand"], ["Run_F", "", "hand"], ["Strafe_L", "", "hand"],
 	["Hit_A", "", "hand"], ["Dodge_Forward", "", "hand"], ["Run_B", "", "hand"], ["Strafe_R", "", "hand"],
-	["Jump_Start", "", "hand"], ["Jump_Idle", "", "hand"],
+	["Jump_Start", "", "hand"], ["Jump_Idle", "", "hand"], ["Run_Start", "", "hand"], ["Run_Stop", "", "hand"],
+	["Run_Start_B", "", "hand"], ["Run_Start_L", "", "hand"], ["Run_Start_R", "", "hand"], ["Run_Stop_B", "", "hand"],
+	["Run_Stop_L", "", "hand"], ["Run_Stop_R", "", "hand"], ["Run_Stop_Ready", "", "hand"], ["Run_Stop_L_Ready", "", "hand"],
 ]
 
 
@@ -173,6 +182,9 @@ func _check(ok: bool, what: String) -> void:
 func _initialize() -> void:
 	_headless = DisplayServer.get_name() == "headless"
 	await process_frame
+	var cam_rest: Dictionary = load("res://scripts/camera_rig.gd").rest_view(OS.get_cmdline_user_args())
+	game_view = cam_rest.offset
+	game_fov = cam_rest.fov
 	_game = get_root().get_node("Game")
 	if _game.hero_model != "heretic":
 		DIR += "_" + _game.hero_model
@@ -295,12 +307,22 @@ func _initialize() -> void:
 		"the keyed model's Idle keys the claws")
 	if _game.hero_model == "chibi":
 		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the chibi has glowing eyes")
-		var cam := Vector3(0.0, 13.0, 9.5)
+		var cam := game_view
 		var eye := Vector3(0.0, 1.25, 0.13)
 		_check(rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05)]), 0.07), "an eye goes behind the claw in front of it")
 		_check(not rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05) + Vector3(0.4, 0.0, 0.0)]), 0.07)
 			and not rig._covered(cam, eye, PackedVector3Array([eye + Vector3(0.0, -0.3, -0.3)]), 0.07),
 			"but not behind a claw beside it or behind him")
+		_check(rig.grin != null and rig.grin.get_child_count() == 1, "the chibi grins under them")
+		p.state = p.State.HURT
+		await create_timer(0.25).timeout
+		await skel.skeleton_updated
+		var hurt_squint: float = rig.squint
+		p.state = p.State.MOVE
+		rig._blink_t = 0.0
+		await create_timer(0.3).timeout
+		await skel.skeleton_updated
+		_check(hurt_squint > 0.8 and rig.squint < 0.2, "eyes squeeze shut when hit, open after (%.2f, %.2f)" % [hurt_squint, rig.squint])
 
 	# skirt: at rest it holds; yank him sideways and it should lag behind
 	var sb := skel.find_bone("skirt.03.3")
@@ -325,13 +347,13 @@ func _initialize() -> void:
 
 	if not _headless and "--clips" in OS.get_cmdline_user_args():
 		_cam = Camera3D.new()
-		_cam.fov = 42.0
+		_cam.fov = game_fov
 		_main.add_child(_cam)
 		_cam.current = true
 		await _clips(p, arm, anim)
 	elif not _headless:
 		_cam = Camera3D.new()
-		_cam.fov = 42.0
+		_cam.fov = game_fov
 		_main.add_child(_cam)
 		_cam.current = true
 		p.model.rotation.y = TURN
@@ -345,7 +367,7 @@ func _initialize() -> void:
 			anim.pause()
 			await create_timer(0.3).timeout
 			for view: String in ["close", "game"]:
-				var off: Vector3 = CLOSE if view == "close" else GAME_VIEW
+				var off: Vector3 = CLOSE if view == "close" else game_view
 				var aim := p.global_position + Vector3(0.0, 1.05 if view == "close" else 0.5, 0.0)
 				_cam.look_at_from_position(p.global_position + off, aim, Vector3.UP)
 				await process_frame

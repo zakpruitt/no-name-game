@@ -5,17 +5,22 @@ extends Node3D
 ## Bangers, inked, with a red print-offset shadow like ComicFx's words; a big hit's number is larger,
 ## hot yellow with an orange outline inside the ink. It drifts away from the middle of the pile, on
 ## twos, and runs on real time like the words, so hitstop doesn't stall it.
+## A combo breaker's landing shows one total instead of a number per foe (round 33, sleek; feel audit
+## item 6: four equal numbers over four dummies read as clutter, not as one big blow): hits while the hero is
+## in his breaker leap open a breaker number over the middle of the pile, and any hit within BREAKER_BEAT_S
+## of its last add (the cubes and shoves that land a beat later) adds in, for up to BREAKER_SPAN_S.
 ##   ComicNumber.add(parent, foe.global_position, damage, big, foe)
 
 const SELF := preload("res://scripts/comic_number.gd")
 const FONT := preload("res://assets/fonts/Bangers-Regular.ttf")
+const PAL := preload("res://scripts/fx_palette.gd")
 const STEPS_PER_S := 12.0  # on twos
 const MERGE_S := 0.32  # a hit this soon after the last one adds in (over the 0.25 s burn ticks)
-const HOLD_S := 0.5  # up for this long after the last add
+const HOLD_S := 0.38  # up for this long after the last add (round 33, sleek: 0.5 stayed into the next beat)
 const FADE_STEPS := 2  # then shrinks away over these
 const POP := [1.5, 1.18]  # scale on the steps after an add, then 1
 const FONT_SIZE := 96
-const PIXEL := 0.0042  # m per font pixel: a 2-digit number about 0.4 m tall, 20 px at the game camera
+const PIXEL := 0.0036  # (round 33, sleek: was 0.0042) m per font pixel: a 2-digit number about 0.4 m tall, 20 px at the game camera
 const GROW_PER := 0.006  # more scale per point of the total
 const GROW_MAX := 1.35
 const BIG_SCALE := 1.2
@@ -26,6 +31,10 @@ const RISE := 0.45  # m/s
 const PILE_R := 3.0  # m: foes this close make the pile it leaves
 const DODGE_PAD_PX := 6.0  # clear of the combo-name callout, PERFECT, the words and the breaker prompt by this
 const DODGE_TRIES := 3
+const BREAKER_BEAT_S := 0.3  # real s: a hit this soon after the breaker total's last add goes into it
+const BREAKER_SPAN_S := 1.0  # real s: the breaker total takes hits for at most this long
+const BREAKER_SCALE := 1.15  # the total is bigger again than a big hit's number (on top of BIG_SCALE)
+const OUTLINE_PX := 12  # round 33 (sleek): the ink line, at FONT_SIZE 96 (26 was a thick slab)
 const INK := Color(0.012, 0.01, 0.02)
 const PAPER := Color(1.0, 0.96, 0.84)
 const PRINT := Color(0.9, 0.12, 0.04)  # the offset shadow (ComicFx.WORD_LOW)
@@ -33,9 +42,11 @@ const HOT := Color(1.0, 0.45, 0.05)
 const HOT_CORE := Color(1.0, 0.86, 0.12)
 
 static var _live := {}  # foe instance id -> number
+static var _breaker: Node3D = null  # the breaker landing's one total, while it takes hits
 
 var total := 0.0
 var big := false
+var breaker := false  # the one total of a breaker's landing (BREAKER_*)
 var _key := 0
 var _since_add := 0.0
 var _t := 0.0
@@ -52,6 +63,16 @@ var _last_us := 0
 
 ## A hit of `amount` on `foe` (null: no merging). Returns the number it went into.
 static func add(parent: Node, pos: Vector3, amount: float, is_big: bool, foe: Object = null) -> Node3D:
+	if is_instance_valid(_breaker) and _breaker._since_add < BREAKER_BEAT_S and _breaker._t < BREAKER_SPAN_S:
+		_breaker.add_hit(amount, true)
+		return _breaker
+	if parent.is_inside_tree() and breaker_landing(parent.get_tree()):
+		var b: Node3D = SELF.new()
+		b.breaker = true
+		parent.add_child(b)
+		b.setup(b._pile_middle(pos), amount, true, 0)
+		_breaker = b
+		return b
 	var key := foe.get_instance_id() if foe != null else 0
 	if key != 0 and _live.has(key):
 		var n: Node3D = _live[key]
@@ -71,9 +92,9 @@ func setup(pos: Vector3, amount: float, is_big: bool, key: int) -> void:
 	_key = key
 	_reduced = Game.reduce_flashing
 	_last_us = Time.get_ticks_usec()
-	_shadow = _make(PRINT, INK, 26, 0)
-	_shadow.offset = Vector2(5.0, -7.0)
-	_front = _make(PAPER, INK, 26, 2)
+	_shadow = _make(PRINT, INK, OUTLINE_PX, 0)
+	_shadow.offset = Vector2(3.0, -4.0)
+	_front = _make(PAPER, INK, OUTLINE_PX, 2)
 	_away = _away_from_pile(pos)
 	_base = pos + Vector3.UP * HEAD + _away * OUT
 	global_position = _base
@@ -96,6 +117,28 @@ func _make(fill: Color, outline: Color, outline_px: int, priority: int) -> Label
 	l.set_meta("no_ghost", true)
 	add_child(l)
 	return l
+
+
+## The hero is in a combo breaker (State.LEAP: the hang, the dive and the landing's hits).
+static func breaker_landing(tree: SceneTree) -> bool:
+	var hero := tree.get_first_node_in_group("player")
+	return hero != null and "state" in hero and hero.state == hero.State.LEAP
+
+
+## The middle of the foes within PILE_R of `pos` (`pos` itself when alone), at `pos`'s height.
+func _pile_middle(pos: Vector3) -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for e: Node3D in get_tree().get_nodes_in_group("enemies"):
+		var d := e.global_position - pos
+		d.y = 0.0
+		if d.length() < PILE_R:
+			sum += e.global_position
+			n += 1
+	if n == 0:
+		return pos
+	var mid := sum / n
+	return Vector3(mid.x, pos.y, mid.z)
 
 
 ## Which way, flat, is out of the pile round `pos`: from the middle of the foes near it.
@@ -132,10 +175,10 @@ func add_hit(amount: float, is_big: bool) -> void:
 	if big:
 		_front.modulate = HOT_CORE
 		_front.outline_modulate = HOT
-		_front.outline_size = 18
+		_front.outline_size = 8
 		_shadow.modulate = INK
-		_shadow.outline_size = 46
-		_shadow.offset = Vector2(3.0, -4.0)
+		_shadow.outline_size = 20
+		_shadow.offset = Vector2(2.0, -3.0)
 	_step = -1  # redraw now
 	_draw(_pop_from)
 
@@ -156,6 +199,8 @@ func tick(delta: float) -> void:
 	if step >= end_step + FADE_STEPS:
 		if _live.get(_key) == self:
 			_live.erase(_key)
+		if _breaker == self:
+			_breaker = null
 		queue_free()
 		return
 	if step != _step:
@@ -165,7 +210,11 @@ func tick(delta: float) -> void:
 func _draw(step: int) -> void:
 	_step = step
 	var s := float(step) / STEPS_PER_S
-	var size := minf(1.0 + total * GROW_PER, GROW_MAX) * (BIG_SCALE if big else 1.0)
+	var size := minf(1.0 + total * GROW_PER, GROW_MAX) * (BIG_SCALE if big else 1.0) * (BREAKER_SCALE if breaker else 1.0)
+	var ink := PAL.text_ink(PIXEL * PAL.PX_PER_M * size)  # the same on-screen ink as the words, whatever the total
+	if _front.outline_size != ink:
+		_front.outline_size = ink
+		_shadow.outline_size = ink
 	var since := step - _pop_from
 	if not _reduced and since >= 0 and since < POP.size():
 		size *= POP[since]

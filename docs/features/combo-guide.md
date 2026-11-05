@@ -20,6 +20,12 @@ Each row has three parts:
 - **The move that press starts.** The text takes the combo tier's colour from `player.COMBO_TIER_COLORS`. Moves that aren't named combos (L1, L2, AL1, IJ) are pale grey.
 - **The follow-up hint.** After a `>`, in smaller type: the best named combo one more press past that move, with its button.
 
+**The look** (round 33, part 3, sleek HUD; `scripts/hud_ink.gd`): each row sits on a see-through pill
+(`BACK_COLOR` at 0.5) with halftone dots in the row's colour, densest at its key and fading across
+(`ROW_DOTS`), inside a 1 px line in that colour (`ROW_LINE`), the effects' thin-ink and halftone language.
+Text keeps the plain font with a thin ink outline (`hud_ink.outline()`: size / 9, at least 3 px); the press
+ring is 1-3 px (was 1-4). The breaker prompt and the combo counter use the same helpers.
+
 **Timing feedback**
 - Before the current move's cancel point, the rows are dimmed (`lit` 0.78), and a ring around each main key fills as the move plays.
 - Once a press would be accepted, the rows go to full brightness and the keys pop and pulse. "Accepted" means the press falls inside `player.input_buffer` of the cancel point.
@@ -105,6 +111,7 @@ Routing rules in `void_route()`, checked in order:
 | `NAME_SIZE`, `NEXT_SIZE`, `KEY_SIZE` | Font sizes. |
 | `SIDE_GAP`, `CHEST`, `EDGE` | Where the rows sit next to the hero, and when they flip. |
 | `PLAIN_COLOR`, `BACK_COLOR` | Colours: plain moves, row backing. Key rims are `KEY_COLORS`. |
+| `ROW_DOTS`, `ROW_LINE` | Alpha of the backing's halftone dots and of its line, in the row's colour. |
 | `LABELS` | Button text. Only one control set (mouse and keyboard) is shown; the J/K/Shift and gamepad bindings in `Game` still work but appear nowhere in the UI. |
 | `lit` in `_draw_row` | Brightness of the rows before the cancel window (0.78). |
 | `player.input_buffer` | Also sets when the rows turn "ready". |
@@ -142,3 +149,21 @@ Routing rules in `void_route()`, checked in order:
 - Pause MOVES list: draws `scripts/move_list.gd` `SECTIONS`, every input grouped by weapon and element (weapons, storm, ice, magma, dark). Each named combo shows how often it was landed this run. The panel scrolls (wheel, Page Up / Down, right stick). When you add a move, add its row there: `tests/move_list_check.gd` walks every row's input through `void_route()`, and fails if a move or combo is unlisted, `void_route()` reaches a move with no row, or a listed input starts the wrong move.
 - Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Live Wire  (L H H)  ·  5 / 16 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
 - Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint. Still open in ROADMAP: a feel pass by hand on placement against the fight.
+
+## Round 34: crossovers
+
+The crossover strings (Rockslide, Fault Line, Steam Burst, Storm Pitch; `void-element.md`) are ordinary
+`LIGHT_AFTER` / `AFTER` routes, so the guide shows them with no guide code: off Air Slash the light row is now
+Rockslide (it was a plain Slice), off Ice Cube it is Steam Burst, off Tow Line it is Storm Pitch, and off
+Rockslide the heavy row is Fault Line with Cataclysm behind it. Black Ice is an `alt` ending, so it shows on the
+breaker prompt (both buttons and names), not in the guide.
+
+Second pass: the three-element strings are routes too. Off Ice Cube the heavy row is Hailstorm (it was the
+grab) and off Hailstorm the light row is Meltdown with Eruption behind it; off Tow Line the heavy row is Impale and
+off Impale the light row is Backdraft with Anvil behind it. With the frost spear standing, presses off Tow Line,
+Impale, Backdraft and Storm Pitch no longer turn into the vault (`VOID_ELEMENT.NO_VAULT`), so the guide's rows
+off them stay true while the spear is up.
+
+Third pass: the element matrix's payoffs aren't routes (they read a foe's state, `void_element.IMPROV`), so the guide
+doesn't show them; the pause MOVES panel has an IMPROVISING section, one text row per cell (`move_list.gd`), whose
+inputs name the state and the element ("frozen, then dark") and so never route.

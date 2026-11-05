@@ -1,7 +1,7 @@
 extends SceneTree
 ## Films every autotest bot string (training_bot.BOT_STRINGS: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
-##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather]
+##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ## Windowed only (headless draws nothing), about a minute. Frames are 800x450 (half the window); each grab stalls
@@ -11,6 +11,10 @@ extends SceneTree
 ## Contact sheets: tools are the caller's (PIL), the INDEX lines say what each frame shows.
 
 const DIR := "user://string_film"
+## `-- --dir=<name>`: film into user://<name> instead (user:// is shared by every worktree: two lanes filming at once
+## overwrote each other's frames).
+var _dir := DIR
+var _last := -1  # `-- --to=N`: the last BOT_STRINGS entry filmed (and no freeplay); -1 films them all
 const FPS := 12.0
 const FREEPLAY_S := 10.0
 const SIZE := Vector2i(800, 450)
@@ -45,7 +49,10 @@ func _initialize() -> void:
 	for flag in ["_hit_shot_taken", "_dash_shot_taken", "_guide_shot_taken", "_cast_shot_taken"]:
 		_bot.set(flag, true)
 	_bot._shots_taken = 99
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--dir="):
+			_dir = "user://" + arg.get_slice("=", 1)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_dir))
 	var strings: Array = _bot.BOT_STRINGS
 	var filming := 0
 	# Scattered, dazed dummies after a breaker made the next string whiff whole (L L L H after Grounded): by
@@ -53,6 +60,14 @@ func _initialize() -> void:
 	var gather := not "--no-gather" in OS.get_cmdline_user_args()
 	if gather:
 		_gather()
+	for arg: String in OS.get_cmdline_user_args():  # `-- --from=N`: start at BOT_STRINGS[N], the earlier ones count as filmed
+		if arg.begins_with("--to="):
+			_last = int(arg.get_slice("=", 1))
+		if arg.begins_with("--from="):
+			filming = clampi(int(arg.get_slice("=", 1)), 0, strings.size() - 1)
+			_bot._bot_string = filming
+			for i in filming:
+				_bot._bot_strings_done[i] = true
 	_t0 = Time.get_ticks_msec()
 	while _bot._bot_strings_done.size() < strings.size():
 		_bot._autotest_t = 0.0
@@ -60,6 +75,8 @@ func _initialize() -> void:
 		if _bot._bot_string != filming:  # the bot moved on: write the last string out
 			_flush(_name(strings[filming]))
 			filming = _bot._bot_string
+			if _last >= 0 and filming > _last:  # `-- --to=N`: stop after BOT_STRINGS[N]
+				break
 			_t0 = Time.get_ticks_msec()
 			_n = 0
 			if gather:
@@ -71,6 +88,10 @@ func _initialize() -> void:
 				get_nodes_in_group("enemies").map(func(e: Node3D) -> float: return snappedf(e.global_position.distance_to(_p.global_position), 0.1)))
 			break
 	_frames.clear()  # (the next string's first walk-up frames)
+	if _last >= 0:
+		print("[string_film] done (--to=%d) -> %s" % [_last, ProjectSettings.globalize_path(_dir)])
+		quit(0)
+		return
 	_t0 = Time.get_ticks_msec()
 	_n = 0
 	while Time.get_ticks_msec() - _t0 < FREEPLAY_S * 1000.0:
@@ -81,7 +102,7 @@ func _initialize() -> void:
 	for line: String in _bot._rhythm_log:
 		print(line)
 	print("[string_film] done strings=%d/%d breakers=%d moves=%s -> %s" % [_bot._bot_strings_done.size(), strings.size(),
-		_p.breakers_landed, ",".join(_bot._bot_moves.keys()), ProjectSettings.globalize_path(DIR)])
+		_p.breakers_landed, ",".join(_bot._bot_moves.keys()), ProjectSettings.globalize_path(_dir)])
 	quit(0)
 
 
@@ -130,7 +151,7 @@ func _grab() -> void:
 
 
 func _flush(film: String) -> void:
-	var dir := "%s/%s" % [DIR, film]
+	var dir := "%s/%s" % [_dir, film]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
 	var index := PackedStringArray(["%s at %d fps, %dx%d, game camera" % [film, int(FPS), SIZE.x, SIZE.y]])
 	for i in _frames.size():

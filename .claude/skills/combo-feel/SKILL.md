@@ -110,3 +110,81 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - Callers' push-ins (`ENDER_ZOOM`, `BREAKER_FOCUS_ZOOM`, punch values) are fractions tuned at 12.5 m; the rig scales them
   (`PUNCH_GAIN`) and the metre-sized kicks (`dist / REF_DIST`), so new camera calls pass round-32-sized numbers.
 - The fight framing reads `last_hit_ms` on `"enemies"`: a new foe type gets framed only if it sets that on a hit.
+- **Breaker beats get the pull-out for free in phase 3.** The rig reads `_brk_phase`: in `BEATS_PHASE` it frames
+  foes hit in 4 s within 22 m up to x2.0 (`HANG_FRAME_*`), and the dive (phase 1) comes back in under its punch. A
+  new breaker that throws foes between press and dive should run those beats in phase 3, not add camera calls.
+- **Size a throw against the cap, not the rest view.** At x2.0 the training room's both-walls throw still wants ~x3.5;
+  a beat that flings foes to opposite walls will put one at the edge. Throw them to one side (along `_brk_dir`) or
+  shorter if every splat must read.
+- Film the beats with `string_film -- --from=N` and read the `brk=3` frames; a probe printing `_frame` and the worst
+  foe NDC per frame (root `size` 1920x1080 headless) finds the cap and the ease long before a film does.
+
+## Crossover strings (round 34)
+- **Find the dead ends first.** A new route has to hang off a press that today only restarts the chain (L off AL1,
+  EA, TW, XR were all `L1`): walk `void_route()` for every move and list the continuations that land on `L1` / `GR`.
+  Off a breaker ender nothing else is reachable once it connects (the leap eats the press), so a long string ends in
+  a new breaker rather than passing through one.
+- **Make the payoff need the first element.** Read the state the first move leaves rather than routing on it
+  (`void_route` stays pure): Rockslide doubles on `is_airborne()` (the gale's lift), Steam Burst only explodes
+  `in_cube()` / `frozen_t` foes, Fault Line reads `void_grab.buried` (Rockslide's list), as Undertow reads `shoved`.
+- **A second ending is an `alt`.** Maw's L-in-the-window became Black Ice in one dict entry plus a branch, the way
+  Cold Front hangs off Worldbreaker; the bot plays it with an `"alt"` token (sets `player.bot_alt` for the string).
+- **Tentacle clip + `*_HIT` = comic_check for free.** A new `X*` move on Ab_VS / Ab_LH / Ab_AF / Ab_H with
+  `hits: [*_HIT]` and the clip's usual `cancel` / `end` offsets passes the contact-frame check with no new keys.
+- **A move that takes over a foe another move is flying:** `thrown_foe.launch()` refuses a foe with the FLYING meta.
+  `thrown_foe.cut(e)` ends the old flight (and the old node returns early on its last physics frame) first.
+- **Breakers with beats:** a sequence between press and dive is a new LEAP phase (Meteor Fall's phase 3); run the
+  press half (`_brk_ended`, cue, slowmo end) on the press so the prompt and `rhythm_check` see a normal dive.
+- **The training room is wider than the camera.** A 14 m throw "into the wall" from the middle left the frame and
+  read as the foes vanishing; 10 m kept them at the edge. Film it before trusting a throw distance.
+
+## Three-element strings and improvising (round 34, second pass)
+- **Dead ends for a long string:** heavy off EA and TW, light off IJ / EM / VR / XR / XT (and XG / XK before this
+  pass) went to `GR` / `L1`. A 7-9 press string is one crossover move per hand-over hung off those, ending in a new
+  breaker ender, since nothing passes through a breaker.
+- **The frost spear eats every press while it stands** (`vaults()`): a string that plants it and then routes on
+  (L L H, Dash H H L) needs its moves in `VOID_ELEMENT.NO_VAULT`, or H off Tow Line vaults.
+- **`enemy.freeze()` staggers**, which takes a foe out of AIRBORNE: ice on a foe you just launched is set by hand
+  (`freeze_aloft()`: `frozen_t`, `frozen_mult`, `cube_on`). A hit on ice queues the old cube's free, so `cube_on()`
+  sees it and adds none: rename the dying cube first.
+- **Void moves with `range` 0 still hit a foe inside his radius** (`_do_hit`'s `d > range + radius`): a 0-damage
+  touch that thaws a frozen foe standing on him before `fire()` reads it. Payoffs that read the ice should not
+  count on a foe at 0 m.
+- **The bot's Harpoon only reels in one dummy** (Dash Stab lunges into the fan), so a payoff "on every frozen foe"
+  must also take the one Ice Cube is bowling (`THROWN.cut` it) or the bot never connects and the breaker is missed
+  (`breakers=10/11`). Print the candidates' distance / airborne / frozen / flying once (`[dbg]`) before retuning.
+- **Improvise by state, not route:** a crossover marks its foes (`mark(e, "buried")`, metas with a real-time
+  expiry of `ELEMENT_HOLD`) and the paying element's base moves read the mark in `fire()` wrappers, so the round-1
+  bodies other lanes are editing stay untouched. Extra hits go before a move that throws (`THROWN.launch` refuses
+  a flying foe, and nothing may move one in flight).
+- **Shorten a hand-over with the second move's `speed`** (a named const, `XF_SPEED`): fractions keep the contact
+  frame and the breaker leap in sync; the bot's `[rhythm]` beats showed Rockslide -> Fault Line 454 -> 403 ms.
+- **The bot must not press before the move's first hit.** Pressed `BOT_LEAD` before a whiff-timed cancel while
+  Harpoon's hit was still to come, the hit's stop (real time) outlasted `BUFFER_MS` and the press was lost (EF went
+  to GR, Eruption never played). `training_bot` now waits for `_hits_done > 0` too; the beats didn't move.
+- **A payoff that reads "frozen" should take a cube in flight** (`THROWN.cut` it first): Steam Burst filtered out
+  flying foes, and in the bot's Dash L H H L the only cube is always still rolling when XS fires.
+
+## Element matrix and air timing (round 34, third pass)
+- **Fill a state x element table, not routes.** One `IMPROV` dict (state -> element -> payoff kind) read by one
+  `improvise()` at the top of `fire()` (the old body renamed `_fire()`) filled 15 cells without touching any move
+  body another lane was editing. Leave out the cells a move already pays itself, or the state pays twice, and
+  have the check assert `improvise()` returns 0 on those.
+- **Read every state before paying any.** A chain that marks the neighbour `molten` / `skewered` made it pay in the
+  same move and chain back (paid 2, "spent once" failed); collect `[foe, state]` first, then pay.
+- **A move's reach isn't "near him".** Tow Line takes whoever is on the dash he just made, often behind him: the
+  improvised payoff found nobody until it used `_tow_line()`'s set first.
+- **The foe's hit freeze eats a breaker's set-up.** Backdraft's pull-back knockback starts only after the foe's
+  `hit_freeze_big` (0.11 s) plus the move's hitstop, and Anvil leaps ~0.25 s after the hit: the foes hadn't moved.
+  Show the motion with the hold instead (`reel` in the breaker entry: seize lifts them part way to him).
+- **Air launches: dummies launch at 0.55.** `training_dummy.LAUNCH_SCALE` and `MAX_HEIGHT` 3 hide a real foe's
+  arc. Tune air timing on the real numbers (`enemy.launch_speed_for()` and `AIR_GRAVITY` / `HANG_*`), then check
+  the dummy still reads; Hailstorm 12 m/s was 5.3 m on a real foe and 1.7 m on a dummy.
+- **A column of dummies for line moves.** The dash and Dash Stab carry him ~5 m and pass through foes; a column that
+  starts at the usual 2 m ends up behind him and Harpoon reels nobody. The bot's `line` token starts it 5 m out.
+- **Hitstop vs hit-confirm split:** a move's `confirm` (fraction back to the hit) next to a lower `stop` shortened
+  Rockslide -> Fault Line by ~70 ms with the contact frame where it was; the moves that hand over to a crossover can
+  take it without touching `CANCEL_ON_HIT` for the weapon string.
+- **Flow audit numbers (bot beats):** the long ones were all slow clip wind-ups, not stops: Ab_AF (palm 467 ms),
+  Ab_LLH (327), Ab_VS in the air (278). `speed` is the cheap lever; keep recovery with a new `end` (`EM_END`).
+

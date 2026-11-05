@@ -12,7 +12,8 @@ it off.
 
 Which enders have breakers, and what each slam does, is the heretic's kit:
 `VOID_ELEMENT.BREAKERS`, described in [void-element.md](void-element.md) (Grounded, Worldbreaker /
-Cold Front, Avalanche, Meteor Fall, Collapse, Maw, Abyss). This doc is the shared machinery.
+Cold Front, Avalanche, Meteor Fall, Collapse, Maw, Abyss, and round 34's Cataclysm, Flash Freeze, Black Ice,
+Eruption and Anvil). This doc is the shared machinery.
 
 ### Movement in the strings
 
@@ -20,7 +21,8 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 - `hop` = [start, end, height]: an arc between those fractions of the move (L2, L3, EC, DL).
   A move started in the air comes down by its first hit (`land` overrides).
 - `air`: holds the height the move started at; `climb` adds metres by its first hit (AL1
-  climbs off Updraft Lash, IJ vaults 2.4 m onto the frost spear). The climb stops at `AIR_MAX_HEIGHT`.
+  climbs off Updraft Lash, IJ vaults 2.4 m onto the frost spear, XG Hailstorm climbs 2 m after the cubes and XM
+  Meltdown holds him up there for Eruption, which rises from that height: `_brk_y0`). The climb stops at `AIR_MAX_HEIGHT`.
 - Landing from a hop is a slam that grows with the fall (`land_slam()`, `SLAM_FULL_HEIGHT`,
   `SLAM_SCALE`); a move that starts in the air deals +`PLUNGE_PER_M` per metre (`plunge_mult()`).
 - Moves started in the air home in on the nearest airborne foe (`air_home()`, `AIR_HOME_RANGE`, `AIR_HOME_MAX`).
@@ -46,6 +48,9 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 - `scripts/breaker_cue.gd`: the floor cue: a target ring and a closing ring that meet at `sweet`; `lock()`, `hit(perfect)`.
 - `scripts/breaker_prompt.gd`: the timing circle up and to his left (the combo guide is on his right; `OFFSET`),
   filling to the sweet spot with the button(s) and the breaker's name; on the player's own CanvasLayer.
+  Round 33, part 3 (sleek HUD, `hud_ink.gd`): a see-through back disc (`BACK_ALPHA` 0.45) with halftone dots in
+  the breaker's colour round the key (`DOTS_ALPHA`), a 6 px track between 1.5 px ink lines, 2 px rings, and the
+  name in the words' font (Bangers, `NAME_SIZE` 18) with a thin ink outline.
 - `scripts/comic_comet.gd`: the inked dive streak and landing star (`beat()` from `hero_leap._comet()`; the comet hangs off the model as the `comic_comet` meta).
 - `scripts/breaker_quake.gd`: the barbaric look: `war_cry()` as the window opens, `crater()` on landing (not for
   `press` / `at_spot` breakers, which have their own), the element vents.
@@ -63,12 +68,23 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 5. The dive takes `dive` s; `_breaker_impact()` calls `VOID_ELEMENT.breaker_impact()` with what the tentacles hold,
    cracks the floor, shakes, adds `awaken` / `awaken_perfect`, names the breaker and ends the leap.
 6. No press by `close`: `_brk_ended = "miss"`, the held foes drop, he floats down over `fall` s.
+7. A breaker with `gather` (Meteor Fall, round 34) doesn't dive on the press: phase 3 (`_tick_beats`) hangs him
+   while `VOID_ELEMENT.meteor_wall()` throws them at the walls and then `meteor_gather()` drags them into a pile, and
+   only then `_dive()` takes him down onto it. The press part (`_brk_ended`, the cue, the slow motion ending, the
+   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive. The camera
+   pulls out through the beats on its own (camera_rig `HANG_FRAME_*`, `BEATS_PHASE`; docs/features/camera.md).
 
 ### Look
 
+The landing's damage is one number (round 33, sleek; feel audit item 6): hits while he is in State.LEAP open
+a breaker total over the middle of the pile (`comic_number.gd`, `BREAKER_SCALE` 1.15x a big number), and any
+hit within `BREAKER_BEAT_S` (0.3 s real) of its last add goes into it, for at most `BREAKER_SPAN_S` (1 s), so
+the thrown cubes and shoves that land a beat later add in. Check: `tests/fx_sleek_check.gd`.
+
 The breaker draws flat and inked: the cue is always `crisp` (a paper target ring that turns gold in the
 window and a closing ring in the breaker's colour, each between two ink bands, rebuilt every frame so
-the band keeps its width as it closes: `CRISP_TARGET_W` 0.12 m, `CRISP_CLOSING_W` 0.15, `CRISP_INK` 0.055; at
+the band keeps its width as it closes: `CRISP_TARGET_W` 0.06 m, `CRISP_CLOSING_W` 0.075, `CRISP_INK` 0.03
+since round 33's sleek pass (0.12 / 0.15 / 0.055 were the fattest shapes on a breaker's frames; at
 0.16 / 0.24 / 0.07 the closing ring was a fat green hoop over every Live Wire frame), the war cry is radial
 speed strokes round him and one thin inked hoop (`WAR_CRY_RING_W` 0.08 m)
 under him (no shell, no glow dots, no smoke), and the dive is `scripts/comic_comet.gd`: one fat streak back
@@ -106,12 +122,25 @@ so the autotest lands it.
 - `godot --headless --path . -s tests/void_arm_check.gd`: the breakers' timing, holds and slams (PASS/FAIL).
 - `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero.
 - `godot --headless --path . -- --autotest`: prints `[autotest] combo_breaker #N <id> perfect=` per breaker and
-  `breakers=N/N perfect_breakers=` on the done line. The bot resets the dummies to their homes and the hero to
+  `breakers=N/N perfect_breakers=` on the done line (round 34: N is distinct `BREAKERS` ids landed, so an `alt` ending
+  doesn't count twice; `endings=` names every ending landed, Black Ice included). The bot resets the dummies to their homes and the hero to
   `training_bot.BOT_SPOT` before each string and presses `BOT_LEAD` before each cancel point, so the run repeats
-  exactly; `agent.sh check` fails unless `breakers=7/7` and `strings=13/13`.
+  exactly; `agent.sh check` fails unless every breaker and string landed (`breakers=11/11`, `strings=22/22` after round 34's
+  third pass, which added the element matrix's three; `AUTOTEST_MAX` 80 s). A `"line"` token stands the dummies in a
+  column for that string (`BOT_LINE_FROM`, `BOT_LINE_GAP`); `[improv]` counts the matrix payoffs the bot reached.
 - Windowed: `godot --path . -s tests/breaker_prompt_preview.gd` → `user://breaker_prompt.png`; `tests/element_shots.gd`
   for each slam.
 
 ## Gotchas / open questions
 
 - Tuned headless and in stills; the window's length and the slam's weight still want a hand play-test.
+
+## Round 34, third pass: air timing and the hold's `reel`
+
+- A breaker entry with `reel` (Anvil) has `void_grab.seize()` lift each foe at a spot `reel` of the way from where it
+  stood to `ANVIL_REEL_GAP` in front of him, so phase 0's haul pulls them in. Use it when the move before the leap
+  throws foes the leap comes too soon to show (the foe's hit freeze eats the first ~0.1 s of any knockback).
+- Air strings: size a launch against the hero's height at the next hit, not the room. Hailstorm's 12 m/s flew a real
+  foe past him (training dummies launch at `LAUNCH_SCALE` 0.55 and stayed under him); 9 m/s puts it in its apex hang
+  at his ~2.5 m as Meltdown lands. Probe heights per physics frame (hero `global_position.y + model.position.y`,
+  each foe's y, flat distance, airborne, frozen) before judging the film.

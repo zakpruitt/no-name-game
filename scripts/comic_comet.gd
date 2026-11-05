@@ -14,7 +14,7 @@ const STEPS_PER_S := 12.0  # the wobble changes on twos; the head follows him ev
 const LANDED_AFTER := 0.06  # s without a beat: he's down
 const TAIL := 3.6  # m of streak behind him at most
 const MIN_TAIL := 2.8
-const WIDTH := 0.85  # m of the colour band at the head; ink and core scale from it
+const WIDTH := 0.6  # m of the colour band at the head (round 33, sleek: was 0.85 in an ink hull 1.6x); core scales from it, the ink is a thin line
 const HEAD_BACK := 0.4  # m behind him the head starts, so the streak doesn't paint over him
 const STAR := 1.05  # m, the landing star
 const STAR_HOLD := 3  # steps the landing frame holds
@@ -101,8 +101,8 @@ func _land() -> void:
 		var dir := Vector3.DOWN
 		if _pts.size() > 1:
 			dir = (at - _pts[0]).normalized()
-		COMIC_POP.spawn(get_parent(), down, {"star": STAR, "spikes": 12, "hold": STAR_HOLD, "steps": 3,
-			"strokes": 10, "radial": true, "gap": STAR * 0.85, "stroke_len": 0.7, "stroke_w": 0.22,
+		COMIC_POP.spawn(get_parent(), down, {"star": STAR, "spikes": 8, "hold": STAR_HOLD, "steps": 3,
+			"strokes": 7, "radial": true, "gap": STAR * 0.85, "stroke_len": 0.7, "stroke_w": 0.22,
 			"stroke_color": color.lightened(0.3), "chips": 6, "chip": color, "chip_size": 0.15,
 			"chip_speed": 6.0, "chip_ink": 4, "dir": -dir})
 	if is_instance_valid(_model) and _model.get_meta("comic_comet", null) == self:
@@ -133,10 +133,10 @@ func _draw() -> void:
 	_mesh.clear_surfaces()
 	if pts.size() < 2:
 		return
-	_ribbon(pts, WIDTH * 1.6, INK)
-	_ribbon(pts, WIDTH, color)
+	_ribbon(pts, WIDTH + 0.07, INK)
+	_ribbon(pts, WIDTH, Color(color, 0.88))
 	if not Game.reduce_flashing:
-		_ribbon(pts, WIDTH * 0.42, HOT_CORE)
+		_ribbon(pts, WIDTH * 0.3, HOT_CORE)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = _verts

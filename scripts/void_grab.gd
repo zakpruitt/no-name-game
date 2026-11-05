@@ -78,6 +78,9 @@ var dark_spot := Vector3.ZERO  # where the dark string gathered them: its breake
 var hole: Node3D  # Singularity's
 var dark_bind: Node  # what Overwhelm has them in
 var dark_maw: Node3D  # Maw's jaws, up while he dives
+var buried := []  # who Rockslide drove into the floor out of the air: Fault Line throws them hardest
+var undertow: Node  # Undertow's floor_bind: Meteor Fall's first beat lets it go
+var pile := []  # Meteor Fall: who it threw at the walls, then dragged into the pile
 
 var _seized := []  # {foe, from, tendril}: held through a breaker
 var _spare := []  # tendrils from earlier breakers
@@ -194,7 +197,7 @@ func _clear_target() -> void:
 
 ## A move has started: the arm takes that move's shape, and a slam finds what it's slamming.
 func on_move(id: String, _prev: String) -> void:
-	arm.shape(ComicLook.HERO_MOVE_FORMS.get(id, "axe"))
+	arm.shape(VOID_ELEMENT.FORM_OF.get(id, ComicLook.HERO_MOVE_FORMS.get(id, "axe")))
 	_done = false
 	if id == "GR":
 		hero._face(_flat_to(_aim_at))
@@ -248,11 +251,11 @@ func attack_tick(t: float, delta: float) -> void:
 		_tick_grab(t)
 	elif hero._move_id == "VS":
 		_tick_slam(t)
-	elif hero._move_id == "EC":
+	elif hero._move_id in ["EC", "XF", "XG"]:
 		_tick_sweep(t)
 	elif hero._move_id == "EF":
 		_tick_spear(t)
-	elif hero._move_id == "EM":
+	elif hero._move_id == "EM" or hero._move_id == "XS":
 		_tick_palm()
 
 
@@ -421,6 +424,7 @@ func seize(b := {}) -> void:
 				if cord == null:
 					cord = TENDRIL.new()
 					hero.add_child(cord)
+				cord.line = true  # (one thin line per cube: the cubes are what you see)
 				_seized.append({"foe": e, "from": e.global_position, "tendril": cord, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true})
 		aim_crush()
 		return
@@ -450,7 +454,11 @@ func seize(b := {}) -> void:
 		if t == null:
 			t = TENDRIL.new()
 			hero.add_child(t)
-		_seized.append({"foe": e, "from": e.global_position, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER})
+		var from: Vector3 = e.global_position
+		if b.has("reel"):  # (Anvil: hauled back towards him as they go up, the kebab coming back on the gale)
+			var to: Vector3 = at + hero._facing() * VOID_ELEMENT.ANVIL_REEL_GAP
+			from = Vector3(lerpf(from.x, to.x, b.reel), from.y, lerpf(from.z, to.z, b.reel))
+		_seized.append({"foe": e, "from": from, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER})
 		e.stagger(HOLD)
 
 
@@ -557,6 +565,7 @@ func held_foes() -> Array:
 func release_seized() -> void:
 	for s: Dictionary in _seized:
 		s.tendril.visible = false
+		s.tendril.line = false
 		_spare.append(s.tendril)
 		if s.has("other"):
 			s.other.queue_free()

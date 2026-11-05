@@ -7,13 +7,26 @@ extends RefCounted
 
 const FOES := preload("res://scripts/foes.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
-const QUAKE := preload("res://scripts/breaker_quake.gd")
 const COMIC_FIST := preload("res://scripts/comic_fist.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
 const BIND := preload("res://scripts/floor_bind.gd")
 const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
+const COMIC_BOULDER := preload("res://scripts/comic_boulder.gd")  # crossover looks (round 37)
+const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
+const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
+const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
+const COMIC_ARC := preload("res://scripts/comic_arc.gd")
+const COMIC_SPLAT := preload("res://scripts/comic_splat.gd")
+const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
+const COMIC_MELT := preload("res://scripts/comic_melt.gd")
+const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
+const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
+const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
+const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
+const COMIC_RIP := preload("res://scripts/comic_rip.gd")
+const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element matrix's tells (round 37, third pass)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -28,19 +41,34 @@ const AF_HIT := 50.0 / 99.0  # Ab_AF: the palm lands on f50. Was 0.51 (f50.5)
 const LEAP_AFTER_GRAB := 0.02  # Grounded / Worldbreaker / Meteor Fall off a grab-clip ender (was 0.26 - 0.24)
 const LEAP_AFTER_SLAM := 0.11  # Collapse / Abyss off the slam clip (0.5 - 0.39)
 const LEAP_AFTER_TIDE := 0.26  # Maw off Black Tide's grab clip (0.5 - 0.24)
+const LEAP_AFTER_RAKE := 0.05  # Cataclysm off Fault Line's rake clip: once the gale has them up
+const LEAP_AFTER_PALM := 0.05  # Flash Freeze off Steam Burst's palm clip
+const LEAP_AFTER_SWING := 0.1  # Anvil off Backdraft's crescent clip: once the gale has them coming back
+const ANVIL_REEL := 0.65  # of the way to him Anvil's tentacles haul what they seize (void_grab `reel`): the leap comes
+# before the gale's knockback has moved anyone (their hit freeze), so the kebab's pull-back is the tentacles' to show
+const ANVIL_REEL_GAP := 1.4  # m in front of him they're hauled to
 
 ## The move right click plays off each move. From nothing, the grab.
-const AFTER := {"L1": "EC", "L2": "IP", "L3": "EM", "EC": "EE", "AL1": "EW", "DL": "EF", "EF": "EA", "IP": "IJ", "IJ": "IS", "EM": "EV", "GR": "VS", "VR": "VD"}
+const AFTER := {"L1": "EC", "L2": "IP", "L3": "EM", "EC": "EE", "AL1": "EW", "DL": "EF", "EF": "EA", "IP": "IJ", "IJ": "IS", "EM": "EV", "GR": "VS", "VR": "VD",
+	"XR": "XF", "EA": "XG", "TW": "XK"}
 const NEUTRAL := "GR"
 const CHARGED := "OW"  # holding right click
 const DASH_MOVE := "TW"  # right click off a dash or a swing
-## L off these moves goes somewhere else than on down the string.
-const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ"}
+## L off these moves goes somewhere else than on down the string. The X* moves are the crossovers (round 34):
+## a string that changes element on the way, with a payoff only the two together give.
+const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT",
+	"XG": "XM", "XK": "XW"}
 const CHAIN := {"EF": 2}
 const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "EA": "water", "IP": "water", "IJ": "water", "IS": "water", "EM": "earth", "EV": "earth",
-	"VS": "void", "VR": "void", "VD": "void", "OW": "void", "TW": "void"}
+	"VS": "void", "VR": "void", "VD": "void", "OW": "void", "TW": "void",
+	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind",
+	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
+## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
+const FORM_OF := {"XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
+## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
+const NO_VAULT := ["TW", "XK", "XW", "XT"]
 
 const _WINDOW := {"rise": 0.2, "height": 1.8, "back": 0.6, "spikes": 0, "zone": 1.5, "spread": 0.0, "spike_damage": 0.0,
 	"detonate": 0.0, "throw": 0.04, "cue": 0.08, "open": 0.3, "sweet": 0.44, "close": 0.62, "perfect": 0.06, "dive": 0.12,
@@ -59,15 +87,34 @@ const BREAKERS := {
 		"alt": {"erupt": "water", "cubes": true, "damage": 40.0, "names": {"spirit": "Cold Front"}}},
 	"IS": {"erupt": "water", "press": true, "at_spot": true, "short": 3.0, "dive": 0.3, "damage": 34.0, "leap": 0.5, "awaken": 12.0, "awaken_perfect": 22.0,
 		"height": 1.2, "names": {"spirit": "Avalanche"}},
-	"EV": {"erupt": "earth", "rip": true, "meteor": true, "damage": 60.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 10.0, "awaken_perfect": 20.0,
+	# Meteor Fall (round 34): the press hurls everyone into the walls (beat 1), the tentacles drag them all into one
+	# pile (beat 2), and he dives into the pile as the meteor (beat 3). `gather`: hero_leap phase 3, METEOR_*.
+	"EV": {"erupt": "earth", "rip": true, "meteor": true, "gather": true, "damage": 60.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 10.0, "awaken_perfect": 20.0,
 		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"}},
 	# Dark: he comes down at dark_spot, where the string gathered them (`at_spot`, `short` m this side of it).
 	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Collapse"}},
 	"VD": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 4.6, "maw": true, "damage": 52.0, "leap": GR_HIT + LEAP_AFTER_TIDE,
-		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Maw"}},
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Maw"},
+		# L in the window (dark into ice): the pool freezes with them in it, and his landing shatters it.
+		"alt": {"erupt": "water", "black_ice": true, "short": 2.0, "damage": 46.0, "names": {"spirit": "Black Ice"}}},
 	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"}},
+	# Crossovers. Cataclysm: Fault Line's gale has them up again and the landing brings them down into the floor. No
+	# `wire` (Live Wire's bolts and binds on every foe in the hang made it the busiest breaker; damage 40 -> 46 for the
+	# jolts it lost) (`cataclysm`: a crater on each, a strike and earth under each).
+	"XF": {"erupt": "earth", "cataclysm": true, "damage": 46.0, "leap": LH_HIT + LEAP_AFTER_RAKE, "height": 2.4,
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Cataclysm"}},
+	# Flash Freeze: Steam Burst's steam freezes on them as he dives (`refreeze`), and the landing shatters it again.
+	"XS": {"erupt": "water", "refreeze": true, "damage": 30.0, "leap": AF_HIT + LEAP_AFTER_PALM,
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Flash Freeze"}},
+	# Round 34, second pass: the three-element strings. Eruption ends Meltdown in the air (he rises from the height
+	# the air string has him at, `_brk_y0`): the molten come down into the floor and it erupts round them.
+	"XM": {"erupt": "earth", "eruption": true, "damage": 42.0, "leap": VS_HIT + LEAP_AFTER_SLAM, "height": 3.0,
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Eruption"}},
+	# Anvil ends Backdraft: the gale brought the kebab back up to him, and the hammer drives it into the floor.
+	"XW": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "damage": 44.0, "leap": H_HIT + LEAP_AFTER_SWING, "height": 2.2,
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"}},
 }
 
 const CUTTER_AHEAD := 3.5  # m: where the gale throws them up from
@@ -119,7 +166,7 @@ const RIP_SMALL_MULT := 3.0  # on a small foe: it's coming apart
 const RIP_SPLASH := 5.0  # m
 const METEOR_DOWN := 6.0  # m/s into the floor on Meteor Fall's hit on the seized foe: it craters (enemy._is_spike)
 const UNDERTOW_CHASE := 18.0  # m it'll follow those Molten Palm just shoved
-const METEOR_GEYSERS := 5
+const METEOR_GEYSERS := 3  # thin rim geysers (round 33, sleek 5: five full ones walled the pile in)
 const METEOR_GEYSER_OUT := 2.8  # m round where he lands
 const METEOR_R := 0.8  # m
 const METEOR_TAIL := 3.0  # m
@@ -158,7 +205,7 @@ const TOW_DAMAGE := 18.0
 const TOW_SPEED := 26.0
 const CARRY_DAMAGE := 22.0
 const CARRY_LENGTH := 9.0  # m it flies off a swing
-const FREEZE_TIME := 1.8  # s
+const FREEZE_TIME := ELEMENT_HOLD  # s (was 1.8): long enough for a dash and a magma move after it to steam them
 const FREEZE_BREAK := 1.6  # the next hit's damage: Frostline into the hammer shatters them
 const BOSS_CHILL := 0.5  # bosses never freeze: they slow
 const MAGMA_RADIUS := 4.5
@@ -175,6 +222,74 @@ const CUBE_STAGGER := 0.05  # s between the cubes leaving
 const CUBE_SEEK := 14.0  # m: how far a cube looks for someone to hit
 const CUBE_REACH := 8.0  # m it flies with nobody to hit
 const CUBE_FOE_GAP := 0.6
+# Crossovers (round 34).
+const ROCKSLIDE_AHEAD := 1.6  # m: where the hammer comes down
+const ROCKSLIDE_RADIUS := 5.0  # m round it
+const ROCKSLIDE_DAMAGE := 12.0
+const ROCKSLIDE_AIR_MULT := 2.0  # on a foe the gale had up: wind lifts, earth brings it down
+const ROCKSLIDE_DOWN := 6.0  # m/s into the floor (enemy._is_spike): the whole group craters
+const ROCKSLIDE_IN := 3.0  # m/s of it towards the hammer, so they come down together
+const FAULT_REACH := 7.0  # m: how far the cracks run
+const FAULT_DAMAGE := 8.0
+const FAULT_BURIED_MULT := 2.0  # on those Rockslide just put in the floor: the gale throws back what it buried
+const FAULT_LAUNCH := 9.0
+const STEAM_REACH := 12.0  # m: every frozen foe this close goes off (the bowled one too)
+const STEAM_DAMAGE := 18.0  # times the ice's FREEZE_BREAK on the frozen
+const STEAM_LAUNCH := 8.0
+const STEAM_SPLASH := 2.6  # m round each burst that the steam scalds
+const STEAM_SPLASH_DAMAGE := 6.0
+const STEAM_FIST := 4.0  # m the fist goes out, with nobody frozen
+const PITCH_AHEAD := 1.8  # m: where Tow Line bunched them
+const PITCH_GRAB := 3.4  # m round that spot it takes them from
+const PITCH_LENGTH := 9.0  # m they fly
+const PITCH_SPREAD := 0.35  # radians between them
+const PITCH_DAMAGE := 16.0
+const PITCH_SPEED := 26.0
+const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
+const CATACLYSM_DOWN := 6.0  # m/s
+# Round 34, second pass: three elements in one string, and states that outlive it so a dash can improvise.
+const ELEMENT_HOLD := 2.0  # s a crossover's state (frozen, buried, molten, skewered) lasts: a dash and the next move
+const HAIL_REACH := 7.0  # m: Hailstorm lifts every frozen foe this close
+const HAIL_DAMAGE := 8.0  # (x FREEZE_BREAK: the ice gives as the gale takes it)
+const HAIL_LAUNCH := 9.0  # m/s up (was 12: a foe peaked at 5.3 m and was still flying up past him at 7 m/s as Meltdown
+# hit; his climb stops at 2.8): now ~3 m, into its apex hang by the slam, so Meltdown meets them at the top of his climb
+const HAIL_WARM_LAUNCH := 6.0  # those not frozen only stagger up
+const HAIL_WARM_REACH := 4.0
+const MELT_REACH := 6.0  # m round him: Meltdown takes whoever's up there with him, and the frozen
+const MELT_DAMAGE := 14.0
+const MELT_AIR_MULT := 1.5  # storm into magma: those the gale had up take it worst (x FREEZE_BREAK on the ice too)
+const MELT_DOWN := 6.0  # m/s into the floor (enemy._is_spike): they come down burning and crater
+const ERUPT_MOLTEN_MULT := 1.4  # Eruption on those Meltdown set alight
+const ERUPT_RING := 3.5  # m round the landing the floor goes up
+const ERUPT_LAUNCH := 9.0
+const IMPALE_GRAB := 4.0  # m round where Tow Line bunched them
+const IMPALE_DAMAGE := 12.0
+const IMPALE_SPEAR_MULT := 1.5  # dark into ice: onto a spear that was already standing, frost and all
+const IMPALE_RING := 0.9  # m round the spear they're stuck
+const IMPALE_SPEED := 26.0
+const BACKDRAFT_REACH := 5.0  # m round the spear (or him) the gale takes them from
+const BACKDRAFT_DAMAGE := 12.0  # (x FREEZE_BREAK: the skewered are still frozen)
+const BACKDRAFT_PULL := 7.0  # m/s back towards him
+const BACKDRAFT_LAUNCH := 10.0
+const ANVIL_DOWN := 6.0  # m/s into the floor
+const ANVIL_AIR_MULT := 1.4  # storm into earth: those the gale had up come down hardest
+const TOW_AIR_MULT := 1.5  # airborne into dark: Tow Line rips foes out of the air harder (a dash out of any launcher)
+# Meteor Fall's three beats (s, game time from the press): the wall throw, the drag into the pile, the dive.
+const METEOR_REACH := 12.0  # m round him: who gets thrown, and then gathered
+const METEOR_WALL_LENGTH := 10.0  # m they fly at most (a wall stops them sooner and splats them). At 14 they left the
+# game camera's frame in the training room, so beat 1 read as them vanishing
+const METEOR_WALL_SPEED := 36.0  # m/s: ~0.28 s out
+const METEOR_WALL_DAMAGE := 10.0
+const METEOR_WALL_MULT := 2.0  # the splat
+const METEOR_GATHER_AT := 0.32  # s: beat 2 once nobody's still flying, not before this...
+const METEOR_GATHER_LATE := 0.5  # ...and not after this
+const METEOR_DRAG_TIME := 0.26  # s on the tentacles into the pile, however far
+const METEOR_DIVE_LATE := 0.45  # s after beat 2 he dives whether or not they've all arrived
+const METEOR_PILE_AHEAD := 3.0  # m in front of him (with no big one to pile them on)
+const METEOR_PILE_RING := 0.8  # m apart in the pile
+const METEOR_PILE_R := 3.0  # m round the landing that the meteor takes
+const METEOR_HEAVY_MULT := 1.5  # the biggest still takes it worst
+const METEOR_BEAT_STOP := 0.07  # s of hitstop on each beat
 
 
 static func heavy_after(from: String, attacking: bool) -> String:
@@ -184,7 +299,7 @@ static func heavy_after(from: String, attacking: bool) -> String:
 ## While the spear stands, either button takes him up over it, however long he's watched the frost spread:
 ## the plant's own animation is over well before the frost is. Not once he's on his way down onto it.
 static func vaults(tree: SceneTree, from: String, attacking: bool, post_dash: bool) -> bool:
-	if post_dash or from == "IS" or (from == "IJ" and attacking):
+	if post_dash or from == "IS" or (from == "IJ" and attacking) or (attacking and from in NO_VAULT):
 		return false
 	return SPEAR.current(tree) != null
 
@@ -226,8 +341,14 @@ static func breaker_element(b: Dictionary) -> String:
 	return b.erupt
 
 
-## The move's first hit. Returns how many foes it reached, so a whiff stays quiet.
+## The move's first hit. Returns how many foes it reached, so a whiff stays quiet. A base element move first cashes
+## in whatever state its element pays on the foes near him (improvise(), the element matrix), then does its own thing.
 static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
+	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero._cast_power())
+	return maxi(_fire(hero, id, fwd), paid)
+
+
+static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 	var parent: Node = hero.get_parent()
 	var at := _flat(hero.global_position)
 	var power: float = hero._dmg_mult * hero._cast_power()
@@ -238,6 +359,7 @@ static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 			var eye: Vector3 = at + fwd * minf(CUTTER_AHEAD, hero._clear_ahead(fwd, CUTTER_AHEAD))
 			_pop(parent, eye, "axe")
 			ELEMENTS.pillar(parent, eye, "wind", CUTTER_PILLAR_HIGH, CUTTER_PILLAR_R * grow)
+			_cash_buried(hero, eye, CUTTER_RADIUS * grow, CUTTER_DAMAGE * power, FAULT_LAUNCH)  # (buried into storm)
 			return _pull(hero, eye, CUTTER_RADIUS * grow, CUTTER_DAMAGE * power, CUTTER_PULL, CUTTER_LAUNCH)
 		"EE", "EW":
 			var n: int = hero._void.reachable().size()
@@ -255,6 +377,8 @@ static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 		"EA":
 			return _ice_cube(hero, at, fwd, CUBE_DAMAGE * power)
 		"EM":
+			if _frozen_ahead(hero, at, fwd, PALM_LENGTH * grow):  # frozen into magma, whatever the route: steam
+				return _steam_burst(hero, at, fwd, power)
 			return _palm(hero, at, fwd, grow, power)
 		"EV":
 			return _undertow(hero, at, power)
@@ -267,7 +391,32 @@ static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 		"OW":
 			return _overwhelm(hero, at, fwd, power)
 		"TW":
+			for e: Node3D in _tow_line(hero, at):  # airborne into dark: ripped out of the air
+				if e.is_airborne() and not hero._void.is_heavy(e):
+					e.take_hit(TOW_DAMAGE * power * (TOW_AIR_MULT - 1.0), Vector3.ZERO, 0.0, true)
+					Game.register_hit("cast")
+					COMIC_RIP.spawn(hero.get_parent(), e, at)  # (a void tear across it as it's ripped down)
 			return _tow(hero, at, fwd, TOW_DAMAGE * power)
+		"XR":
+			var n := _rockslide(hero, at, fwd, power * hero.HERO_MOVES.plunge_mult(hero))
+			for e: Variant in hero._void.buried:
+				mark(e, "buried")
+			return n
+		"XF":
+			return _fault_line(hero, at, fwd, power)
+		"XS":
+			return _steam_burst(hero, at, fwd, power)
+		"XT":
+			_cash_buried(hero, at + fwd * PITCH_AHEAD, PITCH_GRAB, PITCH_DAMAGE * power, 0.0)  # (buried into storm)
+			return _pitch(hero, at, fwd, power)
+		"XG":
+			return _hailstorm(hero, at, power)
+		"XM":
+			return _meltdown(hero, at, power)
+		"XK":
+			return _impale(hero, at, fwd, power)
+		"XW":
+			return _backdraft(hero, at, fwd, power)
 	return 0
 
 
@@ -446,7 +595,7 @@ static func _undertow(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 	hero._void.shoved = []
 	hero._void.bound = foes
 	if not foes.is_empty():
-		BIND.bind(hero, foes, {"time": UNDERTOW_TIME, "sink": UNDERTOW_SINK, "tick_damage": UNDERTOW_TICK * power, "ropes": 2,
+		hero._void.undertow = BIND.bind(hero, foes, {"time": UNDERTOW_TIME, "sink": UNDERTOW_SINK, "tick_damage": UNDERTOW_TICK * power, "ropes": 2,
 			"color": ELEMENTS.LOOK.earth.color, "wells": true})
 	return foes.size()
 
@@ -589,13 +738,7 @@ static func _black_tide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 
 ## Whoever's on the line he just dashed or swung along is yanked together in front of him.
 static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float) -> int:
-	var from: Vector3 = _flat(hero._dash_from)
-	var line := at - from
-	var foes: Array = []
-	if line.length() > 0.5:
-		foes = _ahead(hero, from, line.normalized(), line.length() + 1.5, TOW_HALF_WIDTH)
-	if foes.is_empty():
-		foes = FOES.near(hero.get_tree(), at, TOW_NEAR)
+	var foes: Array = _tow_line(hero, at)
 	var to := at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD))
 	var n := 0
 	for e: Node3D in foes:
@@ -608,6 +751,506 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 	return n
 
 
+## Who Tow Line takes: whoever's on the line he just dashed along, or near him if nobody is.
+static func _tow_line(hero: CharacterBody3D, at: Vector3) -> Array:
+	var from: Vector3 = _flat(hero._dash_from)
+	var line := at - from
+	var foes: Array = []
+	if line.length() > 0.5:
+		foes = _ahead(hero, from, line.normalized(), line.length() + 1.5, TOW_HALF_WIDTH)
+	if foes.is_empty():
+		foes = FOES.near(hero.get_tree(), at, TOW_NEAR)
+	return foes
+
+
+# --- Crossovers (round 34): a string that changes element, with a payoff only the pair gives --------------------
+# Looks (round 37): comic_boulder (Rockslide), comic_fault (Fault Line, Cataclysm), comic_steam (Steam Burst),
+# comic_freeze_over (Flash Freeze, Black Ice), comic_arc (Storm Pitch), comic_splat (Meteor Fall's beats); words in
+# ComicFx.MOVE_WORDS / BREAKER_WORDS. See docs/features/void-element.md "Crossover looks".
+# Second pass looks (the three-element strings below `_cataclysm`): comic_hail (Hailstorm), comic_melt (Meltdown),
+# comic_erupt (Eruption), comic_impale (Impale), comic_backdraft (Backdraft), comic_anvil (Anvil), comic_rip (Tow
+# Line's rip out of the air); the states' tells are comic_state_tell (enemy.gd syncs it). The improvised payoffs
+# (`_cash_buried`, Molten Palm's steam) reuse their crossover's look.
+
+## L H L L: wind into earth. The hammer comes down off the air string and everyone near the blow is driven into
+## the floor together; the ones Updraft Lash had in the air take double.
+static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var spot: Vector3 = at + fwd * minf(ROCKSLIDE_AHEAD, hero._clear_ahead(fwd, ROCKSLIDE_AHEAD))
+	var foes: Array = FOES.near(hero.get_tree(), spot, ROCKSLIDE_RADIUS * hero._cast_grow()).filter(func(e: Node3D) -> bool:
+		return not THROWN.flying(e))
+	hero._void.buried = []
+	COMIC_BOULDER.spawn(parent, spot, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
+	Fx.scorch(parent, spot, ELEMENTS.LOOK.earth.color, 2.2, 0.6)
+	for e: Node3D in foes:
+		var up: bool = e.is_airborne()
+		var to := _flat(spot - e.global_position)
+		var kb: Vector3 = (to.normalized() * ROCKSLIDE_IN if to.length() > 0.6 else Vector3.ZERO) + Vector3.DOWN * ROCKSLIDE_DOWN
+		e.take_hit(ROCKSLIDE_DAMAGE * power * (ROCKSLIDE_AIR_MULT if up else 1.0), kb, 0.0, true)
+		Game.register_hit("cast")
+		if up:
+			hero._void.buried.append(e)
+	Game.shake(0.5)
+	return foes.size()
+
+
+## L H L L H: earth into wind. Cracks run from him to everyone near, and the gale comes up out of each one and
+## throws them back into the air, Rockslide's buried twice as hard. The window opens (Cataclysm).
+static func _fault_line(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var foes: Array = FOES.near(hero.get_tree(), at, FAULT_REACH * hero._cast_grow()).filter(func(e: Node3D) -> bool:
+		return not THROWN.flying(e))
+	if foes.is_empty():
+		COMIC_FAULT.spawn(parent, at, [at + fwd * 4.0])
+		return 0
+	COMIC_FAULT.spawn(parent, at, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
+	for e: Node3D in foes:
+		var buried: bool = e in hero._void.buried
+		e.take_hit(FAULT_DAMAGE * power * (FAULT_BURIED_MULT if buried else 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else FAULT_LAUNCH, true)
+		Game.register_hit("cast")
+	hero._void.buried = []
+	return foes.size()
+
+
+## Dash L H H L: ice into magma. The fist drives lava into the ice: every frozen foe near him goes off in
+## steam (the ice's FREEZE_BREAK on top), up into the air, and the steam scalds whoever's beside it. With
+## nobody frozen it's only a shove of molten fist. The window opens (Flash Freeze).
+static func _steam_burst(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	# (a cube Ice Cube is still bowling counts: Dash L H H L fires while it's in flight, so it's cut out of its roll)
+	var frozen: Array = FOES.near(hero.get_tree(), at, STEAM_REACH).filter(func(e: Node3D) -> bool: return is_frozen(e))
+	for e: Node3D in frozen:
+		THROWN.cut(e)
+	var reach := STEAM_FIST
+	if not frozen.is_empty():
+		var mid := Vector3.ZERO
+		for e: Node3D in frozen:
+			mid += _flat(e.global_position)
+		mid /= float(frozen.size())
+		reach = clampf(_flat(mid - at).length(), 2.0, PALM_LENGTH)
+		var to := _flat(mid - at)
+		if to.length() > 0.5:
+			hero._face(to)
+			fwd = to.normalized()
+	hero._void.fist = _fist(parent, at, fwd, minf(reach, hero._clear_ahead(fwd, reach) + 0.5))
+	if frozen.is_empty():
+		var near := _ahead(hero, at, fwd, STEAM_FIST, PALM_HALF_WIDTH)
+		for e: Node3D in near:
+			e.take_hit(PALM_DAMAGE * power * 0.5, fwd * 4.0, 0.0, true)
+			Game.register_hit("cast")
+		return near.size()
+	var scalded := {}
+	for e: Node3D in frozen:
+		var spot := _flat(e.global_position)
+		THROWN.remove_cube(e)
+		e.take_hit(STEAM_DAMAGE * power, Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else STEAM_LAUNCH, true)  # (frozen: x FREEZE_BREAK)
+		Game.register_hit("cast")
+		Fx.shards(parent, spot + Vector3.UP * 0.9, THROWN.CUBE_COLOR, 6, Vector3.UP, 9.0, 0.16, 0.5)
+		COMIC_STEAM.spawn(parent, spot)
+		for o: Node3D in FOES.near(hero.get_tree(), spot, STEAM_SPLASH):
+			if o in frozen or scalded.has(o):
+				continue
+			scalded[o] = true
+			var out := _flat(o.global_position - spot)
+			o.take_hit(STEAM_SPLASH_DAMAGE * power, (out.normalized() if out.length() > 0.01 else fwd) * 4.0, 0.0, false)
+			Game.register_hit("cast")
+	Game.shake(0.55)
+	return frozen.size() + scalded.size()
+
+
+## Dash H L: dark into storm. Whoever Tow Line bunched in front of him is hurled on by the axe, crackling: each
+## one flies along his aim with lightning jumping from it to anyone it passes (thrown_foe `zap`), and bursts in
+## wind where it lands. Big ones stay and take the jolt.
+static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var spot: Vector3 = at + fwd * PITCH_AHEAD
+	var foes: Array = FOES.near(hero.get_tree(), spot, PITCH_GRAB)
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	var hand := at + Vector3.UP * 1.3 + fwd * 0.6
+	var last := hand
+	for i in foes.size():
+		var e: Node3D = foes[i]
+		COMIC_ARC.jump(parent, last, e.global_position + Vector3.UP)
+		last = e.global_position + Vector3.UP
+		if hero._void.is_heavy(e):
+			e.take_hit(PITCH_DAMAGE * power * 0.6, Vector3.ZERO, 0.0, true)
+			Game.register_hit("cast")
+			continue
+		THROWN.cut(e)  # (still on Tow Line's tether: the axe takes it from there)
+		var side := (float(i) - (foes.size() - 1) * 0.5) * PITCH_SPREAD
+		var dir := fwd.rotated(Vector3.UP, side)
+		var flight: Node = THROWN.launch(hero, e, _flat(e.global_position) + dir * PITCH_LENGTH, PITCH_DAMAGE * power,
+			{"el": "wind", "solid": true, "speed": PITCH_SPEED, "zap": true})
+		COMIC_ARC.ride(parent, e, flight)  # (the storm rides it for the flight)
+	return foes.size()
+
+
+## Black Ice's press (hero_leap._start_dive): the pool freezes, with everyone in it.
+static func freeze_pool(hero: CharacterBody3D) -> void:
+	var parent: Node = hero.get_parent()
+	var spot: Vector3 = hero._void.dark_spot
+	COMIC_FREEZE.pool(parent, spot, MAW_RADIUS + 0.3)
+	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5):
+		encase(e)
+
+
+## Black Ice lands: the frozen pool gives, and everyone in it shatters down into the floor.
+static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var spot: Vector3 = hero._void.dark_spot
+	COMIC_FREEZE.shatter(parent, spot, MAW_RADIUS + 0.3)  # (the frozen pool breaks up: was a splat, spikes and shards each)
+	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5):
+		e.take_hit(damage, Vector3.DOWN * BLACK_ICE_DOWN, 0.0, true)  # (frozen: x FREEZE_BREAK, and it shatters)
+		Game.register_hit("breaker")
+	ComicFx.hit(spot + Vector3.UP * 1.5, true)
+	Game.shake(0.6)
+
+
+## Cataclysm lands: everyone held comes down into the floor (a crater each), with lightning out of the sky and
+## the earth up under each one. Anyone else near takes some and is thrown clear.
+static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var spots := []
+	for e: Node3D in seized:
+		if not is_instance_valid(e) or not e.is_alive():
+			continue
+		spots.append(_flat(e.global_position))
+		e.take_hit(damage, Vector3.DOWN * CATACLYSM_DOWN, 0.0, true)
+		Game.register_hit("breaker")
+	COMIC_FAULT.spawn(parent, at, spots, true)  # (a crack to each, a strike where it arrives: was a strike + geyser + spikes each)
+	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
+		if e in seized:
+			continue
+		var from := _flat(e.global_position - at)
+		e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
+		Game.register_hit("breaker")
+	Game.shake(0.7)
+
+
+# --- Three-element strings (round 34, second pass) ---------------------------------------------------------------
+# Each hands over twice, and each hand-over pays only for what the element before it left: Hailstorm lifts only the
+# frozen, Meltdown hits hardest those the gale has up, Eruption those Meltdown set alight; Impale pays more onto a
+# spear already standing, Backdraft for the skewered (still frozen), Anvil for what the gale brought up.
+# Improvising (the dash routes): a crossover's state outlasts the string by ELEMENT_HOLD (mark(), FREEZE_TIME),
+# and every payoff reads the state, not the route, so a dash and any move of the paying element cash it in:
+# frozen into magma (Molten Palm steams them, fire() "EM"), buried into storm (Updraft Lash, Storm Pitch:
+# _cash_buried), airborne into dark (Tow Line rips them out of the air, fire() "TW").
+
+## A crossover's state on a foe ("buried", "molten", "skewered"), good for ELEMENT_HOLD s of real time.
+static func mark(e: Variant, state: String) -> void:
+	if is_instance_valid(e):
+		e.set_meta("x_" + state, Time.get_ticks_msec() + int(ELEMENT_HOLD * 1000.0))
+
+
+static func marked(e: Variant, state: String) -> bool:
+	return is_instance_valid(e) and int(e.get_meta("x_" + state, 0)) > Time.get_ticks_msec()
+
+
+static func unmark(e: Variant, state: String) -> void:
+	if is_instance_valid(e) and e.has_meta("x_" + state):
+		e.remove_meta("x_" + state)
+
+
+static func is_frozen(e: Node) -> bool:
+	return in_cube(e) or float(e.get("frozen_t") if e.get("frozen_t") != null else 0.0) > 0.0
+
+
+## Anyone frozen (and not flying) in the strip ahead of him: Molten Palm goes off as a Steam Burst on them.
+static func _frozen_ahead(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: float) -> bool:
+	for e: Node3D in _ahead(hero, at, fwd, length, PALM_HALF_WIDTH):
+		if is_frozen(e) and not THROWN.flying(e):
+			return true
+	return false
+
+
+## Buried into storm, by any route: whoever Rockslide drove into the floor in the last ELEMENT_HOLD s takes the
+## storm move's damage again on top (FAULT_BURIED_MULT in all), thrown up at `launch`. The state's spent.
+static func _cash_buried(hero: CharacterBody3D, at: Vector3, radius: float, damage: float, launch: float) -> void:
+	for e: Node3D in FOES.near(hero.get_tree(), at, radius):
+		if marked(e, "buried") and not THROWN.flying(e):
+			unmark(e, "buried")
+			e.take_hit(damage * (FAULT_BURIED_MULT - 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else launch, true)
+			Game.register_hit("cast")
+
+
+## Ice that stays on a foe in the air: enemy.freeze() staggers, which drops it out of the air, so the ice is set by
+## hand (ELEMENT_HOLD, FREEZE_BREAK on the next hit) and the cube put on. Bosses never freeze.
+static func freeze_aloft(e: Variant) -> void:
+	if not is_instance_valid(e) or not e.is_alive() or e.has_method("is_boss"):
+		return
+	if e.get("frozen_t") != null:
+		e.frozen_t = maxf(float(e.frozen_t), ELEMENT_HOLD)
+		e.frozen_mult = FREEZE_BREAK
+	var gone: Node = e.get_node_or_null(THROWN.CUBE_NAME)
+	if gone != null and gone.is_queued_for_deletion():
+		gone.name = "ThrownCubeGone"  # (the hit that just broke it freed it: cube_on() would see it and add none)
+	THROWN.cube_on(e)
+
+
+## Dash L H H H: ice into storm. A whirlwind comes up under every frozen foe near him (the one Ice Cube is bowling
+## too) and carries it high, still in its ice (freeze_aloft: the gale breaks it for FREEZE_BREAK and it sets again), and he climbs after them (MOVES
+## `air`, `climb`). Those not frozen only stagger up.
+static func _hailstorm(hero: CharacterBody3D, at: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var foes: Array = FOES.near(hero.get_tree(), at, HAIL_REACH).filter(func(e: Node3D) -> bool: return is_frozen(e) or not THROWN.flying(e))
+	var n := 0
+	for e: Node3D in foes:
+		var heavy: bool = hero._void.is_heavy(e)
+		if is_frozen(e):
+			THROWN.cut(e)  # (Ice Cube's bowl too: the gale takes the cube out of its roll)
+			COMIC_HAIL.ride(parent, e)  # (a tight whirlwind riding it up: was a full wind pillar each)
+			e.take_hit(HAIL_DAMAGE * power, Vector3.ZERO, 0.0 if heavy else HAIL_LAUNCH, true)  # (frozen: x FREEZE_BREAK)
+			Game.register_hit("cast")
+			freeze_aloft(e)
+			n += 1
+		elif _flat(e.global_position - at).length() <= HAIL_WARM_REACH:
+			e.take_hit(HAIL_DAMAGE * power * 0.5, Vector3.ZERO, 0.0 if heavy else HAIL_WARM_LAUNCH, false)
+			Game.register_hit("cast")
+			n += 1
+	if n == 0:
+		ELEMENTS.pillar(parent, at + hero._facing() * 2.0, "wind", 2.4, 0.9)
+	return n
+
+
+## Dash L H H H L, in the air: storm into magma. The molten hammer comes round through everyone up there with him and
+## the frozen: the ice bursts off them (x FREEZE_BREAK), those the gale had up take MELT_AIR_MULT, and all come down
+## burning into the floor (craters), `molten` for Eruption. The window opens (Eruption).
+static func _meltdown(hero: CharacterBody3D, at: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var foes: Array = FOES.near(hero.get_tree(), at, MELT_REACH).filter(func(e: Node3D) -> bool:
+		return not THROWN.flying(e) and (e.is_airborne() or is_frozen(e)))
+	COMIC_MELT.swing(parent, at + Vector3.UP * (hero.model.position.y + 0.9), hero._facing())  # (the hammer's arc)
+	if foes.is_empty():
+		return 0
+	for e: Node3D in foes:
+		var up: bool = e.is_airborne()
+		COMIC_MELT.foe(parent, e, is_frozen(e))  # (ice off it, burning down, a hot splat where it lands)
+		if is_frozen(e):
+			THROWN.remove_cube(e)
+		e.take_hit(MELT_DAMAGE * power * (MELT_AIR_MULT if up else 1.0), Vector3.DOWN * MELT_DOWN, 0.0, true)
+		Game.register_hit("cast")
+		mark(e, "molten")
+	Game.shake(0.5)
+	return foes.size()
+
+
+## Dash H H: dark into ice. The tentacles throw whoever Tow Line bunched onto the frost spear, and they freeze stuck
+## round it (`skewered`, for Backdraft). Onto a spear that was already standing (L L H first) it's IMPALE_SPEAR_MULT;
+## with none, the tentacle drives one in where Tow Line bunched them. Big ones freeze where they stand.
+static func _impale(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var s: Node3D = SPEAR.current(hero.get_tree())
+	var planted := s != null
+	if not planted:
+		s = SPEAR.plant(parent, at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD)))
+	var spot: Vector3 = _flat(s.global_position) if is_instance_valid(s) else at + fwd * TOW_AHEAD
+	COMIC_IMPALE.burst(parent, spot, IMPALE_RING + 1.4)  # (ice racing out of its foot: was frost_ring's torus)
+	_pop(parent, spot, "spear")
+	var foes: Array = FOES.near(hero.get_tree(), at, IMPALE_GRAB)
+	var small: int = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e)).size()
+	var damage: float = IMPALE_DAMAGE * power * (IMPALE_SPEAR_MULT if planted else 1.0)
+	var slot := 0
+	for e: Node3D in foes:
+		THROWN.cut(e)  # (still on Tow Line's tether: the tentacle takes it from there)
+		e.take_hit(damage, Vector3.ZERO, 0.0, true)
+		Game.register_hit("cast")
+		encase(e)
+		mark(e, "skewered")
+		if hero._void.is_heavy(e):
+			COMIC_IMPALE.stake(parent, spot, e, null)
+			continue
+		var a := TAU * slot / maxf(small, 1.0)
+		var to := spot + Vector3(sin(a), 0.0, cos(a)) * (IMPALE_RING if small > 1 else 0.6)
+		var flight: Node = THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "water", "speed": IMPALE_SPEED, "land_y": 0.0})
+		COMIC_IMPALE.stake(parent, spot, e, flight)  # (the stake through it once it lands on the spear)
+		slot += 1
+	return foes.size()
+
+
+## Dash H H L: ice into storm. The axe's gale blows the spear apart and hauls everyone round it back to him and up,
+## the ice going as they come (the skewered are still frozen: x FREEZE_BREAK; anyone else takes less). The window
+## opens (Anvil).
+static func _backdraft(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var s: Node3D = SPEAR.current(hero.get_tree())
+	var spot: Vector3 = _flat(s.global_position) if s != null else at + fwd * TOW_AHEAD
+	if s != null:
+		s.shatter()
+	COMIC_BACKDRAFT.blast(parent, spot)  # (was a 2.6 m wind pillar)
+	var foes: Array = FOES.near(hero.get_tree(), spot, BACKDRAFT_REACH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	var hand := at + Vector3.UP * 1.3 + fwd * 0.6
+	for e: Node3D in foes:
+		var back := _flat(at - e.global_position)
+		var skewered := marked(e, "skewered")
+		unmark(e, "skewered")
+		var kb: Vector3 = back.normalized() * BACKDRAFT_PULL if back.length() > 0.6 else Vector3.ZERO
+		e.take_hit(BACKDRAFT_DAMAGE * power * (1.0 if skewered else 0.6), kb, 0.0 if hero._void.is_heavy(e) else BACKDRAFT_LAUNCH, true)
+		Game.register_hit("cast")
+		COMIC_BACKDRAFT.haul(parent, e, hand, skewered)  # (a wind ribbon to his hand: was a lightning arc each)
+	return foes.size()
+
+
+## Eruption lands: everyone near comes up out of the floor on the lava under each, Meltdown's `molten` hardest
+## (ERUPT_MOLTEN_MULT).
+static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var struck := {}
+	var spots := []
+	var hots := []
+	for e: Variant in seized + FOES.near(hero.get_tree(), at, ERUPT_RING):
+		if struck.has(e) or not is_instance_valid(e) or not e.is_alive():
+			continue
+		struck[e] = true
+		var hot := marked(e, "molten")
+		unmark(e, "molten")
+		e.take_hit(damage * (ERUPT_MOLTEN_MULT if hot else 0.7), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else ERUPT_LAUNCH, true)
+		Game.register_hit("breaker")
+		spots.append(_flat(e.global_position))
+		hots.append(hot)
+	COMIC_ERUPT.spawn(parent, at, spots, hots)  # (the floor up under each, nearest first: was a geyser + spikes each and a scorch)
+	_pop(parent, at, "hammer")
+	Game.shake(0.7)
+
+
+## Anvil lands: the hammer drives what the gale brought back (everyone held) into the floor, a crater each, at
+## ANVIL_AIR_MULT; anyone else near who's still up comes down with them, the rest are thrown clear.
+static func _anvil(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var craters := []
+	for e: Node3D in seized:
+		if not is_instance_valid(e) or not e.is_alive():
+			continue
+		e.take_hit(damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
+		Game.register_hit("breaker")
+		craters.append(_flat(e.global_position))
+	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
+		if e in seized:
+			continue
+		if e.is_airborne():
+			e.take_hit(damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
+			craters.append(_flat(e.global_position))
+		else:
+			var from := _flat(e.global_position - at)
+			e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
+		Game.register_hit("breaker")
+	COMIC_ANVIL.spawn(parent, at, craters)  # (a crater each, nearest first: was three earth spikes each)
+	_pop(parent, at, "hammer")
+	Game.shake(0.7)
+
+
+# --- Meteor Fall's beats (hero_leap phase 3) ------------------------------------------------------------------
+
+## Beat 1, on the press: the tentacles rip them out of the lava and hurl them away from him, into the walls if
+## there are walls to hit (thrown_foe: `wall_mult`, the splat). Big ones stay, and take the blow.
+static func meteor_wall(hero: CharacterBody3D) -> void:
+	var parent: Node = hero.get_parent()
+	var void_grab: Node = hero._void
+	if is_instance_valid(void_grab.undertow):
+		void_grab.undertow._let_go()
+	void_grab.release_seized()
+	var at := _flat(hero.global_position)
+	var power: float = hero._dmg_mult * hero._cast_power()
+	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_REACH)
+	for e: Variant in void_grab.bound:  # (whoever Undertow chased off past the reach)
+		if is_instance_valid(e) and e.is_alive() and not e in foes:
+			foes.append(e)
+	void_grab.pile = foes
+	Game.hitstop(METEOR_BEAT_STOP)
+	Game.sfx("hit_big", -2.0, 0.1)
+	Game.shake(0.45)
+	for i in foes.size():
+		var e: Node3D = foes[i]
+		THROWN.cut(e)
+		var body: Variant = e.get("model")
+		if body != null:
+			body.position.y = 0.0  # (up out of the lava)
+		if void_grab.is_heavy(e):
+			e.take_hit(METEOR_WALL_DAMAGE * power, Vector3.ZERO, 0.0, true)
+			Game.register_hit("breaker")
+			continue
+		var out := _flat(e.global_position - at)
+		var dir: Vector3 = out.normalized() if out.length() > 0.3 else hero._brk_dir.rotated(Vector3.UP, TAU * i / maxf(foes.size(), 1.0))
+		Fx.shards(parent, _flat(e.global_position) + Vector3.UP * 0.4, ELEMENTS.LOOK.earth.color, 6, Vector3.UP, 6.0, 0.14, 0.4)
+		var flight: Node = THROWN.launch(hero, e, _flat(e.global_position) + dir * METEOR_WALL_LENGTH, METEOR_WALL_DAMAGE * power,
+			{"el": "earth", "solid": false, "tether": true, "speed": METEOR_WALL_SPEED, "land_y": 0.0, "wall_mult": METEOR_WALL_MULT})
+		COMIC_SPLAT.watch(parent, flight, e)  # (a star where it splats on a wall)
+
+
+## Is anyone in the pile still in the air from the last beat?
+static func pile_flying(hero: CharacterBody3D) -> bool:
+	for e: Variant in hero._void.pile:
+		if is_instance_valid(e) and e.is_alive() and THROWN.flying(e):
+			return true
+	return false
+
+
+## Beat 2: dark tentacles go out to everyone and drag them all into one pile, on the biggest if there's one
+## that wouldn't fly, otherwise in front of him. Sets the dive's landing (hero._brk_zone) on the pile.
+static func meteor_gather(hero: CharacterBody3D) -> void:
+	var parent: Node = hero.get_parent()
+	var void_grab: Node = hero._void
+	var at := _flat(hero.global_position)
+	var foes: Array = void_grab.pile.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	for e: Node3D in FOES.near(hero.get_tree(), at, METEOR_REACH + METEOR_WALL_LENGTH):
+		if not e in foes:
+			foes.append(e)
+	void_grab.pile = foes
+	var dir: Vector3 = hero._brk_dir
+	var pile: Vector3 = at + dir * minf(METEOR_PILE_AHEAD, hero._clear_ahead(dir, METEOR_PILE_AHEAD))
+	var ring: float = METEOR_PILE_RING
+	for e: Node3D in foes:
+		if void_grab.is_heavy(e):
+			pile = _flat(e.global_position)
+			ring = float(e.radius) + METEOR_PILE_RING
+			break
+	var slot := 0
+	var small: Array = foes.filter(func(e: Node3D) -> bool: return not void_grab.is_heavy(e))
+	if small.size() == 1 and ring == METEOR_PILE_RING:
+		ring = 0.0  # (one on its own: right where he lands)
+	for e: Node3D in small:
+		THROWN.cut(e)
+		var a := TAU * slot / maxf(small.size(), 1.0)
+		var to := pile + Vector3(sin(a), 0.0, cos(a)) * ring
+		var speed: float = maxf(TIDE_SPEED, _flat(e.global_position - to).length() / METEOR_DRAG_TIME)
+		DARK.burst(parent, _flat(e.global_position), 0.7)
+		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "void", "speed": speed, "land_y": 0.0})
+		slot += 1
+	void_grab.dark_spot = pile
+	hero._brk_zone = pile
+	COMIC_SPLAT.pile_word(parent, small, pile)
+	var to := pile - at
+	if to.length() > 0.1:
+		hero._brk_dir = to.normalized()
+	Game.sfx("swing_heavy", -2.0, 0.1)
+
+
+## Beat 3 lands: the meteor comes down on the pile, a crater under every one of them. Shields come off for good.
+static func _meteor_pile(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	for e: Node3D in FOES.near(hero.get_tree(), at, METEOR_PILE_R):
+		var spot := _flat(e.global_position)
+		THROWN.cut(e)
+		if e.has_method("rip_shield"):
+			e.rip_shield()
+		e.take_hit(damage * (METEOR_HEAVY_MULT if hero._void.is_heavy(e) else 1.0), Vector3.DOWN * METEOR_DOWN, 0.0, true)
+		Game.register_hit("breaker")
+		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 6, Vector3.UP, 10.0, 0.2, 0.7)
+		ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 2, 1.0)
+	_pop(parent, at, "hammer")
+	for i in METEOR_GEYSERS:
+		var a := TAU * (i + 0.5) / METEOR_GEYSERS  # (one behind the pile, none in front of it)
+		ELEMENTS.rim_geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
+	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, METEOR_GEYSER_OUT * 1.6, 1.6)
+	hero._void.pile = []
+	Game.shake(0.8)
+
+
 # --- Breakers -----------------------------------------------------------------
 
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
@@ -618,6 +1261,21 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		return
 	if b.has("press"):
 		_avalanche(hero, b, seized, mult)
+		return
+	if b.has("gather"):
+		_meteor_pile(hero, b, at, mult)
+		return
+	if b.has("cataclysm"):
+		_cataclysm(hero, b, at, seized, mult)
+		return
+	if b.has("black_ice"):
+		_black_ice(hero, b, mult)
+		return
+	if b.has("eruption"):
+		_eruption(hero, b, at, seized, mult)
+		return
+	if b.has("anvil"):
+		_anvil(hero, b, at, seized, mult)
 		return
 	if b.has("rip"):
 		_tear(hero, b, seized, mult)
@@ -784,8 +1442,8 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 			Game.register_hit("breaker")
 	var at := _flat(hero.global_position)
 	for i in METEOR_GEYSERS:
-		var a := TAU * i / METEOR_GEYSERS
-		ELEMENTS.geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
+		var a := TAU * (i + 0.5) / METEOR_GEYSERS  # (one behind the pile, none in front of it)
+		ELEMENTS.rim_geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
 	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, METEOR_GEYSER_OUT * 1.6, 1.6)
 	Game.shake(0.7)
 
@@ -812,8 +1470,8 @@ static func cube_target(e: Node3D, seized: Array, at: Vector3, all: Array, facin
 static func under(parent: Node, spot: Vector3, el: String) -> void:
 	match el:
 		"earth":
-			ELEMENTS.geyser(parent, spot, GEYSER_RADIUS, GEYSER_HIGH, false)
-			ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 5, 1.0)
+			ELEMENTS.rim_geyser(parent, spot, GEYSER_RADIUS, GEYSER_HIGH, false)
+			ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 3, 1.0)  # (round 33, sleek 5: a full geyser and five spikes under each foe walled Worldbreaker's pile)
 		"water":
 			ELEMENTS.spikes(parent, spot, "water", CRYSTAL_SIZE, 6, 1.0)
 			Fx.shards(parent, spot + Vector3.UP * 0.6, Color(0.85, 0.96, 1.0), 10, Vector3.UP, 8.0, 0.14, 0.6)
@@ -868,3 +1526,155 @@ static func _pop(parent: Node, at: Vector3, form: String) -> void:
 
 static func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
+
+
+
+# --- The element matrix (round 34, third pass; docs/features/element-matrix.md) -----------------------------------
+# Every state a crossover leaves x every element: each cell a small payoff, so improvising across any pair does
+# something. The cells the moves already pay themselves aren't here (Molten Palm's steam on the frozen, _cash_buried,
+# Tow Line's rip, Ice Cube taking the frozen first, the crossovers and breakers that read their states); these are paid
+# by the element's base moves (not the X* crossovers, which read their own) through improvise(), at the top of fire(),
+# before the move's own hit, so a payoff never moves a foe the move is about to throw.
+# Each cell's look is a small tell in comic_improv.gd (LOOKS, keyed "<state>_x_<element>"), its word ComicFx.IMPROV_WORDS.
+
+## state -> element -> payoff kind (_pay()).
+const IMPROV := {
+	"skewered": {"water": "spread", "void": "tear"},
+	"molten": {"wind": "fan", "water": "quench", "earth": "erupt", "void": "smother"},
+	"buried": {"water": "encase", "earth": "crater", "void": "swallow"},
+	"bound": {"wind": "loose", "water": "encase"},
+	"frozen": {"wind": "lift", "void": "shatter"},
+	"airborne": {"water": "freeze", "earth": "spike"},
+}
+## A foe in several states pays the first with a cell for the element, in this order (the skewered are frozen too).
+const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne"]
+const IMPROV_REACH := 5.0  # m round him: who a base move's element reaches for its payoff
+const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
+const IMPROV_MULT := 1.5  # the harder payoffs (crater, swallow, smother, spike, tear, loose)
+const IMPROV_LAUNCH := 8.0  # m/s up: lift, fan, loose (a fresh launch: at least enemy.RELAUNCH_MIN)
+const IMPROV_DOWN := 6.0  # m/s into the floor: crater, swallow, smother, spike (enemy._is_spike craters them)
+const IMPROV_CHAIN_R := 2.6  # m round the payer that a chain (shatter, fan, spread) jumps to its neighbour
+const IMPROV_CHAIN_DAMAGE := 5.0
+const IMPROV_PULL := 6.0  # m/s towards him: tear (yanked off the spear)
+const IMPROV_STEAM_MULT := 1.6  # quench: water on the molten goes off in steam, like the ice under magma
+const IMPROV_HOLD := 0.6  # s swallow keeps them stuck in the floor
+static var improv_paid := {}  # "state x element" -> payoffs so far (the autotest's [improv] line)
+
+
+## The state on `e` the element `el` pays, or "" (IMPROV, in IMPROV_ORDER).
+static func improv_state(e: Node, el: String) -> String:
+	for state: String in IMPROV_ORDER:
+		if IMPROV[state].has(el) and in_state(e, state):
+			return state
+	return ""
+
+
+static func in_state(e: Node, state: String) -> bool:
+	match state:
+		"frozen":
+			return is_frozen(e)
+		"airborne":
+			return e.is_airborne()
+		"bound":
+			return BIND.holds(e)
+	return marked(e, state)
+
+
+## A base element move's improvised payoffs on everyone near him in a state its element pays. Returns how many paid.
+static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: float) -> int:
+	if id.begins_with("X") or not ELEMENT_OF.has(id):
+		return 0
+	var el: String = ELEMENT_OF[id]
+	var due := []  # (read every state first: a chain sets one on the neighbour, which mustn't pay in the same move)
+	# (Tow Line reaches along the dash he just made, which can leave them behind him: its own line, then near him)
+	var near: Array = FOES.near(hero.get_tree(), at, IMPROV_REACH)
+	if id == DASH_MOVE:
+		near = _tow_line(hero, at) + near.filter(func(e: Node3D) -> bool: return not e in _tow_line(hero, at))
+	for e: Node3D in near:
+		var state := "" if THROWN.flying(e) else improv_state(e, el)
+		if state != "":
+			due.append([e, state])
+	for d: Array in due:
+		if is_instance_valid(d[0]) and d[0].is_alive():
+			var cell: String = "%s_x_%s" % [d[1], el]
+			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power, cell)
+			improv_paid[cell] = int(improv_paid.get(cell, 0)) + 1
+	return due.size()
+
+
+## One payoff (IMPROV's kinds): one hit, and a state, a chain to the neighbour, a launch or a crater.
+static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "") -> void:
+	var parent: Node = hero.get_parent()
+	var spot := _flat(e.global_position)
+	var heavy: bool = hero._void.is_heavy(e)
+	var damage := IMPROV_DAMAGE * power
+	var down := Vector3.DOWN * IMPROV_DOWN
+	if state in ["buried", "molten", "skewered"]:
+		unmark(e, state)  # (spent: once)
+	var next: Variant = null  # the neighbour a chain reached (its tell draws the jump)
+	match kind:
+		"lift":  # frozen x wind: the gale takes the cube up, still in its ice
+			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+			freeze_aloft(e)
+		"shatter":  # frozen x dark: the dark crushes the ice, and the shards cut the one beside it
+			THROWN.remove_cube(e)
+			e.take_hit(damage, Vector3.ZERO, 0.0, true)
+			next = _chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "")
+		"encase":  # buried / bound x ice: frozen where it's stuck
+			e.take_hit(damage, Vector3.ZERO, 0.0, false)
+			encase(e)
+		"crater", "swallow", "smother", "spike":  # buried / molten / airborne x earth or dark: driven (back) into the floor
+			e.take_hit(damage * IMPROV_MULT, down, 0.0, true)
+			if kind == "swallow" and not heavy:
+				e.stagger(IMPROV_HOLD)
+		"fan":  # molten x wind: the gale fans the flames up, and onto the one beside it
+			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+			next = _chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "molten")
+		"quench":  # molten x water: it goes off in steam
+			e.take_hit(damage * IMPROV_STEAM_MULT, Vector3.ZERO, 0.0 if heavy else STEAM_LAUNCH, true)
+		"erupt":  # molten x earth: the floor goes up under it
+			e.take_hit(damage * ERUPT_MOLTEN_MULT, Vector3.ZERO, 0.0 if heavy else ERUPT_LAUNCH, true)
+		"spread":  # skewered x ice: the ice climbs on to the nearest foe not in it, and skewers it too
+			e.take_hit(damage, Vector3.ZERO, 0.0, false)
+			encase(e)
+			next = _chain(hero, e, 0.0, "skewered")
+		"tear":  # skewered x dark: torn off the spear towards him
+			THROWN.remove_cube(e)
+			var back := _flat(at - e.global_position)
+			e.take_hit(damage * IMPROV_MULT, back.normalized() * IMPROV_PULL if back.length() > 0.6 else Vector3.ZERO, 0.0, true)
+		"freeze":  # airborne x ice: frozen up there; it comes down a cube
+			e.take_hit(damage, Vector3.ZERO, 0.0, false)
+			freeze_aloft(e)
+		"loose":  # bound x wind: the gale tears it out of the bind and up
+			BIND.let_go_of(hero.get_tree(), e)
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+	if Game.comic_style:
+		COMIC_IMPROV.spawn(parent, cell, e, at, next)
+	Game.register_hit("cast")
+
+
+## The chain to the neighbour: the nearest other foe within IMPROV_CHAIN_R takes `damage` and, for "molten" /
+## "skewered", the state too (the skewered frozen in a cube). Returns where it jumped to (world), or null.
+static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: String) -> Variant:
+	var best: Node3D = null
+	var best_d := INF
+	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, IMPROV_CHAIN_R):
+		var d: float = _flat(o.global_position - from.global_position).length()
+		if o != from and not THROWN.flying(o) and d < best_d and not (state != "" and in_state(o, state)):
+			best = o
+			best_d = d
+	if best == null:
+		return null
+	var to: Vector3 = best.global_position
+	if not Game.comic_style:
+		var tone: String = {"molten": "earth", "skewered": "water"}.get(state, "void")
+		ELEMENTS.arc(hero.get_parent(), from.global_position + Vector3.UP, to + Vector3.UP, ELEMENTS.LOOK[tone].color)
+	if damage > 0.0:
+		var out := _flat(best.global_position - from.global_position)
+		best.take_hit(damage, (out.normalized() if out.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, false)
+		Game.register_hit("cast")
+	if state == "skewered":
+		encase(best)
+	if state != "":
+		mark(best, state)
+	return to

@@ -81,6 +81,33 @@ What came back: clean flat regions with no patchwork, a bone-white hood and scar
 
 What the game camera taught on the chibi: the signature limb needs to be bigger than feels right in a close-up (the claw went 1.5x before it read at rest from 13 m up), a face under a big hood can't be seen from above at all, so menace there has to come from something drawn over the hood (glowing eyes) rather than from the texture, and the pale skin left under the hood read as a chin, not shadow. The default hero is the chibi from round 29 (Zak can veto: `Game.HERO_DEFAULT`).
 
+## Foes, chibi pass 2 (round 39)
+
+What the game camera taught on the nine foes (`tools/comic_art/refine_pass.py`, comic-style.md "Foe models,
+chibi pass 2"):
+
+- **Faces read only if they face the camera.** From 54 degrees up a hunched skull shows its cranium: eyes 1.65x
+  tipped back 30 degrees, plus a slanted black brow over each, turned blank skulls into angry faces at 70 px.
+  A big open grin (the bomber) needs no scowl; a bent-down teeth line reads only from the front.
+- **One prop per foe, in its family's accent where it is the read:** the archer's bow went from thin bone to
+  thick orange and now reads at a glance; the shield read as a wall only after its clutter (skulls, arrows,
+  bones pinned to it) was deleted, not when it grew.
+- **Families by element colour** (fx_palette.gd): legion earth orange, cult void violet, grave wind green.
+  Eyes are the accent everywhere, so a crowd sorts itself by family at a glance.
+- **A prop can grow too far:** the minion's cleaver at 1.6 x 1.8 across became an orange slab hiding the
+  whole minion from the game camera; 1.45 x 1.25 in the body's rust reads as a weapon.
+- **Heavier ink on the outer silhouette** (`ComicLook.silhouette`, 4 px pushed 0.3 m back) separates a dark
+  prop (the bomber's bomb) from the indigo floor without thickening the lines inside the body.
+
+## The hero, chibi pass 2 (round 40)
+
+Zak: "we can redesign him and fine tune it... chibi-esque, cartoony, not taking itself too seriously, but still badass." What the game camera taught:
+- **A signature shape must break the outline from above.** The hood's point stood straight up and hid inside its own egg from 54 degrees; shearing the tip 0.2 m back (same height) made it read as a pointed hood. Judge a silhouette change by whether it pokes past the outline at the game angle.
+- **Flat regions by design tones, not shading:** each part gets a body tone and at most two bands that mean something (a lining, a cuff, a sole, a hem, claw tips). The repaint is `tools/meshy_rig/chibi_repaint.py`.
+- **Colour separates head from body:** a crimson scarf under the bone-white hood gives a ring of colour that the old white-on-white lost.
+- **The hero's signature colour is the fx palette's void** (violet body, light tips, deep cuff), on the claw and on the weapons that grow out of it, so his body and his effects read as one set. Weapons keep only the thin ink and one element accent.
+- **Attitude lives over the hood:** the grin and the squinting slits are drawn over it (`heretic_rig.gd` `GRIN`, `squint`); a face texture can't be seen from the game camera.
+
 ## Checking
 
 Look at the windowed `tests/heretic_shots.gd` (or `tests/comic_shots.gd`) game-camera shots before calling a model better. A Blender render is only for spotting problems.

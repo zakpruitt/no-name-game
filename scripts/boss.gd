@@ -121,6 +121,29 @@ func _state_chase(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 20.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 20.0 * delta)
 	_play(run_anim if dir != Vector3.ZERO else "Idle_Combat")
+	if dir != Vector3.ZERO and comic_kind != "" and anim.current_animation == ComicLook.clip(anim, comic_kind, run_anim):
+		_clip_speed(run_clip_speed(Vector2(velocity.x, velocity.z).length()))
+		_stomp_shake()
+
+
+## Footfalls of the comic walk (fractions of the clip, foe_cycles.py's warden: left down on 0, right
+## on half) shake the floor a little; `_last_walk_t` is where the clip was last frame.
+const STOMP_AT := [0.04, 0.54]
+const STOMP_SHAKE := 0.12
+var _last_walk_t := -1.0
+
+
+func _stomp_shake() -> void:
+	var length := anim.current_animation_length
+	if length <= 0.0:
+		return
+	var t := anim.current_animation_position / length
+	if _last_walk_t >= 0.0:
+		for at: float in STOMP_AT:
+			var crossed := (_last_walk_t < at and t >= at) or (t < _last_walk_t and (at > _last_walk_t or at <= t))
+			if crossed:
+				Game.shake(STOMP_SHAKE)
+	_last_walk_t = t
 
 
 ## Close: mostly cleave. Far: slam or nova. Avoid repeating the same attack.
@@ -350,7 +373,7 @@ func take_hit(damage: float, knockback: Vector3, _launch: float, big: bool) -> v
 		return
 	hp -= damage
 	Fx.damage_number(get_parent(), global_position + Vector3.UP * 1.2, damage, big, self)
-	Fx.hit_spark(get_parent(), global_position + Vector3.UP * 0.8 + knockback.normalized() * -0.6, Color(1.0, 0.9, 0.6), 1.5 if big else 1.0)
+	Fx.hit_spark(get_parent(), global_position + Vector3.UP * 0.8 + knockback.normalized() * -0.6, Color(1.0, 0.9, 0.6), Fx.HIT_STAR_BIG if big else Fx.HIT_STAR)
 	Fx.impact(get_parent(), global_position + Vector3.UP * 0.8, knockback + Vector3.UP * 2.0, big)
 	ComicFx.hit(global_position, big)
 	_boss_reaction(big)

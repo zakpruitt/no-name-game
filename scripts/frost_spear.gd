@@ -3,6 +3,7 @@ extends Node3D
 ## on it, and that's all it does until he slams down onto it (void_element._deep_freeze). Only one at
 ## a time. See docs/features/void-element.md.
 
+const STANDING := preload("res://scripts/standing_fx.gd")
 const FOES := preload("res://scripts/foes.gd")
 const GROUP := "frost_spear"
 const RADIUS := 6.0  # m the frost reaches
@@ -12,7 +13,7 @@ const MELT := 0.3  # s to go
 const TICK := 0.15  # s between slows
 const SLOW := 0.45  # what foes' speed drops to
 const SLOW_TIME := 0.5  # s the slow outlasts the last tick
-const PULSE_EVERY := 0.7  # s between rings of frost going out
+const PULSE_EVERY := 1.2  # s between rings of frost going out (round 33, sleek 5: 0.7 kept two up over a crowd)
 const PULSE_TIME := 0.6  # s
 const SHAFT_HIGH := 2.3  # m
 const SHAFT_R := 0.13  # m
@@ -26,14 +27,24 @@ const SHAFT := Color(0.36, 0.1, 0.42)
 const FROST_INK := Color(0.03, 0.05, 0.12)
 const FROST_CRACKS := 11  # inked ice cracks running out from the spear
 const FROST_TEETH := 26  # the frost's jagged edge
-const FROST_PATCHES := 7  # chunky ice plates scattered between the cracks
+const FROST_PATCHES := 4  # ice plates scattered between the cracks (round 33, sleek: 7 cluttered it)
+## Round 33, part 3: the frost's fill is the halftone ice of the spikes and cubes (shaders/halftone_floor.gdshader:
+## the water palette's dots, clear in the middle, densest at the toothed edge, so it still reads as a zone),
+## in place of the round-29 plates' flat two-tone ice. Cracks and teeth keep their ink.
+const ZONE_SHADER := preload("res://shaders/halftone_floor.gdshader")
+const PAL := preload("res://scripts/fx_palette.gd")
+const ZONE_FILL := 0.26  # (0.34 read as a carpet 12 m across)
+const ZONE_INNER := 0.45  # of the radius: clear inside
+const ZONE_PLATES := false  # the round-29 plates (the zone's dots replace them)
 
 var _t := 0.0
 var _next_tick := 0.0
 var _next_pulse := 0.0
 var _r := 0.0
 var _gone := false
+var _cleared := false  # the frost's look has gone (standing_fx.gd)
 var _frost: MeshInstance3D
+var _zone: MeshInstance3D  # the halftone fill under the cracks (a child of _frost)
 var _stuck: Node3D
 
 
@@ -57,6 +68,7 @@ static func current(tree: SceneTree) -> Node3D:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	STANDING.add(self)
 	_frost = MeshInstance3D.new()
 	_frost.mesh = frost_mesh(RandomNumberGenerator.new())
 	_frost.material_override = frost_material()
@@ -64,6 +76,12 @@ func _ready() -> void:
 	_frost.position.y = 0.05
 	_frost.scale = Vector3(0.01, 1.0, 0.01)
 	add_child(_frost)
+	_zone = MeshInstance3D.new()
+	_zone.mesh = zone_mesh()
+	_zone.material_override = zone_material()
+	_zone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_zone.position.y = 0.015  # over the cracks (0..0.008): below them it hid under the tiles but for the grout
+	_frost.add_child(_zone)
 	_stuck = Node3D.new()
 	add_child(_stuck)
 	var lean := randf() * TAU
@@ -122,7 +140,7 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 			var r := reach * (k + 1) / 3.0
 			var b := a + rng.randf_range(-0.22, 0.22)
 			pts.append(Vector2(cos(b), sin(b)) * r)
-		for layer: Array in [[0.1, FROST_INK, 0.0], [0.055, ICE, 0.004], [0.016, ICE_LIGHT, 0.008]]:
+		for layer: Array in [[0.042, FROST_INK, 0.0], [0.03, ICE, 0.004], [0.01, ICE_LIGHT, 0.008]]:  # round 33: m per m of RADIUS (0.1 was a 0.6 m ink band)
 			for k in 3:
 				var p: Vector2 = pts[k]
 				var q: Vector2 = pts[k + 1]
@@ -135,13 +153,13 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 		var a0 := TAU * i / FROST_TEETH
 		var a1 := TAU * (i + 1) / FROST_TEETH
 		var am := (a0 + a1) * 0.5
-		var depth := rng.randf_range(0.1, 0.2)
+		var depth := rng.randf_range(0.04, 0.08)  # round 33 (sleek): 0.1-0.2 of a 6 m frost was a 1 m band of teeth
 		var o0 := Vector2(cos(a0), sin(a0))
 		var o1 := Vector2(cos(a1), sin(a1))
 		var tip := Vector2(cos(am), sin(am)) * (1.0 - depth)
-		tri.call(o0 * 1.03, o1 * 1.03, tip * 0.96, FROST_INK, 0.0)
+		tri.call(o0 * 1.008, o1 * 1.008, tip * 0.985, FROST_INK, 0.0)
 		tri.call(o0, o1, tip, ICE if i % 2 == 0 else ICE_LIGHT, 0.004)
-	for i in FROST_PATCHES:  # chunky plates of ice between the cracks
+	for i in FROST_PATCHES if ZONE_PLATES else 0:  # chunky plates of ice between the cracks
 		var a := TAU * (i + 0.5) / FROST_PATCHES + rng.randf_range(-0.2, 0.2)
 		var at := Vector2(cos(a), sin(a)) * rng.randf_range(0.35, 0.75)
 		var size := rng.randf_range(0.06, 0.11)
@@ -150,13 +168,44 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 			var b := TAU * k / 5.0 + rng.randf()
 			ring.append(Vector2(cos(b), sin(b)) * size * rng.randf_range(0.7, 1.2))
 		for k in 5:
-			tri.call(at, at + ring[k] * 1.35, at + ring[(k + 1) % 5] * 1.35, FROST_INK, 0.0)
+			tri.call(at, at + ring[k] * 1.15, at + ring[(k + 1) % 5] * 1.15, FROST_INK, 0.0)
 		for k in 5:
 			tri.call(at, at + ring[k], at + ring[(k + 1) % 5], ICE_LIGHT if k < 2 else ICE, 0.004)
 	return st.commit()
 
 
 static var _frost_mat: StandardMaterial3D
+static var _zone_mat: ShaderMaterial
+static var _zone_mesh: ArrayMesh
+
+
+## The halftone frost fill: water palette dots, shared. Drawn in elements.prewarm().
+static func zone_material() -> ShaderMaterial:
+	if _zone_mat == null:
+		var pal := PAL.of("water")
+		_zone_mat = ShaderMaterial.new()
+		_zone_mat.shader = ZONE_SHADER
+		_zone_mat.set_shader_parameter("body_color", pal.body)
+		_zone_mat.set_shader_parameter("dot_color", pal.light)
+		_zone_mat.set_shader_parameter("fill", ZONE_FILL)
+		_zone_mat.set_shader_parameter("inner", ZONE_INNER)
+	return _zone_mat
+
+
+## A flat disc of radius 1 in XZ.
+static func zone_mesh() -> ArrayMesh:
+	if _zone_mesh == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var n := 48
+		for i in n:
+			var a := TAU * i / n
+			var b := TAU * (i + 1) / n
+			st.add_vertex(Vector3.ZERO)
+			st.add_vertex(Vector3(cos(a), 0.0, sin(a)))
+			st.add_vertex(Vector3(cos(b), 0.0, sin(b)))
+		_zone_mesh = st.commit()
+	return _zone_mesh
 
 
 ## Flat vertex colours, depth tested so foes stand on it. Shared, and drawn in elements.prewarm().
@@ -203,7 +252,8 @@ func _physics_process(delta: float) -> void:
 				e.chill(SLOW_TIME, SLOW)
 	if _t >= _next_pulse:
 		_next_pulse += PULSE_EVERY
-		frost_ring(get_parent(), global_position, RADIUS, PULSE_TIME)
+		if not _cleared:
+			frost_ring(get_parent(), global_position, RADIUS, PULSE_TIME)
 	if _t >= LIFE:
 		melt()
 
@@ -211,14 +261,14 @@ func _physics_process(delta: float) -> void:
 ## A thin hard-edged ring of frost going out to `radius`.
 static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) -> void:
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.93
+	torus.inner_radius = 0.985  # round 33 (sleek): a thin line racing out (sleek 5: 0.97 was 0.18 m at 6 m)
 	torus.outer_radius = 1.0
 	torus.rings = 32
 	torus.ring_segments = 3
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(ICE_LIGHT, 0.9)
+	mat.albedo_color = Color(ICE_LIGHT, 0.55)
 	var m := MeshInstance3D.new()
 	m.mesh = torus
 	m.material_override = mat
@@ -230,6 +280,15 @@ static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) 
 	tw.tween_property(m, "scale", Vector3(radius, 0.05, radius), time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5).set_delay(time * 0.5)
 	tw.chain().tween_callback(m.queue_free)
+
+
+## The next string's first hit landed (standing_fx.gd): the floor frost and its rings fade; the spear and
+## its chill stay for the ice breaker.
+func clear_standing() -> void:
+	_cleared = true
+	var tw := create_tween().set_parallel()
+	tw.tween_property(_frost, "transparency", 1.0, STANDING.CLEAR_S)
+	tw.tween_method(func(a: float) -> void: _zone.set_instance_shader_parameter("alpha", a), 1.0, 0.0, STANDING.CLEAR_S)
 
 
 ## Gone quietly: time's up, or another took its place.

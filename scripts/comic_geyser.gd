@@ -8,13 +8,14 @@ extends Node3D
 
 const SELF := preload("res://scripts/comic_geyser.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const STEPS_PER_S := 12.0  # on twos
-const HEIGHT_BY_STEP := [1.15, 1.0, 0.7, 0.3]  # overshoot, settle, sink, a stub; then gone
+const HEIGHT_BY_STEP := [1.15, 1.0, 0.55]  # overshoot, settle, sink; then gone (round 33: the stub step outlived the hit)
 const INK := Color(0.012, 0.01, 0.02)
-const LAVA := Color(1.0, 0.3, 0.03)
-const HOT := Color(1.0, 0.82, 0.22)
+const LAVA := Color(1.0, 0.38, 0.05)  # fx_palette "earth"
+const HOT := Color(1.0, 0.76, 0.28)
 const GRAVITY := 16.0
-const BLOBS := 6
+const BLOBS := 3  # round 33 (sleek): six fat blobs a geyser, times five geysers, was a pile of coins
 const WOBBLE := 0.12  # of the width, side to side down the column on each step
 const ROWS := 6
 
@@ -92,18 +93,19 @@ func _draw_step(step: int) -> void:
 	for i in ROWS + 1:
 		wob.append(_rng.randf_range(-1.0, 1.0) * WOBBLE * width)
 	var splash := width * (0.9 if step == 0 else 0.65)
+	var lava := PAL.fade(LAVA, 0.6 if last else 0.9)
 	if not last:
-		_star(Vector3.UP * 0.1, splash * 1.2, INK, 9)
-		_column(h * 1.04, width * 1.3, wob, INK)
-	_star(Vector3.UP * 0.1, splash, LAVA, 9)
-	_column(h, width, wob, LAVA)
+		_star(Vector3.UP * 0.1, splash * 0.8 + PAL.LINE, INK, 7)
+		_column(h + PAL.LINE * 2.0, width + PAL.LINE * 2.0, wob, INK)
+	_star(Vector3.UP * 0.1, splash * 0.8, lava, 7)
+	_column(h, width, wob, lava)
 	if not last:
-		_column(h * 0.85, width * 0.45, wob, HOT)
+		_column(h * 0.85, width * 0.3, wob, HOT)
 	if step >= 1:  # blobs once it starts to break
 		for b: Dictionary in _blobs:
 			if b.pos.y > 0.0:
-				_blob(b.pos, b.size * 1.35, INK)
-				_blob(b.pos, b.size, LAVA if last else HOT)
+				_blob(b.pos, b.size * 0.7 + PAL.LINE, INK)
+				_blob(b.pos, b.size * 0.7, lava if last else HOT)
 	_mesh.clear_surfaces()
 	if _verts.is_empty():
 		return

@@ -9,8 +9,11 @@ signal raise_requested(enemy: Node)
 
 enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 
-const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C", "Spellcasting"]
+## Spellcasting is out since round 38 b: the comic casters' windups are all tell, held on their last frame.
+const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"]
 const PROJECTILE := preload("res://scripts/projectile.gd")
+const FOE_LEAN := preload("res://scripts/foe_lean.gd")
+const STATE_TELL := preload("res://scripts/comic_state_tell.gd")
 
 @export var model_scene: PackedScene
 ## ComicLook model name when model_scene is a comic GLB ("" = KayKit, nothing changes).
@@ -22,6 +25,13 @@ var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (
 @export var attack_damage := 10.0
 @export var attack_windup := 0.6
 @export var attack_recover := 0.7
+## Frame of the melee clip (1H_Melee_Attack_Chop, at ATTACK_CLIP_FPS) where the blow lands (enemy_types
+## `attack_hit`, the comic foes' keyed contact, foe_cycles.py): the clip plays at
+## attack_hit / ATTACK_CLIP_FPS / attack_windup so that frame falls on the windup's end. 0 = the
+## KayKit rule, CHOP_HIT_AT of the clip's length.
+@export var attack_hit := 0.0
+const ATTACK_CLIP_FPS := 24.0
+const CHOP_HIT_AT := 0.45
 ## Knockback below this doesn't stagger (0 = always staggers).
 @export var poise := 0.0
 @export var model_scale := 1.0
@@ -290,6 +300,13 @@ func _ready() -> void:
 	if _ink_mat != null:
 		_ink_px = _ink_mat.get_shader_parameter("width_px")
 	anim = model.find_child("AnimationPlayer", true, false)
+	if TURN_LEAN.has(comic_kind):
+		var skel: Skeleton3D = model.find_child("Skeleton3D", true, false)
+		if skel != null:
+			var lean := FOE_LEAN.new()
+			lean.foe = self
+			lean.deg_per_mps = TURN_LEAN[comic_kind]
+			skel.add_child(lean)
 	for a in LOOPING:
 		if anim.has_animation(a):
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -325,6 +342,7 @@ func is_airborne() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	STATE_TELL.sync(self)  # (a crossover state's tell: buried / molten / skewered, comic_state_tell.gd)
 	if _telegraph.visible:
 		_pulse_edge(delta)
 	# Fx.flash clears overlays on hit; put the glow back afterwards.
@@ -431,7 +449,7 @@ func _state_chase(delta: float) -> void:
 		elif is_ranged():
 			_play("Spellcasting", 0.1, 1.2)
 		else:
-			_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
+			_play("1H_Melee_Attack_Chop", 0.1, chop_speed())
 		return
 	var dir := Vector3.ZERO
 	var behind: Vector3 = _player.global_position - _player.facing_dir() * 2.5 - global_position
@@ -456,9 +474,38 @@ func _state_chase(delta: float) -> void:
 		dir = dir.normalized()
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 25.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 25.0 * delta)
-	_play(run_anim if moving else "Idle_Combat")
+	_play_locomotion(moving, dir)
 	if moving and comic_kind != "" and anim.current_animation == ComicLook.clip(anim, comic_kind, run_anim):
 		_clip_speed(run_clip_speed(Vector2(velocity.x, velocity.z).length()))
+
+
+## The melee clip's speed that puts its hit frame on the windup's end (attack_hit).
+func chop_speed() -> float:
+	var hit := attack_hit / ATTACK_CLIP_FPS
+	if hit <= 0.0:
+		hit = anim.get_animation("1H_Melee_Attack_Chop").length * CHOP_HIT_AT
+	return hit / attack_windup
+
+
+## Run or idle, with the comic run start / stop one-shots where the model has them (the rogue and
+## the minion, foe_cycles.py run_start / run_stop): Run_Start when it sets off on a full run from below
+## RUN_START_BELOW of move_speed, Run_Stop when it lets go above RUN_STOP_ABOVE. Both play out at 1x
+## (_hold_clip); setting off again cuts the skid short.
+func _play_locomotion(moving: bool, dir: Vector3) -> void:
+	if comic_kind != "" and anim.has_animation("Run_Start"):
+		var ground := Vector2(velocity.x, velocity.z).length()
+		var playing := anim.current_animation
+		var run := ComicLook.clip(anim, comic_kind, run_anim)
+		if moving and playing == "Run_Stop":
+			_clip_hold_ms = 0
+		elif dir.length() > RUN_START_DIR and playing != run and playing != "Run_Start" \
+				and ground < move_speed * RUN_START_BELOW and Time.get_ticks_msec() >= _clip_hold_ms:
+			_hold_clip("Run_Start", 0.06)
+			return
+		elif not moving and playing == run and ground > move_speed * RUN_STOP_ABOVE:
+			_hold_clip("Run_Stop", 0.06)
+			return
+	_play(run_anim if moving else "Idle_Combat")
 
 
 ## Push away from nearby enemies so groups spread out and surround.
@@ -672,7 +719,7 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	last_hit_ms = Time.get_ticks_msec()
 	Fx.damage_number(get_parent(), global_position, damage, big, self)
 	if not _quiet_hit:
-		Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
+		Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), Fx.HIT_STAR_BIG if big else Fx.HIT_STAR)
 		Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
 		ComicFx.hit(global_position, big)
 	var hero := get_tree().get_first_node_in_group("player")
@@ -1225,9 +1272,19 @@ func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
 	_clip_hold_ms = Time.get_ticks_msec() + int(anim.get_animation(anim_name).length / speed * 1000.0)
 
 
+## Run start / stop one-shots (_play_locomotion), as the hero's (player.gd RUN_START_BELOW / RUN_STOP_ABOVE).
+const RUN_START_BELOW := 0.3
+const RUN_STOP_ABOVE := 0.6
+const RUN_START_DIR := 0.6  # a full run, not the slow circling at 0.4 of move speed
+## Turn lean (scripts/foe_lean.gd on the skeleton): degrees per m/s of velocity change across its facing,
+## per kind; the fast ones only.
+const TURN_LEAN := {"rogue": 3.5, "minion": 3.0}
+
 ## Clip speed range for the run matched to the ground (run_foot_speed).
-const RUN_CLIP_SPEED_MIN := 0.5
-const RUN_CLIP_SPEED_MAX := 3.0  # the shield's shuffle needs it at 3.2 m/s; chibi legs pump fast
+## The runs are keyed for move_speed at 1x (round 38, foe_keys.py), so at full speed this is ~1;
+## the floor lets a foe circling at 0.4 of its speed slow its feet too.
+const RUN_CLIP_SPEED_MIN := 0.35
+const RUN_CLIP_SPEED_MAX := 1.6
 
 
 ## The run clip's speed that keeps planted feet on the floor at `ground` m/s.

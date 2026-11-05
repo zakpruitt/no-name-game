@@ -163,6 +163,41 @@ little; it never leans, tumbles or leaves the floor.
   only the sign matters to `_is_spike`; the size points the comic speed
   strokes down), `boss.BOSS_SQUASH` (1.08, 0.9, 1.08), `boss.BOSS_INK` 1.6.
 
+## Clips (round 38)
+
+Until round 38 Hit_B and Lie_StandUp were the kit's generic clips on the minion, shield, bomber and
+necromancer (and the kit's on the rest), and only the four spar foes shut their eyes. Now
+`tools/comic_art/foe_keys.py` keys them per body type (`foe_cycles.py` `hits(T)`, LIGHT / HEAVY plus
+per-foe arm shares and cloth whips) on every foe but the Warden (super armour maps Hit_B to Hit_A; it
+gets its own Death_A):
+
+- **Hit_B** (the ground flinch half the time at 1.6x, every launch and juggle at 1.5x, the stagger at
+  0.8x): squashed on frame 2 (16%), whipped back with the head snapped and the jaw open, arms flung
+  forward and out, a leg kicked up, then a stretch and an overshoot back on frame 7, a recoil forward,
+  settled by the end. Eyes shut from frame 1, opening at the end. Heavy foes (warrior, shield) at 0.65
+  of the whip and half the fling; the shield keeps its shield arm braced.
+- **Lie_StandUp** (played at 2x on a knockdown): flat on its back for the first quarter (the knockdown's
+  lie), a twitch, sits up, a crouch on its feet squashed 12%, popped up stretched with the arms thrown
+  up, settled. Eyes shut until it is on its feet. The bomber falls onto its face instead, bomb up.
+- **Death_A** (1.4x): snapped back (eyes shut for good), thrown onto its back arms flung and legs kicked
+  (heavies fall stiff as a plank, a beat later), a bounce off the floor, then limp with the head
+  lolled and the jaw hanging. The bomber face-plants with its legs kicking up.
+- **Eye squeeze on all nine foes**: archer (ember eyes), mage (arcane), bomber, necromancer and the
+  Warden now get the `eye.l` / `eye.r` bones too (`foe_keys.add_eyes`, chunk_pass's method), and every
+  clip not re-keyed carries their scale keys (Hit_A shut, the rest open).
+
+Judged from Blender side sheets (`out/enemies_keyed/<name>_keys.png`) and windowed game-camera films
+(`tests/foe_shots.gd -- --clip=Hit_B|Lie_StandUp|Death_A --frames=6 --only=...`), not yet played by hand.
+
+**Round 38 b** adds **Hit_A** (the light flinch, half the ground hits at 1.6x) per foe (`foe_cycles.hit_a`):
+the head snapped back on frame 1 with the eyes squeezed shut and the jaw dropped, shoulders flinched up,
+a 10% squash; an overshoot on 3, a recoil forward past the guard on 6, eyes open again by 10 of 14. The
+Warden gets a heavy one at half the amplitude (super armour plays it for every hit). And **Idle_Combat**
+per foe (`foe_cycles.idle`): two breaths a loop, one weight shift from foot to foot, the weapon arm
+bobbing, a glance, the jaw chattering, the eyes narrowing on the breath; upper body on twos; frame 0 is
+the guard pose every attack and hit starts and ends on (the rogue and bomber loop in 24 / 16 frames,
+twitchier; the robed casters float).
+
 ## Testing
 
 - `godot --headless --path . -s tests/enemy_feel_check.gd`: PASS/FAIL on real

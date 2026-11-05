@@ -7,6 +7,7 @@ const FOES := preload("res://scripts/foes.gd")
 const SELF := preload("res://scripts/dark_fx.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
+const STANDING := preload("res://scripts/standing_fx.gd")
 
 const INK := Color(0.03, 0.01, 0.06)
 const VIOLET := Color(0.62, 0.3, 1.0)
@@ -14,6 +15,9 @@ const HOT := Color(1.0, 0.4, 0.95)
 const MARK_NAME := "VoidMark"
 const MARK_TIME := 6.0  # s
 const MARK_R := 0.75  # m round the foe's feet
+## Round 33 (sleek; feel audit item 7): a pool's ink stays on the floor at most this long, whatever its
+## gameplay time (the binds still hold the foes): at 1.8-2.2 s it sat under the next string.
+const POOL_SHOW := 1.1
 
 
 static func flat_mat(color: Color, ink := false) -> StandardMaterial3D:
@@ -147,6 +151,7 @@ static func mark(e: Node3D) -> void:
 	var old: Node = e.get_node_or_null(MARK_NAME)
 	if old != null:
 		old.life = MARK_TIME
+		old.relight()
 		return
 	var m := Mark.new()
 	m.name = MARK_NAME
@@ -177,6 +182,20 @@ class Mark extends Node3D:
 		add_child(_spin)
 		for i in 3:
 			SELF.part(_spin, mesh, mat).rotation.y = TAU * i / 3.0
+		STANDING.add(self)
+
+	## The next string's first hit landed (standing_fx.gd): the arcs go, the mark stays for Black Tide.
+	func clear_standing() -> void:
+		var tw := create_tween()
+		tw.tween_property(_spin, "scale", Vector3.ONE * 0.01, STANDING.CLEAR_S)
+		tw.tween_callback(_spin.hide)
+
+	## Marked again: the arcs come back.
+	func relight() -> void:
+		if not _spin.visible or _spin.scale.x < 1.0:
+			_spin.show()
+			_spin.scale = Vector3.ONE
+			STANDING.add(self)
 
 	func _process(delta: float) -> void:
 		life -= delta
@@ -203,18 +222,24 @@ class Pool extends Node3D:
 	var _ink: ShaderMaterial
 
 	func _ready() -> void:
+		add_to_group("dark_pool")
 		_ink = SELF.ink_mat()
 		SELF.part(self, SELF.floor_ink(), _ink)
 		scale = Vector3(r, 1.0, r)
 		_ink.set_shader_parameter("open", 0.05)
 		var tw := create_tween()
 		tw.tween_method(SELF.set_param.bind(_ink, "open"), 0.05, 1.0, 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		STANDING.add(self)
+
+	## The next string's first hit landed (standing_fx.gd): the ink erodes now.
+	func clear_standing() -> void:
+		time = minf(time, _t)
 
 	func _process(delta: float) -> void:
 		_t += delta
-		if _t >= time:
+		if _t >= time or _t >= SELF.POOL_SHOW:
 			set_process(false)
-			var tw := create_tween()
+			var tw := create_tween().set_ignore_time_scale(true)  # (a landing's hitstop held the erode 5 s)
 			tw.tween_method(SELF.set_param.bind(_ink, "erode"), 0.0, 1.0, 0.25)
 			tw.tween_callback(queue_free)
 
@@ -233,7 +258,14 @@ class Hole extends Node3D:
 	const VIEW_R := 2.6  # m the ink shows out to (the look only; the pull is RADIUS)
 	const HOLE_SPIN := 2.2  # the ink churns faster than a pool's
 	const HOLE_FLOW := 2.6
-	const COLLAPSE_SPLAT := 2.8  # m: the ink burst as it falls in
+	const COLLAPSE_SPLAT := 2.2  # m: the ink burst as it falls in (thin; sleek 6: 2.8 full-width)
+	## Round 33, sleek 6: Collapse and the hole were a wall of pink and violet hoops over the pile (two 0.5 / 0.2 m
+	## arcs a third, an inward hoop every 0.3 s, a hot and a white hoop and a 2.8 m splat at the collapse). One thin
+	## hoop per beat now: lines, not bands.
+	const ARC_RIM_W := 0.16  # m (0.5)
+	const ARC_HOT_W := 0.07  # m (0.2)
+	const RING_EVERY := 0.45  # s between the inward hoops (0.3)
+	const RING_THIN := 0.02  # of the hoop's radius: 0.13 m at 6.5 m (0.05: a 0.3 m band)
 	const FLYING := "thrown_foe_flying"
 
 	var hero: CharacterBody3D
@@ -256,13 +288,14 @@ class Hole extends Node3D:
 		var rim := SELF.flat_mat(VIOLET)
 		for i in 3:
 			var a := TAU * i / 3.0
-			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 1.2, 1.0, 0.5), rim, Vector3.UP * 0.03).rotation.y = a
-			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, 0.2), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
+			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 1.2, 1.0, ARC_RIM_W), rim, Vector3.UP * 0.03).rotation.y = a
+			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, ARC_HOT_W), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
 		var edge := SELF.part(self, SELF.hoop(0.05), hot, Vector3.UP * 0.06)
 		edge.scale = Vector3(VIEW_R, 0.05, VIEW_R)
 		scale = Vector3(0.05, 1.0, 0.05)
 		create_tween().tween_property(self, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-		SELF.burst(get_parent(), global_position, 1.3)
+		SELF.splat(get_parent(), global_position + Vector3.UP * 0.9, 1.6, true)
+		Fx.shards(get_parent(), global_position + Vector3.UP * 0.5, INK, 8, Vector3.UP, 7.0, 0.16, 0.5)
 		Game.shake(0.3)
 
 	func _physics_process(delta: float) -> void:
@@ -271,8 +304,8 @@ class Hole extends Node3D:
 		_t += delta
 		_spin.rotate_y(-7.0 * delta)
 		if _t >= _next_ring:
-			_next_ring += 0.3
-			SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, 0.05)
+			_next_ring += RING_EVERY
+			SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, RING_THIN)
 		var tick := _t >= _next_tick
 		if tick:
 			_next_tick += TICK
@@ -316,11 +349,10 @@ class Hole extends Node3D:
 		remove_from_group("dark_hole")
 		var parent := get_parent()
 		var at := global_position
-		SELF.hoop_run(parent, at, 0.5, RADIUS, 0.28, HOT, 0.1)
-		SELF.hoop_run(parent, at, 0.3, RADIUS * 0.7, 0.24, Color.WHITE, 0.06)
-		SELF.splat(parent, at + Vector3.UP * 1.2, COLLAPSE_SPLAT)
-		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 10, RADIUS * 0.6)
-		Fx.shards(parent, at + Vector3.UP * 0.5, INK, 16, Vector3.UP, 10.0, 0.22, 0.5)
+		SELF.hoop_run(parent, at, 0.5, RADIUS * 0.8, 0.28, HOT, 0.04)
+		SELF.splat(parent, at + Vector3.UP * 1.2, COLLAPSE_SPLAT, true)
+		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 3, RADIUS * 0.6)
+		Fx.shards(parent, at + Vector3.UP * 0.5, INK, 8, Vector3.UP, 9.0, 0.18, 0.5)
 		queue_free()
 
 
@@ -370,15 +402,19 @@ class Maw extends Node3D:
 	const LEAN_OPEN := 0.55  # rad, leaning out
 	const LEAN_SNAP := -0.62  # past shut: held through the hitstop
 	const LEAN_SHUT := -0.46  # a ring of teeth round them, not a lid: the foes stay in sight
-	const NEAR_SHORT := 0.55  # how tall the teeth between the camera and the foes are
+	const NEAR_SHORT := 0.35  # how tall the teeth between the camera and the foes are (sleek 6: 0.55)
 	const SNAP_HOLD := 0.05  # s
 	const HOLD := 0.3  # s shut
 	const SINK := 0.14  # s
 	const WAIT_MAX := 1.0  # s with no bite, then they go anyway
-	const ROWS := [[15, 2.9, 0.48, 1.0], [11, 1.6, 0.3, 0.76]]  # count, height, base, at what fraction of r
+	## count, height, base, at what fraction of r. Round 33, sleek 6: one row of 11 (15 + 11 at 2.9 / 1.6 m stood as a
+	## black and violet wall round the pile, with a 4.3 m splat and a hoop on top).
+	const ROWS := [[9, 1.9, 0.3, 1.0]]
+	const BITE_SPLAT := 0.8  # of r: the bite's one thin splat (1.25, full width)
 
 	var r := 3.4
 	var _t := 0.0
+	var _last_us := 0
 	var _bitten := -1.0
 	var _sinking := false
 	var _ink: ShaderMaterial
@@ -410,6 +446,10 @@ class Maw extends Node3D:
 				_fangs.append({"pivot": pivot, "jitter": _rng.randf_range(-0.09, 0.09)})
 
 	func _process(delta: float) -> void:
+		var now := Time.get_ticks_usec()
+		if _bitten >= 0.0:  # shut on real time: the bite's hitstop held the jaws 2 s over the pile
+			delta = minf((now - _last_us) / 1000000.0, 0.1)
+		_last_us = now
 		_t += delta
 		if _sinking:
 			position.y -= 4.0 / SINK * delta
@@ -441,20 +481,21 @@ class Maw extends Node3D:
 		for f: Dictionary in _fangs:
 			f.pivot.scale.y = 1.0
 			f.pivot.rotation.x = LEAN_SNAP + f.jitter
-		SELF.splat(get_parent(), global_position + Vector3.UP * 1.3, r * 1.25)
-		SELF.ink_drops(get_parent(), global_position + Vector3.UP * 0.8, 12, r * 1.5)
-		SELF.hoop_run(get_parent(), global_position, r * 0.9, r * 1.45, 0.2, HOT, 0.05)
+		SELF.splat(get_parent(), global_position + Vector3.UP * 1.3, r * BITE_SPLAT, true)
+		SELF.ink_drops(get_parent(), global_position + Vector3.UP * 0.8, 3, r * 1.5)
+		SELF.hoop_run(get_parent(), global_position, r * 0.9, r * 1.45, 0.2, HOT, 0.025)
 
 	func _sink() -> void:
 		_sinking = true
-		var tw := create_tween()
+		var tw := create_tween().set_ignore_time_scale(true)
 		tw.tween_method(SELF.set_param.bind(_ink, "erode"), 0.0, 1.0, SINK * 1.6)
 		tw.tween_callback(queue_free)
 
 
 ## A burst of ink tentacles that plays as a few held frames, not a smooth fade.
-static func splat(parent: Node, at: Vector3, size: float) -> void:
+static func splat(parent: Node, at: Vector3, size: float, thin := false) -> void:
 	var s := Splat.new()
+	s.thin = thin
 	parent.add_child(s)
 	s.global_position = at
 	s.size = size
@@ -473,8 +514,15 @@ class Splat extends Node3D:
 	const SEGMENTS := 4  # each narrows to its joint, so the arm reads as a tentacle
 	const POINTS := 16
 	const BLOB := 0.3  # of the size: the middle
+	const SLEEK_W := 0.75  # round 33 (sleek): thinner arms, with a thin ink line instead of a hull 1.6x the violet
+	## Round 33, sleek 6 (`thin`, the breaker landings: Abyss, Maw, Collapse): the arms are lines, a THIN_ARM_W m
+	## violet stroke in a LINE of ink with no hot core, out of a small blob, so the pile reads through them. The
+	## full-width arms of a 2.8-4 m splat were a violet wall over every foe on the pile.
+	const THIN_ARM_W := 0.05  # m: half the violet stroke at the root
+	const THIN_BLOB := 0.45  # of BLOB
 
 	var size := 3.0
+	var thin := false
 	var _t := 0.0
 	var _frame := -1
 	var _right := Vector3.RIGHT
@@ -525,18 +573,47 @@ class Splat extends Node3D:
 		_verts.clear()
 		_colors.clear()
 		var reach: float = size * REACH_BY_FRAME[f]
-		var w: float = size * ARM_W * WIDTH_BY_FRAME[f]
+		var w: float = size * ARM_W * SLEEK_W * WIDTH_BY_FRAME[f]
 		var last := f == FRAMES.size() - 1
+		var line := 0.035 * 2.0  # fx_palette.LINE each side
+		if thin:
+			_draw_thin(f, reach, line)
+			return
 		for arm: Array in _arms:
-			_arm(arm, reach, w * 1.0, INK)
-		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 1.25, INK)
+			_arm(arm, reach, w * 0.62 + line, INK)
+		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9 + line, INK)
+		var body := Color(VIOLET, 0.6 if last else 0.88)
 		for arm: Array in _arms:
-			_arm(arm, reach * 0.97, w * 0.62, VIOLET)
-		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9, VIOLET)
+			_arm(arm, reach * 0.97, w * 0.62, body)
+		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9, body)
 		if not last:
 			for arm: Array in _arms:
 				_arm(arm, reach * 0.85, w * 0.2, HOT)
 			_disc(size * BLOB * 0.42 * WIDTH_BY_FRAME[f], INK)  # the hole in the middle
+		_mesh.clear_surfaces()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = _verts
+		arrays[Mesh.ARRAY_COLOR] = _colors
+		_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_mesh.surface_set_material(0, FORM_FX.material())
+
+	## Lines, not slabs: an ink stroke under a violet one per arm, a small ink blob with a violet rim.
+	func _draw_thin(f: int, reach: float, line: float) -> void:
+		var w: float = THIN_ARM_W * WIDTH_BY_FRAME[f]
+		var blob: float = size * BLOB * THIN_BLOB * WIDTH_BY_FRAME[f]
+		var last := f == FRAMES.size() - 1
+		for arm: Array in _arms:
+			_arm(arm, reach, w + line * 0.5, INK)
+		_disc(blob + line * 0.5, INK)
+		var body := Color(VIOLET, 0.55 if last else 0.9)
+		for arm: Array in _arms:
+			_arm(arm, reach * 0.97, w, body)
+		_disc(blob, body)
+		_disc(blob * 0.6, INK)
+		_commit()
+
+	func _commit() -> void:
 		_mesh.clear_surfaces()
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
@@ -624,8 +701,8 @@ static func quiet_hit(e: Node, damage: float, big := false, knockback := Vector3
 ## round a hot core so it reads on the dark floor, coming up SPOUT_DELAY s after the landing so the
 ## impact frame doesn't swallow it, overshooting and breaking up on twos.
 const SPOUT_DELAY := 0.12
-const SPOUT_GROW := 1.3  # of the asked height
-const SPOUT_HALF_W := 0.5  # m at the base
+const SPOUT_GROW := 1.0  # of the asked height (sleek 6: 1.3)
+const SPOUT_HALF_W := 0.22  # m at the base (round 33, sleek 6: 0.5; three over the Abyss pile were a violet fence)
 const SPOUT_BY_STEP := [1.15, 1.0, 0.85, 0.45]  # height; the last is colour only
 
 
@@ -634,6 +711,12 @@ const SPOUT_BY_STEP := [1.15, 1.0, 0.85, 0.45]  # height; the last is colour onl
 const SPOUT_SAME_MS := 100
 const SPOUT_SPACING := 2.0  # m
 const SPOUT_MAX := 3
+## Round 33, sleek 6: each spout burst its own 1.1 m splat and the Overwhelm pool (3.6 m of churning ink with violet
+## streaks) still lay under the pile, so Abyss's landing was a dark splat and violet arms over every foe. Now the
+## batch's first spout draws the one splat, thin (Splat.thin), at the middle of the batch, the others only chips,
+## and the first one erodes any dark pool under them (the pool's job, holding them, is done).
+const SPOUT_SPLAT := 2.2  # m: the batch's one thin splat
+const SPOUT_POOL_CLEAR := 4.5  # m round the batch's first spout a dark pool erodes
 static var _spouts := []  # [ms, flat position] of this batch
 
 
@@ -646,8 +729,13 @@ static func spout(parent: Node, spot: Vector3, high := 3.4) -> Node3D:
 	for r: Array in _spouts:
 		if (r[1] as Vector3).distance_to(flat) < SPOUT_SPACING:
 			return null
-	_spouts.append([now, flat])
 	var s := Spout.new()
+	s.lead = _spouts.is_empty()
+	if s.lead and parent.is_inside_tree():  # the landing: the pool under them erodes now, not after the spouts
+		for p: Node in parent.get_tree().get_nodes_in_group("dark_pool"):
+			if p is Node3D and (p as Node3D).global_position.distance_to(flat) < SPOUT_POOL_CLEAR:
+				p.clear_standing()
+	_spouts.append([now, flat])
 	s.high = high * SPOUT_GROW
 	parent.add_child(s)
 	s.global_position = Vector3(spot.x, 0.0, spot.z)
@@ -656,6 +744,7 @@ static func spout(parent: Node, spot: Vector3, high := 3.4) -> Node3D:
 
 class Spout extends Node3D:
 	var high := 4.4
+	var lead := false  # the first of its batch: draws the batch's one splat
 	var _t := 0.0
 	var _step := -1
 	var _right := Vector3.RIGHT
@@ -691,7 +780,7 @@ class Spout extends Node3D:
 		if step == _step:
 			return
 		if _step < 0:
-			SELF.burst(get_parent(), global_position)
+			_burst()
 		_step = step
 		_verts.clear()
 		_colors.clear()
@@ -699,7 +788,7 @@ class Spout extends Node3D:
 		var last := step == SPOUT_BY_STEP.size() - 1
 		var tip := Vector3.UP * h + _right * h * _lean
 		if not last:
-			_spike(tip * 1.04, SPOUT_HALF_W * 1.5, INK)
+			_spike(tip * 1.02, SPOUT_HALF_W + 0.07, INK)  # round 33: a thin ink line, not a hull 1.5x
 		_spike(tip, SPOUT_HALF_W * (0.6 if last else 1.0), VIOLET)
 		if not last:
 			_spike(tip * 0.8, SPOUT_HALF_W * 0.38, HOT)
@@ -710,6 +799,18 @@ class Spout extends Node3D:
 		arrays[Mesh.ARRAY_COLOR] = _colors
 		_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		_mesh.surface_set_material(0, FORM_FX.material())
+
+	## The batch's one thin splat at its middle (lead), chips under each.
+	func _burst() -> void:
+		var parent := get_parent()
+		Fx.shards(parent, global_position + Vector3.UP * 0.5, INK, 6, Vector3.UP, 6.0, 0.14, 0.45)
+		if not lead:
+			return
+		var mid := Vector3.ZERO
+		for r: Array in SELF._spouts:
+			mid += r[1]
+		mid = mid / float(SELF._spouts.size()) if not SELF._spouts.is_empty() else global_position
+		SELF.splat(parent, Vector3(mid.x, 0.9, mid.z), SPOUT_SPLAT, true)
 
 	func _spike(tip: Vector3, w: float, c: Color) -> void:
 		var a := _right * w
