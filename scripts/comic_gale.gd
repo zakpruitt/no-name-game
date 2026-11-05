@@ -7,15 +7,16 @@ extends Node3D
 
 const SELF := preload("res://scripts/comic_gale.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const STEPS_PER_S := 12.0  # on twos
 const INK := Color(0.012, 0.01, 0.02)
-const STORM := Color(0.16, 0.85, 0.38)
-const LIGHT := Color(0.86, 1.0, 0.72)
-const BANDS := 5
+const STORM := Color(0.18, 0.86, 0.46)  # fx_palette "wind"
+const LIGHT := Color(0.82, 1.0, 0.76)
+const BANDS := 4  # round 33 (sleek): five fat bands read as a green barrel
 const ARC := 1.45 * PI  # of each band's ring; the gap shows it's turning
 const SEGS := 14
 const TURN := 1.1  # radians each band turns per step
-const BAND_W := 0.32  # m (0.2 read as thin pencil rings at the game camera), the colour band's thickness up the column; the ink is twice that
+const BAND_W := 0.22  # round 33 (sleek; was 0.32, with an ink hull 2.1x: a thick barrel), with a thin ink line round it. m (0.2 read as thin pencil rings at the game camera), the colour band's thickness up the column; the ink is twice that
 const HEIGHT_BY_STEP := [1.15, 1.0, 1.0]  # then fades over FADE_STEPS
 const FADE_STEPS := 2
 
@@ -89,8 +90,8 @@ func _draw_step(step: int) -> void:
 		var y := height * tall * k
 		var r := radius * lerpf(0.25, 1.0, k * k * 0.6 + k * 0.4)
 		if not fading:
-			_band(y, r, BAND_W * 2.1, _turns[i], INK)
-		_band(y, r, BAND_W * thin, _turns[i], STORM)
+			_band(y, r, BAND_W + PAL.LINE * 2.5, _turns[i], INK)
+		_band(y, r, BAND_W * thin, _turns[i], PAL.fade(STORM, 0.6 if fading else 0.9))
 		if not fading and not Game.reduce_flashing:
 			_band(y + BAND_W * 0.2, r, BAND_W * 0.35, _turns[i] + 0.3, LIGHT)
 	_mesh.clear_surfaces()

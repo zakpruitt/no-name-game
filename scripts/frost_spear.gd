@@ -26,7 +26,7 @@ const SHAFT := Color(0.36, 0.1, 0.42)
 const FROST_INK := Color(0.03, 0.05, 0.12)
 const FROST_CRACKS := 11  # inked ice cracks running out from the spear
 const FROST_TEETH := 26  # the frost's jagged edge
-const FROST_PATCHES := 7  # chunky ice plates scattered between the cracks
+const FROST_PATCHES := 4  # ice plates scattered between the cracks (round 33, sleek: 7 cluttered it)
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -122,7 +122,7 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 			var r := reach * (k + 1) / 3.0
 			var b := a + rng.randf_range(-0.22, 0.22)
 			pts.append(Vector2(cos(b), sin(b)) * r)
-		for layer: Array in [[0.1, FROST_INK, 0.0], [0.055, ICE, 0.004], [0.016, ICE_LIGHT, 0.008]]:
+		for layer: Array in [[0.042, FROST_INK, 0.0], [0.03, ICE, 0.004], [0.01, ICE_LIGHT, 0.008]]:  # round 33: m per m of RADIUS (0.1 was a 0.6 m ink band)
 			for k in 3:
 				var p: Vector2 = pts[k]
 				var q: Vector2 = pts[k + 1]
@@ -135,11 +135,11 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 		var a0 := TAU * i / FROST_TEETH
 		var a1 := TAU * (i + 1) / FROST_TEETH
 		var am := (a0 + a1) * 0.5
-		var depth := rng.randf_range(0.1, 0.2)
+		var depth := rng.randf_range(0.04, 0.08)  # round 33 (sleek): 0.1-0.2 of a 6 m frost was a 1 m band of teeth
 		var o0 := Vector2(cos(a0), sin(a0))
 		var o1 := Vector2(cos(a1), sin(a1))
 		var tip := Vector2(cos(am), sin(am)) * (1.0 - depth)
-		tri.call(o0 * 1.03, o1 * 1.03, tip * 0.96, FROST_INK, 0.0)
+		tri.call(o0 * 1.008, o1 * 1.008, tip * 0.985, FROST_INK, 0.0)
 		tri.call(o0, o1, tip, ICE if i % 2 == 0 else ICE_LIGHT, 0.004)
 	for i in FROST_PATCHES:  # chunky plates of ice between the cracks
 		var a := TAU * (i + 0.5) / FROST_PATCHES + rng.randf_range(-0.2, 0.2)
@@ -150,7 +150,7 @@ static func frost_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
 			var b := TAU * k / 5.0 + rng.randf()
 			ring.append(Vector2(cos(b), sin(b)) * size * rng.randf_range(0.7, 1.2))
 		for k in 5:
-			tri.call(at, at + ring[k] * 1.35, at + ring[(k + 1) % 5] * 1.35, FROST_INK, 0.0)
+			tri.call(at, at + ring[k] * 1.15, at + ring[(k + 1) % 5] * 1.15, FROST_INK, 0.0)
 		for k in 5:
 			tri.call(at, at + ring[k], at + ring[(k + 1) % 5], ICE_LIGHT if k < 2 else ICE, 0.004)
 	return st.commit()
@@ -211,14 +211,14 @@ func _physics_process(delta: float) -> void:
 ## A thin hard-edged ring of frost going out to `radius`.
 static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) -> void:
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.93
+	torus.inner_radius = 0.97  # round 33 (sleek): a thin line racing out
 	torus.outer_radius = 1.0
 	torus.rings = 32
 	torus.ring_segments = 3
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(ICE_LIGHT, 0.9)
+	mat.albedo_color = Color(ICE_LIGHT, 0.7)
 	var m := MeshInstance3D.new()
 	m.mesh = torus
 	m.material_override = mat
