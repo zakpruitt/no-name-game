@@ -10,7 +10,7 @@ extends SceneTree
 ##   - round 33, sleek 4: the combo-name callout over him fades after callout_cap.HOLD_S real s (slow motion
 ##     can't hold it) and as soon as the next string starts; a hit's word (every tier) and number (any total) draw
 ##     the same on-screen ink (fx_palette.TEXT_INK_PX);
-##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser).
+##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser); Deep Freeze's cords one thin line (void_tendril.line).
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -169,5 +169,18 @@ func _ok(cond: bool, what: String) -> void:
 
 
 ## Round 33, sleek 5 (the density pass): later items add their checks here.
-func _sleek5(_main: Node, _p: CharacterBody3D) -> void:
+func _sleek5(main: Node, _p: CharacterBody3D) -> void:
 	await process_frame
+	# Deep Freeze's cords: one thin line (void_tendril.line), not a three-layer ribbon.
+	var tendril: GDScript = load("res://scripts/void_tendril.gd")
+	var spans := []
+	for thin: bool in [false, true]:
+		var t: Node3D = tendril.new()
+		main.add_child(t)
+		t.line = thin
+		t.draw(Vector3(0, 1, -6), Vector3(4, 1, -6), 1.0, 0.0, 0.0, 0.0)
+		var m: ArrayMesh = t._mi.mesh
+		spans.append([m.surface_get_array_len(0), m.get_aabb().size.z + m.get_aabb().size.y])
+		t.queue_free()
+	_ok(spans[1][0] < spans[0][0] and spans[1][1] < spans[0][1] * 0.6,  # (the sag is in both)
+		"a pinning cord is one thin line (%s)" % str(spans))

@@ -564,10 +564,13 @@ const CRATER_RING_OUT := 1.5  # the dust ring's reach, in crater radii
 const CRATER_COMIC := Color(0.62, 0.5, 0.42)  # the dust's warm tone: comic_crack cools it a little, not to soot
 const CRATER_COMIC_SIZE := 0.7  # of the radius
 const CRATER_COMIC_TIME := 0.6  # s
+const CRATER_COMIC_RING_OUT := 1.1  # of the radius: the comic dust hoop (CRATER_RING_OUT 1.5 with a 0.2 m band)
 static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> void:
 	if Game.comic_style:  # round 33, sleek 4: the soft soot discs read as a brown smudge for 1.4 s; an inked dent instead
 		COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
-		ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
+		# Round 33, sleek 5: one thin dust hoop just past the dent (a 2.4 m 0.1 m band round every cube Deep Freeze
+		# drove down was four cream rings over the crowd).
+		COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
 		return
 	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
 	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)

@@ -424,6 +424,7 @@ func seize(b := {}) -> void:
 				if cord == null:
 					cord = TENDRIL.new()
 					hero.add_child(cord)
+				cord.line = true  # (one thin line per cube: the cubes are what you see)
 				_seized.append({"foe": e, "from": e.global_position, "tendril": cord, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true})
 		aim_crush()
 		return
@@ -560,6 +561,7 @@ func held_foes() -> Array:
 func release_seized() -> void:
 	for s: Dictionary in _seized:
 		s.tendril.visible = false
+		s.tendril.line = false
 		_spare.append(s.tendril)
 		if s.has("other"):
 			s.other.queue_free()

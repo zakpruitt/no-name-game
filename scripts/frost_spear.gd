@@ -13,7 +13,7 @@ const MELT := 0.3  # s to go
 const TICK := 0.15  # s between slows
 const SLOW := 0.45  # what foes' speed drops to
 const SLOW_TIME := 0.5  # s the slow outlasts the last tick
-const PULSE_EVERY := 0.7  # s between rings of frost going out
+const PULSE_EVERY := 1.2  # s between rings of frost going out (round 33, sleek 5: 0.7 kept two up over a crowd)
 const PULSE_TIME := 0.6  # s
 const SHAFT_HIGH := 2.3  # m
 const SHAFT_R := 0.13  # m
@@ -261,14 +261,14 @@ func _physics_process(delta: float) -> void:
 ## A thin hard-edged ring of frost going out to `radius`.
 static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) -> void:
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.97  # round 33 (sleek): a thin line racing out
+	torus.inner_radius = 0.985  # round 33 (sleek): a thin line racing out (sleek 5: 0.97 was 0.18 m at 6 m)
 	torus.outer_radius = 1.0
 	torus.rings = 32
 	torus.ring_segments = 3
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(ICE_LIGHT, 0.7)
+	mat.albedo_color = Color(ICE_LIGHT, 0.55)
 	var m := MeshInstance3D.new()
 	m.mesh = torus
 	m.material_override = mat
