@@ -454,7 +454,11 @@ func seize(b := {}) -> void:
 		if t == null:
 			t = TENDRIL.new()
 			hero.add_child(t)
-		_seized.append({"foe": e, "from": e.global_position, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER})
+		var from: Vector3 = e.global_position
+		if b.has("reel"):  # (Anvil: hauled back towards him as they go up, the kebab coming back on the gale)
+			var to: Vector3 = at + hero._facing() * VOID_ELEMENT.ANVIL_REEL_GAP
+			from = Vector3(lerpf(from.x, to.x, b.reel), from.y, lerpf(from.z, to.z, b.reel))
+		_seized.append({"foe": e, "from": from, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER})
 		e.stagger(HOLD)
 
 

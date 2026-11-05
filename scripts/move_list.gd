@@ -68,6 +68,26 @@ const SECTIONS := [
 		{"input": "L L H, Dash H H L", "kind": "move", "id": "XW", "note": "Ice into storm: the gale blows the spear apart and hauls the frozen kebab back up to him."},
 		{"input": "L L H, Dash H H L, H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the lot into the floor, a crater each."},
 	]},
+	# The element matrix (round 34, third pass; void_element.IMPROV, docs/features/element-matrix.md): what any move of
+	# an element does to a foe another string left in a state. storm = L H, ice = L L H / Dash L H / Dash L H H,
+	# magma = L L L H / L L L H H, dark = H L / H L H / H H / hold H / Dash H.
+	{"title": "IMPROVISING", "hint": "States last 2 s: dash out and hit them with another element.", "rows": [
+		{"input": "frozen, then storm", "kind": "text", "name": "Gale Lift", "tier": 1, "note": "The gale takes the cube up, still in its ice."},
+		{"input": "frozen, then dark", "kind": "text", "name": "Shatter", "tier": 1, "note": "The dark crushes the ice, and the shards cut the one beside it."},
+		{"input": "buried, then ice", "kind": "text", "name": "Frozen In", "tier": 1, "note": "Frozen where Rockslide stuck them in the floor."},
+		{"input": "buried, then magma", "kind": "text", "name": "Aftershock", "tier": 1, "note": "Driven back into the floor, harder."},
+		{"input": "buried, then dark", "kind": "text", "name": "Swallowed", "tier": 1, "note": "The dark drags them under and holds them there a moment."},
+		{"input": "molten, then storm", "kind": "text", "name": "Firestorm", "tier": 1, "note": "The gale fans the flames up, and onto the one beside it."},
+		{"input": "molten, then ice", "kind": "text", "name": "Quench", "tier": 1, "note": "Water on the burning: it goes off in steam and up."},
+		{"input": "molten, then magma", "kind": "text", "name": "Flare-up", "tier": 1, "note": "The floor erupts under the burning."},
+		{"input": "molten, then dark", "kind": "text", "name": "Smother", "tier": 1, "note": "The dark puts the fire out by driving them into the floor."},
+		{"input": "skewered, then ice", "kind": "text", "name": "Ice Spreads", "tier": 1, "note": "The spear's ice climbs onto the nearest foe and skewers it too."},
+		{"input": "skewered, then dark", "kind": "text", "name": "Torn Off", "tier": 1, "note": "Ripped off the spear towards him."},
+		{"input": "in the air, then ice", "kind": "text", "name": "Freeze Aloft", "tier": 1, "note": "Frozen up there: it comes down a cube."},
+		{"input": "in the air, then magma", "kind": "text", "name": "Meteor Spike", "tier": 1, "note": "Driven down out of the air into a crater."},
+		{"input": "held by tendrils, then storm", "kind": "text", "name": "Torn Loose", "tier": 1, "note": "The gale tears them out of Undertow or Overwhelm and up."},
+		{"input": "held by tendrils, then ice", "kind": "text", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
+	]},
 ]
 
 

@@ -74,6 +74,7 @@ func _initialize() -> void:
 	await _dark()
 	await _crossovers()
 	await _three_elements()
+	await _element_matrix()
 	await _tentacle_alone()
 	await _snatch()
 	print("void_arm_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
@@ -833,6 +834,83 @@ func _crossovers() -> void:
 
 ## Round 34, second pass: the three-element strings (each hand-over pays for what the last element left) and the
 ## improvised payoffs a dash route reaches (states outlive the string by ELEMENT_HOLD).
+## The element matrix (round 34, third pass): every IMPROV cell pays on a foe in that state, the cells the moves pay
+## themselves are left to them, a whole move cashes one in, and a move with no reach doesn't touch a foe on top of him.
+func _element_matrix() -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	var BIND: GDScript = load("res://scripts/floor_bind.gd")
+	var base := {"wind": "EC", "water": "EF", "earth": "EM", "void": "VR"}
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var cells := 0
+	for state: String in el.IMPROV_ORDER:
+		for element: String in ["wind", "water", "earth", "void"]:
+			var e := _foe(Vector3(0, 0, 2.0))
+			var o := _foe(Vector3(1.2, 0, 2.2))
+			var bind: Node = null
+			match state:
+				"frozen":
+					el.encase(e)
+				"airborne":
+					e.up = true
+				"bound":
+					bind = BIND.bind(hero, [e], {"time": 3.0})
+				_:
+					el.mark(e, state)
+			var paid: int = el.improvise(hero, base[element], Vector3.ZERO, 1.0)
+			var cell := "%s x %s" % [state, element]
+			if not el.IMPROV[state].has(element):
+				_check(paid == 0 and e.hits == 0, "%s is the moves' own: improvise leaves it (%d)" % [cell, paid])
+			else:
+				cells += 1
+				var kind: String = el.IMPROV[state][element]
+				var shows := false
+				match kind:
+					"lift", "fan", "quench", "erupt", "loose":
+						shows = e.last_launch > 0.0
+					"crater", "swallow", "smother", "spike":
+						shows = e.last_kb.y < 0.0
+					"encase", "freeze":
+						shows = el.in_cube(e)
+					"shatter":
+						shows = o.hits > 0
+					"spread":
+						shows = el.in_cube(o) and el.marked(o, "skewered")
+					"tear":
+						shows = e.last_kb.z < 0.0
+				_check(paid == 1 and e.hits >= 1 and shows, "%s: %s (paid %d, hits %d, kb %s, launch %.1f)" % [cell, kind, paid, e.hits, e.last_kb, e.last_launch])
+				if kind == "fan":
+					_check(el.marked(o, "molten") and o.hits > 0, "fan: the flames catch the one beside it")
+				if kind == "loose":
+					_check(not BIND.holds(e), "loose: out of the bind")
+				if state in ["buried", "molten", "skewered"]:
+					_check(not el.marked(e, state), "%s: spent once" % cell)
+			if is_instance_valid(bind):
+				bind.free()
+			e.free()
+			o.free()
+	_check(cells >= 15, "the matrix has its cells (%d)" % cells)
+	# A whole move cashes one in: Harpoon on someone Rockslide buried freezes them in the floor.
+	var buried := _foe(Vector3(0, 0, 3.0))
+	el.mark(buried, "buried")
+	hero._start_attack("EF")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(el.in_cube(buried) and not el.marked(buried, "buried"), "Harpoon on the buried: frozen in the floor")
+	await _until(func() -> bool: return hero.state != hero.State.ATTACK, 3.0)
+	buried.free()
+	await _settle()
+	# Round 2's bug: a move with `range` 0 touched a foe standing on him (a 0-damage hit that broke its ice early).
+	hero.global_position = Vector3.ZERO
+	var on_him := _foe(Vector3(0, 0, 0.1))
+	hero._start_attack("EE")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(on_him.hits == 0, "a move with no reach doesn't touch a foe on top of him (%d hits)" % on_him.hits)
+	await _until(func() -> bool: return hero.state != hero.State.LEAP and hero.state != hero.State.ATTACK, 3.0)
+	game_end_slowmo()
+	on_him.free()
+	await _settle()
+
+
 func _three_elements() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	var SPEAR: GDScript = load("res://scripts/frost_spear.gd")

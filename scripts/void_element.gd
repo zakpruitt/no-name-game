@@ -43,6 +43,9 @@ const LEAP_AFTER_TIDE := 0.26  # Maw off Black Tide's grab clip (0.5 - 0.24)
 const LEAP_AFTER_RAKE := 0.05  # Cataclysm off Fault Line's rake clip: once the gale has them up
 const LEAP_AFTER_PALM := 0.05  # Flash Freeze off Steam Burst's palm clip
 const LEAP_AFTER_SWING := 0.1  # Anvil off Backdraft's crescent clip: once the gale has them coming back
+const ANVIL_REEL := 0.65  # of the way to him Anvil's tentacles haul what they seize (void_grab `reel`): the leap comes
+# before the gale's knockback has moved anyone (their hit freeze), so the kebab's pull-back is the tentacles' to show
+const ANVIL_REEL_GAP := 1.4  # m in front of him they're hauled to
 
 ## The move right click plays off each move. From nothing, the grab.
 const AFTER := {"L1": "EC", "L2": "IP", "L3": "EM", "EC": "EE", "AL1": "EW", "DL": "EF", "EF": "EA", "IP": "IJ", "IJ": "IS", "EM": "EV", "GR": "VS", "VR": "VD",
@@ -109,7 +112,7 @@ const BREAKERS := {
 	"XM": {"erupt": "earth", "eruption": true, "damage": 42.0, "leap": VS_HIT + LEAP_AFTER_SLAM, "height": 3.0,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Eruption"}},
 	# Anvil ends Backdraft: the gale brought the kebab back up to him, and the hammer drives it into the floor.
-	"XW": {"erupt": "earth", "anvil": true, "damage": 44.0, "leap": H_HIT + LEAP_AFTER_SWING, "height": 2.2,
+	"XW": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "damage": 44.0, "leap": H_HIT + LEAP_AFTER_SWING, "height": 2.2,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"}},
 }
 
@@ -247,7 +250,8 @@ const CATACLYSM_DOWN := 6.0  # m/s
 const ELEMENT_HOLD := 2.0  # s a crossover's state (frozen, buried, molten, skewered) lasts: a dash and the next move
 const HAIL_REACH := 7.0  # m: Hailstorm lifts every frozen foe this close
 const HAIL_DAMAGE := 8.0  # (x FREEZE_BREAK: the ice gives as the gale takes it)
-const HAIL_LAUNCH := 12.0  # m/s up: higher than Updraft Lash, so Meltdown meets them at the top of his climb
+const HAIL_LAUNCH := 9.0  # m/s up (was 12: a foe peaked at 5.3 m and was still flying up past him at 7 m/s as Meltdown
+# hit; his climb stops at 2.8): now ~3 m, into its apex hang by the slam, so Meltdown meets them at the top of his climb
 const HAIL_WARM_LAUNCH := 6.0  # those not frozen only stagger up
 const HAIL_WARM_REACH := 4.0
 const MELT_REACH := 6.0  # m round him: Meltdown takes whoever's up there with him, and the frozen
@@ -336,8 +340,14 @@ static func breaker_element(b: Dictionary) -> String:
 	return b.erupt
 
 
-## The move's first hit. Returns how many foes it reached, so a whiff stays quiet.
+## The move's first hit. Returns how many foes it reached, so a whiff stays quiet. A base element move first cashes
+## in whatever state its element pays on the foes near him (improvise(), the element matrix), then does its own thing.
 static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
+	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero._cast_power())
+	return maxi(_fire(hero, id, fwd), paid)
+
+
+static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 	var parent: Node = hero.get_parent()
 	var at := _flat(hero.global_position)
 	var power: float = hero._dmg_mult * hero._cast_power()
@@ -1515,3 +1525,159 @@ static func _pop(parent: Node, at: Vector3, form: String) -> void:
 
 static func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
+
+
+
+# --- The element matrix (round 34, third pass; docs/features/element-matrix.md) -----------------------------------
+# Every state a crossover leaves x every element: each cell a small payoff, so improvising across any pair does
+# something. The cells the moves already pay themselves aren't here (Molten Palm's steam on the frozen, _cash_buried,
+# Tow Line's rip, Ice Cube taking the frozen first, the crossovers and breakers that read their states); these are paid
+# by the element's base moves (not the X* crossovers, which read their own) through improvise(), at the top of fire(),
+# before the move's own hit, so a payoff never moves a foe the move is about to throw.
+# TODO(fx lane): each payoff borrows a placeholder (pillar, shards, steam, geyser, ink burst, scorch, arc); a tell per kind.
+
+## state -> element -> payoff kind (_pay()).
+const IMPROV := {
+	"skewered": {"water": "spread", "void": "tear"},
+	"molten": {"wind": "fan", "water": "quench", "earth": "erupt", "void": "smother"},
+	"buried": {"water": "encase", "earth": "crater", "void": "swallow"},
+	"bound": {"wind": "loose", "water": "encase"},
+	"frozen": {"wind": "lift", "void": "shatter"},
+	"airborne": {"water": "freeze", "earth": "spike"},
+}
+## A foe in several states pays the first with a cell for the element, in this order (the skewered are frozen too).
+const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne"]
+const IMPROV_REACH := 5.0  # m round him: who a base move's element reaches for its payoff
+const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
+const IMPROV_MULT := 1.5  # the harder payoffs (crater, swallow, smother, spike, tear, loose)
+const IMPROV_LAUNCH := 8.0  # m/s up: lift, fan, loose (a fresh launch: at least enemy.RELAUNCH_MIN)
+const IMPROV_DOWN := 6.0  # m/s into the floor: crater, swallow, smother, spike (enemy._is_spike craters them)
+const IMPROV_CHAIN_R := 2.6  # m round the payer that a chain (shatter, fan, spread) jumps to its neighbour
+const IMPROV_CHAIN_DAMAGE := 5.0
+const IMPROV_PULL := 6.0  # m/s towards him: tear (yanked off the spear)
+const IMPROV_STEAM_MULT := 1.6  # quench: water on the molten goes off in steam, like the ice under magma
+const IMPROV_HOLD := 0.6  # s swallow keeps them stuck in the floor
+static var improv_paid := {}  # "state x element" -> payoffs so far (the autotest's [improv] line)
+
+
+## The state on `e` the element `el` pays, or "" (IMPROV, in IMPROV_ORDER).
+static func improv_state(e: Node, el: String) -> String:
+	for state: String in IMPROV_ORDER:
+		if IMPROV[state].has(el) and in_state(e, state):
+			return state
+	return ""
+
+
+static func in_state(e: Node, state: String) -> bool:
+	match state:
+		"frozen":
+			return is_frozen(e)
+		"airborne":
+			return e.is_airborne()
+		"bound":
+			return BIND.holds(e)
+	return marked(e, state)
+
+
+## A base element move's improvised payoffs on everyone near him in a state its element pays. Returns how many paid.
+static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: float) -> int:
+	if id.begins_with("X") or not ELEMENT_OF.has(id):
+		return 0
+	var el: String = ELEMENT_OF[id]
+	var due := []  # (read every state first: a chain sets one on the neighbour, which mustn't pay in the same move)
+	# (Tow Line reaches along the dash he just made, which can leave them behind him: its own line, then near him)
+	var near: Array = FOES.near(hero.get_tree(), at, IMPROV_REACH)
+	if id == DASH_MOVE:
+		near = _tow_line(hero, at) + near.filter(func(e: Node3D) -> bool: return not e in _tow_line(hero, at))
+	for e: Node3D in near:
+		var state := "" if THROWN.flying(e) else improv_state(e, el)
+		if state != "":
+			due.append([e, state])
+	for d: Array in due:
+		if is_instance_valid(d[0]) and d[0].is_alive():
+			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power)
+			var cell: String = "%s_x_%s" % [d[1], el]
+			improv_paid[cell] = int(improv_paid.get(cell, 0)) + 1
+	return due.size()
+
+
+## One payoff (IMPROV's kinds): one hit, and a state, a chain to the neighbour, a launch or a crater.
+static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float) -> void:
+	var parent: Node = hero.get_parent()
+	var spot := _flat(e.global_position)
+	var heavy: bool = hero._void.is_heavy(e)
+	var damage := IMPROV_DAMAGE * power
+	var down := Vector3.DOWN * IMPROV_DOWN
+	if state in ["buried", "molten", "skewered"]:
+		unmark(e, state)  # (spent: once)
+	match kind:
+		"lift":  # frozen x wind: the gale takes the cube up, still in its ice
+			ELEMENTS.pillar(parent, spot, "wind", 2.4, 0.8)
+			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+			freeze_aloft(e)
+		"shatter":  # frozen x dark: the dark crushes the ice, and the shards cut the one beside it
+			THROWN.remove_cube(e)
+			Fx.shards(parent, spot + Vector3.UP * 0.9, THROWN.CUBE_COLOR, 8, Vector3.UP, 8.0, 0.16, 0.5)
+			e.take_hit(damage, Vector3.ZERO, 0.0, true)
+			_chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "")
+		"encase":  # buried / bound x ice: frozen where it's stuck
+			e.take_hit(damage, Vector3.ZERO, 0.0, false)
+			encase(e)
+		"crater", "swallow", "smother", "spike":  # buried / molten / airborne x earth or dark: driven (back) into the floor
+			e.take_hit(damage * IMPROV_MULT, down, 0.0, true)
+			if kind == "swallow" and not heavy:
+				e.stagger(IMPROV_HOLD)
+			if kind in ["swallow", "smother"]:
+				DARK.burst(parent, spot, 0.8)
+			else:
+				Fx.scorch(parent, spot, ELEMENTS.LOOK.earth.color, 1.2, 0.8)
+		"fan":  # molten x wind: the gale fans the flames up, and onto the one beside it
+			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+			_chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "molten")
+		"quench":  # molten x water: it goes off in steam
+			COMIC_STEAM.spawn(parent, spot)
+			e.take_hit(damage * IMPROV_STEAM_MULT, Vector3.ZERO, 0.0 if heavy else STEAM_LAUNCH, true)
+		"erupt":  # molten x earth: the floor goes up under it
+			under(parent, spot, "earth")
+			e.take_hit(damage * ERUPT_MOLTEN_MULT, Vector3.ZERO, 0.0 if heavy else ERUPT_LAUNCH, true)
+		"spread":  # skewered x ice: the ice climbs on to the nearest foe not in it, and skewers it too
+			e.take_hit(damage, Vector3.ZERO, 0.0, false)
+			encase(e)
+			_chain(hero, e, 0.0, "skewered")
+		"tear":  # skewered x dark: torn off the spear towards him
+			THROWN.remove_cube(e)
+			var back := _flat(at - e.global_position)
+			e.take_hit(damage * IMPROV_MULT, back.normalized() * IMPROV_PULL if back.length() > 0.6 else Vector3.ZERO, 0.0, true)
+			DARK.burst(parent, spot, 0.8)
+		"freeze":  # airborne x ice: frozen up there; it comes down a cube
+			e.take_hit(damage, Vector3.ZERO, 0.0, false)
+			freeze_aloft(e)
+		"loose":  # bound x wind: the gale tears it out of the bind and up
+			BIND.let_go_of(hero.get_tree(), e)
+			ELEMENTS.pillar(parent, spot, "wind", 2.4, 0.8)
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+	Game.register_hit("cast")
+
+
+## The chain to the neighbour: the nearest other foe within IMPROV_CHAIN_R takes `damage` and, for "molten" /
+## "skewered", the state too (the skewered frozen in a cube).
+static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: String) -> void:
+	var best: Node3D = null
+	var best_d := INF
+	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, IMPROV_CHAIN_R):
+		var d: float = _flat(o.global_position - from.global_position).length()
+		if o != from and not THROWN.flying(o) and d < best_d and not (state != "" and in_state(o, state)):
+			best = o
+			best_d = d
+	if best == null:
+		return
+	var tone: String = {"molten": "earth", "skewered": "water"}.get(state, "void")
+	ELEMENTS.arc(hero.get_parent(), from.global_position + Vector3.UP, best.global_position + Vector3.UP, ELEMENTS.LOOK[tone].color)
+	if damage > 0.0:
+		var out := _flat(best.global_position - from.global_position)
+		best.take_hit(damage, (out.normalized() if out.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, false)
+		Game.register_hit("cast")
+	if state == "skewered":
+		encase(best)
+	if state != "":
+		mark(best, state)

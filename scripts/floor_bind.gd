@@ -12,6 +12,8 @@ const SINK_RATE := 5.0  # m/s they go down
 const ROPE_OUT := 0.12  # s for the tendrils to arrive
 const ROPE_SPREAD := 1.1  # m out from the foe's edge they come up
 const BIG_SLOW := 0.4  # what big foes' speed drops to
+const BOUND := "x_bound"  # meta on a foe a bind has hold of (void_element.IMPROV's "bound" state: holds())
+const GROUP := "floor_binds"
 
 var hero: CharacterBody3D
 var time := 1.5
@@ -35,6 +37,7 @@ static func bind(by: CharacterBody3D, foes: Array, opts := {}) -> Node:
 	for k: String in opts:
 		b.set(k, opts[k])
 	by.get_parent().add_child(b)
+	b.add_to_group(GROUP)
 	b._next_tick = b.step
 	for e: Node3D in foes:
 		b._take(e)
@@ -52,6 +55,7 @@ func _take(e: Node3D) -> void:
 		add_child(t)
 		rows.append({"tendril": t, "from": Vector3(e.global_position.x + cos(a) * r, 0.0, e.global_position.z + sin(a) * r)})
 	_held.append({"foe": e, "at": e.global_position, "big": big, "welled": false, "ropes": rows})
+	e.set_meta(BOUND, true)
 	if big:
 		if e.has_method("chill"):
 			e.chill(time, BIG_SLOW)
@@ -111,8 +115,29 @@ func _physics_process(delta: float) -> void:
 func _let_go() -> void:
 	for s: Dictionary in _held:
 		var e: Variant = s.foe
+		if is_instance_valid(e) and e.has_meta(BOUND):
+			e.remove_meta(BOUND)
 		if is_instance_valid(e) and sink > 0.0:
 			var body: Variant = e.get("model")
 			if body != null:
 				body.position.y = 0.0
 	queue_free()
+
+
+## Whether a bind has hold of `e` (round 34 third pass: the element matrix's "bound" state).
+static func holds(e: Variant) -> bool:
+	return is_instance_valid(e) and e.has_meta(BOUND)
+
+
+## Every bind lets go of `e` (the gale tears it loose: void_element.IMPROV "bound" x "wind"), its ropes gone.
+static func let_go_of(tree: SceneTree, e: Variant) -> void:
+	for b: Node in tree.get_nodes_in_group(GROUP):
+		for s: Dictionary in b._held.filter(func(h: Dictionary) -> bool: return h.foe == e):
+			for rope: Dictionary in s.ropes:
+				rope.tendril.visible = false
+			var body: Variant = e.get("model") if is_instance_valid(e) else null
+			if body != null:
+				body.position.y = 0.0
+			b._held.erase(s)
+	if is_instance_valid(e) and e.has_meta(BOUND):
+		e.remove_meta(BOUND)
