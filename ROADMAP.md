@@ -252,7 +252,7 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [ ] Cut the hero from 67k tris to 20-30k, rescale him (2.45 m against KayKit's 2.18 m), measure dash afterimage cost
 - [ ] Restore under the flag: Awakened eyes, element axe coats, Ascendancy gear placement; port spirit casts off the KayKit models
 - [ ] Port the Blender comic effects (bursts, ghost axes, smears) into the game's casts
-- [ ] Foot skate at game speeds on warrior, rogue and maybe bomber; watch the generic `Hit_B` and `Lie_StandUp` on minion, shield, bomber, necromancer
+- [x] Foot skate at game speeds on warrior, rogue and maybe bomber; watch the generic `Hit_B` and `Lie_StandUp` on minion, shield, bomber, necromancer (round 38)
 - [ ] Comic pass on HUD, menus and power icons
 
 ## Round 27 (combat feel loop)
@@ -322,8 +322,8 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] Run strides measured (`tests/foe_stride_check.gd`, in `agent.sh check`): planted feet were 1.2-30x slower than the move speed. Wider strides on rogue / warrior / shield / bomber, the shield's walk re-keyed, and `enemy.gd` plays the run at ground speed over `run_foot_speed` (`RUN_CLIP_SPEED_MIN/MAX` 0.5 / 3.0)
 - [x] Spar foes (minion, rogue, shield, warrior) squeeze their eyes shut on Hit_A / Hit_B and in Death_A (keyed `eye.l` / `eye.r` scale). Seen in a Blender still only
 - [ ] Zak: play `--spar=minion|rogue|shield|warrior` and judge the masses, the fast chibi runs (clip up to 3x) and the hit squint in motion
-- [ ] The minion's shamble swings its feet low both ways, so its forward swing still slides; a re-keyed run with a lifted swing would fix it
-- [ ] Eye squeeze for the other five foes; a launch / tumble doesn't shut the eyes (only Hit_A / Hit_B / Death_A do)
+- [x] The minion's shamble swings its feet low both ways, so its forward swing still slides; a re-keyed run with a lifted swing would fix it (round 38)
+- [x] Eye squeeze for the other five foes; a launch / tumble doesn't shut the eyes (only Hit_A / Hit_B / Death_A do) (round 38)
 
 ## Round 29 (heretic effects)
 - [x] Storm: Live Wire's arcs and Grounded's sky strike are fat flat inked zigzag bolts on twos with a hot impact star (`comic_bolt.gd`). Sheet before: thin glowing tubes and a soft green funnel burying the foes; after: bold green-and-ink bolts that clear by +0.2 s and leave the foes visible
@@ -451,3 +451,14 @@ The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geyser
 - [ ] Steam Burst rarely steams in the bot's string: Ice Cube's cube is still flying (thrown) when XS fires, so `frozen` is empty and only the fist shoves (combo lane: let a flying cube count, or film it on a standing frozen foe)
 - [ ] Meteor Fall's wall splats are mostly off camera at 13 m (camera lane's hang pull-out)
 - [ ] Cataclysm's hang is still Live Wire's green bolts and violet binds on every foe (`wire: true`); with the landing's crater it is still the busiest breaker. Try dropping `wire` or thinning Live Wire in the hang (combo lane)
+
+## Round 38 (foe locomotion)
+Zak, about the hero: "the movement animation is awful" (fixed in round 35); the nine foes had the same problem: KayKit-era runs played up to 3x so the stride check passed. `tools/comic_art/foe_keys.py` re-keys them on the chunky blends from per-foe specs (`foe_cycles.py`); see `docs/features/comic-style.md` "Foe locomotion" and `docs/features/enemy-hit-reactions.md` "Clips". Seen in Blender side sheets and windowed game-camera films, not played.
+- [x] Runs keyed for each kind's move speed at 1x (legs by IK, the planted ankle sliding exactly v / 24 m a frame, legs / hips / squash every frame, arms / head on twos, loops from frame 0): minion scurry, warrior stomp, shield plod, rogue sneak-dash, archer trot, mage float, bomber waddle, necromancer glide, Warden heavy stomp. `run_clip_speed` at move speed went from 1.16-3.0 to 0.96-1.03 (`RUN_CLIP_SPEED_MIN/MAX` 0.5 / 3.0 -> 0.35 / 1.6)
+- [x] `tests/foe_stride_check.gd`: the median planted speed in the lowest 20% of the foot's height (was the mean in the lower half, which lift-off and touch-down dragged 10% low), and the Warden checked too (`BOSS.run_foot_speed`; `boss.gd` plays its walk at `run_clip_speed`)
+- [x] The Warden's footfalls shake the floor (`boss._stomp_shake`, `STOMP_AT` 0.04 / 0.54 of the walk, `STOMP_SHAKE` 0.12)
+- [x] Hit_B, Lie_StandUp and Death_A keyed per body type (light, heavy with a braced shield arm, robed, the bomber face-first) on all eight foes, the Warden's Death_A as a heavy topple
+- [x] Eyes squeeze shut on every foe: archer, mage, bomber, necromancer and the Warden got `eye.l` / `eye.r`; all nine shut them on Hit_A, Hit_B (launches too) and Death_A
+- [x] `tests/foe_shots.gd -- --clip=run|Hit_B|Lie_StandUp|Death_A --frames=N --only=a,b`: films foes through one clip from the game angle, runs moved along the floor at move speed
+- [ ] By hand: `--spar=minion|rogue|shield|warrior` and judge the new runs in motion (turning, the speed ramp, circling at 0.4 of move speed at clip 0.35-0.5)
+- [ ] Next: Hit_A and Idle_Combat are still the kit's; the attack clips too. A run start / stop and a turn lean like the hero's (round 35 b) would help the fast rogue

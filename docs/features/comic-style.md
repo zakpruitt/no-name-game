@@ -140,6 +140,38 @@ backward speed while a foot is moving back in the lower half of its height range
 8% off the stored number or the feet end more than 15% off the ground at move_speed. The minion's
 shamble swings its feet low in both directions, so its forward swing still slides.
 
+**Foe locomotion (round 38).** The runs above were the kit's KayKit-era clips widened and sped up (up to
+3x). Since round 38 `tools/comic_art/foe_keys.py` re-keys every foe's run, and its Hit_B, Lie_StandUp
+and Death_A, on the chunky blends, from per-foe specs in `tools/comic_art/foe_cycles.py`: legs by
+two-bone IK onto ankle targets, a planted ankle sliding back exactly `move_speed / model_scale / 24` m a
+frame, so every run plays at ~1x with its feet on the floor (`run_clip_speed` 0.96-1.03; `RUN_CLIP_SPEED_MIN
+/ MAX` now 0.35 / 1.6). Legs, hips and the whole-body squash (root bone scale about the floor, feet
+corrected) are keyed every frame; arms, head and torso turns are held on twos. Loops run 0..N with N == 0.
+
+| Kind | clip | cycle | feet at 1x before -> after (m/s) | move / scale |
+|---|---|---|---|---|
+| minion | Running_A | scurry: 8 frames (6 steps a second), hunched 18 deg, free arm pumping, head bobbing | 3.11 -> 3.51 | 3.6 |
+| warrior | Running_A | stomp: 12 frames, knees high, slammed flat (squash 11%), shoulders rocking 8 deg | 0.96 -> 2.40 | 2.43 |
+| shield | Walking_D_Skeletons | plod: 10 frames, shield held square and steady, heavy roll 10 deg, low steps | 0.96 -> 3.07 | 3.05 |
+| rogue | Running_C | sneak-dash: 10 frames, low (10 cm drop) pitched 30 deg, long strides, daggers swept back | 2.18 -> 5.62 | 5.4 |
+| archer | Running_A | trot: 10 frames, upright and springy, bow arm steady, cape and loin trailing | 1.29 -> 3.21 | 3.2 |
+| mage | Running_A | float: 8 frames, 4.5 cm shuffle under the coat, body level (1 cm bob), coat flaring back | 1.53 -> 2.97 | 3.0 |
+| bomber | Running_C | waddle: 8 frames, feet wide, rolling 16 deg from foot to foot, short hops, squash 12% | 1.73 -> 4.53 | 4.67 |
+| necromancer | Walking_D_Skeletons | glide: 24 frames, no feet, a slow bob pitched 12 deg in, robe streaming back | no feet | - |
+| warden | Walking_D_Skeletons | heavy stomp: 20 frames, 20 cm lift, dropped 8 cm on contact; `boss._stomp_shake` shakes the floor (0.12) on each footfall | kit walk at 1x -> 1.68 | 1.67 |
+
+```
+blender -b <kit>/out/enemies_chunky/<name>.blend -P tools/comic_art/foe_keys.py -- <name>   # writes out/enemies_keyed/
+python tools/comic_glb.py <kit>/out/enemies_keyed <name>
+godot --headless --import --path . ; godot --headless --path . -s tests/foe_stride_check.gd  # copy the foot speed into run_foot_speed
+godot --path . -s tests/foe_shots.gd -- --tag=x --clip=run --frames=6 --only=minion,rogue --turn=-70   # windowed film
+```
+
+`foe_keys.py` also writes `<name>_keys.png` beside the GLB: a workbench side view of every keyed clip,
+a frame a tile (legs and falls read there; the run's lean and bob read from the game camera). Never
+pass `only=` for a GLB you ship: the script starts from the chunky blend, so an `only=` export puts the
+kit clips back on the others.
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
 (`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`
