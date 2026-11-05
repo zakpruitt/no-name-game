@@ -34,7 +34,7 @@ godot_run() { timeout "$1" godot --headless --path "$(root)" "${@:2}" < /dev/nul
 check() {
 	local quick=${1:-}
 	local fail=0 out
-	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check)
+	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check)
 	[ "$quick" = "--quick" ] && tests=()
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue

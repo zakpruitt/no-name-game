@@ -71,11 +71,14 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 			tag = a.get_slice("=", 1)
 	var only := ""
 	var near := 1.0  # --clips-near=0.4: the game camera's angle from closer, to check a pose
+	var clip_step := 0.0
 	for a: String in OS.get_cmdline_user_args():
 		if a.begins_with("--clips-only="):
 			only = a.get_slice("=", 1)
 		if a.begins_with("--clips-near="):
 			near = float(a.get_slice("=", 1))
+		if a.begins_with("--clips-step="):  # s of clip time between shots (1/30: every frame of a run)
+			clip_step = float(a.get_slice("=", 1))
 	var out := "%s/clips_%s" % [DIR, tag]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 	var index := FileAccess.open(out + "/INDEX.txt", FileAccess.WRITE)
@@ -105,7 +108,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 		var t := 0.0
 		while t <= end + 0.001 and times.size() < 16:
 			times.append(t)
-			t += real_step * speed
+			t += clip_step if clip_step > 0.0 else real_step * speed
 		if hit >= 0.0 and not times.has(hit):
 			times.append(hit)
 			times.sort()
