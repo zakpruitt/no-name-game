@@ -34,5 +34,5 @@ const TYPES := {
 		"blast_enemy_damage": 40.0, "model_scale": 0.9, "run_anim": "Running_C",
 		"body_tint": Color(1.0, 0.62, 0.42)},
 }
-const BOSS := {"model": "Skeleton_Warrior", "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
+const BOSS := {"model": "Skeleton_Warrior", "run_foot_speed": 1.68, "max_hp": 700.0, "move_speed": 3.0, "model_scale": 1.8,
 	"hit_freeze": 0.03, "run_anim": "Walking_D_Skeletons"}
