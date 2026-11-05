@@ -313,6 +313,16 @@ func _initialize() -> void:
 		_check(not rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05) + Vector3(0.4, 0.0, 0.0)]), 0.07)
 			and not rig._covered(cam, eye, PackedVector3Array([eye + Vector3(0.0, -0.3, -0.3)]), 0.07),
 			"but not behind a claw beside it or behind him")
+		_check(rig.grin != null and rig.grin.get_child_count() == 1, "the chibi grins under them")
+		p.state = p.State.HURT
+		await create_timer(0.25).timeout
+		await skel.skeleton_updated
+		var hurt_squint: float = rig.squint
+		p.state = p.State.MOVE
+		rig._blink_t = 0.0
+		await create_timer(0.3).timeout
+		await skel.skeleton_updated
+		_check(hurt_squint > 0.8 and rig.squint < 0.2, "eyes squeeze shut when hit, open after (%.2f, %.2f)" % [hurt_squint, rig.squint])
 
 	# skirt: at rest it holds; yank him sideways and it should lag behind
 	var sb := skel.find_bone("skirt.03.3")
