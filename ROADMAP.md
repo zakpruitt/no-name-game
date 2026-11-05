@@ -554,6 +554,12 @@ Zak confirmed the chibi heretic as the art direction: "we can redesign him and f
 - [ ] He is still smaller than the warrior at the game camera (183 vs 209 px, 17.7k vs 28.4k px): the 2.05 m cap leaves a bigger bake or a hero `model_scale` as the next lever
 - [ ] The scarf tail reads from the side and behind; from the front the hood hides it, and its flutter is unplayed
 - [ ] By hand: whether the squint / grin on attacks reads in play or flickers across fast strings
+- [x] Hero pass 3, face to camera (`chibi_faceup.py`: head tipped back 28 degrees about a point over the neck, the hood's front rim cut 5 cm wider; `heretic_rig.FACE_TIP`): bigger eyes (0.15 x 0.085 m), grin and a dark face oval drawn `FACE_PULL` 0.22 m nearer the camera so the brim stops hiding it. Idle at the game camera: face 1.7% -> 7% of his silhouette; `heretic_shots` checks the facing headless and samples the face and both eyes' pixels windowed
+- [x] Hood point hooked (`chibi_hook.py`): sheared back and up, its last part bent over to his left at an angle, one hard corner in the outline
+- [x] Scale: `heretic_rig.MODEL_SCALE` 1.15 on his Armature node (hit areas unchanged; `chibi_keys.py` reads it for the strides, `hero_stride_check` 1.00): Idle 214 px tall vs the warrior's 226 (0.95), 29.3k px vs 32.9k of silhouette (pass 2: 196 px, 20.1k on the same camera)
+- [x] Claw raised beside his head in Idle and Idle_Ready, its spread tipped up to the camera (`chibi_keys.py` `IDLE_RH` / `READY_RH`)
+- [ ] Round-3 lineup before / after (`foe_shots -- --tag=`) and the four-string film (`string_film -- --to=3`): cut at Zak's stop-point before the demo
+- [ ] By hand: whether the pulled face oval draws over the claw in VS / lift poses in play (it hides with the mouth when the claw covers it)
 
 ## Round 41 (Feel audit 2)
 From `docs/feel-audit-2026-11-05.md` (22 strings, the spar foes and six hero clips filmed at dev 9526983; round 1's

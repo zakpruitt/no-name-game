@@ -356,3 +356,10 @@ the worktree, and deletes the branch once it has been merged.
   short notice means docs + rebase + checks, not untangling a half-done diff; list the rest as `- [ ]` in ROADMAP.
 - **A delayed effect needs a real-time guard on its subject:** the Awakening flourish waited 0.4 s for a landing and
   then drew nothing in a check because the hero wasn't `awakened` there; set the field the guard reads in the test.
+
+- **A deterministic run blinks on the same frame every time.** The hero blinks every `BLINK_EVERY` s from load, so a
+  scratch measure that grabbed its frame ~3.4 s in caught every run mid-blink and the eyes read as 2 px slits; it
+  looked like a sizing bug for four builds. Set `rig._blink_t = -100` before any face shot (`heretic_shots` does).
+- **A pixel assertion in a look test:** project the decal's node with `camera.unproject_position`, count pixels of its
+  exact flat colour (unshaded albedo comes out as its sRGB bytes, +-2) inside its projected radius. Keep a headless
+  geometric twin (`face_dot`) so `agent.sh check` still covers it.
