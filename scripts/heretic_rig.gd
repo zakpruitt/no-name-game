@@ -52,7 +52,8 @@ const GRIP_FADE := 0.15  # s back to the free sway after the move
 ## below, keyed for this rig's own arm, are followed as they are instead of easing to the rest spread.
 const KEYED_ARM := ["Idle", "Idle_Ready", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Run_Start", "Run_Stop",
 	"Run_Start_B", "Run_Start_L", "Run_Start_R", "Run_Stop_B", "Run_Stop_L", "Run_Stop_R", "Run_Stop_Ready",
-	"Run_Stop_B_Ready", "Run_Stop_L_Ready", "Run_Stop_R_Ready", "Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3", "Ab_DL", "Ab_GR", "Ab_VS", "Ab_LH", "Ab_H", "Ab_LLH", "Ab_AF", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle"]
+	"Run_Stop_B_Ready", "Run_Stop_L_Ready", "Run_Stop_R_Ready", "Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3", "Ab_DL", "Ab_GR", "Ab_VS", "Ab_LH", "Ab_H", "Ab_LLH", "Ab_AF", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle",
+	"Death_A", "Ab_Swing"]
 const CLAW_TRACK := ":tent.up.01"
 ## With keyed claws the loose ones stay out round a weapon's haft, clenched by the clip, instead of
 ## pulling right in: the claw gripping the axe is the chibi's silhouette.

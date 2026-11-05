@@ -496,6 +496,54 @@ CLIPS["Hit_A"] = (21, "hand", STEP_ATTACK, None, [
     (1, GUARD, "snap"), (2, HIT_FLINCH, "hold"), (7, HIT_BACK, "io"), (13, pose(GUARD, hsq=0.05), "io"),
     (21, GUARD, "hold")])
 
+# Death_A (46 frames, 0.9 s at 1.7; the game restarts the room 1.8 s after he falls): a chibi collapse.
+# Hit (flinch, hood squashed), a woozy stagger with the head lolling, the knees buckle and he drops onto
+# them, the hood flopping forward, then he topples onto his face, the hood squashed flat on the floor with
+# a small bounce. The claw lies out ahead splayed, twitches twice, and dissolves last (shrinks away).
+DE_HIT = pose(HIT_FLINCH, hsq=0.3, bsq=0.06)
+DE_WOOZY = pose(GUARD, hip=(0.02, 0.06, -0.08), hipr=(-6, -10, 8), chest=(-4, -6, 10), head=(8, -16, 18), hsq=-0.12,
+                bsq=-0.04, rh=(70, -40, 0.5), w=(70, -50), lh=(-60, -70, 0.36), fl=(-0.06, 0.04, 0), fr=(0.08, -0.02, 0),
+                claw=0.2, hs=1.1)
+DE_BUCKLE = pose(DE_WOOZY, hip=(0.0, 0.08, -0.3), hipr=(0, 14, 4), chest=(0, 14, 0), head=(0, 26, 6), hsq=0.2, bsq=0.08,
+                 rh=(40, -70, 0.42), w=(30, -70), lh=(-40, -75, 0.34), fl=(-0.06, -0.14, 0.0), fr=(0.06, -0.18, 0.0),
+                 flr=(0, -50, 0), frr=(0, -50, 0), claw=-0.3, hs=1.1)
+DE_KNEEL = pose(DE_BUCKLE, hip=(0.0, 0.06, -0.33), head=(-4, 34, -8), hsq=0.12, bsq=0.03)
+DE_TOPPLE = pose(DE_KNEEL, hip=(0.0, -0.06, -0.38), hipr=(0, 52, 0), chest=(0, 24, 0), head=(0, 12, 0), hsq=-0.16,
+                 bsq=-0.03, rh=(10, -20, 0.55), w=(5, -25), lh=(-30, -30, 0.36), fl=(-0.06, -0.24, 0.04),
+                 fr=(0.06, -0.28, 0.06), flr=(0, -60, 0), frr=(0, -60, 0), claw=-0.8, clawph=40.0, hs=1.2)
+DE_FLAT = pose(DE_TOPPLE, hip=(0.0, -0.12, -0.5), hipr=(0, 80, 0), chest=(0, 8, 0), head=(0, -6, 0), hsq=0.34,
+               bsq=0.08, rh=(15, -5, 0.6), w=(10, -8), lh=(-60, -5, 0.36), fl=(-0.08, -0.38, 0.06),
+               fr=(0.08, -0.42, 0.08), claw=-1.0, clawph=60.0, hs=1.25)
+DE_BOUNCE = pose(DE_FLAT, hip=(0.0, -0.12, -0.46), hipr=(0, 76, 0), hsq=-0.06, bsq=-0.02, claw=-0.6, hs=1.25)
+DE_LIE = pose(DE_FLAT, hsq=0.26, bsq=0.04, claw=-0.9, hs=1.25)
+CLIPS["Death_A"] = (46, "hand", STEP_ATTACK, None, [
+    (1, GUARD, "snap"), (2, DE_HIT, "hold"), (5, DE_WOOZY, "io"), (11, DE_BUCKLE, "snap"), (13, DE_KNEEL, "hold"),
+    (17, DE_TOPPLE, "snap"), (21, DE_FLAT, "hold"), (23, DE_BOUNCE, "hold"), (25, DE_LIE, "hold"),
+    (29, pose(DE_LIE, claw=0.6), "hold"), (31, pose(DE_LIE, claw=-0.9), "hold"), (33, pose(DE_LIE, claw=0.3, hs=1.15), "hold"),
+    (35, pose(DE_LIE, claw=-0.4, hs=0.9), "lin"), (43, pose(DE_LIE, claw=-0.2, hs=0.12), "hold"),
+    (46, pose(DE_LIE, claw=-0.2, hs=0.12), "hold")])
+
+# Ab_Swing (R onto a pillar; void_grab plays it once and the swing runs 0.5-1.6 s on): a crouch with the
+# claw cocked down behind him (anticipation), the claw flung up and out (the tentacle shoots, 0.07 s),
+# the yank as it catches: the body pulled up after it, stretched past the hang (overshoot), legs swinging
+# through; then the hang: tucked, leaning in, the claw up holding, slowly flexing until he lets go.
+SW_COCK = pose(GUARD, hip=(0.02, 0.05, -0.14), hipr=(20, 16, -4), chest=(14, 8, 0), head=(-10, -8, 0), hsq=0.22,
+               bsq=0.08, rh=(120, -40, 0.45), w=(150, -30), lh=(-60, -30, 0.36), fl=(-0.06, 0.08, 0), fr=(0.06, -0.08, 0),
+               claw=0.8, hs=1.1)
+SW_FLING = pose(SW_COCK, hip=(0.0, -0.02, 0.0), hipr=(-6, -6, 6), chest=(-10, -10, 4), head=(6, -16, 0), hsq=-0.2,
+                bsq=-0.1, rh=(40, 70, 0.6), w=(40, 78), lh=(-80, -20, 0.38), fl=(-0.03, 0.06, 0.08), fr=(0.03, -0.1, 0.14),
+                claw=-1.0, clawph=60.0, hs=1.45)
+SW_YANK = pose(SW_FLING, hip=(0.0, -0.06, 0.06), hipr=(-10, -18, 10), chest=(-14, -14, 6), head=(10, -20, 4), hsq=-0.26,
+               bsq=-0.12, rh=(45, 76, 0.6), w=(45, 82), lh=(-120, -40, 0.38), fl=(-0.02, 0.2, 0.2), fr=(0.02, 0.12, 0.26),
+               flr=(0, 40, 0), frr=(0, 50, 0), claw=1.0, hs=1.3)
+SW_HANG = pose(SW_YANK, hip=(0.0, 0.0, 0.03), hipr=(-6, 10, 8), chest=(-8, 4, 4), head=(6, -6, 0), hsq=0.06, bsq=0.03,
+               rh=(42, 72, 0.58), w=(42, 80), lh=(-60, -40, 0.36), fl=(-0.02, 0.12, 0.16), fr=(0.02, -0.02, 0.24),
+               flr=(0, 20, 0), frr=(0, 30, 0), claw=0.9, hs=1.2)
+SW_DRIFT = pose(SW_HANG, hipr=(-4, 14, 12), head=(2, -2, 4), rh=(44, 70, 0.58), claw=0.7, clawph=60.0, hs=1.25)
+CLIPS["Ab_Swing"] = (41, "hand", STEP_ATTACK, None, [
+    (1, GUARD, "out"), (3, SW_COCK, "hold"), (5, SW_FLING, "hold"), (7, SW_YANK, "hold"), (11, SW_HANG, "io"),
+    (25, SW_DRIFT, "io"), (41, SW_HANG, "hold")])
+
 # ---------------------------------------------------------------- locomotion (round 35)
 # The runs, the idle and the dash. Runs are written a frame at a time (step 0: `keys` is the list of
 # per-frame poses): legs, hips and the body squash on ones, so a planted foot stays locked to the
