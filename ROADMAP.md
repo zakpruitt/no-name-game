@@ -411,6 +411,10 @@ Zak: "the movement animation is awful". The chibi's runs, idle and dash re-keyed
 ## Round 36 (camera distance)
 - [x] Zak: "zoom the camera out more, too close to the character". Rest camera 13 m (was 12.5) at FOV 37 (was 36), aimed `AIM_HEIGHT` 0.8 m up his body so the pile in front sits mid-screen instead of under the HUD: at 1080p the hero is 140 px (was 167; round 28 105) with +34% floor in frame. Fight framing: foes hit in the last 2.2 s pull the camera out up to x1.25 (~112 px) and lean it towards them, drifting back slowly. Kicks and shake scale with the distance, `PUNCH_GAIN` 1.25 on enders, `HANG_ZOOM` 0.12 -> 0.16. Flags `--cam-dist=` / `--cam-fov=` / `--cam-frame=` (`docs/features/camera.md`)
 - [ ] By hand: is 13 m far enough? Try `--cam-dist=14` / `15` and `--cam-frame=1` (framing off) and say which
+- [x] Camera round 2: Meteor Fall's beats (press to dive) pull the camera out past the framing cap, up to `frame_max` x `HANG_FRAME_GAIN` 1.6 (x2.0, 26 m, hero ~70 px), on foes hit within 22 m, leaning up to 5 m and undoing the hang push-in while they need the room; out at 12/s (90% in 0.19 s, before the throw hits the wall), back at 4/s on the dive (its punch-in kept). The rise and the timing window keep the push-in. Filmed (`string_film -- --from=11`): the beat-1 splats on the east wall and every thrown foe in frame (before: off the right edge). The rig's real delta is measured now (delta / time_scale snapped the dive's return home in a frame)
+- [x] Camera round 2: `comic_shots`, `foe_shots`, `heretic_shots` shoot from `camera_rig.rest_view()` (the rig's offset and FOV, flags included) instead of round 28's (0, 13, 9.5) FOV 42
+- [ ] By hand: is x2.0 too far for the beats (the hero ~70 px for ~0.6 s), or still too close (a throw to both side walls wants ~x3.5; the corner foe can sit at the edge)? `--cam-frame=` scales it
+- [ ] The timing window before the press still pushes in on foes Undertow spread off screen (Meteor Fall's string): pull out there too, or leave the window tight?
 
 ## Round 33 (FX sleek)
 Zak, after playing every combo: "very comicy, which I like, but ... sleeker and more put together. Right now it's very thick colours." Same comic language, less weight: `docs/features/comic-style.md` "Sleek effects".
@@ -436,7 +440,7 @@ Zak: "more combos that utilize multiple elements together", "a few more complica
 - [x] Meteor Fall in three beats: thrown into the walls, dragged into one pile by the tentacles, the meteor into the pile (~1.1 s game time)
 - [x] Bot plays all of them (17 strings, `breakers=9/9`, `endings=`); `string_film.gd -- --from=N`
 - [x] Looks for the crossovers and the beats (round 37)
-- [ ] Beat 1 throws leave the frame in the middle of the room: a camera pull-out for Meteor Fall's hang (camera lane)
+- [x] Beat 1 throws leave the frame in the middle of the room: a camera pull-out for Meteor Fall's hang (camera lane; Round 36, camera round 2)
 
 ## Round 37 (Crossover FX)
 The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geysers, shards, arcs). Each now has its own flat comic drawer on `scripts/comic_flat.gd` (two surfaces on twos: camera-facing on heretic_form_fx's material, floor on comic_crack's; nothing new to compile). See `docs/features/void-element.md` "Crossover looks".

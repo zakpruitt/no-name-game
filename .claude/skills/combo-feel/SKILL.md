@@ -110,6 +110,14 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - Callers' push-ins (`ENDER_ZOOM`, `BREAKER_FOCUS_ZOOM`, punch values) are fractions tuned at 12.5 m; the rig scales them
   (`PUNCH_GAIN`) and the metre-sized kicks (`dist / REF_DIST`), so new camera calls pass round-32-sized numbers.
 - The fight framing reads `last_hit_ms` on `"enemies"`: a new foe type gets framed only if it sets that on a hit.
+- **Breaker beats get the pull-out for free in phase 3.** The rig reads `_brk_phase`: in `BEATS_PHASE` it frames
+  foes hit in 4 s within 22 m up to x2.0 (`HANG_FRAME_*`), and the dive (phase 1) comes back in under its punch. A
+  new breaker that throws foes between press and dive should run those beats in phase 3, not add camera calls.
+- **Size a throw against the cap, not the rest view.** At x2.0 the training room's both-walls throw still wants ~x3.5;
+  a beat that flings foes to opposite walls will put one at the edge. Throw them to one side (along `_brk_dir`) or
+  shorter if every splat must read.
+- Film the beats with `string_film -- --from=N` and read the `brk=3` frames; a probe printing `_frame` and the worst
+  foe NDC per frame (root `size` 1920x1080 headless) finds the cap and the ease long before a film does.
 
 ## Crossover strings (round 34)
 - **Find the dead ends first.** A new route has to hang off a press that today only restarts the chain (L off AL1,

@@ -228,6 +228,17 @@ the worktree, and deletes the branch once it has been merged.
 - **Round 33, part 2 (FX sleek):** a "string started" hook already existed as state: `_chain_i` resets to 0 0.35 s
   after a move ends and at a breaker's end, so "no chain and not attacking last frame, attacking now" is a string's
   first move. Reading it from ComicFx (`standing_fx.watch`) kept player.gd untouched while the combo lane edited it.
+- **Camera round 2 (hang pull-out):** a headless probe that instances main, drives the bot from `_bot_string = N`
+  with the root at `size = Vector2i(1920, 1080)` (headless honours it, so `get_visible_rect()` is 16:9) and prints the
+  rig's `_frame` / `_frame_to` / effective distance and the worst foe's NDC every 3 frames gave every number in one
+  20 s run; film once the probe says it fits.
+- **A camera multiplier stack hides the cap.** The hang push-in (x0.84) and the focus punch (x0.83) under a x2.0
+  `_frame` cap left the view at x1.4: put the cap on the distance seen (`min(need, cap) / squeeze`), not on one factor.
+- **`delta / Engine.time_scale` is not real time around a hitstop**: the pull-out's dive return jumped x1.92 -> x1.24
+  in one 50 ms sample; a measured `Time.get_ticks_usec()` delta fixed it. A headless check (time scale set from
+  `_process` or `_physics_process`, with a slow frame first) never reproduced the jump, so it isn't in the check.
+- **`sed -i` again turned a CRLF file LF** (camera_rig.gd); `file x.gd` after every sed, and rewrite with Python
+  `newline='\r\n'` before committing.
 - **Logic behind a visual needs a headless check:** `tests/fx_sleek_check.gd` sets the hero's fields by hand (with
   his `_physics_process` off) and calls the watcher and `ComicNumber.add` directly; flipping each feature off made it
   FAIL, so it guards the behaviour, not only compilation.
