@@ -21,6 +21,7 @@ const COMIC_ARC := preload("res://scripts/comic_arc.gd")
 const COMIC_SPLAT := preload("res://scripts/comic_splat.gd")
 const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
 const COMIC_MELT := preload("res://scripts/comic_melt.gd")
+const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1085,6 +1086,8 @@ static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized:
 	var parent: Node = hero.get_parent()
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var struck := {}
+	var spots := []
+	var hots := []
 	for e: Variant in seized + FOES.near(hero.get_tree(), at, ERUPT_RING):
 		if struck.has(e) or not is_instance_valid(e) or not e.is_alive():
 			continue
@@ -1093,8 +1096,9 @@ static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized:
 		unmark(e, "molten")
 		e.take_hit(damage * (ERUPT_MOLTEN_MULT if hot else 0.7), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else ERUPT_LAUNCH, true)
 		Game.register_hit("breaker")
-		under(parent, _flat(e.global_position), "earth")
-	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, ERUPT_RING, 1.4)
+		spots.append(_flat(e.global_position))
+		hots.append(hot)
+	COMIC_ERUPT.spawn(parent, at, spots, hots)  # (the floor up under each, nearest first: was a geyser + spikes each and a scorch)
 	_pop(parent, at, "hammer")
 	Game.shake(0.7)
 
