@@ -125,11 +125,22 @@ so the autotest lands it.
   `breakers=N/N perfect_breakers=` on the done line (round 34: N is distinct `BREAKERS` ids landed, so an `alt` ending
   doesn't count twice; `endings=` names every ending landed, Black Ice included). The bot resets the dummies to their homes and the hero to
   `training_bot.BOT_SPOT` before each string and presses `BOT_LEAD` before each cancel point, so the run repeats
-  exactly; `agent.sh check` fails unless every breaker and string landed (`breakers=11/11`, `strings=19/19` after round 34's
-  second pass).
+  exactly; `agent.sh check` fails unless every breaker and string landed (`breakers=11/11`, `strings=22/22` after round 34's
+  third pass, which added the element matrix's three; `AUTOTEST_MAX` 80 s). A `"line"` token stands the dummies in a
+  column for that string (`BOT_LINE_FROM`, `BOT_LINE_GAP`); `[improv]` counts the matrix payoffs the bot reached.
 - Windowed: `godot --path . -s tests/breaker_prompt_preview.gd` → `user://breaker_prompt.png`; `tests/element_shots.gd`
   for each slam.
 
 ## Gotchas / open questions
 
 - Tuned headless and in stills; the window's length and the slam's weight still want a hand play-test.
+
+## Round 34, third pass: air timing and the hold's `reel`
+
+- A breaker entry with `reel` (Anvil) has `void_grab.seize()` lift each foe at a spot `reel` of the way from where it
+  stood to `ANVIL_REEL_GAP` in front of him, so phase 0's haul pulls them in. Use it when the move before the leap
+  throws foes the leap comes too soon to show (the foe's hit freeze eats the first ~0.1 s of any knockback).
+- Air strings: size a launch against the hero's height at the next hit, not the room. Hailstorm's 12 m/s flew a real
+  foe past him (training dummies launch at `LAUNCH_SCALE` 0.55 and stayed under him); 9 m/s puts it in its apex hang
+  at his ~2.5 m as Meltdown lands. Probe heights per physics frame (hero `global_position.y + model.position.y`,
+  each foe's y, flat distance, airborne, frozen) before judging the film.

@@ -164,3 +164,27 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   to GR, Eruption never played). `training_bot` now waits for `_hits_done > 0` too; the beats didn't move.
 - **A payoff that reads "frozen" should take a cube in flight** (`THROWN.cut` it first): Steam Burst filtered out
   flying foes, and in the bot's Dash L H H L the only cube is always still rolling when XS fires.
+
+## Element matrix and air timing (round 34, third pass)
+- **Fill a state x element table, not routes.** One `IMPROV` dict (state -> element -> payoff kind) read by one
+  `improvise()` at the top of `fire()` (the old body renamed `_fire()`) filled 15 cells without touching any move
+  body another lane was editing. Leave out the cells a move already pays itself, or the state pays twice, and
+  have the check assert `improvise()` returns 0 on those.
+- **Read every state before paying any.** A chain that marks the neighbour `molten` / `skewered` made it pay in the
+  same move and chain back (paid 2, "spent once" failed); collect `[foe, state]` first, then pay.
+- **A move's reach isn't "near him".** Tow Line takes whoever is on the dash he just made, often behind him: the
+  improvised payoff found nobody until it used `_tow_line()`'s set first.
+- **The foe's hit freeze eats a breaker's set-up.** Backdraft's pull-back knockback starts only after the foe's
+  `hit_freeze_big` (0.11 s) plus the move's hitstop, and Anvil leaps ~0.25 s after the hit: the foes hadn't moved.
+  Show the motion with the hold instead (`reel` in the breaker entry: seize lifts them part way to him).
+- **Air launches: dummies launch at 0.55.** `training_dummy.LAUNCH_SCALE` and `MAX_HEIGHT` 3 hide a real foe's
+  arc. Tune air timing on the real numbers (`enemy.launch_speed_for()` and `AIR_GRAVITY` / `HANG_*`), then check
+  the dummy still reads; Hailstorm 12 m/s was 5.3 m on a real foe and 1.7 m on a dummy.
+- **A column of dummies for line moves.** The dash and Dash Stab carry him ~5 m and pass through foes; a column that
+  starts at the usual 2 m ends up behind him and Harpoon reels nobody. The bot's `line` token starts it 5 m out.
+- **Hitstop vs hit-confirm split:** a move's `confirm` (fraction back to the hit) next to a lower `stop` shortened
+  Rockslide -> Fault Line by ~70 ms with the contact frame where it was; the moves that hand over to a crossover can
+  take it without touching `CANCEL_ON_HIT` for the weapon string.
+- **Flow audit numbers (bot beats):** the long ones were all slow clip wind-ups, not stops: Ab_AF (palm 467 ms),
+  Ab_LLH (327), Ab_VS in the air (278). `speed` is the cheap lever; keep recovery with a new `end` (`EM_END`).
+

@@ -149,6 +149,29 @@ them out of the air); Ice Cube, Impale, Hailstorm (ice left on them), dash, L L 
 L H H L off the dash for Steam Burst; Meltdown's `molten` lasts for Eruption only. Black Ice, Cataclysm, Meteor
 Fall, Eruption and Anvil end in craters: nothing to carry.
 
+Third pass: every other state x element cell pays something too (Gale Lift, Shatter, Frozen In, Aftershock,
+Swallowed, Firestorm, Quench, Flare-up, Smother, Ice Spreads, Torn Off, Freeze Aloft, Meteor Spike, Torn Loose,
+Frozen in the Dark), paid by the element's base moves through `improvise()` at the top of `fire()`; the table and
+the rules are [element-matrix.md](element-matrix.md). The "bound" state is `floor_bind.holds()`.
+
+#### Third pass: air timing and fixes (round 34, filmed `string_film -- --from=17`)
+
+- **Meltdown** met the cubes on their way up: `HAIL_LAUNCH` 12 had a foe still rising at 7 m/s past him (peak 5.3 m,
+  his climb stops at 2.8); now 9 (peak ~3 m, into its apex hang by the slam), and Meltdown plays at
+  `hero_moves.MELT_SPEED` 1.5 (XG -> XM beat 467 -> 413-419 ms).
+- **Backdraft's pull-back** never showed: Anvil leaps ~0.25 s after Backdraft's hit, before the gale's knockback has
+  moved anyone (the foe's hit freeze), so the tentacles lifted them where they stood. Anvil's entry has
+  `reel` (`ANVIL_REEL` 0.65 of the way to `ANVIL_REEL_GAP` in front of him, `void_grab.seize()`): the haul up is the
+  kebab coming back.
+- **Rockslide -> Fault Line:** Rockslide's stop is `ROCKSLIDE_STOP` 0.07 (was 0.1; with its tier-2 ender stop it was
+  150 ms of the beat) and its hit-confirm cancel `ROCKSLIDE_CONFIRM` 0.8 of the way back (a move's `confirm`
+  overrides `CANCEL_ON_HIT`); the contact frame is unchanged. Fault Line's beat 393 -> 310-325 ms.
+- **Range-0 moves** no longer run `_do_hit`'s melee loop: `range` 0 still caught a foe standing on him with a
+  0-damage hit that broke its ice before `fire()` read it.
+- **The bot's Hailstorm string** is `line D L H H H L`: `line` stands the dummies in a column
+  (`training_bot.BOT_LINE_FROM` 5 m out, `BOT_LINE_GAP` 1.6) past where the dash and Dash Stab carry him, so Harpoon
+  reels three in and Hailstorm lifts them all (it lifted one).
+
 ### Breakers (`VOID_ELEMENT.BREAKERS`)
 
 | Input | Off | Name | Ending |

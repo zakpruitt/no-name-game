@@ -163,3 +163,7 @@ grab) and off Hailstorm the light row is Meltdown with Eruption behind it; off T
 off Impale the light row is Backdraft with Anvil behind it. With the frost spear standing, presses off Tow Line,
 Impale, Backdraft and Storm Pitch no longer turn into the vault (`VOID_ELEMENT.NO_VAULT`), so the guide's rows
 off them stay true while the spear is up.
+
+Third pass: the element matrix's payoffs aren't routes (they read a foe's state, `void_element.IMPROV`), so the guide
+doesn't show them; the pause MOVES panel has an IMPROVISING section, one text row per cell (`move_list.gd`), whose
+inputs name the state and the element ("frozen, then dark") and so never route.

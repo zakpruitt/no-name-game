@@ -40,6 +40,7 @@ For now the game is just the heretic's combat in a training room (ROADMAP round 
 - `scripts/fx_palette.gd` — one palette per element for the flat comic effects (ink, deep, body, light, hot for wind / water / earth / void / spirit / hit / gold; `PAL.of()`, `PAL.LINE` 0.035 m ink line). Effects are sleek since round 33: thin ink lines, gradient and see-through fills, few shapes, short lives (`docs/features/comic-style.md` "Sleek effects")
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`
 - Crossovers (round 34): strings that change element, `X*` ids in `void_element.gd` (Rockslide, Fault Line / Cataclysm, Steam Burst / Flash Freeze, Storm Pitch) plus Black Ice (Maw's `alt`); Meteor Fall plays three beats (`gather`: hero_leap phase 3). See `docs/features/void-element.md` "Crossovers"; second pass: three-element strings (Hailstorm / Meltdown / Eruption, Impale / Backdraft / Anvil) and states that outlast a string by `ELEMENT_HOLD` so dash routes improvise ("Improvising")
+- Element matrix (round 34, third pass): every state x element cell pays (`void_element.IMPROV`, `improvise()` at the top of `fire()`, base moves only; "bound" is `floor_bind.holds()`); the autotest prints `[improv]`. See `docs/features/element-matrix.md`
 - `assets/music/` — synthesized ambient + combat loops; regenerate with `python tools/gen_music.py`. `Game` plays them in sync and fades the combat layer by style rank (`MUSIC_RANK_LEVEL`)
 
 ## Workflow

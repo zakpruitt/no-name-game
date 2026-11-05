@@ -315,3 +315,11 @@ the worktree, and deletes the branch once it has been merged.
   windowed `foe_shots.gd` run before and after a look change; that is where they show.
 - **`git stash` in a worktree with an imported project** brings back every `.import` file with CRLF noise; revert it
   with the `git diff --ignore-cr-at-eol` loop before staging.
+- **Round 34 third pass (combo lane):** a headless per-physics-frame probe (hero height, each foe's y / flat
+  distance / airborne / frozen / flying) explained in one run what two films only hinted at (the cube not rising
+  until the hit freeze ended, the leap seizing foes before the knockback moved them). Write it as a throwaway
+  `tests/*_probe.gd`, read it, delete it before committing.
+- Python edits to these CRLF files: read with `newline=''`, swap to LF, edit, write back with CRLF (a helper in
+  the scratchpad); a bash heredoc holding Python with apostrophes broke once, so long edits go in a `.py` file.
+- The autotest's `AUTOTEST_MAX` caps the bot: a 22nd string silently missed (`strings=21/22`) until it went 60 -> 80 s.
+
