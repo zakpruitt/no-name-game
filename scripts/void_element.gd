@@ -220,8 +220,9 @@ const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_sp
 const CATACLYSM_DOWN := 6.0  # m/s
 # Meteor Fall's three beats (s, game time from the press): the wall throw, the drag into the pile, the dive.
 const METEOR_REACH := 12.0  # m round him: who gets thrown, and then gathered
-const METEOR_WALL_LENGTH := 14.0  # m they fly at most (a wall stops them sooner and splats them)
-const METEOR_WALL_SPEED := 44.0  # m/s: ~0.3 s to the training room's walls
+const METEOR_WALL_LENGTH := 10.0  # m they fly at most (a wall stops them sooner and splats them). At 14 they left the
+# game camera's frame in the training room, so beat 1 read as them vanishing
+const METEOR_WALL_SPEED := 36.0  # m/s: ~0.28 s out
 const METEOR_WALL_DAMAGE := 10.0
 const METEOR_WALL_MULT := 2.0  # the splat
 const METEOR_GATHER_AT := 0.32  # s: beat 2 once nobody's still flying, not before this...

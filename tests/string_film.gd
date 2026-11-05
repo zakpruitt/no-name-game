@@ -1,7 +1,7 @@
 extends SceneTree
 ## Films every autotest bot string (training_bot.BOT_STRINGS: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
-##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather]
+##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ## Windowed only (headless draws nothing), about a minute. Frames are 800x450 (half the window); each grab stalls
@@ -53,6 +53,12 @@ func _initialize() -> void:
 	var gather := not "--no-gather" in OS.get_cmdline_user_args()
 	if gather:
 		_gather()
+	for arg: String in OS.get_cmdline_user_args():  # `-- --from=N`: start at BOT_STRINGS[N], the earlier ones count as filmed
+		if arg.begins_with("--from="):
+			filming = clampi(int(arg.get_slice("=", 1)), 0, strings.size() - 1)
+			_bot._bot_string = filming
+			for i in filming:
+				_bot._bot_strings_done[i] = true
 	_t0 = Time.get_ticks_msec()
 	while _bot._bot_strings_done.size() < strings.size():
 		_bot._autotest_t = 0.0
