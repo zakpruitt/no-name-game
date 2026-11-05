@@ -16,7 +16,7 @@ const BUFFER_MS := 300
 ## `cancel` toward its last hit, so a string that lands flows faster than one swung at air (a whiff keeps
 ## the table's `cancel`: the recovery is the whiff's price). Never before HIT_CONFIRM_MIN s (move time)
 ## after the last hit, nor before a breaker's `leap`.
-const CANCEL_ON_HIT := 0.5
+const CANCEL_ON_HIT := 0.5  # a move's `confirm` overrides it (Rockslide: hero_moves.ROCKSLIDE_CONFIRM)
 const HIT_CONFIRM_MIN := 0.03
 ## A dash cancels any move once its first hit is out, or this far into it on a whiff (fraction).
 const DASH_CANCEL_WHIFF := 0.2
@@ -79,7 +79,7 @@ static func cancel_point(hero: CharacterBody3D) -> float:
 	if not hero._connected or hero._hits_done < move.hits.size():
 		return c
 	var last: float = move.hits[-1]
-	var early := maxf(lerpf(c, last, CANCEL_ON_HIT), last + HIT_CONFIRM_MIN * hero.anim_speed * hero._anim_mult / hero._move_len)
+	var early := maxf(lerpf(c, last, move.get("confirm", CANCEL_ON_HIT)), last + HIT_CONFIRM_MIN * hero.anim_speed * hero._anim_mult / hero._move_len)
 	var brk: Dictionary = hero._breaker_for(hero._move_id)
 	if not brk.is_empty():
 		early = maxf(early, move.get("leap", brk.leap))

@@ -612,7 +612,9 @@ func _do_hit() -> void:
 		_swoosh(fwd)
 	var hit_any := false
 	var any_airborne := false
-	for e in get_tree().get_nodes_in_group("enemies"):
+	# (a move with no reach is all fire(): its `range` 0 still caught a foe standing on him, a 0-damage touch that
+	# broke the ice before fire() read it)
+	for e in get_tree().get_nodes_in_group("enemies") if _move.range > 0.0 else []:
 		if not e.is_alive():
 			continue
 		var to: Vector3 = e.global_position - global_position
