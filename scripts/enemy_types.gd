@@ -29,7 +29,7 @@ const TYPES := {
 		"attack_range": 14.0, "preferred_range": 11.0, "attack_damage": 8.0, "attack_windup": 1.2,
 		"attack_recover": 0.6, "projectile_speed": 8.0, "cloth_color": Color(0.1, 0.13, 0.1),
 		"raise_count": 2, "raise_cooldown": 5.0},
-	"bomber": {"model": "Skeleton_Minion", "title": "bomber", "bar_height": 2.3, "run_foot_speed": 1.73, "max_hp": 26.0, "move_speed": 4.2, "attack_kind": "bomb",
+	"bomber": {"model": "Skeleton_Minion", "title": "bomber", "bar_height": 2.3, "run_foot_speed": 4.53, "max_hp": 26.0, "move_speed": 4.2, "attack_kind": "bomb",
 		"attack_range": 2.6, "attack_damage": 22.0, "attack_windup": 1.5, "blast_radius": 3.2,
 		"blast_enemy_damage": 40.0, "model_scale": 0.9, "run_anim": "Running_C",
 		"body_tint": Color(1.0, 0.62, 0.42)},
