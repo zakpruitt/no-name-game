@@ -41,6 +41,7 @@ For now the game is just the heretic's combat in a training room (ROADMAP round 
 - `assets/sfx/` — synthesized placeholder sounds; regenerate with `python tools/gen_sfx.py`, play with `Game.sfx("name")`
 - Crossovers (round 34): strings that change element, `X*` ids in `void_element.gd` (Rockslide, Fault Line / Cataclysm, Steam Burst / Flash Freeze, Storm Pitch) plus Black Ice (Maw's `alt`); Meteor Fall plays three beats (`gather`: hero_leap phase 3). See `docs/features/void-element.md` "Crossovers"; second pass: three-element strings (Hailstorm / Meltdown / Eruption, Impale / Backdraft / Anvil) and states that outlast a string by `ELEMENT_HOLD` so dash routes improvise ("Improvising")
 - Element matrix (round 34, third pass): every state x element cell pays (`void_element.IMPROV`, `improvise()` at the top of `fire()`, base moves only; "bound" is `floor_bind.holds()`); the autotest prints `[improv]`. See `docs/features/element-matrix.md`
+- Mixing, fourth pass: a payoff reaches only the move's own hit shape (`void_element.improv_reach()`); the combo guide tags crossover rows with their element change and rows that would cash in a state with the payoff (`hero_moves.mix_of()` / `pays()`); the pause panel's MIX ELEMENTS page lists every state x element cell (`move_list.mix_name()`)
 - `assets/music/` — synthesized ambient + combat loops; regenerate with `python tools/gen_music.py`. `Game` plays them in sync and fades the combat layer by style rank (`MUSIC_RANK_LEVEL`)
 
 ## Workflow
