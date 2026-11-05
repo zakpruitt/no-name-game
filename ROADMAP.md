@@ -568,12 +568,14 @@ items 1, 2, 6, 7 and 10 fixed, 3, 4, 5 and 8 half, 9 not). Zak's wake-up page: `
 - [x] 2. `LAST n` tags on every dummy all the time: only the dummy hit most, number-sized, fading 1 s after the string (training). Done: every hit dummy's tag, 40 px thin ink, gone 1.5 s after its string
 - [x] 3. A name callout on every move (DASH STAB, HARPOON, ICE CUBE...): names on enders, crossovers and first finds only (heretic-fx / hud). Done: enders, crossovers and breakers (`callout_cap.names_move`)
 - [x] 4. The "New combo:" banner runs through the whole next string: cut it on the next string, `FOUND_HOLD` ~1.2 s real (hud / training). Done: `hud.show_found`
-- [ ] 5. Dash Stab and Harpoon still land soft (x1.00 on their HIT frames): brake DL's lunge on a foe ahead, a stop on Harpoon's catch (combo-rhythm)
+- [x] 5. Dash Stab and Harpoon still land soft (x1.00 on their HIT frames): brake DL's lunge on a foe ahead, a stop on Harpoon's catch (combo-rhythm). They whiffed: the dash now arrives (`DASH_ARRIVE`) and the stab brakes (`DASH_STAB_BRAKE`); not yet re-filmed
+- [ ] 10b. Tow Line off a dash out of a move (EF / IP -> TW 457-526 ms): hand it over early without shortening its line (the frozen x dark cell went 3 -> 0 when tried) (combo-rhythm)
+- [ ] 10c. L3 -> EM 527-544 ms and Molten Palm's two-speed retime (item 7's combo side), Meteor Fall's throw sized to `camera_rig`'s frame cap (item 9's combo side): left out at Zak's demo stop (combo-rhythm)
 - [ ] 6. Overwhelm's pool is the last thick colour (hold: mean coverage 0.22): the halftone floor look, one thin rim (heretic-fx)
 - [ ] 7. Molten Palm's coil is one held drawing (Ab_AF frames 8-46 of 61) and a blink at `EM_SPEED` 2.8: re-key a building ~16-frame coil, `EM_SPEED` ~1.8 (heretic anim, combo-rhythm)
 - [ ] 8. The run reads as a hood dragging a claw, Run_Stop as a spin: smaller claw swing, legs clear of the hood, keep the stop's facing (heretic anim)
 - [ ] 9. Meteor Fall's beats happen at the frame edge (throws off the top and right, tentacles leaving the screen): throw along `_brk_dir` inside the x2.0 view, a tighter gather (combo, camera)
-- [ ] 10. Dash hand-overs drag: EC / XR -> DL ~500 ms (444-449 after 3f27472), -> TW 451-467, DL -> EF ~430 in the matrix routes, against the 362 ender (combo-rhythm)
+- [x] 10. (Dash Stab side: move -> DL 326-406, DL -> EF 282-370 ms; Tow Line is 10b) Dash hand-overs drag: EC / XR -> DL ~500 ms (444-449 after 3f27472), -> TW 451-467, DL -> EF ~430 in the matrix routes, against the 362 ender (combo-rhythm)
 - [ ] Overwhelm's pool (item 6): halftone it like the frost floor (`halftone_floor.gdshader`), a thin ink rim, fade with the hold (`dark_fx.Pool`); left out at Zak's demo stop-point (effects lane)
 - [ ] The combo guide's mix / pay tags are plain text: a small element chip (dot in the element's palette) before each (`combo_guide.gd`); left out at the demo stop-point (effects lane)
 - [ ] Film the round 41 effects lane after (`string_film`, `fx_coverage.py --per-string`) against the audit's 0.090 mean / 0.309 max; the lane landed on headless checks only at the demo stop-point

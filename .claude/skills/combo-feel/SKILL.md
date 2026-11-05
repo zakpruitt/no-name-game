@@ -219,6 +219,14 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - **A hold that hauls foes to one point piles them.** Anvil's `reel` lerped every foe to the same spot (0.08 m apart);
   give each a slot across his aim sorted by where it stands, and add `fan * SEIZE_IN` on the landing, since the
   dive's lerp towards `_brk_zone` shrinks any spread by `1 - SEIZE_IN`.
+- **A HIT frame at x1.00 is a whiff, not a missing stop** (round 41): `string_film` marks HIT on `_hits_done`, hit or
+  miss, and a connected `_do_hit` always freezes. Dash Stab and Harpoon had stops; the dash plus the 16 m/s lunge
+  carried him through the foe. Read the combo count on the frame too: a cast (the lash) can count hits the blade missed,
+  and it also sets `_connected`, so a whiffed blade still took the confirm cancel without the stop (D L H 330 ms).
+- **Fixing a whiff lengthens the beat:** once Dash Stab connected, its stop + tier-1 `ENDER_HITSTOP` added ~95 ms to
+  DL -> EF; pay it back with a `confirm` (`DASH_STAB_CONFIRM`) in the same change.
+- **Shortening a dash shortens Tow Line:** its reach is the dash's line (`_tow_line`); handing a buffered right click
+  over early cut frozen x dark 3 -> 0. Check `[improv]` after any dash-length change, not only `breakers=`.
 - **Guide tags that read state are not routes.** `mix` / `pay` ride on a real row (guide_check still compares the
   row's id and next), so a hint about a foe's state belongs on the row whose move would pay it, never as a row.
 

@@ -147,6 +147,25 @@ Bot `[rhythm]` beats (first hit to first hit), before -> after, contact frames u
 
 A fresh dash (from standing) still runs its whole `dash_time` before Dash Stab, so the D L openers are unchanged.
 
+## Round 41 (feel audit 2 items 5 and 10): Dash Stab lands, and hands over sooner
+Dash Stab and Harpoon read soft (x1.00 on their HIT frames) because they whiffed: the dash and the 16 m/s stab carried
+him through a foe 2-3 m ahead, so the stab cut air and Harpoon fired at nobody (the lash cast's hits hid it in the
+combo count). Now:
+- **The dash arrives** (`hero_input.dash_hands_over`): a dash with a light buffered ends once a foe ahead
+  (`DASH_ARRIVE_ARC` 35 deg) is inside `DASH_ARRIVE` 2.8 m, after at least `DASH_ARRIVE_MIN` 0.25 of it.
+- **The stab brakes** (`hero_moves.brake`, `"brake"` in DL): it lunges only far enough to have the foe it aims at
+  `DASH_STAB_BRAKE` 0.6 of its range ahead at the hit (never under `DASH_STAB_MIN_LUNGE` 3 m/s; a foe beyond the full
+  lunge keeps it). Connected, it gets the stop, the tier-1 kick and punch and the star like any named hit.
+- `DASH_STAB_STOP` 0.06 (a light), `HARPOON_STOP` 0.07 (a mid), `DASH_STAB_CONFIRM` 0.8, `DASH_STAB_CANCEL` 0.5 -> 0.4.
+
+| Hand-over (bot gap, move start to start) | Was | Now |
+|---|---|---|
+| Updraft Lash / Rockslide -> Dash Stab (a dash out of a move) | 405-421 ms | 326-406 ms |
+| Dash Stab -> Harpoon (connected) | 432-435 ms | 282-312 ms (343-370 on a line) |
+
+Tow Line off a dash still waits out the whole dash (EF -> TW 457-526, IP -> TW 479-482): handing it over at
+`DASH_STAB_CANCEL` too made it 371-411 ms but shortened its line, and the bot's frozen x dark cell went 3 -> 0.
+
 ## Round 34, third pass: air timing and the hold's `reel`
 
 - A breaker entry with `reel` (Anvil) has `void_grab.seize()` lift each foe at a spot `reel` of the way from where it

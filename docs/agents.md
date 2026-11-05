@@ -227,6 +227,8 @@ fast-forward, so no agent edits another's files or index.
   calling a film complete.
 - **A model lane's chain runs on `set -e` + `grep`:** a step that prints nothing the grep wants (a Blender `SystemExit` message) stops the chain silently and the old GLB stays in `assets/`; two face edits were judged on an unchanged build that way. Print the step's last line unfiltered, or check the GLB's mtime, before shooting.
 - **Measuring presence:** `foe_shots` lineups mix sizes with depth; a scratch measure (each kind alone on the hero's spot, frozen camera copy, shadows off, diff against the empty frame) gave px height and area for all ten in one 60 s windowed run. Note `user://` is shared: write scratch frames with a lane prefix.
+- **A stop order mid-item:** land the part that already plays green (same `breakers=` / `strings=`, every `[improv]` cell
+  above 0, rhythm_check green three runs), back out the piece that cost a cell, and leave the rest as `- [ ]` in ROADMAP.
 - **Scratch SceneTrees in `tests/_<lane>_*.gd` leave `.uid` files** beside them after a run; delete both before landing.
 
 ## When you're done
