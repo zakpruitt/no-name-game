@@ -1,7 +1,7 @@
 extends SceneTree
 ## Films every autotest bot string (training_bot.BOT_STRINGS: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
-##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--dir=name]
+##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ## Windowed only (headless draws nothing), about a minute. Frames are 800x450 (half the window); each grab stalls
@@ -14,6 +14,7 @@ const DIR := "user://string_film"
 ## `-- --dir=<name>`: film into user://<name> instead (user:// is shared by every worktree: two lanes filming at once
 ## overwrote each other's frames).
 var _dir := DIR
+var _last := -1  # `-- --to=N`: the last BOT_STRINGS entry filmed (and no freeplay); -1 films them all
 const FPS := 12.0
 const FREEPLAY_S := 10.0
 const SIZE := Vector2i(800, 450)
@@ -60,6 +61,8 @@ func _initialize() -> void:
 	if gather:
 		_gather()
 	for arg: String in OS.get_cmdline_user_args():  # `-- --from=N`: start at BOT_STRINGS[N], the earlier ones count as filmed
+		if arg.begins_with("--to="):
+			_last = int(arg.get_slice("=", 1))
 		if arg.begins_with("--from="):
 			filming = clampi(int(arg.get_slice("=", 1)), 0, strings.size() - 1)
 			_bot._bot_string = filming
@@ -72,6 +75,8 @@ func _initialize() -> void:
 		if _bot._bot_string != filming:  # the bot moved on: write the last string out
 			_flush(_name(strings[filming]))
 			filming = _bot._bot_string
+			if _last >= 0 and filming > _last:  # `-- --to=N`: stop after BOT_STRINGS[N]
+				break
 			_t0 = Time.get_ticks_msec()
 			_n = 0
 			if gather:
@@ -83,6 +88,10 @@ func _initialize() -> void:
 				get_nodes_in_group("enemies").map(func(e: Node3D) -> float: return snappedf(e.global_position.distance_to(_p.global_position), 0.1)))
 			break
 	_frames.clear()  # (the next string's first walk-up frames)
+	if _last >= 0:
+		print("[string_film] done (--to=%d) -> %s" % [_last, ProjectSettings.globalize_path(_dir)])
+		quit(0)
+		return
 	_t0 = Time.get_ticks_msec()
 	_n = 0
 	while Time.get_ticks_msec() - _t0 < FREEPLAY_S * 1000.0:
