@@ -16,6 +16,10 @@ const SLABS := 10  # floor slabs heaved up round the rim
 const ERUPT := 8  # strikes in a perfect's eruption ring
 const ERUPT_STEP := 0.035  # s between strikes as the ring sweeps round
 const VENT_DELAY := 0.1  # s after the impact the cracks vent (they've split out by then)
+const VENT_STAR := 0.34  # m: a vent's inked star in the comic style
+const PAL := preload("res://scripts/fx_palette.gd")
+const COMIC_POP := preload("res://scripts/comic_pop.gd")
+const SCORCH_COMIC := 1.15  # of the radius: with no box cracks the inked mark carries the crater, out past the pile
 
 static var _stone: StandardMaterial3D
 
@@ -119,8 +123,13 @@ static func crater(parent: Node, pos: Vector3, el: String, radius: float, rim :=
 	var n := maxi(int(round(CRACKS * clampf(radius / 3.4, 0.5, 1.3))), 4)
 	var reach := radius * (1.15 if big else 0.95)
 	var a0 := randf() * TAU
+	# Round 33, sleek 4: in the comic style the floor's cracks are Fx.scorch's inked comic_crack (below); the
+	# round-29 glowing box cracks under it cooled to brown and, with the heaved rock slabs, sat round every
+	# breaker landing for 1.6 s (Cataclysm's read as dark red blocks under the next string). Only the vents stay.
+	var comic: bool = Game.comic_style
 	for i in n:
-		var tip := _crack(root, a0 + TAU * (i + randf_range(-0.25, 0.25)) / n, reach * randf_range(0.7, 1.0), hot)
+		var ang := a0 + TAU * (i + randf_range(-0.25, 0.25)) / n
+		var tip := _crack_tip(ang, reach * randf_range(0.7, 1.0)) if comic else _crack(root, ang, reach * randf_range(0.7, 1.0), hot)
 		if rim and (big or i % 2 == 0):  # the element bursts out where each crack ends
 			var vt := root.create_tween()
 			vt.tween_interval(VENT_DELAY + randf() * 0.06)
@@ -129,7 +138,7 @@ static func crater(parent: Node, pos: Vector3, el: String, radius: float, rim :=
 	cool.tween_interval(0.25)
 	cool.tween_property(hot, "albedo_color", Color(0.12, 0.08, 0.07, 0.85), 0.7)
 	cool.tween_property(hot, "albedo_color:a", 0.0, 0.5)
-	if rim:
+	if rim and not comic:
 		var mat: Material = ELEMENTS.rock() if el == "earth" else (ELEMENTS.ice() if el == "water" else stone())
 		var m := SLABS + (4 if big else 0)
 		for i in m:
@@ -141,7 +150,12 @@ static func crater(parent: Node, pos: Vector3, el: String, radius: float, rim :=
 	Fx.shards(parent, root.global_position + Vector3.UP * 0.3, rubble, 26 if big else 16, Vector3.UP, 13.0 if big else 10.0, 0.3, 0.9)
 	Fx.shards(parent, root.global_position + Vector3.UP * 0.2, c, 10, Vector3.UP, 9.0, 0.16, 0.6)
 	Fx.dust(parent, root.global_position, 18 if big else 12, 1.2)
-	Fx.scorch(parent, root.global_position, c, radius * 0.85, 1.6)
+	Fx.scorch(parent, root.global_position, c, radius * (SCORCH_COMIC if comic else 0.85), 1.6)
+
+
+## Where a crack of `length` on `ang` would end (the comic style draws no box cracks).
+static func _crack_tip(ang: float, length: float) -> Vector3:
+	return Vector3(sin(ang), 0.0, cos(ang)) * length * 0.92
 
 
 ## One jagged crack: three glowing segments zigzagging out from the centre.
@@ -176,6 +190,10 @@ static func _vent(parent: Node, at: Vector3, el: String, big: bool) -> void:
 	var c: Color = look.color
 	var up := at + Vector3.UP * 0.15
 	var k := 1.3 if big else 1.0
+	if Game.comic_style:  # round 33, sleek 4: a small inked star in the element's palette, not soft flares and dots
+		var pal: Dictionary = PAL.of(el)
+		COMIC_POP.spawn(parent, up + Vector3.UP * 0.2, {"star": VENT_STAR * k, "steps": 3, "star_color": pal.body, "star_core": pal.light})
+		return
 	match el:
 		"earth":
 			Fx.burst(parent, up, look.glow, int(10 * k), 7.0 * k, 0.1, 0.55, Vector3.UP, 18.0, -14.0, 0.15, "dot", true)

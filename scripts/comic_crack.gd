@@ -28,6 +28,7 @@ const PILE_R := 2.0  # m: marks this big are under a pile
 const PILE_INNER := Vector2(0.38, 1.5)  # the cracks' start: this share of the radius, at most this many m
 const PILE_REACH := Vector2(0.95, 1.3)  # of the radius (CRACK_REACH)
 const RUN_STEPS := 3  # steps on twos the cracks take to run out to their tips
+const PILE_W_MAX := 0.34  # m (CRACK_W_MAX): out past the pile they carry the landing alone
 
 static var _mat: StandardMaterial3D
 
@@ -128,7 +129,7 @@ func _draw(step: int) -> void:
 	var run := minf(float(step + 1) / RUN_STEPS, 1.0) if pile else 1.0  # runs out from the pile's edge
 	if pile:
 		grow = 1.0
-	var w := minf(CRACK_W * radius, CRACK_W_MAX) * k
+	var w := minf(CRACK_W * radius, PILE_W_MAX if pile else CRACK_W_MAX) * k
 	var tone := color if hot else color.darkened(COOL)
 	_y = 0.0
 	# Round 33 (sleek): a thin ink line round the colour (was ink 2.4x the colour's width).

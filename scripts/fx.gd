@@ -557,7 +557,14 @@ const CRATER_SPLAT := 1.6  # the splat quad's half-size, as a share of `radius` 
 const CRATER_SEGMENTS := 14  # a chunky low-poly edge, not a perfect circle
 const CRATER_RING := Color(0.62, 0.57, 0.5, 0.75)  # the dust colour of dust()
 const CRATER_RING_OUT := 1.5  # the dust ring's reach, in crater radii
+const CRATER_COMIC := Color(0.62, 0.5, 0.42)  # the dust's warm tone: comic_crack cools it a little, not to soot
+const CRATER_COMIC_SIZE := 0.7  # of the radius
+const CRATER_COMIC_TIME := 0.6  # s
 static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> void:
+	if Game.comic_style:  # round 33, sleek 4: the soft soot discs read as a brown smudge for 1.4 s; an inked dent instead
+		COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
+		ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
+		return
 	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
 	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)
 	ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
