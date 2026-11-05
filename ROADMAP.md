@@ -583,3 +583,18 @@ items 1, 2, 6, 7 and 10 fixed, 3, 4, 5 and 8 half, 9 not). Zak's wake-up page: `
 - [ ] The combo guide's mix / pay tags are plain text: a small element chip (dot in the element's palette) before each (`combo_guide.gd`); left out at the demo stop-point (effects lane)
 - [ ] Film the round 41 effects lane after (`string_film`, `fx_coverage.py --per-string`) against the audit's 0.090 mean / 0.309 max; the lane landed on headless checks only at the demo stop-point
 - [x] `foe_lean.gd` asked for a zero-axis Quaternion on a tipped-over rogue / minion (128 engine errors in one rogue spar film, now 0); `heretic_shots --clips` films Death_A and Ab_Swing (they weren't in `CLIP_SET`)
+
+## Round 42 (Design review)
+From `docs/design-review-2026-11-05.md` (combos, effects and designs against Zak's rule "every combo has a good time
+to use it; used on purpose, you are very strong"; judged from the docs, the move tables and the `combo_clips` film).
+Meteor Fall diving onto the largest group is decided (combo lane); Avalanche is not to be touched.
+- [ ] 1. Training drills with live foes that each ask one question (shield wall, back line, rush, bomb squad, against the wall): nothing in the room asks for one move over another
+- [ ] 2. A wall rule for every big knockback (splat + bounce; pillars count) and walls in reach (smaller room or inner walls): Molten Palm's wall drive can't be found in a 32 m room
+- [ ] 3. Breakers with different end states (stun, bounce up, stay frozen, throw to walls, execute one): nine breakers end in the same crater
+- [ ] 4. Name each foe's answer in code and on screen (Triple Chop breaks shields, throw a lit bomber, Black Tide pulls the back line, Overwhelm holds the heavy): the hooks exist in `enemy.gd`, nothing teaches them
+- [ ] 5. Split the overlaps: rename the air Live Wire, Steam Burst as the room-wide frozen cash-out, Black Ice leaves them frozen (setup) and Maw is the payoff
+- [ ] 6. Make the element matrix uneven (a few big cells, the rest small) and teach it as two rules (the element decides what happens, the state how much)
+- [ ] 7. Combo counter and rank react: drop on a hit or a pause, grade by wall splats, matrix cells, PERFECTs and guard breaks (418 HITS SSS all session now)
+- [ ] 8. A counter window after a perfect dodge (next string's first hit crits): the dash is the only defence and pays nothing past survival
+- [ ] 9. Tint the dummies away from the hero's cream and colour hit stars by element: the hero and the element are lost in piles
+- [ ] 10. One element ink shape per breaker impact frame, smaller per-hit numbers on lights: numbers are the loudest thing on screen
