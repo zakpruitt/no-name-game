@@ -207,6 +207,13 @@ const RIG_SCALE := {"warden": 1.0 / 1.8}
 ## against the hero's (0.42, 0.38, 0.56); at 0.5 it was (0.43, 0.33, 0.42) and still read brown.
 const FOE_SHADE_MATCH := 0.8
 ## Used (with a warning) for a material the tables don't know yet.
+## The nine foes get a heavy outer line on top of Fx.outline (shaders/foe_silhouette.gdshader): a second
+## hull sharing each skinned mesh, SILHOUETTE_PX wide and pushed SILHOUETTE_PUSH m back, so it shows only
+## round the outside of the foe (art direction: thicker ink on the silhouette, thin inside).
+const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "bomber", "necromancer", "warden"]
+const SILHOUETTE_SHADER := "res://shaders/foe_silhouette.gdshader"
+const SILHOUETTE_PX := 4.0
+const SILHOUETTE_PUSH := 0.3
 const FALLBACK_TONE := "P_Trousers"
 ## Every line and solid black. Near the floor's own shadow tone rather than true black:
 ## at the game's camera black lines read as heavy and clunky.
@@ -230,6 +237,7 @@ static var _warned := {}
 static var _scenes := {}
 static var _pieces := {}
 static var _piece_ink := {}  # width -> shared outline ShaderMaterial
+static var _silhouette_mat: ShaderMaterial  # the foes' heavy outer line (silhouette())
 
 
 ## The comic model for `kind`, or null (flag off, or no GLB yet: caller keeps KayKit).
@@ -489,6 +497,36 @@ static func apply(root: Node, kind := "") -> void:
 			if src != null:
 				var look: Material = painted(src) if PAINTED.has(src.resource_name) else material(src.resource_name, kind)
 				mi.set_surface_override_material(i, look)
+	if SILHOUETTE_KINDS.has(kind):
+		silhouette(root)
+
+
+## The heavy outer line (SILHOUETTE_KINDS): a child per skinned mesh drawing the same mesh and skin
+## with the silhouette hull (Fx.outline then adds its thin pass to it too, the same line as the body's).
+static func silhouette(root: Node) -> void:
+	if _silhouette_mat == null:
+		_silhouette_mat = ShaderMaterial.new()
+		_silhouette_mat.shader = load(SILHOUETTE_SHADER)
+		_silhouette_mat.set_shader_parameter("outline_color", INK)
+		_silhouette_mat.set_shader_parameter("width_px", SILHOUETTE_PX)
+		_silhouette_mat.set_shader_parameter("depth_push", SILHOUETTE_PUSH)
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null or mi.skin == null or mi.has_node("Silhouette"):
+			continue
+		var skel := mi.get_node_or_null(mi.skeleton)
+		if skel == null:
+			continue
+		var hull := MeshInstance3D.new()
+		hull.name = "Silhouette"
+		hull.mesh = mi.mesh
+		hull.skin = mi.skin
+		for i in mi.mesh.get_surface_count():
+			hull.set_surface_override_material(i, _silhouette_mat)
+		hull.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		hull.set_meta("no_ghost", true)
+		mi.add_child(hull)
+		hull.skeleton = hull.get_path_to(skel)
+
 
 ## Every GLB material name under `root` (imported names, works headless).
 static func material_names(root: Node) -> Array:
@@ -546,3 +584,4 @@ static func release() -> void:
 	_scenes.clear()
 	_pieces.clear()
 	_piece_ink.clear()
+	_silhouette_mat = null
