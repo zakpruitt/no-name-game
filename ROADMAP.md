@@ -401,9 +401,12 @@ Zak: "the movement animation is awful". The chibi's runs, idle and dash re-keyed
 - [x] Seamless loops (keyed from frame 0: no held frame at the wrap)
 - [x] Idle: hunched, the weight rolled from leg to leg once a loop (free heel lifts), two breaths through chest, hood and body, head tilting with the weight
 - [x] Dash: one crouch drawing, a 48 degree streak stretched long with a knee tucked and a leg trailing, a skid landing
-- [ ] Run start (lunge) and stop (skid): need a one-shot on starting / stopping in `player._play_locomotion`
-- [ ] Awakened runs 1.2x faster on the same clip: a clip-speed constant in `player._play` for the runs (feet skate 1.2x)
-- [ ] Turn: a quick lean into a change of direction (procedural in `heretic_rig.gd`, or a turn clip)
+- [x] Run start (lunge, `Run_Start` 6 frames) and stop (skid, `Run_Stop` 8 frames): one-shots at the loop speed in `player._play_locomotion`, the lunge from below `RUN_START_BELOW` 0.3 of move speed into Run_F's first step, the skid on letting go above `RUN_STOP_ABOVE` 0.6 out of Run_F. Planted feet keyed against `player.accel` (0 to 7.5 m/s in 0.107 s); the skid braces a foot 0.32 m ahead, leans back, then the chest, head and hood pitch past upright and settle into Idle's first pose
+- [x] Awakened runs: `player.AWAKENED_RUN_CLIP` (= `HERO_AWAKEN.SPEED_MULT` 1.2) plays the runs and the one-shots 1.32 instead of 1.1 while Awakened, set every frame in the run so it follows Awakening starting or ending mid-run; `hero_stride_check` fails on the Awakened skate too (was 1.20, now 1.00)
+- [x] Turn lean (procedural, `heretic_rig._lean_into_turns`, no clip): the root bone tilts towards his velocity less a 0.12 s lagging copy, 3 degrees per m/s across his facing (0.45 of that along it), capped 15, on a spring a little under critical. Measured headless: 12 degrees banking on a 90 degree turn, 8 on a reversal, 2.5 back on a stop, 0 on a held run
+- [x] Idle_Ready re-keyed on Idle's approach: 60 frames, wide and low, weight rolled from leg to leg once a loop, two breaths, claw held up in front of his face open and flexing, fist raised (was a 41-frame bounce)
+- [x] Dash looked over: kept
+- [ ] By hand: the one-shots only fire running ahead (Run_F); with mouse aim he is often strafing or backing, so a start / stop there still blends straight from or to the stand. Strafe and back versions if they're missed
 
 ## Round 36 (camera distance)
 - [x] Zak: "zoom the camera out more, too close to the character". Rest camera 13 m (was 12.5) at FOV 37 (was 36), aimed `AIM_HEIGHT` 0.8 m up his body so the pile in front sits mid-screen instead of under the HUD: at 1080p the hero is 140 px (was 167; round 28 105) with +34% floor in frame. Fight framing: foes hit in the last 2.2 s pull the camera out up to x1.25 (~112 px) and lean it towards them, drifting back slowly. Kicks and shake scale with the distance, `PUNCH_GAIN` 1.25 on enders, `HANG_ZOOM` 0.12 -> 0.16. Flags `--cam-dist=` / `--cam-fov=` / `--cam-frame=` (`docs/features/camera.md`)

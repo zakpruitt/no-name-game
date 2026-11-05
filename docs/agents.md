@@ -168,6 +168,14 @@ fast-forward, so no agent edits another's files or index.
   check a changed bot first with `godot --headless --check-only -s scripts/training_bot.gd` (an "Identifier not found:
   Game" there is fine).
 
+- **`player._play` returns early on the clip already playing**, so a speed that changes mid-loop (Awakened starting or
+  ending mid-run) must be set every frame in the caller (`_play_locomotion` sets `anim.speed_scale = _loop_speed(clip)`).
+- **A check that reads a game constant:** `load("res://scripts/player.gd").get_script_constant_map().get("NAME", old)` with
+  the old behaviour as the default fails before the change lands and passes after, without a preload of player.gd.
+- **Probe a feel number headless:** a scratch `-s` SceneTree that instances main, `Input.action_press`es a plan of moves
+  and logs a field every physics frame (the rig's `lean`, the clip, the speed scale) gave the turn-lean numbers in one run.
+  Fields the game resets each tick (`awakened` from the meter) must be set again every frame.
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
