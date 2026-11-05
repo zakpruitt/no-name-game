@@ -21,8 +21,11 @@ const WORDS := [
 	["KRAKOOM!", "SHIIING!", "SKRAAK!"],
 	["THOOOM!", "VRRRSH!", "RRAAAH!"],
 ]
-const WORD_SCALE := [0.42, 0.52, 0.66, 0.84]
-const WORD_FRAMES := 20
+## Round 33 (sleek; Zak: "sleeker and more put together"): words a quarter smaller with an ink line half as
+## thick and a tighter print offset, and gone in 14 frames (0.58 s) instead of 20 (0.83 s).
+const WORD_SCALE := [0.32, 0.4, 0.5, 0.64]
+const WORD_FRAMES := 14
+const OUTLINE_DIV := 9  # FONT_SIZE / this: the ink line (was / 4)
 const POOL := 6
 # Words can't stack into noise on a crowd: at most one per gap.
 const WORD_GAP_MS := 110
@@ -45,7 +48,7 @@ const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
 }
-const BREAKER_SCALE := 1.0
+const BREAKER_SCALE := 0.78
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
 ## captions): round the contact point, in the clearest of these directions (degrees off the way from
 ## the hero to the hit), on the near ring unless it is covered.
@@ -122,11 +125,11 @@ func _make_label() -> Label:
 	l.add_theme_font_size_override("font_size", FONT_SIZE)
 	l.add_theme_color_override("font_color", WORD_HIGH)
 	l.add_theme_color_override("font_outline_color", INK)
-	l.add_theme_constant_override("outline_size", FONT_SIZE / 4)
+	l.add_theme_constant_override("outline_size", FONT_SIZE / OUTLINE_DIV)
 	# The print-offset second colour: a hard red shadow, inked too.
 	l.add_theme_color_override("font_shadow_color", WORD_LOW)
-	l.add_theme_constant_override("shadow_offset_x", FONT_SIZE / 24)
-	l.add_theme_constant_override("shadow_offset_y", FONT_SIZE / 16)
+	l.add_theme_constant_override("shadow_offset_x", FONT_SIZE / 32)
+	l.add_theme_constant_override("shadow_offset_y", FONT_SIZE / 24)
 	l.add_theme_constant_override("shadow_outline_size", 0)
 	add_child(l)
 	return l

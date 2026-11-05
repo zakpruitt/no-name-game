@@ -11,11 +11,11 @@ const SELF := preload("res://scripts/comic_number.gd")
 const FONT := preload("res://assets/fonts/Bangers-Regular.ttf")
 const STEPS_PER_S := 12.0  # on twos
 const MERGE_S := 0.32  # a hit this soon after the last one adds in (over the 0.25 s burn ticks)
-const HOLD_S := 0.5  # up for this long after the last add
+const HOLD_S := 0.38  # up for this long after the last add (round 33, sleek: 0.5 stayed into the next beat)
 const FADE_STEPS := 2  # then shrinks away over these
 const POP := [1.5, 1.18]  # scale on the steps after an add, then 1
 const FONT_SIZE := 96
-const PIXEL := 0.0042  # m per font pixel: a 2-digit number about 0.4 m tall, 20 px at the game camera
+const PIXEL := 0.0036  # (round 33, sleek: was 0.0042) m per font pixel: a 2-digit number about 0.4 m tall, 20 px at the game camera
 const GROW_PER := 0.006  # more scale per point of the total
 const GROW_MAX := 1.35
 const BIG_SCALE := 1.2
@@ -26,6 +26,7 @@ const RISE := 0.45  # m/s
 const PILE_R := 3.0  # m: foes this close make the pile it leaves
 const DODGE_PAD_PX := 6.0  # clear of the combo-name callout, PERFECT, the words and the breaker prompt by this
 const DODGE_TRIES := 3
+const OUTLINE_PX := 12  # round 33 (sleek): the ink line, at FONT_SIZE 96 (26 was a thick slab)
 const INK := Color(0.012, 0.01, 0.02)
 const PAPER := Color(1.0, 0.96, 0.84)
 const PRINT := Color(0.9, 0.12, 0.04)  # the offset shadow (ComicFx.WORD_LOW)
@@ -71,9 +72,9 @@ func setup(pos: Vector3, amount: float, is_big: bool, key: int) -> void:
 	_key = key
 	_reduced = Game.reduce_flashing
 	_last_us = Time.get_ticks_usec()
-	_shadow = _make(PRINT, INK, 26, 0)
-	_shadow.offset = Vector2(5.0, -7.0)
-	_front = _make(PAPER, INK, 26, 2)
+	_shadow = _make(PRINT, INK, OUTLINE_PX, 0)
+	_shadow.offset = Vector2(3.0, -4.0)
+	_front = _make(PAPER, INK, OUTLINE_PX, 2)
 	_away = _away_from_pile(pos)
 	_base = pos + Vector3.UP * HEAD + _away * OUT
 	global_position = _base
@@ -132,10 +133,10 @@ func add_hit(amount: float, is_big: bool) -> void:
 	if big:
 		_front.modulate = HOT_CORE
 		_front.outline_modulate = HOT
-		_front.outline_size = 18
+		_front.outline_size = 8
 		_shadow.modulate = INK
-		_shadow.outline_size = 46
-		_shadow.offset = Vector2(3.0, -4.0)
+		_shadow.outline_size = 20
+		_shadow.offset = Vector2(2.0, -3.0)
 	_step = -1  # redraw now
 	_draw(_pop_from)
 
