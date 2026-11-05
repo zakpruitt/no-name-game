@@ -144,11 +144,18 @@ func _buffered() -> void:
 
 
 ## The same buffered L after L1: earlier into L2 when L1 hit something than on a whiff.
+## Averaged over HIT_CONFIRM_RUNS of each: one run is quantised to the physics step (16.7 ms, and a headless await can
+## cover two), and the gap is only ~25 ms, so single runs read 224 vs 233 ms now and then and failed the 10 ms margin.
+const HIT_CONFIRM_RUNS := 4
+const HIT_CONFIRM_MARGIN := 8.0  # ms the mean must be sooner by (about half the expected gap, a step under it)
 func _hit_confirm() -> void:
-	var whiff := await _l1_to_l2(false)
-	var hit := await _l1_to_l2(true)
-	print("[rhythm] L1->L2 buffered: whiff %.0f ms, hit %.0f ms (move time)" % [whiff, hit])
-	_check(hit < whiff - 10.0, "hit-confirm: L1 hands over to L2 sooner on a hit (%.0f < %.0f ms)" % [hit, whiff])
+	var whiff := 0.0
+	var hit := 0.0
+	for i in HIT_CONFIRM_RUNS:
+		whiff += await _l1_to_l2(false) / HIT_CONFIRM_RUNS
+		hit += await _l1_to_l2(true) / HIT_CONFIRM_RUNS
+	print("[rhythm] L1->L2 buffered: whiff %.0f ms, hit %.0f ms (move time, mean of %d)" % [whiff, hit, HIT_CONFIRM_RUNS])
+	_check(hit < whiff - HIT_CONFIRM_MARGIN, "hit-confirm: L1 hands over to L2 sooner on a hit (%.0f < %.0f ms, mean of %d)" % [hit, whiff, HIT_CONFIRM_RUNS])
 
 
 func _l1_to_l2(with_foe: bool) -> float:
