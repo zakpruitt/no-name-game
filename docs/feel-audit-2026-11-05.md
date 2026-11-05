@@ -17,7 +17,9 @@ Sheets and crops (PIL, session scratchpad, not committed; the scripts sit beside
 
 Caveats as in round 1: the grab stalls a few ms, so the film's own `[rhythm]` lines run 1.5-2x long (L3 -> EM
 840 ms filmed, 541 ms headless); the numbers below are from a headless `--autotest` at the same commit. The bot
-Awakens whenever the meter fills, which is usually on a breaker landing.
+Awakens whenever the meter fills, which is usually on a breaker landing. The hero presence pass (77d9ab3..b1613f8:
+white hood over a deep dark body, scarf tail, face oval) landed after the film; Run_F, Run_Stop and Ab_AF were filmed
+again on it (`sheets_clips_after\`), the strings were not.
 
 ## Numbers (headless `timeout 200 godot --headless --path . -- --autotest`, dev 9526983)
 
@@ -106,7 +108,7 @@ alone is 0.17-0.27.
    - See: Ab_AF holds the same coiled-claw pose for frames 8-46 of 61, then shoves in two; at `EM_SPEED` 2.8 that reads as a pause and a blink, not a palm.
    - Fix: re-key the coil to ~16 building frames (squash, claw swelling) and bring `EM_SPEED` back to ~1.8 with the same hit time (`chibi_keys.py` Ab_AF, `hero_moves.gd`). Lanes: heretic (anim), combo-rhythm.
 8. **The run reads as a hood dragging a claw.** `sheets_clips\fa2_clip_Run_F.png`, `fa2_clip_Run_Start.png`, `fa2_clip_Run_Stop.png`
-   - See: from the game camera the hood and the x1.35 claw are the whole silhouette; legs barely show, and Run_Stop's frames 3-5 swing the hood 90 degrees so the skid reads as a spin.
+   - See: from the game camera the hood and the x1.35 claw are the whole silhouette; legs barely show, and Run_Stop's frames 3-5 swing the hood 90 degrees so the skid reads as a spin. After the presence pass (`sheets_clips_aftera2_clip_Run_F.png`) the deep dark body sinks into the indigo floor, so it is even more a white hood and a violet claw.
    - Fix: smaller claw swing in the runs, feet wider / lean a touch less so the legs clear the hood, keep the stop's facing (`chibi_keys.py` Locomotion, check with `hero_stride_check`). Lane: heretic (anim).
 9. **Meteor Fall's beats happen at the frame edge.** `crops\fa2_10_meteor_beats.png` (and `sheets\fa2_L_L_L_H_H.png` 031-043)
    - See: beat 1 throws land on the top wall at the edge, the right-hand foe leaves the frame, beat 2's tentacles read as lines going off screen; the hero is ~70 px; press to landing ~2.8 s of film.
