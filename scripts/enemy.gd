@@ -26,6 +26,10 @@ var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (
 @export var poise := 0.0
 @export var model_scale := 1.0
 @export var run_anim := "Running_A"
+## m/s a planted foot slides back on the comic run clip at 1x, before model_scale (enemy_types
+## `run_foot_speed`, measured by tests/foe_stride_check.gd). The run plays at ground speed over
+## this, clamped to RUN_CLIP_SPEED_MIN/MAX, so short chibi legs don't skate. 0 = always 1x.
+@export var run_foot_speed := 0.0
 ## "melee", "ranged" or "line". Ranged and line enemies hold
 ## `preferred_range` and shoot; "line" is a fast crossbow bolt aimed along a
 ## ground line that tracks the player until `AIM_LOCK` of the windup, then
@@ -197,6 +201,7 @@ static var blasts := 0
 var radius := 0.55
 var hp := 0.0
 var last_hit_ms := -100000  # when damage last landed (health bar, enemy_bars.gd)
+var hits_taken := 0  # landed hits, blocks not counted (spar.gd reports it)
 var _quiet_hit := false  # inside burn_hit
 var state := State.SPAWN
 var model: Node3D
@@ -452,6 +457,8 @@ func _state_chase(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, 25.0 * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, 25.0 * delta)
 	_play(run_anim if moving else "Idle_Combat")
+	if moving and comic_kind != "" and anim.current_animation == ComicLook.clip(anim, comic_kind, run_anim):
+		_clip_speed(run_clip_speed(Vector2(velocity.x, velocity.z).length()))
 
 
 ## Push away from nearby enemies so groups spread out and surround.
@@ -589,6 +596,8 @@ func freeze(time: float, mult: float) -> void:
 		mat.emission_enabled = true
 		mat.emission = Color(0.2, 0.45, 0.6)
 		_ice.material_override = mat
+		if Game.comic_style:  # flat two-tone ice the foe shows through (the shaded teal glass hid it)
+			preload("res://scripts/thrown_foe.gd").comic_ice(_ice, radius + 0.2, m.height)
 		add_child(_ice)
 		_ice.position.y = m.height * 0.5
 	_ice.visible = true
@@ -641,11 +650,12 @@ func _on_player_attack(_move_id: String) -> void:
 
 ## Damage and its number with no sparks, word or flash, for an effect that draws its own: ticks several times
 ## a second on a whole crowd would bury whatever's holding them. `big` is one solid blow, which does flash.
-func burn_hit(damage: float, big := false) -> void:
+## A downward `knockback` (Maw's bite) still gets the full reaction (_hit_reaction: the crater), no sparks.
+func burn_hit(damage: float, big := false, knockback := Vector3.ZERO) -> void:
 	_quiet_hit = true
-	take_hit(damage, Vector3.ZERO, 0.0, big)
+	take_hit(damage, knockback, 0.0, big)
 	_quiet_hit = false
-	if big and is_instance_valid(model):
+	if big and is_instance_valid(model) and not _is_spike(knockback, 0.0):
 		Fx.flash(model)
 
 
@@ -654,12 +664,13 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		return
 	if _shield_blocks(knockback, launch, big):
 		return
+	hits_taken += 1
 	if frozen_t > 0.0:
 		damage *= frozen_mult
 		_thaw(true)
 	hp -= damage
 	last_hit_ms = Time.get_ticks_msec()
-	Fx.damage_number(get_parent(), global_position, damage, big)
+	Fx.damage_number(get_parent(), global_position, damage, big, self)
 	if not _quiet_hit:
 		Fx.hit_spark(get_parent(), global_position + knockback.normalized() * -0.3, Color(1.0, 0.9, 0.6), 1.3 if big else 0.9)
 		Fx.impact(get_parent(), global_position, knockback + Vector3.UP * 2.0, big)
@@ -668,14 +679,14 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 	if hero != null and hero.has_method("_fx_color") and not _quiet_hit:  # long strings escalate the sparks
 		Fx.chain_spark(get_parent(), global_position, hero._fx_color(), Fx.chain_tier(Game.combo_count),
 			knockback.normalized() + Vector3.UP * 0.5)
-	if _quiet_hit:  # a burn tick: the pose hold, none of the show
+	if _quiet_hit and not _is_spike(knockback, launch):  # a burn tick: the pose hold, none of the show
 		_freeze_t = hit_freeze_big if big else hit_freeze
 		_wave_delay = 0.0
 	else:
 		_hit_reaction(damage, knockback, launch, big)
 	_telegraph.visible = false
 	if hp <= 0.0:
-		_die(knockback)
+		_die(Vector3(knockback.x, maxf(knockback.y, 0.0), knockback.z))  # a slam's kill still pops up and out
 		return
 
 	var airborne := state == State.AIRBORNE
@@ -801,7 +812,7 @@ func _crater() -> void:
 	Game.shake(CRATER_SHAKE)
 
 
-## The hero's current hit colour (element, Ascendancy when Awakened), white
+## The hero's current hit colour (the move's element, gold when Awakened), white
 ## without a hero (lineups, previews).
 func _hit_color() -> Color:
 	var hero := get_tree().get_first_node_in_group("player")
@@ -1212,6 +1223,18 @@ func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> 
 func _hold_clip(anim_name: String, blend := 0.1, speed := 1.0) -> void:
 	_play(anim_name, blend, speed, true)
 	_clip_hold_ms = Time.get_ticks_msec() + int(anim.get_animation(anim_name).length / speed * 1000.0)
+
+
+## Clip speed range for the run matched to the ground (run_foot_speed).
+const RUN_CLIP_SPEED_MIN := 0.5
+const RUN_CLIP_SPEED_MAX := 3.0  # the shield's shuffle needs it at 3.2 m/s; chibi legs pump fast
+
+
+## The run clip's speed that keeps planted feet on the floor at `ground` m/s.
+func run_clip_speed(ground: float) -> float:
+	if run_foot_speed <= 0.0:
+		return 1.0
+	return clampf(ground / (run_foot_speed * model_scale), RUN_CLIP_SPEED_MIN, RUN_CLIP_SPEED_MAX)
 
 
 ## Speed of the clip already playing, respecting a running hit freeze.

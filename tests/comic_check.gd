@@ -55,6 +55,12 @@ func _initialize() -> void:
 		with_glb.append("warden")
 	else:
 		absent.append("warden")
+	# the training dummy: what enemy.gd plays on it, plus its own daze (training_dummy._shake_off)
+	var dummy_asks: Array = COMMON + ["Running_A", load("res://scripts/training_dummy.gd").DAZE_CLIP]
+	if _check_model("dummy", dummy_asks):
+		with_glb.append("dummy")
+	else:
+		absent.append("dummy")
 	_check_dungeon()
 	_check_floors_face_up()
 	await _check_fx(game)
@@ -90,14 +96,20 @@ func _check_hero(game: Node) -> void:
 	await _check_hero_in_play(game, hero_script, rig != null)
 
 
-## Every clip player.gd can ask for: _play lines (with their ternaries), MOVES, hang_anim.
+## Every clip the hero can ask for: _play lines (with their ternaries) in player.gd and the hero_*.gd
+## files it is split into, MOVES, hang_anim.
 func _hero_clips(hero_script: GDScript) -> Array:
 	var found := {}
 	var quoted := RegEx.create_from_string("\"([A-Za-z0-9_]+)\"")
-	for line: String in FileAccess.get_file_as_string("res://scripts/player.gd").split("\n"):
-		if "_play(" in line:
-			for m in quoted.search_all(line):
-				found[m.get_string(1)] = true
+	var sources: Array[String] = ["player.gd"]
+	for f: String in DirAccess.get_files_at("res://scripts"):
+		if f.begins_with("hero_") and f.ends_with(".gd"):
+			sources.append(f)
+	for source: String in sources:
+		for line: String in FileAccess.get_file_as_string("res://scripts/" + source).split("\n"):
+			if "_play(" in line:
+				for m in quoted.search_all(line):
+					found[m.get_string(1)] = true
 	for move: Dictionary in hero_script.MOVES.values():
 		found[move.anim] = true
 	for b: Dictionary in load("res://scripts/void_element.gd").BREAKERS.values():
@@ -131,13 +143,21 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 	var kaykit: Node = load(hero_script.AXE_SOURCE).instantiate()  # the old timings are its clips
 	var old_rig: AnimationPlayer = kaykit.find_child("AnimationPlayer", true, false)
 	_expect(Look.HERO_MOVES.size() == 5, "five Ab_ clips routed")
+	var CONTACT: GDScript = load("res://tests/contact_frames.gd")
+	var _contact_models := {}
+	for model_id: String in Look.HERETIC_MODELS:
+		_contact_models[model_id] = load("res://assets/comic/%s.glb" % Look.HERETIC_MODELS[model_id]).instantiate()
 	for id: String in Look.HERO_MOVES:
 		var h: Dictionary = Look.HERO_MOVES[id]
 		_expect(rig.has_animation(h.clip), "%s: clip %s" % [id, h.clip])
 		var length: float = rig.get_animation(h.clip).length
-		# frames / hit are the shaman's 24 fps counts; the heretic's clips run their own lengths,
-		# and only the hit fraction (hit / frames) is used.
-		_expect(h.hit > 0 and h.hit < h.frames, "%s: hit frame %d inside its %d" % [id, h.hit, h.frames])
+		_expect(absf(length - h.frames / Look.HERO_CLIP_FPS) < 0.001, "%s: %d frames match the clip's %.3f s" % [id, h.frames, length])
+		for model_id: String in _contact_models:
+			var other: Node3D = _contact_models[model_id]
+			var clip: Animation = (other.find_child("AnimationPlayer", true, false) as AnimationPlayer).get_animation(h.clip)
+			_expect(absf(clip.length - h.frames / Look.HERO_CLIP_FPS) < 0.001, "%s %s: %d frames match its clip" % [model_id, id, h.frames])
+			var contact: int = CONTACT.contact_frame(other, clip, h.frames, Look.HERO_CLIP_FPS, Look.HERO_CONTACT_SPEED)
+			_expect(h.hit == contact, "%s %s: hit frame %d is the swing's contact frame %d (tests/contact_frames.gd)" % [model_id, id, h.hit, contact])
 		var base: Dictionary = hero_script.MOVES[id]
 		var old_len: float = old_rig.get_animation(base.anim).length
 		_expect(absf(old_len - h.old) < 0.001, "%s: old length is %s's %.4f" % [id, base.anim, old_len])
@@ -158,7 +178,23 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 		if leap >= 0.0:
 			_expect(m.leap >= hit and m.leap < m.end, what + " breaker leaps after the hit")
 		_expect(base.hash() == before, what + " left MOVES itself alone")
+	# The tentacle moves play their clips raw: MOVES' first hit is the clip's keyed contact (claw snap, slam, rake).
+	var keyed: Node3D = _contact_models[CONTACT.KEYED_MODEL]
+	var keyed_rig: AnimationPlayer = keyed.find_child("AnimationPlayer", true, false)
+	var void_moves := 0
+	for id: String in hero_script.MOVES:
+		var mv: Dictionary = hero_script.MOVES[id]
+		if not CONTACT.VOID_CLIPS.has(mv.anim) or id in CONTACT.VOID_EXEMPT:
+			continue
+		var clip: Animation = keyed_rig.get_animation(mv.anim)
+		var frames := roundi(clip.length * Look.HERO_CLIP_FPS)
+		var contact: int = CONTACT.void_contact(keyed, clip, frames, Look.HERO_CLIP_FPS, Look.HERO_CONTACT_SPEED, CONTACT.VOID_CLIPS[mv.anim][0])
+		_expect(absf(mv.hits[0] * frames - contact) < 0.01, "%s hits on %s's contact frame %d/%d (%.2f; tests/contact_frames.gd)" % [id, mv.anim, contact, frames, mv.hits[0] * frames])
+		void_moves += 1
+	_expect(void_moves >= 14, "the tentacle moves are checked against their clips (%d)" % void_moves)
 	kaykit.free()
+	for m: Node3D in _contact_models.values():
+		m.free()
 
 
 ## A real player: the heretic, on his Ab_ clips.
@@ -212,7 +248,15 @@ func _check_run_clips(comic: CharacterBody3D) -> void:
 ## He carries the axes: their heads aren't out in front of him in anything he holds.
 func _check_stances(comic: CharacterBody3D) -> void:
 	var skel: Skeleton3D = comic.model.find_children("*", "Skeleton3D", true, false)[0]
+	# a clip keyed for the claw itself (heretic_rig.KEYED_ARM, on a model whose clips key the claws) holds
+	# no axe: he only forms one to strike, so the claw may reach out in front
+	var rig: Node = null
+	for n: Node in skel.get_children():
+		if n.has_method("form_weight"):
+			rig = n
 	for clip: String in ["Idle", "Idle_Ready", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "2H_Melee_Idle", "Jump_Idle"]:
+		if rig != null and rig.keyed and clip in rig.KEYED_ARM:
+			continue
 		comic.anim.play(clip, 0.0)
 		for at: float in [0.0, 0.5]:
 			comic.anim.seek(comic.anim.current_animation_length * at, true)
@@ -466,6 +510,18 @@ func _check_fx(game: Node) -> void:
 	game.combo_count = 35
 	Comic.hit(Vector3.ZERO, false)
 	_expect(fx._words[1].text in Comic.WORDS[3], "tier 3 chain shows a tier 3 word")
+	_expect(not first.visible, "one word at a time: the new word replaces the live one")
+	var said := ""
+	var repeats := 0
+	for k in 30:
+		fx._last_word_ms = -100000
+		Comic.hit(Vector3.ZERO, false)
+		var live: Array = fx._words.filter(func(l: Label) -> bool: return l.visible)
+		_expect(live.size() == 1, "only one word is live")
+		if live[0].text == said:
+			repeats += 1
+		said = live[0].text
+	_expect(repeats == 0, "never the same word twice in a row (%d repeats)" % repeats)
 	game.combo_count = 0
 	_expect(Comic.word_scale(2, false) > 1.0, "normal words pop")
 	_expect(Comic.word_scale(2, true) == 1.0, "reduced flashing: no pop")

@@ -13,9 +13,9 @@ const INK := Color(0.012, 0.01, 0.02)
 const PAPER := Color(1.0, 0.96, 0.85)
 const LOCKED := Color(0.42, 0.42, 0.46)
 ## Crisp: flat bands on the floor with ink either side, the same width whatever the radius.
-const CRISP_TARGET_W := 0.16  # m
-const CRISP_CLOSING_W := 0.24
-const CRISP_INK := 0.07
+const CRISP_TARGET_W := 0.12  # m (0.16 / 0.24 / 0.07 was a fat green hoop over every Live Wire frame)
+const CRISP_CLOSING_W := 0.15
+const CRISP_INK := 0.055
 const CRISP_SEGS := 56
 
 var color := Color(0.3, 0.95, 0.85)

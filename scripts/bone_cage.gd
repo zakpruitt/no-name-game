@@ -152,18 +152,6 @@ func _check_escape() -> void:
 		escapes += 1
 
 
-## True while the hero is inside the closing ring (for the autotest bot).
-func traps(pos: Vector3) -> bool:
-	var to := pos - global_position
-	to.y = 0.0
-	return not _done and not _escaped and to.length() < _r + 0.3
-
-
-## The ring's radius right now.
-func ring_radius() -> float:
-	return _r
-
-
 func _hurt(p: Node3D, to: Vector3) -> void:
 	var before: float = p.hp
 	p.take_hit(damage, -to.normalized() * 8.0, source if is_instance_valid(source) else null, CAUSE)

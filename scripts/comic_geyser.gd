@@ -6,6 +6,7 @@ extends Node3D
 ## dots, which piled into a fire soup over the foes (elements.geyser, was element_rite.geyser). Uses heretic_form_fx's
 ## shared material, so there's nothing new to compile.
 
+const SELF := preload("res://scripts/comic_geyser.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const STEPS_PER_S := 12.0  # on twos
 const HEIGHT_BY_STEP := [1.15, 1.0, 0.7, 0.3]  # overshoot, settle, sink, a stub; then gone
@@ -31,7 +32,7 @@ var _colors := PackedColorArray()
 
 
 static func spawn(parent: Node, spot: Vector3, h: float, w: float) -> Node3D:
-	var g: Node3D = load("res://scripts/comic_geyser.gd").new()
+	var g: Node3D = SELF.new()
 	g.height = h
 	g.width = w
 	parent.add_child(g)

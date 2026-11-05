@@ -82,12 +82,14 @@ func _ready() -> void:
 	air_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	air_label.pivot_offset = Vector2(300, 25)
 
-	wave_label = _label(root, "", 26, Color(0.85, 0.85, 0.95))
-	_anchor(wave_label, 0.5, 0.0, Rect2(-260, 24, 520, 40))
-	wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	readout_label = _label(root, "", 20, Color(1.0, 0.93, 0.6))
-	_anchor(readout_label, 0.5, 0.0, Rect2(-300, 62, 600, 30))
-	readout_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# TRAINING and the string readout sit bottom right, out of the play area (feel audit 2026-11-04 items 3
+	# and 10: top centre, a breaker hang rose under them).
+	wave_label = _label(root, "", 22, Color(0.85, 0.85, 0.95))
+	_anchor(wave_label, 1.0, 1.0, Rect2(-544, -92, 520, 32))
+	wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	readout_label = _label(root, "", 18, Color(1.0, 0.93, 0.6))
+	_anchor(readout_label, 1.0, 1.0, Rect2(-844, -58, 820, 28))
+	readout_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	center_label = _label(root, "", 64, Color.WHITE)
 	_anchor(center_label, 0.5, 0.5, Rect2(-500, -120, 1000, 160))

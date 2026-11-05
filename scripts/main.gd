@@ -3,9 +3,9 @@ extends Node3D
 ## training dummies that never fight back or die (training_dummy.gd), and
 ## shows each string's damage. Esc opens the training pause menu.
 ##
-## `-- --autotest` lets a bot play the room for a few seconds, prints
-## `[autotest]`, `[training]` and `[perf]` lines, saves screenshots to user://
-## (windowed only) and quits. `--start-awakened` begins with a full meter.
+## `-- --autotest` adds the bot (training_bot.gd): it plays the room for a
+## few seconds, prints `[autotest]`, `[training]` and `[perf]` lines and quits.
+## `--start-awakened` begins with a full meter.
 
 const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
@@ -14,12 +14,14 @@ const HUD := preload("res://scripts/hud.gd")
 const BOSS := preload("res://scripts/boss.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
+const SPAR := preload("res://scripts/spar.gd")
+const WARMUP := preload("res://scripts/warmup.gd")
+const BOT := preload("res://scripts/training_bot.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
 const PILLARS := [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)]
 const HINT_GAP := 7.0
-const AUTOTEST_TIME := 16.0
 
 const TILE := 4.0
 const HALF_TILES := 4  # arena is (2 * HALF_TILES) tiles across
@@ -41,49 +43,21 @@ var _models := {}
 
 var _dummy: Node  # the first of _dummies
 var _dummies := []
+var _spar: Node  # one live foe with --spar=<kind> (scripts/spar.gd), else null
 var _string := Vector2.ZERO  # this string's damage, hits on the dummies
 var _last_string := Vector2.ZERO
 var _best_string := 0.0
 var _strings := 0
 
-var _autotest := false
-var _autotest_t := 0.0
-var _hits := 0
-var _max_combo := 0
-## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
-## click (Overwhelm). Each runs into its breaker where it has one (player presses it at
-## the sweet spot for the bot), so the autotest walks every element and the dark.
-const BOT_STRINGS := [["L", "H"], ["L", "L", "H"], ["H", "H"], ["L", "H", "H"], ["L", "L", "L", "H"],
-	["H", "L", "H"], ["L", "H", "L", "H"], ["D", "L", "H"], ["L", "L", "H", "L", "H"], ["hold"],
-	["L", "L", "L", "H", "H"], ["D", "L", "H", "H"], ["D", "H"], ["L", "L", "L"]]
-const BOT_GAP := 0.35  # s standing between strings
-var _bot_string := 0  # BOT_STRINGS index playing
-var _bot_step := 0  # next token in it
-var _bot_wait := 1.0  # s before the next string starts
-var _bot_hold_t := 0.0  # holding right click while > 0
-var _bot_pending := ""  # the token just pressed, until he takes it (or BOT_TAKE s pass)
-var _bot_pending_t := 0.0
-var _bot_starts := 0  # moves started (player.attack_started), to see a press taken
-var _bot_starts_at := 0
-const BOT_TAKE := 0.7
-var _bot_moves := {}  # every move id the bot started (autotest `moves=`)
-# Autotest frame stats (real time, so hitstop slow-mo doesn't skew them).
-var _perf := {"frames": 0, "total_ms": 0.0, "worst_ms": 0.0, "spikes": 0, "enemies": 0, "draws": 0, "nodes": 0}
-var _perf_last_us := 0
-var _perf_last_frame := 0
-var _shots_taken := 0
-var _hit_shot_taken := false
-var _dash_shot_taken := false
-var _dash_shot_at := 0
-var _guide_shot_taken := false
-var _cast_shot_taken := false
-var _quitting := false
+var _bot: Node  # training_bot.gd, with --autotest
+var _collect_shaders := false  # --collect-shaders: note every material shader seen (warmup.gd)
 
 
 func _ready() -> void:
 	Game.reset()
-	_autotest = "--autotest" in OS.get_cmdline_user_args()
-	if _autotest:
+	var autotest := "--autotest" in OS.get_cmdline_user_args()
+	_collect_shaders = "--collect-shaders" in OS.get_cmdline_user_args()
+	if autotest:
 		Game.save_hints = false
 		Game._hints_seen.clear()  # show them all, without touching the saved ones
 	_build_environment()
@@ -95,6 +69,8 @@ func _ready() -> void:
 	add_child(player)
 	player.died.connect(_on_player_died)
 	player.ELEMENTS.prewarm(self, player.global_position)
+	WARMUP.keep_scripts()
+	WARMUP.prewarm(self, player.global_position)
 
 	var rig := CAMERA.new()
 	rig.target = player
@@ -107,30 +83,26 @@ func _ready() -> void:
 	hud.bind_player(player)
 
 	add_child(PAUSE.new())
-	Game.combo_changed.connect(func(c: int, _r: String) -> void:
-		_max_combo = maxi(_max_combo, c)
-		if c > 0:
-			_hits += 1)
 
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--start-awakened":
 			Game.add_awakening(Game.AWAKEN_MAX)
 		elif arg == "--reduce-flashing":  # the setting, without saving it
 			Game.reduce_flashing = true
-	if _autotest:
-		player.bot_enabled = true
-		player.attack_started.connect(func(_id: String) -> void: _bot_starts += 1)
 	_start_training()
+	if autotest:
+		_bot = BOT.new()
+		_bot.main = self
+		add_child(_bot)
 
 
 # --- Training -----------------------------------------------------------------
 
 func _start_training() -> void:
-	hud.wave_label.text = "TRAINING"
-	hud.flash_message("TRAINING\nEsc: Awakening, moves", 2.0)
+	hud.wave_label.text = "TRAINING"  # (no big centre banner: it sat over the first strings)
 	for spot: Vector3 in DUMMY_SPOTS:
 		var dummy: Node = DUMMY.new()
-		dummy.model_scene = _model("Skeleton_Warrior")
+		_set_model(dummy, "dummy", "Skeleton_Warrior")  # the comic punching bag (assets/comic/dummy.glb)
 		dummy.set_meta("kind", "dummy")
 		dummy.set_meta("title", "training dummy")
 		add_child(dummy)
@@ -141,6 +113,7 @@ func _start_training() -> void:
 	_dummy = _dummies[0]
 	Game.combo_changed.connect(_train_combo)
 	_train_text()
+	_spar = SPAR.start(self)
 
 
 func _train_hit(damage: float) -> void:
@@ -168,7 +141,7 @@ func _train_text() -> void:
 		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
 	if _best_string > 0.0:
 		parts.append("BEST  %d" % _best_string)
-	hud.set_readout("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here")
+	hud.set_readout("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here  ·  Esc: moves, Fill Awakening")
 
 
 func _hits_text(n: float) -> String:
@@ -393,33 +366,13 @@ func _process(delta: float) -> void:
 	if not player.is_dead():
 		_time += delta
 		_check_hints(delta)
-	if not _autotest:
-		return
-	_autotest_t += delta
-	_sample_perf()
-	_drive_bot()
-	var shot_times := [2.5, 6.0, 9.5]
-	if _shots_taken < shot_times.size() and _autotest_t >= shot_times[_shots_taken]:
-		_snap("user://autotest_%d.png" % _shots_taken)
-		_shots_taken += 1
-	var since_big := Time.get_ticks_msec() - Fx.last_big_hit_ms
-	if not _hit_shot_taken and Fx.last_big_hit_ms > 0 and since_big >= 190 and _autotest_t > 3.0:
-		_hit_shot_taken = true
-		_snap("user://autotest_hit.png")
-	if _dash_shot_at == 0 and Fx.last_afterimage_ms > 0 and _autotest_t > 3.0:
-		_dash_shot_at = Time.get_ticks_msec() + 110  # a few ghosts into the dash
-	if not _dash_shot_taken and _dash_shot_at > 0 and Time.get_ticks_msec() >= _dash_shot_at:
-		_dash_shot_taken = true
-		_snap("user://autotest_dash.png")
-	if not _guide_shot_taken and hud.combo_guide._rows.size() >= 3 and hud.combo_guide._vis >= 1.0 and player.combo_window().ready:
-		_guide_shot_taken = true
-		_snap("user://autotest_guide.png")
-	if not _cast_shot_taken and player.ELEMENTS.casts >= 6:
-		_cast_shot_taken = true
-		await get_tree().create_timer(0.1, true, false, true).timeout
-		_snap("user://autotest_cast.png")
-	if _autotest_t >= AUTOTEST_TIME:
-		_autotest_finish()
+	if _collect_shaders:  # slow (every material's property list): dev runs only
+		WARMUP.scan(self)
+
+
+func _exit_tree() -> void:
+	if _collect_shaders:  # (autotest or tests/element_shots.gd -- --collect-shaders)
+		WARMUP.save()
 
 
 ## First-run hints (Game.HINTS), each when it first becomes relevant.
@@ -436,117 +389,3 @@ func _check_hints(delta: float) -> void:
 	if id != "":
 		Game.hint(id)
 		_hint_gap = HINT_GAP
-
-
-# --- Autotest bot -----------------------------------------------------------
-
-func _sample_perf() -> void:
-	var now := Time.get_ticks_usec()
-	var frame := Engine.get_process_frames()
-	# Skip gaps from paused menus and screenshot saves (not gameplay frames).
-	if _perf_last_us > 0 and frame == _perf_last_frame + 1 and _autotest_t > 1.0:
-		var ms := (now - _perf_last_us) / 1000.0
-		_perf.frames += 1
-		_perf.total_ms += ms
-		_perf.worst_ms = maxf(_perf.worst_ms, ms)
-		if ms > 25.0:
-			_perf.spikes += 1
-			print("[perf] spike %.1fms at t=%.2f enemies=%d" % [ms, _autotest_t, get_tree().get_nodes_in_group("enemies").size()])
-		_perf.enemies = maxi(_perf.enemies, get_tree().get_nodes_in_group("enemies").size())
-		_perf.draws = maxi(_perf.draws, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
-		_perf.nodes = maxi(_perf.nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
-	_perf_last_us = now
-	_perf_last_frame = frame
-
-
-func _autotest_finish() -> void:
-	if _quitting:
-		return
-	_quitting = true
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d perfect_breakers=%d moves=%s" % [
-		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.breaker_perfects, ",".join(_bot_moves.keys())])
-	print("[perf] avg=%.1fms worst=%.1fms spikes(>25ms)=%d/%d max_enemies=%d max_draw_calls=%d max_nodes=%d" % [
-		_perf.total_ms / maxi(_perf.frames, 1), _perf.worst_ms, _perf.spikes, _perf.frames, _perf.enemies, _perf.draws, _perf.nodes])
-	print("[training] strings=%d best=%.0f last=%.0f/%d dummy_hp=%.0f" % [_strings, _best_string,
-		_last_string.x, _last_string.y, _dummy.hp if is_instance_valid(_dummy) else -1.0])
-	Game.stop_all_sfx()
-	# Give the audio thread a moment to release playbacks, or they leak at exit.
-	await get_tree().create_timer(0.2, true, false, true).timeout
-	get_tree().quit()
-
-
-func _snap(path: String) -> void:
-	if DisplayServer.get_name() == "headless":
-		return
-	get_viewport().get_texture().get_image().save_png(path)
-	_perf_last_us = 0  # the save stalls this frame; keep it out of the stats
-	print("[autotest] screenshot ", ProjectSettings.globalize_path(path))
-
-
-func _drive_bot() -> void:
-	var nearest: Node3D = null
-	var nd := INF
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var d: float = e.global_position.distance_to(player.global_position)
-		if d < nd:
-			nd = d
-			nearest = e
-	var dt := get_process_delta_time()
-	for a in ["attack_light", "dash", "awaken"]:
-		Input.action_release(a)
-	if _bot_hold_t > 0.0:  # hold right click until Overwhelm goes
-		_bot_hold_t -= dt
-		if player.state == player.State.CHARGE or _bot_hold_t > 0.0:
-			return
-	Input.action_release("attack_heavy")
-	if player.state == player.State.ATTACK:
-		_bot_moves[player._move_id] = true
-	if nearest == null:
-		player.bot_move = Vector3.ZERO
-		return
-	var to := nearest.global_position - player.global_position
-	to.y = 0.0
-	var string: Array = BOT_STRINGS[_bot_string]
-	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
-	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 else Vector3.ZERO
-	if Game.awakening >= Game.AWAKEN_MAX and idle:
-		Input.action_press("awaken")
-	if _bot_step >= string.size():  # the string is done: let it (and any breaker) play out
-		if idle:
-			_bot_wait -= dt
-			if _bot_wait <= 0.0:
-				_bot_string = (_bot_string + 1) % BOT_STRINGS.size()
-				_bot_step = 0
-				_bot_wait = BOT_GAP
-		return
-	if _bot_pending != "":  # wait for the last press to be taken before the next one
-		_bot_pending_t += dt
-		var taken: bool = _bot_starts > _bot_starts_at or player.state == player.State.LEAP
-		if _bot_pending == "D":
-			taken = player.state == player.State.DASH or player._post_dash_t > 0.0
-		if not taken and _bot_pending_t < BOT_TAKE:
-			return
-		_bot_pending = ""
-	if _bot_step == 0 and (not idle or nd > 3.0):
-		return  # walk up first
-	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
-	if player.state == player.State.ATTACK:
-		ready = player.combo_window().ready
-	if not ready or player.state == player.State.LEAP:
-		return
-	match string[_bot_step]:
-		"L":
-			Input.action_press("attack_light")
-		"H":
-			Input.action_press("attack_heavy")
-		"D":
-			Input.action_press("dash")
-		"hold":
-			Input.action_press("attack_heavy")
-			_bot_hold_t = player.CHARGE_TIME + 0.15
-	_bot_pending = string[_bot_step]
-	_bot_pending_t = 0.0
-	_bot_starts_at = _bot_starts
-	_bot_step += 1
-

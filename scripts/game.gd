@@ -60,14 +60,7 @@ const MUSIC_FADE_OUT := 0.25
 # is saved as seen (Reset hints in the pause menu brings them back).
 const HINTS := {
 	"attack": "Light [LMB] and heavy [RMB] chain into combos.\nMixing different moves raises your style rank.",
-	"dash": "Dash [Space] through attacks.\nDash just before a hit lands for a PERFECT dodge.",
-	"launch": "Light, then heavy launches enemies.\nKeep hitting them in the air to juggle.",
-	"breaker": "Light, light, heavy is a GROUND BREAKER:\na lunging thrust that knocks down everything in a line.",
-	"shield": "Shields block hits from the front.\nHit from behind, or hold heavy to charge a guard-breaking slam.",
 	"awaken": "Awakening is full! Press [Q] to AWAKEN.",
-	"bomber": "Bombers explode when their fuse runs out, hurting skeletons too.\nKnock them into a crowd, or dash clear.",
-	"necro": "Necromancers raise fallen skeletons.\nKill them first and their risen crumble.",
-	"cage": "The bone cage is closing! Run out through the gap,\nor dash through a wall.",
 }
 # Gamepad rumble per event: [weak motor, strong motor, seconds]. Toggle in menus.
 const RUMBLE := {
@@ -82,6 +75,12 @@ var camera_rig: Node = null
 ## The comic impact frame over the 3D view (scripts/impact_frame.gd), fired
 ## by big hitstops and kills.
 var impact: CanvasLayer = null
+## The last heavy blow's direction (world, flat) and when (real ms): camera_rig.kick sets it, the impact
+## frame leans its vignette that way.
+var last_hit_dir := Vector3.ZERO
+var last_hit_ms := -100000
+const HIT_DIR_FRESH_MS := 250  # older than this, the impact frame is centred
+var _void_element: GDScript
 var combo_count := 0
 var style := 0.0
 var awakening := 0.0
@@ -100,11 +99,13 @@ var combo_guide := true
 ## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
 ## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
 var comic_style := true
-## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "heretic" (default, until Zak
-## picks) or "chibi" (assets/comic/heretic_chibi.glb). --hero=chibi for this process only, or the
-## Settings entry (saved). Read as the player is built, so a change shows from the next run.
-var hero_model := "heretic"
-var hero_setting := "heretic"
+## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "chibi" (default since round 29,
+## assets/comic/heretic_chibi.glb; an orchestrator call Zak can veto) or "heretic" (the round-28
+## model, heretic.glb). --hero=heretic for this process only, or the Settings entry (saved).
+## Read as the player is built, so a change shows from the next Restart training.
+const HERO_DEFAULT := "chibi"
+var hero_model := HERO_DEFAULT
+var hero_setting := HERO_DEFAULT
 const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic"}
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
@@ -131,7 +132,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	impact = preload("res://scripts/impact_frame.gd").new()
 	add_child(impact)
-	enemy_killed.connect(func(_e: Node) -> void: impact.flash(impact.IMPACT_KILL, true))
+	enemy_killed.connect(_on_kill_feel)
 	_setup_input()
 	_load_settings()
 	hero_model = hero_setting
@@ -195,6 +196,39 @@ func reset() -> void:
 	awakening_changed.emit(awakening)
 
 
+## A kill: the impact frame (towards the blow, in his colour) and a small FOV punch.
+func _on_kill_feel(_e: Node) -> void:
+	impact.flash(impact.IMPACT_KILL, true, hit_dir_screen(), hero_hit_color())
+	if camera_rig:
+		camera_rig.fov_punch(camera_rig.FOV_KILL)
+
+
+## last_hit_dir on the screen (normalised, y down), or zero if it's stale or there's no camera.
+func hit_dir_screen() -> Vector2:
+	if Time.get_ticks_msec() - last_hit_ms > HIT_DIR_FRESH_MS or camera_rig == null or last_hit_dir == Vector3.ZERO:
+		return Vector2.ZERO
+	var cam: Camera3D = camera_rig.camera
+	var at: Vector3 = camera_rig.global_position
+	if cam == null or not cam.is_inside_tree() or cam.is_position_behind(at):
+		return Vector2.ZERO
+	var d := cam.unproject_position(at + last_hit_dir) - cam.unproject_position(at)
+	return d.normalized() if d.length() > 0.01 else Vector2.ZERO
+
+
+## The hero's colour for this hit: his move's element, else his own (alpha 0 with no hero).
+func hero_hit_color() -> Color:
+	var hero: Node = camera_rig.target if camera_rig else null
+	if hero == null or not is_instance_valid(hero) or not hero.has_method("_fx_color"):
+		return Color(0, 0, 0, 0)
+	var own: Color = hero._fx_color()
+	var id: Variant = hero.get("_move_id")
+	if id is String and id != "":
+		if _void_element == null:  # (loaded on first use: preloading it here would make the autoload depend on it)
+			_void_element = load("res://scripts/void_element.gd")
+		return _void_element.color_of(id, own)
+	return own
+
+
 ## Freeze the game briefly on impact. Overlapping calls extend, never shorten.
 ## `duration` is real seconds; the stop holds `time_scale` then eases back to
 ## full speed over its tail (HITSTOP_EASE / SLOWMO_EASE; flat from HITSTOP_FLAT_SCALE).
@@ -202,7 +236,8 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 	if duration <= 0.0:
 		return
 	if impact and time_scale < HITSTOP_FLAT_SCALE:
-		impact.on_hitstop(duration)
+		if impact.on_hitstop(duration, hit_dir_screen(), hero_hit_color()) and camera_rig and time_scale < SLOWMO_SCALE:
+			camera_rig.fov_punch(camera_rig.FOV_ENDER * clampf(duration / impact.IMPACT_FULL_STOP, 0.5, 1.0))
 	if time_scale < SLOWMO_SCALE:
 		hit_weight = maxf(hit_weight, clampf(duration / HIT_WEIGHT_STOP, 0.0, 1.0))
 	if combo_count <= 1 and time_scale < SLOWMO_SCALE:
@@ -373,7 +408,7 @@ func guide_label() -> String:
 	return "Combo guide: %s" % ("On" if combo_guide else "Off")
 
 
-## Settings: heretic <-> chibi heretic, saved; takes effect when the next run builds the hero.
+## Settings: heretic <-> chibi heretic, saved; takes effect on the next Restart training.
 func cycle_hero() -> void:
 	var order := HERO_MODELS.keys()
 	hero_setting = order[(order.find(hero_setting) + 1) % order.size()]
@@ -382,7 +417,7 @@ func cycle_hero() -> void:
 
 
 func hero_label() -> String:
-	return "Hero model (next run): %s" % HERO_MODELS.get(hero_setting, "Heretic")
+	return "Hero model (on restart): %s" % HERO_MODELS.get(hero_setting, HERO_MODELS[HERO_DEFAULT])
 
 
 ## Step to the next screen shake level and save it.
@@ -404,9 +439,9 @@ func _load_settings() -> void:
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
-		hero_setting = cfg.get_value("video", "hero_model", "heretic")
+		hero_setting = cfg.get_value("video", "hero_model", HERO_DEFAULT)
 		if not HERO_MODELS.has(hero_setting):
-			hero_setting = "heretic"
+			hero_setting = HERO_DEFAULT
 		_hints_seen = cfg.get_value("hints", "seen", [])
 
 
@@ -417,7 +452,7 @@ func _save_settings() -> void:
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("video", "combo_guide", combo_guide)
-	if hero_setting != "heretic":  # the default leaves settings.cfg as it was
+	if hero_setting != HERO_DEFAULT:  # the default leaves settings.cfg as it was
 		cfg.set_value("video", "hero_model", hero_setting)
 	cfg.set_value("hints", "seen", _hints_seen)
 	cfg.save(SETTINGS_PATH)
@@ -504,7 +539,6 @@ func _setup_input() -> void:
 	_bind("dash", [KEY_SPACE, KEY_SHIFT], [], [JOY_BUTTON_A])
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
 	_bind("traverse", [KEY_R], [], [JOY_BUTTON_LEFT_SHOULDER])
-	_bind("restart", [KEY_ENTER], [], [])
 	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
 
 

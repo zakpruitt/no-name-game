@@ -60,6 +60,11 @@ const TONES := {
 	"P_Hat": {"shadow": Color(0.1, 0.05, 0.4), "mid": Color(0.2, 0.11, 0.68), "light": Color(0.36, 0.24, 0.95), "hi": Color(0.66, 0.52, 1), "rim": Color(0.32, 0.14, 0.62), "brush": 0.18, "spot": 0.02},
 	"P_Wrap": {"shadow": Color(0.1, 0.02, 0.14), "mid": Color(0.32, 0.07, 0.28), "light": Color(0.58, 0.16, 0.4), "hi": Color(0.8, 0.34, 0.52), "rim": Color(0.26, 0.08, 0.24), "brush": 0.26, "inner": 0.14},
 	"P_Forest": {"shadow": Color(0.03, 0.16, 0.1), "mid": Color(0.07, 0.36, 0.16), "light": Color(0.17, 0.6, 0.22), "hi": Color(0.48, 0.86, 0.38), "rim": Color(0.1, 0.3, 0.12), "brush": 0.2, "spot": 0.02},
+	# the training dummy (enemy_dummy.py): pale canvas, red straps and gloves, straw rope, grey boots
+	"P_Canvas": {"shadow": Color(0.44, 0.24, 0.2), "mid": Color(0.86, 0.7, 0.48), "light": Color(1, 0.92, 0.72), "hi": Color(1, 0.98, 0.86), "rim": Color(0.5, 0.3, 0.2), "brush": 0.22},
+	"P_BagRed": {"shadow": Color(0.26, 0.02, 0.07), "mid": Color(0.7, 0.08, 0.09), "light": Color(0.96, 0.22, 0.13), "hi": Color(1, 0.5, 0.32), "rim": Color(0.32, 0.04, 0.06), "brush": 0.16},
+	"P_Rope": {"shadow": Color(0.3, 0.14, 0.05), "mid": Color(0.72, 0.5, 0.2), "light": Color(0.96, 0.8, 0.4), "rim": Color(0.3, 0.16, 0.05), "brush": 0.24},
+	"P_Boot": {"shadow": Color(0.12, 0.07, 0.1), "mid": Color(0.38, 0.27, 0.3), "light": Color(0.62, 0.5, 0.48), "rim": Color(0.2, 0.12, 0.14), "brush": 0.2},
 	"P_Lining": {"shadow": Color(0.08, 0.01, 0.14), "mid": Color(0.28, 0.05, 0.34), "light": Color(0.5, 0.12, 0.5), "rim": Color(0.2, 0.05, 0.2), "brush": 0.2},
 }
 ## Material name -> flat stepped colour [low, high, mid] (comic_lib.emit, sRGB). Without a mid it sits between them.
@@ -116,22 +121,26 @@ const CLIPS := {
 const HERETIC := "heretic"
 ## Game.hero_model -> the GLB the HERETIC kind loads (assets/comic/<file>.glb). Every model
 ## keeps the same rig contract, clips and material name, so everything keyed by HERETIC
-## (tones, clips, heretic_rig.gd) works for each. Default "heretic" until Zak picks.
+## (tones, clips, heretic_rig.gd) works for each. Default: Game.HERO_DEFAULT ("chibi").
 const HERETIC_MODELS := {"heretic": "heretic", "chibi": "heretic_chibi"}
 ## Materials drawn from their own texture through the cut tones, not from a TONES palette.
 const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12}}
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
 ## nudge would otherwise flip between two clips every frame.
 const RUN_STICK := 1.25
-## id in player.MOVES -> its Ab_ clip. hit and frames are
-## the kit's hit frame and clip length; old is the KayKit clip's length in s, the time
-## base MOVES' fractions were tuned against.
+## id in player.MOVES -> its Ab_ clip. `frames` is the heretic's clip length in HERO_CLIP_FPS
+## frames (length = frames / HERO_CLIP_FPS) and `hit` its contact frame: the last frame his
+## weapon hand still moves at HERO_CONTACT_SPEED of the swing's peak, where the swing arrives
+## (measured off the tracks by tests/comic_check.gd). old is the KayKit clip's length in s, the
+## time base MOVES' fractions were tuned against.
+const HERO_CLIP_FPS := 30.0  # heretic_bake.py resampled the shaman's 24 fps keys to 30, one hold frame first
+const HERO_CONTACT_SPEED := 0.4
 const HERO_MOVES := {
-	"L1": {"clip": "Ab_L1", "hit": 8, "frames": 25, "old": 1.0},
-	"L2": {"clip": "Ab_L2", "hit": 9, "frames": 27, "old": 1.3667},
-	"L3": {"clip": "Ab_L3", "hit": 18, "frames": 45, "old": 1.2667},
-	"DL": {"clip": "Ab_DL", "hit": 9, "frames": 49, "old": 1.6},
-	"AL1": {"clip": "Ab_AL1", "hit": 8, "frames": 24, "old": 1.0},
+	"L1": {"clip": "Ab_L1", "hit": 11, "frames": 31, "old": 1.0},
+	"L2": {"clip": "Ab_L2", "hit": 12, "frames": 33, "old": 1.3667},
+	"L3": {"clip": "Ab_L3", "hit": 24, "frames": 56, "old": 1.2667},
+	"DL": {"clip": "Ab_DL", "hit": 12, "frames": 61, "old": 1.6},
+	"AL1": {"clip": "Ab_AL1", "hit": 11, "frames": 30, "old": 1.0},
 }
 ## Hand bone -> the piece of the hero's axe at its head. His axes are skinned into one
 ## rig, so weapon trails need something that follows the hand (hero_blades).
@@ -178,6 +187,14 @@ const INNER_SCALE := 0.5
 ## it stays as tuned; the Warden is modelled at full size (3.2 m) where the KayKit boss
 ## relied on model_scale 1.8. The others match KayKit's height (~2.2 m bounds) as built.
 const RIG_SCALE := {"warden": 1.0 / 1.8}
+## Foes in the hero's hand (round 29): the chibi hero's shadow is his paint times
+## PAINTED's shadow, a cool lilac at about half value, while the kit's foe tables shade
+## into deep warm browns. Every foe toon material (any kind but HERETIC) moves its shadow
+## FOE_SHADE_MATCH of the way to mid * that tint, so both sides of a fight step into the
+## same shadow. Emits and dungeon pieces are left alone. 0.8 (was 0.5): side-lit from 90 degrees
+## off the sun (`foe_shots.gd -- --side`), bone's shadow/mid ratio comes to (0.43, 0.36, 0.50)
+## against the hero's (0.42, 0.38, 0.56); at 0.5 it was (0.43, 0.33, 0.42) and still read brown.
+const FOE_SHADE_MATCH := 0.8
 ## Used (with a warning) for a material the tables don't know yet.
 const FALLBACK_TONE := "P_Trousers"
 ## Every line and solid black. Near the floor's own shadow tone rather than true black:
@@ -395,7 +412,8 @@ static func fit(model: Node3D, kind: String) -> void:
 ## The shared comic material for a GLB material name.
 static func material(mat_name: String, kind := "") -> ShaderMaterial:
 	var override: Dictionary = KIND_TONES.get(kind, {})
-	var key := kind + "/" + mat_name if override.has(mat_name) else mat_name
+	var foe := kind != "" and kind != HERETIC and not EMITS.has(mat_name)
+	var key := kind + "/" + mat_name if override.has(mat_name) else ("foe/" + mat_name if foe else mat_name)
 	if _mats.has(key):
 		return _mats[key]
 	var m := ShaderMaterial.new()
@@ -412,7 +430,7 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		var t: Dictionary = override.get(mat_name, TONES.get(mat_name, TONES[FALLBACK_TONE]))
 		m.shader = load(TOON_SHADER)
 		m.set_shader_parameter("ink_color", INK)
-		m.set_shader_parameter("shadow_color", t.shadow)
+		m.set_shader_parameter("shadow_color", foe_shadow(t) if foe else t.shadow)
 		m.set_shader_parameter("mid_color", t.mid)
 		m.set_shader_parameter("light_color", t.light)
 		m.set_shader_parameter("hi_color", t.get("hi", t.light))
@@ -427,6 +445,13 @@ static func material(mat_name: String, kind := "") -> ShaderMaterial:
 		m.next_pass = _piece_outline(PIECE_INK_PX[mat_name])
 	_mats[key] = m
 	return m
+
+
+## A foe tone's shadow moved FOE_SHADE_MATCH towards the hero's (see FOE_SHADE_MATCH).
+static func foe_shadow(t: Dictionary) -> Color:
+	var hero: Color = PAINTED.P_HereticPaint.shadow
+	var like_hero := Color(t.mid.r * hero.r, t.mid.g * hero.g, t.mid.b * hero.b)
+	return (t.shadow as Color).lerp(like_hero, FOE_SHADE_MATCH)
 
 
 static func _piece_outline(width: float) -> ShaderMaterial:

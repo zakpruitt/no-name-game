@@ -11,6 +11,10 @@ uniform vec4 edge_color : source_color = vec4(1.0);
 uniform float progress = 0.0;
 // How much of the arc stays lit behind the head (in arc lengths).
 uniform float trail_length = 0.95;
+// Above 0 only the outer band past this UV.y draws, with an ink line on its inner edge (Awakened gold,
+// Fx.AWAKEN_SWOOSH_BAND): a crescent edge, not a sheet.
+uniform float band = 0.0;
+uniform vec3 ink : source_color = vec3(0.04, 0.02, 0.06);
 uniform sampler2D noise : hint_default_white, filter_linear_mipmap, repeat_enable;
 
 void fragment() {
@@ -26,6 +30,13 @@ void fragment() {
 	float m = trail * body * rim * mix(1.0, n * 1.6, 0.35) * 1.5;
 	float hot = smoothstep(0.72, 0.95, UV.y) * trail;
 	// Past 1.0 the environment's glow blooms the edge (white alone vanishes on the light floor).
-	ALBEDO = mix(color.rgb, edge_color.rgb * 1.8, hot);
+	vec3 c = mix(color.rgb, edge_color.rgb * 1.8, hot);
+	if (band > 0.0) {
+		float keep = smoothstep(band - 0.06, band, UV.y);
+		float line = keep * (1.0 - smoothstep(band, band + 0.07, UV.y));
+		c = mix(c, ink, line);
+		m = max(trail * keep * rim * 1.5, 0.0);
+	}
+	ALBEDO = c;
 	ALPHA = clamp(m * color.a * (1.0 - smoothstep(0.6, 1.0, progress)), 0.0, 1.0);
 }

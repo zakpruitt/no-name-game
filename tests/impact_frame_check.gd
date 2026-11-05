@@ -15,6 +15,11 @@ class Corpse extends Node:
 	var bones := 0
 
 
+class Hero extends Node:
+	var breakers_landed := 0
+	var _brk_ended := ""
+
+
 func _initialize() -> void:
 	await process_frame
 	game = get_root().get_node("Game")
@@ -28,6 +33,39 @@ func _initialize() -> void:
 	game.hitstop(0.05)
 	await process_frame
 	_check(not fr.rect.visible, "a small hitstop leaves it idle")
+	game.end_slowmo()
+	# Feel audit item 1: enders and Awakening no longer flip it, only slams and kills.
+	game.hitstop(0.12 * 1.3 + 3 * 0.025)
+	await process_frame
+	_check(not fr.rect.visible, "the biggest ender's stop (airborne, tier 3: 0.23 s) leaves it idle")
+	game.end_slowmo()
+	game.hitstop(0.25, 0.05)
+	await process_frame
+	_check(not fr.rect.visible, "Awakening's 0.25 s stop leaves it idle")
+	game.end_slowmo()
+	var hero := Hero.new()
+	hero.add_to_group("player")
+	get_root().add_child(hero)
+	await process_frame
+	await _wait(fr.IMPACT_GAP_MS * 0.001 + 0.05)
+	hero.breakers_landed += 1
+	hero._brk_ended = "hit"
+	await process_frame
+	await process_frame
+	_check(fr.rect.visible and is_equal_approx(fr.current(), fr.IMPACT_SLAM), "a breaker landing flips it at IMPACT_SLAM (%.2f)" % fr.current())
+	await _wait(fr.IMPACT_GAP_MS * 0.001 * 0.6)
+	hero.breakers_landed += 1
+	await process_frame
+	await process_frame
+	_check(fr.current() == 0.0, "a second slam inside IMPACT_GAP_MS (one string) is dropped")
+	await _wait(fr.IMPACT_GAP_MS * 0.001)
+	hero.breakers_landed += 1
+	hero._brk_ended = "perfect"
+	await process_frame
+	await process_frame
+	_check(is_equal_approx(fr.current(), fr.IMPACT_SLAM_PERFECT), "a perfect landing flips it at IMPACT_SLAM_PERFECT (%.2f)" % fr.current())
+	_check(fr.IMPACT_GAP_MS >= 700, "IMPACT_GAP_MS (%d) outlasts a string's ender-to-slam gap" % fr.IMPACT_GAP_MS)
+	hero.queue_free()
 	game.end_slowmo()
 	await _wait(fr.IMPACT_GAP_MS * 0.001 + 0.05)
 	var t0 := Time.get_ticks_msec()
@@ -67,6 +105,14 @@ func _initialize() -> void:
 	_check(fr.current() == 0.0, "and kills get no frame")
 	game.reduce_flashing = false
 	corpse.free()
+	# The vignette leans against the blow and its ink takes a dark tone of his element; none given, centred ink.
+	await _wait(fr.IMPACT_GAP_MS * 0.001 + fr.IMPACT_HOLD + fr.IMPACT_FADE)
+	fr.flash(0.8, false, Vector2(1.0, 0.0), Color(0.62, 0.3, 1.0))
+	_check(fr.dir.is_equal_approx(Vector2(fr.DIR_SHIFT, 0.0)), "a blow to the right leans the vignette (%s)" % fr.dir)
+	_check(fr.tint != fr.INK and fr.tint.b > fr.INK.b and fr.tint.get_luminance() < 0.3, "tinted a dark tone of his colour (%s)" % fr.tint)
+	await _wait(fr.IMPACT_GAP_MS * 0.001 + fr.IMPACT_HOLD + fr.IMPACT_FADE)
+	fr.flash(0.8)
+	_check(fr.dir == Vector2.ZERO and fr.tint == fr.INK, "no blow and no colour: centred plain ink")
 	print("[impact] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
 

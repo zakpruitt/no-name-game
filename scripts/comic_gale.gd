@@ -5,6 +5,7 @@ extends Node3D
 ## settles, then thins and goes. Replaces the soft green swirl funnels (elements.pillar wind) on the
 ## comic hero, which read as a glowing blob over the foes it lifted. heretic_form_fx's material.
 
+const SELF := preload("res://scripts/comic_gale.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const STEPS_PER_S := 12.0  # on twos
 const INK := Color(0.012, 0.01, 0.02)
@@ -32,7 +33,7 @@ var _rng := RandomNumberGenerator.new()
 
 
 static func spawn(parent: Node, spot: Vector3, h: float, r: float, time: float) -> Node3D:
-	var g: Node3D = load("res://scripts/comic_gale.gd").new()
+	var g: Node3D = SELF.new()
 	g.height = h
 	g.radius = r
 	g.life = time

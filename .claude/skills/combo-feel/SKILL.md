@@ -26,10 +26,37 @@ Pillar 1 is combat feel first. Strings should read as motion, not as standing st
 - **Enders.** Enders get extra hitstop and camera push per tier (`ENDER_HITSTOP` / `ENDER_ZOOM`), a second swoosh, and the camera `kick`.
 - **Dash cancels anything** after the first hit. Never remove that, even when it lets a dash skip a breaker.
 
+## Timing contract (round 30; `tests/rhythm_check.gd` prints every number)
+- **Hits land on the contact pose.** Retimed moves take `ComicLook.HERO_MOVES` hit/frames (30 fps, the frame the swing
+  arrives); raw-clip moves use `MOVES.hits` as a fraction of their clip. After a re-key run `tests/contact_frames.gd`.
+- **Buffer:** `BUFFER_MS` (300). A press fires on the first frame past `cancel_point()`.
+- **Hit-confirm:** `cancel_point()` is `cancel` on a whiff, `CANCEL_ON_HIT` of the way back to the last hit once connected
+  (not before `HIT_CONFIRM_MIN` after it, nor before a breaker `leap`). Tune `cancel` as the whiff price.
+- **String shape:** wind-ups rise opener -> mid -> ender (196 / 235 / 362 ms), the ender freezes longest, mids recover within
+  260 ms, the ender in 280-400 ms. Tune with a move's `speed` (whole clip, stays in sync) and `cancel` / `end`, as named
+  constants (`L1_SPEED`, `L3_SPEED`, `L3_CANCEL`, `L3_END`, `EM_SPEED`).
+- **Breakers:** the window follows the rise (`BREAKER_HANG` / `TO_SWEET` / `TO_CLOSE`); `BREAKER_EARLY` holds a press 120 ms early.
+- **Read the bot:** the autotest's `[rhythm]` lines give real ms per string (beats = first hit to first hit). Awakening
+  (1.3x) speeds up later strings, so compare like with like.
+
 ## The foe's side of a hit (`scripts/enemy.gd`, docs/features/enemy-hit-reactions.md)
 - **Direction is a contract.** `take_hit(..., knockback, launch, ...)`: `launch >= enemy.RELAUNCH_MIN` (7) while up re-launches with the stretch; `launch < 0` or `knockback.y < 0` is a slam (crater, long skid); any fall past `SPIKE_FALL` (15 m/s) craters too. A new move that should crater passes a negative `knockback.y`.
 - **Side vs facing.** Knockback across the foe's facing rolls it; along it backflips. Aim knockback where the hit visually goes.
 - Visual reactions go in `_hit_reaction` / `_react` only. Sample `last_squash` / `last_ink` in headless tests, not `model.scale` (tweens run on idle frames).
+- **Making a move crater:** next to its `take_hit`, pass `Vector3.DOWN * <MOVE>_DOWN` (a named const, 6 m/s) as the knockback, flat part zero if it pins the foe (Deep Freeze, Meteor Fall, Maw do). A quiet hit (`burn_hit` / `dark_fx.quiet_hit`) takes the same knockback and still craters, with no sparks. Check it with `last_squash == SQUASH.crater` after calling the real `void_element` function on a minion in `enemy_feel_check`.
+- **Bosses** don't call `enemy.take_hit`: their reaction is `boss._boss_reaction` (flash, and ink + small squash on big hits). Don't add lean or tumble there: super armour must read as unmoved.
+- **Trying a string on a foe that moves:** `godot --path . -- --spar=rogue` (or minion / shield / warrior), 1/3 damage; the autotest with `--spar=` prints its `hits_taken`.
+
+## Lessons
+- Measure a clip's contact frame off the tracks (`Animation.*_track_interpolate` up the bone chain): an AnimationPlayer
+  doesn't pose a skeleton from a `-s` script's `_initialize`, so every sampled frame reads the rest pose.
+- "Last frame at 40% of peak hand speed" matched the shaman's hand-picked hit frames on all five clips; it's the arrival of
+  the swing, a frame after peak speed.
+- Every `cancel` / `end` keeps its time after the hit (`retime`), so moving a hit later moves the whole move later; the
+  0.25 s buffer then stopped covering a press made as L1 started (void_arm_check's by-hand spear caught it).
+- A long ender wind-up hides in start-to-start gaps: read first hit to first hit (`beats`) as well.
+- Headless input is a frame or three late (one `await physics_frame` can cover two steps): a timing test that needs a press
+  at an exact moment sets `_state_t` itself, then presses, and must fail with the old constant (try it).
 
 ## Process
 1. **Change the data.** Prefer table edits (`MOVES`, `COMBOS`, the `VOID_ELEMENT` tables, `CASTS`, `BREAKERS`), each with a short tuning comment.
@@ -49,3 +76,37 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - shaped VFX upgrades,
 - tuning damage or windows with the numbers shown,
 - a robustness fix, such as "only on connect" or "velocity carry-over".
+
+## Filming and judging feel (feel audit 2026-11-04)
+- **Film the string, not a still.** `godot --path . -s tests/string_film.gd` films every `BOT_STRINGS` string at 12 fps
+  from the game camera, played by the real bot, plus a frame marked HIT the first drawn frame after each new hit or
+  breaker slam, with an INDEX line per frame (real ms, move, hits done, `Engine.time_scale`). Contact holds and freezes
+  almost never land on a 12 fps beat; without the HIT frame the sheet shows the wind-up and the recovery and skips the blow.
+- **Put `time_scale` on the label.** A frame at x0.03 is a freeze, x0.6 the breaker focus, x0.05 a slam; colouring
+  those labels made the hitstop beat readable on a sheet at a glance.
+- **Check the hits connected before judging.** The first film's L L L H after a Grounded breaker swung at air (the combo
+  count never moved, no freeze): the breaker scatters the dummies. The film gathers them in a fan in front of him per string.
+- **Move the hero too, not only the foes.** Gathering the dummies in front of wherever he stood walked every later string
+  into the east wall (a dark band through the pile, and their homes followed). Reset him to the middle facing up the screen.
+- **A gathered pile changes the moves.** At 2.2 m Dash Stab lunges through the foes and the bot's D L H never reached
+  Harpoon; in the autotest (foes further off) it does. Say which setup a frame comes from.
+- **Read the next string's first second.** Callouts, banners, words and ground effects from the last string were most of
+  the clutter; per-string sheets that start at the string's first press show it, stills of one move don't.
+- **Zoom before judging.** At 400 px thumbnails the 1.85 m chibi is a few pixels; crop the middle 60% at 600 px
+  (scratchpad `feelaudit_keys.py`) for the hero, and use the full sheet for timing.
+- Tentacle moves play their Ab_ clips raw: their `hits` are `void_element.gd` `*_HIT` (contact frame / clip frames,
+  `tests/contact_frames.gd` `VOID_CLIPS`), and cancel / end / leap are written as `*_HIT + offset` so they keep their
+  time after the hit. The 40% hand-speed rule finds Ab_GR's yank home, not the grab: grab clips use the claw-snap rule.
+- Measure contact on the model the clips were keyed for (the chibi); the round-28 heretic's shaman clips contact 1-27
+  frames later, which is where round 1's "GR 0.32 / VS 0.41" came from.
+- The autotest bot is repeatable only from fixed spots (`training_bot.BOT_SPOT`, dummies reset home): before that,
+  breakers varied 5-7 per run from where the last string threw the foes. Read `breakers=N/N` before trusting a timing change.
+- A bot that presses at `combo_window().ready` (the full BUFFER_MS early) can lose the press when hit-stop and
+  Awakening shift the cancel; it presses `BOT_LEAD` (0.15 s) early instead, still well inside the buffer.
+
+## Camera (round 36, `docs/features/camera.md`)
+- Distance and lens are `camera_rig.DIST` / `FOV` / `AIM_HEIGHT`; dial by hand with `--cam-dist=` / `--cam-fov=` /
+  `--cam-frame=` before changing a constant, and keep `camera_feel_check`'s hero-px and floor bounds in step.
+- Callers' push-ins (`ENDER_ZOOM`, `BREAKER_FOCUS_ZOOM`, punch values) are fractions tuned at 12.5 m; the rig scales them
+  (`PUNCH_GAIN`) and the metre-sized kicks (`dist / REF_DIST`), so new camera calls pass round-32-sized numbers.
+- The fight framing reads `last_hit_ms` on `"enemies"`: a new foe type gets framed only if it sets that on a hit.

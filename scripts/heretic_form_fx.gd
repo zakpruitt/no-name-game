@@ -4,6 +4,7 @@ extends Node3D
 ## camera and is redrawn on twos, like comic_axe_aura.gd, because glow and soft dots read as a
 ## different game next to the inked hero.
 
+const SELF := preload("res://scripts/heretic_form_fx.gd")  # (held: a load() at fire time recompiled it once freed)
 const STEPS_PER_S := 12.0  # on twos, at the clips' 24 fps
 const STEPS := 5  # then it's gone
 const INK := Color(0.012, 0.01, 0.02)
@@ -12,7 +13,7 @@ const STAR_SPIKES := 9
 const STAR_STRETCH := 0.4  # further along the haft than across it
 ## Biggest at once, then gone by about 0.25 s, when strikes start landing: it mustn't hide the swing.
 const STAR_SIZE_BY_STEP := [1.0, 0.8, 0.45]  # step past the end: no star
-const STAR_OFF_HAND := 0.6  # of its size, up the haft and off the hero
+const STAR_OFF_HAND := 1.5  # of its size, up the haft: clear of the chibi's hood
 const STROKE_BY_STEP := [0.6, 1.1]  # of the haft's length, keeping up with the growth; then no stroke
 const CHIP_HEAD_START := 0.04  # s of flight on the first frame, so they don't start in a pile
 const STROKE_WIDTH := 0.1  # m at the hand, tapering to a point
@@ -62,7 +63,7 @@ static func material() -> StandardMaterial3D:
 
 ## `dir` is the haft's direction in the world; zero for a change back to the bare limb.
 static func spawn(parent: Node, at: Vector3, form: String, dir: Vector3, length: float) -> Node3D:
-	var fx: Node3D = load("res://scripts/heretic_form_fx.gd").new()
+	var fx: Node3D = SELF.new()
 	parent.add_child(fx)
 	fx.global_position = at
 	fx.setup(form, dir, length)

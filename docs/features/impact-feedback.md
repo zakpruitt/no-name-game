@@ -19,13 +19,34 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
   Heavy hits (shake past `ROLL_SHAKE`) roll it a touch, alternating sides.
   Kicks, the push-in and the roll chase targets that spring back in real
   time, so several hits in one frame blend instead of jittering.
-- **Impact frame.** Big hits (a hitstop of `IMPACT_STOP` or more: enders,
-  slams, breakers, the last kill) and kills flip the 3D view for a few real
+- **Impact frame.** Saved for slams and kills (feel audit 2026-11-04 item 1:
+  on every ender it flipped about every 1.2 s): a combo breaker's landing
+  (`impact_frame` watches the hero's `breakers_landed`, `slam()`), kills, and
+  hitstops of `IMPACT_STOP` 0.3 s or more (above every ender's ~0.23 s and
+  Awakening's 0.25 s: the last kill's slow motion), at most one per
+  `IMPACT_GAP_MS` 900 so a string flips once. These flip the 3D view for a few real
   frames into a high-contrast negative with a dark vignette, then fade. With
   `Game.reduce_flashing` the negative and the kill frames are dropped and only
-  a soft vignette pulse remains.
+  a soft vignette pulse remains. The vignette leans with the last heavy blow
+  (`Game.last_hit_dir`, set by `camera_rig.kick`; its middle moves
+  `DIR_SHIFT` back against it, so the ink piles up where the blow went) and
+  its ink takes a dark tone of his element (`Game.hero_hit_color()`).
+- **FOV punch.** Enders (`camera_rig.punch`), frames that fire on a freeze and
+  kills narrow the view a few degrees on top of the push-in (`fov_punch`,
+  `FOV_ENDER` 2.5, `FOV_KILL` 1.5, capped at `FOV_MAX` 5), springing back.
 - **The trail swells.** Deep in a chain and right after a heavy hit the
   weapon ribbon reaches further, lives longer and fills out.
+
+- **Comic hit readouts** (round 29, `Game.comic_style`). Damage numbers are
+  one inked number per foe (`scripts/comic_number.gd`): a hit within
+  `MERGE_S` of that foe's last adds into it, and it pops again. It steps
+  aside off the combo-name callout (and its PERFECT line), live words and the
+  breaker prompt (`ComicNumber.dodge`, `ComicFx.text_blocks`). A foe's hit
+  flash recolours its own ink (paper, then the hero's colour) instead of an
+  overlay, which read as a soft blob over a crowd being zapped. The
+  training readout is unchanged: it counts the hit signal, not the numbers.
+  A flash outlives nothing: `Fx._overlay` takes its overlay off when the foe
+  leaves the tree mid-flash, and the ink flash stops (`tests/fx_free_check.gd`).
 
 ## Files
 
@@ -67,12 +88,16 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
    value (`NUDGE_FOLLOW`), all in real time (`delta / time_scale`), then sets
    `camera.position = offset * _zoom * (1 - _hit_zoom) + _kick` and adds
    `_roll` to the trauma roll.
-4. `impact_frame.flash(strength, kill)` records the start tick; `current()`
+4. `impact_frame.flash(strength, kill, blow, element)` records the start tick; `current()`
    is the strength for `IMPACT_HOLD` then a linear fade over `IMPACT_FADE`;
    `_process` pushes it to the shader and hides the rect at 0. Frames closer
    than `IMPACT_GAP_MS` to the last are dropped. The shader reads the screen
    (`hint_screen_texture`), maps luminance to ink/paper through a smoothstep,
-   mixes that in by `strength * invert`, and darkens the edges by `strength`.
+   mixes that in by `strength * invert`, and darkens the edges by `strength`
+   towards `tint`, round a middle shifted by `dir`. The hero kicks the camera
+   just after the `Game.hitstop` that fired the frame, so through
+   `IMPACT_HOLD` the frame re-reads `Game.hit_dir_screen()` once a newer kick
+   lands (`lean`).
 5. `weapon_trail._process` samples a new point with `swell()` =
    `CHAIN_GROW * tier + HIT_GROW * Game.hit_weight`: the tip is stretched by
    `1 + swell`, the life by `1 + LIFE_GROW * swell`, and `UV2.x = swell` goes
@@ -105,8 +130,10 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 | `HIT_ZOOM` 0.012, `HIT_ZOOM_TIER` 0.5, `HIT_ZOOM_MAX` 0.06, `HIT_ZOOM_RETURN` 7 | camera_rig.gd | push-in per hit, per tier, cap, spring |
 | `ROLL_DEG` 2.2, `ROLL_SHAKE` 0.3, `ROLL_MAX` 2.5, `ROLL_RETURN` 9 | camera_rig.gd | heavy-hit roll |
 | `NUDGE_FOLLOW` 40, `KICK_RETURN` 12 | camera_rig.gd | how fast nudges reach their targets / kicks spring back |
-| `IMPACT_STOP` 0.1, `IMPACT_FULL_STOP` 0.25, `IMPACT_MIN` 0.45, `IMPACT_KILL` 0.4 | impact_frame.gd | which stops flash and how hard |
-| `IMPACT_HOLD` 0.05, `IMPACT_FADE` 0.09, `IMPACT_GAP_MS` 240, `REDUCED_SCALE` 0.45 | impact_frame.gd | frame timing, rate limit, reduce-flashing strength |
+| `IMPACT_STOP` 0.3, `IMPACT_FULL_STOP` 0.5, `IMPACT_MIN` 0.45, `IMPACT_KILL` 0.4, `IMPACT_SLAM` 0.85, `IMPACT_SLAM_PERFECT` 1.0 | impact_frame.gd | which stops flash and how hard; breaker landings |
+| `IMPACT_HOLD` 0.05, `IMPACT_FADE` 0.09, `IMPACT_GAP_MS` 900, `REDUCED_SCALE` 0.45 | impact_frame.gd | frame timing, rate limit, reduce-flashing strength |
+| `DIR_SHIFT` 0.2, `TINT_MIX` 0.5, `TINT_DARK` 0.5 | impact_frame.gd | how far the vignette leans; how much of his colour its ink takes |
+| `FOV_ENDER` 2.5, `FOV_KILL` 1.5, `FOV_MAX` 5, `FOV_RETURN` 6 | camera_rig.gd | FOV punch (degrees) on enders / big freezes, kills, cap, spring |
 | `CHAIN_GROW` 0.1, `HIT_GROW` 0.25, `LIFE_GROW` 0.6 | weapon_trail.gd | ribbon swell per tier / per hit weight / its life |
 
 ## Testing
@@ -114,9 +141,12 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 - `godot --headless --path . -s tests/hitstop_check.gd`: shape, opener, flat
   focus, overlap, `end_slowmo`.
 - `godot --headless --path . -s tests/camera_feel_check.gd`: push-in cap and
-  spring, roll sides and cap, kick cancel and spring, the Game hooks, shake 0.
+  spring, roll sides and cap, kick cancel and spring, the Game hooks, shake 0,
+  FOV punch (ender, cap, spring, kill), the blow's screen direction and the
+  frame leaning with a kick after it fired.
 - `godot --headless --path . -s tests/impact_frame_check.gd`: hold/fade
-  timing, strengths, gap, focus exclusion, kills, reduce flashing.
+  timing, strengths, gap, focus exclusion, kills, reduce flashing, the lean
+  and tint (and plain centred ink without them).
 - `godot --headless --path . -s tests/trail_check.gd`: reach and life by
   tier and weight, old samples kept, weight decay.
 - Looks (windowed): `godot --path . -s tests/impact_preview.gd` ->
@@ -135,3 +165,18 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
   and only quarter-second stops hit full strength. Judge it windowed.
 - Feel numbers (ease curve, roll degrees, swell) are first guesses; none of
   it has been hand play-tested yet.
+
+## Camera and readability (round 32, feel audit 2026-11-04)
+
+- Training camera `camera_rig.offset` (0, 10, 7.5), `FOV` 36 (was (0, 13, 9.5), 42): the chibi is about twice
+  the size on screen. In a breaker hang (`State.LEAP`) the camera pushes in `HANG_ZOOM` 0.12 and its follow
+  point rises with his model (`LIFT_FOLLOW` 0.75, `LIFT_MAX` 4 m), easing back after the slam.
+  Round 36 moved it out again (13 m, FOV 37, aimed at his chest, fight framing, `HANG_ZOOM` 0.16): see `camera.md`.
+- The hero has a paper rim past his ink (`heretic_rig._add_rim`, `shaders/hero_rim.gdshader`), drawn after
+  the effects at render_priority 100, so his silhouette shows through bolts, rings and words.
+- Words: one live at a time, never the same generic word twice in a row, placed round the contact point
+  (`ComicFx.SPOT_RINGS` 12 / 55 px, `SPOT_ENOUGH` 24).
+- Awakened: the swoosh draws only its inked outer band (`Fx.AWAKEN_SWOOSH_BAND` 0.72), the second ender arc is
+  dropped, and the weapon trail's swell caps at `AWAKEN_SWELL_MAX` 0.12 (`SWELL_MAX` 0.35 otherwise) at
+  `AWAKEN_ALPHA` 0.6.
+

@@ -83,6 +83,9 @@ func _extra() -> void:
 	await _direction()
 	await _bag()
 	await _air_kill()
+	await _slams()
+	await _boss()
+	await _spar()
 
 
 ## Killed while up: the corpse spins faster all the way down, then settles on a full turn.
@@ -115,7 +118,7 @@ func _bag() -> void:
 	for old in _main.get_tree().get_nodes_in_group("enemies"):
 		old.queue_free()
 	var d: Node = load("res://scripts/training_dummy.gd").new()
-	d.model_scene = _main._model("Skeleton_Warrior")
+	_main._set_model(d, "dummy", "Skeleton_Warrior")  # the comic bag, as main._start_training
 	_main.add_child(d)
 	d.home = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
 	d.global_position = d.home
@@ -161,7 +164,55 @@ func _bag() -> void:
 	_check(wobble > 0.15, "the shake-off rocks it side to side (%.2f rad)" % wobble)
 	print("[enemy_feel] bag: tap tips %.2f rad, swings %.2f back, still after %d frames; knockdown boing %.2f rad; shake-off %.2f rad" \
 		% [tip.length(), back, settled, boing, wobble])
+	await _bag_round3(d, settled)
+	await create_timer(1.0).timeout  # freeing it mid hit-flash floods "Parameter material is null" (agents.md)
 	d.queue_free()
+
+
+## Round 3: the knobs and their flags, a hit cutting a shake-off short, the last-string tag.
+func _bag_round3(d: Node, settled_default: int) -> void:
+	var knobs: Dictionary = d.bag_overrides(PackedStringArray(["--bag-damping=7", "--bag-stiffness=abc", "--bag-lean=2.5", "--autotest"]))
+	_check(knobs == {"bag_damping": 7.0, "bag_lean_mult": 2.5}, "--bag-*= flags parse (%s)" % [knobs])
+	await create_timer(1.0).timeout
+	d.bag_damping = 7.0
+	d.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	var settled := -1
+	for i in 240:
+		await physics_frame
+		if i > 5 and d._bag_tilt == Vector2.ZERO:
+			settled = i
+			break
+	_check(settled > 0 and settled < settled_default, "more damping settles sooner (%d frames vs %d)" % [settled, settled_default])
+	d.bag_damping = d.BAG_DAMPING
+	# A shake-off cut short by a hit: the kicks and the stars stop.
+	await create_timer(0.5).timeout
+	var cut: int = d.shakeoffs_cut
+	d.hp = d.max_hp - 10.0
+	d.last_hit_ms = -100000
+	await physics_frame
+	await physics_frame
+	d.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	await physics_frame
+	_check(d.shakeoffs_cut == cut + 1 and d.find_child("DazeStars", false, false) == null, "a hit cuts the shake-off short (%d)" % d.shakeoffs_cut)
+	var stretched := false
+	for i in 40:  # past the whole shake-off: no boing stretch at its end
+		await physics_frame
+		stretched = stretched or d.last_squash == d.DAZE_STRETCH
+	_check(not d._daze_tween.is_running() and not stretched, "no head-shake or boing after the cut")
+	# The tag: the string's damage on this dummy pops when the combo drops, dims when the next starts.
+	var game: Node = get_root().get_node("Game")
+	game.combo_changed.emit(0, "D")  # close whatever the hits above started
+	var tag: Label3D = d.get_node("StringTag")
+	d.take_hit(12.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	await physics_frame
+	d.take_hit(30.0, Vector3(0.0, 0.0, 6.0), 0.0, true)
+	var dealt: float = d.string_damage
+	game.combo_changed.emit(0, "D")
+	_check(tag.visible and tag.text == "LAST %d" % roundi(dealt) and d.last_string_damage == dealt and d.string_damage == 0.0,
+		"the tag reads the last string's damage (%s for %.0f)" % [tag.text, dealt])
+	d.take_hit(5.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	_check(is_equal_approx(tag.modulate.a, d.TAG_DIM) and tag.text == "LAST %d" % roundi(dealt), "a new string dims it (%.2f)" % tag.modulate.a)
+	print("[enemy_feel] bag round 3: damping 7 still after %d frames (5: %d); shake-off cut %d; tag %s" % [settled, settled_default, d.shakeoffs_cut, tag.text])
 
 
 ## Hit direction: a side launch rolls, a downward hit craters (from the air,
@@ -349,6 +400,83 @@ func _juggle() -> void:
 	var plain_hang: float = 2.0 * sqrt(2.0 * 0.3 / e.AIR_GRAVITY) * 60.0
 	_check(hang_frames > plain_hang * 1.25, "it hangs %d frames within 0.3 m of the apex (plain gravity %.0f)" % [hang_frames, plain_hang])
 	print("[enemy_feel] juggle: launch %.1f apex %.2f m, %d frames within 0.3 m of it (plain gravity %.0f), tumble %.2f rad, bounce %.2f m, skid %.2f m/s, %d frames up" 		% [launch, top, hang_frames, plain_hang, tumbled, bounce_top, skid_v, frames])
+
+
+## The element slams that hit downward (void_element DEEP_FREEZE_DOWN, METEOR_DOWN, MAW_DOWN): each, run for
+## real by the hero on a standing minion, craters it (SQUASH.crater, knocked down) instead of a plain flinch.
+func _slams() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var hero: Node = _main.player
+	var at: Vector3 = hero.global_position + Vector3(0.0, 0.0, 4.0)
+	var seen := []
+	for move in ["deep_freeze", "meteor", "maw"]:
+		var e: Node = await _fresh(at)
+		await physics_frame
+		match move:
+			"deep_freeze":
+				ve._deep_freeze(hero, at, 1.0)
+			"meteor":
+				ve._tear(hero, {"damage": 1.0}, [e], 1.0)
+			"maw":
+				hero._void.dark_spot = at
+				ve._maw(hero, {"damage": 1.0}, 1.0)
+		_check(e.last_squash == e.SQUASH.crater and e.state == e.State.HURT,
+			"%s craters the foe (squash %.2f, state %d)" % [move, e.last_squash.y, e.state])
+		seen.append("%s %.2f" % [move, e.last_squash.y])
+		await create_timer(0.3).timeout
+	print("[enemy_feel] slams: %s" % ", ".join(seen))
+
+
+## The Warden's reduced set: a tap only flashes; a big launching hit flashes, swells its ink and squashes a
+## little, but never leans, tumbles or leaves the floor (super armour).
+func _boss() -> void:
+	for old in _main.get_tree().get_nodes_in_group("enemies"):
+		old.queue_free()
+	var b: Node = _main._spawn_boss()
+	b.global_position = _main.player.global_position + Vector3(0.0, 0.0, 5.0)
+	b.max_hp = 5000.0
+	b.hp = 5000.0
+	b.break_damage = 100000.0
+	await create_timer(1.2).timeout
+	b.attack_damage = 0.0
+	b.move_speed = 0.0
+	b.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
+	var tinted: MeshInstance3D = b.model.find_children("*", "MeshInstance3D", true, false)[0]
+	_check(tinted.material_overlay != null and b.last_squash == Vector3.ONE and b.last_ink == 1.0,
+		"a tap only flashes the Warden (squash %.2f ink %.1f)" % [b.last_squash.y, b.last_ink])
+	await create_timer(0.2).timeout
+	b.take_hit(1.0, Vector3(6.0, 0.0, 0.0), 9.0, true)
+	var tilt := 0.0
+	for i in 20:
+		await physics_frame
+		tilt = maxf(tilt, absf(b.model.rotation.x) + absf(b.model.rotation.z))
+	_check(b.last_squash == b.BOSS_SQUASH and b.last_ink == b.BOSS_INK, "a big hit squashes the Warden %.2f and swells its ink %.1fx" % [b.last_squash.y, b.last_ink])
+	_check(tilt < 0.001 and b.state != b.State.AIRBORNE and b.global_position.y < 0.05,
+		"and it never leans, tumbles or lifts (tilt %.3f, y %.2f)" % [tilt, b.global_position.y])
+	print("[enemy_feel] boss: big hit squash %.2f ink %.1fx, tilt %.3f" % [b.last_squash.y, b.last_ink, tilt])
+	b.queue_free()
+
+
+## --spar=<kind>: off without the flag, one live foe of that kind at 1/3 damage with it, its hits counted.
+func _spar() -> void:
+	for old in _main.get_tree().get_nodes_in_group("enemies"):
+		old.queue_free()
+	var spar: GDScript = load("res://scripts/spar.gd")
+	_check(spar.kind_from(PackedStringArray(["--autotest"])) == "" and spar.kind_from(PackedStringArray(["--spar=dragon"])) == ""
+		and spar.start(_main, PackedStringArray()) == null, "no --spar flag (or a wrong kind): no spar foe")
+	var s: Node = spar.start(_main, PackedStringArray(["--spar=shield"]))
+	var spec: Dictionary = _main.ENEMY_TYPES.shield
+	_check(s != null and is_instance_valid(s.foe) and s.foe.shield and is_equal_approx(s.foe.attack_damage, spec.attack_damage / 3.0),
+		"--spar=shield puts up a shield skeleton at 1/3 damage (%.1f)" % (s.foe.attack_damage if s != null else -1.0))
+	await create_timer(1.1).timeout
+	s.foe.take_hit(1.0, Vector3(6.0, 0.0, 0.0), 0.0, true)
+	await physics_frame
+	s.foe.take_hit(1.0, Vector3(0.0, 0.0, 0.0), 0.0, false)
+	_check(s.total_hits() == 2, "its hits are counted (%d)" % s.total_hits())
+	print("[enemy_feel] spar: shield foe attack %.1f, hits_taken %d" % [s.foe.attack_damage, s.total_hits()])
+	await create_timer(0.5).timeout
+	s.queue_free()
+	s.foe.queue_free()
 
 
 ## A sturdy minion at `at`, past its spawn animation, standing still and harmless.

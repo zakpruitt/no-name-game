@@ -24,7 +24,9 @@ const KEY_SIZE := 15
 const PAUSE_TEXT := "or pause: "  # before a row's pause combo (player.combo_options() `pause`)
 const SIDE_GAP := 76.0  # px from the hero's centre to the rows
 const CHEST := 1.1  # metres above the feet the rows centre on
-const EDGE := 330.0  # flip to the hero's left this close to the right edge
+const EDGE := 330.0  # flip to the hero's left this close to the right edge (and right near the left)
+const PILE_RADIUS := 6.0  # m: foes this near him count for which side the pile is on
+const PILE_SLACK := 30.0  # px the pile's middle must be off his to move the rows
 const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
 const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.74)
 ## Button text: mouse and keyboard, the one control set shown in the game.
@@ -120,6 +122,15 @@ func _draw() -> void:
 		return
 	var screen := get_viewport_rect().size
 	var at := cam.unproject_position(chest)
+	# Feel audit 2026-11-04 item 3: the rows sat over the pile. They go on the side away from the foes
+	# near him (screen x, with PILE_SLACK px of hysteresis), then flip in from the edges.
+	var pile := _pile_dx(cam, player.global_position, at)
+	if pile > PILE_SLACK:
+		_side = -1.0
+	elif pile < -PILE_SLACK:
+		_side = 1.0
+	if _side < 0.0 and at.x < EDGE:
+		_side = 1.0
 	# Flip to the left near the right edge (with some slack so it doesn't flicker).
 	if _side > 0.0 and at.x > screen.x - EDGE:
 		_side = -1.0
@@ -267,3 +278,14 @@ func _text(at: Vector2, s: String, size: int, c: Color) -> void:
 	var p := Vector2(at.x, at.y + size * 0.36)
 	draw_string_outline(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, maxi(3, size / 5), Color(0.04, 0.02, 0.06, c.a))
 	draw_string(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, c)
+
+
+## Mean screen x of the foes within PILE_RADIUS of `from`, minus his (`at`); 0 with none.
+func _pile_dx(cam: Camera3D, from: Vector3, at: Vector2) -> float:
+	var sum := 0.0
+	var n := 0
+	for e: Node3D in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(e) and e.global_position.distance_to(from) < PILE_RADIUS and not cam.is_position_behind(e.global_position):
+			sum += cam.unproject_position(e.global_position).x - at.x
+			n += 1
+	return sum / n if n > 0 else 0.0

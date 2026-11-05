@@ -16,33 +16,37 @@ Cold Front, Avalanche, Meteor Fall, Collapse, Maw, Abyss). This doc is the share
 
 ### Movement in the strings
 
-Moves can leave the floor (`MOVES` keys, `player._hop()`; only the model lifts, the body stays):
+Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lifts, the body stays):
 - `hop` = [start, end, height]: an arc between those fractions of the move (L2, L3, EC, DL).
   A move started in the air comes down by its first hit (`land` overrides).
 - `air`: holds the height the move started at; `climb` adds metres by its first hit (AL1
   climbs off Updraft Lash, IJ vaults 2.4 m onto the frost spear). The climb stops at `AIR_MAX_HEIGHT`.
-- Landing from a hop is a slam that grows with the fall (`_land_slam()`, `SLAM_FULL_HEIGHT`,
+- Landing from a hop is a slam that grows with the fall (`land_slam()`, `SLAM_FULL_HEIGHT`,
   `SLAM_SCALE`); a move that starts in the air deals +`PLUNGE_PER_M` per metre (`plunge_mult()`).
-- Moves started in the air home in on the nearest airborne foe (`_air_home()`, `AIR_HOME_RANGE`, `AIR_HOME_MAX`).
+- Moves started in the air home in on the nearest airborne foe (`air_home()`, `AIR_HOME_RANGE`, `AIR_HOME_MAX`).
 - Air dash: dashing out of `AIR_DASH_FROM` (AL1) at least `AIR_DASH_MIN` up keeps his height, once
-  per trip up (`AIR_DASHES`), and cuts with a spectral axe (`_air_dash_cut()`, [spirit-casts.md](spirit-casts.md)).
+  per trip up (`AIR_DASHES`), and cuts with a spectral axe (`air_dash_cut()`, [spirit-casts.md](spirit-casts.md)).
+  All of these, and their constants, are in `scripts/hero_moves.gd`.
 
 ## Files
 
 - `scripts/void_element.gd`: `BREAKERS` (per breaker keys over the shared `_WINDOW` defaults, merged by
   `entry()`), `breaker_impact()` (each slam's effect), `breaker_element()`.
-- `scripts/player.gd`:
-  - `_breaker_for(id)`: the merged entry when the move has one; `_do_hit` starts the leap at the entry's `leap`.
-  - `_start_leap()`: state `LEAP`, the zone `zone` m ahead (`_clear_ahead`), `void_grab.seize()`, `_brk_aim()`
-    (`at_spot` breakers land `short` of `void_grab.dark_spot`; Meteor Fall on the held foe).
-  - `_state_leap()`: phase 0 rise / hang / cue / window / press, phase 1 dive (comet trail `_comet()`),
-    phase 2 float down. `_breaker_pressed()` (heavy, L for `alt`, or the bot at `sweet`).
-  - `_start_dive()`, `_breaker_impact()`, `_breaker_callout()`, `_leap_dash_out()`, `_end_leap()`.
-  - `breaker_window()`: what the prompt reads. `breakers_landed`, `breaker_perfects`: the autotest's counts.
+- `scripts/hero_leap.gd` (static functions over the hero; the `_brk_*` state stays on `player.gd`), with the
+  `BREAKER_*` constants:
+  - `entry_for(id)` (`player._breaker_for`): the merged entry when the move has one; `player._state_attack`
+    starts the leap at the entry's `leap` once the move has connected.
+  - `start()` (`player._start_leap`): state `LEAP`, the zone `zone` m ahead (`_clear_ahead`), `void_grab.seize()`,
+    `_aim()` (`at_spot` breakers land `short` of `void_grab.dark_spot`; Meteor Fall on the held foe).
+  - `tick()` (State.LEAP each frame): phase 0 rise / hang / cue / window / press, phase 1 dive (comet trail
+    `_comet()`), phase 2 float down. `_pressed()` (heavy, L for `alt`, or the bot at `sweet`).
+  - `_start_dive()`, `_impact()`, `_callout()`, `_dash_out()`, `_end()`.
+  - `window()` (`player.breaker_window`): what the prompt reads. `player.breakers_landed`, `breaker_perfects`:
+    the autotest's counts.
 - `scripts/breaker_cue.gd`: the floor cue: a target ring and a closing ring that meet at `sweet`; `lock()`, `hit(perfect)`.
 - `scripts/breaker_prompt.gd`: the timing circle up and to his left (the combo guide is on his right; `OFFSET`),
   filling to the sweet spot with the button(s) and the breaker's name; on the player's own CanvasLayer.
-- `scripts/comic_comet.gd`: the inked dive streak and landing star (`beat()` from `player._comet()`; the comet hangs off the model as the `comic_comet` meta).
+- `scripts/comic_comet.gd`: the inked dive streak and landing star (`beat()` from `hero_leap._comet()`; the comet hangs off the model as the `comic_comet` meta).
 - `scripts/breaker_quake.gd`: the barbaric look: `war_cry()` as the window opens, `crater()` on landing (not for
   `press` / `at_spot` breakers, which have their own), the element vents.
 
@@ -63,8 +67,10 @@ Moves can leave the floor (`MOVES` keys, `player._hop()`; only the model lifts, 
 ### Look
 
 The breaker draws flat and inked: the cue is always `crisp` (a paper target ring that turns gold in the
-window and a fat closing ring in the breaker's colour, each between two ink bands, rebuilt every frame so
-the band keeps its width as it closes), the war cry is radial speed strokes round him and one inked hoop
+window and a closing ring in the breaker's colour, each between two ink bands, rebuilt every frame so
+the band keeps its width as it closes: `CRISP_TARGET_W` 0.12 m, `CRISP_CLOSING_W` 0.15, `CRISP_INK` 0.055; at
+0.16 / 0.24 / 0.07 the closing ring was a fat green hoop over every Live Wire frame), the war cry is radial
+speed strokes round him and one thin inked hoop (`WAR_CRY_RING_W` 0.08 m)
 under him (no shell, no glow dots, no smoke), and the dive is `scripts/comic_comet.gd`: one fat streak back
 along his path (ink, element colour, hot core, at least `MIN_TAIL` m long because a tentacle breaker barely
 moves him) that ends, when `comet()` stops being called, in a held-frame impact star at his feet
@@ -81,7 +87,13 @@ moves him) that ends, when `comet()` stops being called, in a held-frame impact 
 
 - `VOID_ELEMENT._WINDOW`: `rise`, `height`, `back`, `zone`, `cue`, `open`, `sweet`, `close`, `perfect`, `dive`,
   `perfect_mult`, `fall`. Per breaker overrides in `BREAKERS` (`damage`, `leap`, `awaken`, `awaken_perfect`, `height`, `short`, ...).
-- `player.BREAKER_FOCUS` (0.6), `BREAKER_FOCUS_ZOOM` (0.86), `BREAKER_PERFECT_STOP` (0.07), `BREAKER_SPILL` (0.12), `BREAKER_EARLY` (0.08).
+- `player.BREAKER_FOCUS` (0.6), `BREAKER_FOCUS_ZOOM` (0.86), `BREAKER_PERFECT_STOP` (0.07), `BREAKER_SPILL` (0.12), `BREAKER_EARLY` (0.12; 0.08 before round 30).
+- **One window rhythm for every element** (round 30): `entry()` sets `open` = `rise` + `VOID_ELEMENT.BREAKER_HANG` (0.1),
+  `sweet` = open + `BREAKER_TO_SWEET` (0.14), `close` = open + `BREAKER_TO_CLOSE` (0.32), unless a breaker sets `open`
+  itself. The default rise (0.2) keeps 0.3 / 0.44 / 0.62, so Avalanche and the dark ones are unchanged; Meteor Fall's
+  0.28 rise used to open 0.02 s after the top and now opens 0.38 / 0.52 / 0.70.
+- Press timeline from take-off (default rise): 0-0.12 spill (ignored), 0.12-0.18 locks, 0.18-0.30 held (dives as it opens),
+  0.30-0.62 the window, 0.38-0.50 PERFECT. `tests/rhythm_check.gd` prints each breaker's numbers and checks the held press.
 
 ## Extending
 
@@ -94,7 +106,9 @@ so the autotest lands it.
 - `godot --headless --path . -s tests/void_arm_check.gd`: the breakers' timing, holds and slams (PASS/FAIL).
 - `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero.
 - `godot --headless --path . -- --autotest`: prints `[autotest] combo_breaker #N <id> perfect=` per breaker and
-  `breakers= perfect_breakers=` on the done line.
+  `breakers=N/N perfect_breakers=` on the done line. The bot resets the dummies to their homes and the hero to
+  `training_bot.BOT_SPOT` before each string and presses `BOT_LEAD` before each cancel point, so the run repeats
+  exactly; `agent.sh check` fails unless `breakers=7/7` and `strings=13/13`.
 - Windowed: `godot --path . -s tests/breaker_prompt_preview.gd` → `user://breaker_prompt.png`; `tests/element_shots.gd`
   for each slam.
 

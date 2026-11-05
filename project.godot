@@ -7,7 +7,7 @@ config_version=5
 [application]
 
 config/name="Awaken"
-config/description="Fast-paced combo roguelike hack and slash."
+config/description="Fast-paced 3D combo hack and slash: the heretic in a training room."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 

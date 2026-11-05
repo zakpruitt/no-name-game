@@ -20,7 +20,9 @@ How to make more models like this: [meshy-pipeline.md](meshy-pipeline.md).
 | `tools/meshy_rig/heretic_audit.py` | Prints a hero GLB's tris, materials, texture, bones, rig-contract chains and height |
 | `tools/meshy_rig/chibi_decimate.py` | Meshy GLB → welded, decimated (two collapse passes), recentred, optionally mirrored GLB, plus front/side/back/top renders |
 | `tools/meshy_rig/chibi_paint.py` | Repaints the chibi's claw texels (found from the hand's UV triangles) in the heretic's magenta |
-| `assets/comic/heretic_chibi.glb` | The chibi heretic (`--hero=chibi`), same rig contract |
+| `tools/meshy_rig/chibi_keys.py` | The chibi's hand-keyed clips (L1, AL1, L2, L3, DL, GR, VS, Idle, Idle_Ready, Run_F) and claw keys on the rest, over the baked blend, then the GLB again |
+| `tools/meshy_rig/chibi_face.py` | Hides the chibi's chin and nose in the hood's shadow (skin texels under the face's UV triangles go dark indigo) and brightens the eye texels to cyan |
+| `assets/comic/heretic_chibi.glb` | The chibi heretic, the default hero since round 29 (`--hero=heretic` for the old one), same rig contract |
 | `assets/comic/heretic.glb` | The result |
 | `scripts/heretic_rig.gd` | Modifier: sway, weapon changes, limb pose off attacks; adds the skirt's `SpringBoneSimulator3D` |
 | `scripts/heretic_form_fx.gd` | The burst on a change: flat camera-facing shapes redrawn on twos. `LOOKS` holds each form's tones, star size and chips |
@@ -64,20 +66,21 @@ Result: same tris, bones and clips; `heretic_shots`, `comic_check`, `training_ch
 
 Two Meshy candidates were generated for a new base (60 credits, see [art-direction.md](art-direction.md)) and neither was used: one realistic with no tentacle arm, one chibi with a broken patchwork texture. Both are in `vendor_src/meshy/source/` (`cand1_t2r_01a1a6bc.glb`, `chibi_t2r_01a1a6c4.glb`); the chibi's Meshy task ids are preview `01a1a6c3-871e-77fc-89fd-883d5fac3e76`, refine `01a1a6c4-842d-77b6-9f97-05a5d24782e8`, so it can be retextured and auto-rigged from Meshy without generating again.
 
-## The chibi heretic (round 29, selectable)
+## The chibi heretic (round 29, the default)
 
-A second heretic model with the same rig contract: `assets/comic/heretic_chibi.glb`. Pick it with `--hero=chibi` (this process only), or Settings → "Hero model (next run)": Heretic / Chibi heretic (saved as `video/hero_model`, only written when not the default). `--hero=heretic` forces the default. `Game.hero_model` picks the file through `ComicLook.HERETIC_MODELS`; the kind stays `heretic`, so `KIND_TONES`, `CLIPS`, `heretic_rig.gd` and every `hero_kind() == HERETIC` check work for both. `painted()` caches per texture, since both models call their material `P_HereticPaint`. Default is still the round-28 heretic until Zak picks.
+A second heretic model with the same rig contract: `assets/comic/heretic_chibi.glb`. **It is the default hero** (`Game.HERO_DEFAULT = "chibi"`), an orchestrator decision in round 29 that Zak can veto by changing that one constant. `--hero=heretic` plays the round-28 model for this process only, or Settings → "Hero model (on restart)": Chibi heretic / Heretic (saved as `video/hero_model`, only written when not the default). `--hero=chibi` forces the default. `Game.hero_model` picks the file through `ComicLook.HERETIC_MODELS`; the kind stays `heretic`, so `KIND_TONES`, `CLIPS`, `heretic_rig.gd` and every `hero_kind() == HERETIC` check work for both. `painted()` caches per texture, since both models call their material `P_HereticPaint`.
 
 What it is: the round-29 chibi candidate (big pointed bone-white hood, short body, a six-claw tentacle hand on an ordinary right arm), decimated, mirrored so the claw is the right hand, retextured and auto-rigged through Meshy's REST API, then rebuilt with `heretic_rig.py ... chibi`.
 
 | | Heretic | Chibi |
 |---|---|---|
 | Body tris | 15,901 | 21,999 (23,223 with weapons) |
-| Height | 2.2 m | 1.75 m |
+| Height | 2.2 m | 1.85 m (1.75 m before round 29's second pass) |
 | Bones | 101 (21 tent, 36 skirt, 15 fingers) | 89 (24 tent, 36 skirt, no fingers) |
-| Tentacle | five tips on a tentacle arm | six claws (`main`, `up`, `out`, `mid`, `low`, `back`) from the wrist |
+| Tentacle | five tips on a tentacle arm | six claws (`main`, `up`, `out`, `mid`, `low`, `back`) from the wrist, grown 1.5x about it |
 | Weapons | old hero's size (axe 2.75 m) | x0.7 about the hand: axe 1.92 m, spear 1.88 m, hammer 1.34 m |
-| Texture | flattened Meshy paint | Meshy retexture as is (already flat), claws repainted magenta |
+| Texture | flattened Meshy paint | Meshy retexture as is (already flat), claws repainted magenta, face under the hood darkened |
+| Eyes | none | `heretic_rig.gd` `EYES`: two glowing cyan almonds at the hood's brim |
 
 Rebuild (from the repo root, Blender 5.2, absolute Windows paths; sources in `vendor_src/meshy/source/` and `vendor_src/meshy/chibi/`):
 
@@ -88,10 +91,11 @@ blender -b --factory-startup -P tools/meshy_rig/chibi_decimate.py -- vendor_src/
 #   -> task 01a1a6d9-45e2-7612-983b-118deb1b38ed (5 credits): vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx
 blender -b --factory-startup -P tools/meshy_rig/heretic_rig.py -- vendor_src/meshy/source/chibi_rig_01a1a6d9/chibi_rigged.fbx vendor_src/meshy/chibi/chibi_rig_v1.blend chibi
 blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/chibi_paint.py -- vendor_src/meshy/chibi/paint.png
-blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/chibi/paint.png vendor_src/meshy/chibi/chibi_rig_v2.blend 0 1 1
-blender -b vendor_src/meshy/chibi/chibi_rig_v2.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/chibi/out/heretic_chibi.glb 1.75 0.7
-python tools/comic_glb.py vendor_src/meshy/chibi/out heretic_chibi
-python -c "from PIL import Image; Image.open('vendor_src/meshy/chibi/paint.png').convert('RGB').save('assets/comic/heretic_chibi_Material_0_baseColor.jpg', quality=92)"
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/chibi_face.py -- vendor_src/meshy/chibi/paint.png vendor_src/meshy/chibi/face.png
+blender -b vendor_src/meshy/chibi/chibi_rig_v1.blend -P tools/meshy_rig/heretic_refine.py -- vendor_src/meshy/chibi/face.png vendor_src/meshy/chibi/chibi_rig_v3_1.5.blend 0 1 1 1.5
+blender -b vendor_src/meshy/chibi/chibi_rig_v3_1.5.blend -P tools/meshy_rig/heretic_bake.py -- assets/comic/shaman_comic.glb vendor_src/meshy/chibi/out_1.5/heretic_chibi.glb 1.85 0.7
+python tools/comic_glb.py vendor_src/meshy/chibi/out_1.5 heretic_chibi
+python -c "from PIL import Image; Image.open('vendor_src/meshy/chibi/face.png').convert('RGB').save('assets/comic/heretic_chibi_Material_0_baseColor.jpg', quality=92)"
 godot --headless --import --path .
 ```
 
@@ -99,7 +103,72 @@ The `chibi` profile in `heretic_rig.py` holds its values: Meshy's REST rig names
 
 `heretic_rig.gd` reads chain lengths from the skeleton (up to `MAX_CHAIN` bones per tip) and also sways a `back` tip, so the chibi's sixth claw moves; the heretic has no `back` chain and is unchanged.
 
-Seen in windowed `heretic_shots` stills only (`user://heretic_shots_chibi/`), not played. From the game camera the hood is a big pale shape that reads clearly on the indigo floor, and the weapons are about his height. The claw hand is small next to the old tentacle arm, and the face is hidden from above.
+Seen in windowed `heretic_shots` stills only (`user://heretic_shots_chibi/`), not played. From the game camera the hood is a big pale shape that reads clearly on the indigo floor, and the weapons are about his height.
+
+### Second pass (round 29): claw, height, face, eyes, grip
+
+From the game camera the first chibi read clean and on-style, but the claw hand was too small to read at rest, the pale chin and nose showed under the hood, the weapon-change star sat over the hood, and the grab and slam did little with the claw. What changed:
+- **Claw 1.5x** about the right wrist (`heretic_refine.py`'s sixth argument, `claw_scale`): every vertex weighted to `hand.r` or `tent.*` grows by its weight, and the `tent.*` bones and `hand.r`'s tail move with it so the claws bend at their own joints; `hand.r`'s head stays on the wrist, so weapons sit where they did. 1.3, 1.4 and 1.5 were compared at the game camera (scratchpad `chibi_claw_scales.png`): 1.5 is the first that reads as a big claw at rest without tearing at the wrist. Same 21,999 tris and 89 bones.
+- **Baked at 1.85 m** (was 1.75 m), so he is about as big on screen as the old 2.2 m heretic's bulk; weapons stay x0.7 (axe 1.92 m), about his height.
+- **Face in shadow** (`chibi_face.py`): head triangles inside a box round the hood opening (x -0.2..0.28, y -0.05..0.3, z 0.92..1.3 m on `chibi_rig_v1.blend`), texels of hue .02-.075, saturation .21-.45, value over .7 (the peach skin; the hood's bone white is hue .1, saturation under .2) go to (0.045, 0.035, 0.085); 36,806 texels. The jagged lower edge of the black mask is left pale and reads as a sawtooth grin. Eye texels (hue .4-.56) go bright cyan.
+- **Glowing eyes** (`heretic_rig.gd` `EYES`, per `Game.hero_model`): from the game camera, 54 degrees down, the hood hides the face entirely, so a texture can't be seen. Two flat camera-facing almonds (ink, cyan `EYE_LOW`, white core; 9.5 x 4 cm, inner corners tilted down 16 degrees) on a `BoneAttachment3D` on `head`, at the texture's eyes pushed forward to the brim (skeleton space (-0.034, 1.25, 0.13) and (0.155, 1.25, 0.13)). They draw with no depth test, like the burst, and hide when his face turns more than about 80 degrees from the camera (`EYE_FACING`). In the stills they read as two cyan slits under the hood when he faces the camera, and as a pair of specks from the game camera. They need `cull_mode = CULL_DISABLED`: the fan winds the wrong way for Godot and was culled the first time. Since round 29's second animation pass each eye also hides while the claw or a weapon is between it and the camera (`_covered`: any point along `hand.r`, the `tent.*` bones and their midpoints, or a haft that is out, nearer the camera than the eye and within `EYE_CLAW_R` (7 cm, times the hand's swell) plus the eye's half-width of its line of sight), so they read over the hood but behind a lifted claw. It runs last in the modifier, on this frame's claw.
+- **Burst off the hood**: `heretic_form_fx.STAR_OFF_HAND` 0.6 → 1.5 of the star's size up the haft. Axe and hammer stars now sit above the hood at +20/+60/+100 ms; the spear's, which points down and forward, still touches the hood's edge from the game camera.
+- **Claw grip on GR and VS** (`heretic_rig.gd` `GRIP_MOVES`, visual only): reads `player._move_id` and how far the clip has played against the move's first hit. GR splays the claws back as it reaches (up to `GRIP_SPLAY_DEG` 22 per bone, the claws' base swelling `GRIP_SPLAY_GROW` 1.18) and snaps them shut on the hit (`GRIP_CLENCH_DEG` 32 per bone, in `GRIP_SNAP` 0.05 s); VS holds them clenched with a shake (`GRIP_SHAKE_DEG` 6 at 19 Hz) while it heaves, then flings them open on the slam. Only when the form is `hand`; it fades back to the free sway over `GRIP_FADE` 0.15 s. The main tentacle curls with the claws. `heretic_shots` checks the four states and the release.
+
+Before/after sheet at the game camera: scratchpad `chibi_round3_sheet.png` (idle, run, L1-L3, GR reach and catch, VS lift and slam, change frames).
+
+## Animation (round 29: the chibi's own clips)
+
+The chibi's signature clips are hand-keyed on his own rig by `tools/meshy_rig/chibi_keys.py`, written over the shaman clips `heretic_bake.py` copied, and exported again with the same bones, weapons and clip names. The round-28 heretic (`heretic.glb`) is unchanged.
+
+| Clip | Moves | Frames (30 fps) | Contact before | Contact after | What it does |
+|---|---|---|---|---|---|
+| `Ab_L1` | L1 | 31 (1.033 s) | 11 (0.367 s) | 11 (0.367 s) | axe cocked behind his right shoulder, crouched and squashed; one smear drawing; a flat cut across the front to his left, held 5 frames, small overshoot |
+| `Ab_AL1` | AL1 | 30 (1.0 s) | 11 (0.367 s) | 11 (0.367 s) | L1's keys in the air, legs tucked |
+| `Ab_L2` | L2 | 33 (1.1 s) | 12 (0.4 s) | 12 (0.4 s) | coiled back with the spear cocked out to his right, then punched straight out with the body lunging behind it |
+| `Ab_L3` | L3 | 56 (1.867 s) | 24 (0.8 s) | 24 (0.8 s) | rises tall with the hammer behind his head (held 6 frames), crashes it onto the floor ahead, squashed flat |
+| `Ab_DL` | DL | 61 (2.033 s) | 12 (0.4 s) | 12 (0.4 s) | crouch, spear cocked up for the pounce, stabbed down ahead with the body stretched after it |
+| `Ab_GR` | GR, EE, EW, EA, EV, VD, TW | 31 (1.033 s) | hit 0.248 s | hand arrives frame 5 (0.167 s), claws snap shut frame 7 (0.233 s), held to 12 | claw pulled back splayed, shot out at full reach swollen 1.45x, snapped shut, yanked home |
+| `Ab_VS` | VS, OW, IS | 46 (1.533 s) | hit 0.598 s | slam frame 17 (0.567 s), held to 23 | the catch heaved over his head clenched and shaking, smashed down ahead with the claws flung open |
+| `Idle` | relaxed | 121 (4.033 s) | | | slow breath, hood bobbing behind it, claw held out a little at his side, swollen 1.2x, opening and closing once a loop and drifting out and back, one flex |
+| `Idle_Ready` | the guard | 41 (1.367 s) | | | low, claw up and open in front, a quick bounce |
+| `Run_F` | running ahead | 21 (0.7 s) | | | two bounces a cycle, leaning in, claw trailing out behind, fist pumping; left foot down on 1, right on 11 like the old one; hips sway 5 cm and roll 10 degrees over the planted foot (`RUN_SWAY`, `RUN_ROLL`) |
+| `Ab_LH` | EC, IJ | 51 (1.7 s) | 16 (0.533 s) | 14 (0.467 s; EC hits at 0.493 s) | crouched and twisted, claw dragged back low and splayed; raked along the floor ahead under them (swollen 1.45x), held; clenched and heaved overhead in four drawings while the game's hop lifts him, tall and stretched |
+| `Ab_H` | VR | 63 (2.1 s) | 42 (the shaman's spin) | 15 (0.5 s; VR hits at 0.504 s) | claw cocked high behind his right shoulder, splayed; one smear; a flat crescent across the front to his left, claws wide, swollen 1.4-1.5x, held; shut on the follow-through |
+| `Ab_LLH` | EF, IP | 59 (1.967 s) | 21 (0.7 s) | 20 (0.667 s; hit 0.669 s) | up on his toes, tall, spear raised high and turned tip-down, a shake at the top; lunged and driven into the floor ahead at -22 degrees, squashed flat, held, leaning on it |
+| `Ab_AF` | EM | 99 (3.3 s) | 51 (1.7 s) | 50 (1.667 s; hit 1.683 s) | a drawing every 6 frames (played at 1.7 x 1.6): claw pulled back to his hip, clenched into a fist swelling to 1.5x, shaking; shoved out flat ahead as a huge open palm (1.65x), body lunging after it, held |
+| `Hit_A` | getting hit | 21 (0.7 s) | | | knocked back on frame 2 with the hood squashed flat and wide and the claw flung open, held 5 frames, a stretched rebound, back to the guard |
+| `Dodge_Forward` | the dash | 13 (0.433 s) | | | a drawing every 2 frames: a squash, then a long streak (pitched 40 degrees, hood stretched along the dash, claw and fist trailing straight back, feet behind), snapped back with a small squash |
+| `Run_B`, `Strafe_L`, `Strafe_R` | running back and sideways | 21 (0.7 s) | | | Run_F's footfalls (left down on 1, right on 11), the planted foot sliding against the travel; back: leaning back, claw up in guard; sideways: facing ahead, leaning into the step |
+| `Jump_Start`, `Jump_Idle` | the breaker leap | 20, 33 | | | a deep squash, sprung up stretched with the claw thrown up beside his head; then tucked and hanging, claw high and splayed, slowly flexing |
+
+Moves outside `HERO_MOVES` (the tentacle moves: GR and the six other Ab_GR moves, VS / OW, EC, VR, EF, IP, EM) play their clips raw, and since round 30 (second pass) their first hit is the chibi's keyed contact exactly: `void_element.gd` `GR_HIT` (f7, the claw snap), `VS_HIT` (f17, the slam), `LH_HIT` (f14), `H_HIT` (f15), `LLH_HIT` (f20), `AF_HIT` (f50), with cancel / end / breaker `leap` keeping their time after the hit. `tests/contact_frames.gd` measures them (`VOID_CLIPS`: the 40% swing rule, or for Ab_GR the claw snap, since the 40% rule finds its yank home on f16) and `comic_check` fails on a mismatch. IJ (the vault) and IS (Avalanche's ender) are exempt (`VOID_EXEMPT`). The round-28 heretic's clips are the shaman's and contact 1-27 frames later; contact_frames prints how far (`info`).
+
+Lengths are unchanged and every `HERO_MOVES` contact frame (the last frame `hand.r` moves at 40% of its peak, `tests/contact_frames.gd`) lands where it did, so `ComicLook.HERO_MOVES` and `player.MOVES` are unchanged and both models share the table. GR and VS are not in `HERO_MOVES`: their hits are `MOVES`' fractions set from the keyed contact (above), so the hitstop freezes on the snap and the slam.
+
+Every other clip is still the shaman's. Those the game plays (`PLAYED`: Death_A, the fidgets, 2H_Melee_Idle, Ab_Swing) get claw keys (`copied_claws`): half curled, splaying into the clip's contact (found by the same 40% rule on its hand), clenched on it for 4 frames, easing back, a drawing every 6 frames; loops get a slow curl. The 27 clips nothing plays get none.
+
+**GLB size.** 2.93 MB baked, 4.07 MB after round 29's claw keys (written every frame on all 50 clips), 2.96 MB now with 21 clips keyed. Each track is a sampler, two accessors and buffer views in the GLB's JSON (about 280 bytes of JSON per track before any keys), so the track count matters as much as the keys. `write()` keys claws only where a drawing changes, CONSTANT (glTF STEP), and everything else on the frame before each change and on the change, LINEAR: the same curve as a key on every frame. `share_anim_accessors` then shares byte-identical sampler accessors and repacks the BIN (lossless, about 40 KB). `contact_frames.gd` measures the same contacts as before.
+
+**How a clip is keyed.** `CLIPS` lists each clip's extremes, `(frame, pose, ease to the next)`. A drawing falls every `STEP_ATTACK` (4) frames for attacks, `STEP_STANCE` (3) for stances, and on every extreme; each drawing is the eased mix of the extremes round it and is held to the next: on twos at the game's play speed (1.7 for attacks, 1.1 for stances), with the move to a new drawing taking one 30 fps frame. Poses say where things go, not bone angles: `rh` (az, el, r) puts the right hand from its shoulder (az 0 ahead, +90 his right), `w` where the weapon or the bare claw points, `f` the axe edge's facing; two-bone IK solves both arms and both legs (feet planted from `fl`/`fr`), the torso takes `hip`/`hipr`/`spine`/`chest`/`head` as world-space turns on top of their parents, `hsq` squashes the hood (wide and short on anticipation and impact, tall on the smear; a squash also widens it `HSQ_WIDE` (0.6) past volume, since height barely reads from 54 degrees up), `hs` swells the hand and with it the claw or weapon on smears and reaches, `claw` -1..1 splays or clenches all six claws about each bone's own curl axis (towards the claw's middle line), `clawph` ripples them.
+
+The script checks each `HERO_MOVES` clip's contact with the game's rule before exporting and prints `CONTACT MISMATCH` if one moved. Every step after the contact must move the hand less than 40% of the swing's biggest step, so recoveries are split into several keys.
+
+Rebuild (from the repo root, Blender 5.2, absolute Windows paths; the baked blend is the one `heretic_bake.py` saves beside its GLB):
+
+```
+blender -b vendor_src/meshy/chibi/out_1.5/heretic_chibi_baked.blend -P tools/meshy_rig/chibi_keys.py -- vendor_src/meshy/chibi/out_keys/heretic_chibi.glb
+python tools/comic_glb.py vendor_src/meshy/chibi/out_keys heretic_chibi
+godot --headless --import --path .
+godot --headless --path . -s tests/contact_frames.gd   # both models must print "ok"
+godot --path . -s tests/heretic_shots.gd -- --clips --clips-tag=after [--clips-only=Ab_L1] [--clips-near=0.35]
+```
+
+`--clips` films every clip the game plays on him at 12 drawings a second of play time from the game camera, cropped round him, to `user://heretic_shots_chibi/clips_<tag>/` with an `INDEX.txt` (clip time, hit frame). `--clips-near` moves the camera in along the same angle to check a pose.
+
+Game side (`heretic_rig.gd`): `keyed` is true when the clips key the claws (`CLAW_TRACK` in `Idle`). Then the sway adds on top of the clip's claw pose instead of the rest, `GRIP_MOVES` (the procedural grip) is skipped, clips in `KEYED_ARM` keep their arm off attacks instead of easing to the rest spread, and the loose claws stay out round a weapon at `KEYED_COLLAPSED` (0.8) instead of pulling in to 0.04, curled by the clip. `heretic_shots` measures the keyed grip from the clip's tracks (claw spread in hand space: GR's reach 0.40 m and VS's slam 0.40 m against 0.27 m at rest; GR's catch and VS's lift 0.10 m).
+
+What the game camera showed (before/after strips, anticipation / contact / follow-through): L1's axe now cuts across the front instead of pointing at the camera mid-swing; L2's spear is fully out ahead at contact; L3's hammer lands on the floor ahead (before, it stood upright behind him at the hit; at first keyed through the floor and vanished, fixed at -16 degrees); GR reads as a reach and a snap; VS's claw shows over the hood on the lift and splays wide on the slam. Vertical motion (the hood squash, the run's bounce) barely shows from 54 degrees up; what reads is the weapon's direction, the claw's size and the torso's twist. Seen in windowed stills only, not played.
 
 ## The rig
 
@@ -133,11 +202,11 @@ The burst uses its own flat material, not `Fx.flare` or `Fx.burst`: soft glows a
 - Read modifier results inside `Skeleton3D.skeleton_updated`. The skeleton restores poses afterwards, so reading them later shows the pre-modifier pose.
 - `void_arm.rest_form` is `"hand"`: a free tentacle at rest, weapons only form to strike. `void_arm_check` expects it.
 - `ComicLook.HERO_FORMS` lists only meshes in his GLB (the old arm's `void_surge`, `void_seep` and `void_frost` went in round 28).
-- `ComicLook.HERO_MOVES` `frames` / `hit` are the shaman's 24 fps counts; his own `Ab_` clips run other lengths (L1 1.033 s, L2 1.1 s, L3 1.867 s, DL 2.033 s, AL1 1.0 s), so only `hit / frames` is used as the hit fraction. Re-measure the hit frames on his clips.
+- `ComicLook.HERO_MOVES` `frames` / `hit` are his own clips' 30 fps counts (`HERO_CLIP_FPS`; `heretic_bake.py` resampled the shaman's 24 fps keys and put one hold frame first, so every pose is 1/30 s later than the shaman's). `hit` is the contact frame, where the weapon hand's swing arrives: L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30 (round 30; the shaman's counts had each hit 27-54 ms of clip time early). Both models (heretic and chibi) measure the same. After re-keying or re-baking a clip run `godot --headless --path . -s tests/contact_frames.gd`: it measures every model's contact frames off the GLB tracks (`HERO_CONTACT_SPEED`) and prints the `hit` / `frames` each `HERO_MOVES` line should have; `comic_check` fails until the table matches every model in `HERETIC_MODELS` (if two models stop agreeing, the table has to become per model).
 
 ## Not done
 
-- Clips are still the old hero's. Nothing is keyed for tentacles, so swings read as an arm with a weapon.
+- The round-28 heretic's clips are still the old hero's, with nothing keyed for the tentacles. The chibi's played clips are keyed (Animation, above) except Death_A, the fidgets, 2H_Melee_Idle and Ab_Swing, still the shaman's with keyed claws. None of the keyed clips has been played by hand, only filmed.
 - The change has no sound of its own.
 - The orbiting motes are still the old soft cyan dots (`elements.Orbit`).
 - Weapons are the old hero's size: axe 2.75 m and spear 2.68 m on a 2.2 m hero.

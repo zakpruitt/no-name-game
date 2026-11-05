@@ -230,6 +230,7 @@ func _text() -> void:
 		if n is CanvasLayer and n.has_method("_word"):
 			fx = n
 	var hero: Vector3 = _main.player.global_position
+	fx.replace = false  # the lineup: all four tiers at once
 	for tier in 4:
 		fx._last_word_ms = -100000
 		fx._word(hero + Vector3((tier - 1.5) * 4.0, 0.0, 2.0), tier)

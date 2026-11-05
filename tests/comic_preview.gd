@@ -59,6 +59,7 @@ func _lineup(main: Node) -> void:
 
 func _text(main: Node, game: Node) -> void:
 	var fx: Node = main.get_children().filter(func(n: Node) -> bool: return n is CanvasLayer and n.has_method("_word"))[0]
+	fx.replace = false  # the lineup: all four tiers at once
 	for tier in 4:
 		fx._last_word_ms = -100000
 		fx._word(main.player.global_position + Vector3((tier - 1.5) * 4.0, 0.0, 2.0), tier)

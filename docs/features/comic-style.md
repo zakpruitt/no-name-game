@@ -28,7 +28,8 @@ There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Set
 | `scripts/enemy.gd` | `comic_kind`, the mapping in `_play`, `_hold_clip`, `_clip_speed`, `_attach_comic_spark` |
 | `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
 | `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` |
-| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move`, `_axe_mesh`; mouse aim: `_mouse_aiming`, `_mouse_dir`, `_turned`, `_aim_want`, `_play_locomotion` |
+| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move` (`hero_moves.effective_move`), `_axe_mesh`, `_turned`, `_play_locomotion` |
+| `scripts/hero_input.gd` | mouse aim: `mouse_aiming`, `mouse_dir`, `steer`, `aim`, `aim_want` |
 | `tools/comic_glb.py` | Copies GLBs into `assets/comic`, moving `g` to `COLOR_0` |
 | `assets/fonts/` | Bangers + `OFL.txt` (see `CREDITS.md`) |
 
@@ -42,6 +43,107 @@ and the scripts hardcode that path. If you change the live scripts, copy them ba
 `tools/comic_art/` in the same commit. The effects and reels in `comic_vfx.py` and `ability_vfx.py`
 are Blender only; the game has just the words from `ComicFx`, and its casts keep their
 existing look.
+
+## Foe proportions (round 29)
+
+The foes were built at realistic skeleton proportions and stood beside the chibi hero like another
+artist's work. `tools/comic_art/chibi_pass.py` reshapes each finished enemy `.blend` without
+re-rigging: same bones, names, weights and clips. Each bone gets an affine map of rest space:
+`head` 1.5x about the neck (hoods, hats, horns and jaw ride along), hands 1.35x (and whatever they
+hold), feet 1.3x, legs 0.62 along and 1.28 across, arms 0.9 / 1.18, spine and chest 0.84 / 1.1,
+hips 1.08. A bone scales along and across its own axis, so its direction and every rotation key
+keep their meaning; unlisted bones move rigidly with their parent; bones hanging to the floor
+(robe hems, tails) keep their spread and squash in Z. Vertices move by their weights' blend of the
+maps, everything drops until the feet are on z = 0 again, and root/hips location keys shrink by the
+hip-height ratio. The archer's arrow is re-aimed from the nock every frame. Per-kind tweaks are in
+`KIND` (mage hat, archer bow, shield, Warden cleaver and key chain, rogue and bomber legs).
+
+| Kind | tris | height before -> after (m, weapon up) | hips (m) |
+|---|---|---|---|
+| minion | 5,482 | 2.21 -> 2.29 | 0.72 -> 0.53 |
+| rogue | 6,370 | 1.24 -> 1.29 | 0.58 -> 0.49 |
+| shield | 8,576 | 2.06 -> 2.20 | 0.66 -> 0.49 |
+| warrior | 8,250 | 2.07 -> 2.08 | 0.86 -> 0.63 |
+| mage | 9,164 | 2.34 -> 2.47 | 0.76 -> 0.57 |
+| archer | 8,188 | 1.94 -> 1.81 | 0.68 -> 0.51 |
+| bomber | 7,505 | 2.39 -> 2.30 | 0.44 -> 0.41 |
+| necromancer | 10,504 | 2.52 -> 2.99 (hood) | 0.82 (robe, no legs) |
+| warden | 19,792 | 3.20 -> 3.23 | 1.20 -> 0.93 |
+| dummy | 9,798 | 2.08 (built chibi) | 0.45 |
+
+Rebuild (headless, from the kit folder; the pass reads `out/enemies/<name>.blend` and writes
+`out/enemies_chibi/`, with `_game.png`, `_hero.png` and a `_motion.png` strip):
+
+```
+blender -b out/enemies/minion.blend -P chibi_pass.py -- minion
+python tools/comic_glb.py <kit>/out/enemies_chibi minion
+blender -b -P enemy_dummy.py      # the punching bag: out/enemies/dummy.glb
+```
+
+**Tones in the hero's hand.** Line width was already the same (`Fx.COMIC_INK_PX` 1.6 on hero and
+foes alike); foes look busier only because each part carries its own hull. The shadows differed:
+the hero's is his paint times `PAINTED.P_HereticPaint.shadow`, a cool lilac at about half value,
+while the foe tables shaded into deep warm browns. `ComicLook.material` moves every foe toon
+material's shadow `FOE_SHADE_MATCH` (0.8 since the chunk pass; 0.5 first) of the way to `mid` times that tint (`foe_shadow`); the
+hero, emits and dungeon pieces are untouched.
+
+**The training dummy** is `assets/comic/dummy.glb` (`enemy_dummy.py`): a pale canvas sack tied off
+at the top, red straps, a bullseye and boxing gloves, googly eyes, a buck-toothed grin and a plaster
+cross. Clips: the skeletons' names plus `Dazed` (pupils spin, head lolls), which
+`training_dummy._shake_off` holds over `DAZE_TIME`; every clip keys the eye bones' scale, so a
+hit's squeezed-shut eyes never stick. Collision, the bag spring, the tag and the stars are unchanged.
+
+**Chunky masses** (`tools/comic_art/chunk_pass.py`, after chibi_pass, reads `out/enemies_chibi/`,
+writes `out/enemies_chunky/`). The skeletons were 30-130 separate bone islands, each with its own
+outline in the game, so ribs and fingers read as busy line work beside the one-mass hero. The pass
+sorts the bone mesh's islands into limb groups by their bone (head, jaw, torso, each arm, each hand,
+each leg; anything under a weapon / shield / bow / staff bone stays as it was), fattens each group
+along its normals (`FAT`: head 4 mm, jaw 8, torso 20, arms 30, hands 8, legs 36), voxel-remeshes it
+(11 mm), smooths and decimates it (`TRIS`, at most 4x the group's old faces), and takes weights back
+from the original group by nearest-face interpolation plus 4 smoothing passes, so elbows and knees
+bend instead of shearing. Eyes, sockets, teeth, belts and helmets near the body move out with it
+(`PUSH_R` 7 cm falloff). The torso keeps faint rib grooves (fat 20 mm, not 36) so it still reads as a
+skeleton. Bone names, clips and the `g` attribute are kept.
+
+| Kind | tris before -> after | height (m) | bar_height | run_foot_speed (m/s at 1x) |
+|---|---|---|---|---|
+| minion | 5,482 -> 7,842 | 2.29 | 2.2 | 3.11 |
+| rogue | 6,370 -> 9,562 | 1.29 | 1.55 | 2.18 (stride x1.3) |
+| shield | 8,576 -> 11,247 | 2.20 | 2.45 | 0.96 (walk re-keyed, stride x2.0) |
+| warrior | 8,250 -> 11,026 | 2.08 | 2.4 | 0.96 (stride x1.5) |
+| mage | 9,164 -> 12,278 | 2.47 | 2.4 | 1.53 |
+| archer | 8,188 -> 10,860 | 1.81 | 2.0 | 1.29 |
+| bomber | 7,505 -> 10,877 | 2.30 | 2.3 (the bomb) | 1.73 (stride x1.25) |
+| necromancer | 10,504 -> 11,110 | 2.99 | 2.8 | no feet |
+| warden | 19,792 -> 22,264 | 3.23 | own HUD bar | - |
+
+```
+blender -b out/enemies_chibi/minion.blend -P chunk_pass.py -- minion   # [stride=Running_A:1.4] to try a stride
+python tools/comic_glb.py <kit>/out/enemies_chunky minion
+```
+
+**Health bars** sit at each kind's `bar_height` (`enemy_types.gd`, metres before model_scale: head
+top in Idle_Combat + 0.3 m, measured on the chunky blends; the bomber clears its bomb), read by
+`enemy_bars.bar_height()`; kinds without one keep `HEAD_HEIGHT` 2.4.
+
+**Shadow tint** `FOE_SHADE_MATCH` 0.8 (was 0.5), judged side-lit (`foe_shots.gd -- --side`): bone's
+shadow/mid ratio is then (0.43, 0.36, 0.50) against the hero's (0.42, 0.38, 0.56); 0.5 still read brown.
+
+**Run strides.** The chibi legs cover far less per cycle than the game's move speeds (warrior 0.63 m/s
+of planted-foot travel against 2.8 m/s, the shield's shuffle 0.11 against 3.2). Two fixes: chunk_pass
+`KIND[...]['STRIDE']` widens a run clip's leg swing by scaling each leg bone's rotation about the clip's
+mean pose, and the shield's walk is re-keyed (`enemy_shield.py`: stride .13 -> .3, 48 -> 24 frames);
+then `enemy.gd` plays the run at ground speed / (`run_foot_speed` * model_scale)
+(`run_clip_speed()`, clamped `RUN_CLIP_SPEED_MIN` 0.5 / `MAX` 3.0). `tests/foe_stride_check.gd`
+(headless PASS/FAIL, in `agent.sh check`) samples both foot bones over each run clip, takes the mean
+backward speed while a foot is moving back in the lower half of its height range, and fails if that is
+8% off the stored number or the feet end more than 15% off the ground at move_speed. The minion's
+shamble swings its feet low in both directions, so its forward swing still slides.
+
+Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
+opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
+(`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`
+turns the models).
 
 ## How it works
 
@@ -174,7 +276,7 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 - Axe size: `AXE_SIZE` in `abilities.py`, then re-export. Marks: `LOOKS` in `comic_drag_mark.gd`.
 - Carries: `DRAG_HAND`, `DRAG_HEAD`, `GUARD_*`, `COILED_*`, `STREAM_*`, `FLUNG_*` in `abilities.py`, then re-export.
 - Stance timing: `READY_HOLD`, `FIDGET_EVERY` in `comic_look.gd`. Axe effects: `LOOKS` in `comic_axe_aura.gd`, `AXE_INFUSIONS` in `comic_look.gd`.
-- Mouse aim: `AIM_HEIGHT`, `AIM_DEAD_ZONE`, `AIM_ASSIST_MOUSE_ANGLE`, `COMBO_REDIRECT`, `COMBO_TURN_WINDUP`, `COMBO_TURN_ACTIVE` in `player.gd`.
+- Mouse aim: `AIM_HEIGHT`, `AIM_DEAD_ZONE`, `AIM_ASSIST_MOUSE_ANGLE`, `COMBO_REDIRECT`, `COMBO_TURN_WINDUP`, `COMBO_TURN_ACTIVE` in `hero_input.gd`.
 - Ink at the game's camera, where the hero is about 130 px tall: `Fx.COMIC_INK_PX`, `COMIC_INK_WOBBLE`,
   `COMIC_INK_PUSH`, `ComicLook.PIECE_INK_PX`, `PIECE_INK_PUSH`, `INNER_SCALE`. Models are built from many
   parts with a hull each, so a wide hull with no push covers the model in black. The POC's own widths
@@ -184,7 +286,7 @@ sets `ALBEDO` to black. `EMISSION` carries the spot black and the rim, and
 
 ## Extending
 
-A new hero clip: add it to `HERO_MOVES` with its hit frame, length and the KayKit clip's length; `comic_check` proves all three. New dungeon piece: `python tools/comic_glb.py --env <src> <name>`, then as below. New enemy GLB: `python tools/comic_glb.py <src> <name>`, `godot --headless --import --path .`,
+A new hero clip: add it to `HERO_MOVES` with its contact frame and length in 30 fps frames and the KayKit clip's length; `comic_check` proves all three (it measures the contact frame off the weapon hand's track). New dungeon piece: `python tools/comic_glb.py --env <src> <name>`, then as below. New enemy GLB: `python tools/comic_glb.py <src> <name>`, `godot --headless --import --path .`,
 add any new materials to `TONES`/`EMITS`, run `comic_check`. It's picked up by kind name;
 the boss is `warden`. New clip asked for in `enemy.gd`/`boss.gd`: add it to `comic_check`'s
 role lists (its source scan fails until you do), then to `CLIPS` for models lacking it.

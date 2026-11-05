@@ -46,14 +46,20 @@ const BREAKER_WORDS := {
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
 }
 const BREAKER_SCALE := 1.0
-## Words go ahead of the hero, in the emptiest of these directions (degrees off the way to the hit).
+## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
+## captions): round the contact point, in the clearest of these directions (degrees off the way from
+## the hero to the hit), on the near ring unless it is covered.
 const SPOT_ANGLES := [0.0, -35.0, 35.0, -70.0, 70.0, -110.0, 110.0, 180.0]
-const SPOT_TURN_COST := 0.5  # px of clearance a degree of turning away from ahead costs
-const SPOT_RINGS := [75.0, 170.0]  # px from the hero's middle to the word's edge
-const SPOT_FAR_COST := 30.0  # px of clearance the outer ring costs
-const SPOT_ENOUGH := 220.0  # px of clearance that's as good as any more
+const SPOT_TURN_COST := 0.25  # px of clearance a degree of turning away from ahead costs
+const SPOT_RINGS := [12.0, 55.0]  # px from the contact point to the word's edge
+const SPOT_FAR_COST := 40.0  # px of clearance the outer ring costs
+const SPOT_ENOUGH := 24.0  # px of clearance that's as good as any more: it never wanders off for room
+const HIT_FRESH_MS := 120  # a signature word sits at the last generic hit's contact if it was this recent
 const HERO_PAD_PX := 55.0
 const FOE_PAD_PX := 40.0  # a foe counts as this big round its chest
+const CALLOUT_HALF_H_PX := 28.0  # the hero's combo-name callout, half its height
+const PROMPT_HALF_PX := Vector2(62.0, 62.0)  # the breaker prompt's circle and its name under it
+const BLOCK_OVERLAP_COST := 60.0  # px: sitting on top of something is worse than just touching it
 const SAME_FRAME_MS := 60  # a signature word replaces a generic one born this recently
 # Keeps a word on the page, as comic_vfx._on_page: side margin, top and bottom bands.
 const PAGE_MARGIN := Vector2(0.1, 0.14)
@@ -66,6 +72,11 @@ var _born: Array[int] = []  # ms, per word; 0 = free
 var _next := 0
 var _last_word_ms := -100000
 var _move_seen := ""  # the hero's move whose word has been said
+var _last_text := ""  # the last word said: the next generic word is never the same
+var _hit_world := Vector3.ZERO  # the last hit's contact (world) and when (ms)
+var _hit_ms := -100000
+## One word on the page at a time (item 2): a new word replaces the live one. Off in the look tests' lineups.
+var replace := true
 var _breakers_seen := 0
 
 
@@ -123,6 +134,8 @@ func _make_label() -> Label:
 
 func _word(world: Vector3, tier: int) -> void:
 	var now := Time.get_ticks_msec()
+	_hit_world = world
+	_hit_ms = now
 	var reduced := Game.reduce_flashing
 	if now - _last_word_ms < (WORD_GAP_REDUCED_MS if reduced else WORD_GAP_HERETIC_MS):
 		return
@@ -130,8 +143,9 @@ func _word(world: Vector3, tier: int) -> void:
 	var i := _next
 	_next = (_next + 1) % POOL
 	var l := _words[i]
-	var options: Array = WORDS[tier]
+	var options: Array = WORDS[tier].filter(func(w: String) -> bool: return w != _last_text)
 	l.text = options.pick_random()
+	_last_text = l.text
 	l.reset_size()
 	l.pivot_offset = l.size * 0.5
 	_show(i, world, WORD_SCALE[tier])
@@ -141,6 +155,11 @@ func _word(world: Vector3, tier: int) -> void:
 func _show(i: int, world: Vector3, base: float) -> void:
 	var l := _words[i]
 	var reduced := Game.reduce_flashing
+	if replace:
+		for k in POOL:
+			if k != i and _born[k] != 0:
+				_words[k].visible = false
+				_born[k] = 0
 	l.reset_size()
 	l.pivot_offset = l.size * 0.5
 	var at := _place(world, l.size * base, i)
@@ -155,8 +174,8 @@ func _show(i: int, world: Vector3, base: float) -> void:
 	_born[i] = maxi(Time.get_ticks_msec(), 1)
 
 
-## Where a word of `size_px` goes: beside the hero, turned from the way to the hit towards whichever
-## side has the most room, clear of the foes and the other words. With no hero, over the hit.
+## Where a word of `size_px` goes: at the contact point (`world` raised WORD_HEAD), turned from the way
+## the hero hit towards whichever side is clear of him, the foes and the other text. With no hero, over the hit.
 func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
 	var hit := _to_screen(world)
 	var cam := get_viewport().get_camera_3d()
@@ -170,30 +189,68 @@ func _place(world: Vector3, size_px: Vector2, me: int) -> Vector2:
 		var f: Vector3 = hero._facing() if hero.has_method("_facing") else hero.global_basis.z
 		toward = _screen_of(cam, hero.global_position + Vector3.UP * 1.0 + f) - h
 	toward = toward.normalized() if toward.length() > 0.01 else Vector2.UP
-	var blocks: Array[Vector2] = [h]  # (the hero first: HERO_PAD_PX, not FOE_PAD_PX)
+	# Everything a word must keep clear of, as screen rects: the hero, each foe, the live words, his
+	# combo-name callout and the breaker prompt.
+	var blocks: Array[Rect2] = [_pad_rect(h, HERO_PAD_PX)]
 	for e: Node3D in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and not cam.is_position_behind(e.global_position):
-			blocks.append(cam.unproject_position(e.global_position + Vector3.UP * 1.0))
-	for k in POOL:
-		if k != me and _born[k] != 0:
-			blocks.append(_words[k].position + _words[k].size * 0.5)
+			blocks.append(_pad_rect(cam.unproject_position(e.global_position + Vector3.UP * 1.0), FOE_PAD_PX))
+	blocks.append_array(_text_blocks(cam, hero, me))
 	var best := Vector2.ZERO
 	var best_score := -INF
 	var half := size_px * 0.5
 	for ring in SPOT_RINGS.size():
 		for deg: float in SPOT_ANGLES:
 			var v := toward.rotated(deg_to_rad(deg))
-			var c := _on_page(h + v * (SPOT_RINGS[ring] + absf(v.x) * half.x + absf(v.y) * half.y), size_px)
+			var c := _on_page(hit + v * (SPOT_RINGS[ring] + absf(v.x) * half.x + absf(v.y) * half.y), size_px)
 			var clear := SPOT_ENOUGH
-			for k in blocks.size():
-				var dx := maxf(absf(blocks[k].x - c.x) - half.x, 0.0)
-				var dy := maxf(absf(blocks[k].y - c.y) - half.y, 0.0)
-				clear = minf(clear, Vector2(dx, dy).length() - (HERO_PAD_PX if k == 0 else FOE_PAD_PX))
+			for b: Rect2 in blocks:
+				var bc := b.get_center()
+				var dx := maxf(absf(bc.x - c.x) - half.x - b.size.x * 0.5, 0.0)
+				var dy := maxf(absf(bc.y - c.y) - half.y - b.size.y * 0.5, 0.0)
+				clear = minf(clear, Vector2(dx, dy).length() - (BLOCK_OVERLAP_COST if dx == 0.0 and dy == 0.0 else 0.0))
 			var score := clear - absf(deg) * SPOT_TURN_COST - ring * SPOT_FAR_COST
 			if score > best_score:
 				best_score = score
 				best = c
 	return best
+
+
+## The screen rects of the text a word or a damage number must keep off: the live words (but `me`), the
+## hero's combo-name callout (a line per line of it, so a "PERFECT" under the name counts) and the breaker prompt.
+func _text_blocks(cam: Camera3D, hero: Node, me := -1) -> Array[Rect2]:
+	var blocks: Array[Rect2] = []
+	for k in POOL:
+		if k != me and _born[k] != 0:
+			var ws: Vector2 = _words[k].size * float(_words[k].get_meta("base", 1.0))
+			blocks.append(Rect2(_words[k].position + _words[k].size * 0.5 - ws * 0.5, ws))
+	if hero == null:
+		return blocks
+	var callout: Variant = hero.get("_callout")
+	if callout is Label3D and callout.is_visible_in_tree() and not cam.is_position_behind(callout.global_position):
+		var half_m: float = callout.get_aabb().size.x * 0.5 * callout.global_basis.get_scale().x
+		var mid := cam.unproject_position(callout.global_position)
+		var half_px := absf(cam.unproject_position(callout.global_position + cam.global_basis.x * half_m).x - mid.x)
+		var half_h := CALLOUT_HALF_H_PX * float(callout.text.count("\n") + 1)
+		blocks.append(Rect2(mid - Vector2(half_px, half_h), Vector2(half_px, half_h) * 2.0))
+	var prompt: Variant = hero.get("_brk_prompt")
+	if prompt is Control and is_instance_valid(prompt) and prompt.get("_shown") == true:
+		blocks.append(Rect2(prompt.center - PROMPT_HALF_PX * Vector2(1.0, 0.8), PROMPT_HALF_PX * 2.0))
+	return blocks
+
+
+## _text_blocks for anyone else (ComicNumber), [] with the comic style off.
+static func text_blocks() -> Array[Rect2]:
+	if _inst == null or not _inst.is_inside_tree():
+		return []
+	var cam := _inst.get_viewport().get_camera_3d()
+	if cam == null:
+		return []
+	return _inst._text_blocks(cam, _inst.get_tree().get_first_node_in_group("player"))
+
+
+func _pad_rect(p: Vector2, pad: float) -> Rect2:
+	return Rect2(p - Vector2.ONE * pad, Vector2.ONE * pad * 2.0)
 
 
 func _screen_of(cam: Camera3D, p: Vector3) -> Vector2:
@@ -208,6 +265,7 @@ func _say(text: String, world: Vector3, base: float) -> void:
 			_words[k].visible = false
 			_born[k] = 0
 	_last_word_ms = now
+	_last_text = text
 	var i := _next
 	_next = (_next + 1) % POOL
 	_words[i].text = text
@@ -227,7 +285,8 @@ func _watch_hero() -> void:
 		if MOVE_WORDS.has(id):
 			var tier: int = hero.COMBOS[id].tier if hero.COMBOS.has(id) else 1
 			tier = mini(tier + (1 if Fx.chain_tier(Game.combo_count) >= 2 else 0), WORD_SCALE.size() - 1)
-			_say(MOVE_WORDS[id], hero.global_position + hero._facing() * 2.0, WORD_SCALE[tier])
+			var at: Vector3 = _hit_world if Time.get_ticks_msec() - _hit_ms <= HIT_FRESH_MS else hero.global_position + hero._facing() * 1.4
+			_say(MOVE_WORDS[id], at, WORD_SCALE[tier])
 	if hero.breakers_landed > _breakers_seen:
 		_breakers_seen = hero.breakers_landed
 		var word: String = BREAKER_WORDS.get(hero.breaker_name(), "")

@@ -14,6 +14,19 @@ Zak, round 29: "chibi-esque, cartoony, not taking itself too seriously, but stil
 - Weapons oversized: about the hero's height or more.
 - Game scale: the hero is 2.2 m in his GLB, KayKit characters about 2.18 m. He is about 130 px tall at the game camera, which looks down from 13 m up and 9.5 m back. Judge everything there, not in a Blender viewport.
 
+## Foes
+
+- Foes follow the hero's proportions: big head (1.5x a realistic skull), big hands and whatever
+  they hold, short thick legs, squat torso. A foe built at normal proportions goes through
+  `tools/comic_art/chibi_pass.py` (see [comic-style.md](comic-style.md)) before it ships.
+- Shadows step like the hero's: cool and lilac, not deep brown (`ComicLook.FOE_SHADE_MATCH` 0.8).
+- A few thick inked masses, not many thin parts: a skeleton's bones are merged per limb group
+  (`tools/comic_art/chunk_pass.py`), so the outline runs round the silhouette like the hero's. Keep a
+  hint of ribs in the torso's shading; never a hull on every rib or finger again.
+- Props already huge (shield, Warden cleaver, the archer's floor-length bow) are not grown again.
+- The training dummy is a character, not a prop: a cartoon punching bag with a face, which squeezes
+  its eyes shut on a hit and spins its pupils when dazed.
+
 ## Shapes and colour
 
 - Bold simple shapes and large flat colour regions. Three or four colours per character plus one accent (the heretic's accent is the magenta limb).
@@ -63,6 +76,10 @@ stand out on a dark indigo floor. No dark brown, no patterns, no text, no small 
 ```
 
 What came back: clean flat regions with no patchwork, a bone-white hood and scarf, teal tunic, crimson sash, light boots, near-black skirt (not teal). The face became a black mask with angry cyan eyes over a still-visible pale chin and nose: menacing rather than cute, but not fully shadowed, because the sculpted face is in the geometry. "Bright magenta" came out a dark wine (hue 0.90, value 0.43), so `chibi_paint.py` repaints the claw texels to the heretic's magenta. Geometry was kept exactly (21,999 tris), but Meshy rescaled it to 2 m and moved it to the origin. The output is already flat enough: `flatten_texture.py` merged the cyan eyes into the dark mask, so it isn't used on this model.
+
+## The chibi, second pass (round 29)
+
+What the game camera taught on the chibi: the signature limb needs to be bigger than feels right in a close-up (the claw went 1.5x before it read at rest from 13 m up), a face under a big hood can't be seen from above at all, so menace there has to come from something drawn over the hood (glowing eyes) rather than from the texture, and the pale skin left under the hood read as a chin, not shadow. The default hero is the chibi from round 29 (Zak can veto: `Game.HERO_DEFAULT`).
 
 ## Checking
 

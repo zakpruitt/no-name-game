@@ -1,6 +1,8 @@
 class_name Fx
 ## Small throwaway visual effects: damage numbers, hit sparks, flashes.
 
+const SWOOSH_SECOND_HEIGHT := 1.0  # player._swoosh lifts its second (ender / chain) arc to 1.15 m, the first sits at 0.8
+const AWAKEN_SWOOSH_BAND := 0.72  # Awakened: the swoosh keeps only its outer band past this UV.y, inked inside
 ## Particle and flare sprites (Kenney Particle Pack, CC0): white with alpha, tinted per use.
 const TEX := {
 	"dot": preload("res://assets/vfx/circle_05.png"),
@@ -27,6 +29,12 @@ const EDGE_OUTLINE := 0.07  # m, dark outline
 ## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
 ## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
+const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
+const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
+const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
+const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
+const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
+const COMIC_FLASH := Color(1.0, 0.97, 0.88)  # a comic hit flash's paper ink
 ## Flat two-tone chip colour off the axes per element (element_hit).
 const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
 	"spirit": Color(0.2, 0.85, 0.78)}
@@ -75,8 +83,14 @@ static func _label(text: String, font_size: int, color: Color, outline_color: Co
 ## Melee swing arc: a flat crescent around `pos` facing `fwd`, out to `radius`
 ## across `arc_deg` (360 = full spin), sweeping across it over `time`.
 ## `flip` swings right-to-left instead of left-to-right.
+## While the hero is Awakened (feel audit 2026-11-04 item 4: his gold crescents were opaque sheets 4-5x his
+## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and player._swoosh's second, wider
+## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
 static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float,
 		color: Color, flip := false, time := 0.26, height := 0.8) -> void:
+	var gold := _hero_awakened(parent)
+	if gold and height > SWOOSH_SECOND_HEIGHT:
+		return
 	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
 	var inner := radius * 0.4
 	var segs := maxi(10, int(arc_deg / 6.0))
@@ -96,6 +110,7 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var a_mult := 0.5 if Game.reduce_flashing else 1.0
 	mat.set_shader_parameter("color", Color(color, color.a * a_mult))
 	mat.set_shader_parameter("edge_color", Color(color.lerp(Color.WHITE, 0.45), a_mult))
+	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold else 0.0)
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()
 	m.material_override = mat
@@ -108,7 +123,18 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	tw.tween_callback(m.queue_free)
 
 
-static func damage_number(parent: Node, pos: Vector3, amount: float, big := false) -> void:
+static func _hero_awakened(node: Node) -> bool:
+	if node == null or not node.is_inside_tree():
+		return false
+	var hero := node.get_tree().get_first_node_in_group("player")
+	return hero != null and hero.get("awakened") == true
+
+
+## `foe`: who took it, so the comic number merges that foe's hits (comic_number.gd).
+static func damage_number(parent: Node, pos: Vector3, amount: float, big := false, foe: Object = null) -> void:
+	if Game.comic_style:  # one chunky inked number per foe, growing as hits add in, drifting off the pile
+		COMIC_NUMBER.add(parent, pos, amount, big, foe)
+		return
 	var l := _label(str(roundi(amount)), 96 if big else 64,
 		Color(1.0, 0.85, 0.3) if big else Color.WHITE, Color(0.1, 0.05, 0.1))
 	parent.add_child(l)
@@ -226,6 +252,15 @@ static func flare(parent: Node, at: Vector3, color: Color, size: float, time := 
 static func burst(parent: Node, pos: Vector3, color: Color, amount := 14, speed := 7.0,
 		size := 0.12, lifetime := 0.3, dir := Vector3.UP, spread := 70.0, gravity := -12.0,
 		radius := 0.0, tex := "dot", add := false) -> void:
+	if Game.comic_style:  # a few chunky two-tone chips, no smoke and no dot spray
+		if tex == "smoke" or amount <= 1:  # (1: elements.prewarm; the chips' material is already warm)
+			return
+		var c := Color(color, 1.0)
+		var wide := spread >= 120.0 or dir.length() < 0.01
+		COMIC_POP.spawn(parent, pos, {"chips": clampi(amount / 3, 2, COMIC_BURST_CHIPS), "chip": c,
+			"chip_size": clampf(size * 0.9, 0.08, 0.17), "chip_speed": clampf(speed * 0.6, 2.5, 6.0),
+			"dir": Vector3.ZERO if wide else dir, "spread": deg_to_rad(clampf(spread, 20.0, 80.0)), "steps": 3})
+		return
 	# CPU particles: no shader compile hitch on first spawn, cheap at these counts.
 	var p := CPUParticles3D.new()
 	size *= TEX_SCALE.get(tex, 1.0)
@@ -574,6 +609,9 @@ static func _star(outer: float, inner: float) -> ArrayMesh:
 ## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
 ## soot and fades over `time` (magma, breaker landings). Blend mix so it reads on light tiles.
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:
+	if Game.comic_style:  # a flat inked splat and cracks, hot then soot; not a soft glowing decal
+		COMIC_CRACK.spawn(parent, pos, Color.from_hsv(color.h, maxf(color.s, 0.85), 1.0), radius * COMIC_CRACK_SIZE, time)
+		return
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2.ONE * 2.0
@@ -609,37 +647,72 @@ static func heal(parent: Node, pos: Vector3, amount: float) -> void:
 static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # the dummy renderer has no skeletons to bake from
+	var comic := Game.comic_style
+	if comic and Time.get_ticks_msec() - last_afterimage_ms < int(COMIC_GHOST_STEP * 1000.0):
+		return  # on twos: a dash asks every 0.035 s, which stacked into a solid bar
 	last_afterimage_ms = Time.get_ticks_msec()
-	var mat := unshaded_mat(color)
+	# Comic: a flat inked silhouette, not a see-through copy: one step in his colour, then ink, on twos.
+	var mat := unshaded_mat(Color(Color.from_hsv(color.h, maxf(color.s, 0.6), 0.95), 1.0) if comic else color)
+	if comic:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+		mat.next_pass = ink_material()
 	var ghost := Node3D.new()
 	parent.add_child(ghost)
+	var poses := {}  # his skeleton -> a frozen copy of its pose: skinned on the GPU, not baked
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var flashing := _flash_mat != null and mi.material_overlay == _flash_mat
 		if not mi.is_visible_in_tree() or mi.mesh == null or flashing or mi.has_meta("no_ghost"):  # (no_ghost: effects riding on him)
 			continue
 		var copy := MeshInstance3D.new()
-		copy.mesh = mi.bake_mesh_from_current_skeleton_pose() if mi.skin else mi.mesh
+		copy.mesh = mi.mesh
 		copy.material_override = mat
 		copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ghost.add_child(copy)
 		copy.global_transform = mi.global_transform
+		var skel := mi.get_node_or_null(mi.skeleton) as Skeleton3D if mi.skin else null
+		if skel != null:
+			if not poses.has(skel):
+				poses[skel] = _frozen_pose(skel, ghost)
+			copy.skin = mi.skin
+			copy.skeleton = copy.get_path_to(poses[skel])
+		elif mi.skin:
+			copy.mesh = mi.bake_mesh_from_current_skeleton_pose()
 	var tw := ghost.create_tween()
-	tw.tween_property(mat, "albedo_color:a", 0.0, time)
+	if comic:
+		tw.tween_interval(COMIC_GHOST_STEP)
+		tw.tween_callback(func() -> void: mat.albedo_color = ComicLook.INK)
+		tw.tween_interval(maxf(time - COMIC_GHOST_STEP, COMIC_GHOST_STEP))
+	else:
+		tw.tween_property(mat, "albedo_color:a", 0.0, time)
 	tw.tween_callback(ghost.queue_free)
+
+
+## A Skeleton3D under `parent` holding `skel`'s current pose. Baking a skinned
+## mesh on the CPU (bake_mesh_from_current_skeleton_pose) took ~18 ms for the
+## heretic; a copied pose lets the GPU skin the shared mesh as usual.
+static func _frozen_pose(skel: Skeleton3D, parent: Node3D) -> Skeleton3D:
+	var copy := Skeleton3D.new()
+	for i in skel.get_bone_count():
+		copy.add_bone(skel.get_bone_name(i))
+	for i in skel.get_bone_count():
+		copy.set_bone_parent(i, skel.get_bone_parent(i))
+		copy.set_bone_rest(i, skel.get_bone_rest(i))
+	for i in skel.get_bone_count():  # global poses: they include the rig's sway and spring bones (parents come first)
+		copy.set_bone_global_pose(i, skel.get_bone_global_pose(i))
+	parent.add_child(copy)
+	copy.global_transform = skel.global_transform
+	return copy
 
 
 ## Briefly paint every mesh under `root` white.
 static func flash(root: Node, duration := 0.08) -> void:
+	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
+		flash_tint(root, COMIC_FLASH, duration)  # (a foe: its ink flashes, not a white blob over it)
+		return
 	if _flash_mat == null:
 		_flash_mat = unshaded_mat()
 	_flash_mat.albedo_color = Color(1, 1, 1, 0.3 if Game.reduce_flashing else 0.85)
-	var meshes := root.find_children("*", "MeshInstance3D", true, false)
-	for mi in meshes:
-		mi.material_overlay = _flash_mat
-	await root.get_tree().create_timer(duration, true, false, true).timeout
-	for mi in meshes:  # (untyped: a mesh freed during the wait can't be assigned to a typed loop variable)
-		if is_instance_valid(mi) and mi.material_overlay == _flash_mat:
-			mi.material_overlay = null
+	_overlay(root, _flash_mat, duration)
 
 
 ## flash() in a colour (enemy hit confirms in the hero's element): one shared
@@ -650,13 +723,58 @@ static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
 		_tint_mats[key] = unshaded_mat()
 	var mat: StandardMaterial3D = _tint_mats[key]
 	mat.albedo_color = Color(color, 0.3 if Game.reduce_flashing else 0.85)
+	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
+		# Comic: the foe's own ink goes paper, then his colour, for two short steps, round its own tones.
+		# An overlay fill (even a solid one) turned each foe into a flat inkless blob over a zapped crowd.
+		var inks := _own_inks(root)
+		var tone := Color.from_hsv(color.h, maxf(color.s, 0.6), 1.0)
+		for ink: ShaderMaterial in inks:
+			ink.set_shader_parameter("outline_color", COMIC_FLASH)
+		var tree := root.get_tree()  # (held: root may be freed during the wait; the inks are kept alive here)
+		await tree.create_timer(duration * 0.5, true, false, true).timeout
+		if not is_instance_valid(root):
+			return
+		for ink: ShaderMaterial in inks:
+			ink.set_shader_parameter("outline_color", tone)
+		await tree.create_timer(duration * 0.5, true, false, true).timeout
+		if not is_instance_valid(root):
+			return
+		for ink: ShaderMaterial in inks:
+			ink.set_shader_parameter("outline_color", ComicLook.INK)
+		return
+	_overlay(root, mat, duration)
+
+
+## Lays `mat` over every mesh under `root` for `duration`. If `root` leaves the tree first (a foe freed
+## a frame after its hit), the overlay comes off as it goes: freed with an overlay still on, each mesh
+## printed "Parameter material is null" (agents.md).
+static func _overlay(root: Node, mat: Material, duration: float) -> void:
 	var meshes := root.find_children("*", "MeshInstance3D", true, false)
 	for mi in meshes:
 		mi.material_overlay = mat
+	var clear := func() -> void:
+		for mi in meshes:  # (untyped: a mesh freed during the wait can't be assigned to a typed loop variable)
+			if is_instance_valid(mi) and mi.material_overlay == mat:
+				mi.material_overlay = null
+	root.tree_exiting.connect(clear, CONNECT_ONE_SHOT)
 	await root.get_tree().create_timer(duration, true, false, true).timeout
-	for mi in meshes:
-		if is_instance_valid(mi) and mi.material_overlay == mat:
-			mi.material_overlay = null
+	if is_instance_valid(root) and root.tree_exiting.is_connected(clear):
+		root.tree_exiting.disconnect(clear)
+		clear.call()
+
+
+## The outline materials of `root`'s own (outline_own), not the shared one: what a comic flash recolours.
+static func _own_inks(root: Node) -> Array:
+	var out := []
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for k in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(k)
+			var ink: Material = m.next_pass if m != null else null
+			if ink is ShaderMaterial and ink != _outline_mat and not out.has(ink):
+				out.append(ink)
+	return out
 
 
 ## Drop cached materials so nothing is left alive at exit.
@@ -668,6 +786,7 @@ static func release() -> void:
 	_outline_mat = null
 	_outlined.clear()
 	_particle_mats.clear()
+	COMIC_POP.release()
 	ComicLook.release()
 
 

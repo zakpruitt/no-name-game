@@ -6,7 +6,8 @@ extends Control
 const SHOW_TIME := 3.0
 const FADE := 0.5
 const SIZE := Vector2(60, 7)
-const HEAD_HEIGHT := 2.4  # metres above the feet (scaled by model_scale)
+const HEAD_HEIGHT := 2.4  # metres above the feet (scaled by model_scale), for a kind without bar_height
+const TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const TRAIL_SPEED := 0.9  # bar fractions per second
 const FILL_COLOR := Color(0.95, 0.25, 0.2)
 const ELITE_COLOR := Color(1.0, 0.75, 0.25)
@@ -49,7 +50,7 @@ func _draw() -> void:
 		var alpha: float = 1.0 if e.elite else clampf((SHOW_TIME - age) / FADE, 0.0, 1.0)
 		if alpha <= 0.0:
 			continue
-		var head: Vector3 = e.global_position + Vector3.UP * HEAD_HEIGHT * e.model_scale
+		var head: Vector3 = e.global_position + Vector3.UP * bar_height(e) * e.model_scale
 		if cam.is_position_behind(head):
 			continue
 		var at := cam.unproject_position(head) - Vector2(SIZE.x * 0.5, 0.0)
@@ -61,3 +62,9 @@ func _draw() -> void:
 		draw_rect(Rect2(at, Vector2(SIZE.x * trail, SIZE.y)), Color(TRAIL_COLOR, 0.8 * alpha))
 		var fill := ELITE_COLOR if e.elite else FILL_COLOR
 		draw_rect(Rect2(at, Vector2(SIZE.x * ratio, SIZE.y)), Color(fill, alpha))
+
+
+## Bar height above the feet before model_scale: the kind's `bar_height` (enemy_types.gd), else HEAD_HEIGHT.
+static func bar_height(e: Node) -> float:
+	var spec: Dictionary = TYPES.get(e.get_meta("kind", ""), {})
+	return spec.get("bar_height", HEAD_HEIGHT)

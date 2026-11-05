@@ -8,11 +8,26 @@ extends RefCounted
 const FOES := preload("res://scripts/foes.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const QUAKE := preload("res://scripts/breaker_quake.gd")
+const COMIC_FIST := preload("res://scripts/comic_fist.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
 const BIND := preload("res://scripts/floor_bind.gd")
 const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
+
+## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
+## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
+## as a fraction of the clip, and their cancel / end / breaker leap keep the time after the hit they had.
+const GR_HIT := 7.0 / 31.0  # Ab_GR: the claws snap shut on f7 (hand arrives f5, held to f12). Was 0.24 (f7.4)
+const VS_HIT := 17.0 / 46.0  # Ab_VS: the slam lands on f17 (held to f23). Was 0.39 (f17.9, a frame late)
+const LH_HIT := 14.0 / 51.0  # Ab_LH: the rake arrives on f14. Was 0.29 (f14.8)
+const H_HIT := 15.0 / 63.0  # Ab_H: the crescent arrives on f15. Was 0.24 (f15.1)
+const LLH_HIT := 20.0 / 59.0  # Ab_LLH: the spear drives in on f20. Was 0.34 (f20.1)
+const AF_HIT := 50.0 / 99.0  # Ab_AF: the palm lands on f50. Was 0.51 (f50.5)
+## A breaker's leap comes this long (clip fraction) after the ender's hit, as round 30 had it.
+const LEAP_AFTER_GRAB := 0.02  # Grounded / Worldbreaker / Meteor Fall off a grab-clip ender (was 0.26 - 0.24)
+const LEAP_AFTER_SLAM := 0.11  # Collapse / Abyss off the slam clip (0.5 - 0.39)
+const LEAP_AFTER_TIDE := 0.26  # Maw off Black Tide's grab clip (0.5 - 0.24)
 
 ## The move right click plays off each move. From nothing, the grab.
 const AFTER := {"L1": "EC", "L2": "IP", "L3": "EM", "EC": "EE", "AL1": "EW", "DL": "EF", "EF": "EA", "IP": "IJ", "IJ": "IS", "EM": "EV", "GR": "VS", "VR": "VD"}
@@ -30,25 +45,28 @@ const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 const _WINDOW := {"rise": 0.2, "height": 1.8, "back": 0.6, "spikes": 0, "zone": 1.5, "spread": 0.0, "spike_damage": 0.0,
 	"detonate": 0.0, "throw": 0.04, "cue": 0.08, "open": 0.3, "sweet": 0.44, "close": 0.62, "perfect": 0.06, "dive": 0.12,
 	"radius": 0.0, "launch": 0.0, "perfect_mult": 1.5, "fall": 0.22, "tentacle": true}
+const BREAKER_HANG := 0.1  # s from the top of the rise to the window opening: the beat to see the cue
+const BREAKER_TO_SWEET := 0.14  # s from open to the rings meeting
+const BREAKER_TO_CLOSE := 0.32  # s from open to close
 ## The breakers: `erupt` is what the slam lands in, under each foe. `wire` runs lightning along the
 ## tentacles through the hang. `alt` is what L in the window changes it to, instead of right click.
 ## Copies of _WINDOW in effect (entry()).
 const BREAKERS := {
-	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": 0.26, "awaken": 8.0, "awaken_perfect": 16.0,
+	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 8.0, "awaken_perfect": 16.0,
 		"names": {"spirit": "Grounded"}},
-	"EW": {"erupt": "earth", "wire": true, "damage": 36.0, "leap": 0.26, "height": 2.6, "awaken": 12.0, "awaken_perfect": 22.0,
+	"EW": {"erupt": "earth", "wire": true, "damage": 36.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "height": 2.6, "awaken": 12.0, "awaken_perfect": 22.0,
 		"names": {"spirit": "Worldbreaker"},
 		"alt": {"erupt": "water", "cubes": true, "damage": 40.0, "names": {"spirit": "Cold Front"}}},
 	"IS": {"erupt": "water", "press": true, "at_spot": true, "short": 3.0, "dive": 0.3, "damage": 34.0, "leap": 0.5, "awaken": 12.0, "awaken_perfect": 22.0,
 		"height": 1.2, "names": {"spirit": "Avalanche"}},
-	"EV": {"erupt": "earth", "rip": true, "meteor": true, "damage": 60.0, "leap": 0.26, "awaken": 10.0, "awaken_perfect": 20.0,
+	"EV": {"erupt": "earth", "rip": true, "meteor": true, "damage": 60.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 10.0, "awaken_perfect": 20.0,
 		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"}},
 	# Dark: he comes down at dark_spot, where the string gathered them (`at_spot`, `short` m this side of it).
-	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": 0.5,
+	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Collapse"}},
-	"VD": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 4.6, "maw": true, "damage": 52.0, "leap": 0.5,
+	"VD": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 4.6, "maw": true, "damage": 52.0, "leap": GR_HIT + LEAP_AFTER_TIDE,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Maw"}},
-	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": 0.5,
+	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"}},
 }
 
@@ -77,6 +95,7 @@ const DEEP_FREEZE_RADIUS := 6.5  # m round the spear
 const DEEP_FREEZE_DAMAGE := 16.0
 const DEEP_FREEZE_SPIKES := 6
 const DEEP_FREEZE_SPIKE_OUT := 1.8  # m from the spear: further out they hid the cubes
+const DEEP_FREEZE_DOWN := 6.0  # m/s into the floor on its hit: enemy._is_spike craters them before the cube
 const PRESS_REACH := 10.0  # m: how far the tentacles go for a cube
 const CRUSH_HIGH := 2.5  # m the cubes go up
 const CRUSH_RADIUS := 3.2  # m round the pile that anyone else gets caught
@@ -98,6 +117,7 @@ const UNDERTOW_SINK := 0.9  # m
 const UNDERTOW_TICK := 3.5
 const RIP_SMALL_MULT := 3.0  # on a small foe: it's coming apart
 const RIP_SPLASH := 5.0  # m
+const METEOR_DOWN := 6.0  # m/s into the floor on Meteor Fall's hit on the seized foe: it craters (enemy._is_spike)
 const UNDERTOW_CHASE := 18.0  # m it'll follow those Molten Palm just shoved
 const METEOR_GEYSERS := 5
 const METEOR_GEYSER_OUT := 2.8  # m round where he lands
@@ -122,6 +142,7 @@ const TIDE_POOL_R := 3.4
 const COLLAPSE_RADIUS := 6.5  # m
 const COLLAPSE_THROW := 9.0
 const MAW_RADIUS := 3.4  # m
+const MAW_DOWN := 6.0  # m/s into the floor as the jaws shut: the swallowed crater (enemy._is_spike)
 const ABYSS_RADIUS := 4.2  # m
 const ABYSS_SINK := 2.6  # m they go down while he's on his way
 const ABYSS_LAUNCH := 11.0
@@ -172,10 +193,17 @@ static func is_element_move(id: String) -> bool:
 	return ELEMENT_OF.has(id)
 
 
-## The breaker entry for a key in BREAKERS.
+## The breaker entry for a key in BREAKERS. Its window keeps one rhythm whatever the element (round 30): it
+## opens BREAKER_HANG s after the rise tops out, the sweet spot BREAKER_TO_SWEET later and it closes
+## BREAKER_TO_CLOSE after opening, unless the breaker sets `open` itself. With the default rise (0.2)
+## that's _WINDOW's 0.3 / 0.44 / 0.62; Meteor Fall's longer rise (0.28) used to open 0.02 s after the top.
 static func entry(key: String) -> Dictionary:
 	var made: Dictionary = _WINDOW.duplicate()
 	made.merge(BREAKERS[key], true)
+	if not BREAKERS[key].has("open"):
+		made.open = made.rise + BREAKER_HANG
+		made.sweet = made.open + BREAKER_TO_SWEET
+		made.close = made.open + BREAKER_TO_CLOSE
 	return made
 
 
@@ -303,7 +331,7 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 	Game.shake(0.5)
 	var foes: Array = FOES.near(hero.get_tree(), spot, DEEP_FREEZE_RADIUS)
 	for e: Node3D in foes:
-		e.take_hit(damage, Vector3.ZERO, 0.0, true)
+		e.take_hit(damage, Vector3.DOWN * DEEP_FREEZE_DOWN, 0.0, true)
 		Game.register_hit("cast")
 		encase(e)
 	return foes.size()
@@ -372,7 +400,7 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 
 ## A fist of the arm's own stuff, flying out along `fwd`.
 static func _fist(parent: Node, at: Vector3, fwd: Vector3, length: float) -> Node3D:
-	if Game.comic_style: return load("res://scripts/comic_fist.gd").spawn(parent, at, fwd, length, FIST_TIME)  # the flat inked fist
+	if Game.comic_style: return COMIC_FIST.spawn(parent, at, fwd, length, FIST_TIME)  # the flat inked fist
 	var root := Node3D.new()
 	parent.add_child(root)
 	var from := at + fwd * 1.0 + Vector3.UP * 1.0
@@ -665,13 +693,13 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 		jaws = DARK.maw(hero.get_parent(), spot, MAW_RADIUS)
 	jaws.bite()
 	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS):
-		DARK.quiet_hit(e, damage, true)
+		DARK.quiet_hit(e, damage, true, Vector3.DOWN * MAW_DOWN)
 		Game.register_hit("breaker")
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)  # one word for the one bite
 	Game.shake(0.6)
 
 
-## They've gone down through the floor (player._start_dive), and black spikes throw them back up.
+## They've gone down through the floor (hero_leap._start_dive), and black spikes throw them back up.
 static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var spot: Vector3 = hero._void.dark_spot
@@ -743,7 +771,7 @@ static func _tear(hero: CharacterBody3D, b: Dictionary, seized: Array, mult: flo
 		var spot := _flat(e.global_position)
 		if e.has_method("rip_shield"):
 			e.rip_shield()
-		e.take_hit(damage * (1.0 if hero._void.is_heavy(e) else RIP_SMALL_MULT), Vector3.ZERO, 0.0, true)
+		e.take_hit(damage * (1.0 if hero._void.is_heavy(e) else RIP_SMALL_MULT), Vector3.DOWN * METEOR_DOWN, 0.0, true)
 		Game.register_hit("breaker")
 		under(parent, spot, "earth")
 		Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 22, Vector3.UP, 12.0, 0.2, 0.8)

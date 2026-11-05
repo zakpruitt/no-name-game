@@ -37,12 +37,12 @@ Each row has three parts:
 
 | File | Role |
 |---|---|
-| `scripts/player.gd` `void_route()` | **The only routing function.** It decides which move a "light" or "heavy" press starts from a given state (the tables are `VOID_ELEMENT.LIGHT_AFTER`, `AFTER`, `DASH_MOVE`). `_routed()` adds the vault (`VOID_ELEMENT.vaults()`: either press is `IJ` while the frost spear stands); `_next_move()` passes it the live state. |
-| `scripts/player.gd` `chain_after()` | The light-chain index after a move starts. `_start_attack()` uses it, and the guide's one-press lookahead does too. |
-| `scripts/player.gd` `combo_options()` | Builds the guide's rows from the live state. Returns `[]` when there's nothing to show. |
-| `scripts/player.gd` `_option()` | Builds one row, including the `next` lookahead. |
-| `scripts/player.gd` `combo_window()` | Timing for the rings and the ready state: `{progress, ready, dash}`. |
-| `scripts/player.gd` `guide_name()`, `MOVE_NAMES` | Display names. Combos come from `combo_name()` (`COMBOS[id].name`). Plain moves come from `MOVE_NAMES`. |
+| `scripts/hero_moves.gd` `void_route()` | **The only routing function** (`player.void_route()` forwards to it, so `PLAYER.void_route` still works on the script). It decides which move a "light" or "heavy" press starts from a given state (the tables are `VOID_ELEMENT.LIGHT_AFTER`, `AFTER`, `DASH_MOVE`). `routed()` adds the vault (`VOID_ELEMENT.vaults()`: either press is `IJ` while the frost spear stands); `player._next_move()` passes it the live state. |
+| `scripts/hero_moves.gd` `chain_after()` | The light-chain index after a move starts. `player._start_attack()` uses it, and the guide's one-press lookahead does too. |
+| `scripts/hero_moves.gd` `combo_options()` | Builds the guide's rows from the live state (`player.combo_options()` forwards). Returns `[]` when there's nothing to show. |
+| `scripts/hero_moves.gd` `option()` | Builds one row, including the `next` lookahead. |
+| `scripts/hero_input.gd` `combo_window()` | Timing for the rings and the ready state: `{progress, ready, dash}` (`player.combo_window()` forwards). |
+| `scripts/hero_moves.gd` `guide_name()`, `MOVE_NAMES` | Display names. Combos come from `COMBOS[id].name`. Plain moves come from `MOVE_NAMES`. |
 | `scripts/combo_guide.gd` | The `Control` that draws the guide. It has no child nodes; everything is drawn in `_draw()`. |
 | `scripts/hud.gd` | Creates the guide (`hud.combo_guide`) under the HUD root and sets `combo_guide.player` in `bind_player()`. |
 | `scripts/game.gd` | Holds the `combo_guide` setting, `toggle_combo_guide()`, `guide_label()`, and its load/save. |

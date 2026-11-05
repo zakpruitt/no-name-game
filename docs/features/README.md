@@ -15,14 +15,15 @@ invariants and the gotchas.
 | Art direction: chibi but badass, proportions, shading rules, Meshy prompt template | [art-direction.md](art-direction.md) | |
 | The heretic hero (the Meshy model): rebuilt rig, tentacle chains, skirt springs, weapon changes | [heretic-hero.md](heretic-hero.md) | `scripts/heretic_rig.gd`, `scripts/heretic_form_fx.gd`, `tools/meshy_rig/` |
 | Meshy models into the game: how to generate them, rebuild the rig, bring them in | [meshy-pipeline.md](meshy-pipeline.md) | `tools/meshy_rig/` |
-| The void arm: weapon shapes, grab, R swing, slam | [void-arm.md](void-arm.md) | `scripts/void_grab.gd`, `scripts/void_arm.gd`, `scripts/void_tendril.gd`, `player.void_route()` |
-| Right click: the tentacle, the elements (storm, ice, magma, dark) and their breakers | [void-element.md](void-element.md) | `scripts/void_element.gd`, `player.void_route()` |
-| Combo breakers: the shared leap / window / dive, and strings that move (hops, air, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `player._start_leap()`, `player._state_leap()`, `player._hop()`, `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd`, `scripts/breaker_quake.gd` |
-| Combo guide (next-input hints beside the hero) and the pause MOVES list | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `scripts/move_list.gd`, `player.combo_options()` |
-| Spirit casts (giant spectral axes on L1, L2, Dash Stab, air dash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/spirit_tomahawk.gd`, `player._cast()`, `elements.CASTS` |
+| The void arm: weapon shapes, grab, R swing, slam | [void-arm.md](void-arm.md) | `scripts/void_grab.gd`, `scripts/void_arm.gd`, `scripts/void_tendril.gd`, `scripts/hero_moves.gd` (`void_route()`) |
+| Right click: the tentacle, the elements (storm, ice, magma, dark) and their breakers | [void-element.md](void-element.md) | `scripts/void_element.gd`, `scripts/hero_moves.gd` (`void_route()`) |
+| Combo breakers: the shared leap / window / dive, and strings that move (hops, air, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `scripts/hero_leap.gd`, `scripts/hero_moves.gd` (`hop()`), `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd`, `scripts/breaker_quake.gd` |
+| Combo guide (next-input hints beside the hero) and the pause MOVES list | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `scripts/move_list.gd`, `hero_moves.combo_options()`, `hero_input.combo_window()` |
+| Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `player._cast()`, `elements.CASTS` |
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
 | Comic art style (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |
+| Camera: distance, aim, fight framing, `--cam-*=` flags | [camera.md](camera.md) | `scripts/camera_rig.gd` |
 | Enemy hit reactions (squash, lean, tinted flash, juggle hang/tumble/bounce/skid, crowd wave) | [enemy-hit-reactions.md](enemy-hit-reactions.md) | `enemy._hit_reaction()`, `enemy._gravity()`, `enemy._land_from_air()`, `Fx.flash_tint()` |
 
 ## Writing one
