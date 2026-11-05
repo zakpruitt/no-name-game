@@ -461,9 +461,9 @@ The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geyser
 - [x] Black Ice: the dark pool freezes over from the middle out (a two-ring mosaic of ice plates with ink between), and the landing breaks it into flying chips (`comic_freeze_over.gd` `pool()` / `shatter()`; was a frost ring, nova, splat, spikes and shards); word KLISSSH!
 - [x] Storm Pitch: inked lightning forks crackle off each thrown foe for its flight with speed strokes behind it, thinner jolts to whoever it passes (`comic_arc.gd`); word ZZWANNG!
 - [x] Meteor Fall: a flattened hot splat star where a beat-1 throw hits a wall (`comic_splat.gd` `watch()`), and DOGPILE! over the pile once beat 2 has them all in (`ComicFx.say()`)
-- [ ] Steam Burst rarely steams in the bot's string: Ice Cube's cube is still flying (thrown) when XS fires, so `frozen` is empty and only the fist shoves (combo lane: let a flying cube count, or film it on a standing frozen foe)
-- [ ] Meteor Fall's wall splats are mostly off camera at 13 m (camera lane's hang pull-out)
-- [ ] Cataclysm's hang is still Live Wire's green bolts and violet binds on every foe (`wire: true`); with the landing's crater it is still the busiest breaker. Try dropping `wire` or thinning Live Wire in the hang (combo lane)
+- [x] Steam Burst rarely steams in the bot's string (fixed: a frozen foe in flight counts and is cut out of its roll): Ice Cube's cube is still flying (thrown) when XS fires, so `frozen` is empty and only the fist shoves (combo lane: let a flying cube count, or film it on a standing frozen foe)
+- [x] Meteor Fall's wall splats are mostly off camera at 13 m (round 34 second pass: the hang pulls out, `_meteor_frame`; not filmed)
+- [x] (dropped `wire`, damage 40 -> 46) Cataclysm's hang is still Live Wire's green bolts and violet binds on every foe (`wire: true`); with the landing's crater it is still the busiest breaker. Try dropping `wire` or thinning Live Wire in the hang (combo lane)
 
 ## Round 38 (foe locomotion)
 Zak, about the hero: "the movement animation is awful" (fixed in round 35); the nine foes had the same problem: KayKit-era runs played up to 3x so the stride check passed. `tools/comic_art/foe_keys.py` re-keys them on the chunky blends from per-foe specs (`foe_cycles.py`); see `docs/features/comic-style.md` "Foe locomotion" and `docs/features/enemy-hit-reactions.md` "Clips". Seen in Blender side sheets and windowed game-camera films, not played.

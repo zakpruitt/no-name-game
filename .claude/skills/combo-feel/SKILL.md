@@ -159,3 +159,8 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   a flying foe, and nothing may move one in flight).
 - **Shorten a hand-over with the second move's `speed`** (a named const, `XF_SPEED`): fractions keep the contact
   frame and the breaker leap in sync; the bot's `[rhythm]` beats showed Rockslide -> Fault Line 454 -> 403 ms.
+- **The bot must not press before the move's first hit.** Pressed `BOT_LEAD` before a whiff-timed cancel while
+  Harpoon's hit was still to come, the hit's stop (real time) outlasted `BUFFER_MS` and the press was lost (EF went
+  to GR, Eruption never played). `training_bot` now waits for `_hits_done > 0` too; the beats didn't move.
+- **A payoff that reads "frozen" should take a cube in flight** (`THROWN.cut` it first): Steam Burst filtered out
+  flying foes, and in the bot's Dash L H H L the only cube is always still rolling when XS fires.
