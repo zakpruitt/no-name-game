@@ -20,6 +20,7 @@ const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 const COMIC_ARC := preload("res://scripts/comic_arc.gd")
 const COMIC_SPLAT := preload("res://scripts/comic_splat.gd")
 const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
+const COMIC_MELT := preload("res://scripts/comic_melt.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1009,19 +1010,16 @@ static func _meltdown(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
 	var foes: Array = FOES.near(hero.get_tree(), at, MELT_REACH).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e) and (e.is_airborne() or is_frozen(e)))
+	COMIC_MELT.swing(parent, at + Vector3.UP * (hero.model.position.y + 0.9), hero._facing())  # (the hammer's arc)
 	if foes.is_empty():
-		Fx.burst(parent, at + hero._facing() + Vector3.UP * (hero.model.position.y + 0.8), ELEMENTS.LOOK.earth.color, 10, 6.0, 0.14, 0.4, Vector3.DOWN, 70.0)
 		return 0
 	for e: Node3D in foes:
 		var up: bool = e.is_airborne()
-		var spot := e.global_position + Vector3.UP * 0.8
+		COMIC_MELT.foe(parent, e, is_frozen(e))  # (ice off it, burning down, a hot splat where it lands)
 		if is_frozen(e):
-			Fx.shards(parent, spot, THROWN.CUBE_COLOR, 10, Vector3.UP, 8.0, 0.16, 0.5)
 			THROWN.remove_cube(e)
-		Fx.burst(parent, spot, ELEMENTS.LOOK.earth.color, 8, 6.0, 0.12, 0.35, Vector3.DOWN, 80.0)
 		e.take_hit(MELT_DAMAGE * power * (MELT_AIR_MULT if up else 1.0), Vector3.DOWN * MELT_DOWN, 0.0, true)
 		Game.register_hit("cast")
-		Fx.scorch(parent, _flat(e.global_position), ELEMENTS.LOOK.earth.color, 1.2, 1.0)
 		mark(e, "molten")
 	Game.shake(0.5)
 	return foes.size()
