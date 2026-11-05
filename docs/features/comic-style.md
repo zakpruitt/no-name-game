@@ -328,7 +328,7 @@ not thick crayon.
     0.45-0.7 m wide that fades out going up, an inked star at its foot, gone in 0.4 s (was an 8 m teal swirl
     round a white-gold core, 0.7 s);
   - comic earth spikes (`elements.spikes`): earth palette, fading up to the tips, standing `SPIKE_HOLD` 0.4
-    of their life (0.6), sinking in 0.25 (0.3). Ice spikes keep their flat two-tone ice.
+    of their life (0.6), sinking in 0.25 (0.3). Ice spikes kept their flat two-tone ice until round 3.
 - **Breaker cue rings** 0.06 / 0.075 m in 0.03 m ink (0.12 / 0.15 in 0.055); timing colours unchanged.
 - **Spirit motes** (`elements.Orbit`, comic): a 0.075 m flat bead in the palette's light tone in a 1.6 px ink
   hull (`mote_mat`), not a 3x HDR dot in a teal halo.
@@ -338,6 +338,36 @@ not thick crayon.
   hit lands, those born before that string started run `clear_standing()` (a 0.15 s fade of the look only;
   the chill, the mark and the spear stay). ComicFx calls `STANDING.watch(hero)` every frame: a string starts
   when he starts a move from no chain (`_chain_i` 0, not attacking or leaping). Check: `tests/fx_sleek_check.gd`.
+
+### Round 3 (judged at the 140 px hero, `string_film` and one-effect scratch shots)
+
+- **Echo axe fades along the haft** (`spirit_echo.HAFT_FADE`, `ghost_halftone` instance uniform `local_fade`: a
+  gradient along the mesh's own Y, clear at x, full from y; `ghost_ink` keeps 45% of its line there). The
+  3 m ghost reads as a blade sweeping, the handle a thin inked line, not a teal slab. (-0.2, 0.32) only faded
+  the grip and read as no change; (0.1, 0.6) fades to the blade's middle. Both ghost shaders declare the
+  instance uniforms in the same order (`alpha`, `fade_height`, `local_fade`): mismatched indices only draw
+  the first material's value.
+- **Per-palette ghost tones** (`spirit_echo.GHOST_TONES`): earth's orange body tint between the dots read as
+  brown on the indigo floor; earth is clean dots now (`base` 0.04, fill 0.42), water fill 0.4, base 0.12.
+- **Thin earth hoops** (`Fx.thin_hoop(parent, pos, element, radius)`: comic_pop's hoop at `ring_w` 0.12, a
+  0.06 m band in the light tone with 0.035 m ink, the breaker cue's weight) for the earth strike
+  (`elements.storm_strike`) and the earth war cry (`breaker_quake.war_cry`).
+- **Ice in the halftone look:** comic ice spikes use `ghost_mat` (water) fading up to their tips; frozen and
+  thrown ice cubes (`thrown_foe.comic_cube`) are a ghost block (corner normals point out of the corners so the
+  ink hull closes round the box) with the white glint on its own surface; the frost spear's floor is
+  `shaders/halftone_floor.gdshader` (`frost_spear.zone_material()`: water dots, clear inside `ZONE_INNER` 0.45 of
+  the radius, densest at the toothed edge, `ZONE_FILL` 0.26, no depth write) under its cracks and teeth, in place
+  of the round-29 plates. A disc under the cracks (y 0.046) only showed in the tile grout: it sits 0.015 above.
+- **Locomotion dust** (`scripts/comic_dust.gd`, `PAL.DUST`): a 2-3 blob inked paper cloud at his feet on
+  Run_Start (behind), Run_Stop (ahead) and a ground Dodge_Forward (behind), and on the skid and dodge two
+  tapered floor marks 0.9 / 0.55 m long, gone in 3-5 steps on twos. ComicFx calls `COMIC_DUST.watch(hero)`,
+  which reads `hero.anim.current_animation` (a new clip, or the same one restarted); player.gd is untouched.
+  Pooled (`POOL` 4 per parent; freed nodes drop out on the next spawn). Checks: `fx_sleek_check`,
+  `fx_free_check`.
+- **HUD** (`scripts/hud_ink.gd`): the combo counter, rank and air count and the combo-name callout in the
+  words' font (Bangers) with a size / 9 ink outline (/ 6; the callout 12 px at 84, was 24) over a slanted
+  halftone panel in the rank colour; the guide's rows and the breaker prompt as see-through pills / discs with
+  halftone dots and thin lines (combo-guide.md, combo-breakers.md).
 
 ## Invariants
 

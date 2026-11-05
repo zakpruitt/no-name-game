@@ -244,3 +244,10 @@ the worktree, and deletes the branch once it has been merged.
   FAIL, so it guards the behaviour, not only compilation.
 - **Foe clips are re-keyed, not widened (round 38):** `tools/comic_art/foe_keys.py` on the chunky blend in `vendor_src/.../out/enemies_chunky` (copy the kit from a worktree that has it, `.gdignore` first), then `comic_glb.py`, `--import`, `foe_stride_check` and copy its foot speeds into `enemy_types` (a scratch parser over the `[stride]` lines did all nine at once). Film with `tests/foe_shots.gd -- --clip=run --frames=6 --only=minion,rogue --turn=-70`; a run's feet barely read from the game camera, the lean, bob and arm swing do, so judge legs on the Blender side sheet the script writes.
 - **Bash heredocs with apostrophes fail here even when quoted (`<<'EOF'`)** once the body is long: a 120-line Python patch died with "unexpected EOF while looking for matching". Write the patch with the Write tool and run it.
+- **Film into your own folder:** `tests/string_film.gd -- --dir=<lane>_before` writes to `user://<lane>_before`, so
+  two lanes filming at once (round 33 part 3 ran beside the crossover lane) don't overwrite each other's frames.
+- **One effect, one scratch shot:** a throwaway SceneTree (`tests/_<lane>_shots.gd`, never committed) that loads
+  main.tscn, spawns the effect beside the hero and saves 6 frames 83 ms apart answers a look question in ~15 s;
+  the full film is for before/after. Delete it before landing.
+- **Run `fx_free_check` on every new pooled effect:** it caught a typed pool array holding a freed node
+  (an engine error, no GDScript backtrace) that every other check passed.

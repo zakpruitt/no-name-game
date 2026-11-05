@@ -429,6 +429,11 @@ Zak, after playing every combo: "very comicy, which I like, but ... sleeker and 
 - [x] Round 2, at the 34% wider camera: round 1's lines, words and numbers still read at a 140 px hero (filmed, no width changed)
 - [x] Round 2: the spirit echo's ghost axe, the spirit / void strike's sky column (`elements.comic_column`) and the comic earth spikes are a ~0.3 alpha halftone fill in a thin ink line with a light edge (`shaders/ghost_halftone.gdshader`, `ghost_ink.gdshader`, `spirit_echo.ghost_mat`), shorter-lived; breaker cue rings half as thick; spirit motes small inked beads
 - [x] Round 2: one damage total per breaker landing (`comic_number.gd` `BREAKER_*`); standing effects (floor frost, dark pools, Reap's marks, cracks) fade on the next string's first hit (`scripts/standing_fx.gd`, watched from ComicFx: no new signal). Check: `tests/fx_sleek_check.gd`
+- [x] Round 3: the echo axe's fill fades along the haft toward the hand (`ghost_halftone` `local_fade`), so it reads as a blade
+- [x] Round 3: earth halftone as clean dots (no brown tint on the indigo floor, `spirit_echo.GHOST_TONES`); the earth strike and earth war cry hoops thin and inked (`Fx.thin_hoop`)
+- [x] Round 3: ice spikes, ice cubes and the frost spear's floor in the halftone ghost look (`shaders/halftone_floor.gdshader` for the floor zone)
+- [x] Round 3: an inked dust puff on run start, skid and dodge, with short skid marks (`scripts/comic_dust.gd`, watched from ComicFx, pooled)
+- [x] Round 3: HUD in the same language (`scripts/hud_ink.gd`): counter and callout in the words' font with thin ink over a halftone panel; guide rows and breaker prompt see-through with halftone dots and thin lines
 
 ## Round 34 (multi-element combos)
 Zak: "more combos that utilize multiple elements together", "a few more complicated combos", and Meteor Fall's ending.
