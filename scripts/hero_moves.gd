@@ -77,6 +77,20 @@ const MOVES := {
 		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
 	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + 0.17, "end": VOID_ELEMENT.AF_HIT + 0.34,
 		"speed": EM_SPEED, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
+	# Crossovers (round 34, void_element.gd): each changes element on the way. Contact frames are the clips' (*_HIT),
+	# cancel / end keep the time after the hit their clip's other moves have.
+	# Rockslide (L H L L): off the air slash, so it starts in the air and comes down onto the slam (plunge).
+	"XR": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.VS_HIT], "cancel": VOID_ELEMENT.VS_HIT + 0.19, "end": VOID_ELEMENT.VS_HIT + 0.43,
+		"speed": 1.2, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
+	# Fault Line (L H L L H): the rake, low, the gale up out of the cracks. Its breaker is Cataclysm.
+	"XF": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
+		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.35},
+	# Steam Burst (Dash L H H L): Molten Palm's clip and pace into the ice. Its breaker is Flash Freeze.
+	"XS": {"anim": "Ab_AF", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + 0.17, "end": VOID_ELEMENT.AF_HIT + 0.34,
+		"speed": EM_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
+	# Storm Pitch (Dash H L): the crescent swing, with the axe on the tentacle.
+	"XT": {"anim": "Ab_H", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.H_HIT], "cancel": VOID_ELEMENT.H_HIT + 0.22, "end": VOID_ELEMENT.H_HIT + 0.46,
+		"speed": 1.2, "lunge": 3.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.35, "big": true},
 	# Light after Updraft Lash (L H L): an air slash. He stays up with the foe
 	# the lash threw (`air`: holds the height he started at) and the cut
 	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).
@@ -109,6 +123,11 @@ const COMBOS := {
 	"EM": {"name": "Molten Palm", "input": "L L L H", "tier": 1},
 	"EV": {"name": "Undertow", "input": "L L L H H", "tier": 2},
 	"DL": {"name": "Dash Stab", "input": "Dash > L", "tier": 1},
+	# Crossovers (round 34): the string changes element, and the second one cashes in what the first set up.
+	"XR": {"name": "Rockslide", "input": "L H L L", "tier": 2},
+	"XF": {"name": "Fault Line", "input": "L H L L H", "tier": 2},
+	"XS": {"name": "Steam Burst", "input": "Dash L H H L", "tier": 2},
+	"XT": {"name": "Storm Pitch", "input": "Dash H L", "tier": 2},
 }
 # Names of the moves that aren't combos, for the combo guide.
 const MOVE_NAMES := {"L1": "Slice", "L2": "Hurl", "AL1": "Air Slash", "IJ": "Vault"}

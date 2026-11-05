@@ -152,7 +152,8 @@ var _void: Node  # his tentacle: grab, slam, swing, breaker holds (void_grab.gd)
 # The breaker in play (hero_leap.gd).
 var _brk: Dictionary = {}  # its BREAKERS entry
 var _brk_id := ""
-var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
+var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed), 3 Meteor Fall's beats before the dive
+var _brk_beat := 0  # phase 3: 0 thrown at the walls, 1 dragged into the pile, 2 diving
 var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
 var _brk_locked := false
 var _brk_held := false  # pressed just before `open`: dives as the window opens (BREAKER_EARLY)
@@ -171,6 +172,8 @@ var _brk_prompt: Control  # the timing circle (breaker_prompt.gd), made on the f
 var combos_landed := {}  # COMBOS id -> times landed this run (pause menu, combo guide)
 var breakers_landed := 0  # combo breakers (timed finishers) landed (autotest)
 var breaker_perfects := 0
+var breakers_seen := {}  # BREAKERS id -> true once landed (autotest `breakers=`)
+var endings_seen := {}  # breaker name -> true once landed, alt endings too (autotest `endings=`)
 var rank_ups := 0  # style rank climbs that burst at the hero (autotest)
 var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
 

@@ -182,6 +182,8 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 			hero._brk_meteor.global_position = model.global_position + Vector3.UP
 		if k >= 1.0:
 			_impact(hero)
+	elif hero._brk_phase == 3:
+		_tick_beats(hero, t)
 	else:
 		var k: float = clampf(t / b.fall, 0.0, 1.0)
 		model.position.y = b.height * (1.0 - k * k)
@@ -209,23 +211,17 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	var void_grab: Node = hero._void
 	if hero._brk_alt and b.has("alt"):
 		b.merge(b.alt, true)
-	if b.has("cubes"):
+	if b.has("cubes") or b.has("refreeze"):
 		void_grab.freeze_seized()
-	if b.has("maw"):
+	if b.has("black_ice"):
+		VOID_ELEMENT.freeze_pool(hero)
+	elif b.has("maw"):
 		void_grab.dark_maw = VOID_ELEMENT.DARK.maw(hero.get_parent(), void_grab.dark_spot, VOID_ELEMENT.MAW_RADIUS)
 	if b.has("abyss") and is_instance_valid(void_grab.dark_bind):
 		void_grab.dark_bind.sink = VOID_ELEMENT.ABYSS_SINK
 	if b.has("press"):
 		void_grab.aim_crush()
 	_aim(hero)
-	var model: Node3D = hero.model
-	if b.has("meteor"):
-		var run: Vector3 = hero._brk_zone - Vector3(hero.global_position.x, 0.0, hero.global_position.z)
-		hero._brk_meteor = VOID_ELEMENT.meteor_shell(hero.get_parent(), Vector3(run.x, -b.height, run.z))
-		hero._brk_meteor.global_position = model.global_position + Vector3.UP
-	hero._brk_phase = 1
-	hero._state_t = 0.0
-	hero._brk_dive_from = hero.global_position
 	var perfect: bool = absf(hero._brk_press - b.sweet) <= b.perfect
 	hero._brk_ended = "perfect" if perfect else "hit"
 	if is_instance_valid(hero._brk_cue):
@@ -235,6 +231,48 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	if perfect:
 		Game.hitstop(BREAKER_PERFECT_STOP, 0.05)
 		Game.sfx("perfect", -4.0, 0.0)
+	if b.has("gather"):  # Meteor Fall: two beats in the hang before the dive (_tick_beats)
+		hero._brk_phase = 3
+		hero._brk_beat = 0
+		hero._state_t = 0.0
+		Fx.flash(hero.model)
+		VOID_ELEMENT.meteor_wall(hero)
+		return
+	_dive(hero)
+
+
+## Meteor Fall's hang after the press (phase 3): beat 1 (meteor_wall, on the press) has thrown them at the walls;
+## once they've hit, beat 2 drags them all into one pile (meteor_gather), and once that's in, beat 3 is the dive.
+static func _tick_beats(hero: CharacterBody3D, t: float) -> void:
+	var b: Dictionary = hero._brk
+	hero.model.position.y = b.height + sin(t * 9.0) * 0.06
+	hero._face(hero._brk_dir)
+	var flying: bool = VOID_ELEMENT.pile_flying(hero)
+	if hero._brk_beat == 0:
+		if t >= VOID_ELEMENT.METEOR_GATHER_AT and (not flying or t >= VOID_ELEMENT.METEOR_GATHER_LATE):
+			hero._brk_beat = 1
+			hero._state_t = 0.0
+			Game.hitstop(VOID_ELEMENT.METEOR_BEAT_STOP)
+			hero._play("Ab_GR", 0.05, true)
+			VOID_ELEMENT.meteor_gather(hero)
+	elif t >= VOID_ELEMENT.METEOR_DRAG_TIME and (not flying or t >= VOID_ELEMENT.METEOR_DIVE_LATE):
+		hero._brk_beat = 2
+		Game.hitstop(VOID_ELEMENT.METEOR_BEAT_STOP)
+		Game.sfx("hit_big", -4.0, 0.1)
+		_dive(hero)
+
+
+## The dive itself: down onto the zone in `dive` s (phase 1), as the meteor where the breaker is one.
+static func _dive(hero: CharacterBody3D) -> void:
+	var b: Dictionary = hero._brk
+	var model: Node3D = hero.model
+	if b.has("meteor"):
+		var run: Vector3 = hero._brk_zone - Vector3(hero.global_position.x, 0.0, hero.global_position.z)
+		hero._brk_meteor = VOID_ELEMENT.meteor_shell(hero.get_parent(), Vector3(run.x, -b.height, run.z))
+		hero._brk_meteor.global_position = model.global_position + Vector3.UP
+	hero._brk_phase = 1
+	hero._state_t = 0.0
+	hero._brk_dive_from = hero.global_position
 	hero._play("Ab_VS", 0.03, true)
 	hero.anim.seek(hero.anim.current_animation_length * 0.3, true)
 	Game.sfx("ult", -6.0, 0.0)
@@ -266,6 +304,8 @@ static func _impact(hero: CharacterBody3D) -> void:
 		Game.camera_rig.punch(0.75 if perfect else 0.82, 0.35)
 	Game.add_awakening(b.awaken_perfect if perfect else b.awaken)
 	hero.breakers_landed += 1
+	hero.breakers_seen[hero._brk_id] = true
+	hero.endings_seen[breaker_name(hero)] = true
 	if perfect:
 		hero.breaker_perfects += 1
 	_callout(hero, breaker_name(hero), perfect)

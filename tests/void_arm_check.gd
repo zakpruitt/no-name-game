@@ -18,16 +18,21 @@ class Foe extends CharacterBody3D:
 	var hits := 0
 	var last_big := false
 	var frozen := false
+	var up := false  # in the air (the crossovers read it)
+	var last_kb := Vector3.ZERO
+	var last_launch := 0.0
 	var chill_t := 0.0
 	func chill(t: float, _m: float) -> void: chill_t = t
 	func freeze(_t: float, _m: float) -> void: frozen = true
 	func is_alive() -> bool: return hp > 0.0
-	func is_airborne() -> bool: return false
+	func is_airborne() -> bool: return up
 	func stagger(_t: float) -> void: pass
 	func take_hit(d: float, _kb = Vector3.ZERO, _l = 0.0, big = false, _x = null) -> void:
 		hp -= d
 		hits += 1
 		last_big = big
+		last_kb = _kb
+		last_launch = _l
 
 
 func _initialize() -> void:
@@ -67,6 +72,7 @@ func _initialize() -> void:
 	await _ice()
 	await _magma()
 	await _dark()
+	await _crossovers()
 	await _tentacle_alone()
 	await _snatch()
 	print("void_arm_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
@@ -735,13 +741,97 @@ func _magma() -> void:
 	_check(is_instance_valid(hero._brk_meteor), "he comes down in fire")
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(not is_instance_valid(hero._brk_meteor) or hero._brk_meteor.is_queued_for_deletion(), "which goes when he lands")
-	off = Vector2(hero.global_position.x - where.x, hero.global_position.z - where.z).length()
-	_check(off < 1.0, "right on top of it (%.1f m off)" % off)
+	# (round 34: it threw them at the walls and dragged them into one pile; he lands on the pile)
+	for e: Node3D in [shoved, near]:
+		off = Vector2(hero.global_position.x - e.global_position.x, hero.global_position.z - e.global_position.z).length()
+		_check(off < 1.5, "the meteor comes down on the pile, with each of them in it (%.1f m off)" % off)
 	_check(shoved.hp < hp_before, "and it takes it (%.0f)" % (hp_before - shoved.hp))
 	hero.bot_enabled = false
 	shoved.free()
 	near.free()
 	await _settle()
+
+
+## Round 34's crossovers: each cashes in what the element before it set up.
+func _crossovers() -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	var r: Callable = load("res://scripts/player.gd").void_route
+	_check(r.call("light", "AL1", true, 0, false) == "XR", "L H L L: Rockslide")
+	_check(r.call("heavy", "XR", true, 0, false) == "XF", "L H L L H: Fault Line")
+	_check(r.call("light", "EA", true, 0, false) == "XS", "Dash L H H L: Steam Burst")
+	_check(r.call("light", "TW", true, 0, false) == "XT", "Dash H L: Storm Pitch")
+	# Rockslide: down into the floor, the one the gale had up twice as hard.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	hero.model.position.y = 0.0
+	var up := _foe(Vector3(1, 0, 2))
+	up.up = true
+	var down := _foe(Vector3(-1, 0, 2))
+	hero._start_attack("XR")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(up.last_kb.y < 0.0 and down.last_kb.y < 0.0, "Rockslide drives them both down (craters)")
+	_check(500.0 - up.hp > (500.0 - down.hp) * 1.9, "the one in the air takes double (%.0f vs %.0f)" % [500.0 - up.hp, 500.0 - down.hp])
+	_check(hero._void.buried == [up], "and Fault Line knows who it buried")
+	await _settle()
+	# Fault Line: the buried one goes up hardest.
+	up.hp = 500.0
+	down.hp = 500.0
+	hero.bot_enabled = false
+	hero._void.buried = [up]
+	hero._start_attack("XF")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(up.last_launch > 0.0 and down.last_launch > 0.0, "Fault Line throws them up")
+	_check(500.0 - up.hp > (500.0 - down.hp) * 1.9, "the buried hardest (%.0f vs %.0f)" % [500.0 - up.hp, 500.0 - down.hp])
+	await _until(func() -> bool: return hero.state != hero.State.LEAP and hero.state != hero.State.ATTACK, 3.0)
+	game_end_slowmo()
+	up.free()
+	down.free()
+	await _settle()
+	# Steam Burst: only the frozen go off; the one beside it is scalded.
+	var ice := _foe(Vector3(0, 0, 3))
+	var warm := _foe(Vector3(1.5, 0, 3))
+	el.encase(ice)
+	_check(el.in_cube(ice), "a cube to start from")
+	hero._start_attack("XS")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(not el.in_cube(ice) and ice.last_launch > 0.0, "Steam Burst blows the cube apart, and it up")
+	_check(warm.hp < 500.0 and warm.hp > ice.hp, "the steam scalds the one beside it, less (%.0f / %.0f)" % [500.0 - warm.hp, 500.0 - ice.hp])
+	await _until(func() -> bool: return hero.state != hero.State.LEAP and hero.state != hero.State.ATTACK, 3.0)
+	game_end_slowmo()
+	ice.free()
+	warm.free()
+	await _settle()
+	# Storm Pitch: whoever's bunched in front flies on, crackling.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var pitched := _foe(Vector3(0, 0, 1.8))
+	var passed := _foe(Vector3(0.8, 0, 6.0))
+	passed.remove_from_group("enemies")
+	hero._start_attack("XT")
+	passed.add_to_group("enemies")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(pitched.has_meta("thrown_foe_flying"), "Storm Pitch hurls it")
+	await _until(func() -> bool: return not pitched.has_meta("thrown_foe_flying"), 2.0)
+	_check(pitched.global_position.z > 5.0, "along his aim (%.1f m)" % pitched.global_position.z)
+	_check(passed.hp < 500.0, "and lightning or the landing finds the one it passes (%.0f)" % (500.0 - passed.hp))
+	pitched.free()
+	passed.free()
+	await _settle()
+	# Black Ice: the pool freezes them, the landing shatters them down into the floor.
+	var pooled := _foe(Vector3(0, 0, 4))
+	hero._void.dark_spot = Vector3(0, 0, 4)
+	el.freeze_pool(hero)
+	_check(el.in_cube(pooled), "Black Ice freezes the pool with it in")
+	var b: Dictionary = el.entry("VD")
+	b.merge(b.alt, true)
+	el.breaker_impact(hero, b, Vector3(0, 0, 2), [], 1.0)
+	_check(pooled.hp < 500.0 and pooled.last_kb.y < 0.0, "and the landing shatters it into the floor")
+	pooled.free()
+	await _settle()
+
+
+func game_end_slowmo() -> void:
+	root.get_node("Game").end_slowmo()
 
 
 ## The dark string: each one gathers them, and its breaker lands on where it gathered them.

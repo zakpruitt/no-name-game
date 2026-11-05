@@ -32,6 +32,10 @@ static var _cube_mat: StandardMaterial3D
 static var _cube_meshes := {}  # (radius, height) in cm -> mesh
 const WALL_MARGIN := 0.5  # m short of a wall
 const FLYING := "thrown_foe_flying"  # meta on a foe in flight: nothing else may move it
+const GROUP := "thrown_foes"  # every flight in progress (cut())
+const ZAP_STEP := 0.08  # s between a `zap` flight's jolts
+const ZAP_REACH := 3.2  # m it jumps to whoever it passes
+const ZAP_MAX := 5  # jolts a flight gives at most
 
 var hero: CharacterBody3D
 var foe: Node3D
@@ -44,6 +48,9 @@ var tether := false
 var wall_mult := 1.0
 var speed := SPEED
 var land_y := LAND_Y
+var zap := false  # Storm Pitch: lightning jumps from it to anyone it passes (ZAP_*)
+var _zaps := 0
+var _next_zap := 0.0
 var _from := Vector3.ZERO
 var _dir := Vector3.FORWARD
 var _length := 0.0
@@ -65,6 +72,7 @@ static func launch(by: Variant, e: Variant, to: Vector3, dmg: float, opts := {})
 	for k: String in opts:
 		t.set(k, opts[k])
 	by.get_parent().add_child(t)
+	t.add_to_group(GROUP)
 	e.set_meta(FLYING, true)
 	if float(e.get("frozen_t") if e.get("frozen_t") != null else 0.0) <= 0.0 and e.has_method("stagger"):
 		e.stagger(STUN)
@@ -78,6 +86,17 @@ static func launch(by: Variant, e: Variant, to: Vector3, dmg: float, opts := {})
 
 static func flying(e: Node) -> bool:
 	return e.has_meta(FLYING)
+
+
+## Ends `e`'s flight where it is, so the next move can take it (Storm Pitch off Tow Line's tether, Meteor Fall's beats).
+static func cut(e: Variant) -> void:
+	if not is_instance_valid(e) or not e.has_meta(FLYING):
+		return
+	for t: Node in e.get_tree().get_nodes_in_group(GROUP):
+		if t.foe == e and not t.is_queued_for_deletion():
+			e.global_position.y = 0.0
+			t.quiet = true
+			t._finish()
 
 
 ## Encases a frozen foe in a cube, in place of the plain ice cylinder. enemy.gd's _thaw() takes it off.
@@ -187,6 +206,8 @@ func _clear(length: float) -> float:
 
 
 func _physics_process(delta: float) -> void:
+	if is_queued_for_deletion():
+		return  # (cut(): another move has it now)
 	if not is_instance_valid(foe) or not foe.is_alive():
 		_finish()
 		return
@@ -202,6 +223,8 @@ func _physics_process(delta: float) -> void:
 		cube.rotate_y(CUBE_SPIN * delta)
 	if _rope != null and hero._void != null:
 		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.get("radius")) + 0.05, _time)
+	if zap and _zaps < ZAP_MAX and _time >= _next_zap:
+		_zap(at)
 	if solid:
 		var other := _first_in_the_way()
 		if other != null:
@@ -217,6 +240,26 @@ func _physics_process(delta: float) -> void:
 			_finish()
 		else:
 			_burst(null)
+
+
+## One jolt from it to the nearest foe it's passing (Storm Pitch: the axe's storm rides the thrown foe).
+func _zap(at: Vector3) -> void:
+	var best: Node3D = null
+	var best_d := ZAP_REACH
+	for o: Node in foe.get_tree().get_nodes_in_group("enemies"):
+		if o == foe or not o.is_alive():
+			continue
+		var d: float = (o.global_position - at).length()
+		if d < best_d:
+			best_d = d
+			best = o
+	if best == null:
+		return
+	_zaps += 1
+	_next_zap = _time + ZAP_STEP
+	VOID_ELEMENT.ELEMENTS.arc(hero.get_parent(), at + Vector3.UP, best.global_position + Vector3.UP, VOID_ELEMENT.ELEMENTS.LOOK.wind.color)
+	best.take_hit(VOID_ELEMENT.WIRE_DAMAGE * float(hero.get("_dmg_mult")), Vector3.ZERO, 0.0, false)
+	Game.register_hit("cast")
 
 
 func _first_in_the_way() -> Node3D:

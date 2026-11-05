@@ -12,7 +12,7 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 40.0
+const AUTOTEST_MAX := 60.0
 
 var main: Node  # the training room
 var player: CharacterBody3D
@@ -21,14 +21,17 @@ var _autotest_t := 0.0
 var _hits := 0
 var _max_combo := 0
 ## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
-## click (Overwhelm). Each runs into its breaker where it has one (player presses it at
+## click (Overwhelm), "alt" (anywhere in it) makes the breaker press L, its `alt` ending. Each runs into its breaker where it has one (player presses it at
 ## the sweet spot for the bot), so the autotest walks every element and the dark. Frost Spear (L L H)
 ## only plays inside L L H L H, which sets the spear off: while it stands (5 s) any L or H press vaults onto
 ## it (void_element.vaults), and a lone L L H sent the next strings up the spear (Collapse and Grounded
 ## never played).
 const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "H"], ["H", "L", "H"],
 	["L", "H", "L", "H"], ["D", "L", "H"], ["D", "L", "H", "H"], ["D", "H"],
-	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"]]
+	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"],
+	# Crossovers (round 34): Rockslide into Fault Line and Cataclysm, Steam Burst into Flash Freeze, Storm Pitch,
+	# and Black Ice ("alt": the window's press is L, Maw's other ending).
+	["L", "H", "L", "L", "H"], ["D", "L", "H", "H", "L"], ["D", "H", "L"], ["alt", "H", "L", "H"]]
 const BOT_GAP := 0.35  # s standing between strings
 ## Every string starts from the same place (round 30, second pass): once the dummies stand again (or after
 ## BOT_SETTLE_MAX s) they're put back on their homes and the hero BOT_SPOT m from the first one, toward where
@@ -166,9 +169,10 @@ func _autotest_finish() -> void:
 	_quitting = true
 	for line: String in player.bot_log + _rhythm_log:
 		print(line)
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d moves=%s" % [
+	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d endings=%s moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
-		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_landed, player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(), ",".join(_bot_moves.keys())])
+		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_seen.size(), player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(),
+		",".join(player.endings_seen.keys()).replace(" ", "_"), ",".join(_bot_moves.keys())])
 	var n := maxi(_perf.frames, 1)
 	for line in _perf_log:
 		print(line)
@@ -275,6 +279,10 @@ func _drive_bot() -> void:
 		return  # walk up first
 	if _bot_step == 0:
 		_bot_rhythm.clear()
+		player.bot_alt = "alt" in string
+	if string[_bot_step] == "alt":  # (not a press: bot_alt is set for the whole string)
+		_bot_step += 1
+		return
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
