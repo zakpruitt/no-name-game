@@ -531,7 +531,11 @@ Zak confirmed the chibi heretic as the art direction: "we can redesign him and f
 - [x] Face: a toothy smirk drawn with the eyes (`heretic_rig.gd` `GRIN`), eyes squinting on attacks, squeezing shut when hit, blinking at rest; the grin bares or grits with them (`squint`, `_step_face`; checked in `heretic_shots`)
 - [x] Weapons (`chibi_weapons.py` + `ComicLook.KIND_TONES["heretic"]`): fatter hafts in the claw's violet, void deep/ink heads, one element accent each, a 1.6x spear head and a hammer reaching 1.62 m (was 1.34); no paper rim on them (`heretic_rig.RIM_SKIP_FORMS`), thin ink only
 - [x] Before / after lineup with the nine foes and the dummy at the game camera (`tests/foe_shots.gd -- --tag=`)
-- [ ] He reads smaller than most foes and the dummy in the lineup (1.85 m against KayKit's 2.18 m and the chibi-passed heads): try a bigger hood and claw before a taller bake
-- [ ] A trailing scarf tail on its own spring chain (new geometry and weights; not done: the rig was frozen this round)
-- [ ] The face texture under the hood is still Meshy's mask shape (the grin decal is what reads); the eye decal and texture eyes could share one position
+- [x] Presence (second lane, `chibi_presence.py`): head and hood x1.2 about the neck, the hood x1.25 wider and 6 cm taller, the claw x1.5 about the wrist with its bones, a 5 cm wider stance per foot, the hood tip at 2.05 m (Armature node scale; `chibi_keys.py` divides the run's ground speed by it). Game camera: 146 -> 183 px tall, 12.3k -> 17.7k px of silhouette (warrior 209 px, 28.4k)
+- [x] Contrast: a three-value figure, bone-white hood over a blue-black body, violet claw and cyan eyes the accents, crimson scarf, sash, cuffs and wrap
+- [x] A crimson scarf tail on its own spring chain (`chibi_scarf.py`: 0.89 m ribbon, scarf.01-04 off chest; `heretic_rig.gd` `ScarfSprings` + `_flutter_scarf`)
+- [x] The face: a dark oval painted over Meshy's mask (`chibi_repaint.FACE_OVAL`) and a depth-tested dark `FaceShade` oval behind the eye and grin decals, so the grin sits on shadow in 3/4 views
+- [x] Before / after lineup (`foe_shots -- --tag=mh2_before / mh2_after`) and a four-string film (`string_film -- --to=3`)
+- [ ] He is still smaller than the warrior at the game camera (183 vs 209 px, 17.7k vs 28.4k px): the 2.05 m cap leaves a bigger bake or a hero `model_scale` as the next lever
+- [ ] The scarf tail reads from the side and behind; from the front the hood hides it, and its flutter is unplayed
 - [ ] By hand: whether the squint / grin on attacks reads in play or flickers across fast strings

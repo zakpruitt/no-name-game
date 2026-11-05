@@ -227,6 +227,33 @@ godot --headless --path . -s tests/contact_frames.gd
 
 Before / after: windowed `heretic_shots` (game and close crops of the ten poses), `foe_shots -- --tag=` (the lineup) and `string_film` (four strings).
 
+## Hero pass 2 (round 40, second lane)
+
+The lineup read after chibi pass 2: the nine foes popped and the hero was the weakest figure on screen, small, pale and low-contrast. He is the player's avatar, so he must be the boldest silhouette in a crowd. Four more scripts over the same blend, rig and clips kept (contact_frames prints the same 22 frames, `hero_stride_check` 1.00):
+
+| | Pass 2 | Hero pass 2 |
+|---|---|---|
+| Height (hood tip) | 1.85 m | 2.05 m (Armature node x0.987 after the head and hood grew) |
+| Game camera, Idle (one at a time on his spot, 1600x900) | 146 px tall, 12.3k px | 183 px tall, 17.7k px (warrior 209 px, 28.4k; dummy 165 px) |
+| Front ortho | 413 px | 460 px |
+| Body tris / bones | 21,999 / 89 | 22,197 / 93 (scarf ribbon, scarf.01-04) |
+| GLB | 3.12 MB | 3.10 MB |
+
+- **Presence** (`chibi_presence.py ... 1.25 0.06 1.5 2.05 1.2 1.1`): head and hood x1.2 about the neck joint by head weight, the hood x1.25 wider from 1.1 m up (each 2 cm slice about its own middle near the tip, so the lean-back stays) and its peak 6 cm taller, the claw x1.5 about the wrist with its `tent.*` bones moved through the same map (hand.r's head, the weapon bones and the weapons untouched), then the Armature object scaled so the tip stands at 2.05 m. The glTF Armature node carries the scale: skeleton space is unchanged, so `EYES` / `GRIN` stay in rest space and only move through `HEAD_GROW`. `chibi_keys.py` reads the scale (`WORLD_K`) and divides the run's ground speed by it (`RUN_GROUND`, `floor_d`), and widens every keyed stance by `STANCE_W` 5 cm a foot. comic_check's facing check now takes the turn of each node, not its scale.
+- **Contrast** (`chibi_repaint.TONES`): a three-value figure. Bone-white hood; a cool blue-black body (tunic, sleeves, trousers, skirt, boots, glove); the violet claw and cyan eyes as the bright accents. The crimson scarf and sash are the only colour on the body, and the boot cuffs and forearm wrap take the sash's crimson. The paper rim (`hero_rim`) carries the dark body's edge on the floor.
+- **Scarf tail** (`chibi_scarf.py`): a 0.89 m crimson ribbon (0.24 m wide at the root, 0.17 at the swallowtail end), leaving the back of the scarf under the hood's hem and trailing out over his left hip, on four new bones off `chest`. It is joined into the body mesh, its UVs on flat scarf texels, and the body's custom split normals are carried over (joined faces without them shaded black and lost the ink hull). `heretic_rig.gd` gives it its own `SpringBoneSimulator3D` (`ScarfSprings`, `SCARF_*`, a spine capsule) and waves it first (`_flutter_scarf`: faster and lifted back `SCARF_LIFT_DEG` with his speed), so it streams behind a run and the spring carries the overshoot. Models without `scarf.01` skip it.
+- **Face**: `chibi_repaint.FACE_OVAL` paints every head texel inside a front oval round the eye and grin spots as face (the low brim and texture eyes included), and `heretic_rig.gd`'s `FaceShade` is a depth-tested, camera-facing dark oval behind the decals on the grin's attachment. Meshy's mask was a dark V with the white cowl round it; from 13-54 degrees up the grin sat on that white. The texture oval alone changed nothing visible there (the white behind the grin was the hood's under-chin cowl seen past the brim), the shade oval fixed it from every yaw.
+
+Rebuild after the pass-2 chain (`p2/weapons.blend`):
+
+```
+blender -b vendor_src/meshy/chibi/p2/weapons.blend -P tools/meshy_rig/chibi_presence.py -- vendor_src/meshy/chibi/p2/presence.blend 1.25 0.06 1.5 2.05 1.2 1.1
+blender -b vendor_src/meshy/chibi/p2/presence.blend -P tools/meshy_rig/chibi_scarf.py -- vendor_src/meshy/chibi/p2/chibi_scarf.blend
+blender -b vendor_src/meshy/chibi/p2/chibi_scarf.blend -P tools/meshy_rig/chibi_keys.py -- vendor_src/meshy/chibi/p2/out/heretic_chibi.glb
+```
+
+then `comic_glb.py`, the JPEG bytes, `--import` and `contact_frames.gd` as above. Later clip work keys over `p2/chibi_scarf.blend`.
+
 ## The rig
 
 - Bone names match the current hero, so `MOVES`, `HERO_MOVES` and `hand.r` lookups work unchanged. Extras: `neck`, `shoulder.*`, left `finger.*`, `tent.*`, `skirt.*`.
