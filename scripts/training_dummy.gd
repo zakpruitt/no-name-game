@@ -51,14 +51,20 @@ const DAZE_CLIP := "Dazed"
 const BAG_FLAGS := {"--bag-damping=": "bag_damping", "--bag-stiffness=": "bag_stiffness",
 	"--bag-lean=": "bag_lean_mult", "--bag-squash=": "bag_squash_mult"}
 # The last-string tag: TAG_HEIGHT m over its feet, Bangers at TAG_SIZE, popping TAG_POP big when a string
-# ends; while the next string is on it fades to TAG_DIM.
+# ends. Feel audit 2, item 2: four 72 px gold tags with a 22 px outline sat over the pile for whole strings, the
+# loudest text on screen. It now shows only TAG_SHOW_S real s after this dummy's string ends, at about a damage
+# number's size in a thin ink (TAG_INK_PX on screen), fades over TAG_FADE_S and is gone as soon as it is hit again.
 const TAG_HEIGHT := 3.3
-const TAG_SIZE := 72
-const TAG_POP := 1.5
-const TAG_DIM := 0.35
+const TAG_SIZE := 40  # font px (0.24 m at TAG_PIXEL: ~12 px at the game camera, the number's 0.42 m is ~20)
+const TAG_PIXEL := 0.006
+const TAG_INK_PX := 1.5  # px of ink round it on screen (a hit's word and number take 3)
+const TAG_POP := 1.2
+const TAG_SHOW_S := 1.5  # real s from the string's end to the tag gone
+const TAG_FADE_S := 0.3  # the last part of it
 const TAG_COLOR := Color(1.0, 0.86, 0.25)
 const TAG_INK := Color(0.05, 0.03, 0.08)
 const TAG_FONT := "res://assets/fonts/Bangers-Regular.ttf"
+const PAL := preload("res://scripts/fx_palette.gd")
 
 var home := Vector3.ZERO
 var shakeoffs := 0  # dazes shaken off (enemy_feel_check)
@@ -111,8 +117,8 @@ func _build_tag() -> void:
 	_tag.no_depth_test = true
 	_tag.fixed_size = false
 	_tag.font_size = TAG_SIZE
-	_tag.outline_size = 22
-	_tag.pixel_size = 0.006
+	_tag.pixel_size = TAG_PIXEL
+	_tag.outline_size = maxi(1, roundi(TAG_INK_PX / (TAG_PIXEL * PAL.PX_PER_M)))
 	_tag.modulate = TAG_COLOR
 	_tag.outline_modulate = TAG_INK
 	_tag.render_priority = 2
@@ -135,8 +141,16 @@ func _on_combo(count: int, _rank: String) -> void:
 	if _tag_tween:
 		_tag_tween.kill()
 	_tag.scale = Vector3.ONE * TAG_POP
-	_tag_tween = create_tween()
-	_tag_tween.tween_property(_tag, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_tag_tween = create_tween().set_ignore_time_scale(true)  # (a landing's hitstop must not hold it up)
+	_tag_tween.tween_property(_tag, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_tag_tween.tween_interval(TAG_SHOW_S - TAG_FADE_S - 0.2)
+	_tag_tween.tween_method(_tag_alpha, 1.0, 0.0, TAG_FADE_S)
+	_tag_tween.tween_callback(_tag.hide)
+
+
+func _tag_alpha(a: float) -> void:
+	_tag.modulate.a = a
+	_tag.outline_modulate.a = a
 
 
 func _physics_process(delta: float) -> void:
@@ -253,7 +267,8 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		velocity.y = minf(velocity.y, launch_speed_for(MAX_HEIGHT - global_position.y))
 	if hp < before:
 		string_damage += before - hp
-		if _tag.visible and _tag.modulate.a > TAG_DIM:  # a new string: the last one's number steps back
-			_tag.modulate.a = TAG_DIM
-			_tag.outline_modulate.a = TAG_DIM
+		if _tag.visible:  # a new string on it: the last one's number goes
+			if _tag_tween:
+				_tag_tween.kill()
+			_tag.hide()
 		hit_taken.emit(before - hp)

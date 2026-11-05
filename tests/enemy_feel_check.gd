@@ -199,7 +199,8 @@ func _bag_round3(d: Node, settled_default: int) -> void:
 		await physics_frame
 		stretched = stretched or d.last_squash == d.DAZE_STRETCH
 	_check(not d._daze_tween.is_running() and not stretched, "no head-shake or boing after the cut")
-	# The tag: the string's damage on this dummy pops when the combo drops, dims when the next starts.
+	# The tag: the string's damage on this dummy pops when the combo drops, goes when the next hits it, and left alone
+	# is gone TAG_SHOW_S real s after the string (feel audit 2, item 2).
 	var game: Node = get_root().get_node("Game")
 	game.combo_changed.emit(0, "D")  # close whatever the hits above started
 	var tag: Label3D = d.get_node("StringTag")
@@ -211,7 +212,13 @@ func _bag_round3(d: Node, settled_default: int) -> void:
 	_check(tag.visible and tag.text == "LAST %d" % roundi(dealt) and d.last_string_damage == dealt and d.string_damage == 0.0,
 		"the tag reads the last string's damage (%s for %.0f)" % [tag.text, dealt])
 	d.take_hit(5.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
-	_check(is_equal_approx(tag.modulate.a, d.TAG_DIM) and tag.text == "LAST %d" % roundi(dealt), "a new string dims it (%.2f)" % tag.modulate.a)
+	_check(not tag.visible, "a new string's hit takes it down")
+	game.combo_changed.emit(0, "D")
+	_check(tag.visible and tag.outline_size <= 8 and tag.font_size <= 48, "small and thin (font %d, ink %d)" % [tag.font_size, tag.outline_size])
+	await create_timer(d.TAG_SHOW_S * 0.5, true, false, true).timeout
+	_check(tag.visible, "it stays up a moment")
+	await create_timer(d.TAG_SHOW_S * 0.5 + 0.15, true, false, true).timeout
+	_check(not tag.visible, "and is gone %.1f s after the string" % d.TAG_SHOW_S)
 	print("[enemy_feel] bag round 3: damping 7 still after %d frames (5: %d); shake-off cut %d; tag %s" % [settled, settled_default, d.shakeoffs_cut, tag.text])
 
 
