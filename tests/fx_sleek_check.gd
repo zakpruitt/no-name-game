@@ -181,6 +181,14 @@ func _initialize() -> void:
 	await process_frame
 	var rims := get_nodes_in_group("comic_geyser").size() - rims_before
 	_ok(rims == els6.RIM_GEYSER_MAX, "a batch of five rim geysers draws %d (%d)" % [els6.RIM_GEYSER_MAX, rims])
+	var drawn0: int = els6.strikes_drawn
+	for i in 6:
+		els6.storm_strike(main, Vector3(i * 0.9 - 2.0, 0, 4), "wind")
+	await process_frame
+	var first: int = els6.strikes_drawn - drawn0
+	await create_timer(0.25, true, false, true).timeout
+	_ok(first == 1 and els6.strikes_drawn - drawn0 == els6.STRIKE_MAX,
+		"six storm strikes in a frame draw %d, staggered (%d at once, %d in all)" % [els6.STRIKE_MAX, first, els6.strikes_drawn - drawn0])
 	els6._rim_batch.clear()
 	p.state = p.State.MOVE
 	merged0 = fxs.crowd_merged

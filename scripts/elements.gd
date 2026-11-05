@@ -733,9 +733,9 @@ class Orbit extends Node3D:
 static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 	match el:
 		"wind":  # a fat flat bolt out of the sky into a hot star, on twos (comic_bolt.gd)
-			var foot := Vector3(pos.x, 0.25, pos.z)
-			var sky := foot + Vector3(randf_range(-1.2, 1.2), STRIKE_HIGH, randf_range(-1.2, 1.2))
-			COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, STRIKE_STAR, STRIKE_FORKS)
+			if _strike_batch.is_empty():
+				_flush_strikes.call_deferred()
+			_strike_batch.append([parent, pos])
 			return
 		"earth":
 			spikes(parent, pos, el, 1.8, 4, 0.9)
@@ -751,6 +751,50 @@ static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 			else:
 				pillar(parent, pos, el, 8.0, 1.3, 0.7)
 	light_pop(parent, pos, LOOK[el].color, 5.0, 5.0, 0.25)
+
+
+## Round 33, sleek 6: Grounded asks for a strike under every foe and one at the pile's middle, six bolts and six
+## stars in one frame. The frame's strikes are drawn together: at most STRIKE_MAX, nearest the middle of them first,
+## STRIKE_SPACING apart, STRIKE_STAGGER real s after each other (comic_fault's Cataclysm cadence), and only the first
+## (the pile's centre) lands in a star.
+const STRIKE_MAX := 3
+const STRIKE_SPACING := 1.4  # m
+const STRIKE_STAGGER := 0.06  # real s
+static var _strike_batch := []  # [parent, pos] asked this frame
+static var strikes_drawn := 0  # (fx_sleek_check)
+
+
+static func _flush_strikes() -> void:
+	var batch := _strike_batch
+	_strike_batch = []
+	var mid := Vector3.ZERO
+	for r: Array in batch:
+		mid += r[1]
+	mid /= maxf(batch.size(), 1.0)
+	batch.sort_custom(func(x: Array, y: Array) -> bool: return _flat(x[1] - mid).length() < _flat(y[1] - mid).length())
+	var picked := []
+	for r: Array in batch:
+		if picked.size() >= STRIKE_MAX or not is_instance_valid(r[0]):
+			continue
+		if picked.any(func(q: Array) -> bool: return _flat(q[1] - r[1]).length() < STRIKE_SPACING):
+			continue
+		picked.append(r)
+	for k in picked.size():
+		var parent: Node = picked[k][0]
+		var pos: Vector3 = picked[k][1]
+		if k == 0:
+			_strike_bolt(parent, pos, STRIKE_STAR)
+		elif parent.is_inside_tree():
+			parent.get_tree().create_timer(STRIKE_STAGGER * k, true, false, true).timeout.connect(func() -> void:
+				if is_instance_valid(parent) and parent.is_inside_tree():
+					_strike_bolt(parent, pos, 0.0))
+
+
+static func _strike_bolt(parent: Node, pos: Vector3, star: float) -> void:
+	strikes_drawn += 1
+	var foot := Vector3(pos.x, 0.25, pos.z)
+	var sky := foot + Vector3(randf_range(-1.2, 1.2), STRIKE_HIGH, randf_range(-1.2, 1.2))
+	COMIC_BOLT.spawn(parent, sky, foot, STRIKE_WIDTH, star, STRIKE_FORKS)
 
 
 ## The comic strike from the sky (spirit, void): a see-through column (COLUMN_*) snapping open at `pos`
