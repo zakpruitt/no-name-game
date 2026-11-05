@@ -71,6 +71,7 @@ func _initialize() -> void:
 	await _thrown_at_wall()
 	await _ice()
 	await _magma()
+	await _meteor_target()
 	await _dark()
 	await _crossovers()
 	await _three_elements()
@@ -654,6 +655,7 @@ func _spear_string() -> void:
 
 
 func _magma() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
 	var a := _foe(Vector3(0, 0, 3))
@@ -697,14 +699,13 @@ func _magma() -> void:
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "Undertow opens a window")
 	_check(hero.HERO_LEAP.breaker_name(hero) == "Meteor Fall", "Meteor Fall (%s)" % hero.HERO_LEAP.breaker_name(hero))
-	_check(hero._void.held_foes() == [big], "it goes for the big one")
+	_check(hero._void.held_foes().is_empty(), "no tentacle hold: the meteor needs none")
 	await create_timer(0.1).timeout
 	_check(a.global_position.distance_to(pin) < 0.3, "the small one's stuck")
-	var big_before := big.hp
+	var a_before := a.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
-	_check(big_before - big.hp >= 60.0, "and rips it (%.0f)" % (big_before - big.hp))
-	_check(hero._void._seized.is_empty(), "then lets go")
-	var off := Vector2(hero.global_position.x - big.global_position.x, hero.global_position.z - big.global_position.z).length()
+	_check(a_before - a.hp >= 60.0, "two lone foes: he dives on the nearer and it takes the meteor (%.0f)" % (a_before - a.hp))
+	var off := Vector2(hero.global_position.x - a.global_position.x, hero.global_position.z - a.global_position.z).length()
 	_check(off < 1.0, "he lands on it (%.1f m off)" % off)
 	hero.bot_enabled = false
 	a.hp = 500.0
@@ -718,40 +719,63 @@ func _magma() -> void:
 	a.free()
 	big.free()
 	await _settle()
-	# Palm, Undertow, meteor: he goes after whoever the palm sent away, past the tentacles' usual reach.
+	# Palm into a wall, Undertow, meteor: he dives on the one the palm splatted on the wall, not the nearer one.
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
-	var shoved := _foe(Vector3(0, 0, 6))
-	var near := _foe(Vector3(6, 0, -3))
+	var shoved := _foe(Vector3(0, 0, 4))
+	var near := _foe(Vector3(5, 0, -3))
+	var back_wall := _wall(Vector3(0, 1, 9.5))
+	await physics_frame
+	await physics_frame
 	hero._start_attack("EM")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return not shoved.has_meta("thrown_foe_flying"), 2.0)
+	_check(ve.wall_fresh(shoved) and not ve.wall_fresh(near), "Molten Palm's wall splat marks it (last_wall_ms)")
 	await _until(func() -> bool: return hero._state_t * hero.anim_speed * hero._anim_mult / hero._move_len >= hero._move.cancel, 2.0)
 	hero.bot_enabled = true
 	landed = hero.breakers_landed
 	hero._start_attack("EV")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 	_check(hero._void.bound.has(shoved), "Undertow follows who the palm shoved")
-	await _until(func() -> bool: return not shoved.has_meta("thrown_foe_flying"), 2.0)
 	var where := shoved.global_position
-	_check(where.z > 10.0, "out past the tentacles' reach (%.1f m)" % where.z)
-	await create_timer(0.1).timeout
-	_check(shoved.global_position.distance_to(where) < 0.3, "and pins it where it landed")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.HERO_LEAP.breaker_name(hero) == "Meteor Fall", "the breaker's the meteor")
+	_check(shoved.global_position.distance_to(where) < 0.3, "and pins it where it splatted")
 	var hp_before := shoved.hp
+	var near_before := near.hp
 	await _until(func() -> bool: return hero._brk_phase == 1, 3.0)
 	_check(is_instance_valid(hero._brk_meteor), "he comes down in fire")
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(not is_instance_valid(hero._brk_meteor) or hero._brk_meteor.is_queued_for_deletion(), "which goes when he lands")
-	# (round 34: it threw them at the walls and dragged them into one pile; he lands on the pile)
-	for e: Node3D in [shoved, near]:
-		off = Vector2(hero.global_position.x - e.global_position.x, hero.global_position.z - e.global_position.z).length()
-		_check(off < 1.5, "the meteor comes down on the pile, with each of them in it (%.1f m off)" % off)
-	_check(shoved.hp < hp_before, "and it takes it (%.0f)" % (hp_before - shoved.hp))
+	off = Vector2(hero.global_position.x - shoved.global_position.x, hero.global_position.z - shoved.global_position.z).length()
+	_check(off < 1.0, "the meteor dives on the wall-splatted one, past the nearer foe (%.1f m off)" % off)
+	_check(hp_before - shoved.hp >= 60.0 * ve.METEOR_SPLAT_MULT - 0.5, "it takes the splat bonus x%.1f (%.0f)" % [ve.METEOR_SPLAT_MULT, hp_before - shoved.hp])
+	_check(near_before - near.hp < 40.0, "and the stray out of the blast only burns in the lava (%.0f)" % (near_before - near.hp))
 	hero.bot_enabled = false
 	shoved.free()
 	near.free()
+	back_wall.free()
 	await _settle()
+
+
+## Meteor Fall's target (void_element.meteor_target, pure): the biggest group in reach, the wall-splatted group on
+## a tie, a clearly bigger group over a splatted stray, and nothing to dive on with nobody in reach.
+func _meteor_target() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var at := Vector3.ZERO
+	var group := [Vector3(0, 0, 8), Vector3(1, 0, 8.5), Vector3(-1, 0, 7.6)]
+	var r: Dictionary = ve.meteor_target(at, [Vector3(4, 0, 0)] + group, [false, false, false, false])
+	_check(r.found and r.at.distance_to(Vector3(0, 0, 8.03)) < 0.2 and r.count == 3, "a group of three beats a nearer stray (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(-6, 0, 2), Vector3(-6.5, 0, 3)] + [Vector3(6, 0, 2), Vector3(6.5, 0, 3)], [false, false, true, true])
+	_check(r.found and r.at.x > 5.0, "two equal groups: the one the palm splatted on a wall wins (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(-3, 0, 2), Vector3(-6.5, 0, 3)] + group + [Vector3(1, 0, 7)], [true, false, false, false, false, false])
+	_check(r.found and r.count == 4 and r.at.z > 7.0, "a clearly bigger group beats a splatted stray (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(7, 0, 0), Vector3(7.5, 0, 0.5), Vector3(0, 0, 5)], [true, true, false])
+	_check(r.found and r.at.x > 6.0, "and the splatted pair beats a lone foe nearer (%s)" % r)
+	r = ve.meteor_target(at, [], [])
+	_check(not r.found, "nobody: no target (he lands ahead of him)")
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_REACH + 2.0)], [true])
+	_check(not r.found, "nobody in reach: no target either")
 
 
 ## Round 34's crossovers: each cashes in what the element before it set up.

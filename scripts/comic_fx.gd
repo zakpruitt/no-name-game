@@ -121,12 +121,6 @@ static func hit(world: Vector3, big: bool) -> void:
 		_inst._word(world, mini(Fx.chain_tier(Game.combo_count) + (1 if big else 0), WORDS.size() - 1))
 
 
-## A word of an effect's own at `world` (Meteor Fall's pile-up), `base` its scale (WORD_SCALE / BREAKER_SCALE).
-static func say(text: String, world: Vector3, base: float) -> void:
-	if _inst != null:
-		_inst._say(text, world, base)
-
-
 ## Word size over its life in frames: pops past full size, settles, swells as it goes.
 static func word_scale(frame: int, reduced: bool) -> float:
 	if reduced:

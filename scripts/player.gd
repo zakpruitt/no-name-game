@@ -157,8 +157,7 @@ var _void: Node  # his tentacle: grab, slam, swing, breaker holds (void_grab.gd)
 # The breaker in play (hero_leap.gd).
 var _brk: Dictionary = {}  # its BREAKERS entry
 var _brk_id := ""
-var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed), 3 Meteor Fall's beats before the dive
-var _brk_beat := 0  # phase 3: 0 thrown at the walls, 1 dragged into the pile, 2 diving
+var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
 var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
 var _brk_locked := false
 var _brk_held := false  # pressed just before `open`: dives as the window opens (BREAKER_EARLY)

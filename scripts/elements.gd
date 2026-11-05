@@ -897,9 +897,9 @@ static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_cor
 	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
 
 
-## Round 33, sleek 5: a thin geyser at a breaker landing's rim (Meteor Fall, the rip): the column only, narrower and
+## Round 33, sleek 5: a thin geyser at a breaker landing's rim (Meteor Fall): the column only, narrower and
 ## lower than `geyser`, with no spikes or scorch of its own (the landing's crater mark is under it). Five full
-## geysers with four spikes and a scorch each walled the DOGPILE in.
+## geysers with four spikes and a scorch each walled the pile in.
 const RIM_GEYSER_WIDTH := 0.42  # of the radius (geyser: GEYSER_WIDTH 0.75)
 const RIM_GEYSER_SQUASH := 0.55  # of the asked height (geyser: GEYSER_SQUASH 0.7)
 static func rim_geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:

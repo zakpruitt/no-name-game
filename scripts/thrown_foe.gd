@@ -31,6 +31,7 @@ static var _cube_mat: StandardMaterial3D
 static var _cube_meshes := {}  # (radius, height) in cm -> mesh
 const WALL_MARGIN := 0.5  # m short of a wall
 const FLYING := "thrown_foe_flying"  # meta on a foe in flight: nothing else may move it
+const WALL_META := "last_wall_ms"  # meta: Time.get_ticks_msec() of its last wall splat (Meteor Fall goes for these)
 const GROUP := "thrown_foes"  # every flight in progress (cut())
 const ZAP_STEP := 0.08  # s between a `zap` flight's jolts
 const ZAP_REACH := 3.2  # m it jumps to whoever it passes
@@ -298,6 +299,8 @@ func _burst(other: Node3D) -> void:
 	Game.sfx("hit_big", -2.0, 0.1)
 	Game.hitstop(0.04)
 	Game.shake(0.3)
+	if _walled and other == null:
+		foe.set_meta(WALL_META, Time.get_ticks_msec())
 	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)
 	_count(foe)
 	if other != null:

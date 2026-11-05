@@ -36,9 +36,9 @@ const SECTIONS := [
 		{"input": "Dash L H H", "kind": "move", "id": "EA", "note": "Freezes the nearest and bowls it. Everyone it passes freezes too."},
 	]},
 	{"title": "MAGMA", "rows": [
-		{"input": "L L L H", "kind": "move", "id": "EM", "note": "The arm swells into a fist and shoves them along a line of lava. A wall hits hard."},
+		{"input": "L L L H", "kind": "move", "id": "EM", "note": "The arm swells into a fist and shoves them along a line of lava. Punch a group into a wall: the wall hits hard (x2.5), and sets up Meteor Fall."},
 		{"input": "L L L H H", "kind": "move", "id": "EV", "note": "Tendrils drag them waist-deep into lava, stuck and burning, however far the palm sent them."},
-		{"input": "L L L H H, H in the window", "kind": "text", "name": "Meteor Fall", "tier": 3, "note": "The tentacles hurl them all into the walls, drag them back into one pile, and he dives into it as a meteor. The biggest takes it worst, and shields come off for good."},
+		{"input": "L L L H H, H in the window", "kind": "text", "name": "Meteor Fall", "tier": 3, "note": "He dive-bombs the biggest group in reach as a meteor, and everyone in the blast takes it. The group Molten Palm just splatted on a wall counts more, and takes x1.3. Big ones take it worst; shields come off for good."},
 	]},
 	{"title": "DARK", "rows": [
 		{"input": "H", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
@@ -96,7 +96,7 @@ const SECTIONS := [
 		{"input": "in the air, then dark", "kind": "text", "state": "airborne", "el": "void", "own": true, "name": "Air Rip", "tier": 1, "note": "Tow Line rips them out of the air, harder."},
 		{"input": "held by tendrils, then storm", "kind": "text", "state": "bound", "el": "wind", "name": "Torn Loose", "tier": 1, "note": "The gale tears them out of Undertow or Overwhelm and up."},
 		{"input": "held by tendrils, then ice", "kind": "text", "state": "bound", "el": "water", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
-		{"input": "held by tendrils, then magma", "kind": "text", "state": "bound", "el": "earth", "own": true, "name": "Meteor Fall", "tier": 1, "note": "Undertow's window: the tentacles rip the biggest out and he comes down on them."},
+		{"input": "held by tendrils, then magma", "kind": "text", "state": "bound", "el": "earth", "own": true, "name": "Meteor Fall", "tier": 1, "note": "Undertow's window: he dives on the biggest group it holds."},
 		{"input": "held by tendrils, then dark", "kind": "text", "state": "bound", "el": "void", "own": true, "name": "Abyss", "tier": 1, "note": "Overwhelm's window: they sink through the floor and are thrown back up."},
 	]},
 ]

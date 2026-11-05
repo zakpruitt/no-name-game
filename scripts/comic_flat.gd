@@ -1,6 +1,6 @@
 extends Node3D
 ## The shared drawer for the crossover effects (round 37: comic_boulder, comic_fault, comic_steam, comic_freeze_over,
-## comic_arc, comic_splat). Two surfaces rebuilt on twos: `screen` (camera-facing, heretic_form_fx's shared material:
+## comic_arc). Two surfaces rebuilt on twos: `screen` (camera-facing, heretic_form_fx's shared material:
 ## no depth test, alpha, so it sits over the pile) and `floor` (flat on the floor, comic_crack's shared depth-tested
 ## material, so foes stand on it). Nothing new to compile. Sleek rules from fx_palette: thin LINE ink round a shape,
 ## gradient fills, one hot core, peak on the first frame, gone in well under a second.

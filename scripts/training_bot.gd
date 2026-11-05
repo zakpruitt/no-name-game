@@ -28,6 +28,7 @@ var _max_combo := 0
 ## never played).
 const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "H"], ["H", "L", "H"],
 	["L", "H", "L", "H"], ["D", "L", "H"], ["D", "L", "H", "H"], ["D", "H"],
+	# (L L L H H: Molten Palm shoves the dummies, Undertow pins them, Meteor Fall dives on the biggest group of them.)
 	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"],
 	# Crossovers (round 34): Rockslide into Fault Line and Cataclysm, Steam Burst into Flash Freeze, Storm Pitch,
 	# and Black Ice ("alt": the window's press is L, Maw's other ending).

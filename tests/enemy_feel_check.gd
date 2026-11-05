@@ -423,7 +423,7 @@ func _slams() -> void:
 			"deep_freeze":
 				ve._deep_freeze(hero, at, 1.0)
 			"meteor":
-				ve._tear(hero, {"damage": 1.0}, [e], 1.0)
+				ve._meteor_landing(hero, {"damage": 1.0}, at, 1.0)
 			"maw":
 				hero._void.dark_spot = at
 				ve._maw(hero, {"damage": 1.0}, 1.0)
