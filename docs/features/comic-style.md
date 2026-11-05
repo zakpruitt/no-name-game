@@ -272,6 +272,13 @@ python tools/comic_glb.py <kit>/out/enemies_keyed <name>
   reaches its face). `cap` drops the helmet scrap and horn and fits an orange skull cap over the cranium
   (rays from outside onto the skull, pushed 3.5 cm out, 62 degrees round an axis tipped 25 degrees back off
   the face, with a lip) with a ridge of four pale bone fins along its top. Tris 7946 -> 8108.
+- **Dummy: the foes' face and line.** `enemy_dummy.py` takes the refine_pass face: googly eyes x1.65 about
+  their centres (set 0.5 rad round the sack so they just meet), tipped 30 degrees back to face up the game
+  camera, with the eye and pupil bones tipped too (the squint and the Dazed pupil spin, now 5.5 cm, still
+  work); angry brows slanted down to the nose, on the eye bones so a hit folds them shut; the grin wider and
+  bent down at the corners (scowl 0.6), buck teeth kept. `dummy` joined `ComicLook.SILHOUETTE_KINDS`, so it
+  gets the same heavy outer line. The sack, its bag bones and the punching-bag spring are untouched
+  (`enemy_feel_check`, `training_check` pass). Tris 9798 -> 9798.
 
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front

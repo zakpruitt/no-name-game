@@ -218,7 +218,7 @@ const FOE_SHADE_MATCH := 0.8
 ## The nine foes get a heavy outer line on top of Fx.outline (shaders/foe_silhouette.gdshader): a second
 ## hull sharing each skinned mesh, SILHOUETTE_PX wide and pushed SILHOUETTE_PUSH m back, so it shows only
 ## round the outside of the foe (art direction: thicker ink on the silhouette, thin inside).
-const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "bomber", "necromancer", "warden"]
+const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "bomber", "necromancer", "warden", "dummy"]
 const SILHOUETTE_SHADER := "res://shaders/foe_silhouette.gdshader"
 const SILHOUETTE_PX := 4.0
 const SILHOUETTE_PUSH := 0.3
