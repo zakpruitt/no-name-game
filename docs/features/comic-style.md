@@ -209,6 +209,53 @@ root bone, heretic_rig's method: velocity less a 0.12 s lagged copy, spring 600 
 the game camera's angle (54 deg up, 35 deg round). Judge tells from the game row: the big head hides
 anything held behind or over it.
 
+**Foe models, chibi pass 2 (round 39).** Zak, on the chibi lineup: "I definitely like this chibi direction
+better ... we will refine them all going forward." `tools/comic_art/refine_pass.py` runs on the chunky blend
+before `foe_keys.py` and changes meshes and material names only: no bone, rest pose or clip moves, so every
+keyed clip plays as before (`foe_stride_check`, `enemy_feel_check` pass unchanged). Judged from the game
+camera with `foe_shots.gd`, where a foe is 60-90 px tall:
+
+- **Silhouette first: one signature prop each, bigger.** `grow` scales a part's vertices (by their weights on
+  its bones) about the grip; `thick` pushes them out from the bone's axis. Minion cleaver 1.45 x 1.25 across,
+  rogue daggers 1.2, shield 1.4 (and the skulls, arrows and bone clutter pinned to it dropped: a plain plank
+  wall with an orange boss), warrior blade 1.35, mage hat 1.22 (its star patches removed), archer bow limbs
+  1.8 across and orange, bomber bomb 1.18 about its top, necromancer hood 1.3, Warden arms 1.15 across.
+- **Families, one accent each, the element's colour in `fx_palette.gd`:** legion (minion, shield, warrior,
+  archer, bomber) earth orange, cult (rogue, mage) void violet, grave (necromancer, Warden) wind green. The
+  accent is the eyes and glows (`P_GlowEarth` / `P_GlowVoid` / `P_GlowWind` in `ComicLook.EMITS`) plus one
+  region (`P_FoeEarth` / `P_FoeVoid` / `P_FoeWind` in `TONES`): the minion's cap and loincloth, the warrior's
+  horns and trim, the shield's boss, the archer's bow, the rogue's wrap, the Warden's tabard. Odd fourth
+  colours went to a neighbour (the warrior's teal skirt to leather, the mage's gold trim to its lining).
+- **Faces.** Eyes x1.65 and sockets x1.3 about the eye bone's head, tipped back 30 degrees to face up the
+  camera (from 54 degrees up a hunched skull shows its cranium, not its face); a slanted black brow over each
+  eye, ray-cast onto the face and skinned to the eye bone, so the hit squint folds it into a shut-eye line;
+  the teeth widened 1.15 and bent down at the corners (scowl 0.6 of their height, the bomber 0.25).
+- **Thicker ink on the outside only.** `ComicLook.silhouette()` gives each skinned foe mesh a child
+  `Silhouette` drawing the same mesh and skin with `shaders/foe_silhouette.gdshader`: an inverted hull
+  `SILHOUETTE_PX` 4 wide (Fx.outline is 1.6) pushed `SILHOUETTE_PUSH` 0.3 m back, so it only shows where
+  nothing of the foe is behind the edge. A `material_override` on that child printed 36 "Parameter material is
+  null" at exit (Fx.outline's surface copies under an override); surface overrides fixed it.
+- **Budget:** every foe stays under its round 38 triangle count +20% (brows 72 tris; the shield and mage lost
+  more than they gained). Health bars moved with the taller hats: mage 2.55, necromancer 3.05, bomber 2.45.
+
+| Kind | tris before -> after | signature |
+|---|---|---|
+| minion | 7842 -> 7946 | cleaver, orange cap |
+| rogue | 9562 -> 9666 | twin daggers, violet wrap |
+| shield | 11247 -> 9953 | plank wall, orange boss |
+| warrior | 11026 -> 11130 | horned helmet, longer blade |
+| mage | 12278 -> 12262 | tall hat |
+| archer | 10860 -> 10964 | thick orange bow |
+| bomber | 10877 -> 10981 | bigger bomb |
+| necromancer | 11110 -> 11110 | taller hood |
+| warden | 22264 -> 22368 | bulk, green tabard |
+
+```
+blender -b <kit>/out/enemies_chunky/<name>.blend -P tools/comic_art/refine_pass.py -- <name>   # out/enemies_refined/
+blender -b <kit>/out/enemies_refined/<name>.blend -P tools/comic_art/foe_keys.py -- <name>      # out/enemies_keyed/
+python tools/comic_glb.py <kit>/out/enemies_keyed <name>
+```
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
 (`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`

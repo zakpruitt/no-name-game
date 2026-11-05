@@ -285,3 +285,13 @@ the worktree, and deletes the branch once it has been merged.
   leaves `git diff` empty. No interactive `add -p` needed.
 - **Windowed tools from a subagent:** the memory rule is headless only unless Zak said so; a lane told to film
   with `string_film.gd` left it as a follow-up and read the bot's `[rhythm]` lines instead.
+- **Mesh-only passes keep the clips (round 39, foe models):** `refine_pass.py` between chunk_pass and foe_keys scales
+  parts by their bone weights about a bone head and never moves a bone, so foe_keys re-keys byte-identical clips;
+  check it once by running foe_keys on the unchanged chunky blend and comparing the GLB size with the committed one.
+  An eye scaled or tipped about the eye bone's head keeps the hit squint closing on it.
+- **A second hull on a skinned mesh:** a child MeshInstance3D sharing `mesh` and `skin` (skeleton path from the child)
+  draws an extra pass with no GLB cost. Give it surface overrides, not `material_override`: with an override,
+  Fx.outline's per-surface copies under it printed 36 "Parameter material is null" at exit. Count those lines in a
+  windowed `foe_shots.gd` run before and after a look change; that is where they show.
+- **`git stash` in a worktree with an imported project** brings back every `.import` file with CRLF noise; revert it
+  with the `git diff --ignore-cr-at-eol` loop before staging.

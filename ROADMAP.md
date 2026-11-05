@@ -497,3 +497,15 @@ Zak, about the hero: "the movement animation is awful" (fixed in round 35); the 
 - [x] Rogue and minion: Run_Start (6 f) / Run_Stop (9 f) one-shots (`enemy._play_locomotion`, `RUN_START_BELOW` / `RUN_STOP_ABOVE`) and a turn lean (`scripts/foe_lean.gd`, `enemy.TURN_LEAN`)
 - [x] `foe_keys.py`: absolute `aim` per bone (with twist), `keep` (props hold their world angle), `src` / `follow` overlays on kit clips, `sheet=` two-view sheets (side + game camera); fixed a hold-into-key off-by-one
 - [ ] By hand: spar the rogue and minion for the start / stop / lean feel (`TURN_LEAN`, `RUN_START_BELOW`); the warrior's overhead tell is small from the game camera (the helmet covers the hands)
+
+## Round 39 (Foe models, chibi pass 2)
+Zak, on the chibi lineup: "I definitely like this chibi direction better. We can redesign and fine tune, but assume we want this kind of art style. We will refine them all going forward." `tools/comic_art/refine_pass.py` (mesh and materials only, between chunk_pass and foe_keys; every bone, rest pose and clip kept). See `docs/features/comic-style.md` "Foe models, chibi pass 2". Seen in windowed `foe_shots.gd` shots, not played.
+- [x] Silhouette: one bigger signature prop per foe (minion cleaver, rogue daggers, shield wall cleared of its clutter, warrior blade, mage hat, archer bow 1.8x thicker, bomber bomb, necromancer hood, Warden arms)
+- [x] Colour families by element (fx_palette.gd): legion earth orange, cult void violet, grave wind green; eyes and one region per foe in the accent (`P_Foe*` tones, `P_Glow*` emits)
+- [x] Faces: eyes 1.65x tipped up to the camera, slanted brows on the eye bones (the squint folds them shut), teeth scowl
+- [x] Heavier ink on the outer silhouette only (`ComicLook.silhouette`, `shaders/foe_silhouette.gdshader`, 4 px pushed 0.3 m back)
+- [x] Tri budget kept (each under round 38's +20%); health bars raised for the mage, necromancer and bomber
+- [ ] The warrior's tell still hides under its helmet from the game camera; a longer blade helped the idle read, not the overhead chop (anim lane: aim it wider past the shoulder)
+- [ ] The shield's planks still break into a light / dark checker under the cut tones (brush 0.1 did not fix it): flatten the plank geometry or give the wall one flat face
+- [ ] Minion: still the plainest; try a bigger skull cap or a hunch with a spine ridge, and a cleaver with a clear blade shape
+- [ ] By hand: spar each family and see whether the accent colour sorts a crowd at a glance (`--spar=minion|rogue|shield|warrior`)
