@@ -133,6 +133,9 @@ def aim_bone(G, b, child_head_rest, target):
     G[b] = with_rot(M, q)
 
 
+LEG_MISS = [0.0]  # m: the worst foot target the legs couldn't reach, per clip
+
+
 def solve(P, form):
     G = {}
     G["root"] = R["root"].copy()
@@ -183,10 +186,12 @@ def solve(P, form):
         a = (head_of("lowerleg." + s) - head_of("upperleg." + s)).length
         c = (head_of("foot." + s) - head_of("lowerleg." + s)).length
         pole = (FWD + RIGHT * 0.25 * out + UP * 0.1)
+        T0 = T
         E, T = ik2(S, T, a, c, pole)
+        LEG_MISS[0] = max(LEG_MISS[0], (T0 - T).length)
         aim_bone(G, "upperleg." + s, head_of("lowerleg." + s), E)
         aim_bone(G, "lowerleg." + s, head_of("foot." + s), T)
-        yaw = P.get(key + "r", (0, 0, 0))
+        yaw = P.get(key + "r") or (0, 0, 0)
         G["foot." + s] = with_rot(carried(G, "foot." + s), wrot(yaw) @ RQ["foot." + s])
         G["toes." + s] = carried(G, "toes." + s)
     return G
@@ -391,28 +396,6 @@ CLIPS["Ab_VS"] = (46, "hand", STEP_ATTACK, None, [
     (15, VS_SMEAR, "snap"), (17, VS_HIT, "hold"), (23, VS_OVER, "io"), (29, VS_SET, "io"), (42, GUARD, "hold"), (46, GUARD, "hold")])
 
 
-# Idle: 4 s, loose and menacing: slow breath through the chest, the hood bobbing behind it, the claw
-# held out a little at his side, swollen, slowly opening and closing once a loop and drifting out and
-# back (from the game camera a claw hanging low read small and dead), one claw flex half way.
-def idle_keys():
-    keys = []
-    n = 121
-    for f in range(1, n + 1, STEP_STANCE):
-        ph = (f - 1) / (n - 1) * 2 * math.pi
-        br = math.sin(ph * 2)  # two breaths per loop
-        lag = math.sin(ph * 2 - 0.7)
-        flex = max(0.0, math.sin(ph - 1.2)) ** 3
-        drift = math.sin(ph + 0.6)  # the claw wanders out and back once a loop, so it reads alive from above
-        keys.append((f, pose(NEUTRAL, hip=(0.01 * math.sin(ph), 0, -0.045 + 0.012 * br), hipr=(4 * math.sin(ph), 0, 2 * math.sin(ph)),
-                             chest=(2 * math.sin(ph), 6 - 2.5 * br, 0), head=(-3 + 6 * math.sin(ph - 0.5), 5 + 4 * lag, 2 * math.sin(ph)),
-                             hsq=0.03 * lag, rh=(45 + 8 * drift, -20 + 4 * br, 0.54), w=(50 + 16 * drift, 2 + 8 * lag),
-                             lh=(-45, -60 + 3 * br, 0.37), claw=0.1 + 0.55 * math.sin(ph) + 0.15 * lag - 0.6 * flex,
-                             clawph=180 * ph / math.pi, hs=1.2), "lin"))
-    keys[-1] = (n, keys[0][1], "hold")
-    return keys
-
-
-CLIPS["Idle"] = (121, "hand", STEP_STANCE, None, idle_keys())
 
 
 # Idle_Ready: the fight stance: low, claw up and open, a quick bounce on the breath.
@@ -433,29 +416,6 @@ def ready_keys():
 CLIPS["Idle_Ready"] = (41, "hand", STEP_STANCE, None, ready_keys())
 
 
-# Run_F: bouncy chibi run on the old one's phase (left foot down on 1, right on 11): two big bounces a
-# cycle, leaning in, the claw trailing out behind him, the fist pumping.
-def run_keys():
-    keys = []
-    n = 21
-    for f in range(1, n + 1, STEP_STANCE):
-        u = (f - 1) / (n - 1)
-        ph = u * 2 * math.pi
-        bounce = abs(math.cos(ph))  # 1 at each contact
-        lfwd = 0.3 * math.cos(ph)  # left foot ahead at 1, behind at 11
-        lup = max(0.0, -math.sin(ph)) * 0.2
-        rup = max(0.0, math.sin(ph)) * 0.2
-        keys.append((f, pose(NEUTRAL, hip=(RUN_SWAY * math.cos(ph), 0.0, -0.09 * bounce + 0.03), hipr=(-10 * math.cos(ph), 16, RUN_ROLL * math.cos(ph)),
-                             chest=(12 * math.cos(ph), 6, 0), head=(-4 * math.cos(ph), -10 + 8 * bounce, 0), hsq=0.1 * bounce - 0.05,
-                             rh=(150, -10 + 8 * math.sin(ph), 0.55), w=(165, 10 + 10 * math.sin(ph + 1)),
-                             lh=(-35 + 50 * math.cos(ph), -40, 0.38), fl=(-0.02, lfwd, lup), fr=(0.02, -lfwd, rup),
-                             flr=(0, -25 * math.sin(ph) if lup else 0, 0), frr=(0, 25 * math.sin(ph) if rup else 0, 0),
-                             claw=-0.1, clawph=360 * u), "lin"))
-    keys[-1] = (n, keys[0][1], "hold")
-    return keys
-
-
-CLIPS["Run_F"] = (21, "hand", STEP_STANCE, None, run_keys())
 
 
 # ---- round 2: the void moves' clips and the rest of what the game plays on him.
@@ -551,52 +511,199 @@ CLIPS["Hit_A"] = (21, "hand", STEP_ATTACK, None, [
     (1, GUARD, "snap"), (2, HIT_FLINCH, "hold"), (7, HIT_BACK, "io"), (13, pose(GUARD, hsq=0.05), "io"),
     (21, GUARD, "hold")])
 
-# Dodge_Forward (13 frames at 1.7: 0.25 s, drawings every 2): a squash, a long streak pose (pitched
-# forward, hood stretched along the dash, claw and fist trailing), snapped back to the guard.
-DG_SQUASH = pose(GUARD, hip=(0, 0, -0.12), hipr=(0, 20, 0), chest=(0, 8, 0), hsq=0.2, rh=(60, -20, 0.45),
-                 w=(120, -10), claw=0.5)
-DG_STREAK = pose(GUARD, hip=(0, -0.06, -0.04), hipr=(0, 40, 0), chest=(0, 12, 0), head=(0, -10, 0), hsq=-0.28,
-                 rh=(175, 0, 0.6), w=(180, 10), lh=(-170, 0, 0.39), fl=(-0.02, -0.2, 0.1), fr=(0.02, -0.35, 0.15),
-                 claw=-0.2, hs=0.95)
-DG_SNAP = pose(GUARD, hip=(0, 0.02, -0.1), hipr=(0, -6, 0), hsq=0.18, rh=(30, -5, 0.52), w=(20, 20), claw=0.0)
-CLIPS["Dodge_Forward"] = (13, "hand", 2, None, [
-    (1, DG_SQUASH, "hold"), (3, DG_STREAK, "hold"), (8, DG_SNAP, "hold"), (10, pose(GUARD, hsq=-0.05, hipr=(0, 4, 0)), "lin"),
-    (13, GUARD, "hold")])
+# ---------------------------------------------------------------- locomotion (round 35)
+# The runs, the idle and the dash. Runs are written a frame at a time (step 0: `keys` is the list of
+# per-frame poses): legs, hips and the body squash on ones, so a planted foot stays locked to the
+# floor, and the arms, head and hood on twos (held 2 frames) for the comic snap. Loops are written
+# from frame 0 (LOOP0), so frame N is frame 0 again and Godot's loop has no held seam.
+LOOP0 = set()
+LOOP_SPEED = 1.1  # player._play: loops play at 1.1
+MOVE_SPEED = 7.5  # player.move_speed, m/s
+RUN_N = 14  # frames per cycle (two steps): 0.424 s of play at LOOP_SPEED, 4.7 steps a second
+RUN_GROUND = MOVE_SPEED / LOOP_SPEED / 30.0  # m the floor passes under him per clip frame (0.227)
+RUN_PLANT = 3.0  # frames a foot is down (a whole number: Godot samples between keys); the rest he is in the air
+RUN_REACH = 0.30  # m ahead of the hip joint a foot lands (behind it on Run_B)
+RUN_FOLLOW = 0.0  # of the floor speed the foot keeps going back as it leaves the floor (0: it kicks straight up and through)
+RUN_TOE = 0.09  # m the ankle rises at push-off, onto the toes (the leg can't reach further back flat)
+RUN_PAW = 0.0  # of a frame's floor travel the foot reaches past the landing spot and paws back (0: it drops straight down the last frame, a stomp)
+RUN_LIFT = 0.22  # m the swinging foot rises (heel kicked up behind)
+RUN_LEAN = 26.0  # degrees the hips pitch into the run
+STRAFE_PLANT = 2.0  # sideways the legs can't reach as far: a shorter plant
+# Ankle to hip joint at rest, along his front (the chibi's ankles sit 17 cm behind his hips).
+ANK = {s: (head_of("foot." + s) - head_of("upperleg." + s)).dot(FWD) for s in "lr"}
 
 
-# Run_B and the strafes: Run_F's phase and footfalls (left foot down on 1, right on 11), the planted foot
-# sliding against the way he travels. Backwards he leans back with the claw up in guard; sideways he
-# faces ahead and leans into the step.
-def loco_keys(way):
-    keys = []
-    n = 21
-    for f in range(1, n + 1, STEP_STANCE):
-        u = (f - 1) / (n - 1)
-        ph = u * 2 * math.pi
-        c, s = math.cos(ph), math.sin(ph)
-        bounce = abs(c)
-        lup = max(0.0, -s) * 0.18
-        rup = max(0.0, s) * 0.18
-        if way == "B":
-            fl, fr = (-0.03, -0.26 * c, lup), (0.03, 0.26 * c, rup)
-            body = dict(hipr=(-8 * c, -8, RUN_ROLL * c), chest=(8 * c, -2, 0), head=(-3 * c, 2 + 6 * bounce, 0),
-                        rh=(30, -5 + 6 * s, 0.52), w=(20, 15 + 8 * s), lh=(-35 - 30 * c, -35, 0.36), claw=-0.3)
+def pump(x, k=0.6):
+    """A snappier sine: holds near the ends, so arm pumps read as poses, not a wobble."""
+    return math.copysign(abs(x) ** k, x)
+
+
+def foot_run(s, reach, plant, way):
+    """(along, up, pitch) of one foot at cycle phase s (0 = its contact) for a run along `way` (+1
+    ahead, -1 back). Planted (`plant` frames) it slides against the travel at exactly RUN_GROUND a
+    frame, the ankle rising onto the toes at the end; in the air it carries on back a moment, kicks up,
+    swings through past the landing spot and, the last frame, paws back onto it at the floor's speed
+    (so it lands without skidding)."""
+    f = s * RUN_N  # frames since contact
+    sweep = plant * RUN_GROUND
+    land = reach * way
+    if f <= plant:
+        t = f / plant
+        return land - way * RUN_GROUND * f, RUN_TOE * t * t, -10.0 + 35.0 * t
+    swing = RUN_N - plant  # frames in the air
+    p0, p1 = land - way * sweep, land + way * RUN_GROUND * RUN_PAW
+    T = swing - 1.0
+    w = (f - plant) / swing
+    if f - plant <= T:  # Hermite from the push-off (still moving back at the floor's speed) to the reach
+        t = (f - plant) / T
+        h00, h10, h01 = 2 * t ** 3 - 3 * t * t + 1, t ** 3 - 2 * t * t + t, -2 * t ** 3 + 3 * t * t
+        along = h00 * p0 + h10 * T * (-way * RUN_GROUND * RUN_FOLLOW) + h01 * p1
+    else:
+        along = p1 - way * RUN_GROUND * RUN_PAW * (f - plant - T)
+    up = RUN_TOE + (RUN_LIFT - RUN_TOE) * math.sin(math.pi * min(w * 1.6, 1.0) ** 0.7) if w < 0.3 else         RUN_LIFT * math.sin(math.pi * (0.5 + 0.5 * (w - 0.3) / 0.7))
+    pitch = 25.0 + 35.0 * math.sin(math.pi * min(w / 0.4, 1.0)) if w < 0.4 else 25.0 - 35.0 * (w - 0.4) / 0.6
+    return along, up, pitch
+
+
+# Hip height (m from his stance) through one step, at step phase 0 (contact), the down pose, the
+# push-off, the top of the leap: tallest in the air, lowest just after the foot lands.
+RUN_HIPS = [(0.0, -0.075), (0.2, -0.125), (0.43, -0.08), (0.7, -0.02), (1.0, -0.075)]
+RUN_SQUASH = 0.06  # body squash at the down pose (and stretch at the top)
+
+
+def run_hips(q):
+    """(hip height, body squash) at step phase q: a smooth periodic curve through RUN_HIPS."""
+    pts = RUN_HIPS
+    for j in range(len(pts) - 1):
+        if pts[j][0] <= q <= pts[j + 1][0]:
+            t = (q - pts[j][0]) / (pts[j + 1][0] - pts[j][0])
+            a, b = pts[j][1], pts[j + 1][1]
+            z = a + (b - a) * t * t * (3 - 2 * t)
+            break
+    lo, hi = min(v for _, v in pts), max(v for _, v in pts)
+    return z, RUN_SQUASH * (1 - 2 * (z - lo) / (hi - lo))
+
+
+def unsquash(s, off, bsq):
+    """A foot offset (right, fwd, up) from its rest that lands where `off` would with no body squash."""
+    h = head_of("foot." + s)
+    rest = (h.dot(RIGHT), h.dot(FWD), h.dot(UP))
+    sc = (1 + 0.5 * bsq, 1 + 0.5 * bsq, 1 - bsq)
+    return tuple((r + o) / k - r for r, o, k in zip(rest, off, sc))
+
+
+def run_frames(way):
+    """Run_F ("F"), Run_B ("B"), Strafe_L / Strafe_R ("L", "R"): left foot down on frame 0, right on
+    RUN_N / 2, the same phase on all four so a change of direction carries on from the same step."""
+    out = []
+    side = {"L": -1.0, "R": 1.0}.get(way, 0.0)  # his right +
+    plant = STRAFE_PLANT if side else RUN_PLANT
+    for i in range(RUN_N + 1):
+        u = i / RUN_N
+        uq = (i // 2) * 2 / RUN_N  # on twos
+        q = (2 * u) % 1.0  # step phase: 0 at each contact
+        qq = (2 * uq) % 1.0
+        k = math.cos(2 * math.pi * (q - 0.18))  # 1 at the down pose (mid-stance), -1 at the top of the leap
+        lf = math.cos(2 * math.pi * uq)  # 1 with the left foot ahead
+        feet = {}
+        for s, ph in (("l", u), ("r", (u + 0.5) % 1.0)):
+            if side:
+                a, up, pitch = foot_run(ph, plant * RUN_GROUND / 2, plant, side)
+                sx = 1.0 if s == "r" else -1.0
+                # sideways from its own rest; the swinging foot passes a little ahead (left) or behind (right)
+                feet[s] = ((a - 0.03 * sx), (-0.06 * sx) * (up / RUN_LIFT) + 0.0, up)
+                feet[s + "r"] = (0, 8.0 * up / RUN_LIFT, -side * 10.0)
+            else:
+                w = 1.0 if way == "F" else -1.0
+                a, up, pitch = foot_run(ph, RUN_REACH, plant, w)
+                feet[s] = (0.03 if s == "l" else -0.03, a - ANK[s], up)  # a little narrower than his stance
+                feet[s + "r"] = (0, pitch if w > 0 else -0.5 * pitch, 0)
+        hz, bsq = run_hips(q)  # the whole body squashes on the down pose and stretches at the top
+        hip = (RUN_SWAY * math.cos(2 * math.pi * (u - 0.09)) + 0.03 * side, 0.0, hz)
+        base = dict(GUARD if way != "F" else NEUTRAL)
+        if way == "F":
+            body = dict(hipr=(10 * lf, RUN_LEAN + 4 * k, RUN_ROLL * math.cos(2 * math.pi * (u - 0.09))),
+                        chest=(-22 * lf, 8, 0), head=(6 * lf, -8 + 7 * math.cos(2 * math.pi * (qq - 0.3)), 0),
+                        # the claw trails out behind his right, pumping against the right leg, splayed
+                        rh=(140 + 18 * pump(lf), -18 - 8 * pump(lf), 0.55), w=(165 + 12 * pump(lf), 5 + 10 * pump(-lf)),
+                        # the fist pumps hard against the left leg
+                        lh=(-85 - 65 * pump(lf), -22 - 18 * pump(lf), 0.31), lpole=(-150, -30),
+                        claw=-0.45 + 0.15 * math.cos(2 * math.pi * (qq - 0.3)), clawph=360 * uq, hs=1.18)
+        elif way == "B":
+            body = dict(hipr=(-8 * lf, -6 + 3 * k, RUN_ROLL * math.cos(2 * math.pi * (u - 0.09))),
+                        chest=(14 * lf, 2, 0), head=(-4 * lf, 4 + 6 * math.cos(2 * math.pi * (qq - 0.3)), 0),
+                        # backing off: the claw up in guard, open, the fist pumping small
+                        rh=(30, -5 + 6 * pump(lf), 0.52), w=(20, 18 + 8 * pump(lf)),
+                        lh=(-45 - 35 * pump(-lf), -30, 0.33), claw=-0.35, clawph=360 * uq, hs=1.15)
         else:
-            side = -1.0 if way == "L" else 1.0  # his right +
-            # planted foot slides against the travel: left planted on 0..pi, right on pi..2pi
-            fl = (-0.1 - side * 0.12 * c, 0.03, lup)
-            fr = (0.1 - side * 0.12 * c, -0.04, rup)
-            body = dict(hipr=(side * 10, 6, side * (7 + 3 * bounce) + RUN_ROLL * c), chest=(-side * 8, 6, 0),
-                        head=(-side * 6, 4 + 6 * bounce, -side * 4), rh=(30, -5 + 5 * s, 0.52), w=(20 + side * 15, 15),
-                        lh=(-35, -35, 0.36), claw=-0.2)
-        keys.append((f, pose(GUARD, hip=(RUN_SWAY * c, 0.0, -0.08 * bounce + 0.02), hsq=0.1 * bounce - 0.05,
-                             fl=fl, fr=fr, clawph=360 * u, **body), "lin"))
-    keys[-1] = (n, keys[0][1], "hold")
-    return keys
+            body = dict(hipr=(side * 14, 8 + 3 * k, side * 10 + RUN_ROLL * 0.5 * math.cos(2 * math.pi * (u - 0.09))),
+                        chest=(-side * 10, 6, 0), head=(-side * 6, 4 + 6 * math.cos(2 * math.pi * (qq - 0.3)), -side * 6),
+                        # facing ahead, claw up and open towards where he looks
+                        rh=(30 + side * 10, -5 + 5 * pump(lf), 0.52), w=(20 + side * 15, 15 + 6 * pump(lf)),
+                        lh=(-40 - side * 15, -32 + 8 * pump(lf), 0.34), claw=-0.3, clawph=360 * uq, hs=1.15)
+        hsq = 0.04 + 0.16 * math.cos(2 * math.pi * (qq - 0.24))  # the hood lags the body a little
+        for f in "lr":  # the body squash scales about the floor: undo it on the feet so they stay locked
+            feet[f] = unsquash(f, feet[f], bsq)
+        p = pose(base, hip=hip, hsq=hsq, bsq=bsq, fl=feet["l"], fr=feet["r"], flr=feet["lr"], frr=feet["rr"], **body)
+        out.append(p)
+    return out
 
 
-for _way, _clip in (("B", "Run_B"), ("L", "Strafe_L"), ("R", "Strafe_R")):
-    CLIPS[_clip] = (21, "hand", STEP_STANCE, None, loco_keys(_way))
+for _way, _clip in (("F", "Run_F"), ("B", "Run_B"), ("L", "Strafe_L"), ("R", "Strafe_R")):
+    CLIPS[_clip] = (RUN_N + 1, "hand", 0, None, run_frames(_way))
+    LOOP0.add(_clip)
+
+
+# Idle: 4 s, hunched and menacing. The weight rolls onto one leg and over to the other once a loop
+# (the free knee bends, its heel lifts), two slow breaths heave the chest and hood, the head tilts
+# and glances, the claw held out at his side, swollen, opening and closing and drifting out and back
+# (from the game camera a claw hanging low read small and dead), one claw flex half way.
+IDLE_N = 120
+
+
+def idle_frames():
+    out = []
+    for i in range(IDLE_N + 1):
+        iq = (i // STEP_STANCE) * STEP_STANCE if i < IDLE_N else IDLE_N
+        ph = iq / IDLE_N * 2 * math.pi
+        wt = pump(math.sin(ph), 0.5)  # weight: + on his left leg, held there, then rolled over
+        br = math.sin(ph * 2)  # two breaths a loop
+        lag = math.sin(ph * 2 - 0.7)
+        flex = max(0.0, math.sin(ph - 1.2)) ** 3
+        drift = math.sin(ph + 0.6)
+        free_l = max(0.0, -wt)  # the left heel lifts with his weight on the right
+        free_r = max(0.0, wt)
+        out.append(pose(NEUTRAL, hip=(-0.035 * wt, 0.0, -0.06 + 0.012 * br - 0.012 * abs(wt)),
+                        hipr=(5 * wt, 4, 5 * wt), spine=(0, 3, 0),
+                        chest=(-3 * wt, 9 - 3 * br, -8 * wt), head=(-4 + 9 * math.sin(ph - 0.5), 2 + 4 * lag, 10 * wt),
+                        hsq=0.045 * lag, bsq=0.015 * br,
+                        rh=(45 + 8 * drift, -20 + 4 * br, 0.54), w=(50 + 16 * drift, 2 + 8 * lag),
+                        lh=(-45, -60 + 4 * br, 0.36), fl=(-0.04, 0.03, 0.025 * free_l), fr=(0.04, -0.05, 0.025 * free_r),
+                        flr=(0, 18 * free_l, 0), frr=(0, 18 * free_r, 0),
+                        claw=0.1 + 0.55 * math.sin(ph) + 0.15 * lag - 0.6 * flex, clawph=180 * ph / math.pi, hs=1.2))
+    return out
+
+
+CLIPS["Idle"] = (IDLE_N + 1, "hand", 0, None, idle_frames())
+LOOP0.add("Idle")
+
+
+# Dodge_Forward (13 frames at 1.7: 0.25 s, drawings every 2): a one-drawing crouch, then the streak
+# (pitched 48 degrees, body stretched long and thin, hood stretched along the dash, the leading knee
+# tucked up and the other leg straight out behind, claw and fist trailing), a skid landing squashed
+# low with the feet wide fore and aft, and back up to the guard.
+DG_SQUASH = pose(GUARD, hip=(0, 0.02, -0.14), hipr=(0, 24, 0), chest=(0, 10, 0), head=(0, -8, 0), hsq=0.24, bsq=0.1,
+                 rh=(110, -20, 0.45), w=(150, -10), lh=(-120, -30, 0.33), fl=(-0.04, 0.12, 0), fr=(0.04, -0.06, 0),
+                 claw=0.6)
+DG_STREAK = pose(GUARD, hip=(0, -0.06, -0.03), hipr=(0, 48, 0), chest=(0, 12, 0), head=(0, -16, 0), hsq=-0.3,
+                 bsq=-0.1, rh=(175, 5, 0.6), w=(180, 12), lh=(-170, 5, 0.37), fl=(-0.02, 0.18, 0.2),
+                 fr=(0.02, -0.4, 0.16), flr=(0, 30, 0), frr=(0, 60, 0), claw=-0.5, clawph=60.0, hs=1.1)
+DG_SKID = pose(GUARD, hip=(0, 0.04, -0.15), hipr=(0, -10, 0), chest=(0, 4, 0), head=(0, 8, 0), hsq=0.22, bsq=0.09,
+               rh=(60, -25, 0.5), w=(60, -5), lh=(-60, -45, 0.33), fl=(-0.06, 0.24, 0), fr=(0.06, -0.14, 0),
+               flr=(0, -15, 0), claw=0.3)
+CLIPS["Dodge_Forward"] = (13, "hand", 2, None, [
+    (1, DG_SQUASH, "hold"), (2, DG_STREAK, "hold"), (8, DG_SKID, "hold"), (10, pose(GUARD, hsq=-0.06, bsq=-0.03, hipr=(0, 4, 0)), "lin"),
+    (13, GUARD, "hold")])
 
 # Jump_Start (20) and Jump_Idle (33): the breaker leap. A deep squash, sprung up stretched with the claw
 # thrown overhead, then tucked and hanging with the claw cocked high and splayed, a slow menacing flex.
@@ -623,7 +730,7 @@ def contact(hand_pos):
     return max(i for i, s in enumerate(sp) if s >= 0.4 * peak) + 1  # 1-based frames
 
 
-def write(name, n, frames_pose, changes):
+def write(name, n, frames_pose, changes, start=1):
     """changes: the 0-based frames where a new drawing starts (0 included). Claws key only those, held
     (CONSTANT -> glTF STEP); everything else keys the frame before each change and the change itself,
     LINEAR, which is the same curve as a key on every frame (the change still takes one frame) at a
@@ -639,7 +746,7 @@ def write(name, n, frames_pose, changes):
     ad.action_slot = slot
     data = {}
     claw_bones = set()
-    for i, (B, C, hsq, hs) in enumerate(frames_pose):
+    for i, (B, C, hsq, hs, bsq) in enumerate(frames_pose):
         for b, (q, t) in B.items():
             data.setdefault(b, {"q": [], "t": []})
             data[b]["q"].append(q); data[b]["t"].append(t)
@@ -649,6 +756,7 @@ def write(name, n, frames_pose, changes):
             claw_bones.add(b)
         data.setdefault("head", {}).setdefault("s", []).append(hsq)
         data.setdefault("hand.r", {}).setdefault("u", []).append(hs)
+        data.setdefault("root", {}).setdefault("b", []).append(bsq)
     held = sorted(set(changes + [n - 1]))
     lin = sorted(set([0, n - 1] + [i - 1 for i in changes if i > 0] + changes))
     for b, d in data.items():
@@ -660,14 +768,14 @@ def write(name, n, frames_pose, changes):
         for k in range(4):
             fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["%s"].rotation_quaternion' % b, index=k)
             fc.keyframe_points.add(len(at))
-            fc.keyframe_points.foreach_set("co", [v for i in at for v in (i + 1, qs[i][k])])
+            fc.keyframe_points.foreach_set("co", [v for i in at for v in (i + start, qs[i][k])])
             fc.keyframe_points.foreach_set("interpolation", [0 if b in claw_bones else 1] * len(at))
             fc.update()
         if b in ("root", "hips"):
             for k in range(3):
                 fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["%s"].location' % b, index=k)
                 fc.keyframe_points.add(len(lin))
-                fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + 1, d["t"][i][k])])
+                fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + start, d["t"][i][k])])
                 fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
                 fc.update()
         if "s" in d:  # head squash: wide and short, keeping the volume about
@@ -679,14 +787,22 @@ def write(name, n, frames_pose, changes):
                     s = d["s"][i]
                     wide = 1.0 / math.sqrt(max(1.0 - s, 0.3)) * (1.0 + HSQ_WIDE * max(s, 0.0))
                     vals.append(1.0 - s if k == 1 else wide)
-                fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + 1, vals[i])])
+                fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + start, vals[i])])
                 fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
                 fc.update()
+    if any(abs(b) > 1e-4 for b in data["root"]["b"]):
+        for k in range(3):  # the whole body squashes (short and wide) and stretches, about the floor
+            fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["root"].scale', index=k)
+            fc.keyframe_points.add(len(lin))
+            vals = [(1.0 - b) if k == 1 else 1.0 + 0.5 * b for b in data["root"]["b"]]  # bone y is up
+            fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + start, vals[i])])
+            fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
+            fc.update()
     if any(abs(u - 1.0) > 1e-4 for u in data["hand.r"]["u"]):
         for k in range(3):  # the claw (and a weapon in it) swells on a reach or a smear
             fc = act.fcurve_ensure_for_datablock(arm, 'pose.bones["hand.r"].scale', index=k)
             fc.keyframe_points.add(len(lin))
-            fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + 1, data["hand.r"]["u"][i])])
+            fc.keyframe_points.foreach_set("co", [v for i in lin for v in (i + start, data["hand.r"]["u"][i])])
             fc.keyframe_points.foreach_set("interpolation", [1] * len(lin))
             fc.update()
     ad.action = None
@@ -698,18 +814,19 @@ for pb in arm.pose.bones:
     pb.rotation_mode = "QUATERNION"
 report = []
 for name, (n, form, step, want, keys) in CLIPS.items():
-    frames = drawings(keys, n, step)
+    frames = keys if step == 0 else drawings(keys, n, step)
     out, hand = [], []
+    LEG_MISS[0] = 0.0
     for P in frames:
         G = solve(P, form)
-        out.append((bases(G), claw_rots(P), P["hsq"], P.get("hs", 1.0)))
+        out.append((bases(G), claw_rots(P), P["hsq"], P.get("hs", 1.0), P.get("bsq") or 0.0))
         hand.append(G["hand.r"].translation.copy())
     got = contact(hand) if want else None
     report.append((name, n, want, got))
-    print("[keys] %-12s %3d frames  contact want %s got %s" % (name, n, want, got))
+    print("[keys] %-12s %3d frames  contact want %s got %s  legs miss %.3f m" % (name, n, want, got, LEG_MISS[0]))
     if want and got != want:
         print("   speeds", " ".join("%d:%.2f" % (i + 1, (hand[i] - hand[i - 1]).length) for i in range(1, n)))
-    write(name, n, out, [0] + [i for i in range(1, n) if frames[i] != frames[i - 1]])
+    write(name, n, out, [0] + [i for i in range(1, n) if frames[i] != frames[i - 1]], 0 if name in LOOP0 else 1)
 
 
 # ---- claws on the clips still copied from the shaman: half curled at rest, splayed into each swing's
