@@ -258,7 +258,14 @@ class Hole extends Node3D:
 	const VIEW_R := 2.6  # m the ink shows out to (the look only; the pull is RADIUS)
 	const HOLE_SPIN := 2.2  # the ink churns faster than a pool's
 	const HOLE_FLOW := 2.6
-	const COLLAPSE_SPLAT := 2.8  # m: the ink burst as it falls in
+	const COLLAPSE_SPLAT := 2.2  # m: the ink burst as it falls in (thin; sleek 6: 2.8 full-width)
+	## Round 33, sleek 6: Collapse and the hole were a wall of pink and violet hoops over the pile (two 0.5 / 0.2 m
+	## arcs a third, an inward hoop every 0.3 s, a hot and a white hoop and a 2.8 m splat at the collapse). One thin
+	## hoop per beat now: lines, not bands.
+	const ARC_RIM_W := 0.16  # m (0.5)
+	const ARC_HOT_W := 0.07  # m (0.2)
+	const RING_EVERY := 0.45  # s between the inward hoops (0.3)
+	const RING_THIN := 0.02  # of the hoop's radius: 0.13 m at 6.5 m (0.05: a 0.3 m band)
 	const FLYING := "thrown_foe_flying"
 
 	var hero: CharacterBody3D
@@ -281,13 +288,14 @@ class Hole extends Node3D:
 		var rim := SELF.flat_mat(VIOLET)
 		for i in 3:
 			var a := TAU * i / 3.0
-			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 1.2, 1.0, 0.5), rim, Vector3.UP * 0.03).rotation.y = a
-			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, 0.2), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
+			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 1.2, 1.0, ARC_RIM_W), rim, Vector3.UP * 0.03).rotation.y = a
+			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, ARC_HOT_W), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
 		var edge := SELF.part(self, SELF.hoop(0.05), hot, Vector3.UP * 0.06)
 		edge.scale = Vector3(VIEW_R, 0.05, VIEW_R)
 		scale = Vector3(0.05, 1.0, 0.05)
 		create_tween().tween_property(self, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-		SELF.burst(get_parent(), global_position, 1.3)
+		SELF.splat(get_parent(), global_position + Vector3.UP * 0.9, 1.6, true)
+		Fx.shards(get_parent(), global_position + Vector3.UP * 0.5, INK, 8, Vector3.UP, 7.0, 0.16, 0.5)
 		Game.shake(0.3)
 
 	func _physics_process(delta: float) -> void:
@@ -296,8 +304,8 @@ class Hole extends Node3D:
 		_t += delta
 		_spin.rotate_y(-7.0 * delta)
 		if _t >= _next_ring:
-			_next_ring += 0.3
-			SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, 0.05)
+			_next_ring += RING_EVERY
+			SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, RING_THIN)
 		var tick := _t >= _next_tick
 		if tick:
 			_next_tick += TICK
@@ -341,11 +349,10 @@ class Hole extends Node3D:
 		remove_from_group("dark_hole")
 		var parent := get_parent()
 		var at := global_position
-		SELF.hoop_run(parent, at, 0.5, RADIUS, 0.28, HOT, 0.1)
-		SELF.hoop_run(parent, at, 0.3, RADIUS * 0.7, 0.24, Color.WHITE, 0.06)
-		SELF.splat(parent, at + Vector3.UP * 1.2, COLLAPSE_SPLAT)
-		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 5, RADIUS * 0.6)
-		Fx.shards(parent, at + Vector3.UP * 0.5, INK, 16, Vector3.UP, 10.0, 0.22, 0.5)
+		SELF.hoop_run(parent, at, 0.5, RADIUS * 0.8, 0.28, HOT, 0.04)
+		SELF.splat(parent, at + Vector3.UP * 1.2, COLLAPSE_SPLAT, true)
+		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 3, RADIUS * 0.6)
+		Fx.shards(parent, at + Vector3.UP * 0.5, INK, 8, Vector3.UP, 9.0, 0.18, 0.5)
 		queue_free()
 
 
@@ -395,15 +402,19 @@ class Maw extends Node3D:
 	const LEAN_OPEN := 0.55  # rad, leaning out
 	const LEAN_SNAP := -0.62  # past shut: held through the hitstop
 	const LEAN_SHUT := -0.46  # a ring of teeth round them, not a lid: the foes stay in sight
-	const NEAR_SHORT := 0.55  # how tall the teeth between the camera and the foes are
+	const NEAR_SHORT := 0.35  # how tall the teeth between the camera and the foes are (sleek 6: 0.55)
 	const SNAP_HOLD := 0.05  # s
 	const HOLD := 0.3  # s shut
 	const SINK := 0.14  # s
 	const WAIT_MAX := 1.0  # s with no bite, then they go anyway
-	const ROWS := [[15, 2.9, 0.48, 1.0], [11, 1.6, 0.3, 0.76]]  # count, height, base, at what fraction of r
+	## count, height, base, at what fraction of r. Round 33, sleek 6: one row of 11 (15 + 11 at 2.9 / 1.6 m stood as a
+	## black and violet wall round the pile, with a 4.3 m splat and a hoop on top).
+	const ROWS := [[9, 1.9, 0.3, 1.0]]
+	const BITE_SPLAT := 0.8  # of r: the bite's one thin splat (1.25, full width)
 
 	var r := 3.4
 	var _t := 0.0
+	var _last_us := 0
 	var _bitten := -1.0
 	var _sinking := false
 	var _ink: ShaderMaterial
@@ -435,6 +446,10 @@ class Maw extends Node3D:
 				_fangs.append({"pivot": pivot, "jitter": _rng.randf_range(-0.09, 0.09)})
 
 	func _process(delta: float) -> void:
+		var now := Time.get_ticks_usec()
+		if _bitten >= 0.0:  # shut on real time: the bite's hitstop held the jaws 2 s over the pile
+			delta = minf((now - _last_us) / 1000000.0, 0.1)
+		_last_us = now
 		_t += delta
 		if _sinking:
 			position.y -= 4.0 / SINK * delta
@@ -466,13 +481,13 @@ class Maw extends Node3D:
 		for f: Dictionary in _fangs:
 			f.pivot.scale.y = 1.0
 			f.pivot.rotation.x = LEAN_SNAP + f.jitter
-		SELF.splat(get_parent(), global_position + Vector3.UP * 1.3, r * 1.25)
-		SELF.ink_drops(get_parent(), global_position + Vector3.UP * 0.8, 6, r * 1.5)
-		SELF.hoop_run(get_parent(), global_position, r * 0.9, r * 1.45, 0.2, HOT, 0.05)
+		SELF.splat(get_parent(), global_position + Vector3.UP * 1.3, r * BITE_SPLAT, true)
+		SELF.ink_drops(get_parent(), global_position + Vector3.UP * 0.8, 3, r * 1.5)
+		SELF.hoop_run(get_parent(), global_position, r * 0.9, r * 1.45, 0.2, HOT, 0.025)
 
 	func _sink() -> void:
 		_sinking = true
-		var tw := create_tween()
+		var tw := create_tween().set_ignore_time_scale(true)
 		tw.tween_method(SELF.set_param.bind(_ink, "erode"), 0.0, 1.0, SINK * 1.6)
 		tw.tween_callback(queue_free)
 
