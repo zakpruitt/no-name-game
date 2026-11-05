@@ -11,6 +11,7 @@ extends Node3D
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const CRACK := preload("res://scripts/comic_crack.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const STANDING := preload("res://scripts/standing_fx.gd")
 const STEPS_PER_S := 12.0  # on twos, at 24 fps
 const INK := Color(0.012, 0.01, 0.02)
 const HOT := Color(1.0, 0.45, 0.05)  # impact stars, whatever the element (comic_pop)
@@ -56,8 +57,14 @@ func begin(parent: Node, at: Vector3) -> void:
 		mi.set_meta("no_ghost", true)
 		add_child(mi)
 	_last_us = Time.get_ticks_usec()
+	STANDING.add(self)
 	_build()
 	tick(0.0)
+
+
+## The next string's first hit landed (standing_fx.gd): gone now, so nothing of the last string sits under it.
+func clear_standing() -> void:
+	life = minf(life, _t + STANDING.CLEAR_S)
 
 
 func _build() -> void:
