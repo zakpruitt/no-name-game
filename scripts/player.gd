@@ -46,8 +46,11 @@ const LOOP_SPEED := 1.1  # loops, fidgets and the run one-shots (_loop_speed)
 ## locked to the floor (tests/hero_stride_check.gd).
 const AWAKENED_RUN_CLIP := HERO_AWAKEN.SPEED_MULT
 ## The lunge setting off from slower than RUN_START_BELOW of move_speed, the skid letting go above
-## RUN_STOP_ABOVE (_play_locomotion); keyed for running ahead, so only into / out of Run_F.
-const RUN_ONESHOTS := ["Run_Start", "Run_Stop"]
+## RUN_STOP_ABOVE (_play_locomotion): one of each per run clip (RUN_SUFFIX), and each skid again ending
+## on the guard (`_Ready`) while he is still on guard after a fight (_ready_t).
+const RUN_SUFFIX := {"Run_F": "", "Run_B": "_B", "Strafe_L": "_L", "Strafe_R": "_R"}
+const RUN_ONESHOTS := ["Run_Start", "Run_Start_B", "Run_Start_L", "Run_Start_R", "Run_Stop", "Run_Stop_B",
+	"Run_Stop_L", "Run_Stop_R", "Run_Stop_Ready", "Run_Stop_B_Ready", "Run_Stop_L_Ready", "Run_Stop_R_Ready"]
 const RUN_START_BELOW := 0.3
 const RUN_STOP_ABOVE := 0.6
 const AXE_SOURCE := "res://assets/kaykit/characters/Barbarian.glb"  # the 1H_Axe spirit casts ghost (_axe_mesh)
@@ -384,17 +387,19 @@ func _play_locomotion(dir: Vector3) -> void:
 	var playing := anim.current_animation
 	var ground := Vector2(velocity.x, velocity.z).length() / move_speed
 	if dir.length() <= 0.1:
-		if playing == "Run_F" and ground > RUN_STOP_ABOVE and anim.has_animation("Run_Stop"):
-			_play("Run_Stop", 0.06, true)
-		elif playing != "Run_Stop":  # the skid plays out, then the stand
+		var stop := "Run_Stop%s%s" % [RUN_SUFFIX.get(playing, ""), "_Ready" if _ready_t > 0.0 else ""]
+		if ComicLook.is_run_clip(playing) and ground > RUN_STOP_ABOVE and anim.has_animation(stop):
+			_play(stop, 0.06, true)
+		elif not playing.begins_with("Run_Stop"):  # the skid plays out, then the stand
 			_comic_stand()
 	else:
 		_fidget_t = ComicLook.FIDGET_EVERY
 		var clip := ComicLook.run_clip(dir, _facing(), playing)
-		if clip == "Run_F" and playing == "Run_Start":
-			return  # the lunge lands on Run_F's first step
-		if clip == "Run_F" and not ComicLook.is_run_clip(playing) and ground < RUN_START_BELOW and anim.has_animation("Run_Start"):
-			_play("Run_Start", 0.06, true)
+		var start: String = "Run_Start" + RUN_SUFFIX.get(clip, "")
+		if playing == start:
+			return  # the lunge lands on the run's first step
+		if not ComicLook.is_run_clip(playing) and ground < RUN_START_BELOW and anim.has_animation(start):
+			_play(start, 0.06, true)
 			return
 		if clip == playing:
 			anim.speed_scale = _loop_speed(clip)  # Awakened can start or end mid-run

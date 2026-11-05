@@ -73,7 +73,10 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 	var only := ""
 	var near := 1.0  # --clips-near=0.4: the game camera's angle from closer, to check a pose
 	var clip_step := 0.0
+	var max_shots := 16
 	for a: String in OS.get_cmdline_user_args():
+		if a.begins_with("--clips-max="):  # shots per clip (16: a whole attack at 12 a second)
+			max_shots = int(a.get_slice("=", 1))
 		if a.begins_with("--clips-only="):
 			only = a.get_slice("=", 1)
 		if a.begins_with("--clips-near="):
@@ -107,7 +110,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 		await create_timer(0.35).timeout
 		var times: Array[float] = []
 		var t := 0.0
-		while t <= end + 0.001 and times.size() < 16:
+		while t <= end + 0.001 and times.size() < max_shots:
 			times.append(t)
 			t += clip_step if clip_step > 0.0 else real_step * speed
 		if hit >= 0.0 and not times.has(hit):
@@ -165,6 +168,8 @@ const CLIP_SET := [
 	["Idle", "", "hand"], ["Idle_Ready", "", "hand"], ["Run_F", "", "hand"], ["Strafe_L", "", "hand"],
 	["Hit_A", "", "hand"], ["Dodge_Forward", "", "hand"], ["Run_B", "", "hand"], ["Strafe_R", "", "hand"],
 	["Jump_Start", "", "hand"], ["Jump_Idle", "", "hand"], ["Run_Start", "", "hand"], ["Run_Stop", "", "hand"],
+	["Run_Start_B", "", "hand"], ["Run_Start_L", "", "hand"], ["Run_Start_R", "", "hand"], ["Run_Stop_B", "", "hand"],
+	["Run_Stop_L", "", "hand"], ["Run_Stop_R", "", "hand"], ["Run_Stop_Ready", "", "hand"], ["Run_Stop_L_Ready", "", "hand"],
 ]
 
 

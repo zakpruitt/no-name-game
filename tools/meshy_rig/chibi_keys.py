@@ -577,6 +577,26 @@ def unsquash(s, off, bsq):
     return tuple((r + o) / k - r for r, o, k in zip(rest, off, sc))
 
 
+def run_feet(way, u):
+    """Both feet (offsets from rest before the squash, and their turns) at cycle phase u of a run."""
+    side = {"L": -1.0, "R": 1.0}.get(way, 0.0)
+    plant = STRAFE_PLANT if side else RUN_PLANT
+    feet = {}
+    for s, ph in (("l", u), ("r", (u + 0.5) % 1.0)):
+        if side:
+            a, up, pitch = foot_run(ph, plant * RUN_GROUND / 2, plant, side)
+            sx = 1.0 if s == "r" else -1.0
+            # sideways from its own rest; the swinging foot passes a little ahead (left) or behind (right)
+            feet[s] = ((a - 0.03 * sx), (-0.06 * sx) * (up / RUN_LIFT) + 0.0, up)
+            feet[s + "r"] = (0, 8.0 * up / RUN_LIFT, -side * 10.0)
+        else:
+            w = 1.0 if way == "F" else -1.0
+            a, up, pitch = foot_run(ph, RUN_REACH, plant, w)
+            feet[s] = (0.03 if s == "l" else -0.03, a - ANK[s], up)  # a little narrower than his stance
+            feet[s + "r"] = (0, pitch if w > 0 else -0.5 * pitch, 0)
+    return feet
+
+
 def run_frames(way):
     """Run_F ("F"), Run_B ("B"), Strafe_L / Strafe_R ("L", "R"): left foot down on frame 0, right on
     RUN_N / 2, the same phase on all four so a change of direction carries on from the same step."""
@@ -590,19 +610,7 @@ def run_frames(way):
         qq = (2 * uq) % 1.0
         k = math.cos(2 * math.pi * (q - 0.18))  # 1 at the down pose (mid-stance), -1 at the top of the leap
         lf = math.cos(2 * math.pi * uq)  # 1 with the left foot ahead
-        feet = {}
-        for s, ph in (("l", u), ("r", (u + 0.5) % 1.0)):
-            if side:
-                a, up, pitch = foot_run(ph, plant * RUN_GROUND / 2, plant, side)
-                sx = 1.0 if s == "r" else -1.0
-                # sideways from its own rest; the swinging foot passes a little ahead (left) or behind (right)
-                feet[s] = ((a - 0.03 * sx), (-0.06 * sx) * (up / RUN_LIFT) + 0.0, up)
-                feet[s + "r"] = (0, 8.0 * up / RUN_LIFT, -side * 10.0)
-            else:
-                w = 1.0 if way == "F" else -1.0
-                a, up, pitch = foot_run(ph, RUN_REACH, plant, w)
-                feet[s] = (0.03 if s == "l" else -0.03, a - ANK[s], up)  # a little narrower than his stance
-                feet[s + "r"] = (0, pitch if w > 0 else -0.5 * pitch, 0)
+        feet = run_feet(way, u)
         hz, bsq = run_hips(q)  # the whole body squashes on the down pose and stretches at the top
         hip = (RUN_SWAY * math.cos(2 * math.pi * (u - 0.09)) + 0.03 * side, 0.0, hz)
         base = dict(GUARD if way != "F" else NEUTRAL)
@@ -758,43 +766,72 @@ RS_LOAD = pose(GUARD, hip=(0, -0.07, -0.15), hipr=(0, 30, 0), chest=(-8, 8, 0), 
                rh=(135, -28, 0.47), w=(165, -12), lh=(-70, -35, 0.31), lpole=(-150, -30), claw=0.6, hs=1.1)
 RS_LAUNCH = pose(GUARD, hip=(0, 0.02, -0.04), hipr=(8, 40, -4), chest=(-18, 8, 0), head=(6, -14, 0), hsq=-0.22, bsq=-0.08,
                  rh=(158, -12, 0.58), w=(178, 4), lh=(-15, -5, 0.37), lpole=(-150, -30), claw=-0.7, clawph=60.0, hs=1.22)
+# Round 35 c: the same lunge backing off and sideways (mouse aim: he often strafes or backs), landing on
+# frame 0 of Run_B / Strafe_L / Strafe_R. Backing: hunched over the push with the hips left ahead, then
+# sprung back leaning away, the claw kept up in guard. Sideways: dropped low and tipped into the travel
+# with the hips left behind, then thrown along it stretched and banked, facing ahead, claw up.
+RS_POSES = {"F": (RS_LOAD, RS_LAUNCH)}
+RS_POSES["B"] = (
+    pose(GUARD, hip=(0, 0.07, -0.15), hipr=(0, 16, 0), chest=(6, 10, 0), head=(-4, -6, 0), hsq=0.24, bsq=0.08,
+         rh=(35, -12, 0.48), w=(25, 10), lh=(-55, -40, 0.31), claw=0.5, hs=1.1),
+    pose(GUARD, hip=(0, -0.03, -0.04), hipr=(-6, -14, 0), chest=(10, -6, 0), head=(-6, 8, 0), hsq=-0.22, bsq=-0.08,
+         rh=(28, 8, 0.56), w=(18, 32), lh=(-35, -15, 0.35), claw=-0.6, clawph=60.0, hs=1.22))
+for _w, _s in (("L", -1.0), ("R", 1.0)):
+    RS_POSES[_w] = (
+        pose(GUARD, hip=(-0.06 * _s, 0.0, -0.15), hipr=(_s * 8, 10, _s * 8), chest=(-_s * 6, 8, 0), head=(-_s * 4, -6, -_s * 6),
+             hsq=0.24, bsq=0.08, rh=(35 + _s * 10, -12, 0.48), w=(25 + _s * 10, 10), lh=(-50 - _s * 10, -40, 0.31), claw=0.5, hs=1.1),
+        pose(GUARD, hip=(0.03 * _s, 0.0, -0.04), hipr=(_s * 16, 8, _s * 18), chest=(-_s * 12, 6, _s * 4), head=(-_s * 6, 2, -_s * 10),
+             hsq=-0.22, bsq=-0.08, rh=(30 + _s * 14, 10, 0.56), w=(20 + _s * 18, 30), lh=(-40 - _s * 20, -20, 0.35), claw=-0.6,
+             clawph=60.0, hs=1.22))
+WAY_SUFFIX = {"F": "", "B": "_B", "L": "_L", "R": "_R"}  # player.RUN_SUFFIX
+TRAVEL = {"F": (0.0, 1.0), "B": (0.0, -1.0), "L": (-1.0, 0.0), "R": (1.0, 0.0)}  # (his right, his front)
 RS_N = 7  # frames 0..6
-RS_BODY = [RS_LOAD, RS_LOAD, mixp(RS_LOAD, RS_LAUNCH, 0.6), RS_LAUNCH, mixp(RS_LAUNCH, RUN0, 0.35),
-           mixp(RS_LAUNCH, RUN0, 0.7), RUN0]
-for _i in (1, 3, 5):  # arms, head and hood on twos, like the runs
-    RS_BODY[_i] = pose(RS_BODY[_i], **{k: RS_BODY[_i - 1][k] for k in ("rh", "w", "lh", "head", "claw", "hs")})
 
 
-def run_start_feet():
+def run_start_body(way):
+    load, launch = RS_POSES[way]
+    r0 = run_frames(way)[0]
+    body = [load, load, mixp(load, launch, 0.6), launch, mixp(launch, r0, 0.35), mixp(launch, r0, 0.7), r0]
+    for i in (1, 3, 5):  # arms, head and hood on twos, like the runs
+        body[i] = pose(body[i], **{k: body[i - 1][k] for k in ("rh", "w", "lh", "head", "claw", "hs")})
+    return body
+
+
+def run_start_feet(way="F"):
     l0, r0 = GUARD["fl"], GUARD["fr"]
+    tx, ty = TRAVEL[way]
+    side = way in "LR"
+    end = run_feet(way, 0.0)  # the run's frame 0: left landing, right in mid-swing
     out = []
     for i in range(RS_N):
         d = floor_d(i, 0.0, ACCEL)
         F = {}
-        # right: the push-off foot, planted frames 0-2 (rising onto the toes), kicked up and through to
-        # Run_F frame 0's mid-swing by frame 6
+        # right: the push-off foot, planted frames 0-2 (rising onto the toes) and sliding against the
+        # travel with the floor, kicked up and through to the run's frame-0 mid-swing by frame 6
         if i <= 2:
-            F["r"] = (r0[0], r0[1] - d, RUN_TOE * (i / 2.0) ** 2)
-            F["rr"] = (0, 30.0 * i / 2.0, 0)
+            F["r"] = (r0[0] - tx * d, r0[1] - ty * d, RUN_TOE * (i / 2.0) ** 2)
+            F["rr"] = (0, 30.0 * i / 2.0, 0) if not side else (0, 12.0 * i / 2.0, -tx * 12.0 * i / 2.0)
         else:
             t = (i - 2) / 4.0
-            p = herm((r0[0], r0[1] - floor_d(2, 0.0, ACCEL), RUN_TOE), RF0["r"], t)
+            d2 = floor_d(2, 0.0, ACCEL)
+            p = herm((r0[0] - tx * d2, r0[1] - ty * d2, RUN_TOE), end["r"], t)
             F["r"] = (p[0], p[1], p[2] + 0.12 * math.sin(math.pi * t))
-            F["rr"] = (0, 40.0 * (1 - t) + RF0["rr"][1] * t, 0)
+            F["rr"] = (0, (20.0 if side else 40.0) * (1 - t) + end["rr"][1] * t, end["rr"][2] * t)
         # left: leaves the floor at once, knee driven up, reaching for the first contact on frame 6
         if i == 0:
             F["l"], F["lr"] = l0, (0, 0, 0)
         else:
             t = i / 6.0
-            p = herm((l0[0], l0[1] - 0.03, 0.0), RF0["l"], t)
+            p = herm((l0[0] - 0.03 * tx, l0[1] - 0.03 * ty, 0.0), end["l"], t)
             F["l"] = (p[0], p[1], p[2] + 0.2 * math.sin(math.pi * min(t * 1.2, 1.0)))
-            F["lr"] = (0, -15.0 * math.sin(math.pi * t) + RF0["lr"][1] * t, 0)
+            F["lr"] = (0, -15.0 * math.sin(math.pi * t) + end["lr"][1] * t, end["lr"][2] * t)
         out.append(F)
     return out
 
 
-CLIPS["Run_Start"] = (RS_N, "hand", 0, None, oneshot(RS_BODY, run_start_feet()))
-LOOP0.add("Run_Start")  # written from frame 0: frame 0 is the first pose, not a held key
+for _w in "FBLR":
+    CLIPS["Run_Start" + WAY_SUFFIX[_w]] = (RS_N, "hand", 0, None, oneshot(run_start_body(_w), run_start_feet(_w)))
+    LOOP0.add("Run_Start" + WAY_SUFFIX[_w])  # written from frame 0: frame 0 is the first pose, not a held key
 
 # The skid: the left foot slammed down far ahead and braced, toes up, body squashed low and leaning
 # back against the stop, claw flung out behind for balance, fist out wide; momentum then carries
@@ -808,42 +845,88 @@ SK_OVER = pose(NEUTRAL, hip=(0.0, 0.03, -0.11), hipr=(4, 22, 0), chest=(4, 18, 0
                bsq=-0.04, rh=(35, -14, 0.58), w=(30, -8), lh=(-40, -55, 0.34), claw=0.7, hs=1.15)
 SK_BACK = pose(NEUTRAL, hip=(0.0, -0.01, -0.08), hipr=(0, 0, 0), chest=(0, 4, 0), head=(-2, -2, 0), hsq=0.1, bsq=0.03,
                rh=(45, -18, 0.54), w=(48, 2), claw=0.2, hs=1.2)
+# Backing: braced on a foot behind him, hunched forward against it, the claw kept up in guard; then the top
+# of him rocks back past upright. Sideways: braced on the leading foot out wide, banked away from the
+# travel; then the top of him tips over towards it, the claw swinging through that way.
+SK_POSES = {"F": (SK_BRACE, SK_OVER)}
+SK_POSES["B"] = (
+    pose(GUARD, hip=(0.02, 0.08, -0.15), hipr=(6, 16, -6), chest=(6, 10, 0), head=(0, -6, 0), hsq=0.26, bsq=0.1,
+         rh=(60, 18, 0.56), w=(55, 40), lh=(-75, 10, 0.37), claw=-0.7, clawph=40.0, hs=1.2),
+    pose(GUARD, hip=(0.0, -0.03, -0.11), hipr=(-4, -12, 0), chest=(-4, -14, 0), head=(-4, -16, 0), hsq=-0.2, bsq=-0.04,
+         rh=(20, 5, 0.58), w=(15, 25), lh=(-35, -45, 0.34), claw=0.7, hs=1.15))
+for _w, _s in (("L", -1.0), ("R", 1.0)):
+    SK_POSES[_w] = (
+        pose(GUARD, hip=(0.05 * _s, 0.0, -0.15), hipr=(-_s * 6, 6, -_s * 14), chest=(_s * 6, 4, -_s * 6), head=(0, 6, -_s * 8),
+             hsq=0.26, bsq=0.1, rh=(95 if _s < 0 else 40, 15, 0.56), w=(120 if _s < 0 else 50, 25),
+             lh=(-110 if _s > 0 else -60, 5, 0.37), lpole=(-150, -30), claw=-0.7, clawph=40.0, hs=1.2),
+        pose(GUARD, hip=(0.02 * _s, 0.0, -0.11), hipr=(_s * 6, 8, _s * 14), chest=(_s * 6, 8, _s * 10), head=(_s * 4, 6, _s * 14),
+             hsq=-0.2, bsq=-0.04, rh=(-30 if _s < 0 else 85, -10, 0.58), w=(-35 if _s < 0 else 95, -5),
+             lh=(-60 + _s * 20, -50, 0.34), claw=0.7, hs=1.15))
 SS_N = 9  # frames 0..8
 SKID_FRONT = 0.32  # m ahead of the hip joint the braced foot lands
 SKID_BACK = 0.28  # m behind it the back foot drags
 SKID_GIVE = 0.1  # m the feet come back towards him while they skid (the rest of his 0.4 m they slide)
-SS_BODY = [SK_BRACE, SK_BRACE, mixp(SK_BRACE, SK_OVER, 0.25), mixp(SK_BRACE, SK_OVER, 0.7), SK_OVER,
-           mixp(SK_OVER, SK_BACK, 0.5), SK_BACK, mixp(SK_BACK, IDLE0, 0.6), IDLE0]
-for _i in (1, 3, 5, 7):
-    SS_BODY[_i] = pose(SS_BODY[_i], **{k: SS_BODY[_i - 1][k] for k in ("rh", "w", "lh", "claw", "hs")})
+SKID_WIDE = 0.2  # m out past its rest a sideways skid braces the leading foot
 
 
-def run_stop_feet():
+def run_stop_body(way, end):
+    brace, over = SK_POSES[way]
+    back = SK_BACK if end is IDLE0 else mixp(SK_BACK, end, 0.5)
+    body = [brace, brace, mixp(brace, over, 0.25), mixp(brace, over, 0.7), over,
+            mixp(over, back, 0.5), back, mixp(back, end, 0.6), end]
+    for i in (1, 3, 5, 7):
+        body[i] = pose(body[i], **{k: body[i - 1][k] for k in ("rh", "w", "lh", "claw", "hs")})
+    return body
+
+
+def run_stop_feet(way="F", end=None):
     """A skid, not a step: both feet slide on the floor as he brakes (they only give back a little of his
-    travel in his frame), the front one a long reach ahead, the back one on its toes behind."""
-    l_end, r_end = IDLE0["fl"], IDLE0["fr"]
+    travel in his frame), the front one a long reach ahead, the back one on its toes behind. Backing, the
+    braced foot is the one behind him; sideways, the leading foot braces out wide and the other drags in."""
+    end = end or IDLE0
+    l_end, r_end = end["fl"], end["fr"]
     stop = floor_d(SS_N, MOVE_SPEED, -ACCEL)
     out = []
     for i in range(SS_N):
         g = floor_d(min(i, 5), MOVE_SPEED, -ACCEL) / stop  # 0..1 of the braking travel
-        l_skid = (-0.02, SKID_FRONT - SKID_GIVE * g - ANK["l"], 0.0)
-        r_skid = (0.06, -SKID_BACK - 0.5 * SKID_GIVE * g - ANK["r"], RUN_TOE * (1.0 if i >= 2 else 1.0 + (2 - i)))
+        toe = RUN_TOE * (1.0 if i >= 2 else 1.0 + (2 - i))
+        lr0, rr0 = (0, -22.0 * (1 - i / 6.0), 0), (0, 32, 0)
+        if way == "F":
+            l_skid = (-0.02, SKID_FRONT - SKID_GIVE * g - ANK["l"], 0.0)
+            r_skid = (0.06, -SKID_BACK - 0.5 * SKID_GIVE * g - ANK["r"], toe)
+        elif way == "B":  # the braced foot behind, on the ball of the foot; the front one flat
+            l_skid = (-0.02, -0.85 * SKID_FRONT + SKID_GIVE * g - ANK["l"], 0.5 * toe)
+            r_skid = (0.06, 0.8 * SKID_BACK + 0.5 * SKID_GIVE * g - ANK["r"], 0.0)
+            lr0, rr0 = (0, 20.0 * (1 - i / 6.0), 0), (0, -10, 0)
+        else:
+            sd = TRAVEL[way][0]  # +1 to his right
+            lead = (sd * (SKID_WIDE - SKID_GIVE * g), 0.02, 0.0)  # out wide, on its edge
+            trail = (sd * (-0.08 + 0.5 * SKID_GIVE * g), -0.04, 0.6 * toe)
+            l_skid, r_skid = (trail, lead) if sd > 0 else (lead, trail)
+            edge = (0, 0, -sd * 14.0 * (1 - i / 6.0))
+            lr0, rr0 = (edge, (0, 0, 0)) if sd < 0 else ((0, 0, 0), edge)
         F = {}
         if i <= 5:
-            F["l"], F["lr"] = l_skid, (0, -22.0 * (1 - i / 6.0), 0)
-            F["r"], F["rr"] = r_skid, (0, 32, 0)
+            F["l"], F["lr"] = l_skid, lr0
+            F["r"], F["rr"] = r_skid, rr0
         else:  # stepped back in under him, a small lift each
             t = (i - 5) / 3.0
             p = herm(l_skid, l_end, t)
-            F["l"], F["lr"] = (p[0], p[1], p[2] + 0.05 * math.sin(math.pi * t)), (0, 0, 0)
+            F["l"], F["lr"] = (p[0], p[1], p[2] + 0.05 * math.sin(math.pi * t)), (0, 0, 0) if way == "F" else herm(lr0, (0, 0, 0), t)
             p = herm(r_skid, r_end, t)
-            F["r"], F["rr"] = (p[0], p[1], p[2] + 0.08 * math.sin(math.pi * t)), (0, 32.0 * (1 - t), 0)
+            F["r"], F["rr"] = (p[0], p[1], p[2] + 0.08 * math.sin(math.pi * t)), (0, 32.0 * (1 - t), 0) if way == "F" else herm(rr0, (0, 0, 0), t)
         out.append(F)
     return out
 
 
-CLIPS["Run_Stop"] = (SS_N, "hand", 0, None, oneshot(SS_BODY, run_stop_feet()))
-LOOP0.add("Run_Stop")
+# Round 35 c: a stop per run (Run_Stop, Run_Stop_B, _L, _R) and each again ending on the guard's first
+# pose (..._Ready) for when he has just fought (player._play_locomotion: the stand after is Idle_Ready).
+READY0 = None  # set below, once ready_frames exists
+STOP_WAYS = []
+for _w in "FBLR":
+    CLIPS["Run_Stop" + WAY_SUFFIX[_w]] = (SS_N, "hand", 0, None, oneshot(run_stop_body(_w, IDLE0), run_stop_feet(_w, IDLE0)))
+    LOOP0.add("Run_Stop" + WAY_SUFFIX[_w])
+    STOP_WAYS.append(_w)
 
 
 # Idle_Ready (60 frames, 1.8 s at 1.1, a loop): the fight stance on Idle's breathing and weight shift,
@@ -874,6 +957,11 @@ def ready_frames():
 
 CLIPS["Idle_Ready"] = (READY_N + 1, "hand", 0, None, ready_frames())
 LOOP0.add("Idle_Ready")
+READY0 = ready_frames()[0]
+for _w in STOP_WAYS:
+    CLIPS["Run_Stop" + WAY_SUFFIX[_w] + "_Ready"] = (SS_N, "hand", 0, None,
+                                                    oneshot(run_stop_body(_w, READY0), run_stop_feet(_w, READY0)))
+    LOOP0.add("Run_Stop" + WAY_SUFFIX[_w] + "_Ready")
 
 
 # ---------------------------------------------------------------- writing
@@ -1036,7 +1124,8 @@ def copied_claws(a):
 # JSON, and claw tracks on all 40 copied clips grew the file by 1.1 MB.
 PLAYED = {"Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3", "Ab_DL", "Ab_GR", "Ab_VS", "Ab_LH", "Ab_H", "Ab_LLH", "Ab_AF",
           "Ab_Swing", "Idle", "Idle_Ready", "Idle_Heft", "Idle_Listen", "Idle_Swing", "Run_F", "Run_B",
-          "Strafe_L", "Strafe_R", "Run_Start", "Run_Stop", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle", "Death_A",
+          "Strafe_L", "Strafe_R", "Run_Start", "Run_Stop", "Run_Start_B", "Run_Start_L", "Run_Start_R", "Run_Stop_B",
+          "Run_Stop_L", "Run_Stop_R", "Run_Stop_Ready", "Run_Stop_B_Ready", "Run_Stop_L_Ready", "Run_Stop_R_Ready", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle", "Death_A",
           "2H_Melee_Idle"}
 for a in list(bpy.data.actions):
     if a.name in CLIPS or a.name.endswith("__old") or a.name not in PLAYED:
