@@ -344,7 +344,7 @@ static func breaker_element(b: Dictionary) -> String:
 ## The move's first hit. Returns how many foes it reached, so a whiff stays quiet. A base element move first cashes
 ## in whatever state its element pays on the foes near him (improvise(), the element matrix), then does its own thing.
 static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
-	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero._cast_power())
+	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero._cast_power(), fwd)
 	return maxi(_fire(hero, id, fwd), paid)
 
 
@@ -1548,7 +1548,7 @@ const IMPROV := {
 }
 ## A foe in several states pays the first with a cell for the element, in this order (the skewered are frozen too).
 const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne"]
-const IMPROV_REACH := 5.0  # m round him: who a base move's element reaches for its payoff
+const IMPROV_REACH := 5.0  # m round him: a move with no hit shape of its own (improv_reach()) reaches this far
 const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
 const IMPROV_MULT := 1.5  # the harder payoffs (crater, swallow, smother, spike, tear, loose)
 const IMPROV_LAUNCH := 8.0  # m/s up: lift, fan, loose (a fresh launch: at least enemy.RELAUNCH_MIN)
@@ -1580,16 +1580,14 @@ static func in_state(e: Node, state: String) -> bool:
 	return marked(e, state)
 
 
-## A base element move's improvised payoffs on everyone near him in a state its element pays. Returns how many paid.
-static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: float) -> int:
+## A base element move's improvised payoffs on everyone its own hit shape reaches (improv_reach()) in a state its
+## element pays. Returns how many paid.
+static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: float, fwd := Vector3.ZERO) -> int:
 	if id.begins_with("X") or not ELEMENT_OF.has(id):
 		return 0
 	var el: String = ELEMENT_OF[id]
 	var due := []  # (read every state first: a chain sets one on the neighbour, which mustn't pay in the same move)
-	# (Tow Line reaches along the dash he just made, which can leave them behind him: its own line, then near him)
-	var near: Array = FOES.near(hero.get_tree(), at, IMPROV_REACH)
-	if id == DASH_MOVE:
-		near = _tow_line(hero, at) + near.filter(func(e: Node3D) -> bool: return not e in _tow_line(hero, at))
+	var near: Array = improv_reach(hero, id, at, fwd if fwd.length_squared() > 0.001 else hero._facing())
 	for e: Node3D in near:
 		var state := "" if THROWN.flying(e) else improv_state(e, el)
 		if state != "":
@@ -1600,6 +1598,91 @@ static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: flo
 			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power, cell)
 			improv_paid[cell] = int(improv_paid.get(cell, 0)) + 1
 	return due.size()
+
+
+const IMPROV_ROLL_HALF_WIDTH := 1.0  # m either side of Ice Cube's roll: the cube and whoever it passes
+
+
+## Round 4: who a base move's payoff reaches is who the move itself lands on, the shape you see it hit (was everyone
+## IMPROV_REACH round him, so a foe behind him paid for a harpoon thrown ahead). Each shape reads the move body's
+## own numbers; read before the move fires, so nobody has been thrown yet. A move with no hit of its own (the vault)
+## reaches nobody; an id with no shape here falls back to its MOVES `range` / `arc` / `width`, then IMPROV_REACH.
+static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Vector3) -> Array:
+	var tree := hero.get_tree()
+	var grow: float = hero._cast_grow()
+	match id:
+		"EC":  # the gale's circle where the sweep throws them up
+			var eye: Vector3 = at + fwd * minf(CUTTER_AHEAD, hero._clear_ahead(fwd, CUTTER_AHEAD))
+			return FOES.near(tree, eye, CUTTER_RADIUS * grow)
+		"EE", "EW":  # the tentacles' reach (Live Wire latches onto whoever they get to)
+			return hero._void.reachable()
+		"EA":  # the one it bowls, and the line the cube rolls down
+			var bowl: Array = hero._void.reachable().filter(func(e: Node3D) -> bool:
+				return _flat(e.global_position - at).length() <= BOWL_REACH)
+			if bowl.is_empty():
+				return []
+			bowl.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+				return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+			var from := _flat(bowl[0].global_position)
+			var path := _ahead(hero, from, fwd, BOWL_LENGTH, IMPROV_ROLL_HALF_WIDTH)
+			return path if bowl[0] in path else [bowl[0]] + path
+		"EF":  # the spear tip's line
+			var length: float = minf(HARPOON_LENGTH * grow, hero._clear_ahead(fwd, HARPOON_LENGTH * grow) + 0.5)
+			return _ahead(hero, at, fwd, length, HARPOON_HALF_WIDTH)
+		"IP":  # the frost round where the spear goes in
+			var spot: Vector3 = at + fwd * minf(SPEAR_AHEAD, hero._clear_ahead(fwd, SPEAR_AHEAD))
+			return FOES.near(tree, spot, SPEAR.RADIUS)
+		"IJ":  # the vault hits nobody
+			return []
+		"IS":  # the frost ring round the spear (or him)
+			var s: Node3D = SPEAR.current(tree)
+			return FOES.near(tree, _flat(s.global_position) if s != null else at, DEEP_FREEZE_RADIUS)
+		"EM":  # the fist's lava line
+			var length: float = minf(PALM_LENGTH * grow, hero._clear_ahead(fwd, PALM_LENGTH * grow) + 0.5)
+			return _ahead(hero, at, fwd, length, PALM_HALF_WIDTH)
+		"EV":  # the tendrils round him, and whoever the palm shoved
+			var foes: Array = FOES.near(tree, at, UNDERTOW_RADIUS)
+			for e: Variant in hero._void.shoved:
+				if is_instance_valid(e) and e.is_alive() and not e in foes and _flat(e.global_position - at).length() <= UNDERTOW_CHASE:
+					foes.append(e)
+			return foes
+		"VS":  # the hole where the slam comes down
+			return FOES.near(tree, _flat(hero._void._aim_at), DARK.Hole.RADIUS)
+		"VR":  # the crescent in front of him
+			return FOES.near(tree, at, REAP_REACH).filter(func(e: Node3D) -> bool:
+				var to := _flat(e.global_position - at)
+				return to.length() <= 0.3 or fwd.angle_to(to.normalized()) <= REAP_HALF_ANGLE)
+		"VD":  # whoever the tide drags: the marked, or with none, those near
+			var marked_foes: Array = FOES.near(tree, at, TIDE_REACH).filter(func(e: Node3D) -> bool: return DARK.marked(e))
+			return marked_foes if not marked_foes.is_empty() else FOES.near(tree, at, TIDE_NEAR)
+		"OW":  # the pool under whoever he's aiming at
+			return FOES.near(tree, _overwhelm_spot(hero, at, fwd), OVERWHELM_RADIUS)
+		"TW":  # the line he just dashed along (near him with nobody on it)
+			return _tow_line(hero, at)
+	var m: Dictionary = hero.MOVES.get(id, {})
+	if float(m.get("range", 0.0)) > 0.0:
+		return tree.get_nodes_in_group("enemies").filter(func(e: Node3D) -> bool:
+			var to := _flat(e.global_position - at)
+			if not e.is_alive():
+				return false
+			if m.has("width"):
+				return hero._in_strip(to, fwd, m.range, m.width, e.radius)
+			return to.length() <= m.range + e.radius and (to.length() <= 0.4 or rad_to_deg(fwd.angle_to(to.normalized())) <= m.arc * 0.5))
+	return FOES.near(tree, at, IMPROV_REACH)
+
+
+## Where Overwhelm's pool opens: on the nearest foe in his aim's cone, else ahead (the aim _overwhelm() makes).
+static func _overwhelm_spot(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Vector3:
+	var spot: Vector3 = at + fwd * minf(OVERWHELM_AHEAD, hero._clear_ahead(fwd, OVERWHELM_AHEAD))
+	var best := INF
+	for e: Node3D in FOES.near(hero.get_tree(), at, OVERWHELM_REACH):
+		var to := _flat(e.global_position - at)
+		if to.length() > 0.01 and rad_to_deg(fwd.angle_to(to.normalized())) > hero._void.CONE:
+			continue
+		if to.length() < best:
+			best = to.length()
+			spot = _flat(e.global_position)
+	return spot
 
 
 ## One payoff (IMPROV's kinds): one hit, and a state, a chain to the neighbour, a launch or a crater.

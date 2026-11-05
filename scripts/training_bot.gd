@@ -40,9 +40,11 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	# The element matrix (third pass, void_element.IMPROV): a dash and a base move of another element on a state.
 	# Harpoon's ice, then Tow Line's dark shatters it (frozen x dark); Rockslide's buried, then Harpoon freezes them in
 	# the floor (buried x ice); Updraft Lash's air, then Harpoon freezes them up there (airborne x ice).
-	["line", "D", "L", "H", "D", "H"], ["L", "H", "L", "L", "D", "L", "H"], ["L", "H", "D", "L", "H"]]
+	# ("face": he aims at the nearest foe for the string, as a player would. The payoff follows the move's own hit
+	# shape (void_element.improv_reach), and the dash and Dash Stab's lunge leave the buried behind him.)
+	["line", "D", "L", "H", "D", "H"], ["face", "L", "H", "L", "L", "D", "L", "H"], ["face", "L", "H", "D", "L", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line"]
+const BOT_SETUP := ["alt", "line", "face"]
 ## A "line" string's column starts BOT_LINE_FROM m in front of him, BOT_LINE_GAP m apart: the dash and Dash Stab's
 ## lunge carry him ~5 m, straight through a column that starts at BOT_SPOT (Harpoon then fired at nobody).
 const BOT_LINE_FROM := 5.0
@@ -63,6 +65,7 @@ var _reset_done := false  # this string's start has been reset
 var _settle_t := 0.0
 var _press_frame := -1  # physics frame of the bot's last press
 var _bot_string := 0  # BOT_STRINGS index playing
+var _bot_face := false  # this string aims at the nearest foe ("face")
 var _homes := {}  # dummy -> its home, while a "line" string has it standing elsewhere
 var _bot_step := 0  # next token in it
 var _bot_wait := 1.0  # s before the next string starts
@@ -262,6 +265,8 @@ func _drive_bot() -> void:
 	var string: Array = BOT_STRINGS[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
 	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not "line" in string else Vector3.ZERO
+	if _bot_face and _bot_step > 0 and to.length() > 0.3:
+		player.bot_move = to.normalized()  # (aims every press at the nearest foe; he jogs at it between them)
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
 		Input.action_press("awaken")
 	if _bot_step >= string.size():  # the string is done: let it (and any breaker) play out
@@ -298,6 +303,7 @@ func _drive_bot() -> void:
 	if _bot_step == 0:
 		_bot_rhythm.clear()
 		player.bot_alt = "alt" in string
+		_bot_face = "face" in string
 	if string[_bot_step] in BOT_SETUP:  # (not a press: bot_alt / the line is set for the whole string)
 		_bot_step += 1
 		return

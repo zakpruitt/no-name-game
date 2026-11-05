@@ -890,6 +890,26 @@ func _element_matrix() -> void:
 			e.free()
 			o.free()
 	_check(cells >= 15, "the matrix has its cells (%d)" % cells)
+	# Round 4: the payoff follows the move's own hit shape. A foe behind him, well inside the old 5 m reach round
+	# him, is outside every one of these moves (the gale's circle ahead, the harpoon's line, the palm's line, the
+	# crescent) and doesn't pay; nor does one off to the side of the harpoon's line.
+	root.get_node("Game").combo_count = 0  # (a long chain grows the shapes: Updraft Lash's gale then reaches behind him)
+	var paying := {"wind": "frozen", "water": "buried", "earth": "molten", "void": "frozen"}
+	for element: String in base:
+		for spot: Vector3 in [Vector3(0, 0, -2.5), Vector3(3.5, 0, 1.0)] if element == "water" else [Vector3(0, 0, -2.5)]:
+			var e := _foe(spot)
+			if paying[element] == "frozen":
+				el.encase(e)
+			else:
+				el.mark(e, paying[element])
+			var paid: int = el.improvise(hero, base[element], Vector3.ZERO, 1.0)
+			_check(paid == 0 and e.hits == 0, "%s (%s) misses a %s foe at %s, %.1f m off: outside its shape (paid %d)" % [base[element], element,
+				paying[element], spot, spot.length(), paid])
+			e.free()
+	var ahead := _foe(Vector3(0, 0, 4.5))  # (and the harpoon's line still finds one 4.5 m out)
+	el.mark(ahead, "buried")
+	_check(el.improvise(hero, "EF", Vector3.ZERO, 1.0) == 1, "Harpoon's line pays the buried 4.5 m ahead")
+	ahead.free()
 	# A whole move cashes one in: Harpoon on someone Rockslide buried freezes them in the floor.
 	var buried := _foe(Vector3(0, 0, 3.0))
 	el.mark(buried, "buried")
