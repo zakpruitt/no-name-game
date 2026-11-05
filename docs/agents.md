@@ -208,6 +208,13 @@ fast-forward, so no agent edits another's files or index.
   defer it (`call_deferred`) or set the position first.
 - **The bot presses Awaken the frame the meter is full**, which is often right on a perfect breaker landing, so the
   Awakening column shows up in that string's film. Read it as its own layer, not the breaker's.
+- **Preload cycles leak at exit.** A `const X := preload(...)` that closes a loop (callout_cap -> void_element ->
+  ... -> comic_fx -> callout_cap) prints "N ObjectDB instances were leaked" / "resources still in use" at the end of
+  every headless check. Compare a check's tail with `git stash` before blaming your test; `load()` the script inside
+  the function that needs it.
+- **Effect density has a number:** `python tests/fx_coverage.py <film dir> --per-string --max=0.40` scores each
+  `string_film` HIT frame (effect-coloured share of the middle 60%) and fails over the budget. It needs a windowed
+  film, so it isn't in `agent.sh check`; run it after any effects change and quote the per-string numbers.
 
 - **Prove the rebuild before editing a model (round 40):** `chibi_keys.py` over the copied baked blend gave the committed
   GLB byte for byte (`cmp`), so every later diff was the edit's alone. Do that first whenever a lane inherits a GLB pipeline.

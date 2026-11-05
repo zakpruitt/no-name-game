@@ -501,6 +501,33 @@ minus the dummies' red), peak of the HIT and the next two frames. Before: mean 0
   fills on a perfect landing, so it stood over the pile.
 - Checks: `fx_sleek_check` (rim geyser, cord line, echo blade vs reach, well look vs burn).
 
+### Round 6 (density: the breaker landings left over 0.25)
+
+Measured with `tests/fx_coverage.py` (the round 5 tool, now in the repo; `--max=0.40` fails a film with any HIT frame
+over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075, densest 0.34 -> 0.25.
+
+- **Abyss** (hold, 0.26 -> 0.10; round 5 measured 0.47): one thin splat (`dark_fx.Splat.thin`: 0.05 m violet strokes
+  in a line of ink, a small blob, no hot core) at the middle of the spouts, drawn by the batch's first spout; the
+  others throw chips. That spout also erodes the Overwhelm pool under the pile (group `dark_pool`), which the
+  landing's hitstop had held for seconds. Spouts 0.22 m half width (0.5), no overshoot.
+- **Breaker names** (`callout_cap.gd`): a callout whose first line is a breaker's name (every `BREAKERS` name, alts
+  too) sits centred in the top band (`BREAKER_Y` 0.11, above the announcements' 0.2) at the hero's depth for
+  `BREAKER_HOLD_S` 0.6 real s; the combo-name callout stays over him.
+- **Crowd hits in a breaker** (`Fx.in_breaker`: the hero in State.LEAP): the frame's hit stars merge into one at the
+  middle of the hits; the speed strokes and chain halo draw once per frame; at most `elements.BREAKER_ARC_MAX` 3
+  Live Wire bolts alive, those asked in one frame 0.06 real s apart; a batch of rim geysers stops at
+  `RIM_GEYSER_MAX` 3, 1.3 m apart. Worldbreaker 0.27 -> 0.25 (its earth spikes and the Awakening column are what's
+  left), Cataclysm 0.17 -> 0.16.
+- **Grounded** (0.34 -> 0.22): the frame's wind strikes are drawn together, deferred (`elements._flush_strikes`): at
+  most `STRIKE_MAX` 3, nearest the batch's middle first, `STRIKE_SPACING` 1.4 m, `STRIKE_STAGGER` 0.06 real s, a star
+  on the first only.
+- **Maw** (0.34 -> 0.18): one row of 9 fangs at 1.9 m (15 + 11 at 2.9 / 1.6), near ones 0.35 tall, a thin bite
+  splat at 0.8 of r (1.25 full width), a hoop at 0.025 of its radius, held and sunk on real time after the bite.
+  **Collapse** (0.19 -> 0.17): the hole's arcs 0.16 / 0.07 m (0.5 / 0.2), an inward hoop every 0.45 s at 0.02 of
+  the radius (0.3 s at 0.05: a 0.33 m band), the fall one hot hoop and a thin 2.2 m splat (hot + white + 2.8 m).
+- Checks: `fx_sleek_check` (breaker name in the top band and gone after its hold, combo name over him, one star a
+  breaker frame, three bolts, three rim geysers, three staggered strikes, a hit outside a breaker keeps its star).
+
 ## Invariants
 
 - `settings.cfg` never gains a comic key.
