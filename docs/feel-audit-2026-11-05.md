@@ -116,6 +116,7 @@ alone is 0.17-0.27.
 10. **Dash hand-overs drag.** (rhythm table above)
     - See: a dash out of a move into Dash Stab is ~500 ms, Harpoon after it ~430, Tow Line after Harpoon / the spear 451-467, against the 362 ender shape; the improvised routes all go through it.
     - Fix: let the dash's recovery cancel into DL sooner after a move (`_post_dash_t`), and a `DL` speed for the matrix routes (`hero_moves.gd`). Lane: combo-rhythm.
+    - Since the film: 3f27472 (landed while this audit was written) hands a cancelling dash to Dash Stab at `DASH_STAB_CANCEL` 0.5 (444-449 ms) and speeds Air Slash; DL -> EF ~430 and -> TW 451-467 are still open.
 
 Smaller things seen:
 - Spar: the rogue's cult violet is the hero's claw violet, so in a pile it reads as part of him; its telegraph is an opaque red disc under him (`crops\fa2_11_rogue_spar.png`; foe lane, `telegraph` look). The warrior and shield keep to the edge in the first three strings; spar needs hands.

@@ -559,5 +559,5 @@ items 1, 2, 6, 7 and 10 fixed, 3, 4, 5 and 8 half, 9 not). Zak's wake-up page: `
 - [ ] 7. Molten Palm's coil is one held drawing (Ab_AF frames 8-46 of 61) and a blink at `EM_SPEED` 2.8: re-key a building ~16-frame coil, `EM_SPEED` ~1.8 (heretic anim, combo-rhythm)
 - [ ] 8. The run reads as a hood dragging a claw, Run_Stop as a spin: smaller claw swing, legs clear of the hood, keep the stop's facing (heretic anim)
 - [ ] 9. Meteor Fall's beats happen at the frame edge (throws off the top and right, tentacles leaving the screen): throw along `_brk_dir` inside the x2.0 view, a tighter gather (combo, camera)
-- [ ] 10. Dash hand-overs drag: EC / XR -> DL ~500 ms, -> TW 451-467, DL -> EF ~430 in the matrix routes, against the 362 ender (combo-rhythm)
+- [ ] 10. Dash hand-overs drag: EC / XR -> DL ~500 ms (444-449 after 3f27472), -> TW 451-467, DL -> EF ~430 in the matrix routes, against the 362 ender (combo-rhythm)
 - [x] `foe_lean.gd` asked for a zero-axis Quaternion on a tipped-over rogue / minion (128 engine errors in one rogue spar film, now 0); `heretic_shots --clips` films Death_A and Ab_Swing (they weren't in `CLIP_SET`)
