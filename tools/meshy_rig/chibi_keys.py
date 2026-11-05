@@ -398,22 +398,7 @@ CLIPS["Ab_VS"] = (46, "hand", STEP_ATTACK, None, [
 
 
 
-# Idle_Ready: the fight stance: low, claw up and open, a quick bounce on the breath.
-def ready_keys():
-    keys = []
-    n = 41
-    for f in range(1, n + 1, STEP_STANCE):
-        ph = (f - 1) / (n - 1) * 2 * math.pi
-        br = math.sin(ph)
-        lag = math.sin(ph - 0.8)
-        keys.append((f, pose(GUARD, hip=(0, 0, -0.07 - 0.018 * br), chest=(8, 10 + 2 * br, 0), head=(-6, 6 + 3 * lag, 0),
-                             hsq=0.05 * lag, rh=(30, -5 + 3 * lag, 0.55), w=(20, 4 + 5 * lag), claw=-0.5 + 0.3 * lag,
-                             clawph=100 * ph, hs=1.15), "lin"))
-    keys[-1] = (n, keys[0][1], "hold")
-    return keys
-
-
-CLIPS["Idle_Ready"] = (41, "hand", STEP_STANCE, None, ready_keys())
+# Idle_Ready: re-keyed in the Locomotion block (ready_frames).
 
 
 
@@ -723,6 +708,174 @@ CLIPS["Jump_Idle"] = (33, "hand", STEP_STANCE, None, [
     (33, JUMP_AIR, "hold")])
 
 
+# Run_Start (6 frames) and Run_Stop (8): one-shots player._play_locomotion plays at the loop speed when
+# he sets off from standing and when he lets go of the stick at full run. Written a frame at a time like
+# the runs. player.accel takes him from 0 to MOVE_SPEED in 0.107 s, so his planted feet are keyed against
+# that ramp (`floor_d`) and stay put on the floor while he speeds up or brakes.
+ACCEL = 70.0  # player.accel, m/s^2
+
+
+def floor_d(i, v0, a):
+    """m the floor has passed under him `i` clip frames (at LOOP_SPEED) into a ramp from v0 at a m/s^2,
+    capped between 0 and MOVE_SPEED."""
+    t = i / 30.0 / LOOP_SPEED
+    t_end = ((MOVE_SPEED if a > 0 else 0.0) - v0) / a
+    if t <= t_end:
+        return v0 * t + 0.5 * a * t * t
+    return v0 * t_end + 0.5 * a * t_end * t_end + (v0 + a * t_end) * (t - t_end)
+
+
+def run_feet0():
+    """Run_F frame 0's feet before the squash: the left foot landing (contact), the right in mid-swing."""
+    out = {}
+    for s, ph, x in (("l", 0.0, 0.03), ("r", 0.5, -0.03)):
+        a, up, pitch = foot_run(ph, RUN_REACH, RUN_PLANT, 1.0)
+        out[s] = (x, a - ANK[s], up)
+        out[s + "r"] = (0, pitch, 0)
+    return out
+
+
+def herm(p0, p1, t):
+    t = t * t * (3 - 2 * t)
+    return tuple(a + (b - a) * t for a, b in zip(p0, p1))
+
+
+def oneshot(body, feet):
+    """Per-frame poses from per-frame body poses and raw foot offsets (squash undone on each)."""
+    out = []
+    for P, F in zip(body, feet):
+        bsq = P.get("bsq") or 0.0
+        out.append(pose(P, fl=unsquash("l", F["l"], bsq), fr=unsquash("r", F["r"], bsq), flr=F["lr"], frr=F["rr"]))
+    return out
+
+
+RUN0 = run_frames("F")[0]
+RF0 = run_feet0()
+# The lunge: crouched and pitched in with the hips left behind (he sets off before his body does), claw
+# drawn back low; then launched long, stretched tall, the fist thrown ahead, the claw trailing splayed,
+# the left knee driven up; the left foot lands on Run_F's first contact and Run_F carries on from frame 0.
+RS_LOAD = pose(GUARD, hip=(0, -0.07, -0.15), hipr=(0, 30, 0), chest=(-8, 8, 0), head=(4, -12, 0), hsq=0.24, bsq=0.08,
+               rh=(135, -28, 0.47), w=(165, -12), lh=(-70, -35, 0.31), lpole=(-150, -30), claw=0.6, hs=1.1)
+RS_LAUNCH = pose(GUARD, hip=(0, 0.02, -0.04), hipr=(8, 40, -4), chest=(-18, 8, 0), head=(6, -14, 0), hsq=-0.22, bsq=-0.08,
+                 rh=(158, -12, 0.58), w=(178, 4), lh=(-15, -5, 0.37), lpole=(-150, -30), claw=-0.7, clawph=60.0, hs=1.22)
+RS_N = 7  # frames 0..6
+RS_BODY = [RS_LOAD, RS_LOAD, mixp(RS_LOAD, RS_LAUNCH, 0.6), RS_LAUNCH, mixp(RS_LAUNCH, RUN0, 0.35),
+           mixp(RS_LAUNCH, RUN0, 0.7), RUN0]
+for _i in (1, 3, 5):  # arms, head and hood on twos, like the runs
+    RS_BODY[_i] = pose(RS_BODY[_i], **{k: RS_BODY[_i - 1][k] for k in ("rh", "w", "lh", "head", "claw", "hs")})
+
+
+def run_start_feet():
+    l0, r0 = GUARD["fl"], GUARD["fr"]
+    out = []
+    for i in range(RS_N):
+        d = floor_d(i, 0.0, ACCEL)
+        F = {}
+        # right: the push-off foot, planted frames 0-2 (rising onto the toes), kicked up and through to
+        # Run_F frame 0's mid-swing by frame 6
+        if i <= 2:
+            F["r"] = (r0[0], r0[1] - d, RUN_TOE * (i / 2.0) ** 2)
+            F["rr"] = (0, 30.0 * i / 2.0, 0)
+        else:
+            t = (i - 2) / 4.0
+            p = herm((r0[0], r0[1] - floor_d(2, 0.0, ACCEL), RUN_TOE), RF0["r"], t)
+            F["r"] = (p[0], p[1], p[2] + 0.12 * math.sin(math.pi * t))
+            F["rr"] = (0, 40.0 * (1 - t) + RF0["rr"][1] * t, 0)
+        # left: leaves the floor at once, knee driven up, reaching for the first contact on frame 6
+        if i == 0:
+            F["l"], F["lr"] = l0, (0, 0, 0)
+        else:
+            t = i / 6.0
+            p = herm((l0[0], l0[1] - 0.03, 0.0), RF0["l"], t)
+            F["l"] = (p[0], p[1], p[2] + 0.2 * math.sin(math.pi * min(t * 1.2, 1.0)))
+            F["lr"] = (0, -15.0 * math.sin(math.pi * t) + RF0["lr"][1] * t, 0)
+        out.append(F)
+    return out
+
+
+CLIPS["Run_Start"] = (RS_N, "hand", 0, None, oneshot(RS_BODY, run_start_feet()))
+LOOP0.add("Run_Start")  # written from frame 0: frame 0 is the first pose, not a held key
+
+# The skid: the left foot slammed down far ahead and braced, toes up, body squashed low and leaning
+# back against the stop, claw flung out behind for balance, fist out wide; momentum then carries
+# the top of him over: chest, head and hood pitch forward past upright, the hood stretched ahead and
+# the claw swinging through in front of him, and he settles back into the idle's first pose.
+IDLE0 = idle_frames()[0]
+SK_BRACE = pose(NEUTRAL, hip=(0.02, -0.08, -0.15), hipr=(-6, -5, 6), chest=(-6, 0, 0), head=(0, 8, 0), hsq=0.26,
+                bsq=0.1, rh=(125, 15, 0.56), w=(140, 25), lh=(-105, 5, 0.37), lpole=(-150, -30), claw=-0.7,
+                clawph=40.0, hs=1.2)
+SK_OVER = pose(NEUTRAL, hip=(0.0, 0.03, -0.11), hipr=(4, 22, 0), chest=(4, 18, 0), head=(4, 20, 0), hsq=-0.2,
+               bsq=-0.04, rh=(35, -14, 0.58), w=(30, -8), lh=(-40, -55, 0.34), claw=0.7, hs=1.15)
+SK_BACK = pose(NEUTRAL, hip=(0.0, -0.01, -0.08), hipr=(0, 0, 0), chest=(0, 4, 0), head=(-2, -2, 0), hsq=0.1, bsq=0.03,
+               rh=(45, -18, 0.54), w=(48, 2), claw=0.2, hs=1.2)
+SS_N = 9  # frames 0..8
+SKID_FRONT = 0.32  # m ahead of the hip joint the braced foot lands
+SKID_BACK = 0.28  # m behind it the back foot drags
+SKID_GIVE = 0.1  # m the feet come back towards him while they skid (the rest of his 0.4 m they slide)
+SS_BODY = [SK_BRACE, SK_BRACE, mixp(SK_BRACE, SK_OVER, 0.25), mixp(SK_BRACE, SK_OVER, 0.7), SK_OVER,
+           mixp(SK_OVER, SK_BACK, 0.5), SK_BACK, mixp(SK_BACK, IDLE0, 0.6), IDLE0]
+for _i in (1, 3, 5, 7):
+    SS_BODY[_i] = pose(SS_BODY[_i], **{k: SS_BODY[_i - 1][k] for k in ("rh", "w", "lh", "claw", "hs")})
+
+
+def run_stop_feet():
+    """A skid, not a step: both feet slide on the floor as he brakes (they only give back a little of his
+    travel in his frame), the front one a long reach ahead, the back one on its toes behind."""
+    l_end, r_end = IDLE0["fl"], IDLE0["fr"]
+    stop = floor_d(SS_N, MOVE_SPEED, -ACCEL)
+    out = []
+    for i in range(SS_N):
+        g = floor_d(min(i, 5), MOVE_SPEED, -ACCEL) / stop  # 0..1 of the braking travel
+        l_skid = (-0.02, SKID_FRONT - SKID_GIVE * g - ANK["l"], 0.0)
+        r_skid = (0.06, -SKID_BACK - 0.5 * SKID_GIVE * g - ANK["r"], RUN_TOE * (1.0 if i >= 2 else 1.0 + (2 - i)))
+        F = {}
+        if i <= 5:
+            F["l"], F["lr"] = l_skid, (0, -22.0 * (1 - i / 6.0), 0)
+            F["r"], F["rr"] = r_skid, (0, 32, 0)
+        else:  # stepped back in under him, a small lift each
+            t = (i - 5) / 3.0
+            p = herm(l_skid, l_end, t)
+            F["l"], F["lr"] = (p[0], p[1], p[2] + 0.05 * math.sin(math.pi * t)), (0, 0, 0)
+            p = herm(r_skid, r_end, t)
+            F["r"], F["rr"] = (p[0], p[1], p[2] + 0.08 * math.sin(math.pi * t)), (0, 32.0 * (1 - t), 0)
+        out.append(F)
+    return out
+
+
+CLIPS["Run_Stop"] = (SS_N, "hand", 0, None, oneshot(SS_BODY, run_stop_feet()))
+LOOP0.add("Run_Stop")
+
+
+# Idle_Ready (60 frames, 1.8 s at 1.1, a loop): the fight stance on Idle's breathing and weight shift,
+# quicker and lower: feet wide, hunched over, weight rolled from leg to leg once a loop, two breaths, the
+# claw held up in front of his face, open and flexing, the fist raised, a drawing every 3 frames.
+READY_N = 60
+
+
+def ready_frames():
+    out = []
+    for i in range(READY_N + 1):
+        iq = (i // STEP_STANCE) * STEP_STANCE if i < READY_N else READY_N
+        ph = iq / READY_N * 2 * math.pi
+        wt = pump(math.sin(ph), 0.5)
+        br = math.sin(ph * 2)
+        lag = math.sin(ph * 2 - 0.8)
+        free_l, free_r = max(0.0, -wt), max(0.0, wt)
+        out.append(pose(GUARD, hip=(-0.04 * wt, 0.0, -0.11 + 0.016 * br - 0.01 * abs(wt)),
+                        hipr=(8 + 5 * wt, 10, 6 * wt), spine=(0, 4, 0),
+                        chest=(10 - 3 * wt, 12 - 3 * br, -7 * wt), head=(-8 + 6 * math.sin(ph - 0.5), -2 + 4 * lag, 8 * wt),
+                        hsq=0.06 * lag, bsq=0.02 * br,
+                        rh=(30 + 4 * math.sin(ph + 0.6), 12 + 4 * br, 0.55), w=(22 + 6 * math.sin(ph + 0.6), 38 + 6 * lag),
+                        lh=(-35, -18 + 4 * br, 0.33), fl=(-0.09, 0.12, 0.025 * free_l), fr=(0.09, -0.12, 0.025 * free_r),
+                        flr=(0, 15 * free_l, 0), frr=(0, 15 * free_r, 0),
+                        claw=-0.5 + 0.3 * lag + 0.25 * math.sin(ph), clawph=180 * ph / math.pi, hs=1.2))
+    return out
+
+
+CLIPS["Idle_Ready"] = (READY_N + 1, "hand", 0, None, ready_frames())
+LOOP0.add("Idle_Ready")
+
+
 # ---------------------------------------------------------------- writing
 def contact(hand_pos):
     sp = [0.0] + [(hand_pos[i] - hand_pos[i - 1]).length for i in range(1, len(hand_pos))]
@@ -883,7 +1036,8 @@ def copied_claws(a):
 # JSON, and claw tracks on all 40 copied clips grew the file by 1.1 MB.
 PLAYED = {"Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3", "Ab_DL", "Ab_GR", "Ab_VS", "Ab_LH", "Ab_H", "Ab_LLH", "Ab_AF",
           "Ab_Swing", "Idle", "Idle_Ready", "Idle_Heft", "Idle_Listen", "Idle_Swing", "Run_F", "Run_B",
-          "Strafe_L", "Strafe_R", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle", "Death_A", "2H_Melee_Idle"}
+          "Strafe_L", "Strafe_R", "Run_Start", "Run_Stop", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle", "Death_A",
+          "2H_Melee_Idle"}
 for a in list(bpy.data.actions):
     if a.name in CLIPS or a.name.endswith("__old") or a.name not in PLAYED:
         continue
