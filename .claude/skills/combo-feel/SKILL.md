@@ -188,3 +188,26 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - **Flow audit numbers (bot beats):** the long ones were all slow clip wind-ups, not stops: Ab_AF (palm 467 ms),
   Ab_LLH (327), Ab_VS in the air (278). `speed` is the cheap lever; keep recovery with a new `end` (`EM_END`).
 
+## Matrix reach, last beats, guide tags (round 34, fourth pass)
+- **A payoff's reach is the move's own shape, read from the body's constants.** `improv_reach()` duplicates each
+  move's filter (strip, circle, cone, pool, `reachable()`) before the move fires; a test that puts a foe behind him
+  inside the old radius must fail on the old code (it failed 5 ways). Zero `Game.combo_count` in such a test: the
+  chain's `_cast_grow()` swells Updraft Lash's gale circle until it reaches behind him.
+- **A shape change can silently drop a bot cell.** `buried_x_water` went 1 -> 0 because the dash and Dash Stab carried
+  him past the buried and the harpoon flew the other way; the bot's `face` token (aim at the nearest foe every press)
+  brought it back. Read `[improv]` after any reach change, not only `breakers=`.
+- **Decompose a long beat before tuning it.** Move hit -> next hit = the hit's stop (plus the ender tier's) + its
+  hit-confirm + the next wind-up; EC -> AL1 was ~170 ms before Air Slash even started, so speed alone (`AL1_SPEED`)
+  wasn't enough and a `confirm` (`EC_CONFIRM`) took the rest. L2's speed is capped by rhythm_check's
+  "opener quickest" (L2's wind-up must stay over L1's 196 ms: 1.19 at most).
+- **Dash -> Dash Stab costs the whole `dash_time`.** A dash that cancelled a move (`player._dash_out`) now ends at
+  `DASH_STAB_CANCEL` when a light is buffered; fresh dashes keep their full length, so the D L openers didn't move.
+- **The bot never dashes out of a breaker hang.** `out` (`player.bot_out`) opens `hero_leap.tick`'s dash-out to it;
+  `wait` holds the next press until he stands, or a light in `_post_dash_t` is Dash Stab instead of L1. In ATTACK the
+  bot's D lands before the leap anyway (dash cancels after the first hit), so "out" matters only once LEAP began.
+- **A hold that hauls foes to one point piles them.** Anvil's `reel` lerped every foe to the same spot (0.08 m apart);
+  give each a slot across his aim sorted by where it stands, and add `fan * SEIZE_IN` on the landing, since the
+  dive's lerp towards `_brk_zone` shrinks any spread by `1 - SEIZE_IN`.
+- **Guide tags that read state are not routes.** `mix` / `pay` ride on a real row (guide_check still compares the
+  row's id and next), so a hint about a foe's state belongs on the row whose move would pay it, never as a row.
+

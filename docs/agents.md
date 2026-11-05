@@ -337,4 +337,13 @@ the worktree, and deletes the branch once it has been merged.
 - **Warnings are errors in this project's scripts:** `var n := {...}.get(k, 0)` (a Variant inferred) is a parse error
   that breaks every script preloading it (void_element, then ComicFx). Type it (`var n: int = ...`) and run the real
   `void_arm_check` rather than `--check-only -s`, whose "Identifier not found: Game" cascade hides the real line.
+- **One commit per item from one worktree (round 34 combo 4):** when a later item's edits are already in a shared file
+  (training_bot.gd held both the `face` token for item 1 and `out` / `wait` for item 4), copy the full file aside,
+  `git show HEAD:<file> > <file>`, re-run only the earlier item's patch script on it, `git add`, then copy the full
+  file back. Keeping each item's edits as a small Python patch script makes this a one-liner.
+- **A patch script that `sys.exit`s on a missing anchor writes nothing:** a second, no-op pair that didn't match
+  silently dropped the first, real one. Check the file after every patch run (`git diff --stat`), and never mix a
+  `sed -i` into a CRLF file between patch runs (it turned guide_check.gd LF until the next patch rewrote it).
+- **Bash's 120 s tool timeout moves a foreground autotest to the background mid-run** (24 strings take ~110 s plus
+  the checks before it): run the autotest alone with `run_in_background`, not chained after another check.
 
