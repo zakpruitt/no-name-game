@@ -57,6 +57,25 @@ Right click with no weapon first. Dark gathers foes and swallows them, and the t
 | Dash H | `TW` | Tow Line | Latches onto foes along the dash, then yanks them into each other |
 | H during a swing | | Snatch | Takes a foe on the way past and carries it (`_carry_pick`, `_tick_carry`, `_drop_carry`) |
 
+### Crossovers (round 34)
+
+Strings that change element on the way, where the second element cashes in what the first set up. Each is a
+new move id (`X*`) reached off a move that used to restart the chain (`LIGHT_AFTER` / `AFTER`), on a tentacle
+clip with its `*_HIT` contact frame, with the arm's shape in `VOID_ELEMENT.FORM_OF`.
+
+| Input | Id | Name | Elements | Payoff |
+|---|---|---|---|---|
+| L H L L | `XR` | Rockslide | storm into earth | Off the air slash he comes down with the hammer (plunge) and everyone within `ROCKSLIDE_RADIUS` of the blow is driven into the floor together (`ROCKSLIDE_DOWN`, pulled `ROCKSLIDE_IN` towards it: craters). Foes the gale had in the air take `ROCKSLIDE_AIR_MULT`; they go in `void_grab.buried` |
+| L H L L H | `XF` | Fault Line | earth into storm | Cracks run to everyone in `FAULT_REACH` and the gale comes up out of each, launching them; Rockslide's `buried` take `FAULT_BURIED_MULT`. The window opens |
+| L H L L H, H in window | `XF` | Cataclysm | storm + earth | Live Wire's lightning through them in the hang (`wire`), then down into the floor: a crater (`CATACLYSM_DOWN`), a sky strike and the earth under each |
+| Dash L H H L | `XS` | Steam Burst | ice into magma | The molten fist goes at the frozen: every foe in a cube or frozen within `STEAM_REACH` goes off in steam (`STEAM_DAMAGE` times the ice's `FREEZE_BREAK`, launched), scalding anyone within `STEAM_SPLASH`. Nobody frozen: a small shove. The window opens |
+| Dash L H H L, H in window | `XS` | Flash Freeze | magma into ice | The steam freezes on the held foes as he dives (`refreeze`: `freeze_seized()`), and the landing shatters it again |
+| Dash H L | `XT` | Storm Pitch | dark into storm | Whoever Tow Line bunched (`PITCH_GRAB` round `PITCH_AHEAD`) is cut off its tether (`thrown_foe.cut()`) and hurled on along his aim, fanned `PITCH_SPREAD`; in flight lightning jumps from each to anyone it passes (`thrown_foe` `zap`: `ZAP_STEP`, `ZAP_REACH`, `ZAP_MAX`) and it bursts in wind where it lands. Big foes stay and take the jolt |
+| H L H, L in window | `VD`, its `alt` | Black Ice | dark into ice | The press freezes the pool with everyone in it (`freeze_pool()`, instead of the jaws), and the landing shatters it (`_black_ice`: `BLACK_ICE_DOWN`, x `FREEZE_BREAK`) |
+
+The looks are existing helpers as placeholders (pillars, fissures, spikes, geysers, shards, arcs); the fx lane's
+wish list is the `TODO(fx lane)` note above `_rockslide()` in `void_element.gd`.
+
 ### Breakers (`VOID_ELEMENT.BREAKERS`)
 
 | Input | Off | Name | Ending |
@@ -68,7 +87,7 @@ Right click with no weapon first. Dark gathers foes and swallows them, and the t
 | H H, H in window | `VS` | Collapse | He comes down at the hole (`at_spot`, `short`), it falls in on itself, and everyone near is thrown clear |
 | H L H, H in window | `VD` | Maw | He lands short of the pool and jaws of darkness shut on everyone in it |
 | hold H, H in window | `OW` | Abyss | They sink through the floor (`ABYSS_SINK`) as he comes down, then black spikes throw them back up |
-| L L L H H, H in window | `EV` | Meteor Fall | He goes up (`height`) with a tentacle on the biggest foe Undertow has (`bound`, `chased`, `rip_target`: a boss, the biggest, then whoever the palm shoved), then comes down on it inside `meteor_shell` wherever it is (`_meteor_aim`). Small foes come apart, shields come off (`rip_shield`), everyone within `RIP_SPLASH` takes some, and geysers erupt round him |
+| L L L H H, H in window | `EV` | Meteor Fall | He goes up (`height`) with a tentacle on the biggest foe Undertow has (`bound`, `chased`, `rip_target`). The press plays three beats (`gather`, round 34; `hero_leap` phase 3, `_tick_beats`): 1, `meteor_wall()`: Undertow lets go (`void_grab.undertow`) and the tentacles hurl everyone within `METEOR_REACH` out from him, `METEOR_WALL_LENGTH` at `METEOR_WALL_SPEED`, splatting on a wall (`METEOR_WALL_MULT`); 2, `meteor_gather()` once they've landed (`METEOR_GATHER_AT` .. `METEOR_GATHER_LATE`): tethered tentacles drag them all into one pile in `METEOR_DRAG_TIME`, on the big one if there is one, otherwise `METEOR_PILE_AHEAD` in front of him; 3, the meteor dive onto the pile (`_dive`, `meteor_shell`), a crater under every one in `METEOR_PILE_R` (`METEOR_DOWN`), the biggest x`METEOR_HEAVY_MULT`, shields off, geysers round him. `METEOR_BEAT_STOP` hitstop on beats 2 and 3, the splats their own. About 1.1 s from press to landing in game time |
 
 `alt` is merged over the breaker when the press was L (`_brk_alt`, `_start_dive`). The prompt shows both buttons and both names when a breaker has one (`breaker_window().alt_name`).
 

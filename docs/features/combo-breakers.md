@@ -63,6 +63,10 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 5. The dive takes `dive` s; `_breaker_impact()` calls `VOID_ELEMENT.breaker_impact()` with what the tentacles hold,
    cracks the floor, shakes, adds `awaken` / `awaken_perfect`, names the breaker and ends the leap.
 6. No press by `close`: `_brk_ended = "miss"`, the held foes drop, he floats down over `fall` s.
+7. A breaker with `gather` (Meteor Fall, round 34) doesn't dive on the press: phase 3 (`_tick_beats`) hangs him
+   while `VOID_ELEMENT.meteor_wall()` throws them at the walls and then `meteor_gather()` drags them into a pile, and
+   only then `_dive()` takes him down onto it. The press part (`_brk_ended`, the cue, the slow motion ending, the
+   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive.
 
 ### Look
 
@@ -106,9 +110,10 @@ so the autotest lands it.
 - `godot --headless --path . -s tests/void_arm_check.gd`: the breakers' timing, holds and slams (PASS/FAIL).
 - `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero.
 - `godot --headless --path . -- --autotest`: prints `[autotest] combo_breaker #N <id> perfect=` per breaker and
-  `breakers=N/N perfect_breakers=` on the done line. The bot resets the dummies to their homes and the hero to
+  `breakers=N/N perfect_breakers=` on the done line (round 34: N is distinct `BREAKERS` ids landed, so an `alt` ending
+  doesn't count twice; `endings=` names every ending landed, Black Ice included). The bot resets the dummies to their homes and the hero to
   `training_bot.BOT_SPOT` before each string and presses `BOT_LEAD` before each cancel point, so the run repeats
-  exactly; `agent.sh check` fails unless `breakers=7/7` and `strings=13/13`.
+  exactly; `agent.sh check` fails unless `breakers=9/9` and `strings=17/17` (round 34).
 - Windowed: `godot --path . -s tests/breaker_prompt_preview.gd` → `user://breaker_prompt.png`; `tests/element_shots.gd`
   for each slam.
 

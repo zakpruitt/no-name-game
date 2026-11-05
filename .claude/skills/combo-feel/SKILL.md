@@ -110,3 +110,22 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - Callers' push-ins (`ENDER_ZOOM`, `BREAKER_FOCUS_ZOOM`, punch values) are fractions tuned at 12.5 m; the rig scales them
   (`PUNCH_GAIN`) and the metre-sized kicks (`dist / REF_DIST`), so new camera calls pass round-32-sized numbers.
 - The fight framing reads `last_hit_ms` on `"enemies"`: a new foe type gets framed only if it sets that on a hit.
+
+## Crossover strings (round 34)
+- **Find the dead ends first.** A new route has to hang off a press that today only restarts the chain (L off AL1,
+  EA, TW, XR were all `L1`): walk `void_route()` for every move and list the continuations that land on `L1` / `GR`.
+  Off a breaker ender nothing else is reachable once it connects (the leap eats the press), so a long string ends in
+  a new breaker rather than passing through one.
+- **Make the payoff need the first element.** Read the state the first move leaves rather than routing on it
+  (`void_route` stays pure): Rockslide doubles on `is_airborne()` (the gale's lift), Steam Burst only explodes
+  `in_cube()` / `frozen_t` foes, Fault Line reads `void_grab.buried` (Rockslide's list), as Undertow reads `shoved`.
+- **A second ending is an `alt`.** Maw's L-in-the-window became Black Ice in one dict entry plus a branch, the way
+  Cold Front hangs off Worldbreaker; the bot plays it with an `"alt"` token (sets `player.bot_alt` for the string).
+- **Tentacle clip + `*_HIT` = comic_check for free.** A new `X*` move on Ab_VS / Ab_LH / Ab_AF / Ab_H with
+  `hits: [*_HIT]` and the clip's usual `cancel` / `end` offsets passes the contact-frame check with no new keys.
+- **A move that takes over a foe another move is flying:** `thrown_foe.launch()` refuses a foe with the FLYING meta.
+  `thrown_foe.cut(e)` ends the old flight (and the old node returns early on its last physics frame) first.
+- **Breakers with beats:** a sequence between press and dive is a new LEAP phase (Meteor Fall's phase 3); run the
+  press half (`_brk_ended`, cue, slowmo end) on the press so the prompt and `rhythm_check` see a normal dive.
+- **The training room is wider than the camera.** A 14 m throw "into the wall" from the middle left the frame and
+  read as the foes vanishing; 10 m kept them at the edge. Film it before trusting a throw distance.

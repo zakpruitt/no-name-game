@@ -142,3 +142,11 @@ Routing rules in `void_route()`, checked in order:
 - Pause MOVES list: draws `scripts/move_list.gd` `SECTIONS`, every input grouped by weapon and element (weapons, storm, ice, magma, dark). Each named combo shows how often it was landed this run. The panel scrolls (wheel, Page Up / Down, right stick). When you add a move, add its row there: `tests/move_list_check.gd` walks every row's input through `void_route()`, and fails if a move or combo is unlisted, `void_route()` reaches a move with no row, or a listed input starts the wrong move.
 - Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Live Wire  (L H H)  ·  5 / 16 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
 - Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint. Still open in ROADMAP: a feel pass by hand on placement against the fight.
+
+## Round 34: crossovers
+
+The crossover strings (Rockslide, Fault Line, Steam Burst, Storm Pitch; `void-element.md`) are ordinary
+`LIGHT_AFTER` / `AFTER` routes, so the guide shows them with no guide code: off Air Slash the light row is now
+Rockslide (it was a plain Slice), off Ice Cube it is Steam Burst, off Tow Line it is Storm Pitch, and off
+Rockslide the heavy row is Fault Line with Cataclysm behind it. Black Ice is an `alt` ending, so it shows on the
+breaker prompt (both buttons and names), not in the guide.

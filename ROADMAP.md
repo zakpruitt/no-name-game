@@ -421,3 +421,15 @@ Zak, after playing every combo: "very comicy, which I like, but ... sleeker and 
 - [ ] By hand: does the sleeker look still hit hard enough? Thin lines lean on the hitstop and the impact frame now
 - [ ] Still thick, other lanes: the spirit echo's ghost axe (teal on L2 / EC, gold Awakened: `spirit_echo.gd`), `elements.storm_strike`'s gold sky column, the breaker cue's floor rings (`breaker_cue.gd`), the brown earth spikes (`elements.spikes`), the cyan spirit motes round him (`elements.Orbit`)
 - [ ] Next: numbers: one total per breaker (audit 6); fade standing element effects when the next string's first hit lands (a Game "string started" signal)
+
+## Round 34 (multi-element combos)
+Zak: "more combos that utilize multiple elements together", "a few more complicated combos", and Meteor Fall's ending.
+- [x] Rockslide (L H L L, storm into earth): the gale's air string slammed into the floor together, double on those in the air
+- [x] Fault Line (L H L L H) and Cataclysm (H in the window, 6 presses): the gale back up out of the cracks, lightning in the hang, craters
+- [x] Steam Burst (Dash L H H L, ice into magma) and Flash Freeze (H in the window, 6 presses): frozen foes go off in steam, then freeze and shatter again
+- [x] Storm Pitch (Dash H L, dark into storm): the axe hurls Tow Line's bunch, lightning jumping off them in flight (`thrown_foe` `zap`)
+- [x] Black Ice (H L H, L in the window, dark into ice): Maw's other ending freezes the pool and shatters it
+- [x] Meteor Fall in three beats: thrown into the walls, dragged into one pile by the tentacles, the meteor into the pile (~1.1 s game time)
+- [x] Bot plays all of them (17 strings, `breakers=9/9`, `endings=`); `string_film.gd -- --from=N`
+- [ ] Looks for the crossovers and the beats (fx lane: the `TODO(fx lane)` note in `void_element.gd`)
+- [ ] Beat 1 throws leave the frame in the middle of the room: a camera pull-out for Meteor Fall's hang (camera lane)

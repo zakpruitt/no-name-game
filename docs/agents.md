@@ -203,3 +203,10 @@ the worktree, and deletes the branch once it has been merged.
   floor marks, words / numbers, leftovers). Filming the whole `string_film` after each family (about 5 min) was
   worth it: the leftovers (the Awakening column, daze stars) only showed in the after film.
 
+- **Counting breakers with `alt` endings:** `breakers=N/N` compared landings with `BREAKERS.size()`, so a string landing
+  an `alt` ending (Black Ice off VD) made it 10/9 and `agent.sh check` failed. Count distinct ids landed
+  (`player.breakers_seen`) and list the endings separately (`endings=`).
+- **Film only the new strings:** `tests/string_film.gd -- --from=N` starts at `BOT_STRINGS[N]` (the earlier ones count as
+  filmed); with the 17 strings the full film is about two minutes.
+- **Python patches into CRLF files:** read with `newline=''`, write `\r\n` in every inserted line; a triple-quoted block
+  with bare newlines mixed endings in training_bot.gd (git warns "LF will be replaced by CRLF").
