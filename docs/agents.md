@@ -182,6 +182,8 @@ fast-forward, so no agent edits another's files or index.
 - **A parse error in a script `void_element.gd` preloads breaks `game.gd`** (the autoload chain), so every test
   fails with "Failed to load script game.gd". Load the new script once in a scratch run before filming; a typed
   `var x := a if c else b` over a Dictionary value is the usual culprit (give it a type).
+- **Foe attacks (round 38 b):** film each attack from the game camera (`tests/foe_shots.gd -- --clip=1H_Melee_Attack_Chop --frames=12 --only=warrior`), not only the Blender side sheet: the warrior's overhead sword read fine from the side and was hidden under its helmet in game. `foe_keys.py ... sheet=a,b noexport` gives a side + game-angle sheet in about 20 s per foe without touching the GLB. Moving a melee foe's hit frame means changing `attack_hit` in `enemy_types.gd` with it (`enemy.chop_speed()`).
+- **Splitting one file across commits by family:** stage an intermediate copy (`git show :path`, edit, `git update-index` via `git add` of a temp-restored file), commit, then restore the full file for the next commit; check `git diff --cached` each time.
 
 ## When you're done
 

@@ -189,6 +189,15 @@ gets its own Death_A):
 Judged from Blender side sheets (`out/enemies_keyed/<name>_keys.png`) and windowed game-camera films
 (`tests/foe_shots.gd -- --clip=Hit_B|Lie_StandUp|Death_A --frames=6 --only=...`), not yet played by hand.
 
+**Round 38 b** adds **Hit_A** (the light flinch, half the ground hits at 1.6x) per foe (`foe_cycles.hit_a`):
+the head snapped back on frame 1 with the eyes squeezed shut and the jaw dropped, shoulders flinched up,
+a 10% squash; an overshoot on 3, a recoil forward past the guard on 6, eyes open again by 10 of 14. The
+Warden gets a heavy one at half the amplitude (super armour plays it for every hit). And **Idle_Combat**
+per foe (`foe_cycles.idle`): two breaths a loop, one weight shift from foot to foot, the weapon arm
+bobbing, a glance, the jaw chattering, the eyes narrowing on the breath; upper body on twos; frame 0 is
+the guard pose every attack and hit starts and ends on (the rogue and bomber loop in 24 / 16 frames,
+twitchier; the robed casters float).
+
 ## Testing
 
 - `godot --headless --path . -s tests/enemy_feel_check.gd`: PASS/FAIL on real

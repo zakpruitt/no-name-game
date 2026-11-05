@@ -172,6 +172,43 @@ a frame a tile (legs and falls read there; the run's lean and bob read from the 
 pass `only=` for a GLB you ship: the script starts from the chunky blend, so an `only=` export puts the
 kit clips back on the others.
 
+**Foe attacks, idles and run start / stop (round 38 b).** `foe_keys.py` keys every foe's attack too, each
+as tell (held on twos, shaking: `tremble`), a 2-3 frame strike with a smear drawing (the striking hand
+swollen 1.3-1.5x) and a recovery with an overshoot. Melee foes hit on their clip frame `attack_hit`
+(enemy_types, 24 fps): `enemy.chop_speed()` plays the chop at `attack_hit / 24 / attack_windup`, so
+the keyed contact lands exactly as the windup ends (no `attack_hit`: `CHOP_HIT_AT` 0.45 of the clip).
+Ranged foes fire on the shoot clip's frame 0, so their windup clip is all tell (held on its last
+frame; `Spellcasting` left `enemy.LOOPING`).
+
+| Kind | clip | tell | strike / hit | recovery |
+|---|---|---|---|---|
+| minion | 1H_Melee_Attack_Chop 28 | 4-11 coiled to its right, cleaver cocked back by its ear | 12-13 smear, hit 14 swiped across to its left | overshoot 20, guard 28 |
+| warrior | Chop 35 | 6-16 sword two-handed overhead, blade out past the right shoulder, on its toes | 17-18, hit 19 driven into the floor, squash 16% | down to 22, overshoot 25, guard 35 |
+| shield | Chop 33 | 4-14 shoulder turned, sunk behind the shield (`keep`), sword cocked | 15-16, hit 17 shield rammed out at full reach, stepping in | overshoot 23, guard 33 |
+| rogue | Chop 23 | 3-9 both daggers raised over the shoulders pointing back, crouched | 9-10, hit 11 right stab, 13-14 left stab | skid back 19, guard 23 |
+| archer | 2H_Ranged_Aiming 24 / Shoot 32 | dip 6, rising into the draw leaning back, shaking 16-24 | shoot frame 0: kicked back 1-3, eyes shut | overshoot 7 |
+| mage | Spellcasting 36 / Spellcast_Shoot 18 | staff swung back over the right shoulder, palm out, creeping back to 36 | staff thrown forward 1-2, held to 4 | recoil 9, guard 18 |
+| necromancer | Spellcasting 36 / Summon 24 / Shoot 22 | low clawed gather, staff held upright (`keep`) | summon: arms ripped up 1-2, held shaking to 12; shoot: ember hand flung 1-2 | slump 17 / 10 |
+| bomber | Bomb_Windup 36 | hugs the bomb giggling, bomb swelling 1.05 -> 1.35 and shaking harder, crouch 31 | leap 32-33 arms up, bomb 1.5 (the blast is `_die`) | - |
+| warden | Attack_Slam 63 (the kit's, overlaid) | sink squashed 14-19% on 18-22, held on twos | take-off stretched 12% (24), landing squashed 20% (37) held to 40 | kit's |
+
+The archer's and the Warden's are overlays on the kit clips (`src`: each frame's base is the kit clip's
+own pose, so its keyed props move with it; `follow` carries the arrow with the hand). Every foe also
+gets its own `Idle_Combat` and `Hit_A` (`docs/features/enemy-hit-reactions.md` "Clips").
+
+Fast foes (rogue Running_C, minion Running_A) get **Run_Start** (6 frames: a crouch pitched in on 2,
+arms drawn back, the planted foot giving back the floor of a 25 m/s^2 ramp, ending on the run's frame
+0) and **Run_Stop** (9 frames: a skid with the front foot braced, thrown back, pitched forward past
+upright on 5, settled on the guard by 9). `enemy._play_locomotion` plays Run_Start when it sets off
+(ground under `RUN_START_BELOW` 0.3 of move speed, `RUN_START_DIR` 0.6 of intent) and Run_Stop when it
+stops from over `RUN_STOP_ABOVE` 0.6. A turn lean (`scripts/foe_lean.gd`, a SkeletonModifier3D on the
+root bone, heretic_rig's method: velocity less a 0.12 s lagged copy, spring 600 / 34, `LEAN_MAX` 14 deg,
+0.45 of it along the facing) banks them in the chase: `enemy.TURN_LEAN` rogue 3.5, minion 3.0 deg per m/s.
+
+`foe_keys.py ... sheet=<clip>,<clip>` writes `<name>_sheet.png` with two rows a clip: the side view and
+the game camera's angle (54 deg up, 35 deg round). Judge tells from the game row: the big head hides
+anything held behind or over it.
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
 (`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`

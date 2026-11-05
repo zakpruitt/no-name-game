@@ -474,4 +474,8 @@ Zak, about the hero: "the movement animation is awful" (fixed in round 35); the 
 - [x] Eyes squeeze shut on every foe: archer, mage, bomber, necromancer and the Warden got `eye.l` / `eye.r`; all nine shut them on Hit_A, Hit_B (launches too) and Death_A
 - [x] `tests/foe_shots.gd -- --clip=run|Hit_B|Lie_StandUp|Death_A --frames=N --only=a,b`: films foes through one clip from the game angle, runs moved along the floor at move speed
 - [ ] By hand: `--spar=minion|rogue|shield|warrior` and judge the new runs in motion (turning, the speed ramp, circling at 0.4 of move speed at clip 0.35-0.5)
-- [ ] Next: Hit_A and Idle_Combat are still the kit's; the attack clips too. A run start / stop and a turn lean like the hero's (round 35 b) would help the fast rogue
+- [x] Round 38 b: every foe's attack keyed as tell (on twos, shaking) / 2-3 frame smeared strike / recovery with overshoot: minion swipe, warrior overhead chop, shield bash, rogue double stab, archer draw-and-loose, mage staff cast, necromancer raise, bomber fuse leap, Warden slam (overlaid on the kit's). Melee contact on `attack_hit` (enemy_types: minion 14, warrior 19, shield 17, rogue 11) at `enemy.chop_speed()`; see `docs/features/comic-style.md` "Foe attacks"
+- [x] Idle_Combat (breaths, weight shift, weapon bob, glance, jaw chatter) and Hit_A (head snap, eyes shut) keyed per foe
+- [x] Rogue and minion: Run_Start (6 f) / Run_Stop (9 f) one-shots (`enemy._play_locomotion`, `RUN_START_BELOW` / `RUN_STOP_ABOVE`) and a turn lean (`scripts/foe_lean.gd`, `enemy.TURN_LEAN`)
+- [x] `foe_keys.py`: absolute `aim` per bone (with twist), `keep` (props hold their world angle), `src` / `follow` overlays on kit clips, `sheet=` two-view sheets (side + game camera); fixed a hold-into-key off-by-one
+- [ ] By hand: spar the rogue and minion for the start / stop / lean feel (`TURN_LEAN`, `RUN_START_BELOW`); the warrior's overhead tell is small from the game camera (the helmet covers the hands)
