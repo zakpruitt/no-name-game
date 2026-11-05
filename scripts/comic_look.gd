@@ -107,6 +107,9 @@ const KIND_TONES := {
 	# Round 39 b: one flat slab now (refine_pass `slab`), lit on the light band's edge, so any brush splits it into
 	# leopard spots: brush 0, one tone.
 	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.0, "inner": 0.06}},
+	# Round 39 b: the minion's cleaver is a flat steel slab held upright, so the sun barely reaches its face; pale
+	# steel tones keep it reading in shade, brush 0 keeps it one tone
+	"minion": {"P_Iron": {"shadow": Color(0.36, 0.42, 0.56), "mid": Color(0.56, 0.63, 0.76), "light": Color(0.78, 0.84, 0.94), "hi": Color(0.94, 0.97, 1), "rim": Color(0.3, 0.38, 0.52), "brush": 0.0, "inner": 0.0}},
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
 	# His weapons grow out of the claw, so they carry its paint: fx_palette's void (round 40). Hafts are the
 	# claw's violet, heads and blades the void's deep and ink, and each keeps one element accent of its own

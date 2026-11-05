@@ -265,6 +265,13 @@ python tools/comic_glb.py <kit>/out/enemies_keyed <name>
   iron bands and studs on the shield bone are dropped and the orange boss is centred on the face and sat on
   it. Flat, the face sits on the light band's edge, where any brush breaks it into leopard spots, so
   `KIND_TONES.shield.P_Wood` has brush 0. Tris 9953 -> 8840.
+- **Minion: a cleaver and a crested cap.** The old leaf blade stood edge-on to the game camera (a brown line
+  hanging off the hand). `cleaver` turns the blade's plane a quarter about its length, through the hilt, and
+  draws a cleaver in it: a straight inked spine (`P_Black` band), a squared tip and a bellied edge, 0.55 x
+  1.3 m, a 5 cm wedge, in pale steel (`KIND_TONES.minion.P_Iron`, brush 0: held upright, the sun barely
+  reaches its face). `cap` drops the helmet scrap and horn and fits an orange skull cap over the cranium
+  (rays from outside onto the skull, pushed 3.5 cm out, 62 degrees round an axis tipped 25 degrees back off
+  the face, with a lip) with a ridge of four pale bone fins along its top. Tris 7946 -> 8108.
 
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
