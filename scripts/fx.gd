@@ -537,6 +537,17 @@ static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time :
 	tw.chain().tween_callback(m.queue_free)
 
 
+const THIN_HOOP_W := 0.12  # m asked of comic_pop (it draws half: a 0.06 m band, the breaker cue's)
+
+
+## Round 33, part 3 (sleek): a thin inked floor hoop in an element's palette (light tone band, its ink either
+## side), the breaker cue rings' weight. Comic only; the plain look calls ring().
+static func thin_hoop(parent: Node, pos: Vector3, element: String, radius: float, time := 0.3) -> void:
+	var pal: Dictionary = PAL.of(element)
+	COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": pal.light, "ring_w": THIN_HOOP_W,
+		"steps": clampi(int(time * 12.0) + 1, 3, 5)})
+
+
 ## Where a foe was spiked into the floor (enemy._crater): a dark hole (a hard
 ## disc CRATER_HOLE of the radius) under a ragged splat, both popping out to
 ## `radius`, a dust ring past it, the lot fading over `time`.

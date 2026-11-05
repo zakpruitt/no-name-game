@@ -21,6 +21,11 @@ const EDGE_PX := 1.7  # px at 1080p: a crisp light-tone line inside the ink, so 
 ## at -0.27, the blade starts about 0.22), so the 3 m ghost reads as a blade sweeping, not a teal slab.
 ## ghost_halftone `local_fade`: clear at x, full from y (the blade's middle). The ink line keeps 45% down the haft.
 ## (-0.2, 0.32) faded only the grip and read the same as no fade at the game camera.
+## Round 33, part 3: per-palette fill tones where body + light at FILL sank into the indigo floor. Earth's orange
+## body tint between the dots read as brown on indigo at 0.3 alpha (a light body under hot dots read as khaki);
+## clean dots only (`base` 0.04, the share of the fill between the dots) at 0.42 read as printed orange.
+## Unlisted palettes: body under light dots at FILL.
+const GHOST_TONES := {"earth": {"body": "body", "dot": "light", "fill": 0.42, "base": 0.04}}
 const HAFT_FADE := Vector2(0.1, 0.6)
 
 var axe_mesh: Mesh
@@ -93,9 +98,12 @@ static func ghost_mat(c: Color) -> Material:
 	depth.render_priority = 0
 	var fill := ShaderMaterial.new()
 	fill.shader = FILL_SHADER
-	fill.set_shader_parameter("body_color", pal.body)
-	fill.set_shader_parameter("dot_color", pal.light)
-	fill.set_shader_parameter("fill", FILL)
+	var tones: Dictionary = GHOST_TONES.get(key, {})
+	fill.set_shader_parameter("body_color", pal[tones.get("body", "body")])
+	fill.set_shader_parameter("dot_color", pal[tones.get("dot", "light")])
+	fill.set_shader_parameter("fill", tones.get("fill", FILL))
+	if tones.has("base"):
+		fill.set_shader_parameter("base", tones.base)
 	fill.render_priority = 1
 	var ink := ShaderMaterial.new()
 	ink.shader = INK_SHADER

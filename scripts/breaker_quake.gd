@@ -63,7 +63,10 @@ static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble
 		tw.tween_property(shell, "transparency", 1.0, 0.32).set_ease(Tween.EASE_IN)
 		tw.chain().tween_callback(shell.queue_free)
 	var floor_at := Vector3(pos.x, 0.0, pos.z)
-	Fx.ring(parent, floor_at, Color(c, 0.9), 3.6, 0.3)
+	if Game.comic_style and el == "earth":  # round 33, part 3: thin inked hoop (the orange band read thick)
+		Fx.thin_hoop(parent, floor_at, el, 3.6, 0.3)
+	else:
+		Fx.ring(parent, floor_at, Color(c, 0.9), 3.6, 0.3)
 	Fx.ring(parent, floor_at, Color(1.0, 1.0, 1.0, 0.6), 2.2, 0.22)
 	Fx.burst(parent, pos, c.lerp(Color.WHITE, 0.4), 16, 9.0, 0.12, 0.3, Vector3.UP, 180.0, 0.0, 0.4)
 	var look: Dictionary = ELEMENTS.LOOK[el]

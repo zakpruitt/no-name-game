@@ -747,7 +747,10 @@ static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 			return
 		"earth":
 			spikes(parent, pos, el, 1.8, 4, 0.9)
-			Fx.ring(parent, pos, Color(LOOK.earth.color, 0.9), 2.2, 0.3)
+			if Game.comic_style:  # round 33, part 3: the breaker cue's thin inked hoop, not a fat orange band
+				Fx.thin_hoop(parent, pos, "earth", 2.2, 0.3)
+			else:
+				Fx.ring(parent, pos, Color(LOOK.earth.color, 0.9), 2.2, 0.3)
 		"water":
 			spikes(parent, pos, el, 2.0, 5, 1.2)
 		_:
