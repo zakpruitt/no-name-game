@@ -20,6 +20,7 @@ const CRACK_W_MAX := 0.22
 const HOT_STEPS := 2  # steps the colour glows before it cools
 const MAX_TIME := 0.9  # s: round 33 (sleek; feel audit item 7), a 1.2-1.4 s mark sat under the next string
 const OUT_AT := 0.7  # of its time: from here it shrinks away
+const STANDING := preload("res://scripts/standing_fx.gd")
 
 static var _mat: StandardMaterial3D
 
@@ -80,7 +81,13 @@ func _ready() -> void:
 	mi.extra_cull_margin = radius + 1.0
 	mi.set_meta("no_ghost", true)
 	add_child(mi)
+	STANDING.add(self)
 	tick(0.0)
+
+
+## The next string's first hit landed (standing_fx.gd): shrink away now.
+func clear_standing() -> void:
+	time = minf(time, _t + STANDING.CLEAR_S)
 
 
 func _process(delta: float) -> void:

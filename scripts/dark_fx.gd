@@ -7,6 +7,7 @@ const FOES := preload("res://scripts/foes.gd")
 const SELF := preload("res://scripts/dark_fx.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
+const STANDING := preload("res://scripts/standing_fx.gd")
 
 const INK := Color(0.03, 0.01, 0.06)
 const VIOLET := Color(0.62, 0.3, 1.0)
@@ -150,6 +151,7 @@ static func mark(e: Node3D) -> void:
 	var old: Node = e.get_node_or_null(MARK_NAME)
 	if old != null:
 		old.life = MARK_TIME
+		old.relight()
 		return
 	var m := Mark.new()
 	m.name = MARK_NAME
@@ -180,6 +182,20 @@ class Mark extends Node3D:
 		add_child(_spin)
 		for i in 3:
 			SELF.part(_spin, mesh, mat).rotation.y = TAU * i / 3.0
+		STANDING.add(self)
+
+	## The next string's first hit landed (standing_fx.gd): the arcs go, the mark stays for Black Tide.
+	func clear_standing() -> void:
+		var tw := create_tween()
+		tw.tween_property(_spin, "scale", Vector3.ONE * 0.01, STANDING.CLEAR_S)
+		tw.tween_callback(_spin.hide)
+
+	## Marked again: the arcs come back.
+	func relight() -> void:
+		if not _spin.visible or _spin.scale.x < 1.0:
+			_spin.show()
+			_spin.scale = Vector3.ONE
+			STANDING.add(self)
 
 	func _process(delta: float) -> void:
 		life -= delta
@@ -212,6 +228,11 @@ class Pool extends Node3D:
 		_ink.set_shader_parameter("open", 0.05)
 		var tw := create_tween()
 		tw.tween_method(SELF.set_param.bind(_ink, "open"), 0.05, 1.0, 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		STANDING.add(self)
+
+	## The next string's first hit landed (standing_fx.gd): the ink erodes now.
+	func clear_standing() -> void:
+		time = minf(time, _t)
 
 	func _process(delta: float) -> void:
 		_t += delta

@@ -3,6 +3,7 @@ extends Node3D
 ## on it, and that's all it does until he slams down onto it (void_element._deep_freeze). Only one at
 ## a time. See docs/features/void-element.md.
 
+const STANDING := preload("res://scripts/standing_fx.gd")
 const FOES := preload("res://scripts/foes.gd")
 const GROUP := "frost_spear"
 const RADIUS := 6.0  # m the frost reaches
@@ -33,6 +34,7 @@ var _next_tick := 0.0
 var _next_pulse := 0.0
 var _r := 0.0
 var _gone := false
+var _cleared := false  # the frost's look has gone (standing_fx.gd)
 var _frost: MeshInstance3D
 var _stuck: Node3D
 
@@ -57,6 +59,7 @@ static func current(tree: SceneTree) -> Node3D:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	STANDING.add(self)
 	_frost = MeshInstance3D.new()
 	_frost.mesh = frost_mesh(RandomNumberGenerator.new())
 	_frost.material_override = frost_material()
@@ -203,7 +206,8 @@ func _physics_process(delta: float) -> void:
 				e.chill(SLOW_TIME, SLOW)
 	if _t >= _next_pulse:
 		_next_pulse += PULSE_EVERY
-		frost_ring(get_parent(), global_position, RADIUS, PULSE_TIME)
+		if not _cleared:
+			frost_ring(get_parent(), global_position, RADIUS, PULSE_TIME)
 	if _t >= LIFE:
 		melt()
 
@@ -230,6 +234,13 @@ static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) 
 	tw.tween_property(m, "scale", Vector3(radius, 0.05, radius), time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5).set_delay(time * 0.5)
 	tw.chain().tween_callback(m.queue_free)
+
+
+## The next string's first hit landed (standing_fx.gd): the floor frost and its rings fade; the spear and
+## its chill stay for the ice breaker.
+func clear_standing() -> void:
+	_cleared = true
+	create_tween().tween_property(_frost, "transparency", 1.0, STANDING.CLEAR_S)
 
 
 ## Gone quietly: time's up, or another took its place.
