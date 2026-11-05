@@ -209,6 +209,16 @@ fast-forward, so no agent edits another's files or index.
 - **The bot presses Awaken the frame the meter is full**, which is often right on a perfect breaker landing, so the
   Awakening column shows up in that string's film. Read it as its own layer, not the breaker's.
 
+- **Prove the rebuild before editing a model (round 40):** `chibi_keys.py` over the copied baked blend gave the committed
+  GLB byte for byte (`cmp`), so every later diff was the edit's alone. Do that first whenever a lane inherits a GLB pipeline.
+- **Extracted JPEG textures:** the GLB embeds the JPEG; write those exact bytes over `<name>_Material_0_baseColor.jpg`
+  instead of decoding and re-saving, or every rebuild shows a binary change in a texture that didn't change.
+- **Before / after of a model with code changes too:** `git checkout <base> -- <glb> <jpg> <scripts>`, `--import`, shoot into
+  your own tag (`foe_shots -- --tag=lane_before`), then `git checkout HEAD -- ...`, `--import`, and the revert loop; `git
+  status` must come back clean.
+- **`string_film` can stop early** (`strings=4/19` on a busy machine) and still print `done`: count the folders before
+  calling a film complete.
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes

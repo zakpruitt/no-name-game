@@ -99,6 +99,15 @@ chibi pass 2"):
 - **Heavier ink on the outer silhouette** (`ComicLook.silhouette`, 4 px pushed 0.3 m back) separates a dark
   prop (the bomber's bomb) from the indigo floor without thickening the lines inside the body.
 
+## The hero, chibi pass 2 (round 40)
+
+Zak: "we can redesign him and fine tune it... chibi-esque, cartoony, not taking itself too seriously, but still badass." What the game camera taught:
+- **A signature shape must break the outline from above.** The hood's point stood straight up and hid inside its own egg from 54 degrees; shearing the tip 0.2 m back (same height) made it read as a pointed hood. Judge a silhouette change by whether it pokes past the outline at the game angle.
+- **Flat regions by design tones, not shading:** each part gets a body tone and at most two bands that mean something (a lining, a cuff, a sole, a hem, claw tips). The repaint is `tools/meshy_rig/chibi_repaint.py`.
+- **Colour separates head from body:** a crimson scarf under the bone-white hood gives a ring of colour that the old white-on-white lost.
+- **The hero's signature colour is the fx palette's void** (violet body, light tips, deep cuff), on the claw and on the weapons that grow out of it, so his body and his effects read as one set. Weapons keep only the thin ink and one element accent.
+- **Attitude lives over the hood:** the grin and the squinting slits are drawn over it (`heretic_rig.gd` `GRIN`, `squint`); a face texture can't be seen from the game camera.
+
 ## Checking
 
 Look at the windowed `tests/heretic_shots.gd` (or `tests/comic_shots.gd`) game-camera shots before calling a model better. A Blender render is only for spotting problems.

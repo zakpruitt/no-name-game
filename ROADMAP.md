@@ -159,7 +159,6 @@ off and add notes/new ideas as you go. Never start tower defense or licensed IP.
 - [x] Combo guide: mid-string, rows beside the hero show each input that continues it (button glyph: LMB / RMB / Space; the game shows one control set, mouse and keyboard), the move it starts in its tier colour (ultimates in the element colour, glowing), and the best named combo one more press past it. A ring fills toward the cancel point and the rows light up once a press would be taken; pressing flashes the row from `_input`, before the move starts. Real-time animation (no stalls in hitstop/slow-mo). Routing moved into `player.route()` so the guide and the moves can't disagree; `tests/guide_check.gd` PASS checks every row against the real routing and renders `guide_sheet.png`. Settings toggle "Combo guide"
 - [ ] Guide feel pass by hand: placement next to the hero vs. the fight, whether the follow-up hint is too much once the moves are learned
 
-
 ## Round 20 (power paths)
 - [x] Power paths: every power belongs to the button it upgrades and wears that colour everywhere: Light/LMB blue, Heavy/RMB gold, Dash/Space green, Awaken/Q violet, Soul rose (kills, death, juggles). The guide's key rims use the same colours (`Upgrades.PATHS`). Own 3 of a path for its mastery (+15% light or heavy damage, faster dashes and a stronger Dash Stab, +2s Awakening, +20 max HP)
 - [x] Power icons and UI: 25 glyph icons (`tools/gen_power_icons.py` → `assets/icons/powers/`, drawn by `PowerIcon` in a path-coloured ring with level pips). Reward cards rebuilt: colour band, key chips, icon, numbers in the path colour, mastery progress ("HEAVY ■■□ MASTERY" / "UNLOCKS LIGHT MASTERY"); cards deal in. The pause build view groups powers by path with icons; the HUD shows owned powers as an icon strip; the run summary shows the icons
@@ -515,3 +514,15 @@ Zak, on the chibi lineup: "I definitely like this chibi direction better. We can
 - [ ] The shield's planks still break into a light / dark checker under the cut tones (brush 0.1 did not fix it): flatten the plank geometry or give the wall one flat face
 - [ ] Minion: still the plainest; try a bigger skull cap or a hunch with a spine ridge, and a cleaver with a clear blade shape
 - [ ] By hand: spar each family and see whether the accent colour sorts a crowd at a glance (`--spar=minion|rogue|shield|warrior`)
+
+## Round 40 (hero model, chibi pass 2)
+Zak confirmed the chibi heretic as the art direction: "we can redesign him and fine tune it... chibi-esque, cartoony, not taking itself too seriously, but still badass." The model is fine-tuned with the rig, bone names, rest pose and every clip kept (contact_frames prints the same frames; `chibi_keys.py` re-run over each new blend). No Meshy credits spent (75 of 200). See `docs/features/heretic-hero.md` "Chibi pass 2". Seen in windowed `heretic_shots`, `foe_shots` and `string_film` stills, not played.
+- [x] Texture repainted into flat bold regions (`tools/meshy_rig/chibi_repaint.py`): every triangle classed by old colour and bones, small islands merged away, 2-3 flat design tones per region (crimson scarf and hood lining, boot soles and cuffs, tunic and skirt hems, the claw in the fx palette's void: violet body, light tips, deep wrist band); no painted shading
+- [x] Silhouette (`chibi_shape.py`, vertices only): the hood's peak narrowed and sheared 0.2 m back at the same 1.85 m, so it pokes past the hood from the game camera instead of reading as an egg; every claw x1.35 round its own bones past the palm
+- [x] Face: a toothy smirk drawn with the eyes (`heretic_rig.gd` `GRIN`), eyes squinting on attacks, squeezing shut when hit, blinking at rest; the grin bares or grits with them (`squint`, `_step_face`; checked in `heretic_shots`)
+- [x] Weapons (`chibi_weapons.py` + `ComicLook.KIND_TONES["heretic"]`): fatter hafts in the claw's violet, void deep/ink heads, one element accent each, a 1.6x spear head and a hammer reaching 1.62 m (was 1.34); no paper rim on them (`heretic_rig.RIM_SKIP_FORMS`), thin ink only
+- [x] Before / after lineup with the nine foes and the dummy at the game camera (`tests/foe_shots.gd -- --tag=`)
+- [ ] He reads smaller than most foes and the dummy in the lineup (1.85 m against KayKit's 2.18 m and the chibi-passed heads): try a bigger hood and claw before a taller bake
+- [ ] A trailing scarf tail on its own spring chain (new geometry and weights; not done: the rig was frozen this round)
+- [ ] The face texture under the hood is still Meshy's mask shape (the grin decal is what reads); the eye decal and texture eyes could share one position
+- [ ] By hand: whether the squint / grin on attacks reads in play or flickers across fast strings

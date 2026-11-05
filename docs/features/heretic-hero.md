@@ -21,6 +21,9 @@ How to make more models like this: [meshy-pipeline.md](meshy-pipeline.md).
 | `tools/meshy_rig/chibi_decimate.py` | Meshy GLB → welded, decimated (two collapse passes), recentred, optionally mirrored GLB, plus front/side/back/top renders |
 | `tools/meshy_rig/chibi_paint.py` | Repaints the chibi's claw texels (found from the hand's UV triangles) in the heretic's magenta |
 | `tools/meshy_rig/chibi_keys.py` | The chibi's hand-keyed clips (L1, AL1, L2, L3, DL, GR, VS, Idle, Idle_Ready, Run_F) and claw keys on the rest, over the baked blend, then the GLB again |
+| `tools/meshy_rig/chibi_repaint.py` | Round 40: repaints the whole texture into flat regions by triangle class and bones, 2-3 design tones each |
+| `tools/meshy_rig/chibi_shape.py` | Round 40: the hood's sharper, flopped peak and the fatter claws (vertices only) |
+| `tools/meshy_rig/chibi_weapons.py` | Round 40: weapon hafts, spear head and hammer resized (vertices only) |
 | `tools/meshy_rig/chibi_face.py` | Hides the chibi's chin and nose in the hood's shadow (skin texels under the face's UV triangles go dark indigo) and brightens the eye texels to cyan |
 | `assets/comic/heretic_chibi.glb` | The chibi heretic, the default hero since round 29 (`--hero=heretic` for the old one), same rig contract |
 | `assets/comic/heretic.glb` | The result |
@@ -189,6 +192,40 @@ From the game camera (13 m, 54 degrees down, the hero ~140 px) the attacks read 
 Clips: Ab_L1, Ab_AL1, Ab_L2, Ab_L3, Ab_DL, Ab_GR, Ab_VS (also the breaker dive), Ab_LH, Ab_H, Ab_LLH, Ab_AF and Jump_Start (the breaker leap: crouch squashed, spring stretched). Every key of those clips carries `bsq` so it eases between drawings. **No contact moved** (L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30, GR 7, VS 17, LH 14, H 15, LLH 20, AF 50): the root's squash moves the hand (6-10 cm at hand height), so the script's contact check now counts it (`squashed()`, as `tests/contact_frames.gd` does) and checks Ab_VS too (`CLIP_CONTACT`); feet of drawn clips are unsquashed like the runs'. Each `[keys]` line prints `recovery`: the biggest step after the contact against the 40% line (under 1.0 or the contact moves later); Ab_LH (0.96) and Ab_VS (0.93) sit closest, both from their return to the guard, as before (0.99, 0.91).
 
 Films: `heretic_shots -- --clips --clips-step=0.0333 --clips-max=40 --clips-only=Ab_L1,Ab_L3,...` before / after (`--clips-only` takes a list and `--clips-max` the shot count since round 35 c), and `string_film` before / after. In the clip films the anticipation reads as a wide low lump, the smear as a tall stroke with a bigger claw, the contact as a flat wide hit; in the string film's busy frames it reads mostly on L3's and VS's impacts, the effects covering the rest.
+
+## Chibi pass 2 (round 40)
+
+Zak confirmed the chibi as the art direction and asked for it fine-tuned, not replaced. Four passes over the baked blend, each a script, all keeping the rig, bone names, rest pose and every clip (the GLB is `chibi_keys.py` over the last blend, so contacts print the same; `hero_stride_check`, `comic_check`, `lean_spike_check`, `heretic_shots` pass):
+
+| | Before | After |
+|---|---|---|
+| Body tris | 21,999 | 21,999 (same mesh, UVs and weights) |
+| Weapon tris | 1,224 | 1,224 |
+| Texture | 2048 JPEG, 511 KB | 2048 JPEG, 377 KB (flat regions compress better) |
+| GLB | 3.26 MB | 3.12 MB |
+| Height | 1.85 m | 1.85 m |
+
+- **Texture** (`chibi_repaint.py`): each triangle gets the median colour of its texels, a colour class (white, beige, crimson, teal, green, magenta, dark, black, cyan) and then a region from the class and its bones: claw (hand.r / tent.* / wrist.r over 0.5, or anything past the right wrist or 0.2 m ahead of him at rest), hood / lining / face / eye (head and neck), scarf, sash, tunic, sleeve, boot, glove, trousers, skirt. Regions under 25 triangles take their neighbours' (`MIN_ISLAND`; adjacency through welded positions, since the mesh is split at UV seams). Then each texel is painted flat from its triangle's region plus a band read from fields interpolated across the triangle (height, the weight on a claw's last bones, distance from the wrist): `TONES` holds the palette. Hood bone white with a crimson lining; scarf crimson (its hanging ends darker), so the head separates from the body from above; sash a darker crimson; tunic teal with a darker hem and sleeves; skirt plum with a darker hem; trousers dark plum; boots, glove and arm wrap bone grey with dark soles and cuffs; face (0.045, 0.035, 0.085) with cyan eyes; the claw fx_palette's void (body violet, light tips, a deep band round the wrist). A brim band round the face opening was tried and dropped: the hood is a thin shell over its lining, so "near the face" was half the hood. Unpainted texels are filled by growing the painted ones 24 px. `--debug` paints each region a loud colour.
+- **Silhouette** (`chibi_shape.py`): above 45% of the hood's height over the brow, each 2 cm slice narrows about its own middle (to 0.6 at the tip) and shears back by 0.2 m x t^2, so the tip keeps its height and leans away from the camera; from 54 degrees up it now pokes out past the top of the hood (it read as an egg). A rotation instead of the shear lowered the tip, and stretching it back up blunted it. Each claw's vertices (by their strongest chain) move out from the nearest point on that chain's bones by x1.35, fading in 4-12 cm from its root, so tips stay sharp and the gaps keep their ink.
+- **Face** (`heretic_rig.gd`): `GRIN` is a camera-facing inked crescent with two rows of paper teeth meeting in a zigzag, tilted 7 degrees into a smirk, on its own `BoneAttachment3D` (`grin`) under the eyes, in their material and hidden with them. `_step_face` drives `squint` (0..1): `SQUINT_ATTACK` 0.5 in ATTACK / SWING / LEAP / CHARGE, `SQUINT_HURT` 0.9 in HURT / DEAD, a blink every `BLINK_EVERY` 3.4 s otherwise; each eye scales to `SQUINT_MIN` of its height at 1, and the grin to `GRIN_BARE` on attacks and `GRIN_GRIT` when hit. From the game camera the grin shows when he faces it; it reads strongest in the close views.
+- **Weapons** (`chibi_weapons.py`): hafts x1.3-1.55 round their bones, the spear head 1.6x wider (collar 1.3x), the hammer x1.18 about the hand (reach 1.34 -> 1.62 m) with head, lava and rock 1.15x about their middle. Scaling about the hand or a part's middle keeps the haft along its bone (`haft_alignment` 1.000) and `chibi_keys.py`'s weapon facing. Tones: `KIND_TONES["heretic"]` `P_Tendril` (hafts, the claw's violet), `P_VoidHard` (blades, heads, collar: void deep and ink), `P_Rock` (the hammer's studs, violet); the accents stay the element's (axe edge `P_StormGreen`, spear `P_Ice`, hammer `P_Lava`). `heretic_rig.RIM_SKIP_FORMS` keeps the paper rim off every weapon part, so they have only the 1.6 px ink like the sleek effects.
+
+Rebuild (from the repo root, Blender 5.2, absolute Windows paths; `vendor_src/meshy/chibi/out_1.5/heretic_chibi_baked.blend` is the baked blend):
+
+```
+blender -b vendor_src/meshy/chibi/out_1.5/heretic_chibi_baked.blend -P tools/meshy_rig/chibi_repaint.py -- vendor_src/meshy/chibi/p2/paint.png vendor_src/meshy/chibi/p2/paint.blend
+blender -b vendor_src/meshy/chibi/p2/paint.blend -P tools/meshy_rig/chibi_shape.py -- vendor_src/meshy/chibi/p2/shape.blend 0.2 0.4
+blender -b vendor_src/meshy/chibi/p2/shape.blend -P tools/meshy_rig/chibi_weapons.py -- vendor_src/meshy/chibi/p2/weapons.blend
+blender -b vendor_src/meshy/chibi/p2/weapons.blend -P tools/meshy_rig/chibi_keys.py -- vendor_src/meshy/chibi/p2/out/heretic_chibi.glb
+python tools/comic_glb.py vendor_src/meshy/chibi/p2/out heretic_chibi
+# the extracted texture is never overwritten: copy the GLB's embedded JPEG bytes over heretic_chibi_Material_0_baseColor.jpg
+godot --headless --import --path .
+godot --headless --path . -s tests/contact_frames.gd
+```
+
+`chibi_keys.py` over the round-29 baked blend reproduces the committed GLB byte for byte, which is how this pass was checked before any edit. Later clip work keys over `p2/weapons.blend`, not `out_1.5`.
+
+Before / after: windowed `heretic_shots` (game and close crops of the ten poses), `foe_shots -- --tag=` (the lineup) and `string_film` (four strings).
 
 ## The rig
 
