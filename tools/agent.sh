@@ -115,7 +115,13 @@ remove)
 			git -C "$dir" status --short --untracked-files=no | head -5
 			die "$dir has uncommitted changes to tracked files: commit or drop them first"
 		fi
-		# --force: untracked leftovers (.uid files, .godot/, shots) don't block it.
+		# Untracked files that aren't Godot's .uid leftovers may be work nobody committed yet.
+		left=$(git -C "$dir" ls-files --others --exclude-standard 2>/dev/null | grep -v '\.uid$' || true)
+		if [ -n "$left" ]; then
+			echo "$left" | head -5
+			die "$dir has untracked files (above): commit or delete them first"
+		fi
+		# --force: .uid files and ignored leftovers (.godot/, shots) don't block it.
 		git -C "$main" worktree remove --force "$dir" 2>/dev/null || true
 		# Windows: a file still held open (a Godot run, an editor) gives "Permission denied"; delete what's left.
 		[ -d "$dir" ] && { rm -rf "$dir" 2>/dev/null || cmd //c rmdir /s /q "$(cygpath -w "$dir" 2>/dev/null || echo "$dir")" > /dev/null 2>&1 || true; }
