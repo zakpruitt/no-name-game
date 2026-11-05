@@ -172,6 +172,24 @@ Game side (`heretic_rig.gd`): `keyed` is true when the clips key the claws (`CLA
 
 What the game camera showed (before/after strips, anticipation / contact / follow-through): L1's axe now cuts across the front instead of pointing at the camera mid-swing; L2's spear is fully out ahead at contact; L3's hammer lands on the floor ahead (before, it stood upright behind him at the hit; at first keyed through the floor and vanished, fixed at -16 degrees); GR reads as a reach and a snap; VS's claw shows over the hood on the lift and splays wide on the slam. Vertical motion (the hood squash, the run's bounce) barely shows from 54 degrees up; what reads is the weapon's direction, the claw's size and the torso's twist. Seen in windowed stills only, not played.
 
+## Readability (round 35 c)
+
+From the game camera (13 m, 54 degrees down, the hero ~140 px) the attacks read by width and size, not height, and the first films showed the anticipation, strike and contact drawings nearly the same silhouette. `chibi_keys.py` `PUNCH` gives each attack clip's key drawings a role, and `punch()` layers on top of the poses:
+
+| Role | `bsq` (whole body, root bone scaled about the floor: + short and wide) | Also |
+|---|---|---|
+| `a` the wind-up | +0.06 | |
+| `U` the top of an overhead rise (L3, VS, the plant) | -0.08 (tall) | |
+| `A` anticipation, 2-4 frames before contact | +0.16 | hood squashed at least 0.24 |
+| `S` the smear (the strike drawing) | -0.16 (tall and thin) | hood stretched at least -0.2, claw / weapon swollen x1.3 (`PUNCH_HS_SMEAR`, up to `PUNCH_HS_MAX` 1.6: a bigger claw over the hood hides him) |
+| `H` contact | +0.13 | hood squashed at least 0.18 |
+| `O` follow-through | +0.08 (sinking on) | |
+| `T` the overshoot past rest | -0.035 -> -0.05 (springing up past rest) | hood -0.06, the swell x0.93 of the hit's |
+
+Clips: Ab_L1, Ab_AL1, Ab_L2, Ab_L3, Ab_DL, Ab_GR, Ab_VS (also the breaker dive), Ab_LH, Ab_H, Ab_LLH, Ab_AF and Jump_Start (the breaker leap: crouch squashed, spring stretched). Every key of those clips carries `bsq` so it eases between drawings. **No contact moved** (L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30, GR 7, VS 17, LH 14, H 15, LLH 20, AF 50): the root's squash moves the hand (6-10 cm at hand height), so the script's contact check now counts it (`squashed()`, as `tests/contact_frames.gd` does) and checks Ab_VS too (`CLIP_CONTACT`); feet of drawn clips are unsquashed like the runs'. Each `[keys]` line prints `recovery`: the biggest step after the contact against the 40% line (under 1.0 or the contact moves later); Ab_LH (0.96) and Ab_VS (0.93) sit closest, both from their return to the guard, as before (0.99, 0.91).
+
+Films: `heretic_shots -- --clips --clips-step=0.0333 --clips-max=40 --clips-only=Ab_L1,Ab_L3,...` before / after (`--clips-only` takes a list and `--clips-max` the shot count since round 35 c), and `string_film` before / after. In the clip films the anticipation reads as a wide low lump, the smear as a tall stroke with a bigger claw, the contact as a flat wide hit; in the string film's busy frames it reads mostly on L3's and VS's impacts, the effects covering the rest.
+
 ## The rig
 
 - Bone names match the current hero, so `MOVES`, `HERO_MOVES` and `hand.r` lookups work unchanged. Extras: `neck`, `shoulder.*`, left `finger.*`, `tent.*`, `skirt.*`.

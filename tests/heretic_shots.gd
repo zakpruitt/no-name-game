@@ -90,7 +90,7 @@ func _clips(p: Node3D, arm: Node, anim: AnimationPlayer) -> void:
 	var real_step := 1.0 / 12.0
 	for c: Array in CLIP_SET:
 		var clip: String = c[0]
-		if only != "" and clip != only:
+		if only != "" and clip not in only.split(","):
 			continue
 		var id: String = c[1]
 		var speed: float = p.anim_speed if id != "" else 1.1

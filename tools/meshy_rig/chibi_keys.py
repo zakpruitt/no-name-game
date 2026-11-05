@@ -1012,6 +1012,77 @@ for _w in STOP_WAYS:
     LOOP0.add("Run_Stop" + WAY_SUFFIX[_w] + "_Ready")
 
 
+# ---------------------------------------------------------------- readability (round 35 c)
+# From the game camera (13 m, 54 degrees down, the hero 140 px tall) the strikes read by width and size,
+# not by height: so each attack gets a whole-body squash (`bsq`, the root bone scaled about the floor,
+# short and wide) on the anticipation drawing 2-4 frames before contact, a stretched smear (tall and thin,
+# the claw or weapon swollen `hs`, the hood stretched) on the strike, an impact squash on the contact, and
+# on the recovery the body sinking on into the follow-through, then springing up past rest (stretched,
+# the weapon a touch small) before it settles. Contact frames don't move: the script's own check counts
+# the squash on the hand (`squashed`) as tests/contact_frames.gd does.
+# Per clip: {key frame: role}; roles: A anticipation, S smear, H hit, O follow-through, T the overshoot
+# past rest. (L3, VS and the plant rise tall first; their A is a quick gather just before the drive.)
+PUNCH = {
+    "Ab_L1": {4: "a", 8: "A", 9: "S", 11: "H", 16: "O", 19: "T"},
+    "Ab_AL1": {4: "a", 8: "A", 9: "S", 11: "H", 16: "O", 19: "T"},
+    "Ab_L2": {4: "a", 9: "A", 10: "S", 12: "H", 17: "O", 21: "T"},
+    "Ab_L3": {14: "U", 20: "A", 21: "S", 24: "H", 30: "O", 36: "T"},
+    "Ab_DL": {4: "A", 8: "S", 12: "H", 18: "O", 24: "T"},
+    "Ab_GR": {3: "A", 5: "S", 7: "H", 12: "H", 16: "O", 24: "T"},
+    "Ab_VS": {9: "U", 11: "U", 13: "A", 15: "S", 17: "H", 23: "O", 29: "T"},
+    "Ab_LH": {4: "a", 9: "A", 11: "S", 14: "H", 18: "O"},
+    "Ab_H": {4: "a", 11: "A", 13: "S", 15: "H", 21: "O", 27: "T"},
+    "Ab_LLH": {12: "U", 14: "U", 16: "A", 18: "S", 20: "H", 26: "O", 32: "T"},
+    "Ab_AF": {25: "a", 31: "a", 35: "a", 39: "a", 43: "A", 47: "S", 50: "H", 60: "O", 70: "T"},
+    "Jump_Start": {3: "A", 8: "S", 12: "S", 20: "T"},
+}
+PUNCH_BSQ = {"a": 0.06, "A": 0.16, "U": -0.08, "S": -0.16, "H": 0.13, "O": 0.08, "T": -0.05}
+PUNCH_HS_SMEAR = 1.3  # x the smear's own swell, up to PUNCH_HS_MAX (a bigger claw over the hood hides him)
+PUNCH_HS_MAX = 1.6
+PUNCH_HS_OVER = 0.93  # x the hit's swell on the spring past rest
+
+
+def punch(keys, roles):
+    out = []
+    hit_hs = 1.0
+    for f, P, ease in keys:
+        r = roles.get(f)
+        P = pose(P, bsq=P.get("bsq") or 0.0)
+        if r:
+            P["bsq"] = PUNCH_BSQ[r]
+            if r == "A":
+                P["hsq"] = max(P["hsq"], 0.24)
+            elif r == "S":
+                P["hsq"] = min(P["hsq"], -0.2)
+                P["hs"] = max(P.get("hs", 1.0), min(P.get("hs", 1.0) * PUNCH_HS_SMEAR, PUNCH_HS_MAX))
+            elif r == "H":
+                P["hsq"] = max(P["hsq"], 0.18)
+                hit_hs = P.get("hs", 1.0)
+            elif r == "T":
+                P["hsq"] = min(P["hsq"], -0.06)
+                P["hs"] = min(P.get("hs", 1.0), hit_hs * PUNCH_HS_OVER)
+        out.append((f, P, ease))
+    return out
+
+
+for _c, _roles in PUNCH.items():
+    _n, _form, _step, _want, _keys = CLIPS[_c]
+    CLIPS[_c] = (_n, _form, _step, _want, punch(_keys, _roles))
+CLIP_CONTACT = {"Ab_VS": 17}  # checked here too (contact_frames.gd checks it; Ab_GR's snap rule only there)
+
+
+ROOT_HEAD = head_of("root")
+
+
+def squashed(v, b):
+    """Where the root bone's squash `b` (scale about its head: bone y up) puts a point v."""
+    if not b:
+        return v
+    loc = RQ["root"].inverted() @ (v - ROOT_HEAD)
+    loc = Vector((loc.x * (1 + 0.5 * b), loc.y * (1 - b), loc.z * (1 + 0.5 * b)))
+    return ROOT_HEAD + RQ["root"] @ loc
+
+
 # ---------------------------------------------------------------- writing
 def contact(hand_pos):
     sp = [0.0] + [(hand_pos[i] - hand_pos[i - 1]).length for i in range(1, len(hand_pos))]
@@ -1104,15 +1175,25 @@ for pb in arm.pose.bones:
 report = []
 for name, (n, form, step, want, keys) in CLIPS.items():
     frames = keys if step == 0 else drawings(keys, n, step)
+    if step:  # the body squash scales about the floor: keep the feet where the pose puts them
+        frames = [pose(P, fl=unsquash("l", P["fl"], P["bsq"]), fr=unsquash("r", P["fr"], P["bsq"])) if P.get("bsq") else P
+                  for P in frames]
+    want = want or CLIP_CONTACT.get(name)
     out, hand = [], []
     LEG_MISS[0] = 0.0
     for P in frames:
         G = solve(P, form)
         out.append((bases(G), claw_rots(P), P["hsq"], P.get("hs", 1.0), P.get("bsq") or 0.0))
-        hand.append(G["hand.r"].translation.copy())
+        hand.append(squashed(G["hand.r"].translation.copy(), P.get("bsq") or 0.0))
     got = contact(hand) if want else None
     report.append((name, n, want, got))
-    print("[keys] %-12s %3d frames  contact want %s got %s  legs miss %.3f m" % (name, n, want, got, LEG_MISS[0]))
+    sp = [0.0] + [(hand[i] - hand[i - 1]).length for i in range(1, len(hand))]
+    # the biggest step after the contact against the 40% line (under 1.0 or the contact moves later)
+    after = max(sp[got:] or [0.0]) / (0.4 * max(sp)) if got else 0.0
+    if after > 0.85:
+        print("   near the line: frame", sp.index(max(sp[got:])) + 1, "steps", " ".join("%.3f" % x for x in sp))
+    print("[keys] %-12s %3d frames  contact want %s got %s  recovery %.2f of the line  legs miss %.3f m"
+          % (name, n, want, got, after, LEG_MISS[0]))
     if want and got != want:
         print("   speeds", " ".join("%d:%.2f" % (i + 1, (hand[i] - hand[i - 1]).length) for i in range(1, n)))
     write(name, n, out, [0] + [i for i in range(1, n) if frames[i] != frames[i - 1]], 0 if name in LOOP0 else 1)

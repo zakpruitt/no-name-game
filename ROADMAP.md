@@ -408,6 +408,7 @@ Zak: "the movement animation is awful". The chibi's runs, idle and dash re-keyed
 - [x] Dash looked over: kept
 - [x] Round 35 c: a start and a stop for each run (`Run_Start_B` / `_L` / `_R`, `Run_Stop_B` / `_L` / `_R`: backing hunched then leaning away, sideways banked into the travel, the skid braced on the leading foot out wide), and every stop again ending on the guard (`Run_Stop*_Ready`) while `_ready_t` says he fought in the last 3 s; `_play_locomotion` picks them by `RUN_SUFFIX`
 - [x] Round 35 c: Death_A keyed (46 frames: flinch, woozy stagger, knees buckle, hood flops forward, face-plant with a bounce, the claw twitching and dissolving last) and Ab_Swing (41: crouched anticipation, claw flung up stretched, the yank past the hang as overshoot, then a tucked hang with a slow flex); both in `KEYED_ARM`
+- [x] Round 35 c: attack readability from the game camera, contacts unmoved: a whole-body squash on the anticipation 2-4 frames before contact, a stretched smear with the claw / weapon swollen x1.3, an impact squash, then sinking on and springing up past rest (`chibi_keys.py` `PUNCH`), on L1 / AL1 / L2 / L3 / DL, the six tentacle clips and the breaker leap; the script's contact check counts the squash (`squashed`) and prints each clip's recovery margin
 - [ ] By hand: do the strafe / back one-shots read in play with mouse aim, and is the guard skid's 3 s (`READY_HOLD`) the right window?
 
 ## Round 36 (camera distance)
