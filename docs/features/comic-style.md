@@ -426,6 +426,9 @@ not thick crayon.
   per foe. Words and numbers take `fx_palette.TEXT_INK_PX` (3 px at 1080p) on screen whatever their scale
   (`PAL.text_ink()`; `PX_PER_M` 48); a fixed font outline under the tier and total scales gave words 3.4-8.3 px
   and numbers 2-3.3 px. Burn ticks show a number only, and a shield block a star only, on purpose.
+- **Landing marks are a beat:** a `comic_crack` of `PILE_R` and up lasts `PILE_TIME` 0.5 s (it cooled into a brown
+  crater under the hero). Meltdown's tongues (`comic_melt`) splay out (`FLAME_SPLAY`), lick side to side each step
+  (`FLAME_LICK`) and hook at the tip with a second narrower wedge.
 
 ## Invariants
 

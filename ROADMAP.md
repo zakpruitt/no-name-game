@@ -445,6 +445,7 @@ Zak, after playing every combo: "very comicy, which I like, but ... sleeker and 
 - [x] Round 4: a breaker-sized floor mark (Meteor Fall, the rip landing) runs its cracks out from the pile's edge with no hidden splat (`comic_crack` `PILE_*`)
 - [x] Round 4: breaker craters are one inked mark with small inked star vents (`breaker_quake.crater`: no brown box cracks or rock slabs for 1.6 s, no soft flares); a foe's crater a 0.6 s inked dent (was soft soot discs for 1.4 s)
 - [x] Round 4: one hit grammar: the same star size on foes and the Warden (`Fx.HIT_STAR` / `HIT_STAR_BIG`), words and numbers at one on-screen ink weight (`fx_palette.TEXT_INK_PX` 3 px; words were 3.4-8.3 px, numbers 2-3.3). Check: `fx_sleek_check`
+- [x] Round 4: a breaker landing's floor mark is gone in 0.5 s (`comic_crack.PILE_TIME`; it cooled into a brown crater under the hero for 0.6-0.9 s); Meltdown's flame tongues lean out, lick side to side on twos and hook at the tip (`comic_melt` `FLAME_*`; three upright wedges read as candles)
 - [ ] Round 4 follow-ups: Meteor Fall's landing is still five flame geysers plus the column over the pile (the cracks now reach out but the geysers carry it); the frost zone plus Deep Freeze's rings, ropes and cubes over a crowd; the spirit echo's 3 m halftone fans on L2 / L3 cover a third of the frame; Undertow's magma crack web stands about 2 s; burn ticks show a number with no star (by design, a tick)
 
 ## Round 34 (multi-element combos)
