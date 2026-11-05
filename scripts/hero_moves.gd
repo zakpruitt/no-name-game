@@ -25,6 +25,15 @@ const MELT_SPEED := 1.5  # Meltdown (was 1.2): XG -> XM beat 467 ms; the slam la
 const ROCKSLIDE_STOP := 0.07  # (was 0.1) Rockslide's hitstop: with its tier-2 ender stop it was 150 ms of the 393 ms
 # beat to Fault Line's hit; the weight moves into the boulder's held frames, the blow keeps its contact frame
 const ROCKSLIDE_CONFIRM := 0.8  # its hit-confirm cancel comes this far back to the hit (CANCEL_ON_HIT is 0.5)
+# Round 34, fourth pass: the three still-long beats (bot [rhythm], unawakened; contact frames unchanged).
+const AL1_SPEED := 1.25  # Air Slash (was 1.0): its cut landed 216 ms in; EC -> AL1 beats were 344-385 ms
+const EC_CONFIRM := 0.8  # Updraft Lash's hit-confirm comes this far back to the hit (was CANCEL_ON_HIT 0.5): of the
+# EC -> AL1 beat, ~170 ms was the lash's stop and hit-confirm before Air Slash even started
+const L2_SPEED := 1.15  # the spear (was 1.0): its throw landed 235 ms in, L1 -> L2 beats ~311 ms; at 204 ms it still
+# winds up longer than L1's 196 (rhythm_check: opener quickest)
+const DASH_STAB_CANCEL := 0.5  # of dash_time: a dash out of a move hands over to a buffered light (Dash Stab) this
+# early. Dash Stab off a dash out of a move was 475-536 ms after the move's hit (the whole 160 ms dash, then its
+# wind-up); Dash Stab's own lunge (16 m/s) covers the rest of the ground
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -55,7 +64,7 @@ const MOVES := {
 		"lunge": 1.5, "knockback": 3.0, "launch": 6.0, "big": true, "stop": 0.09, "shake": 0.42},
 	"L2": {"anim": "Throw", "damage": 9.0, "range": 2.5, "arc": 160.0,
 		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
-		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6]},
+		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6], "speed": L2_SPEED},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": L3_CANCEL, "end": L3_END, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
 		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9], "speed": L3_SPEED},
@@ -65,7 +74,7 @@ const MOVES := {
 	"EW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
 	"EC": {"anim": "Ab_LH", "damage": 4.0, "range": 2.6, "arc": 150.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
-		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.28, "hop": [VOID_ELEMENT.LH_HIT - 0.01, VOID_ELEMENT.LH_HIT + 0.29, 1.5]},
+		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "confirm": EC_CONFIRM, "shake": 0.28, "hop": [VOID_ELEMENT.LH_HIT - 0.01, VOID_ELEMENT.LH_HIT + 0.29, 1.5]},
 	"EA": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
 	"EV": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
@@ -121,7 +130,7 @@ const MOVES := {
 	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).
 	"AL1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 7.0, "range": 2.6, "arc": 170.0,
 		"hits": [0.32], "cancel": 0.42, "end": 0.7, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
-		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4},
+		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4, "speed": AL1_SPEED},
 	# Light right out of a dash: long lunging stab, pouncing onto the foe
 	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,

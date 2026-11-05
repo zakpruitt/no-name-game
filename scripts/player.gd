@@ -129,6 +129,7 @@ var _mouse_active := true  # false once a gamepad is the last thing touched
 var _dash_cd := 0.0
 var _dash_dir := Vector3.FORWARD
 var _dash_from := Vector3.ZERO  # where his last dash or swing began (void_element._tow)
+var _dash_out := false  # this dash cancelled a move (a buffered light ends it early: HERO_MOVES.DASH_STAB_CANCEL)
 var _post_dash_t := 0.0
 var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
 var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
@@ -503,7 +504,7 @@ func _state_dash(delta: float) -> void:
 		Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.45))
 	velocity.x = _dash_dir.x * dash_speed
 	velocity.z = _dash_dir.z * dash_speed
-	if _state_t >= dash_time:
+	if _state_t >= dash_time or (_dash_out and _buffered == "light" and _state_t >= dash_time * HERO_MOVES.DASH_STAB_CANCEL):
 		velocity.x *= 0.3
 		velocity.z *= 0.3
 		_post_dash_t = 0.3
@@ -575,6 +576,7 @@ func _try_swing() -> bool:
 
 func _start_dash() -> void:
 	_dash_from = global_position
+	_dash_out = state == State.ATTACK
 	_air_dash = _can_air_dash()
 	if _air_dash:
 		_air_dashes += 1

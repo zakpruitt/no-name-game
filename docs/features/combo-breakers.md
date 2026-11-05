@@ -135,6 +135,18 @@ so the autotest lands it.
 
 - Tuned headless and in stills; the window's length and the slam's weight still want a hand play-test.
 
+## Round 34, fourth pass: the last long beats
+
+Bot `[rhythm]` beats (first hit to first hit), before -> after, contact frames unchanged:
+
+| Beat | Was | Now | Lever |
+|---|---|---|---|
+| Updraft Lash -> Air Slash | 307-385 ms | 232-295 ms | `AL1_SPEED` 1.25 (the cut lands 173 ms in, was 216) and `EC_CONFIRM` 0.8 (the lash's hit-confirm) |
+| L1 -> L2 (unawakened) | 311 ms | 280-292 ms | `L2_SPEED` 1.15: 204 ms in, still longer than L1's 196 (rhythm_check) |
+| a move -> Dash Stab off a dash | 510-534 ms | 444-449 ms | `DASH_STAB_CANCEL` 0.5: a dash that cancelled a move (`player._dash_out`) hands over to a buffered light at half its 160 ms |
+
+A fresh dash (from standing) still runs its whole `dash_time` before Dash Stab, so the D L openers are unchanged.
+
 ## Round 34, third pass: air timing and the hold's `reel`
 
 - A breaker entry with `reel` (Anvil) has `void_grab.seize()` lift each foe at a spot `reel` of the way from where it
