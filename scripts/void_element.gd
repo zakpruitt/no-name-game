@@ -19,6 +19,7 @@ const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
 const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 const COMIC_ARC := preload("res://scripts/comic_arc.gd")
 const COMIC_SPLAT := preload("res://scripts/comic_splat.gd")
+const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -987,7 +988,7 @@ static func _hailstorm(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 		var heavy: bool = hero._void.is_heavy(e)
 		if is_frozen(e):
 			THROWN.cut(e)  # (Ice Cube's bowl too: the gale takes the cube out of its roll)
-			ELEMENTS.pillar(parent, _flat(e.global_position), "wind", CUTTER_PILLAR_HIGH, CUTTER_PILLAR_R * 0.8)
+			COMIC_HAIL.ride(parent, e)  # (a tight whirlwind riding it up: was a full wind pillar each)
 			e.take_hit(HAIL_DAMAGE * power, Vector3.ZERO, 0.0 if heavy else HAIL_LAUNCH, true)  # (frozen: x FREEZE_BREAK)
 			Game.register_hit("cast")
 			freeze_aloft(e)
