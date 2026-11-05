@@ -394,6 +394,17 @@ From `docs/feel-audit-2026-11-04.md`'s top 10 (numbers are the audit's).
 - [ ] 8. Molten Palm needs a palm: `comic_fist.gd` bigger than his head, knuckles forward
 - [ ] 4 / 9. Callouts end with their string; Dash Stab and Harpoon land soft (combo-rhythm lane)
 
+## Round 35 (hero locomotion)
+Zak: "the movement animation is awful". The chibi's runs, idle and dash re-keyed in `tools/meshy_rig/chibi_keys.py` (Locomotion); attack clips and contact frames untouched, no game code changed. See `docs/features/heretic-hero.md` "Locomotion".
+- [x] Feet locked to the floor: the runs skated 3.2x (strafes 7.7-9.7x) at 7.5 m/s; now 1.00 on all four (`tests/hero_stride_check.gd`, in `agent.sh check`). Planted foot slides `RUN_GROUND` 0.227 m a frame for 3 frames, legs and hips keyed every frame (a held foot rode forward with him and snapped back)
+- [x] Run cycle 14 frames (0.424 s at 1.1): contact, down (body squashed 6%, hood +0.2), push-off on the toes, a long leap (stretched tall), 26 degree lean, hips turning and rolling over the planted foot, fist pumping, claw trailing splayed and counter-pumping; arms, head and hood on twos. Run_B and the strafes on the same cycle and phase
+- [x] Seamless loops (keyed from frame 0: no held frame at the wrap)
+- [x] Idle: hunched, the weight rolled from leg to leg once a loop (free heel lifts), two breaths through chest, hood and body, head tilting with the weight
+- [x] Dash: one crouch drawing, a 48 degree streak stretched long with a knee tucked and a leg trailing, a skid landing
+- [ ] Run start (lunge) and stop (skid): need a one-shot on starting / stopping in `player._play_locomotion`
+- [ ] Awakened runs 1.2x faster on the same clip: a clip-speed constant in `player._play` for the runs (feet skate 1.2x)
+- [ ] Turn: a quick lean into a change of direction (procedural in `heretic_rig.gd`, or a turn clip)
+
 ## Round 36 (camera distance)
 - [x] Zak: "zoom the camera out more, too close to the character". Rest camera 13 m (was 12.5) at FOV 37 (was 36), aimed `AIM_HEIGHT` 0.8 m up his body so the pile in front sits mid-screen instead of under the HUD: at 1080p the hero is 140 px (was 167; round 28 105) with +34% floor in frame. Fight framing: foes hit in the last 2.2 s pull the camera out up to x1.25 (~112 px) and lean it towards them, drifting back slowly. Kicks and shake scale with the distance, `PUNCH_GAIN` 1.25 on enders, `HANG_ZOOM` 0.12 -> 0.16. Flags `--cam-dist=` / `--cam-fov=` / `--cam-frame=` (`docs/features/camera.md`)
 - [ ] By hand: is 13 m far enough? Try `--cam-dist=14` / `15` and `--cam-frame=1` (framing off) and say which
