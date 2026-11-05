@@ -31,6 +31,27 @@ static var _is_breaker := false
 static var breakers_placed := 0  # breaker callouts moved to the top band (fx_sleek_check)
 static var _names := {}
 
+## Feel audit 2, item 3: a name popped over him on every named move (DASH STAB, HARPOON, ICE CUBE...), so every
+## beat had a name plus a word plus a number on him. A name now goes up only for an ender (a move with a breaker:
+## void_element.BREAKERS), a crossover (`X*`, the string's element change paying off) and the breakers' own names;
+## the light mids keep their word (ComicFx.MOVE_WORDS) and lose the name and its stroke pop (Fx.combo_pop).
+static var muted := 0  # mid callouts taken down (fx_sleek_check)
+static var _named := {}  # COMBOS names that still go up
+
+
+## Does this COMBOS id get its name over him? Enders and crossovers.
+static func names_move(id: String) -> bool:
+	return id.begins_with("X") or load("res://scripts/void_element.gd").BREAKERS.has(id)
+
+
+## Is this callout text the name of a move that gets one (names_move)?
+static func is_named_text(hero: Node, text: String) -> bool:
+	if _named.is_empty() and "COMBOS" in hero:
+		for id: String in hero.COMBOS:
+			if names_move(id):
+				_named[hero.COMBOS[id].name] = true
+	return _named.has(text.get_slice("\n", 0))
+
 
 ## Is this callout text a breaker's name (its first line)?
 static func is_breaker_text(text: String) -> bool:
@@ -71,6 +92,12 @@ static func watch(hero: Node) -> void:
 		_shown_ms = now
 		_fade_from_ms = -1
 		_is_breaker = is_breaker_text(label.text)
+		if not _is_breaker and not is_named_text(hero, label.text):
+			muted += 1
+			if tw is Tween and tw.is_valid():
+				tw.kill()
+			label.hide()  # (before it draws: ComicFx's _process runs ahead of the frame)
+			return
 		if _is_breaker:
 			breakers_placed += 1
 			if tw is Tween and tw.is_valid():

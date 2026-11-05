@@ -115,7 +115,7 @@ func _initialize() -> void:
 	p._chain_i = 0
 	p._hits_done = 0
 	standing.watch(p)
-	p._combo_callout(p.COMBOS.keys()[0])
+	p._combo_callout("XR")
 	cap.watch(p)
 	_ok(p._callout.visible, "the callout goes up")
 	game.hitstop(2.0, 0.5)  # a breaker's slow motion (flat at 0.5): its own tween would hold it for ~2 s
@@ -126,7 +126,7 @@ func _initialize() -> void:
 	game.end_slowmo()
 	_ok(not p._callout.visible, "the callout is gone after ~1.1 s real in slow motion")
 	p._callout_done = false
-	p._combo_callout(p.COMBOS.keys()[0])
+	p._combo_callout("XR")
 	cap.watch(p)
 	await create_timer(0.1).timeout
 	p.state = p.State.ATTACK
@@ -142,7 +142,7 @@ func _initialize() -> void:
 	p._chain_i = 0
 	standing.watch(p)
 	p._callout_done = false
-	p._combo_callout(p.COMBOS.keys()[0])
+	p._combo_callout("XR")
 	cap.watch(p)
 	var cam: Camera3D = p.get_viewport().get_camera_3d()
 	var vh: float = p.get_viewport().get_visible_rect().size.y
@@ -262,6 +262,21 @@ func _audit2(main: Node, p: CharacterBody3D) -> void:
 	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
 	_ok(fl.drawn == drawn0 + 1, "away from a breaker it shows at once")
 	p.awakened = false
+	# Item 3: names over him only for enders, crossovers and breakers; a light mid keeps its word only.
+	var cap: GDScript = load("res://scripts/callout_cap.gd")
+	var shown := {}
+	for id: String in ["DL", "EF", "EA", "L3", "EE", "XR", "XF"]:
+		p._callout_done = false
+		p._move_id = id
+		p._combo_callout(id)
+		cap.watch(p)
+		shown[id] = p._callout.visible
+		p._callout.hide()
+		cap.watch(p)
+	_ok(not shown.DL and not shown.EF and not shown.EA and not shown.L3, "light mids put up no name (%s)" % str(shown))
+	_ok(shown.EE and shown.XR and shown.XF, "enders and crossovers keep theirs (%s)" % str(shown))
+	_ok(cap.names_move("OW") and not cap.names_move("TW") and not cap.names_move("EM"), "Overwhelm is named, Tow Line and Molten Palm are not")
+	p._move_id = ""
 
 
 ## Round 33, sleek 5 (the density pass): later items add their checks here.

@@ -34,6 +34,7 @@ const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
+const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -298,6 +299,9 @@ static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> vo
 	var at := pos + Vector3.UP * 1.2
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.7), 1.0)
 	if Game.comic_style:  # strokes bursting out all round him, never a star over him
+		var hero: Node = parent.get_tree().get_first_node_in_group("player") if parent.is_inside_tree() else null
+		if hero != null and "_move_id" in hero and not CALLOUT_CAP.names_move(hero._move_id):
+			return  # feel audit 2, item 3: a light mid keeps its word only (callout_cap.names_move)
 		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
 			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
 			"hold": 2 if tier >= 3 else 1, "steps": 3})
