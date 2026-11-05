@@ -36,9 +36,22 @@ const EC_CONFIRM := 0.8  # Updraft Lash's hit-confirm comes this far back to the
 # EC -> AL1 beat, ~170 ms was the lash's stop and hit-confirm before Air Slash even started
 const L2_SPEED := 1.15  # the spear (was 1.0): its throw landed 235 ms in, L1 -> L2 beats ~311 ms; at 204 ms it still
 # winds up longer than L1's 196 (rhythm_check: opener quickest)
-const DASH_STAB_CANCEL := 0.5  # of dash_time: a dash out of a move hands over to a buffered light (Dash Stab) this
-# early. Dash Stab off a dash out of a move was 475-536 ms after the move's hit (the whole 160 ms dash, then its
-# wind-up); Dash Stab's own lunge (16 m/s) covers the rest of the ground
+const DASH_STAB_CANCEL := 0.4  # of dash_time: a dash out of a move hands over to a buffered light (Dash Stab) this
+# early (hero_input.dash_hands_over). Dash Stab off a dash out of a move was 475-536 ms after the move's hit (the
+# whole 160 ms dash, then its wind-up), 405-421 at 0.5. 0.4 is 64 ms, ~1.5 m plus the carry; Dash Stab's own lunge
+# (16 m/s) covers the rest of the ground. (Tow Line off a dash keeps the whole dash: handing it over too took
+# EF -> TW 457 -> 411 ms but its line got short and the bot's frozen x dark cell went 3 -> 0.)
+const DASH_STAB_STOP := 0.06  # (was 0.07) a light's freeze (L1 0.045, L2 0.05): with its tier-1 ENDER_HITSTOP it's 85 ms
+const DASH_STAB_CONFIRM := 0.8  # its hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5): once the stab
+# connected (the brake below), its stop plus the 0.5 confirm made Dash Stab -> Harpoon 424-435 ms
+const HARPOON_STOP := 0.07  # a mid's freeze (EC 0.07), plus its tier-1 ENDER_HITSTOP: the catch, once it has foes
+# Round 41 (feel audit 2 item 5): Dash Stab and Harpoon landed soft (x1.00 on their HIT frames). Not a missing stop:
+# their blows whiffed. At 16 m/s the stab carried him ~2.7 m by its hit, through a foe 2-3 m ahead (outside its 90 deg
+# arc once behind him), and Harpoon then fired at nobody. The stab now brakes on the foe it aims at, so it lands in
+# front of him and gets the stop, kick and star every connected hit has.
+const DASH_STAB_BRAKE := 0.6  # of the stab's range: where the foe it aims at stands by the hit (centre to centre)
+const DASH_STAB_BRAKE_ARC := 50.0  # deg either side of his aim: the foes it brakes for
+const DASH_STAB_MIN_LUNGE := 3.0  # m/s: braked, it still steps in
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -93,7 +106,7 @@ const MOVES := {
 	"TW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
 	"EF": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [VOID_ELEMENT.LLH_HIT], "cancel": VOID_ELEMENT.LLH_HIT + 0.16, "end": VOID_ELEMENT.LLH_HIT + 0.38,
-		"speed": LLH_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
+		"speed": LLH_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": HARPOON_STOP, "shake": 0.3},
 	"IP": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [VOID_ELEMENT.LLH_HIT], "cancel": VOID_ELEMENT.LLH_HIT + 0.16, "end": VOID_ELEMENT.LLH_HIT + 0.46,
 		"speed": LLH_SPEED, "lunge": 1.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
 	"IJ": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.2], "cancel": 0.3, "end": 0.8,
@@ -140,7 +153,7 @@ const MOVES := {
 	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
-		"stop": 0.07, "shake": 0.22, "hop": [0.03, 0.3, 0.6]},
+		"stop": DASH_STAB_STOP, "confirm": DASH_STAB_CONFIRM, "shake": 0.22, "hop": [0.03, 0.3, 0.6], "brake": true},
 }
 # The named combos: landing one plays its tier's sound and shows its name
 # above the hero. Moves not listed here (L1, L2, AL1) stay quiet. Also the
@@ -336,6 +349,28 @@ static func air_home(hero: CharacterBody3D) -> void:
 	var decay: float = move.get("decay", 3.0)
 	var need := gap * 2.0 * decay / maxf(length, 0.01)  # travel = lunge * length / (2 * decay)
 	move.lunge = clampf(maxf(move.lunge, need), 0.0, AIR_HOME_MAX)
+
+
+## Dash Stab's brake (DASH_STAB_*): a move with `brake` that would lunge past the foe it aimed at (hero._aim_lock,
+## set by hero_input.aim as it starts) lunges only far enough to have it DASH_STAB_BRAKE of its range ahead at the
+## hit. A foe further than the full lunge keeps the full lunge (the lash test's foe 8 m out).
+static func brake(hero: CharacterBody3D) -> void:
+	var move: Dictionary = hero._move
+	var foe: Variant = hero._aim_lock
+	if not move.get("brake", false) or not is_instance_valid(foe) or not foe.is_alive():
+		return
+	var to: Vector3 = foe.global_position - hero.global_position
+	to.y = 0.0
+	if to.length() < 0.01 or rad_to_deg(hero._facing().angle_to(to.normalized())) > DASH_STAB_BRAKE_ARC:
+		return
+	var length: float = hero._move_len / maxf(hero.anim_speed * hero._anim_mult, 0.01)
+	var decay: float = move.get("decay", 3.0)
+	var h: float = minf(move.hits[0], 1.0 / decay)
+	var per_speed: float = length * (h - decay * h * h * 0.5)  # metres by the hit per m/s of lunge
+	var need: float = to.length() - move.range * DASH_STAB_BRAKE
+	if per_speed <= 0.0 or need >= move.lunge * per_speed:
+		return
+	move.lunge = clampf(need / per_speed, DASH_STAB_MIN_LUNGE, move.lunge)
 
 
 ## Whether a dash now would be an air dash (AIR_DASH_*).

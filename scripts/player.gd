@@ -504,7 +504,7 @@ func _state_dash(delta: float) -> void:
 		Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.45))
 	velocity.x = _dash_dir.x * dash_speed
 	velocity.z = _dash_dir.z * dash_speed
-	if _state_t >= dash_time or (_dash_out and _buffered == "light" and _state_t >= dash_time * HERO_MOVES.DASH_STAB_CANCEL):
+	if _state_t >= dash_time or HERO_INPUT.dash_hands_over(self):
 		velocity.x *= 0.3
 		velocity.z *= 0.3
 		_post_dash_t = 0.3
@@ -553,6 +553,8 @@ func _start_attack(id: String) -> void:
 	HERO_INPUT.aim(self, state == State.ATTACK)
 	if _hop_air:
 		HERO_MOVES.air_home(self)
+	else:
+		HERO_MOVES.brake(self)  # (Dash Stab stops in front of the foe it aims at)
 	_set_state(State.ATTACK)
 	_void.on_move(id, prev_id)
 	attack_started.emit(id)
