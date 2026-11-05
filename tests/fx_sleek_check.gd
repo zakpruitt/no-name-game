@@ -12,6 +12,8 @@ extends SceneTree
 ##     the same on-screen ink (fx_palette.TEXT_INK_PX);
 ##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser); Deep Freeze's cords one thin line (void_tendril.line);
 ##     the spirit echo's blade drawn to spirit_echo.VISUAL_REACH of its (unchanged) reach; a comic lava well draws only a short crack mark.
+##   - round 33, sleek 6: a breaker's name callout sits in the top band (callout_cap.BREAKER_Y), off the pile, for
+##     BREAKER_HOLD_S real s, the combo name stays over him; Abyss's spouts draw one thin splat between them.
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -134,6 +136,31 @@ func _initialize() -> void:
 	await create_timer(0.2, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the callout fades when the next string starts")
+	# Round 33, sleek 6: a breaker's name goes to the top band (off the pile) and holds BREAKER_HOLD_S real s; the
+	# combo-name callout stays over him.
+	p.state = p.State.MOVE
+	p._chain_i = 0
+	standing.watch(p)
+	p._callout_done = false
+	p._combo_callout(p.COMBOS.keys()[0])
+	cap.watch(p)
+	var cam: Camera3D = p.get_viewport().get_camera_3d()
+	var vh: float = p.get_viewport().get_visible_rect().size.y
+	var combo_y: float = cam.unproject_position(p._callout.global_position).y
+	var hero_y: float = cam.unproject_position(p.global_position + Vector3.UP * 1.0).y
+	_ok(not cap._is_breaker and absf(combo_y - hero_y) < vh * 0.25, "the combo name stays over him")
+	var hl: GDScript = load("res://scripts/hero_leap.gd")
+	var placed0: int = cap.breakers_placed
+	hl._callout(p, "Worldbreaker", true)
+	cap.watch(p)
+	await process_frame
+	cap.watch(p)
+	var brk_y: float = cam.unproject_position(p._callout.global_position).y
+	_ok(cap.breakers_placed == placed0 + 1 and absf(brk_y - vh * cap.BREAKER_Y) < vh * 0.03,
+		"a breaker name sits in the top band (%.0f px of %.0f)" % [brk_y, vh])
+	await create_timer(cap.BREAKER_HOLD_S + cap.FADE_S + 0.15, true, false, true).timeout
+	cap.watch(p)
+	_ok(not p._callout.visible, "the breaker name is gone after its short hold")
 	# Round 33, sleek 4: one ink weight for a hit's word and number, whatever its tier or total.
 	var pal: GDScript = load("res://scripts/fx_palette.gd")
 	var cfx: GDScript = load("res://scripts/comic_fx.gd")
