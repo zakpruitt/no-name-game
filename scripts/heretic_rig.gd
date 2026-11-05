@@ -50,12 +50,23 @@ const GRIP_FADE := 0.15  # s back to the free sway after the move
 ## A model whose clips key the claws (the chibi: tools/meshy_rig/chibi_keys.py) gets its grip, splay
 ## and curl from them: the sway adds on top of the keyed pose, GRIP_MOVES is skipped, and the clips
 ## below, keyed for this rig's own arm, are followed as they are instead of easing to the rest spread.
-const KEYED_ARM := ["Idle", "Idle_Ready", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3",
+const KEYED_ARM := ["Idle", "Idle_Ready", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Run_Start", "Run_Stop", "Ab_L1", "Ab_AL1", "Ab_L2", "Ab_L3",
 	"Ab_DL", "Ab_GR", "Ab_VS", "Ab_LH", "Ab_H", "Ab_LLH", "Ab_AF", "Hit_A", "Dodge_Forward", "Jump_Start", "Jump_Idle"]
 const CLAW_TRACK := ":tent.up.01"
 ## With keyed claws the loose ones stay out round a weapon's haft, clenched by the clip, instead of
 ## pulling right in: the claw gripping the axe is the chibi's silhouette.
 const KEYED_COLLAPSED := 0.8
+
+## Turn lean: while he runs he banks into a change of direction (and rocks a little on a start or a
+## stop) by tilting the root bone, which sits on the floor, towards the change in his velocity. The
+## change is his velocity less a lagging copy of it (LEAN_LAG s), so a held run leans nothing and a
+## reversal leans hardest; a spring carries the tilt, so he overshoots a touch coming out of a turn.
+const LEAN_DEG := 1.6  # degrees per m/s of velocity change, across his facing
+const LEAN_ALONG := 0.45  # of that along his facing (the start / stop clips already pitch him)
+const LEAN_MAX := 15.0  # degrees
+const LEAN_LAG := 0.12  # s
+const LEAN_STIFF := 320.0  # spring: about 2.8 Hz
+const LEAN_DAMP := 24.0  # a little under critical (35.8): one small overshoot
 
 ## Glowing eyes under the hood, per Game.hero_model, in skeleton rest space (Godot axes, metres):
 ## measured from the texture's cyan eyes on chibi_rig_v1.blend, x1.088 for the 1.85 m bake, then
@@ -106,6 +117,10 @@ var _grip_on := 0.0  # 1 while a grip move plays, fading out after
 var eyes: Node3D  # the glow, when this model has one (EYES)
 var keyed := false  # the clips key the claws (KEYED_ARM, CLAW_TRACK)
 var _cover := PackedInt32Array()  # bones that can pass in front of the eyes (_cover_points)
+var _root := -1  # the root bone (turn lean)
+var _vel_lag := Vector3.ZERO
+var lean := Vector2.ZERO  # degrees: x towards his right, y towards his front
+var _lean_v := Vector2.ZERO
 
 
 func setup(arm: Node, skel: Skeleton3D) -> void:
@@ -132,6 +147,7 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 		_read_form(f, skel)
 	_last_form = arm.form
 	keyed = _clips_key_claws(arm.hero.anim)
+	_root = skel.find_bone("root")
 	skel.add_child(self)
 	_warm_fx(skel)
 	_add_springs(skel)
@@ -374,8 +390,36 @@ func _process_modification_with_delta(delta: float) -> void:
 		if bones.size() > 0:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
+	_lean_into_turns(delta, skel)
 	if eyes != null:
 		_face_eyes(skel)  # last: the claw is where this frame puts it
+
+
+func _lean_into_turns(delta: float, skel: Skeleton3D) -> void:
+	if _root < 0 or delta <= 0.0:
+		return
+	var hero: CharacterBody3D = void_arm.hero
+	var vel := Vector3(hero.velocity.x, 0.0, hero.velocity.z)
+	_vel_lag = _vel_lag.lerp(vel, 1.0 - exp(-delta / LEAN_LAG))
+	var want := Vector2.ZERO
+	if hero.state == hero.State.MOVE:
+		var fwd := skel.global_transform.basis.z
+		fwd = Vector3(fwd.x, 0.0, fwd.z).normalized()
+		var right := fwd.cross(Vector3.UP)  # he faces +Z; his right is -X in model space
+		var d := vel - _vel_lag
+		want = Vector2(d.dot(right) * LEAN_DEG, d.dot(fwd) * LEAN_DEG * LEAN_ALONG).limit_length(LEAN_MAX)
+	_lean_v += ((want - lean) * LEAN_STIFF - _lean_v * LEAN_DAMP) * delta
+	lean += _lean_v * delta
+	if lean.length() < 0.01:
+		return
+	# tilt the top of him towards (right, front): about the axis up x that direction, in skeleton space
+	var inv := skel.global_transform.basis.inverse()
+	var fwd_s := (inv * skel.global_transform.basis.z).normalized()
+	var up_s := (inv * Vector3.UP).normalized()
+	var right_s := fwd_s.cross(up_s)
+	var dir := (right_s * lean.x + fwd_s * lean.y).normalized()
+	var q := Quaternion(up_s.cross(dir).normalized(), deg_to_rad(lean.length()))
+	skel.set_bone_pose_rotation(_root, q * skel.get_bone_pose_rotation(_root))
 
 
 ## The eyes show only while his face is towards the camera, since they draw over the hood.
