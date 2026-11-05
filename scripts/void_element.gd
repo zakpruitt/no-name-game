@@ -803,8 +803,7 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 static func freeze_pool(hero: CharacterBody3D) -> void:
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = hero._void.dark_spot
-	SPEAR.frost_ring(parent, spot, MAW_RADIUS + 0.6, 0.25)
-	ELEMENTS.nova(parent, spot, "water", MAW_RADIUS, 8)
+	COMIC_FREEZE.pool(parent, spot, MAW_RADIUS + 0.3)
 	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5):
 		encase(e)
 
@@ -814,14 +813,10 @@ static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> voi
 	var parent: Node = hero.get_parent()
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var spot: Vector3 = hero._void.dark_spot
-	DARK.burst(parent, spot, 1.6)
-	under(parent, spot, "water")
+	COMIC_FREEZE.shatter(parent, spot, MAW_RADIUS + 0.3)  # (the frozen pool breaks up: was a splat, spikes and shards each)
 	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5):
-		var at := _flat(e.global_position)
-		Fx.shards(parent, at + Vector3.UP * 0.8, THROWN.CUBE_COLOR, 10, Vector3.UP, 8.0, 0.16, 0.5)
 		e.take_hit(damage, Vector3.DOWN * BLACK_ICE_DOWN, 0.0, true)  # (frozen: x FREEZE_BREAK, and it shatters)
 		Game.register_hit("breaker")
-		ELEMENTS.spikes(parent, at, "water", 1.1, 4)
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)
 	Game.shake(0.6)
 

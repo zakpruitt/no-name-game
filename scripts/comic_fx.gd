@@ -49,7 +49,7 @@ const MOVE_WORDS := {
 const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
-	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!",
+	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
 }
 const BREAKER_SCALE := 0.78
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
