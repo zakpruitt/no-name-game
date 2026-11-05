@@ -598,3 +598,12 @@ Meteor Fall diving onto the largest group is decided (combo lane); Avalanche is 
 - [ ] 8. A counter window after a perfect dodge (next string's first hit crits): the dash is the only defence and pays nothing past survival
 - [ ] 9. Tint the dummies away from the hero's cream and colour hit stars by element: the hero and the element are lost in piles
 - [ ] 10. One element ink shape per breaker impact frame, smaller per-hit numbers on lights: numbers are the loudest thing on screen
+
+## Round 42 b (second hero: dragon prince, ideation)
+Zak: "a spellblade younger dragon prince... throwing sword, flying up and smashing into it to explode it then
+resummoning a new magic sword... dragon abilities like an evoker... royal sword play... kingly/pride features."
+- [x] Design draft: `docs/characters/dragon-prince.md` (sword states and the One Sword rules, dragon magic, royal
+  swordplay and parry, Majesty and the falling crown, a 16-string move list with four throw/fly/smash routes,
+  look and Meshy prompt, clips, reuse vs new code, build order, 8 open questions). No code, models or credits
+- [ ] Zak answers the open questions (doc section 9), then the first slice: a hero switch on a placeholder body,
+  then Royal Chain, Javelin, Skyfall and Royal Draw on the dummies
