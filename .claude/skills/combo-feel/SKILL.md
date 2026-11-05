@@ -231,3 +231,17 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - **Guide tags that read state are not routes.** `mix` / `pay` ride on a real row (guide_check still compares the
   row's id and next), so a hint about a foe's state belongs on the row whose move would pay it, never as a row.
 
+
+## Combos as set-ups for each other (round 42, Meteor dive)
+
+- Zak's rule: every combo has a best situation, and a player who uses them on purpose is very strong. Before adding
+  beats to a finisher, ask which earlier move sets it up and make the finisher pay off that set-up instead of doing
+  the set-up itself. Meteor Fall used to throw everyone into the walls and drag them back (the tentacles did Molten
+  Palm's job); now Molten Palm punches the group into the wall and Meteor Fall just dives on the biggest group.
+- Let the set-up leave a mark the payoff reads: a meta with a timestamp on the foe (`thrown_foe` `last_wall_ms`)
+  is cheap and survives other moves; weight it in the target choice (1.5 a foe) and in the damage (x1.3) so the
+  planned group wins ties and near-ties but a clearly bigger group still wins over a stray.
+- Make the choice a pure function (`void_element.meteor_target(at, spots, fresh)`) and test the cases with plain
+  Vector3 arrays: stray vs group, splatted vs equal group, bigger group vs splatted stray, empty, out of reach.
+- Show the choice: re-aim the breaker cue every frame of the hang so the player sees where the dive will land.
+- `Object.get_meta(key, null)` still errors when the key is missing (a null default counts as none): use `has_meta`.

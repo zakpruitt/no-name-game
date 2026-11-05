@@ -6,8 +6,8 @@ The training camera looks down at the hero from 53 degrees, far enough out that 
 thrown off them stay in frame through a string, and close enough that the chibi reads (about 140 px tall at
 1080p). It aims at his chest rather than his feet so the pile in front of him sits mid-screen instead of
 under the HUD. When a throw or breaker spreads the foes he is hitting, it eases out and leans towards them,
-then drifts back slowly once they go quiet. In Meteor Fall's beats (the throw into the walls and the drag into
-the pile) it pulls out further and faster, then comes back in for the dive. Hits, enders, hangs and freezes still nudge it
+then drifts back slowly once they go quiet. In a breaker hang it keeps him centred, and on a long dive (Meteor
+Fall onto a group up to 12 m off) it follows him there smoothly. Hits, enders, hangs and freezes still nudge it
 (`impact-feedback.md` has the per-hit feel).
 
 ## Files
@@ -26,16 +26,14 @@ the pile) it pulls out further and faster, then comes back in for the dive. Hits
    up-screen), capped at `FRAME_LEAN_MAX`. The zoom-out is solved in camera space at the rest distance: a point
    at side offset `s` and depth offset `z` fits `|ndc| <= FRAME_SAFE` once `f >= (|s| / (FRAME_SAFE * tan(half
    fov)) - z) / dist`; the largest `f` over feet and `FRAME_HEAD` of every foe and the hero, capped at
-   `frame_max`. In a hang he stays centred (no lean, no framing), except in the beats (below).
+   `frame_max`. In a hang he stays centred (no lean, no framing).
 3. `_frame` eases out at `FRAME_OUT` and back at `FRAME_BACK` (real time, measured with `Time.get_ticks_usec()`);
    the lean likewise.
-3b. **Breaker hang pull-out.** While the hero's `_brk_phase` is `BEATS_PHASE` (3: Meteor Fall between the press
-   and the dive) the framing counts foes hit in the last `HANG_FRAME_HIT_MS` within `HANG_FRAME_RANGE`, leans up to
-   `HANG_LEAN_MAX`, and solves the same fit. The hang push-in and the focus punch (`squeeze` = `(1 - HANG_ZOOM *
-   _hang) * _zoom`) hold until the foes need more room than they leave: `_frame_to = max(1, min(need, frame_max *
-   HANG_FRAME_GAIN) / squeeze)`, so the cap is on the distance seen. In a hang `_frame` and the lean ease at
-   `HANG_FRAME_OUT` / `HANG_FRAME_BACK`; on the dive (phase 1) `_frame_to` is 1 again, under the dive's own
-   `punch()`. The rise and the timing window (phase 0) keep the push-in.
+3b. **Breaker hangs.** In State.LEAP `_frame_fight()` returns at once: `_frame` and the lean settle back to 1 / none
+   at `HANG_SETTLE` (3 /s). The dive (Meteor Fall can cover 12 m in 0.4 s) is the normal exponential follow at
+   `follow_speed` (x3 under the dive's `punch()`), so the camera trails him in and never snaps or runs ahead.
+   (Round 36's `HANG_FRAME_*` / `BEATS_PHASE` pull-out was for Meteor Fall's wall throw and gather; both went in
+   round 42.)
 4. `camera.position = offset * _frame * _zoom * (1 - _hit_zoom) * (1 - HANG_ZOOM * _hang) + _kick`, with
    `offset = VIEW_DIR * dist`; `camera.fov = fov - _fov`.
 
@@ -80,10 +78,11 @@ off). The rig prints `[camera] dist= fov= frame_max=` when a flag is given.
 
 - `godot --headless --path . -s tests/camera_feel_check.gd`: hero px and floor area vs round 32, aim at his
   chest, flag parsing, `PUNCH_GAIN`, a foe hit 9 m out pulls the camera out (capped) and on screen, a dummy in
-  front doesn't, the slow return; the hang pull-out (window keeps the push-in, beats go past `FRAME_MAX` fast with a
-  foe 12 m out on screen, the dive returns slower); plus the per-hit feel.
+  front doesn't, the slow return; the hang (a foe hit 12 m out: the window keeps the push-in and no lean) and a 12 m dive
+  (no frame moves the camera further than he moved, never ahead of him, caught up 0.8 s after he lands); plus the
+  per-hit feel.
 - Meteor Fall: `timeout 300 godot --path . -s tests/string_film.gd -- --from=11` films L L L H H (+ H) onwards; the
-  beats are the INDEX lines with `brk=3`.
+  dive is the INDEX lines with `brk=1`.
 - Look: `timeout 300 godot --path . -s tests/string_film.gd` and compare a string's sheet before / after (the
   film folders keep stale frames past the current count: read only the frames INDEX.txt lists).
 
@@ -96,3 +95,10 @@ in normal play fades in only as the fight needs room (`FRAME_LEAN_RAMP`); the ha
 (`_squeeze()` takes the deeper), no punch goes below `PUNCH_MIN` 0.8, `HANG_ZOOM` 0.16 -> 0.06, the per-hit push-in
 fades out in a hang; the beats pull out to x1.625 at 5 /s. Lesson: each camera behaviour was judged alone on film;
 judge them stacked, in one special, before landing another.
+
+## Meteor dive (round 42)
+
+Meteor Fall lost its wall throw and gather (combo lane), so the beats' pull-out (`HANG_FRAME_GAIN` / `_RANGE` /
+`_HIT_MS` / `_OUT` / `_BACK`, `HANG_LEAN_MAX`, `BEATS_PHASE`) went with them. A hang now always keeps him centred,
+settling at `HANG_SETTLE` (the old `HANG_FRAME_BACK` 3 /s, the rate a hang came back in at before). The calm pass
+(`_squeeze()`, `PUNCH_MIN`, the lean ramp) is unchanged.

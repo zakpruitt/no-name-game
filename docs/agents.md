@@ -386,6 +386,11 @@ fast-forward, so no agent edits another's files or index.
   in their files against player.gd's names; a missing one is a SCRIPT ERROR only when the bot reaches it.
 - **Dead code check:** `python tools/dead_refs.py --docs` also lists names only a doc mentions. A name only the
   cleanup audit or a stale doc line names is still dead: delete it and the doc line together.
+- **`get_meta(key, null)` errors on a missing key** (a null default is no default) and prints one error per call: a
+  per-frame caller floods the log. Check `has_meta` first.
+- **Removing a feature, grep its words too, not just its names:** after deleting Meteor Fall's beats, comments in
+  other files (camera_rig, elements, comic_flat, CLAUDE.md, docs tables) still described them; `grep -rn` the
+  feature's nouns (DOGPILE, gather, pile, beat) across scripts, tests and docs before landing.
 
 ## The harness (`tools/agent.sh`)
 

@@ -39,7 +39,7 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
   - `entry_for(id)` (`player._breaker_for`): the merged entry when the move has one; `player._state_attack`
     starts the leap at the entry's `leap` once the move has connected.
   - `start()` (`player._start_leap`): state `LEAP`, the zone `zone` m ahead (`_clear_ahead`), `void_grab.seize()`,
-    `_aim()` (`at_spot` breakers land `short` of `void_grab.dark_spot`; Meteor Fall on the held foe).
+    `_aim()` (`at_spot` breakers land `short` of `void_grab.dark_spot`; Meteor Fall on the best group, `VOID_ELEMENT.meteor_spot()`).
   - `tick()` (State.LEAP each frame): phase 0 rise / hang / cue / window / press, phase 1 dive (comet trail
     `_comet()`), phase 2 float down. `_pressed()` (heavy, L for `alt`, or the bot at `sweet`).
   - `_start_dive()`, `_impact()`, `_callout()`, `_dash_out()`, `_end()`.
@@ -68,11 +68,10 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 5. The dive takes `dive` s; `_breaker_impact()` calls `VOID_ELEMENT.breaker_impact()` with what the tentacles hold,
    cracks the floor, shakes, adds `awaken` / `awaken_perfect`, names the breaker and ends the leap.
 6. No press by `close`: `_brk_ended = "miss"`, the held foes drop, he floats down over `fall` s.
-7. A breaker with `gather` (Meteor Fall, round 34) doesn't dive on the press: phase 3 (`_tick_beats`) hangs him
-   while `VOID_ELEMENT.meteor_wall()` throws them at the walls and then `meteor_gather()` drags them into a pile, and
-   only then `_dive()` takes him down onto it. The press part (`_brk_ended`, the cue, the slow motion ending, the
-   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive. The camera
-   pulls out through the beats on its own (camera_rig `HANG_FRAME_*`, `BEATS_PHASE`; docs/features/camera.md).
+7. Meteor Fall (`meteor`, round 42) holds nobody (`no_hold`). Each frame of the hang `_aim()` puts the cue on the
+   group `VOID_ELEMENT.meteor_spot()` picks, and the press dives there: the biggest group within 12 m, the one Molten
+   Palm just splatted on a wall winning ties and near-ties. A far group stretches the dive (`METEOR_DIVE_SPEED`).
+   Round 34's three beats (the wall throw, the tentacle gather, phase 3 `_tick_beats`) are gone.
 
 ### Look
 
@@ -177,3 +176,14 @@ Tow Line off a dash still waits out the whole dash (EF -> TW 457-526, IP -> TW 4
   foe past him (training dummies launch at `LAUNCH_SCALE` 0.55 and stayed under him); 9 m/s puts it in its apex hang
   at his ~2.5 m as Meltdown lands. Probe heights per physics frame (hero `global_position.y + model.position.y`,
   each foe's y, flat distance, airborne, frozen) before judging the film.
+
+## Round 42: Meteor Fall dives on the group
+
+Zak: Meteor Fall shouldn't slam everyone into the nearest wall with the tentacles and then regather them; every
+combo should have a best situation, and a player using them on purpose should be strong. Molten Palm (L L L H) is
+the punch-a-group-into-a-wall move (x2.5 on the splat); its breaker Meteor Fall (L L L H H, H) now just dive-bombs
+the biggest group in reach, so the flow is: punch them into the wall, then drop on the pile at the wall. Numbers:
+group = foes within `METEOR_PILE_R` 3 m of each other, a wall-splatted foe (last 3 s) counts 1.5, the landing hits
+everyone in 3 m, x1.3 on the freshly splatted, x1.5 on big ones (perfect x1.5 as every breaker). Check:
+`void_arm_check` `_meteor_target()` (stray vs group, splatted vs equal group, bigger group vs splatted stray, empty)
+and the palm -> Undertow -> meteor run that dives past a nearer foe onto the splatted one.

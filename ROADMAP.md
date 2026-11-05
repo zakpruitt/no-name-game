@@ -607,3 +607,13 @@ resummoning a new magic sword... dragon abilities like an evoker... royal sword 
   look and Meshy prompt, clips, reuse vs new code, build order, 8 open questions). No code, models or credits
 - [ ] Zak answers the open questions (doc section 9), then the first slice: a hero switch on a placeholder body,
   then Royal Chain, Javelin, Skyfall and Royal Draw on the dummies
+
+## Round 42 c (Meteor dive, item from the design review)
+Zak: Meteor Fall shouldn't use the tentacles to slam everyone into the nearest surface and regather them. Every combo
+has a best situation; Molten Palm punches a group into a wall, Meteor Fall dives on that group.
+- [x] Meteor Fall's beat 1 (tentacle throw into the walls) and beat 2 (tentacle gather, DOGPILE!) are gone: hero_leap phase 3, `METEOR_WALL_*` / `_GATHER_*` / `_DRAG_*` / `_PILE_AHEAD` / `_PILE_RING` / `_BEAT_STOP` / `_DIVE_LATE`, `comic_splat.gd`, `ComicFx.say()`, the rip hold (`rip_target`, `_tear`, the two-way tentacle) and `void_grab.pile` / `chased`
+- [x] `void_element.meteor_target()` (pure): groups within 12 m by 3 m, a foe splatted on a wall in the last 3 s counts 1.5 (`thrown_foe` meta `last_wall_ms`), best group wins (nearer on a tie), lands on its middle; nobody in reach: ahead of him. The cue sits on it through the hang. A far group stretches the 0.3 s dive at 30 m/s (12 m: 0.4 s)
+- [x] The landing hits everyone in 3 m (crater), x1.3 on the freshly wall-splatted, x1.5 on big ones; Undertow lets go as he lands. Molten Palm's x2.5 wall splat checked (34 on a test foe vs 14 for the palm alone), not tuned
+- [x] Camera: the `HANG_FRAME_*` / `BEATS_PHASE` pull-out went with the beats; a hang settles at `HANG_SETTLE` and the 12 m dive follows without a snap (`camera_feel_check`)
+- [x] Checks: `void_arm_check` `_meteor_target()` (stray vs group, splatted vs equal group, bigger group vs splatted stray, empty) and palm-into-wall -> Undertow -> meteor dives past a nearer foe onto the splatted one
+- Supersedes round 41's item 9 and 10c's Meteor Fall throw (there is no throw now)
