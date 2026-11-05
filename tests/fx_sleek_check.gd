@@ -161,6 +161,33 @@ func _initialize() -> void:
 	await create_timer(cap.BREAKER_HOLD_S + cap.FADE_S + 0.15, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the breaker name is gone after its short hold")
+	# Round 33, sleek 6: in a breaker the frame's hits draw one star, Live Wire's bolts are capped and a batch of rim
+	# geysers stops at three.
+	var els6: GDScript = load("res://scripts/elements.gd")
+	var fxs: GDScript = load("res://scripts/fx.gd")  # (named Fx in the test, it compiles before the Game autoload)
+	p.state = p.State.LEAP
+	var merged0: int = fxs.crowd_merged
+	for i in 5:
+		fxs.hit_spark(main, Vector3(i * 0.8, 0, 2))
+	await process_frame
+	_ok(fxs.crowd_merged - merged0 == 4, "five hits in one breaker frame draw one star (%d merged)" % (fxs.crowd_merged - merged0))
+	var capped0: int = els6.arcs_capped
+	for i in 6:
+		els6.arc(main, Vector3(0, 1, 0), Vector3(i, 1, 3), Color.GREEN)
+	_ok(els6.arcs_capped - capped0 == 3, "a breaker keeps %d bolts at once (%d capped of 6)" % [els6.BREAKER_ARC_MAX, els6.arcs_capped - capped0])
+	var rims_before := get_nodes_in_group("comic_geyser").size()
+	for i in 5:
+		els6.rim_geyser(main, Vector3(i * 1.5 - 3.0, 0, 6), 1.0, 3.0)
+	await process_frame
+	var rims := get_nodes_in_group("comic_geyser").size() - rims_before
+	_ok(rims == els6.RIM_GEYSER_MAX, "a batch of five rim geysers draws %d (%d)" % [els6.RIM_GEYSER_MAX, rims])
+	els6._rim_batch.clear()
+	p.state = p.State.MOVE
+	merged0 = fxs.crowd_merged
+	for i in 3:
+		fxs.hit_spark(main, Vector3(i * 0.8, 0, 2))
+	await process_frame
+	_ok(fxs.crowd_merged == merged0, "outside a breaker every hit keeps its star")
 	# Round 33, sleek 4: one ink weight for a hit's word and number, whatever its tier or total.
 	var pal: GDScript = load("res://scripts/fx_palette.gd")
 	var cfx: GDScript = load("res://scripts/comic_fx.gd")

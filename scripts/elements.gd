@@ -803,7 +803,44 @@ static func well(parent: Node, pos: Vector3, big := false) -> void:
 ## A jagged lightning arc between two points: a flat inked zigzag on twos (comic_bolt.gd). The storm's
 ## palette is fixed (ink, green, pale core), so `c` is only kept for the callers.
 static func arc(parent: Node, a: Vector3, b: Vector3, _c: Color) -> void:
+	if Game.comic_style and Fx.in_breaker(parent):
+		_breaker_arc(parent, a, b)
+		return
 	COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 1 if a.distance_to(b) > 2.5 else 0)
+
+
+## Round 33, sleek 6: Live Wire's hang (void_element.zap every WIRE_STEP 0.09 s) chains a bolt to every foe it holds,
+## each living a quarter second, so Worldbreaker and Grounded hung a dozen bolts over the pile. In a breaker at most
+## BREAKER_ARC_MAX bolts are alive (or due) at once, and the ones asked for in the same frame start
+## BREAKER_ARC_STAGGER real s apart (one designed run, as comic_fault's Cataclysm bolts are, not a wall).
+const BREAKER_ARC_MAX := 3
+const BREAKER_ARC_STAGGER := 0.06  # real s
+static var _breaker_arcs := []  # the live bolts (untyped: freed nodes are filtered)
+static var _arcs_due := 0  # staggered ones not yet drawn
+static var _arc_frame := -1
+static var _arc_in_frame := 0
+static var arcs_capped := 0  # bolts not drawn (fx_sleek_check)
+
+
+static func _breaker_arc(parent: Node, a: Vector3, b: Vector3) -> void:
+	_breaker_arcs = _breaker_arcs.filter(func(v: Variant) -> bool: return is_instance_valid(v))
+	if _breaker_arcs.size() + _arcs_due >= BREAKER_ARC_MAX:
+		arcs_capped += 1
+		return
+	var f := Engine.get_process_frames()
+	if f != _arc_frame:
+		_arc_frame = f
+		_arc_in_frame = 0
+	var delay := BREAKER_ARC_STAGGER * _arc_in_frame
+	_arc_in_frame += 1
+	if delay <= 0.0:
+		_breaker_arcs.append(COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 0))
+		return
+	_arcs_due += 1
+	parent.get_tree().create_timer(delay, true, false, true).timeout.connect(func() -> void:
+		_arcs_due -= 1
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			_breaker_arcs.append(COMIC_BOLT.spawn(parent, a, b, ARC_WIDTH, 0.0, 0)))
 
 
 ## A lava geyser at `pos`: a flat inked column punching up on twos, fat lava blobs off the top and a
@@ -825,7 +862,33 @@ static func rim_geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot
 	if not Game.comic_style:
 		geyser(parent, pos, radius, h, _hot_core)
 		return
+	if not _batch_take(_rim_batch, pos, RIM_GEYSER_MAX, RIM_GEYSER_SPACING):
+		return
 	COMIC_GEYSER.spawn(parent, _flat(pos), h * RIM_GEYSER_SQUASH, radius * RIM_GEYSER_WIDTH)
+
+
+## Round 33, sleek 6: Worldbreaker asks for a rim geyser under every foe on its pile (void_element.under("earth")), five
+## orange columns in one frame. At most RIM_GEYSER_MAX of one batch (asked inside BATCH_MS), RIM_GEYSER_SPACING apart.
+const RIM_GEYSER_MAX := 3
+const RIM_GEYSER_SPACING := 1.3  # m
+const BATCH_MS := 100
+static var _rim_batch := []  # [ms, flat position]
+
+
+## One batch of effects asked for together (a landing's per-foe calls): true if `pos` may draw, and records it.
+static func _batch_take(batch: Array, pos: Vector3, most: int, spacing: float) -> bool:
+	var now := Time.get_ticks_msec()
+	var flat := _flat(pos)
+	var live := batch.filter(func(r: Array) -> bool: return now - int(r[0]) <= BATCH_MS)
+	batch.clear()
+	batch.append_array(live)
+	if batch.size() >= most:
+		return false
+	for r: Array in batch:
+		if (r[1] as Vector3).distance_to(flat) < spacing:
+			return false
+	batch.append([now, flat])
+	return true
 
 
 ## A pool of lava welled up through the floor: a cracked crust round a bright

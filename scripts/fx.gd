@@ -140,6 +140,59 @@ static func _blow_element(node: Node) -> String:
 	return VOID_ELEMENT.ELEMENT_OF.get(id, "hit") if id is String else "hit"
 
 
+## Is the hero in a breaker (State.LEAP: the hang, the dive and the landing's hits)?
+static func in_breaker(node: Node) -> bool:
+	if node == null or not node.is_inside_tree():
+		return false
+	var hero := node.get_tree().get_first_node_in_group("player")
+	if hero == null or not "state" in hero:
+		return false
+	if _leap_state == -2:
+		var states: Variant = hero.get_script().get_script_constant_map().get("State", {})
+		_leap_state = states.get("LEAP", -1) if states is Dictionary else -1
+	return _leap_state >= 0 and hero.state == _leap_state
+
+
+## Round 33, sleek 6: in a breaker every foe hit in one frame drew its own star, strokes and chain halo: Live Wire's
+## jolts every 0.09 s and the landings put a star on every foe of the pile (Worldbreaker, Cataclysm, Grounded).
+## In a breaker the frame's hits draw ONE star at the middle of them (the pile's centre), and the strokes and halo
+## once per frame. Outside a breaker every hit keeps its own.
+static var _leap_state := -2  # the hero's State.LEAP, read once
+static var _crowd_stars := []  # [parent, at, size, pal] this frame, in a breaker
+static var _crowd_frame := {}  # what -> the process frame it last drew in a breaker
+static var crowd_merged := 0  # stars folded into another (fx_sleek_check)
+
+
+static func _once_in_breaker(parent: Node, what: String) -> bool:
+	if not in_breaker(parent):
+		return true
+	var f := Engine.get_process_frames()
+	if _crowd_frame.get(what, -1) == f:
+		return false
+	_crowd_frame[what] = f
+	return true
+
+
+static func _flush_crowd_stars() -> void:
+	var batch := _crowd_stars
+	_crowd_stars = []
+	if batch.is_empty():
+		return
+	var mid := Vector3.ZERO
+	var big := 0.0
+	var parent: Node = null
+	for r: Array in batch:
+		mid += r[1]
+		big = maxf(big, r[2])
+		if parent == null and is_instance_valid(r[0]):
+			parent = r[0]
+	if parent == null or not parent.is_inside_tree():
+		return
+	crowd_merged += batch.size() - 1
+	var pal: Dictionary = batch[0][3]
+	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
+
+
 static func _hero_awakened(node: Node) -> bool:
 	if node == null or not node.is_inside_tree():
 		return false
@@ -171,6 +224,11 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 	var at := pos + Vector3.UP * 1.1
 	if Game.comic_style:  # the hot inked star in the blow's palette; impact() adds the strokes
 		var pal := PAL.of(_blow_element(parent))
+		if in_breaker(parent):  # one star for the frame's hits, at their middle (_flush_crowd_stars)
+			if _crowd_stars.is_empty():
+				_flush_crowd_stars.call_deferred()
+			_crowd_stars.append([parent, at, size, pal])
+			return
 		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
 	# Pale colours vanish on the light floor tiles: push the flare's saturation up.
@@ -195,6 +253,8 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 		return
 	var at := pos + Vector3.UP * 1.1
 	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
+		if not _once_in_breaker(parent, "chain"):
+			return
 		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
 			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
 			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
@@ -495,6 +555,8 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	if big:
 		last_big_hit_ms = Time.get_ticks_msec()
 	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
+		if not _once_in_breaker(parent, "impact"):
+			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
 			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
