@@ -717,7 +717,13 @@ for _way, _clip in (("F", "Run_F"), ("B", "Run_B"), ("L", "Strafe_L"), ("R", "St
 # (the free knee bends, its heel lifts), two slow breaths heave the chest and hood, the head tilts
 # and glances, the claw held out at his side, swollen, opening and closing and drifting out and back
 # (from the game camera a claw hanging low read small and dead), one claw flex half way.
+# Hero pass 3: the claw is raised beside his head (IDLE_RH / IDLE_W), its palm tipped up open to the game
+# camera like the face, instead of hanging out behind the hip.
 IDLE_N = 120
+IDLE_RH = (68, 30, 0.52)  # az, el, r: out at his right, up by the hood
+IDLE_W = (58, 52)  # the claw points out and up, so its spread faces the camera
+READY_RH = (52, 34, 0.55)  # guard: beside the head, a little ahead
+READY_W = (35, 58)
 
 
 def idle_frames():
@@ -736,7 +742,7 @@ def idle_frames():
                         hipr=(5 * wt, 4, 5 * wt), spine=(0, 3, 0),
                         chest=(-3 * wt, 9 - 3 * br, -8 * wt), head=(-4 + 9 * math.sin(ph - 0.5), 2 + 4 * lag, 10 * wt),
                         hsq=0.045 * lag, bsq=0.015 * br,
-                        rh=(45 + 8 * drift, -20 + 4 * br, 0.54), w=(50 + 16 * drift, 2 + 8 * lag),
+                        rh=(IDLE_RH[0] + 8 * drift, IDLE_RH[1] + 4 * br, IDLE_RH[2]), w=(IDLE_W[0] + 12 * drift, IDLE_W[1] + 8 * lag),
                         lh=(-45, -60 + 4 * br, 0.36), fl=(-0.04, 0.03, 0.025 * free_l), fr=(0.04, -0.05, 0.025 * free_r),
                         flr=(0, 18 * free_l, 0), frr=(0, 18 * free_r, 0),
                         claw=0.1 + 0.55 * math.sin(ph) + 0.15 * lag - 0.6 * flex, clawph=180 * ph / math.pi, hs=1.2))
@@ -1015,7 +1021,8 @@ def ready_frames():
                         hipr=(8 + 5 * wt, 10, 6 * wt), spine=(0, 4, 0),
                         chest=(10 - 3 * wt, 12 - 3 * br, -7 * wt), head=(-8 + 6 * math.sin(ph - 0.5), -2 + 4 * lag, 8 * wt),
                         hsq=0.06 * lag, bsq=0.02 * br,
-                        rh=(30 + 4 * math.sin(ph + 0.6), 12 + 4 * br, 0.55), w=(22 + 6 * math.sin(ph + 0.6), 38 + 6 * lag),
+                        rh=(READY_RH[0] + 4 * math.sin(ph + 0.6), READY_RH[1] + 4 * br, READY_RH[2]),
+                        w=(READY_W[0] + 6 * math.sin(ph + 0.6), READY_W[1] + 6 * lag),
                         lh=(-35, -18 + 4 * br, 0.33), fl=(-0.09, 0.12, 0.025 * free_l), fr=(0.09, -0.12, 0.025 * free_r),
                         flr=(0, 15 * free_l, 0), frr=(0, 15 * free_r, 0),
                         claw=-0.5 + 0.3 * lag + 0.25 * math.sin(ph), clawph=180 * ph / math.pi, hs=1.2))

@@ -87,7 +87,7 @@ const HEAD_GROW := {"chibi": 1.2}
 ## game camera. Collision, hit ranges and the hit areas are unchanged. tools/meshy_rig/chibi_keys.py reads
 ## this line and shortens the run strides by it, so his feet still hold the floor (hero_stride_check
 ## scales the model by it too).
-const MODEL_SCALE := {"chibi": 1.06}
+const MODEL_SCALE := {"chibi": 1.15}
 ## Hero pass 3 (round 40): tools/meshy_rig/chibi_faceup.py tipped the head back [deg] about a point [m] over
 ## the neck joint, chin up, so the face opening points up at the game camera; every face spot (eyes, grin,
 ## shade) and the facing test turn with it after HEAD_GROW.
