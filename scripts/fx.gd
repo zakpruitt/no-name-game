@@ -29,15 +29,14 @@ const EDGE_OUTLINE := 0.07  # m, dark outline
 ## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
 ## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
+const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
 const COMIC_FLASH := Color(1.0, 0.97, 0.88)  # a comic hit flash's paper ink
-## Flat two-tone chip colour off the axes per element (element_hit).
-const COMIC_CHIP := {"wind": Color(0.16, 0.85, 0.38), "earth": Color(1.0, 0.36, 0.04), "water": Color(0.5, 0.82, 1.0),
-	"spirit": Color(0.2, 0.85, 0.78)}
 
 static var _flash_mat: StandardMaterial3D
 static var _tint_mats := {}  # flash_tint() overlays, one per colour
@@ -50,6 +49,10 @@ static var _particle_mats: Dictionary = {}
 ## Tick time of the last big impact (read by the autotest to snap a frame).
 static var last_big_hit_ms := 0
 static var last_afterimage_ms := 0
+static var _last_ring_ms := -100000
+static var _last_ring_at := Vector3.ZERO
+const RING_PAIR_MS := 40
+const RING_PAIR_M := 1.5
 
 
 ## The base of nearly every effect material: unshaded, alpha-blended (`add`:
@@ -123,6 +126,20 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	tw.tween_callback(m.queue_free)
 
 
+## The palette name of the hero's current blow (round 33: one palette per element across a string): the
+## move's element (VOID_ELEMENT.ELEMENT_OF), gold while Awakened, else the plain hot "hit".
+static func _blow_element(node: Node) -> String:
+	if node == null or not node.is_inside_tree():
+		return "hit"
+	var hero := node.get_tree().get_first_node_in_group("player")
+	if hero == null:
+		return "hit"
+	if hero.get("awakened") == true:
+		return "gold"
+	var id: Variant = hero.get("_move_id")
+	return VOID_ELEMENT.ELEMENT_OF.get(id, "hit") if id is String else "hit"
+
+
 static func _hero_awakened(node: Node) -> bool:
 	if node == null or not node.is_inside_tree():
 		return false
@@ -148,8 +165,9 @@ static func damage_number(parent: Node, pos: Vector3, amount: float, big := fals
 
 static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := 0.9) -> void:
 	var at := pos + Vector3.UP * 1.1
-	if Game.comic_style:  # the hot inked star; impact() adds the strokes
-		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3})
+	if Game.comic_style:  # the hot inked star in the blow's palette; impact() adds the strokes
+		var pal := PAL.of(_blow_element(parent))
+		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
 	# Pale colours vanish on the light floor tiles: push the flare's saturation up.
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.75), 1.0, color.a)
@@ -191,7 +209,9 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 	var at := pos + Vector3.UP * 1.0
 	var k := 1.5 if big else 1.0
 	if Game.comic_style:  # chunky chips of the element, flung along the blow
-		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": COMIC_CHIP.get(element, COMIC_CHIP.spirit),
+		var el := _blow_element(parent)
+		var chip: Color = PAL.of(element if el == "hit" else el).body
+		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": chip,
 			"chip_size": 0.11 * k, "chip_speed": 6.0, "dir": dir, "spread": 0.6, "steps": 3})
 		return
 	match element:
@@ -481,7 +501,15 @@ static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void
 ## Expanding flat ring on the ground (shockwaves, Awakening burst).
 static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time := 0.35) -> void:
 	if Game.comic_style:  # a hard inked hoop on twos, not a soft glowing disc
-		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 6)})
+		# Round 33 (sleek): callers often lay a colour hoop and a white one on the same spot at once; one
+		# deliberate hoop reads cleaner than two nested ones, so the second within RING_PAIR_MS is dropped.
+		var now := Time.get_ticks_msec()
+		var flat := Vector3(pos.x, 0.0, pos.z)
+		if now - _last_ring_ms <= RING_PAIR_MS and flat.distance_to(_last_ring_at) < RING_PAIR_M:
+			return
+		_last_ring_ms = now
+		_last_ring_at = flat
+		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 5)})
 		return
 	var m := MeshInstance3D.new()
 	var mesh := PlaneMesh.new()
