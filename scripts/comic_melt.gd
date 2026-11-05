@@ -15,6 +15,8 @@ const SWING_ARC := 2.2  # rad it covers
 const CHEST := 0.8
 const CHIPS := 4
 const FLAMES := 3
+const FLAME_SPLAY := 0.45  # how far the outer tongues lean out (of up)
+const FLAME_LICK := 0.22  # each step a tongue licks this far to one side, then the other
 const LANDED_Y := 0.35  # m: under this it's down
 const SPLAT := 0.7  # m
 const CRACKS := 4
@@ -100,13 +102,23 @@ func _draw(s: int) -> void:
 			_outline(at, ring, PAL.LINE, INK)
 			_fan(at, ring, _ice.hot, _ice.body)
 	if _landed < 0.0:
+		# Round 33, sleek 4: three straight upright wedges side by side read as candles up close. Each tongue now
+		# leans out from the middle, licks to the other side each step, and hooks at the tip (a second, narrower
+		# wedge turned further), in a thin ink line.
 		for i in FLAMES:  # burning on the way down: tongues streaming up off it
 			var x := (i - 1) * 0.32 + _rng.randf_range(-0.05, 0.05)
 			var base := _right * x + _up * (CHEST + 0.2 - absf(x) * 0.4)
 			var length := _rng.randf_range(0.8, 1.15) * (1.2 if i == 1 else 0.9)
-			_wedge(base - _up * 0.05, _up, length + 0.1, 0.36, INK)
-			_wedge(base, _up, length, 0.26, _p.body)
-			_wedge(base + _up * 0.1, _up, length * 0.6, 0.12, _p.hot)
+			var lick := FLAME_LICK * (1.0 if (_step + i) % 2 == 0 else -1.0)
+			var lean := (i - 1) * FLAME_SPLAY + lick
+			var d := (_up + _right * lean).normalized()
+			var hook := (_up + _right * (lean + lick * 1.6)).normalized()
+			var tip := base + d * length * 0.42
+			_wedge(base - d * 0.04, d, length * 0.75 + 0.06, 0.26 + PAL.LINE * 2.0, INK)
+			_wedge(tip - d * 0.04, hook, length * 0.6 + 0.06, 0.2 + PAL.LINE * 2.0, INK)
+			_wedge(base, d, length * 0.75, 0.26, _p.body)
+			_wedge(tip, hook, length * 0.6, 0.2, _p.body)
+			_wedge(base + d * 0.08, d, length * 0.45, 0.1, _p.hot)
 		return
 	var ls := int((_t - _landed) * STEPS_PER_S)
 	var hot := ls < 2
