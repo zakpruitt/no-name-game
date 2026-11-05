@@ -462,7 +462,7 @@ The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geyser
 - [x] Storm Pitch: inked lightning forks crackle off each thrown foe for its flight with speed strokes behind it, thinner jolts to whoever it passes (`comic_arc.gd`); word ZZWANNG!
 - [x] Meteor Fall: a flattened hot splat star where a beat-1 throw hits a wall (`comic_splat.gd` `watch()`), and DOGPILE! over the pile once beat 2 has them all in (`ComicFx.say()`)
 - [x] Steam Burst rarely steams in the bot's string (fixed: a frozen foe in flight counts and is cut out of its roll): Ice Cube's cube is still flying (thrown) when XS fires, so `frozen` is empty and only the fist shoves (combo lane: let a flying cube count, or film it on a standing frozen foe)
-- [x] Meteor Fall's wall splats are mostly off camera at 13 m (round 34 second pass: the hang pulls out, `_meteor_frame`; not filmed)
+- [x] Meteor Fall's wall splats are mostly off camera at 13 m (camera round 2: the hang framing, `camera_rig.HANG_FRAME_*`)
 - [x] (dropped `wire`, damage 40 -> 46) Cataclysm's hang is still Live Wire's green bolts and violet binds on every foe (`wire: true`); with the landing's crater it is still the busiest breaker. Try dropping `wire` or thinning Live Wire in the hang (combo lane)
 
 ## Round 38 (foe locomotion)

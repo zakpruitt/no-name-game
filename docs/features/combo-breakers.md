@@ -71,9 +71,8 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
 7. A breaker with `gather` (Meteor Fall, round 34) doesn't dive on the press: phase 3 (`_tick_beats`) hangs him
    while `VOID_ELEMENT.meteor_wall()` throws them at the walls and then `meteor_gather()` drags them into a pile, and
    only then `_dive()` takes him down onto it. The press part (`_brk_ended`, the cue, the slow motion ending, the
-   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive. Beat 1 also
-   pulls the camera out (`_meteor_frame()`: `camera_rig.punch(METEOR_PULL_OUT 1.3, METEOR_PULL_HOLD 0.8 s)`, the
-   rig's public zoom; the dive's own punch takes it back in) so the wall throws stay in frame.
+   PERFECT freeze) runs as the press lands, so the prompt and rhythm_check read it as a normal dive. The camera
+   pulls out through the beats on its own (camera_rig `HANG_FRAME_*`, `BEATS_PHASE`; docs/features/camera.md).
 
 ### Look
 
