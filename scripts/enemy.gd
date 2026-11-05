@@ -9,7 +9,8 @@ signal raise_requested(enemy: Node)
 
 enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 
-const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C", "Spellcasting"]
+## Spellcasting is out since round 38 b: the comic casters' windups are all tell, held on their last frame.
+const LOOPING := ["Idle_Combat", "Running_A", "Walking_D_Skeletons", "Running_C"]
 const PROJECTILE := preload("res://scripts/projectile.gd")
 
 @export var model_scene: PackedScene
@@ -22,6 +23,13 @@ var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (
 @export var attack_damage := 10.0
 @export var attack_windup := 0.6
 @export var attack_recover := 0.7
+## Frame of the melee clip (1H_Melee_Attack_Chop, at ATTACK_CLIP_FPS) where the blow lands (enemy_types
+## `attack_hit`, the comic foes' keyed contact, foe_cycles.py): the clip plays at
+## attack_hit / ATTACK_CLIP_FPS / attack_windup so that frame falls on the windup's end. 0 = the
+## KayKit rule, CHOP_HIT_AT of the clip's length.
+@export var attack_hit := 0.0
+const ATTACK_CLIP_FPS := 24.0
+const CHOP_HIT_AT := 0.45
 ## Knockback below this doesn't stagger (0 = always staggers).
 @export var poise := 0.0
 @export var model_scale := 1.0
@@ -431,7 +439,7 @@ func _state_chase(delta: float) -> void:
 		elif is_ranged():
 			_play("Spellcasting", 0.1, 1.2)
 		else:
-			_play("1H_Melee_Attack_Chop", 0.1, anim.get_animation("1H_Melee_Attack_Chop").length * 0.45 / attack_windup)
+			_play("1H_Melee_Attack_Chop", 0.1, chop_speed())
 		return
 	var dir := Vector3.ZERO
 	var behind: Vector3 = _player.global_position - _player.facing_dir() * 2.5 - global_position
@@ -459,6 +467,14 @@ func _state_chase(delta: float) -> void:
 	_play(run_anim if moving else "Idle_Combat")
 	if moving and comic_kind != "" and anim.current_animation == ComicLook.clip(anim, comic_kind, run_anim):
 		_clip_speed(run_clip_speed(Vector2(velocity.x, velocity.z).length()))
+
+
+## The melee clip's speed that puts its hit frame on the windup's end (attack_hit).
+func chop_speed() -> float:
+	var hit := attack_hit / ATTACK_CLIP_FPS
+	if hit <= 0.0:
+		hit = anim.get_animation("1H_Melee_Attack_Chop").length * CHOP_HIT_AT
+	return hit / attack_windup
 
 
 ## Push away from nearby enemies so groups spread out and surround.

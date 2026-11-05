@@ -28,6 +28,8 @@ ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 NAME = ARGS[0] if ARGS else 'minion'
 ONLY = next((a[5:].split(',') for a in ARGS if a.startswith('only=')), None)
 NOSHEET = 'nosheet' in ARGS
+SHEET = next((a[6:].split(',') for a in ARGS if a.startswith('sheet=')), None)  # sheet only these clips (keyed or not)
+NOEXPORT = 'noexport' in ARGS  # sheets only: no GLB, no blend (fast pose iteration)
 BLEND = bpy.data.filepath
 OUT = os.path.join(os.path.dirname(os.path.dirname(BLEND)), 'enemies_keyed'); os.makedirs(OUT, exist_ok=True)
 
@@ -221,18 +223,24 @@ FOOT_REACH = (LEN['foot.l'] * .8) if HAS_LEGS else 0.0  # ankle to the ball of t
 
 
 def solve(P, base):
-    """A pose dict -> each bone's matrix_basis."""
+    """A pose dict -> each bone's matrix_basis. `src` (clip, frame) takes the base from another clip's
+    frame instead (an overlay on the kit's own keys); `follow` {bone: target} carries a bone (one keyed
+    in world offsets, the archer's arrow) rigidly with the target's change from the base."""
+    if 'src' in P:
+        base = base_of(*P['src'])
     root = P.get('root', {})
     sq = root.get('sq', 0.0)
     wide = 1 + sq * .55
     mroot = compose(V(root.get('loc', (0, 0, 0))), rot(root.get('rot', (0, 0, 0))), (wide, wide, 1 - sq))
     mroot_inv = mroot.inverted()
     G = {}
+    G0 = {'root': REST['root'].copy()}
     over = {}
     yaw_q = rot((P.get('hipr', (0, 0, 0))[0], 0, 0))
     for n in ORDER:
         if n in over:
             G[n] = over[n]
+            G0[n] = (G0[PAR[n]] if PAR[n] else M.Identity(4)) @ LOCM[n] @ base[n]
             continue
         pm = G[PAR[n]] if PAR[n] else M.Identity(4)
         if n == 'root':
@@ -240,13 +248,21 @@ def solve(P, base):
             continue
         gc = pm @ LOCM[n] @ base[n]
         pos, q, sc = gc.decompose()
+        G0[n] = (G0[PAR[n]] if PAR[n] else M.Identity(4)) @ LOCM[n] @ base[n]
+        if n in P.get('keep', ()):  # hold the base's world facing (turned with the hips' yaw): a shield stays square
+            q = yaw_q @ G0[n].to_quaternion()
         if n == 'hips':
             pos = pos + V(P.get('hip', (0, 0, 0)))
             q = rot(P.get('hipr', (0, 0, 0))) @ q
         elif n in P and isinstance(P[n], tuple) and len(P[n]) == 3:
             q = rot(P[n]) @ q
+        if n in P.get('aim', {}):  # point the bone along (az, el) in the foe's frame, twisted tw about itself
+            a4 = tuple(P['aim'][n]) + (1.0,) * (4 - len(P['aim'][n]))  # (az, el, tw, weight): mixing to a pose without it fades the weight
+            az, el, tw = (math.radians(x) for x in a4[:3])
+            want = V((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))
+            q = q.slerp(Q(want, tw) @ (q @ V((0, 1, 0))).rotation_difference(want) @ q, a4[3])
         s = P.get('scale', {}).get(n)
-        G[n] = compose(pos, q, (s, s, s) if s else sc)
+        G[n] = compose(pos, q, (s, s, s) if s is not None else sc)
         if n.startswith('upperleg.') and HAS_LEGS and P.get('legs', True):
             side = n[-1]
             up, lo, ft = n, 'lowerleg.' + side, 'foot.' + side
@@ -276,6 +292,20 @@ def solve(P, base):
             G[up] = compose(p0, q_up)
             over[lo] = compose(knee, q_lo)
             over[ft] = compose(ankle, q_ft)
+    follow = dict(FOLLOW, **P.get('follow', {}))
+    if follow:
+        G0 = {}
+        for n in ORDER:  # the base's own globals, root at rest
+            G0[n] = REST[n].copy() if n == 'root' else (G0[PAR[n]] if PAR[n] else M.Identity(4)) @ LOCM[n] @ base[n]
+        for n in ORDER:
+            if n in follow and follow[n] in G:
+                t = follow[n]
+                d = G[t] @ G0[t].inverted() @ G0[n] @ G[n].inverted()
+                moved = {n}
+                for c in ORDER:  # it and everything under it
+                    if c in moved or PAR[c] in moved:
+                        moved.add(c)
+                        G[c] = d @ G[c]
     out = {}
     for n in ORDER:
         if n == 'root':
@@ -291,9 +321,24 @@ def solve(P, base):
     return out
 
 
+BASES = {}
+
+
+def base_of(clip, frame):
+    """A clip's pose at `frame` as the source blend had it (cached before anything is rewritten)."""
+    k = (clip, round(frame, 3))
+    if k not in BASES:
+        a = bpy.data.actions.get(clip + '__src') or bpy.data.actions[clip]
+        BASES[k] = basis_at(a, a.frame_range[0] + frame)
+    return BASES[k]
+
+
 def write(name, frames, base_name='Idle_Combat'):
-    """frames: list of pose dicts, frame 0..N. Replaces the action `name` (or adds it)."""
-    base = basis_at(bpy.data.actions[base_name], bpy.data.actions[base_name].frame_range[0])
+    """frames: list of pose dicts, frame 0..N. Replaces the action `name` (or adds it). Every base is
+    the source blend's (Idle_Combat frame 0 by default), so rewriting the idle moves no other clip."""
+    base = base_of(base_name, 0)
+    MISS[0] = 0.0
+    mats = [solve(P, base) for P in frames]
     old = bpy.data.actions.get(name)
     if old:
         old.name = name + '__old'
@@ -303,8 +348,6 @@ def write(name, frames, base_name='Idle_Combat'):
     ad.action = a
     if a.slots:
         ad.action_slot = a.slots[0]
-    MISS[0] = 0.0
-    mats = [solve(P, base) for P in frames]
     for n in ORDER:
         pb = rig.pose.bones[n]
         prev = None
@@ -326,7 +369,11 @@ def write(name, frames, base_name='Idle_Combat'):
                 fc.keyframe_points.foreach_set('interpolation', [1] * len(vals))
                 fc.update()
     if old:
-        bpy.data.actions.remove(old)
+        if any(k[0] == name for k in BASES):  # still a source for overlays: keep it, unexported
+            old.name = name + '__src'
+            old.use_fake_user = False
+        else:
+            bpy.data.actions.remove(old)
     print('[keys] %s %s %d frames, worst leg reach miss %.3f m' % (NAME, name, len(frames) - 1, MISS[0]))
     KEYED.append(name)
 
@@ -344,12 +391,25 @@ def lerp(a, b, t):
 def mix(p, q, t):
     out = {}
     for k in set(p) | set(q):
-        if k in ('feet', 'legs'):
+        if k == 'aim':  # a bone aimed in one pose only keeps that aim (aim it in both)
+            a, b = p.get(k, {}), q.get(k, {})
+            w4 = lambda x: tuple(x) + (1.0,) * (4 - len(x))
+            off = lambda x: w4(x)[:3] + (0.0,)
+            out[k] = {kk: lerp(w4(a[kk]) if kk in a else off(b[kk]), w4(b[kk]) if kk in b else off(a[kk]), t) for kk in set(a) | set(b)}
+            continue
+        if k in ('feet', 'legs', 'follow', 'keep'):
             out[k] = (p if t < .5 else q).get(k, p.get(k, q.get(k)))
+            continue
+        if k == 'src':  # (clip, frame): the overlay's source frame runs on with the keys
+            a, b = p.get(k, q.get(k)), q.get(k, p.get(k))
+            out[k] = (a[0], a[1] + (b[1] - a[1]) * t)
             continue
         a, b = p.get(k), q.get(k)
         if isinstance(a, dict) or isinstance(b, dict):
             a = a or {}; b = b or {}
+            if k == 'scale':  # a bone scaled in one pose and not the other goes back to 1
+                out[k] = {kk: lerp(a.get(kk, 1.0), b.get(kk, 1.0), t) for kk in set(a) | set(b)}
+                continue
             out[k] = {kk: lerp(a.get(kk, NEUTRAL_SUB.get(k, {}).get(kk, b.get(kk))), b.get(kk, NEUTRAL_SUB.get(k, {}).get(kk, a.get(kk))), t) for kk in set(a) | set(b)}
             continue
         if a is None:
@@ -379,12 +439,12 @@ EASE = {'lin': lambda t: t, 'in': lambda t: t * t, 'out': lambda t: 1 - (1 - t) 
         'io': lambda t: t * t * (3 - 2 * t), 'hold': lambda t: 0.0}
 
 
-def keyed(keys, n, step=2, held=('spine', 'chest', 'head', 'jaw', 'eye') + tuple(ARM_BONES)):
+def keyed(keys, n, step=2, held=('spine', 'chest', 'head', 'jaw', 'eye', 'scale', 'aim') + tuple(ARM_BONES)):
     """keys [(frame, pose, ease)] -> a pose per frame 0..n. Upper body held on twos (drawing every
     `step` frames and on every key); legs, hips and root every frame."""
     def at(f):
         for (f0, p0, e), (f1, p1, _e) in zip(keys, keys[1:]):
-            if f0 <= f <= f1:
+            if f0 <= f < f1:  # a key's own frame draws that key (a `hold` into it used to show the one before)
                 return mix(p0, p1, EASE[e]((f - f0) / max(f1 - f0, 1e-6)))
         return dict(keys[-1][1])
     marks = sorted(set(list(range(0, n + 1, step)) + [k[0] for k in keys]))
@@ -473,7 +533,8 @@ import importlib.util
 spec = importlib.util.spec_from_file_location('foe_cycles', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'foe_cycles.py'))
 CY = importlib.util.module_from_spec(spec); spec.loader.exec_module(CY)
 CFG = CY.FOES[NAME]
-ctx = {'STANCE': STANCE, 'REST': {n: REST[n].translation.copy() for n in REST}, 'keyed': keyed, 'run_cycle': run_cycle,
+FOLLOW = CY.FOLLOW.get(NAME, {})
+ctx = {'STANCE': STANCE, 'REST': {n: REST[n].translation.copy() for n in REST}, 'keyed': keyed, 'run_cycle': run_cycle, 'mix': mix,
        'HAS_LEGS': HAS_LEGS, 'bones': set(REST), 'FPS': FPS,
        'length': lambda n: int(round(bpy.data.actions[n].frame_range[1] - bpy.data.actions[n].frame_range[0])) if n in bpy.data.actions else 0}
 for clip, make in CFG.items():
@@ -487,7 +548,7 @@ if HAS_EYES:
         key_eyes_on(a)
 
 # ------------------------------------------------------------------ export, as chunk_pass.py
-ad = rig.animation_data
+ad = rig.animation_data or rig.animation_data_create()
 acts = [a for a in bpy.data.actions if a.use_fake_user]
 for t in list(ad.nla_tracks):
     ad.nla_tracks.remove(t)
@@ -500,8 +561,9 @@ rig.select_set(True)
 for o in rig.children:
     o.select_set(True)
 bpy.context.view_layer.objects.active = rig
-bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, NAME + '.glb'), export_format='GLB', use_selection=True, export_apply=False,
-                          export_animations=True, export_animation_mode='ACTIONS', export_skins=True, export_cameras=False, export_lights=False)
+if not NOEXPORT:
+    bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, NAME + '.glb'), export_format='GLB', use_selection=True, export_apply=False,
+                              export_animations=True, export_animation_mode='ACTIONS', export_skins=True, export_cameras=False, export_lights=False)
 for t in list(ad.nla_tracks):
     ad.nla_tracks.remove(t)
 
@@ -514,8 +576,13 @@ def show(action, frame):
     bpy.context.scene.frame_set(int(frame))
 
 
-# ------------------------------------------------------------------ side sheet: every keyed clip, a frame a tile
-if not NOSHEET and KEYED:
+# ------------------------------------------------------------------ sheet: every keyed clip, a frame a tile
+# Two rows per clip: the side (from its left, legs and falls read here) and the game camera's angle
+# (54 degrees up, 35 degrees round from the front: what the player sees of a tell and a strike).
+GAME_DIR = V((math.sin(math.radians(35)) * math.cos(math.radians(54)), -math.cos(math.radians(35)) * math.cos(math.radians(54)),
+              math.sin(math.radians(54))))
+SHEET_CLIPS = SHEET if SHEET is not None else KEYED
+if not NOSHEET and SHEET_CLIPS:
     import tempfile, subprocess, shutil
     scn = bpy.context.scene
     try:
@@ -524,47 +591,57 @@ if not NOSHEET and KEYED:
         pass
     scn.display.shading.light = 'STUDIO'
     scn.display.shading.color_type = 'MATERIAL'
-    scn.render.resolution_x, scn.render.resolution_y = 300, 300
+    scn.render.resolution_x, scn.render.resolution_y = 240, 240
     scn.render.film_transparent = False
     h = max(REST['head'].translation.z + LEN['head'], 1.0)
-    cam_d = bpy.data.cameras.new('KeysCam'); cam_d.type = 'ORTHO'; cam_d.ortho_scale = h * 2.7
+    cam_d = bpy.data.cameras.new('KeysCam'); cam_d.type = 'ORTHO'; cam_d.ortho_scale = h * 2.1
     cam = bpy.data.objects.new('KeysCam', cam_d); scn.collection.objects.link(cam)
-    cam.location = (6, 0, h * .85); cam.rotation_euler = (math.pi / 2, 0, math.pi / 2)   # from its left, looking -X
     scn.camera = cam
+    centre = V((0, 0, h * .6))
+    views = {'side': (V((6, 0, h * .6)), (math.pi / 2, 0, math.pi / 2)),
+             'game': (centre + GAME_DIR * 8, GAME_DIR.to_track_quat('Z', 'Y').to_euler())}
     for o in bpy.data.objects:
         if o.type == 'MESH' and o.name.startswith(('floor', 'Floor')):
             o.hide_render = False
     tmp = tempfile.mkdtemp(prefix='keys_')
     sheet = []
-    for clip in KEYED:
+    for clip in SHEET_CLIPS:
+        if clip not in bpy.data.actions:
+            continue
         a = bpy.data.actions[clip]
         f0, f1 = (int(x) for x in a.frame_range)
-        step = 1 if f1 - f0 <= 16 else 2
-        tiles = list(range(f0, f1 + 1, step))[:24]
+        step = 1 if f1 - f0 < 40 else 2
+        tiles = list(range(f0, f1 + 1, step))[:40]
         while len(tiles) % 8:
             tiles.append(-1)
-        for i, f in enumerate(tiles):
-            p = os.path.join(tmp, '%s_%03d.png' % (clip, i))
-            if f < 0:
-                shutil.copy(os.path.join(tmp, '%s_%03d.png' % (clip, i - 1)), p)
-                continue
-            show(clip, f)
-            scn.render.filepath = p
-            bpy.ops.render.render(write_still=True)
-        row = os.path.join(tmp, 'row_%s.png' % clip)
-        subprocess.run(['C:/ffmpeg/bin/ffmpeg.exe', '-y', '-loglevel', 'error', '-framerate', '1', '-i', os.path.join(tmp, clip + '_%03d.png'),
-                        '-vf', 'tile=8x%d' % (len(tiles) // 8), '-frames:v', '1', row], check=True)
-        sheet.append(row)
+        for view, (loc, eul) in views.items():
+            cam.location = loc; cam.rotation_euler = eul
+            tag = clip + '_' + view
+            for i, f in enumerate(tiles):
+                p = os.path.join(tmp, '%s_%03d.png' % (tag, i))
+                if f < 0:
+                    shutil.copy(os.path.join(tmp, '%s_%03d.png' % (tag, i - 1)), p)
+                    continue
+                show(clip, f)
+                scn.render.filepath = p
+                bpy.ops.render.render(write_still=True)
+            row = os.path.join(tmp, 'row_%s.png' % tag)
+            subprocess.run(['C:/ffmpeg/bin/ffmpeg.exe', '-y', '-loglevel', 'error', '-framerate', '1', '-i', os.path.join(tmp, tag + '_%03d.png'),
+                            '-vf', 'tile=8x%d' % (len(tiles) // 8),
+                            '-frames:v', '1', row], check=True)
+            sheet.append(row)
     args = ['C:/ffmpeg/bin/ffmpeg.exe', '-y', '-loglevel', 'error']
     for r in sheet:
         args += ['-i', r]
+    out_png = os.path.join(OUT, NAME + ('_keys.png' if SHEET is None else '_sheet.png'))
     args += ['-filter_complex', ''.join('[%d:v]' % i for i in range(len(sheet))) + 'vstack=inputs=%d' % len(sheet) if len(sheet) > 1 else 'null',
-             os.path.join(OUT, NAME + '_keys.png')]
+             out_png]
     subprocess.run(args, check=True)
     shutil.rmtree(tmp, ignore_errors=True)
     bpy.data.objects.remove(cam)
-    print('[keys] sheet', os.path.join(OUT, NAME + '_keys.png'), 'rows:', ', '.join(KEYED))
+    print('[keys] sheet', out_png, 'rows:', ', '.join(SHEET_CLIPS))
 
 show('Idle_Combat', 0)
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, NAME + '.blend'))
+if not NOEXPORT:
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, NAME + '.blend'))
 print('[keys] done', NAME, 'keyed:', ', '.join(KEYED))
