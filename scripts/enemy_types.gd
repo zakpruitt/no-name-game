@@ -12,7 +12,7 @@ extends RefCounted
 
 const TYPES := {
 	"minion": {"model": "Skeleton_Minion", "title": "skeleton minion", "bar_height": 2.2, "run_foot_speed": 3.51},
-	"warrior": {"model": "Skeleton_Warrior", "title": "skeleton warrior", "bar_height": 2.4, "run_foot_speed": 0.96, "max_hp": 75.0, "move_speed": 2.8, "attack_damage": 16.0,
+	"warrior": {"model": "Skeleton_Warrior", "title": "skeleton warrior", "bar_height": 2.4, "run_foot_speed": 2.40, "max_hp": 75.0, "move_speed": 2.8, "attack_damage": 16.0,
 		"attack_windup": 0.8, "poise": 8.0, "model_scale": 1.15},
 	"mage": {"model": "Skeleton_Mage", "title": "skeleton mage", "bar_height": 2.4, "run_foot_speed": 1.53, "max_hp": 24.0, "move_speed": 3.0, "attack_kind": "ranged",
 		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
