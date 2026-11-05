@@ -101,6 +101,13 @@ const GRIN_TILT := 7.0  # degrees: the smirk's lift
 const GRIN_TEETH := 5  # top row; the bottom row sits between them
 const GRIN_MOUTH := Color(0.16, 0.02, 0.12)
 const GRIN_TOOTH := Color(1.0, 0.96, 0.84)  # the rim's paper
+## The face (hero pass 2): a clean dark oval in the hood's opening behind the eyes and the grin, so they
+## sit on shadow from every side instead of on Meshy's mask (a dark V with the white cowl round it, which
+## the grin overlapped in 3/4 views). Camera-facing like them but depth-tested: the brim and the claw
+## cover it, so it reads as the shadow under the hood's edge. Skeleton rest space before HEAD_GROW, radii in m.
+const FACE_SHADE := {"chibi": Vector3(0.062, 1.2, 0.09)}
+const FACE_SHADE_SIZE := Vector2(0.16, 0.12)
+const FACE_SHADE_COLOR := Color(0.045, 0.035, 0.085)  # chibi_repaint.TONES["face"]
 ## Squint (round 40): the eye slits narrow on an attack, squeeze nearly shut when he is hit, blink now and
 ## then, and the grin bares wider on an attack and grits flat when hit. `squint` is public for checks.
 const SQUINT_ATTACK := 0.5  # 0 open .. 1 shut
@@ -453,6 +460,40 @@ func _add_grin(skel: Skeleton3D) -> void:
 	mi.position = rest.affine_inverse() * _grown(GRIN[Game.hero_model] as Vector3, rest.origin)
 	mi.scale = Vector3.ONE * _face_k
 	follow.add_child(mi)
+	if FACE_SHADE.has(Game.hero_model):
+		follow.add_child(_face_shade(rest))
+
+
+## The dark oval behind the face decals (FACE_SHADE): child 1 of the grin's attachment, shown with it.
+func _face_shade(rest: Transform3D) -> MeshInstance3D:
+	var verts := PackedVector3Array()
+	var n := 20
+	for i in n:
+		var a := TAU * i / n
+		var b := TAU * (i + 1) / n
+		verts.append_array([Vector3.ZERO, Vector3(cos(b) * FACE_SHADE_SIZE.x, sin(b) * FACE_SHADE_SIZE.y, 0.0),
+			Vector3(cos(a) * FACE_SHADE_SIZE.x, sin(a) * FACE_SHADE_SIZE.y, 0.0)])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_keep_scale = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = FACE_SHADE_COLOR
+	mat.disable_fog = true
+	var mi := MeshInstance3D.new()
+	mi.name = "FaceShade"
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.set_meta("no_ghost", true)
+	mi.position = rest.affine_inverse() * _grown(FACE_SHADE[Game.hero_model] as Vector3, rest.origin)
+	mi.scale = Vector3.ONE * _face_k
+	return mi
 
 
 ## The grin's upper lip at x (billboard space, before the tilt): the corners curve up.

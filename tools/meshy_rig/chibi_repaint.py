@@ -47,6 +47,15 @@ SKIRT_HEM = 0.3        # of the skirt's height from its lowest point
 TIP_W = 0.5            # weight on a claw's last bone past which it is the tip
 CLAW_X = -0.34         # m: everything past the right wrist (rest pose) is claw, whatever the old paint
 CLAW_Y = -0.2          # m: and everything this far ahead of him (the claw is held out in front at rest)
+# The face (hero pass 2): Meshy's sculpted mask (a dark V between slanted cyan texture eyes, a chin
+# below, crimson lining showing at the cheeks) becomes one clean dark oval in the hood's opening, seen
+# from the front: every head texel inside it is painted face, the hood's low front brim included (from the
+# game camera's height the grin decal lands on the brim, not in the opening), the texture eyes included
+# (heretic_rig.gd's EYES decals are the eyes), and the lining rings it. Centre and radii in the
+# rest pose, Blender axes, round heretic_rig.gd's EYES and GRIN (x 0.06, z 1.25 / 1.185), reaching down
+# over the cowl under the chin, which is what lies behind the grin from above.
+FACE_OVAL = (0.06, 1.16, 0.17, 0.18)    # x, z centre, x, z radius (m)
+FACE_FRONT = 0.05                        # m: only surfaces in front of this y (his front is -y)
 ROOT_R = 0.075         # m round the wrist joint: the claw's root band, a cuff where it leaves the sleeve
 
 ob = bpy.data.objects["heretic"]
@@ -210,13 +219,22 @@ print("regions", Counter(lab).most_common())
 boot_top = np.percentile(c[lab == "boot", 2], 99)
 sk = c[lab == "skirt", 2]
 skirt_hem_z = sk.min() + (np.percentile(sk, 98) - sk.min()) * SKIRT_HEM
-FIELDS = np.stack([co[:, 2], w_tip, w_root], 1)   # z, tip weight, distance from the wrist
+FIELDS = np.stack([co[:, 2], w_tip, w_root, co[:, 0], co[:, 1]], 1)   # z, tip weight, distance from the wrist, x, y
 
 
 def tone(label, f):
     """Per-texel tone name from the triangle's region and the interpolated fields (z, tip, root)."""
-    z, tip, root = f[..., 0], f[..., 1], f[..., 2]
+    z, tip, root, x, y = f[..., 0], f[..., 1], f[..., 2], f[..., 3], f[..., 4]
     out = np.full(z.shape, label, object)
+    if label in ("face", "eye", "lining", "hood"):
+        cx, cz, rx, rz = FACE_OVAL
+        inside = (((x - cx) / rx) ** 2 + ((z - cz) / rz) ** 2 < 1.0) & (y < FACE_FRONT)
+        out[inside] = "face"
+        if label == "hood":   # the brim hangs over the face: seen from above, the grin lands on it
+            return out
+        if label != "lining":
+            out[~inside] = "lining"   # the mask's corners outside the oval: the hood's inside
+        return out
     if label == "claw":
         out[root < ROOT_R] = "claw_root"
         out[tip > TIP_W] = "claw_tip"

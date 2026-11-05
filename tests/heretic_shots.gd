@@ -313,7 +313,7 @@ func _initialize() -> void:
 		_check(not rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05) + Vector3(0.4, 0.0, 0.0)]), 0.07)
 			and not rig._covered(cam, eye, PackedVector3Array([eye + Vector3(0.0, -0.3, -0.3)]), 0.07),
 			"but not behind a claw beside it or behind him")
-		_check(rig.grin != null and rig.grin.get_child_count() == 1, "the chibi grins under them")
+		_check(rig.grin != null and rig.grin.get_child_count() == 2 and rig.grin.get_child(1).name == "FaceShade", "the chibi grins under them, on a dark face oval")
 		p.state = p.State.HURT
 		await create_timer(0.25).timeout
 		await skel.skeleton_updated

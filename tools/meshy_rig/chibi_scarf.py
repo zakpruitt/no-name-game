@@ -45,8 +45,10 @@ def texel(tone):
         for dx in range(-k, k + 1):
             ok &= np.roll(d, (dy, dx), (0, 1))
     ys, xs = np.nonzero(ok)
-    if len(ys) == 0:
-        raise SystemExit("no flat texel for %s" % (tone,))
+    if len(ys) == 0:   # a --debug repaint has no scarf tone: take the nearest texel
+        y, x = np.unravel_index(np.abs(px - np.array(tone, np.float32)).sum(-1).argmin(), (H, W))
+        print("[scarf] no flat texel for %s, nearest at %d %d" % (tone, x, y))
+        return ((x + 0.5) / W, (y + 0.5) / H)
     i = len(ys) // 2
     return ((xs[i] + 0.5) / W, (ys[i] + 0.5) / H)
 
