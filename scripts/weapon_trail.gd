@@ -21,6 +21,10 @@ const LIFE_GROW := 0.6  # extra lifetime per unit of swell (x1.33 at the most)
 const SWELL_MAX := 0.35
 const AWAKEN_SWELL_MAX := 0.12
 const AWAKEN_ALPHA := 0.6  # times the ribbon's alpha while Awakened
+# Round 33 (sleek): the ribbon is a see-through gradient with a light line on its tip (shader `body_alpha`),
+# and while Awakened it is nearly only that line.
+const BODY_ALPHA := 0.5
+const AWAKEN_BODY_ALPHA := 0.18
 
 @export var lifetime := 0.2
 ## Body colour (alpha = opacity); the leading edge is this lightened toward white.
@@ -83,6 +87,7 @@ func _process(delta: float) -> void:
 
 	_imesh.clear_surfaces()
 	_gold = _awakened()
+	_mat.set_shader_parameter("body_alpha", AWAKEN_BODY_ALPHA if _gold else BODY_ALPHA)
 	var n := _points.size()
 	if n < 2:
 		return
