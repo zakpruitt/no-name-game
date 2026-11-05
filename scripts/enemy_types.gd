@@ -23,7 +23,7 @@ const TYPES := {
 		"attack_range": 13.0, "preferred_range": 10.0, "attack_damage": 14.0, "attack_windup": 1.1,
 		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A",
 		"cloth_color": Color(0.22, 0.42, 0.3)},
-	"shield": {"model": "Skeleton_Minion", "title": "shield skeleton", "bar_height": 2.45, "run_foot_speed": 0.96, "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
+	"shield": {"model": "Skeleton_Minion", "title": "shield skeleton", "bar_height": 2.45, "run_foot_speed": 3.07, "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
 	"necromancer": {"model": "Skeleton_Mage", "title": "necromancer", "bar_height": 2.8, "max_hp": 34.0, "move_speed": 2.8, "attack_kind": "raise",
 		"attack_range": 14.0, "preferred_range": 11.0, "attack_damage": 8.0, "attack_windup": 1.2,
