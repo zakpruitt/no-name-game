@@ -323,6 +323,16 @@ func _initialize() -> void:
 		await create_timer(0.3).timeout
 		await skel.skeleton_updated
 		_check(hurt_squint > 0.8 and rig.squint < 0.2, "eyes squeeze shut when hit, open after (%.2f, %.2f)" % [hurt_squint, rig.squint])
+		# the scarf tail (round 40, hero pass 2): its own chain on its own spring, waving while he stands
+		var tail := skel.find_bone("scarf.04")
+		_check(rig._scarf.size() == 4 and skel.get_node_or_null("ScarfSprings") != null, "the chibi has a scarf tail on its own spring")
+		if tail >= 0:
+			await skel.skeleton_updated
+			var t0 := skel.get_bone_global_pose(tail).origin
+			await create_timer(0.3).timeout
+			await skel.skeleton_updated
+			var t1 := skel.get_bone_global_pose(tail).origin
+			_check(t0.distance_to(t1) > 0.005 and t1.z < -0.2, "and it flutters behind him (moved %.3f m, z %.2f)" % [t0.distance_to(t1), t1.z])
 
 	# skirt: at rest it holds; yank him sideways and it should lag behind
 	var sb := skel.find_bone("skirt.03.3")

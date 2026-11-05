@@ -117,6 +117,20 @@ const SKIRT_STIFFNESS := 2.2
 const SKIRT_DRAG := 0.55
 const SKIRT_GRAVITY := 0.9
 const SKIRT_RADIUS := 0.035
+## The scarf tail (round 40, hero pass 2: tools/meshy_rig/chibi_scarf.py): scarf.01 .. scarf.NN off chest, on
+## its own spring (looser than the skirt) with a body capsule so it never folds into his back. Before the
+## spring reads the pose, `_flutter_scarf` waves it and lifts it back with his speed, so it streams out
+## behind a run and the spring carries the overshoot after a dash or a stop. Skipped on models without it.
+const SCARF_ROOT := "scarf.01"
+const SCARF_STIFFNESS := 1.6
+const SCARF_DRAG := 0.35
+const SCARF_GRAVITY := 0.6
+const SCARF_RADIUS := 0.045
+const SCARF_BODY := ["spine", 0.17, 0.5]  # bone, capsule radius, length up it
+const SCARF_FLUTTER_DEG := 7.0  # per bone at rest; grows to x2.5 at full run
+const SCARF_FLUTTER_HZ := 1.6
+const SCARF_LIFT_DEG := 35.0  # first bones lifted back at full run (move_speed)
+const SCARF_RUN_SPEED := 7.5  # m/s: player.move_speed
 ## Bone -> capsule radius, length: so the skirt rides over his thighs.
 const LEG_CAPSULES := {"upperleg.l": [0.11, 0.42], "upperleg.r": [0.11, 0.42]}
 const RIM_SHADER := preload("res://shaders/hero_rim.gdshader")
@@ -154,6 +168,9 @@ var _root := -1  # the root bone (turn lean)
 var _vel_lag := Vector3.ZERO
 var lean := Vector2.ZERO  # degrees: x towards his right, y towards his front
 var _lean_v := Vector2.ZERO
+var _scarf := PackedInt32Array()  # scarf.01 .., when the model has the tail
+var _scarf_speed := 0.0  # 0..1, eased
+var _time_scarf := 0.0
 
 
 func setup(arm: Node, skel: Skeleton3D) -> void:
@@ -294,6 +311,7 @@ func _add_springs(skel: Skeleton3D) -> void:
 		sim.set_drag(i, SKIRT_DRAG)
 		sim.set_gravity(i, SKIRT_GRAVITY)
 		sim.set_radius(i, SKIRT_RADIUS)
+	_add_scarf(skel)
 	for bone: String in LEG_CAPSULES:
 		var cap := SpringBoneCollisionCapsule3D.new()
 		cap.bone_name = bone
@@ -301,6 +319,51 @@ func _add_springs(skel: Skeleton3D) -> void:
 		cap.height = LEG_CAPSULES[bone][1]
 		cap.position_offset = Vector3(0.0, LEG_CAPSULES[bone][1] * 0.5, 0.0)
 		sim.add_child(cap)
+
+
+func _add_scarf(skel: Skeleton3D) -> void:
+	for i in MAX_CHAIN:
+		var b := skel.find_bone("scarf.%02d" % (i + 1))
+		if b < 0:
+			break
+		_scarf.append(b)
+	if _scarf.is_empty():
+		return
+	var sim := SpringBoneSimulator3D.new()
+	sim.name = "ScarfSprings"
+	skel.add_child(sim)
+	sim.setting_count = 1
+	sim.set_root_bone_name(0, SCARF_ROOT)
+	sim.set_end_bone_name(0, skel.get_bone_name(_scarf[_scarf.size() - 1]))
+	sim.set_extend_end_bone(0, true)
+	sim.set_end_bone_direction(0, SkeletonModifier3D.BONE_DIRECTION_FROM_PARENT)
+	sim.set_end_bone_length(0, 0.1)
+	sim.set_stiffness(0, SCARF_STIFFNESS)
+	sim.set_drag(0, SCARF_DRAG)
+	sim.set_gravity(0, SCARF_GRAVITY)
+	sim.set_radius(0, SCARF_RADIUS)
+	var cap := SpringBoneCollisionCapsule3D.new()
+	cap.bone_name = SCARF_BODY[0]
+	cap.radius = SCARF_BODY[1]
+	cap.height = SCARF_BODY[2]
+	cap.position_offset = Vector3(0.0, SCARF_BODY[2] * 0.4, 0.0)
+	sim.add_child(cap)
+
+
+## Wave the scarf chain and lift it back with his speed, on top of the rest pose (no clip keys it).
+func _flutter_scarf(delta: float, skel: Skeleton3D) -> void:
+	if _scarf.is_empty():
+		return
+	var hero: CharacterBody3D = void_arm.hero
+	var v := Vector2(hero.velocity.x, hero.velocity.z).length() / SCARF_RUN_SPEED
+	_scarf_speed = move_toward(_scarf_speed, clampf(v, 0.0, 1.0), delta * 4.0)
+	var amp := SCARF_FLUTTER_DEG * lerpf(1.0, 2.5, _scarf_speed)
+	var hz := SCARF_FLUTTER_HZ * lerpf(1.0, 2.2, _scarf_speed)
+	for j in _scarf.size():
+		var wave := sin(_time_scarf * TAU * hz - j * 0.9)
+		var lift := SCARF_LIFT_DEG * _scarf_speed * (1.0 if j < 2 else 0.4)
+		var q := Quaternion(Vector3.RIGHT, deg_to_rad(wave * amp - lift)) * Quaternion(Vector3.FORWARD, deg_to_rad(wave * amp * 0.4))
+		skel.set_bone_pose_rotation(_scarf[j], skel.get_bone_rest(_scarf[j]).basis.get_rotation_quaternion() * q)
 
 
 ## Two glowing almonds on the head bone, facing the camera, drawn as the burst is drawn.
@@ -543,6 +606,8 @@ func _process_modification_with_delta(delta: float) -> void:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
 	_lean_into_turns(delta, skel)
+	_time_scarf += delta
+	_flutter_scarf(delta, skel)
 	if eyes != null:
 		_step_face(delta)
 		_face_eyes(skel)  # last: the claw is where this frame puts it
