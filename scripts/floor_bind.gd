@@ -85,7 +85,15 @@ func _physics_process(delta: float) -> void:
 			for rope: Dictionary in s.ropes:
 				rope.from += moved
 			s.at = e.global_position
-		elif wells and not s.welled:
+			s.flew = true
+		elif s.get("flew", false):  # (landed this frame: the flight may have moved it after we looked, so take it here)
+			s.flew = false
+			var last: Vector3 = e.global_position - s.at
+			last.y = 0.0
+			for rope: Dictionary in s.ropes:
+				rope.from += last
+			s.at = e.global_position
+		if not flying and wells and not s.welled:
 			s.welled = true
 			ELEMENTS.well(hero.get_parent(), e.global_position)
 		if not s.big and not flying:
