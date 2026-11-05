@@ -67,6 +67,8 @@ const LEAN_MAX := 15.0  # degrees
 const LEAN_LAG := 0.12  # s
 const LEAN_STIFF := 600.0  # spring: about 3.9 Hz
 const LEAN_DAMP := 34.0  # a little under critical (49): one small overshoot
+const LEAN_MAX_DELTA := 0.05  # s: a longer frame (a spike) counts as this much
+const LEAN_SUBSTEP := 1.0 / 120.0  # s per spring step
 
 ## Glowing eyes under the hood, per Game.hero_model, in skeleton rest space (Godot axes, metres):
 ## measured from the texture's cyan eyes on chibi_rig_v1.blend, x1.088 for the 1.85 m bake, then
@@ -408,8 +410,19 @@ func _lean_into_turns(delta: float, skel: Skeleton3D) -> void:
 		var right := fwd.cross(Vector3.UP)  # he faces +Z; his right is -X in model space
 		var d := vel - _vel_lag
 		want = Vector2(d.dot(right) * LEAN_DEG, d.dot(fwd) * LEAN_DEG * LEAN_ALONG).limit_length(LEAN_MAX)
-	_lean_v += ((want - lean) * LEAN_STIFF - _lean_v * LEAN_DAMP) * delta
-	lean += _lean_v * delta
+	# The spring is stiff (explicit steps blow up past ~0.06 s), so a long frame spike is capped and
+	# stepped in small pieces; anything non-finite resets it rather than sticking (the hero vanished).
+	var left := minf(delta, LEAN_MAX_DELTA)
+	while left > 0.0:
+		var dt := minf(left, LEAN_SUBSTEP)
+		left -= dt
+		_lean_v += ((want - lean) * LEAN_STIFF - _lean_v * LEAN_DAMP) * dt
+		lean += _lean_v * dt
+	if not (lean.is_finite() and _lean_v.is_finite() and _vel_lag.is_finite()):
+		lean = Vector2.ZERO
+		_lean_v = Vector2.ZERO
+		_vel_lag = vel if vel.is_finite() else Vector3.ZERO
+		return
 	if lean.length() < 0.01:
 		return
 	# tilt the top of him towards (right, front): about the axis up x that direction, in skeleton space
@@ -417,8 +430,10 @@ func _lean_into_turns(delta: float, skel: Skeleton3D) -> void:
 	var fwd_s := (inv * skel.global_transform.basis.z).normalized()
 	var up_s := (inv * Vector3.UP).normalized()
 	var right_s := fwd_s.cross(up_s)
-	var dir := (right_s * lean.x + fwd_s * lean.y).normalized()
-	var q := Quaternion(up_s.cross(dir).normalized(), deg_to_rad(lean.length()))
+	var axis := up_s.cross(right_s * lean.x + fwd_s * lean.y)
+	if not axis.is_finite() or axis.length_squared() < 1e-8:
+		return
+	var q := Quaternion(axis.normalized(), deg_to_rad(minf(lean.length(), LEAN_MAX * 1.5)))
 	skel.set_bone_pose_rotation(_root, q * skel.get_bone_pose_rotation(_root))
 
 
