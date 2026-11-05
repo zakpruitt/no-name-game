@@ -218,3 +218,9 @@ the worktree, and deletes the branch once it has been merged.
   filmed); with the 17 strings the full film is about two minutes.
 - **Python patches into CRLF files:** read with `newline=''`, write `\r\n` in every inserted line; a triple-quoted block
   with bare newlines mixed endings in training_bot.gd (git warns "LF will be replaced by CRLF").
+- **Round 33, part 2 (FX sleek):** a "string started" hook already existed as state: `_chain_i` resets to 0 0.35 s
+  after a move ends and at a breaker's end, so "no chain and not attacking last frame, attacking now" is a string's
+  first move. Reading it from ComicFx (`standing_fx.watch`) kept player.gd untouched while the combo lane edited it.
+- **Logic behind a visual needs a headless check:** `tests/fx_sleek_check.gd` sets the hero's fields by hand (with
+  his `_physics_process` off) and calls the watcher and `ComicNumber.add` directly; flipping each feature off made it
+  FAIL, so it guards the behaviour, not only compilation.

@@ -281,9 +281,31 @@ not thick crayon.
 - **Smaller words.** `WORD_SCALE` 0.32-0.64 (0.42-0.84), breaker words 0.78 (1.0), outline FONT_SIZE / 9
   (/ 4), print offset 3 / 4 px (4 / 6); numbers `PIXEL` 0.0036 (0.0042), outline 12 px (26).
 
-Not in this lane, still thick: the spirit echo's ghost axe (gold slab on Awakened L2, teal on EC), the
-storm strike's gold sky column (`elements.storm_strike`), the breaker cue's floor rings, the brown earth spikes
-(`elements.spikes`) and the cyan spirit motes round him. See ROADMAP round 33.
+### Round 2 (the camera 34% further out, hero about 140 px at 1080p)
+
+- **Round 1 at the new distance:** filmed `string_film`, middle 60% of each frame. Hit stars, speed strokes,
+  swoosh lines, words and numbers all still read, so no width changed.
+- **See-through halftone shapes** (`shaders/ghost_halftone.gdshader` + `ghost_ink.gdshader`,
+  `spirit_echo.ghost_mat(colour)`, shared per palette): a depth-only pass, then screen-space halftone dots in
+  the palette's light tone over a faint body tone (`FILL` 0.3 mean alpha), then an inverted hull in ink
+  (`INK_PX` 3.2 px at 1080p) with a light-tone line over its inner half (`EDGE_PX` 1.7). The fill writes depth,
+  so the hulls only show past the silhouette and never darken it. Fade and gradient are instance uniforms
+  (`set_alpha()`, `fade_height` m: the fill fades out going up). Used by:
+  - the spirit echo's ghost axe (L1 / L2 / EC: teal spirit, gold Awakened), `FADE_OUT` 0.1 s (0.14);
+  - `elements.comic_column()`, the comic spirit / void strike from the sky (`storm_strike`): one 7 m column
+    0.45-0.7 m wide that fades out going up, an inked star at its foot, gone in 0.4 s (was an 8 m teal swirl
+    round a white-gold core, 0.7 s);
+  - comic earth spikes (`elements.spikes`): earth palette, fading up to the tips, standing `SPIKE_HOLD` 0.4
+    of their life (0.6), sinking in 0.25 (0.3). Ice spikes keep their flat two-tone ice.
+- **Breaker cue rings** 0.06 / 0.075 m in 0.03 m ink (0.12 / 0.15 in 0.055); timing colours unchanged.
+- **Spirit motes** (`elements.Orbit`, comic): a 0.075 m flat bead in the palette's light tone in a 1.6 px ink
+  hull (`mote_mat`), not a 3x HDR dot in a teal halo.
+- **One number per breaker** (`comic_number.gd` `BREAKER_*`): see combo-breakers.md.
+- **The last string's floor clears** (`scripts/standing_fx.gd`): the frost spear's floor frost and its rings,
+  dark pools, Reap's marks and comic cracks register with `STANDING.add(self)`; when the next string's first
+  hit lands, those born before that string started run `clear_standing()` (a 0.15 s fade of the look only;
+  the chill, the mark and the spear stay). ComicFx calls `STANDING.watch(hero)` every frame: a string starts
+  when he starts a move from no chain (`_chain_i` 0, not attacking or leaping). Check: `tests/fx_sleek_check.gd`.
 
 ## Invariants
 
