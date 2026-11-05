@@ -10,6 +10,7 @@ const STEPS_PER_S := 12.0  # on twos
 const INK := Color(0.012, 0.01, 0.02)
 const HOT := Color(1.0, 0.86, 0.2)
 const COOL := 0.4  # how far the colour darkens once it cools (soot sank into the indigo floor)
+const LINE := 0.035  # m of ink round the colour (fx_palette.LINE)
 const LIFT := 0.06  # m over the floor (the floor stones' tallest is 0.05)
 const SPLAT := 0.3  # of the radius: the middle splat
 const CRACKS := Vector2i(5, 7)
@@ -17,6 +18,7 @@ const CRACK_REACH := Vector2(0.65, 1.0)  # of the radius
 const CRACK_W := 0.07  # m of ink each side at the root, per metre of radius (capped)
 const CRACK_W_MAX := 0.22
 const HOT_STEPS := 2  # steps the colour glows before it cools
+const MAX_TIME := 0.9  # s: round 33 (sleek; feel audit item 7), a 1.2-1.4 s mark sat under the next string
 const OUT_AT := 0.7  # of its time: from here it shrinks away
 
 static var _mat: StandardMaterial3D
@@ -39,7 +41,7 @@ static func spawn(parent: Node, pos: Vector3, c: Color, r: float, t: float) -> N
 	var k: Node3D = SELF.new()
 	k.color = c
 	k.radius = r
-	k.time = t
+	k.time = minf(t, MAX_TIME)
 	parent.add_child(k)
 	k.global_position = Vector3(pos.x, LIFT + randf() * 0.01, pos.z)  # (jitter: overlapping marks don't z-fight)
 	return k
@@ -108,9 +110,10 @@ func _draw(step: int) -> void:
 	var w := minf(CRACK_W * radius, CRACK_W_MAX) * k
 	var tone := color if hot else color.darkened(COOL)
 	_y = 0.0
+	# Round 33 (sleek): a thin ink line round the colour (was ink 2.4x the colour's width).
 	for pts: PackedVector2Array in _cracks:
-		_crack(pts, w * 1.0, grow * k, INK)
-	_blob(radius * SPLAT * grow * k * 1.25, INK)
+		_crack(pts, w * 0.42 + LINE, grow * k, INK)
+	_blob(radius * SPLAT * grow * k * 0.8 + LINE * 2.0, INK)
 	_y = 0.006
 	if out < 0.8:
 		for pts: PackedVector2Array in _cracks:

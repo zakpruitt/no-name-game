@@ -14,6 +14,9 @@ const HOT := Color(1.0, 0.4, 0.95)
 const MARK_NAME := "VoidMark"
 const MARK_TIME := 6.0  # s
 const MARK_R := 0.75  # m round the foe's feet
+## Round 33 (sleek; feel audit item 7): a pool's ink stays on the floor at most this long, whatever its
+## gameplay time (the binds still hold the foes): at 1.8-2.2 s it sat under the next string.
+const POOL_SHOW := 1.1
 
 
 static func flat_mat(color: Color, ink := false) -> StandardMaterial3D:
@@ -212,7 +215,7 @@ class Pool extends Node3D:
 
 	func _process(delta: float) -> void:
 		_t += delta
-		if _t >= time:
+		if _t >= time or _t >= SELF.POOL_SHOW:
 			set_process(false)
 			var tw := create_tween()
 			tw.tween_method(SELF.set_param.bind(_ink, "erode"), 0.0, 1.0, 0.25)
@@ -319,7 +322,7 @@ class Hole extends Node3D:
 		SELF.hoop_run(parent, at, 0.5, RADIUS, 0.28, HOT, 0.1)
 		SELF.hoop_run(parent, at, 0.3, RADIUS * 0.7, 0.24, Color.WHITE, 0.06)
 		SELF.splat(parent, at + Vector3.UP * 1.2, COLLAPSE_SPLAT)
-		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 10, RADIUS * 0.6)
+		SELF.ink_drops(parent, at + Vector3.UP * 0.8, 5, RADIUS * 0.6)
 		Fx.shards(parent, at + Vector3.UP * 0.5, INK, 16, Vector3.UP, 10.0, 0.22, 0.5)
 		queue_free()
 
@@ -442,7 +445,7 @@ class Maw extends Node3D:
 			f.pivot.scale.y = 1.0
 			f.pivot.rotation.x = LEAN_SNAP + f.jitter
 		SELF.splat(get_parent(), global_position + Vector3.UP * 1.3, r * 1.25)
-		SELF.ink_drops(get_parent(), global_position + Vector3.UP * 0.8, 12, r * 1.5)
+		SELF.ink_drops(get_parent(), global_position + Vector3.UP * 0.8, 6, r * 1.5)
 		SELF.hoop_run(get_parent(), global_position, r * 0.9, r * 1.45, 0.2, HOT, 0.05)
 
 	func _sink() -> void:
@@ -473,6 +476,7 @@ class Splat extends Node3D:
 	const SEGMENTS := 4  # each narrows to its joint, so the arm reads as a tentacle
 	const POINTS := 16
 	const BLOB := 0.3  # of the size: the middle
+	const SLEEK_W := 0.75  # round 33 (sleek): thinner arms, with a thin ink line instead of a hull 1.6x the violet
 
 	var size := 3.0
 	var _t := 0.0
@@ -525,14 +529,16 @@ class Splat extends Node3D:
 		_verts.clear()
 		_colors.clear()
 		var reach: float = size * REACH_BY_FRAME[f]
-		var w: float = size * ARM_W * WIDTH_BY_FRAME[f]
+		var w: float = size * ARM_W * SLEEK_W * WIDTH_BY_FRAME[f]
 		var last := f == FRAMES.size() - 1
+		var line := 0.035 * 2.0  # fx_palette.LINE each side
 		for arm: Array in _arms:
-			_arm(arm, reach, w * 1.0, INK)
-		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 1.25, INK)
+			_arm(arm, reach, w * 0.62 + line, INK)
+		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9 + line, INK)
+		var body := Color(VIOLET, 0.6 if last else 0.88)
 		for arm: Array in _arms:
-			_arm(arm, reach * 0.97, w * 0.62, VIOLET)
-		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9, VIOLET)
+			_arm(arm, reach * 0.97, w * 0.62, body)
+		_disc(size * BLOB * WIDTH_BY_FRAME[f] * 0.9, body)
 		if not last:
 			for arm: Array in _arms:
 				_arm(arm, reach * 0.85, w * 0.2, HOT)
@@ -699,7 +705,7 @@ class Spout extends Node3D:
 		var last := step == SPOUT_BY_STEP.size() - 1
 		var tip := Vector3.UP * h + _right * h * _lean
 		if not last:
-			_spike(tip * 1.04, SPOUT_HALF_W * 1.5, INK)
+			_spike(tip * 1.02, SPOUT_HALF_W + 0.07, INK)  # round 33: a thin ink line, not a hull 1.5x
 		_spike(tip, SPOUT_HALF_W * (0.6 if last else 1.0), VIOLET)
 		if not last:
 			_spike(tip * 0.8, SPOUT_HALF_W * 0.38, HOT)
