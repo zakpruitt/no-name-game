@@ -262,6 +262,18 @@ The lineup after hero pass 2: every foe shows a face to the 54-degree camera (ey
 - **Bigger face**: eyes `EYE_SIZE` 0.15 x 0.085 m (was 0.095 x 0.04), a rounder lid (`EYE_LID` 0.7), spread x1.35 (`EYE_SPREAD`); grin 0.2 x 0.068, 1.5 cm lower and one render priority under the eyes (its ink corners covered the eyes' lower half); the `FaceShade` oval 0.22 x 0.17 drawn `FACE_PULL` 0.22 m nearer the camera than it sits (a small spatial shader moves it in view space, depth test kept), so the brim no longer hides it but a claw further in front does, and it hides with the mouth when the claw covers it. Game camera, Idle facing it (1600x900): face 1,375 px dark + 247 px glowing eyes = 7.9% of his silhouette (pass 2: 331 + 8, 1.7%).
 - **Check**: `heretic_shots` headless asserts `face_dot` > `FACE_DOT_MIN` 0.7 in Idle; windowed, the Idle game shot must hold `FACE_PX` 250 px of the shade's colour round FaceShade and `EYE_PX` 25 px of glow round each eye (1,220 / 139 / 139 at `TURN`). Shots reset the blink first: a deterministic run blinked on exactly the frame a scratch measure grabbed, and the eyes read as 2 px slits.
 
+- **Hooked point** (`chibi_hook.py ... 0.12 0.15 0.22 0.08 0.5`, vertices and normals, on `p2/faceup.blend`): from half the hood's height up it shears back 0.12 m and up 0.15 m (x t^2), and from 62% of that its last part bends over to his left 0.22 m *linearly* (`KINK` 1), so it leaves the dome at an angle: one hard corner in the outline, where a u^2 bend was a smooth horn. A band at the bend on the side it bends to is pulled in 8 cm (the notch; on its own, 4-10 cm of notch on a 2 cm-sliced mesh never showed at the game camera, the kink did). Hood tip 1.76 -> 1.83 m; Idle at the game camera 211 -> 229 px tall (the tip reaches back, which is up the screen).
+
+Rebuild after the pass-2 chain:
+
+```
+blender -b vendor_src/meshy/chibi/p2/chibi_scarf.blend -P tools/meshy_rig/chibi_faceup.py -- vendor_src/meshy/chibi/p2/faceup.blend 28 0.05 0.12 0.3
+blender -b vendor_src/meshy/chibi/p2/faceup.blend -P tools/meshy_rig/chibi_hook.py -- vendor_src/meshy/chibi/p2/hook.blend 0.12 0.15 0.22 0.08 0.5
+blender -b vendor_src/meshy/chibi/p2/hook.blend -P tools/meshy_rig/chibi_keys.py -- vendor_src/meshy/chibi/p2/out/heretic_chibi.glb
+```
+
+then `comic_glb.py`, the JPEG bytes, `--import` and `contact_frames.gd` as above. Later clip work keys over `p2/hook.blend`.
+
 ## The rig
 
 - Bone names match the current hero, so `MOVES`, `HERO_MOVES` and `hand.r` lookups work unchanged. Extras: `neck`, `shoulder.*`, left `finger.*`, `tent.*`, `skirt.*`.
