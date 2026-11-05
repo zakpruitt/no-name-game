@@ -756,15 +756,10 @@ static func _tow_line(hero: CharacterBody3D, at: Vector3) -> Array:
 # Looks (round 37): comic_boulder (Rockslide), comic_fault (Fault Line, Cataclysm), comic_steam (Steam Burst),
 # comic_freeze_over (Flash Freeze, Black Ice), comic_arc (Storm Pitch), comic_splat (Meteor Fall's beats); words in
 # ComicFx.MOVE_WORDS / BREAKER_WORDS. See docs/features/void-element.md "Crossover looks".
-# TODO(fx lane), second pass (the three-element strings, below `_cataclysm`; placeholders today): a whirlwind that carries ice cubes up for Hailstorm
-# (`_hailstorm`, now one wind pillar each), a molten hammer arc through foes in the air with the ice bursting off
-# them for Meltdown (`_meltdown`: shards, an earth burst and a scorch each), lava going up round the craters for
-# Eruption (`_eruption`: under() each), foes thrown onto the spear and stuck round it in ice for Impale
-# (`_impale`: frost_ring + the cube), the spear blowing apart and a gale hauling the kebab back for Backdraft
-# (`_backdraft`: shatter, a pillar, arcs back to his hand), a hammer driving the pile in for Anvil (`_anvil`:
-# spikes each), the rip out of the air on Tow Line (`TW` in fire(): a plain hit today), and MOVE_WORDS /
-# BREAKER_WORDS for XG, XM, XK, XW, Eruption and Anvil. The improvised payoffs (`_cash_buried`, Molten Palm's steam)
-# reuse their crossover's look.
+# Second pass looks (the three-element strings below `_cataclysm`): comic_hail (Hailstorm), comic_melt (Meltdown),
+# comic_erupt (Eruption), comic_impale (Impale), comic_backdraft (Backdraft), comic_anvil (Anvil), comic_rip (Tow
+# Line's rip out of the air); the states' tells are comic_state_tell (enemy.gd syncs it). The improvised payoffs
+# (`_cash_buried`, Molten Palm's steam) reuse their crossover's look.
 
 ## L H L L: wind into earth. The hammer comes down off the air string and everyone near the blow is driven into
 ## the floor together; the ones Updraft Lash had in the air take double.

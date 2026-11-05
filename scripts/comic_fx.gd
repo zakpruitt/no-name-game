@@ -46,11 +46,13 @@ const MOVE_WORDS := {
 	"EM": "KA-POW!", "EV": "GLORP!",  # earth
 	"VS": "VWOOM!", "VR": "SHUNK!", "VD": "SPLOOSH!", "OW": "SKRONCH!", "TW": "YOINK!",  # dark
 	"XR": "KRUNCH!", "XF": "SKRRRAK!", "XS": "PSSHHHH!", "XT": "ZZWANNG!",  # crossovers (round 37)
+	"XG": "WHIRRRL!", "XM": "SIZZ-BLAM!", "XK": "KSHUNK!", "XW": "FWHOOOM!",  # three-element strings (round 37, second pass)
 }
 const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
 	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
+	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
 }
 const BREAKER_SCALE := 0.78
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
