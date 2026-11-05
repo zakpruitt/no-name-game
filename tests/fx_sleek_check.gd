@@ -6,7 +6,9 @@ extends SceneTree
 ##     cleared on its first hit, and ones born after it started stay (standing_fx.gd);
 ##   - round 33, part 3: locomotion dust (comic_dust.gd) puffs once when the hero's clip turns to Run_Stop,
 ##     Dodge_Forward or Run_Start (not again while it plays, not on an air dodge), stays within its pool and
-##     clears itself.
+##     clears itself;
+##   - round 33, sleek 4: the combo-name callout over him fades after callout_cap.HOLD_S real s (slow motion
+##     can't hold it) and as soon as the next string starts.
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -101,6 +103,34 @@ func _initialize() -> void:
 	_ok(mine.size() <= dust.POOL, "dust stays in its pool (%d nodes)" % mine.size())
 	await create_timer(0.6).timeout
 	_ok(mine.all(func(c: Node) -> bool: return not c.busy and not c.visible), "dust clears itself")
+	# Round 33, sleek 4: the callout over him is capped on real time and cut by the next string.
+	var cap: GDScript = load("res://scripts/callout_cap.gd")
+	p._callout_done = false
+	p.state = p.State.MOVE
+	p._chain_i = 0
+	p._hits_done = 0
+	standing.watch(p)
+	p._combo_callout(p.COMBOS.keys()[0])
+	cap.watch(p)
+	_ok(p._callout.visible, "the callout goes up")
+	game.hitstop(2.0, 0.5)  # a breaker's slow motion (flat at 0.5): its own tween would hold it for ~2 s
+	await create_timer(1.3, true, false, true).timeout
+	cap.watch(p)
+	await create_timer(0.2, true, false, true).timeout
+	cap.watch(p)
+	game.end_slowmo()
+	_ok(not p._callout.visible, "the callout is gone after ~1.1 s real in slow motion")
+	p._callout_done = false
+	p._combo_callout(p.COMBOS.keys()[0])
+	cap.watch(p)
+	await create_timer(0.1).timeout
+	p.state = p.State.ATTACK
+	p._chain_i = 1
+	standing.watch(p)  # the next string starts
+	cap.watch(p)
+	await create_timer(0.2, true, false, true).timeout
+	cap.watch(p)
+	_ok(not p._callout.visible, "the callout fades when the next string starts")
 	print("[fx_sleek] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	quit()
 
