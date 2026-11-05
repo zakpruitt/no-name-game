@@ -28,6 +28,8 @@ const PILE_R := 2.0  # m: marks this big are under a pile
 const PILE_INNER := Vector2(0.38, 1.5)  # the cracks' start: this share of the radius, at most this many m
 const PILE_REACH := Vector2(0.95, 1.3)  # of the radius (CRACK_REACH)
 const RUN_STEPS := 3  # steps on twos the cracks take to run out to their tips
+const PILE_TIME := 0.5  # s: a breaker-sized mark is the landing's beat, not a floor that stands (it read as a
+## brown crater under the hero for 0.6-0.9 s once it cooled)
 const PILE_W_MAX := 0.34  # m (CRACK_W_MAX): out past the pile they carry the landing alone
 
 static var _mat: StandardMaterial3D
@@ -50,7 +52,7 @@ static func spawn(parent: Node, pos: Vector3, c: Color, r: float, t: float) -> N
 	var k: Node3D = SELF.new()
 	k.color = c
 	k.radius = r
-	k.time = minf(t, MAX_TIME)
+	k.time = minf(t, PILE_TIME if r >= PILE_R else MAX_TIME)
 	parent.add_child(k)
 	k.global_position = Vector3(pos.x, LIFT + randf() * 0.01, pos.z)  # (jitter: overlapping marks don't z-fight)
 	return k
