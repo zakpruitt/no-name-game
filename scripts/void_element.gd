@@ -7,7 +7,6 @@ extends RefCounted
 
 const FOES := preload("res://scripts/foes.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
-const QUAKE := preload("res://scripts/breaker_quake.gd")
 const COMIC_FIST := preload("res://scripts/comic_fist.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
@@ -90,9 +89,10 @@ const BREAKERS := {
 		"alt": {"erupt": "water", "black_ice": true, "short": 2.0, "damage": 46.0, "names": {"spirit": "Black Ice"}}},
 	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"}},
-	# Crossovers. Cataclysm: Fault Line's gale has them up again; lightning runs through them in the hang and the
-	# landing brings them down into the floor (`cataclysm`: a crater on each, a strike and earth under each).
-	"XF": {"erupt": "earth", "wire": true, "cataclysm": true, "damage": 40.0, "leap": LH_HIT + LEAP_AFTER_RAKE, "height": 2.4,
+	# Crossovers. Cataclysm: Fault Line's gale has them up again and the landing brings them down into the floor. No
+	# `wire` (Live Wire's bolts and binds on every foe in the hang made it the busiest breaker; damage 40 -> 46 for the
+	# jolts it lost) (`cataclysm`: a crater on each, a strike and earth under each).
+	"XF": {"erupt": "earth", "cataclysm": true, "damage": 46.0, "leap": LH_HIT + LEAP_AFTER_RAKE, "height": 2.4,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Cataclysm"}},
 	# Flash Freeze: Steam Burst's steam freezes on them as he dives (`refreeze`), and the landing shatters it again.
 	"XS": {"erupt": "water", "refreeze": true, "damage": 30.0, "leap": AF_HIT + LEAP_AFTER_PALM,
@@ -803,8 +803,10 @@ static func _fault_line(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 ## nobody frozen it's only a shove of molten fist. The window opens (Flash Freeze).
 static func _steam_burst(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
-	var frozen: Array = FOES.near(hero.get_tree(), at, STEAM_REACH).filter(func(e: Node3D) -> bool:
-		return not THROWN.flying(e) and (in_cube(e) or float(e.get("frozen_t") if e.get("frozen_t") != null else 0.0) > 0.0))
+	# (a cube Ice Cube is still bowling counts: Dash L H H L fires while it's in flight, so it's cut out of its roll)
+	var frozen: Array = FOES.near(hero.get_tree(), at, STEAM_REACH).filter(func(e: Node3D) -> bool: return is_frozen(e))
+	for e: Node3D in frozen:
+		THROWN.cut(e)
 	var reach := STEAM_FIST
 	if not frozen.is_empty():
 		var mid := Vector3.ZERO

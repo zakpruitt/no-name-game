@@ -289,7 +289,7 @@ func _drive_bot() -> void:
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
-		ready = left <= BOT_LEAD
+		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
 	if not ready or player.state == player.State.LEAP:
 		return
 	match string[_bot_step]:

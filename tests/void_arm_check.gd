@@ -943,6 +943,20 @@ func _three_elements() -> void:
 	game_end_slowmo()
 	cube.free()
 	await _settle()
+	# Steam Burst on a cube Ice Cube is still bowling (the bot's Dash L H H L): it's cut out of its roll and goes off.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var rolling := _foe(Vector3(0, 0, 2.0))
+	el.encase(rolling)
+	el.THROWN.launch(hero, rolling, Vector3(0, 0, 14.0), 0.0, {"pierce": true})
+	_check(rolling.has_meta("thrown_foe_flying"), "a cube on its way")
+	hero._start_attack("XS")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(not rolling.has_meta("thrown_foe_flying") and not el.in_cube(rolling) and rolling.last_launch > 0.0, "Steam Burst takes the rolling cube too")
+	await _until(func() -> bool: return hero.state != hero.State.LEAP and hero.state != hero.State.ATTACK, 3.0)
+	game_end_slowmo()
+	rolling.free()
+	await _settle()
 	# Buried into storm: Updraft Lash on someone Rockslide buried takes it twice, and the state's spent.
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
