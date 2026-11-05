@@ -66,6 +66,11 @@ const TONES := {
 	"P_Rope": {"shadow": Color(0.3, 0.14, 0.05), "mid": Color(0.72, 0.5, 0.2), "light": Color(0.96, 0.8, 0.4), "rim": Color(0.3, 0.16, 0.05), "brush": 0.24},
 	"P_Boot": {"shadow": Color(0.12, 0.07, 0.1), "mid": Color(0.38, 0.27, 0.3), "light": Color(0.62, 0.5, 0.48), "rim": Color(0.2, 0.12, 0.14), "brush": 0.2},
 	"P_Lining": {"shadow": Color(0.08, 0.01, 0.14), "mid": Color(0.28, 0.05, 0.34), "light": Color(0.5, 0.12, 0.5), "rim": Color(0.2, 0.05, 0.2), "brush": 0.2},
+	# foe families (round 39, tools/comic_art/refine_pass.py): one accent each, its element in fx_palette.gd
+	# (legion: earth, cult: void, grave: wind)
+	"P_FoeEarth": {"shadow": Color(0.5, 0.1, 0.02), "mid": Color(0.95, 0.36, 0.05), "light": Color(1.0, 0.68, 0.24), "hi": Color(1.0, 0.9, 0.6), "rim": Color(0.4, 0.1, 0.02), "brush": 0.12},
+	"P_FoeVoid": {"shadow": Color(0.2, 0.06, 0.4), "mid": Color(0.48, 0.2, 0.86), "light": Color(0.7, 0.42, 1.0), "hi": Color(0.96, 0.7, 1.0), "rim": Color(0.36, 0.12, 0.62), "brush": 0.14},
+	"P_FoeWind": {"shadow": Color(0.03, 0.3, 0.16), "mid": Color(0.12, 0.7, 0.38), "light": Color(0.5, 0.95, 0.6), "hi": Color(0.86, 1.0, 0.8), "rim": Color(0.05, 0.36, 0.2), "brush": 0.14},
 }
 ## Material name -> flat stepped colour [low, high, mid] (comic_lib.emit, sRGB). Without a mid it sits between them.
 const EMITS := {
@@ -85,6 +90,10 @@ const EMITS := {
 	"P_Hot": [Color(1, 0.72, 0.12), Color(1, 1, 0.78)],
 	"P_Arcane": [Color(0.55, 0.16, 1), Color(0.96, 0.86, 1)],
 	"P_Ember": [Color(1, 0.42, 0.05), Color(1, 0.93, 0.55)],
+	# the foe families' eyes and glows (refine_pass.py FAMILY)
+	"P_GlowEarth": [Color(1.0, 0.4, 0.05), Color(1.0, 0.95, 0.62)],
+	"P_GlowVoid": [Color(0.62, 0.3, 1.0), Color(1.0, 0.86, 1.0)],
+	"P_GlowWind": [Color(0.18, 0.86, 0.46), Color(0.88, 1.0, 0.7)],
 	# comic_lib.flat: one colour
 	"P_String": [Color(0.96, 0.92, 0.74), Color(0.96, 0.92, 0.74)],
 	"P_Under": [Color(0.13, 0.05, 0.3), Color(0.13, 0.05, 0.3)],
@@ -94,6 +103,8 @@ const EMITS := {
 }
 ## A kind whose script defines a shared material name differently.
 const KIND_TONES := {
+	# round 39: the shield is a wall of planks; at full brush its grain broke into a checker from the game camera
+	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.1, "inner": 0.06}},
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
 	# His weapons grow out of the limb, so they carry its painted magenta, not the old hero's violet.
 	"heretic": {
@@ -478,7 +489,6 @@ static func apply(root: Node, kind := "") -> void:
 			if src != null:
 				var look: Material = painted(src) if PAINTED.has(src.resource_name) else material(src.resource_name, kind)
 				mi.set_surface_override_material(i, look)
-
 
 ## Every GLB material name under `root` (imported names, works headless).
 static func material_names(root: Node) -> Array:
