@@ -61,12 +61,12 @@ const KEYED_COLLAPSED := 0.8
 ## stop) by tilting the root bone, which sits on the floor, towards the change in his velocity. The
 ## change is his velocity less a lagging copy of it (LEAN_LAG s), so a held run leans nothing and a
 ## reversal leans hardest; a spring carries the tilt, so he overshoots a touch coming out of a turn.
-const LEAN_DEG := 1.6  # degrees per m/s of velocity change, across his facing
+const LEAN_DEG := 3.0  # degrees per m/s of velocity change, across his facing
 const LEAN_ALONG := 0.45  # of that along his facing (the start / stop clips already pitch him)
 const LEAN_MAX := 15.0  # degrees
 const LEAN_LAG := 0.12  # s
-const LEAN_STIFF := 320.0  # spring: about 2.8 Hz
-const LEAN_DAMP := 24.0  # a little under critical (35.8): one small overshoot
+const LEAN_STIFF := 600.0  # spring: about 3.9 Hz
+const LEAN_DAMP := 34.0  # a little under critical (49): one small overshoot
 
 ## Glowing eyes under the hood, per Game.hero_model, in skeleton rest space (Godot axes, metres):
 ## measured from the texture's cyan eyes on chibi_rig_v1.blend, x1.088 for the 1.85 m bake, then
