@@ -18,6 +18,11 @@ const PAL := preload("res://scripts/fx_palette.gd")
 const WELL_TIME := 4.0  # s a lava well burns before it drains
 const WELL_RADIUS := 1.5
 const WELL_MAX := 9  # oldest wells drain first past this
+## Round 33, sleek 5 (comic): a well's look is a thin crack mark for the pull, not the glowing pool, core and crust
+## chunks: under the comic floor tiles (tops at 0.05 m) the pool only lit the grout, an orange web with brown boxes
+## that stood WELL_TIME 4 s under Undertow's foes. The burn keeps WELL_TIME; bubbles stop with the look.
+const WELL_COMIC_SHOW := 0.9  # s (comic_crack.MAX_TIME; Undertow's pull is UNDERTOW_TIME 1.6 s from the bind)
+const WELL_COMIC_CRACK := 0.85  # of the radius (the plain look's scorch is 1.3)
 const WELL_DAMAGE := 3.0  # each WELL_TICK s to foes standing in lava
 const WELL_TICK := 0.5
 const LAVA := Color(1.0, 0.35, 0.05)
@@ -835,6 +840,11 @@ class Well extends Node3D:
 
 	func _ready() -> void:
 		add_to_group("lava_wells")
+		if Game.comic_style:
+			_core = MeshInstance3D.new()  # (nothing to draw: _physics_process still pulses it)
+			add_child(_core)
+			_comic_mark.call_deferred()  # (elements.well() places it after add_child)
+			return
 		var pool := CylinderMesh.new()
 		pool.top_radius = radius
 		pool.bottom_radius = radius
@@ -872,7 +882,7 @@ class Well extends Node3D:
 			return
 		_core.scale = Vector3.ONE * (1.0 + 0.12 * sin(_age * 9.0))
 		_bubble -= delta
-		if _bubble <= 0.0:
+		if _bubble <= 0.0 and (_age < E.WELL_COMIC_SHOW or not Game.comic_style):
 			_bubble = randf_range(0.12, 0.25)
 			var off := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * radius * 0.6
 			Fx.burst(get_parent(), global_position + off + Vector3.UP * 0.1, E.LAVA_HOT, 3, 3.0, 0.1, 0.45, Vector3.UP, 20.0, -6.0, 0.0, "dot", true)
@@ -882,6 +892,10 @@ class Well extends Node3D:
 			for e in E.FOES.near(get_tree(), global_position, radius):
 				e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
 				Game.register_hit("lava")
+
+	func _comic_mark() -> void:
+		if is_inside_tree():
+			Fx.scorch(get_parent(), global_position, E.LAVA, radius * E.WELL_COMIC_CRACK, E.WELL_COMIC_SHOW)
 
 	## Cools and sinks away.
 	func drain() -> void:

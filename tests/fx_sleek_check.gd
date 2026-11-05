@@ -11,7 +11,7 @@ extends SceneTree
 ##     can't hold it) and as soon as the next string starts; a hit's word (every tier) and number (any total) draw
 ##     the same on-screen ink (fx_palette.TEXT_INK_PX);
 ##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser); Deep Freeze's cords one thin line (void_tendril.line);
-##     the spirit echo's blade drawn to spirit_echo.VISUAL_REACH of its (unchanged) reach.
+##     the spirit echo's blade drawn to spirit_echo.VISUAL_REACH of its (unchanged) reach; a comic lava well draws only a short crack mark.
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -194,3 +194,18 @@ func _sleek5(main: Node, _p: CharacterBody3D) -> void:
 	main.add_child(echo)
 	_ok(echo.radius == 3.9 and echo._scale < (3.9 - 0.4) / 0.95 * 0.8, "the echo's blade is drawn short of its reach (%.2f)" % echo._scale)
 	echo.queue_free()
+	# Undertow's lava well (comic): no glowing pool or crust chunks (they lit the tile grout as a web for 4 s); it still
+	# burns for WELL_TIME.
+	var els: GDScript = load("res://scripts/elements.gd")
+	els.well(main, Vector3(3, 0, -6))
+	await process_frame
+	var wells := get_nodes_in_group("lava_wells")
+	var drawn := 0
+	for w: Node in wells:
+		for c: Node in w.get_children():
+			if c is MeshInstance3D and c.mesh != null:
+				drawn += 1
+	_ok(not wells.is_empty() and drawn == 0, "a comic lava well draws no pool or chunks (%d meshes)" % drawn)
+	for w: Node in wells:
+		w._physics_process(els.WELL_TIME * 0.5)
+		_ok(is_instance_valid(w) and w.is_in_group("lava_wells"), "the well still burns past its look")
