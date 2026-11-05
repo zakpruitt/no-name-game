@@ -82,7 +82,14 @@ const EYES := {"chibi": [Vector3(-0.034, 1.25, 0.13), Vector3(0.155, 1.25, 0.13)
 ## neck joint (the head bone's head); EYES and GRIN stay the round-40 spots and move through the same map,
 ## and the decals grow with it.
 const HEAD_GROW := {"chibi": 1.2}
-const EYE_SIZE := Vector2(0.095, 0.04)  # m: an almond, wide and narrow
+## Hero pass 3 (round 40): tools/meshy_rig/chibi_faceup.py tipped the head back [deg] about a point [m] over
+## the neck joint, chin up, so the face opening points up at the game camera; every face spot (eyes, grin,
+## shade) and the facing test turn with it after HEAD_GROW.
+const FACE_TIP := {"chibi": [28.0, 0.3]}
+## Eye spots are the round-40 ones spread wider for the bigger eyes (pass 3): x -0.034 / 0.155 before.
+const EYE_SPREAD := 1.35
+const EYE_SIZE := Vector2(0.15, 0.085)  # m: an almond, wide and narrow (pass 3: was 0.095 x 0.04)
+const EYE_LID := 0.7  # of the half height above the middle: a flatter top scowls (pass 3: was 0.55)
 const EYE_TILT := 16.0  # degrees: inner corners down, a scowl
 const EYE_INK := 0.018  # m of ink round it
 const EYE_LOW := Color(0.2, 0.95, 0.95)
@@ -95,8 +102,8 @@ const EYE_CLAW_GAP := 0.04  # m: a point this close in front of the eye is the h
 ## The grin (round 40): a jagged crescent of paper teeth under the eyes, drawn like them (camera-facing,
 ## no depth test, hidden with them), skeleton rest space per Game.hero_model. A smirk: the corners turn
 ## up and it tilts, so it reads as attitude rather than a smile.
-const GRIN := {"chibi": Vector3(0.062, 1.185, 0.13)}
-const GRIN_SIZE := Vector2(0.15, 0.05)  # m: corner to corner, the mouth's depth at its middle
+const GRIN := {"chibi": Vector3(0.062, 1.17, 0.13)}  # pass 3: 1.5 cm lower for the bigger eyes
+const GRIN_SIZE := Vector2(0.2, 0.068)  # m: corner to corner, the mouth's depth at its middle
 const GRIN_TILT := 7.0  # degrees: the smirk's lift
 const GRIN_TEETH := 5  # top row; the bottom row sits between them
 const GRIN_MOUTH := Color(0.16, 0.02, 0.12)
@@ -105,8 +112,11 @@ const GRIN_TOOTH := Color(1.0, 0.96, 0.84)  # the rim's paper
 ## sit on shadow from every side instead of on Meshy's mask (a dark V with the white cowl round it, which
 ## the grin overlapped in 3/4 views). Camera-facing like them but depth-tested: the brim and the claw
 ## cover it, so it reads as the shadow under the hood's edge. Skeleton rest space before HEAD_GROW, radii in m.
-const FACE_SHADE := {"chibi": Vector3(0.062, 1.2, 0.09)}
-const FACE_SHADE_SIZE := Vector2(0.16, 0.12)
+## Pass 3: bigger, and drawn FACE_PULL m nearer the camera than it sits, so the brim no longer hides it
+## from 54 degrees up but a claw lifted further in front still does (shader depth, not no_depth_test).
+const FACE_SHADE := {"chibi": Vector3(0.062, 1.215, 0.09)}
+const FACE_SHADE_SIZE := Vector2(0.22, 0.17)
+const FACE_PULL := 0.22
 const FACE_SHADE_COLOR := Color(0.045, 0.035, 0.085)  # chibi_repaint.TONES["face"]
 ## Squint (round 40): the eye slits narrow on an attack, squeeze nearly shut when he is hit, blink now and
 ## then, and the grin bares wider on an attack and grits flat when hit. `squint` is public for checks.
@@ -169,6 +179,8 @@ var grin: Node3D  # the teeth (GRIN), on its own attachment so `eyes` holds only
 var squint := 0.0  # 0 open .. 1 shut (_step_face)
 var _blink_t := 0.0
 var _face_k := 1.0  # HEAD_GROW for this model: the decals' size
+var _face_tip := Basis.IDENTITY  # FACE_TIP's turn, skeleton rest space
+var _tip_pivot := Vector3.ZERO
 var keyed := false  # the clips key the claws (KEYED_ARM, CLAW_TRACK)
 var _cover := PackedInt32Array()  # bones that can pass in front of the eyes (_cover_points)
 var _root := -1  # the root bone (turn lean)
@@ -386,6 +398,9 @@ func _add_eyes(skel: Skeleton3D) -> void:
 	eyes = follow
 	var rest := skel.get_bone_global_rest(head)
 	_face_k = HEAD_GROW.get(Game.hero_model, 1.0)
+	var tip: Array = FACE_TIP.get(Game.hero_model, [0.0, 0.0])
+	_face_tip = Basis(Vector3.RIGHT, -deg_to_rad(tip[0]))
+	_tip_pivot = rest.origin + Vector3.UP * float(tip[1])
 	var mid: Vector3 = (at[0] + at[1]) * 0.5
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -404,14 +419,16 @@ func _add_eyes(skel: Skeleton3D) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.set_meta("no_ghost", true)
-		mi.position = rest.affine_inverse() * _grown(p, rest.origin)
+		mi.position = rest.affine_inverse() * _grown(mid + (p - mid) * Vector3(EYE_SPREAD, 1.0, 1.0), rest.origin)
 		mi.scale = Vector3.ONE * _face_k
 		follow.add_child(mi)
 
 
-## A round-40 face spot moved through chibi_presence.py's head growth about the neck joint.
+## A round-40 face spot moved through chibi_presence.py's head growth about the neck joint, then
+## chibi_faceup.py's tip (FACE_TIP).
 func _grown(p: Vector3, neck: Vector3) -> Vector3:
-	return neck + (p - neck) * _face_k
+	var q := neck + (p - neck) * _face_k
+	return _tip_pivot + _face_tip * (q - _tip_pivot)
 
 
 ## One eye in billboard space (+z towards the camera): ink, then the glow, then a hot core.
@@ -428,7 +445,7 @@ func _eye_mesh(side: float) -> ArrayMesh:
 		for i in 12:
 			var a := TAU * i / 12.0
 			# an almond: pointed at the corners, flatter on top so it scowls
-			var y := sin(a) * h * (0.55 if sin(a) > 0.0 else 1.0)
+			var y := sin(a) * h * (EYE_LID if sin(a) > 0.0 else 1.0)
 			ring.append(Vector3(cos(a) * w, y, layer[2]).rotated(Vector3.BACK, tilt))
 		for i in ring.size():
 			verts.append_array([Vector3(0.0, 0.0, layer[2]), ring[i], ring[(i + 1) % ring.size()]])
@@ -453,7 +470,10 @@ func _add_grin(skel: Skeleton3D) -> void:
 	grin = follow
 	var mi := MeshInstance3D.new()
 	mi.mesh = grin_mesh()
-	mi.material_override = (eyes.get_child(0) as MeshInstance3D).material_override
+	# the eyes' material one step under them: the grin's ink corners must not cover the eyes (pass 3)
+	var mat: StandardMaterial3D = (eyes.get_child(0) as MeshInstance3D).material_override.duplicate()
+	mat.render_priority = 1
+	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_ghost", true)
 	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
@@ -478,13 +498,10 @@ func _face_shade(rest: Transform3D) -> MeshInstance3D:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.billboard_keep_scale = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.albedo_color = FACE_SHADE_COLOR
-	mat.disable_fog = true
+	var mat := ShaderMaterial.new()
+	mat.shader = _face_shade_shader()
+	mat.set_shader_parameter("color", FACE_SHADE_COLOR)
+	mat.set_shader_parameter("pull", FACE_PULL)
 	var mi := MeshInstance3D.new()
 	mi.name = "FaceShade"
 	mi.mesh = mesh
@@ -494,6 +511,29 @@ func _face_shade(rest: Transform3D) -> MeshInstance3D:
 	mi.position = rest.affine_inverse() * _grown(FACE_SHADE[Game.hero_model] as Vector3, rest.origin)
 	mi.scale = Vector3.ONE * _face_k
 	return mi
+
+
+## A camera-facing flat colour, depth-tested but drawn `pull` m nearer the camera than it is.
+static var _shade_shader: Shader
+static func _face_shade_shader() -> Shader:
+	if _shade_shader == null:
+		_shade_shader = Shader.new()
+		_shade_shader.code = """shader_type spatial;
+render_mode unshaded, cull_disabled, fog_disabled, shadows_disabled;
+uniform vec4 color : source_color;
+uniform float pull = 0.2;
+void vertex() {
+	float k = length(MODEL_MATRIX[0].xyz);
+	vec4 at = VIEW_MATRIX * vec4(MODEL_MATRIX[3].xyz, 1.0);
+	vec4 v = at + vec4(VERTEX.xy * k, 0.0, 0.0);
+	v.z += pull;
+	POSITION = PROJECTION_MATRIX * v;
+}
+void fragment() {
+	ALBEDO = color.rgb;
+}
+"""
+	return _shade_shader
 
 
 ## The grin's upper lip at x (billboard space, before the tilt): the corners curve up.
@@ -700,10 +740,7 @@ func _face_eyes(skel: Skeleton3D) -> void:
 	if cam == null:
 		return
 	var head := skel.global_transform * skel.get_bone_global_pose(skel.find_bone("head"))
-	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
-	var ahead := head.basis.orthonormalized() * (rest.basis.orthonormalized().inverse() * Vector3.BACK)
-	var to_cam := (cam.global_position - head.origin).normalized()
-	eyes.visible = ahead.normalized().dot(to_cam) > EYE_FACING
+	eyes.visible = face_dot(skel, cam.global_position) > EYE_FACING
 	if grin != null:
 		grin.visible = eyes.visible
 	if not eyes.visible:
@@ -717,6 +754,17 @@ func _face_eyes(skel: Skeleton3D) -> void:
 	if grin != null:
 		var mouth: Node3D = grin.get_child(0)
 		mouth.visible = not _covered(cam.global_position, head * mouth.position, cover, claw_r)
+		if grin.get_child_count() > 1:  # the shade is drawn FACE_PULL nearer: the claw over the mouth hides it too
+			grin.get_child(1).visible = mouth.visible
+
+
+## cos of the angle between where his face points (the tipped face, FACE_TIP) and the way to `cam`:
+## 1 = looking straight at it. Public for heretic_shots.
+func face_dot(skel: Skeleton3D, cam: Vector3) -> float:
+	var head := skel.global_transform * skel.get_bone_global_pose(skel.find_bone("head"))
+	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
+	var ahead := head.basis.orthonormalized() * (rest.basis.orthonormalized().inverse() * (_face_tip * Vector3.BACK))
+	return ahead.normalized().dot((cam - head.origin).normalized())
 
 
 ## Points along the claw (hand.r and every tentacle bone, with the midpoints of their bones) and along

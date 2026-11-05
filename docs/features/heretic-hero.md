@@ -254,6 +254,14 @@ blender -b vendor_src/meshy/chibi/p2/chibi_scarf.blend -P tools/meshy_rig/chibi_
 
 then `comic_glb.py`, the JPEG bytes, `--import` and `contact_frames.gd` as above. Later clip work keys over `p2/chibi_scarf.blend`.
 
+## Hero pass 3 (round 40, third lane): face and attitude from the game camera
+
+The lineup after hero pass 2: every foe shows a face to the 54-degree camera (eyes tipped up, big sockets, a scowl) and pops; the hero showed the top of a hood, a pale egg with a purple blob. Same rig, bones, weights and clips (contact_frames prints the same 22 frames, `hero_stride_check` 1.00).
+
+- **Face to camera** (`chibi_faceup.py ... 28 0.05 0.12 0.3`, vertices only): every vertex turns back 28 degrees about a point 0.3 m over the neck joint by its head weight (chin up, the peak further back), in the bind pose, so every clip shows the face tipped up; the custom split normals turn with it. The hood's front rim round the face opening is pushed 5 cm out and back (the cut). `heretic_rig.gd` `FACE_TIP` moves every face spot through the same turn after `HEAD_GROW`, and the facing test (`face_dot()`) uses the tipped face: in Idle facing the camera the face points 39 degrees off it (cos 0.78; untipped 0.40). Pivoting at the neck joint itself slid the face 17 cm back behind the chest and dropped the hood tip 0.3 m; 40 degrees still showed only the brim in a Workbench game view, so most of the read comes from the decals:
+- **Bigger face**: eyes `EYE_SIZE` 0.15 x 0.085 m (was 0.095 x 0.04), a rounder lid (`EYE_LID` 0.7), spread x1.35 (`EYE_SPREAD`); grin 0.2 x 0.068, 1.5 cm lower and one render priority under the eyes (its ink corners covered the eyes' lower half); the `FaceShade` oval 0.22 x 0.17 drawn `FACE_PULL` 0.22 m nearer the camera than it sits (a small spatial shader moves it in view space, depth test kept), so the brim no longer hides it but a claw further in front does, and it hides with the mouth when the claw covers it. Game camera, Idle facing it (1600x900): face 1,375 px dark + 247 px glowing eyes = 7.9% of his silhouette (pass 2: 331 + 8, 1.7%).
+- **Check**: `heretic_shots` headless asserts `face_dot` > `FACE_DOT_MIN` 0.7 in Idle; windowed, the Idle game shot must hold `FACE_PX` 250 px of the shade's colour round FaceShade and `EYE_PX` 25 px of glow round each eye (1,220 / 139 / 139 at `TURN`). Shots reset the blink first: a deterministic run blinked on exactly the frame a scratch measure grabbed, and the eyes read as 2 px slits.
+
 ## The rig
 
 - Bone names match the current hero, so `MOVES`, `HERO_MOVES` and `hand.r` lookups work unchanged. Extras: `neck`, `shoulder.*`, left `finger.*`, `tent.*`, `skirt.*`.

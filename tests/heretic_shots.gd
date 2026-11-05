@@ -21,6 +21,12 @@ const POSES := [
 ]
 ## Clip -> the move whose claw grip (heretic_rig.GRIP_MOVES) the pose shows.
 const POSE_MOVES := {"Ab_GR": "GR", "Ab_VS": "VS"}
+## Pass 3 (round 40): the face must read from the game camera. Headless, the facing (rig.face_dot); windowed,
+## the Idle game shot's pixels: at least FACE_PX of the dark face colour round FaceShade and EYE_PX of
+## cyan glow round each eye.
+const FACE_DOT_MIN := 0.7
+const FACE_PX := 250
+const EYE_PX := 25
 
 var _game: Node
 var _main: Node
@@ -174,6 +180,31 @@ const CLIP_SET := [
 ]
 
 
+## The Idle game shot: count the face shade's colour within its oval's reach of FaceShade and the eyes'
+## glow within an eye's reach of each eye, on screen.
+func _face_pixels(img: Image, rig: Node) -> void:
+	var shade: Node3D = rig.grin.get_child(1)
+	var px_per_m := img.get_height() / (2.0 * _cam.global_position.distance_to(shade.global_position) * tan(deg_to_rad(_cam.fov) * 0.5))
+	var want: Color = rig.FACE_SHADE_COLOR
+	var face := _count(img, _cam.unproject_position(shade.global_position), rig.FACE_SHADE_SIZE.x * rig._face_k * px_per_m,
+		func(c: Color) -> bool: return absi(c.r8 - roundi(want.r * 255)) <= 2 and absi(c.g8 - roundi(want.g * 255)) <= 2 and absi(c.b8 - roundi(want.b * 255)) <= 2)
+	_check(face >= FACE_PX, "the dark face reads from the game camera in Idle (%d px)" % face)
+	for i in 2:
+		var eye: Node3D = rig.eyes.get_child(i)
+		var n := _count(img, _cam.unproject_position(eye.global_position), rig.EYE_SIZE.x * rig._face_k * px_per_m,
+			func(c: Color) -> bool: return c.g > 0.7 and c.b > 0.7 and c.g - c.r > 0.12)
+		_check(n >= EYE_PX, "eye %d glows from the game camera in Idle (%d px)" % [i, n])
+
+
+static func _count(img: Image, at: Vector2, r: float, hit: Callable) -> int:
+	var n := 0
+	for y in range(maxi(int(at.y - r), 0), mini(int(at.y + r) + 1, img.get_height())):
+		for x in range(maxi(int(at.x - r), 0), mini(int(at.x + r) + 1, img.get_width())):
+			if Vector2(x, y).distance_to(at) <= r and hit.call(img.get_pixel(x, y)):
+				n += 1
+	return n
+
+
 func _check(ok: bool, what: String) -> void:
 	print(("  ok   " if ok else "  FAIL ") + what)
 	if not ok:
@@ -315,6 +346,18 @@ func _initialize() -> void:
 			and not rig._covered(cam, eye, PackedVector3Array([eye + Vector3(0.0, -0.3, -0.3)]), 0.07),
 			"but not behind a claw beside it or behind him")
 		_check(rig.grin != null and rig.grin.get_child_count() == 2 and rig.grin.get_child(1).name == "FaceShade", "the chibi grins under them, on a dark face oval")
+		# pass 3: the face is tipped up to the game camera, so in Idle facing it the face points within
+		# FACE_DOT_MIN of the camera (cos 0.7 = 46 degrees; untipped it was 0.47, 62 degrees)
+		var yaw: float = p.model.rotation.y
+		p.model.rotation.y = 0.0  # facing the camera
+		anim.play("Idle")
+		anim.seek(0.3, true)
+		anim.pause()
+		await create_timer(0.1).timeout
+		await skel.skeleton_updated
+		var fd: float = rig.face_dot(skel, p.global_position + game_view)
+		_check(fd > FACE_DOT_MIN, "his face points up at the game camera in Idle (cos %.2f)" % fd)
+		p.model.rotation.y = yaw
 		p.state = p.State.HURT
 		await create_timer(0.25).timeout
 		await skel.skeleton_updated
@@ -376,6 +419,7 @@ func _initialize() -> void:
 			anim.play(pose[1])
 			anim.seek(anim.get_animation(pose[1]).length * pose[2], true)
 			anim.pause()
+			rig._blink_t = -100.0  # no blink in the shot
 			await create_timer(0.3).timeout
 			for view: String in ["close", "game"]:
 				var off: Vector3 = CLOSE if view == "close" else game_view
@@ -384,7 +428,10 @@ func _initialize() -> void:
 				await process_frame
 				await process_frame
 				await RenderingServer.frame_post_draw
-				get_root().get_texture().get_image().save_png("%s/%s_%s.png" % [DIR, pose[0], view])
+				var shot := get_root().get_texture().get_image()
+				shot.save_png("%s/%s_%s.png" % [DIR, pose[0], view])
+				if pose[0] == "idle" and view == "game" and rig.eyes != null:
+					_face_pixels(shot, rig)
 	_game.stop_all_sfx()
 	print("[heretic] %s" % ("PASS" if _fails == 0 else "FAIL (%d)" % _fails))
 	await create_timer(0.1).timeout
