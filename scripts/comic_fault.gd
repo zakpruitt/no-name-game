@@ -26,15 +26,21 @@ const OUT_S := 0.22  # s it takes to shrink away
 const GALE_HIGH := 2.4
 const GALE_R := 0.75
 const GALE_LIFE := 0.42
-const STRIKE_HIGH := 8.0
-const STRIKE_WIDTH := 0.3
-const STRIKE_STAR := 0.8
+## Round 33, sleek 4: Cataclysm's sky bolts were 0.3 m bands with a fork each, 8 m tall, one per foe: at the landing's
+## push-in five fat green zigzags filled the frame over the pile. Thinner, shorter, no fork, at most STRIKES of them
+## (the nearest cracks; the rest just open).
+const STRIKE_HIGH := 5.5  # (8.0)
+const STRIKE_WIDTH := 0.15  # (0.3)
+const STRIKE_STAR := 0.55  # (0.8)
+const STRIKE_FORKS := 0  # (1)
+const STRIKES := 3  # most bolts one landing calls down
 
 var big := false
 var spots: Array = []  # world
 var _cracks := []  # {pts: PackedVector2Array, lens: PackedFloat32Array, length, delay, arrived, splat, spot}
 var _p: Dictionary
 var _end_t := 0.0
+var _strikes := 0
 
 
 static func spawn(parent: Node, from: Vector3, to: Array, is_big := false) -> Node3D:
@@ -81,11 +87,12 @@ func _follow(_delta: float) -> void:
 			continue
 		c.arrived = true
 		var s: Vector3 = c.spot
-		if big:
+		if big and _strikes < STRIKES:
+			_strikes += 1
 			var foot := Vector3(s.x, 0.25, s.z)
 			var sky := foot + Vector3(_rng.randf_range(-1.0, 1.0), STRIKE_HIGH, _rng.randf_range(-1.0, 1.0))
-			COMIC_BOLT.spawn(get_parent(), sky, foot, STRIKE_WIDTH, STRIKE_STAR, 1)
-		else:
+			COMIC_BOLT.spawn(get_parent(), sky, foot, STRIKE_WIDTH, STRIKE_STAR, STRIKE_FORKS)
+		elif not big:
 			COMIC_GALE.spawn(get_parent(), Vector3(s.x, 0.0, s.z), GALE_HIGH, GALE_R, GALE_LIFE)
 		_step = -1  # (redraw now, with the splat)
 
