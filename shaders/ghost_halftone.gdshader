@@ -17,11 +17,17 @@ uniform float dot_r = 0.33;  // dot radius, of a cell (0.5 touches)
 uniform bool depth_only = false;
 instance uniform float alpha = 1.0;  // the whole fade (tweened)
 instance uniform float fade_height = 0.0;  // m above the floor where the fill has faded out (0 = no gradient)
+// Round 33, part 3: a gradient along the mesh's own Y (model space, before scale): clear at `local_fade.x`,
+// full from `local_fade.y`. The echo axe fades along its handle toward the hand, so the big area reads as a
+// blade rather than a slab. Equal values = no gradient. Shared with ghost_ink, which keeps a thinner line.
+instance uniform vec2 local_fade = vec2(0.0, 0.0);
 
 varying float v_height;
+varying float v_local;
 
 void vertex() {
 	v_height = (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
+	v_local = VERTEX.y;
 }
 
 void fragment() {
@@ -34,6 +40,9 @@ void fragment() {
 		// Dots swell toward the silhouette (edge-on faces), so the shape has a rim of tone.
 		float edge = 1.0 - abs(dot(NORMAL, VIEW));
 		float grad = fade_height > 0.0 ? clamp(1.0 - v_height / fade_height, 0.0, 1.0) : 1.0;
+		if (local_fade.y != local_fade.x) {
+			grad *= smoothstep(local_fade.x, local_fade.y, v_local);
+		}
 		float r = dot_r * (0.8 + 0.4 * edge) * mix(0.55, 1.0, grad);  // dots shrink up the gradient
 		float d = length(fract(g) - 0.5);
 		float m = 1.0 - smoothstep(r - 0.05, r + 0.05, d);

@@ -17,6 +17,11 @@ const INK_SHADER := preload("res://shaders/ghost_ink.gdshader")
 const FILL := 0.3  # mean alpha of the halftone fill (the slab was 0.6 solid)
 const INK_PX := 3.2  # px at 1080p, the ink line's outer edge (ink alone vanished on the indigo floor)
 const EDGE_PX := 1.7  # px at 1080p: a crisp light-tone line inside the ink, so the edge reads on the floor
+## Round 33, part 3: the fill fades along the haft toward the hand (axe-local Y: the KayKit 1H_Axe's grip end is
+## at -0.27, the blade starts about 0.22), so the 3 m ghost reads as a blade sweeping, not a teal slab.
+## ghost_halftone `local_fade`: clear at x, full from y (the blade's middle). The ink line keeps 45% down the haft.
+## (-0.2, 0.32) faded only the grip and read the same as no fade at the game camera.
+const HAFT_FADE := Vector2(0.1, 0.6)
 
 var axe_mesh: Mesh
 var color := Color(0.3, 0.95, 0.85)
@@ -42,6 +47,7 @@ func _ready() -> void:
 	_pivot.position.y = HEIGHT
 	add_child(_pivot)
 	var axe := ghost(axe_mesh, color)
+	axe.set_instance_shader_parameter("local_fade", HAFT_FADE)
 	_axe = axe
 	# Axe-local: handle +Y, blade toward -X, thin in Z. Lay it flat: handle points
 	# out from the hero (+Z), blade leads the sweep, flat side faces the camera.

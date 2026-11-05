@@ -7,8 +7,14 @@ render_mode unshaded, cull_front, depth_draw_never, blend_mix, shadows_disabled;
 uniform vec4 ink_color : source_color = vec4(0.01, 0.05, 0.06, 1.0);
 uniform float width_px = 2.0;  // at 1080p (scaled with the viewport height)
 instance uniform float alpha = 1.0;  // shared with the fill's fade (per instance)
+instance uniform float fade_height = 0.0;  // (unused here: declared so the instance indices match the fill's)
+instance uniform vec2 local_fade = vec2(0.0, 0.0);  // shared with the fill: the line thins to LOCAL_FLOOR along it
+const float LOCAL_FLOOR = 0.45;
+
+varying float v_local;
 
 void vertex() {
+	v_local = VERTEX.y;
 	vec4 clip = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));
 	vec3 view_normal = normalize(MODELVIEW_NORMAL_MATRIX * NORMAL);
 	vec2 dir = (PROJECTION_MATRIX * vec4(view_normal, 0.0)).xy;
@@ -21,5 +27,6 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = ink_color.rgb;
-	ALPHA = ink_color.a * alpha;
+	float lf = local_fade.y != local_fade.x ? mix(LOCAL_FLOOR, 1.0, smoothstep(local_fade.x, local_fade.y, v_local)) : 1.0;
+	ALPHA = ink_color.a * alpha * lf;
 }
