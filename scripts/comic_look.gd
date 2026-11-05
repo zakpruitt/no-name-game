@@ -103,8 +103,10 @@ const EMITS := {
 }
 ## A kind whose script defines a shared material name differently.
 const KIND_TONES := {
-	# round 39: the shield is a wall of planks; at full brush its grain broke into a checker from the game camera
-	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.1, "inner": 0.06}},
+	# round 39: the shield is a wall of planks; at full brush its grain broke into a checker from the game camera.
+	# Round 39 b: one flat slab now (refine_pass `slab`), lit on the light band's edge, so any brush splits it into
+	# leopard spots: brush 0, one tone.
+	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.0, "inner": 0.06}},
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
 	# His weapons grow out of the claw, so they carry its paint: fx_palette's void (round 40). Hafts are the
 	# claw's violet, heads and blades the void's deep and ink, and each keeps one element accent of its own

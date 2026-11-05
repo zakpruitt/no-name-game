@@ -256,6 +256,16 @@ blender -b <kit>/out/enemies_refined/<name>.blend -P tools/comic_art/foe_keys.py
 python tools/comic_glb.py <kit>/out/enemies_keyed <name>
 ```
 
+**Round 39 b (foe models, second pass).** Judged the same way, before / after `foe_shots.gd` sheets:
+
+- **Shield: one flat slab.** The planks were staggered and curved round him, so each caught its own tone and
+  the wall read as a light / dark checker. `refine_pass.py` `slab` replaces every vertex of `wood` on the
+  `shield` bone with its convex outline on the best-fit plane (13 sides): a 7 cm deep body in `P_Black` (the
+  inked rim, 9 cm wide on the face) under a flat face raised 1 cm in `P_Wood`, weighted 1.0 to `shield`; the
+  iron bands and studs on the shield bone are dropped and the orange boss is centred on the face and sat on
+  it. Flat, the face sits on the light band's edge, where any brush breaks it into leopard spots, so
+  `KIND_TONES.shield.P_Wood` has brush 0. Tris 9953 -> 8840.
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
 (`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`

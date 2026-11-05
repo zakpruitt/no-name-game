@@ -12,6 +12,10 @@
 #            archer's bow limbs, the Warden's arms. Joints stay where the bones are.
 #   drop   — islands of an object that ride a bone deleted (the shield's clutter of skulls and arrows).
 #   mat    — an object onto another material: each foe family's accent (FAMILY) and glow.
+#   slab   — a prop's face rebuilt as one flat slab (round 39 b): its vertices on the prop bone replaced by
+#            their convex outline on the best-fit plane, a dark inked rim round a raised flat face, and
+#            the named clutter (the shield's iron bands) dropped. Staggered, curved planks broke into a
+#            light / dark checker under the cut tones; one plane takes one tone.
 # and on every skull face (FACE): eyes and sockets scaled about the eye's centre (the eye bone's head,
 # so the hit squint still closes on it) and tipped back to face up the game camera, a slanted brow over each eye (on the eye bone too: a squint
 # folds it into a shut-eye line) and the teeth bent down at the corners into a scowl.
@@ -39,7 +43,8 @@ SPEC = {
     'rogue': dict(ops=[('grow', ['weapon.l'], 1.2, 'weapon.l'), ('grow', ['weapon.r'], 1.2, 'weapon.r')],
                   mat={'wrap': 'accent', 'necro': 'glow'}),
     'shield': dict(ops=[('drop', ['bone', 'socket', 'teeth', 'necro', 'cloth', 'rust'], ['shield']),
-                        ('grow', ['shield'], 1.4, 'shield')],
+                        ('grow', ['shield'], 1.4, 'shield'),
+                        ('slab', 'wood', 'shield', dict(rim=.09, depth=.07, lift=.01, drop=['iron'], front=['bronze']))],
                    mat={'bronze': 'accent', 'necro': 'glow'}),
     'warrior': dict(ops=[('grow', ['weapon'], 1.35, 'weapon')],
                     mat={'bronze': 'accent', 'necro': 'glow', 'cloth': 'P_Leather'}),
@@ -165,6 +170,109 @@ for op in spec['ops']:
                 bm.to_mesh(me); bm.free(); me.update()
                 n += len(gone)
         report.append('drop %d verts off %s' % (n, '+'.join(bones)))
+
+    elif kind == 'slab':
+        _, oname, bone, o_ = op
+        o = obj(oname); me = o.data
+        on = [v.index for v in me.vertices if wsum(o, v, [bone]) > .5]
+        pts = [me.vertices[i].co.copy() for i in on]
+        c = sum(pts, V()) / len(pts)
+        import numpy as np
+        A = np.array([tuple(p - c) for p in pts])
+        _w, vec = np.linalg.eigh(A.T @ A)
+        n = V(tuple(vec[:, 0])).normalized()   # least spread: the face's normal
+        if n.y > 0:   # out of the face: ahead of the foe (-Y)
+            n = -n
+        bd = arm.bones[bone]
+        up = bd.tail_local - bd.head_local; up = (up - n * up.dot(n)).normalized()
+        rt = up.cross(n).normalized()
+        uv = [((p - c).dot(rt), (p - c).dot(up)) for p in pts]
+        dF = max((p - c).dot(n) for p in pts); dB = max(min((p - c).dot(n) for p in pts), dF - o_['depth'])
+
+        def half(seq):
+            h = []
+            for x in seq:
+                while len(h) >= 2 and ((h[-1][0] - h[-2][0]) * (x[1] - h[-2][1]) - (h[-1][1] - h[-2][1]) * (x[0] - h[-2][0])) <= 0:
+                    h.pop()
+                h.append(x)
+            return h
+        q = sorted(set((round(a, 4), round(b, 4)) for a, b in uv))
+        ring = half(q)[:-1] + half(q[::-1])[:-1]
+        keep = [ring[0]]
+        for x in ring[1:]:   # no slivers: outline points closer than 4 cm to the last kept go
+            if math.hypot(x[0] - keep[-1][0], x[1] - keep[-1][1]) > .04:
+                keep.append(x)
+        ring = keep
+        cu = sum(x[0] for x in ring) / len(ring); cv = sum(x[1] for x in ring) / len(ring)
+        inner = []
+        for a, b in ring:   # the face, inset by the rim width towards the outline's centre
+            d = math.hypot(a - cu, b - cv)
+            k = max(0.0, (d - o_['rim']) / d)
+            inner.append((cu + (a - cu) * k, cv + (b - cv) * k))
+        g_avg = None
+        if 'g' in me.color_attributes and me.color_attributes['g'].domain == 'POINT':
+            ga = me.color_attributes['g']
+            g_avg = sum((V(tuple(ga.data[i].color[:3])) for i in on), V()) / len(on)
+        ig = o.vertex_groups.get('inkw')
+        ink_avg = None
+        if ig:
+            vals = [g.weight for i in on for g in me.vertices[i].groups if g.group == ig.index]
+            ink_avg = sum(vals) / len(vals) if vals else None
+        P3 = lambda a, b, d: c + rt * a + up * b + n * d
+        m = len(ring)
+        verts = ([P3(a, b, dF) for a, b in ring] + [P3(a, b, dB) for a, b in ring] +
+                 [P3(a, b, dF + o_['lift']) for a, b in inner] + [P3(a, b, dF - .004) for a, b in inner])
+        rim_faces = [tuple(range(m)), tuple(range(2 * m - 1, m - 1, -1))] + [(i, (i + 1) % m, m + (i + 1) % m, m + i) for i in range(m)]
+        face_faces = [tuple(range(2 * m, 3 * m))] + [(2 * m + i, 3 * m + i, 3 * m + (i + 1) % m, 2 * m + (i + 1) % m) for i in range(m)]
+        rname = o_.get('rim_mat', 'P_Black')
+        rim_m = bpy.data.materials.get(rname) or bpy.data.materials.new(rname)
+        names = [x.name if x else None for x in me.materials]
+        if rname not in names:
+            me.materials.append(rim_m); names.append(rname)
+        rim_slot = names.index(rname)
+        bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
+        bmesh.ops.delete(bm, geom=[bm.verts[i] for i in on], context='VERTS')
+        dl = bm.verts.layers.deform.verify()
+        gl = bm.verts.layers.float_color.get('g')
+        new = [bm.verts.new(p) for p in verts]
+        gb = o.vertex_groups[bone].index
+        for bv in new:
+            bv[dl][gb] = 1.0
+            if ink_avg is not None:
+                bv[dl][ig.index] = ink_avg
+            if gl is not None and g_avg is not None:
+                bv[gl] = (g_avg.x, g_avg.y, g_avg.z, 1.0)
+        made = []
+        for f in rim_faces:
+            fa = bm.faces.new([new[i] for i in f]); fa.material_index = rim_slot; made.append(fa)
+        for f in face_faces:
+            fa = bm.faces.new([new[i] for i in f]); fa.material_index = 0; made.append(fa)
+        cen = c + rt * cu + up * cv
+        for j, fa in enumerate(made):   # caps face out of / into the face, sides away from the centre
+            fa.normal_update()
+            want = n if j in (0, len(rim_faces)) else (-n if j == 1 else fa.calc_center_median() - cen - n * (fa.calc_center_median() - cen).dot(n))
+            if fa.normal.dot(want) < 0:
+                fa.normal_flip()
+        bm.to_mesh(me); bm.free(); me.update()
+        nd = 0
+        for dn in o_.get('drop', []):   # clutter on the face (iron bands, studs) dropped
+            d_o = obj(dn)
+            if d_o is None:
+                continue
+            gone = [v.index for v in d_o.data.vertices if wsum(d_o, v, [bone]) > .5]
+            bm = bmesh.new(); bm.from_mesh(d_o.data); bm.verts.ensure_lookup_table()
+            bmesh.ops.delete(bm, geom=[bm.verts[i] for i in gone], context='VERTS')
+            bm.to_mesh(d_o.data); bm.free(); d_o.data.update(); nd += len(gone)
+        for fn in o_.get('front', []):   # the boss: centred on the new face and sat on it, not sunk inside it
+            f_o = obj(fn)
+            vs = [v for v in f_o.data.vertices if wsum(f_o, v, [bone]) > .5]
+            bc = sum((v.co for v in vs), V()) / len(vs)
+            mv = rt * (cu - (bc - c).dot(rt)) + up * (cv - (bc - c).dot(up))
+            mv += n * (dF + o_['lift'] - .01 - min((v.co - c).dot(n) for v in vs))
+            for v in vs:
+                v.co += mv
+            f_o.data.update()
+        report.append('slab %s: %d-gon, %.3f m deep, rim %.3f, %d verts dropped' % (oname, m, dF - dB, o_['rim'], nd))
 
 # ------------------------------------------------------------------ faces
 eye_obj = obj(EYE_OBJ.get(NAME, 'necro'))
