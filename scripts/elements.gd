@@ -14,6 +14,7 @@ extends RefCounted
 ##   Orbit    motes circling the hero (a few at rest, more while Awakened)
 
 const FOES := preload("res://scripts/foes.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 const WELL_TIME := 4.0  # s a lava well burns before it drains
 const WELL_RADIUS := 1.5
 const WELL_MAX := 9  # oldest wells drain first past this
@@ -46,9 +47,22 @@ const STRIKE_HIGH := 9.0  # m the storm strike's bolt drops from
 const STRIKE_WIDTH := 0.4  # m, its colour band; the ink is twice that
 const STRIKE_STAR := 1.1  # m, the impact star at its foot
 const COMIC_SPIKE_FAT := 1.35  # comic spikes are chunkier
+## Round 33 (sleek): comic earth spikes are the see-through halftone look (spirit_echo.ghost_mat, earth
+## palette: thin ink and a light edge round a ~0.3 alpha fill fading up to the tips), not opaque brown rock,
+## and stand for less of their life.
+const SPIKE_HOLD := 0.4  # of `life` a comic spike stands at full height (0.6)
+const SPIKE_SINK := 0.25  # of `life` it takes to sink (0.3)
+## The spirit (and void) strike from the sky in the comic style: one see-through column in the element's
+## palette that fades out going up, not an 8 m x 1.4 m swirl round a white-gold core.
+const COLUMN_HIGH := 7.0  # m
+const COLUMN_R := 0.45  # m at the foot (0.7 at the top)
+const COLUMN_LIFE := 0.4  # s (the beam's 0.7)
+const COLUMN_STAR := 0.8  # m, the inked star at its foot
 const NOVA_HOOP_R := 0.9  # of the nova's radius: its one comic hoop
 const NOVA_HOOP_THIN := 0.035  # of the hoop's radius: about 0.1 m on a Live Wire nova
 const ORBIT_REST := 3
+const MOTE_R := 0.075  # m: a comic spirit mote (the glow dot was 0.08 in a 0.16 halo; 0.055 vanished)
+const MOTE_INK_PX := 1.6  # px at 1080p
 const ORBIT_AWAKENED := 7
 
 static var _mats := {}
@@ -59,6 +73,7 @@ static var casts := 0  # casts summoned (autotest)
 ## Drop cached materials and meshes so nothing is left alive at exit (Game._exit_tree).
 static func release() -> void:
 	_mats.clear()
+	SPIRIT_ECHO._mats.clear()
 	_meshes.clear()
 
 
@@ -109,7 +124,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.water.color, true, 0.6, 5.0)))
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.spirit.color, true, 3.0, 2.0)))
 	var ghost: MeshInstance3D = SPIRIT_ECHO.ghost(BoxMesh.new(), Color.WHITE)  # spirit casts
-	ghost.material_override.albedo_color.a = 0.5
+	SPIRIT_ECHO.set_alpha(0.5, ghost)
 	root.add_child(ghost)
 	var ribbon := MeshInstance3D.new()  # the weapon trail's shader (it draws nothing until a swing)
 	ribbon.mesh = QuadMesh.new()
@@ -281,6 +296,23 @@ static func _mi(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return m
 
 
+## The comic spirit mote's look: the palette's light tone, flat and opaque, in a MOTE_INK_PX ink hull.
+static func mote_mat(el: String) -> StandardMaterial3D:
+	var key := "mote_" + el
+	if not _mats.has(key):
+		var pal := PAL.of(el if LOOK.has(el) and el != "void" else "spirit")
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = pal.light
+		var ink := ShaderMaterial.new()
+		ink.shader = SPIRIT_ECHO.INK_SHADER
+		ink.set_shader_parameter("ink_color", pal.ink)
+		ink.set_shader_parameter("width_px", MOTE_INK_PX)
+		m.next_pass = ink
+		_mats[key] = m
+	return _mats[key]
+
+
 ## A piece of the element (orbit motes, vortex pieces): wisp, leaf blade, rock chunk or ice shard.
 static func piece(el: String, size := 1.0) -> Node3D:
 	var root := Node3D.new()
@@ -304,6 +336,13 @@ static func piece(el: String, size := 1.0) -> Node3D:
 			c.scale = Vector3.ONE * 0.28 * size
 			c.rotation = Vector3(0.0, 0.0, 0.5)
 			root.add_child(c)
+		_ when Game.comic_style:  # round 33 (sleek): a small flat bead in a thin ink line, not a glowing dot in a halo
+			var s := SphereMesh.new()
+			s.radius = MOTE_R * size
+			s.height = MOTE_R * 2.0 * size
+			s.radial_segments = 10
+			s.rings = 5
+			root.add_child(_mi(s, mote_mat(el)))
 		_:
 			var s := SphereMesh.new()
 			s.radius = 0.08 * size
@@ -470,13 +509,17 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 	parent.add_child(root)
 	root.global_position = Vector3(pos.x, 0.0, pos.z)
 	var comic := Game.comic_style
-	var mat := rock() if el == "earth" else ice()
+	var mat: Material = rock() if el == "earth" else ice()
 	for i in count:
 		var h := randf_range(1.0, 1.8) * size
 		var fat := COMIC_SPIKE_FAT if comic else 1.0
 		if comic and el == "water":  # flat inked ice in two tones: the shiny glowing ice was a soft blue blob
 			mat = comic_ice(i % 2 == 0)
+		elif comic:  # see-through halftone earth in a thin line, fading up to the tip
+			mat = SPIRIT_ECHO.ghost_mat(LOOK.earth.color)
 		var s := _mi(_spike_mesh(randf_range(0.22, 0.34) * size * fat, h, 5), mat)
+		if comic and el == "earth":
+			s.set_instance_shader_parameter("fade_height", h * 1.05)  # (the tip stands about h up)
 		var off := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4)) * size if i > 0 else Vector3.ZERO
 		s.position = off + Vector3.UP * -h * 0.5
 		s.rotation = Vector3(off.z * 0.8, randf() * TAU, -off.x * 0.8)
@@ -486,8 +529,8 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 		var up := tw.tween_property(s, "position:y", h * 0.45, 0.07).set_ease(Tween.EASE_OUT)
 		if comic:
 			up.set_trans(Tween.TRANS_BACK)  # punches past and settles
-		tw.tween_interval(life * 0.6)
-		tw.tween_property(s, "position:y", -h * 0.5, life * 0.3).set_ease(Tween.EASE_IN)
+		tw.tween_interval(life * (SPIKE_HOLD if comic else 0.6))
+		tw.tween_property(s, "position:y", -h * 0.5, life * (SPIKE_SINK if comic else 0.3)).set_ease(Tween.EASE_IN)
 	var t0 := root.create_tween()
 	t0.tween_interval(life + 0.1)
 	t0.tween_callback(root.queue_free)
@@ -708,8 +751,41 @@ static func storm_strike(parent: Node, pos: Vector3, el: String) -> void:
 		"water":
 			spikes(parent, pos, el, 2.0, 5, 1.2)
 		_:
-			pillar(parent, pos, el, 8.0, 1.3, 0.7)
+			if Game.comic_style:
+				comic_column(parent, pos, el)
+			else:
+				pillar(parent, pos, el, 8.0, 1.3, 0.7)
 	light_pop(parent, pos, LOOK[el].color, 5.0, 5.0, 0.25)
+
+
+## The comic strike from the sky (spirit, void): a see-through column (COLUMN_*) snapping open at `pos`
+## with an inked star at its foot, gone in COLUMN_LIFE.
+static func comic_column(parent: Node, pos: Vector3, el: String) -> void:
+	var c: Color = LOOK[el].color
+	var root := Node3D.new()
+	parent.add_child(root)
+	root.global_position = _flat(pos)
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = COLUMN_R * 1.55
+	cyl.bottom_radius = COLUMN_R
+	cyl.height = COLUMN_HIGH
+	cyl.radial_segments = 16
+	cyl.rings = 1
+	cyl.cap_top = false
+	var col := SPIRIT_ECHO.ghost(cyl, c)
+	col.set_instance_shader_parameter("fade_height", COLUMN_HIGH * 0.85)
+	SPIRIT_ECHO.set_alpha(1.0, col)
+	col.position.y = COLUMN_HIGH * 0.5
+	root.add_child(col)
+	root.scale = Vector3(0.25, 1.0, 0.25)
+	var tw := root.create_tween()
+	tw.tween_property(root, "scale", Vector3.ONE, 0.06).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_interval(COLUMN_LIFE * 0.35)
+	tw.tween_method(SPIRIT_ECHO.set_alpha.bind(col), 1.0, 0.0, COLUMN_LIFE * 0.5)
+	tw.tween_callback(root.queue_free)
+	var pal := PAL.of(el)
+	Fx.COMIC_POP.spawn(parent, root.global_position + Vector3.UP * 0.3, {"star": COLUMN_STAR, "steps": 3,
+		"star_color": pal.body, "star_core": pal.light})
 
 
 # --- Lava and lightning the void moves share (were element_rite.gd) --------
