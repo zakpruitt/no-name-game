@@ -32,7 +32,16 @@ RUN_ROLL = -10.0  # degrees of roll per footfall, leaning over the planted foot
 arm = bpy.data.objects["Armature"]
 # chibi_presence.py scales the armature object (the glTF node carries it): every pose here is in armature
 # space, so a distance that must hold on the floor (the run's ground speed) is divided by it.
-WORLD_K = arm.matrix_world.to_scale().x
+# Hero pass 3: the game draws the model heretic_rig.gd MODEL_SCALE bigger, so floor distances are divided by
+# that too (read from the script, so the two can't drift).
+_RIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "scripts", "heretic_rig.gd")
+GAME_K = 1.0
+if os.path.exists(_RIG):
+    import re
+    _m = re.search(r'const MODEL_SCALE := \{"chibi": ([0-9.]+)\}', open(_RIG).read())
+    GAME_K = float(_m.group(1)) if _m else 1.0
+print("[keys] game model scale x%.3f" % GAME_K)
+WORLD_K = arm.matrix_world.to_scale().x * GAME_K
 AW_INV = arm.matrix_world.inverted()
 # m each foot sits further out from its rest in every keyed pose (armature space): a wider, planted stance
 STANCE_W = 0.05

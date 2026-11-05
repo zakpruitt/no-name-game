@@ -82,6 +82,12 @@ const EYES := {"chibi": [Vector3(-0.034, 1.25, 0.13), Vector3(0.155, 1.25, 0.13)
 ## neck joint (the head bone's head); EYES and GRIN stay the round-40 spots and move through the same map,
 ## and the decals grow with it.
 const HEAD_GROW := {"chibi": 1.2}
+## Hero pass 3 (round 40): his whole model drawn this much bigger in the game (the rig node under
+## player.model: Awakening tweens player.model's own scale), so he stands as tall as the warrior at the
+## game camera. Collision, hit ranges and the hit areas are unchanged. tools/meshy_rig/chibi_keys.py reads
+## this line and shortens the run strides by it, so his feet still hold the floor (hero_stride_check
+## scales the model by it too).
+const MODEL_SCALE := {"chibi": 1.06}
 ## Hero pass 3 (round 40): tools/meshy_rig/chibi_faceup.py tipped the head back [deg] about a point [m] over
 ## the neck joint, chin up, so the face opening points up at the game camera; every face spot (eyes, grin,
 ## shade) and the facing test turn with it after HEAD_GROW.
@@ -217,12 +223,23 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	_last_form = arm.form
 	keyed = _clips_key_claws(arm.hero.anim)
 	_root = skel.find_bone("root")
+	_scale_model(arm.hero.model, skel)
 	skel.add_child(self)
 	_warm_fx(skel)
 	_add_springs(skel)
 	_add_eyes(skel)
 	_add_grin(skel)
 	_add_rim(skel)
+
+
+## MODEL_SCALE on the node under the model root that holds the skeleton (the GLB's Armature node).
+static func _scale_model(model: Node3D, skel: Skeleton3D) -> void:
+	var k: float = MODEL_SCALE.get(Game.hero_model, 1.0)
+	var n: Node = skel
+	while n.get_parent() != model and n.get_parent() != null:
+		n = n.get_parent()
+	if n is Node3D and n.get_parent() == model:
+		(n as Node3D).scale *= k
 
 
 ## Feel audit 2026-11-04 item 3: in breaker hangs and slams he was lost under the bolts, rings and words.

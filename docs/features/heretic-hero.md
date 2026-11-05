@@ -274,6 +274,8 @@ blender -b vendor_src/meshy/chibi/p2/hook.blend -P tools/meshy_rig/chibi_keys.py
 
 then `comic_glb.py`, the JPEG bytes, `--import` and `contact_frames.gd` as above. Later clip work keys over `p2/hook.blend`.
 
+- **Scale**: `heretic_rig.MODEL_SCALE` {"chibi": 1.06} scales the GLB's Armature node under `player.model` at setup (`_scale_model`; `player.model`'s own scale belongs to Awakening's 1.18 tween). Collision, hit ranges and every hit area are unchanged. `chibi_keys.py` reads the constant out of `heretic_rig.gd` (`GAME_K`, printed as `[keys] game model scale`) into `WORLD_K`, so the run strides shorten by it, and `hero_stride_check` scales the model by it: 1.00 on all four runs (0.94 before the re-key). Contact frames print the same. Game camera, Idle on his spot, one at a time (1600x900, shadows off, `foe_shots`' camera framing differs from round 2's, so the warrior reads 226 px here where it read 209): pass 2 196 px / 20.1k px, pass 3 243 px / 24.1k px, warrior 226 px / 32.8k px, dummy 179 px (1.075x the warrior's height; his area is still 74% of the warrior's, whose shield and horns are wide).
+
 ## The rig
 
 - Bone names match the current hero, so `MOVES`, `HERO_MOVES` and `hand.r` lookups work unchanged. Extras: `neck`, `shoulder.*`, left `finger.*`, `tent.*`, `skirt.*`.
