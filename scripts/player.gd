@@ -40,6 +40,8 @@ const BUFFER_MS := HERO_INPUT.BUFFER_MS
 const BREAKER_SPILL := HERO_LEAP.BREAKER_SPILL
 const BREAKER_EARLY := HERO_LEAP.BREAKER_EARLY
 const COMBO_TIER_COLORS := HERO_FX.COMBO_TIER_COLORS
+const COMBO_TIER_SFX := HERO_FX.COMBO_TIER_SFX  # (hero_leap reads these off the hero)
+const COMBO_SFX_DB := HERO_FX.COMBO_SFX_DB
 
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Idle_Ready"]
 const LOOP_SPEED := 1.1  # loops, fidgets and the run one-shots (_loop_speed)
@@ -784,3 +786,21 @@ func _loop_speed(clip: String) -> float:
 ## The breaker window breaker_prompt.gd draws (hero_leap.window).
 func breaker_window() -> Dictionary:
 	return HERO_LEAP.window(self)
+
+
+# Forwarders kept for hero_leap.gd, void_element.gd and training_bot.gd (owned by another lane; drop
+# these once those files call HERO_FX / HERO_INPUT directly).
+func _cast_grow() -> float:
+	return HERO_FX.cast_grow()
+
+
+func _cast_power() -> float:
+	return HERO_FX.cast_power()
+
+
+func cancel_point() -> float:
+	return HERO_INPUT.cancel_point(self)
+
+
+func combo_window() -> Dictionary:
+	return HERO_INPUT.combo_window(self)
