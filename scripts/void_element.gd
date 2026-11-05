@@ -1459,8 +1459,8 @@ static func cube_target(e: Node3D, seized: Array, at: Vector3, all: Array, facin
 static func under(parent: Node, spot: Vector3, el: String) -> void:
 	match el:
 		"earth":
-			ELEMENTS.geyser(parent, spot, GEYSER_RADIUS, GEYSER_HIGH, false)
-			ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 5, 1.0)
+			ELEMENTS.rim_geyser(parent, spot, GEYSER_RADIUS, GEYSER_HIGH, false)
+			ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 3, 1.0)  # (round 33, sleek 5: a full geyser and five spikes under each foe walled Worldbreaker's pile)
 		"water":
 			ELEMENTS.spikes(parent, spot, "water", CRYSTAL_SIZE, 6, 1.0)
 			Fx.shards(parent, spot + Vector3.UP * 0.6, Color(0.85, 0.96, 1.0), 10, Vector3.UP, 8.0, 0.14, 0.6)
