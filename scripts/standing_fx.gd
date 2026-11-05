@@ -15,6 +15,7 @@ const CLEAR_S := 0.15  # s an effect takes to fade once cleared
 
 static var _was_idle := true  # last frame he was in no string
 static var _start_ms := -1  # when the string waiting for its first hit started (-1: none waiting)
+static var first_hit_frame := -1  # the process frame of the last string's first hit (hud.gd's found banner)
 
 
 static func add(n: Node) -> void:
@@ -30,6 +31,7 @@ static func watch(hero: Node) -> void:
 		_start_ms = Time.get_ticks_msec()
 	_was_idle = hero._chain_i == 0 and not attacking and hero.state != hero.State.LEAP
 	if _start_ms >= 0 and attacking and hero._hits_done > 0:
+		first_hit_frame = Engine.get_process_frames()
 		clear(hero.get_tree(), _start_ms)
 		_start_ms = -1
 

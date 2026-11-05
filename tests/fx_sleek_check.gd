@@ -277,6 +277,34 @@ func _audit2(main: Node, p: CharacterBody3D) -> void:
 	_ok(shown.EE and shown.XR and shown.XF, "enders and crossovers keep theirs (%s)" % str(shown))
 	_ok(cap.names_move("OW") and not cap.names_move("TW") and not cap.names_move("EM"), "Overwhelm is named, Tow Line and Molten Palm are not")
 	p._move_id = ""
+	# Item 4: the "New combo:" banner is up 1.2 s of real time, slow motion or not, and the next string's first hit cuts it.
+	var hud: CanvasLayer = main.hud
+	var game: Node = get_root().get_node("Game")
+	hud.show_found("New combo: test")
+	game.hitstop(2.0, 0.5)
+	await create_timer(0.6, true, false, true).timeout
+	_ok(hud.hint_panel.modulate.a > 0.9, "the banner is up (%.2f)" % hud.hint_panel.modulate.a)
+	await create_timer(0.75, true, false, true).timeout
+	game.end_slowmo()
+	_ok(hud.hint_panel.modulate.a < 0.05, "gone 1.2 s real later in slow motion (%.2f)" % hud.hint_panel.modulate.a)
+	var standing: GDScript = load("res://scripts/standing_fx.gd")
+	p.state = p.State.MOVE
+	p._chain_i = 0
+	p._hits_done = 0
+	standing.watch(p)
+	hud.show_found("New combo: test")
+	await create_timer(0.3, true, false, true).timeout
+	var cut0: int = hud.found_cut
+	p.state = p.State.ATTACK
+	p._chain_i = 1
+	standing.watch(p)  # the next string starts
+	p._hits_done = 1
+	standing.watch(p)  # its first hit
+	await create_timer(0.25, true, false, true).timeout
+	_ok(hud.found_cut == cut0 + 1 and hud.hint_panel.modulate.a < 0.05, "the next string's first hit cuts it (%.2f)" % hud.hint_panel.modulate.a)
+	p.state = p.State.MOVE
+	p._chain_i = 0
+	p._hits_done = 0
 
 
 ## Round 33, sleek 5 (the density pass): later items add their checks here.

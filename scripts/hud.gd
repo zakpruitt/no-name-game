@@ -8,7 +8,14 @@ const RANK_COLORS := {"D": Color(0.7, 0.7, 0.7), "C": Color(0.5, 0.8, 1.0), "B":
 	"A": Color(1.0, 0.9, 0.3), "S": Color(1.0, 0.55, 0.2), "SS": Color(1.0, 0.3, 0.3), "SSS": Color(1.0, 0.3, 0.9)}
 const LOW_HP := 0.25  # vignette + heartbeat below this fraction of max HP
 const HEARTBEAT := 0.8  # seconds between beats at LOW_HP; quicker as HP drops
-const FOUND_HOLD := 2.5  # s the "New combo" hint stays up
+## Feel audit 2, item 4: the "New combo:" banner held 2.5 s of game time, so it ran through the whole next string
+## (and slow motion held it longer). It now runs on real time, FOUND_IN + FOUND_HOLD + FOUND_OUT = 1.2 s, and goes
+## (FOUND_CUT) on the next string's first hit (standing_fx.first_hit_frame).
+const FOUND_IN := 0.1  # real s
+const FOUND_HOLD := 0.85
+const FOUND_OUT := 0.25
+const FOUND_CUT := 0.12
+const STANDING := preload("res://scripts/standing_fx.gd")
 const HUD_INK := preload("res://scripts/hud_ink.gd")
 ## Round 33, part 3 (sleek HUD, hud_ink.gd): the combo counter, rank and air count in the words' font with a thin
 ## ink outline (size / 9; was / 6) over a slanted halftone panel in the rank's colour; the combo-name callout
@@ -55,6 +62,8 @@ var center_label: Label
 var hint_label: Label
 var hint_panel: PanelContainer
 var _hint_tween: Tween
+var _found_frame := -1  # the process frame the found banner went up (-1: none up)
+var found_cut := 0  # found banners cut by the next string (fx_sleek_check)
 var boss_root: Control
 var boss_bar: ProgressBar
 var boss_break_bar: ProgressBar
@@ -193,8 +202,8 @@ func bind_player(p: Node) -> void:
 	# A combo's first landing, unless a tutorial hint is still up.
 	p.combo_found.connect(func(id: String) -> void:
 		if hint_panel.modulate.a < 0.05:
-			show_hint("New combo: %s   (%s)   ·   %d / %d found" % [p.combo_name(id), p.COMBOS[id].input,
-				p.combos_landed.size(), p.COMBOS.size()], FOUND_HOLD))
+			show_found("New combo: %s   (%s)   ·   %d / %d found" % [p.combo_name(id), p.COMBOS[id].input,
+				p.combos_landed.size(), p.COMBOS.size()]))
 
 
 func show_boss(boss: Node) -> void:
@@ -207,6 +216,13 @@ func show_boss(boss: Node) -> void:
 
 func _process(delta: float) -> void:
 	_update_low_hp(delta)
+	if _found_frame >= 0 and STANDING.first_hit_frame > _found_frame:
+		_found_frame = -1
+		found_cut += 1
+		if _hint_tween:
+			_hint_tween.kill()
+		_hint_tween = create_tween().set_ignore_time_scale(true)
+		_hint_tween.tween_property(hint_panel, "modulate:a", 0.0, FOUND_CUT)
 	if not boss_root.visible:
 		return
 	if not is_instance_valid(_boss) or _boss.hp <= 0.0:
@@ -252,12 +268,26 @@ func _notification(what: int) -> void:
 
 func show_hint(text: String, hold := 5.0) -> void:
 	hint_label.text = text
+	_found_frame = -1
 	if _hint_tween:
 		_hint_tween.kill()
 	_hint_tween = create_tween()
 	_hint_tween.tween_property(hint_panel, "modulate:a", 1.0, 0.25)
 	_hint_tween.tween_interval(hold)
 	_hint_tween.tween_property(hint_panel, "modulate:a", 0.0, 0.6)
+
+
+## A combo's first landing: the banner on real time, cut by the next string's first hit.
+func show_found(text: String) -> void:
+	hint_label.text = text
+	if _hint_tween:
+		_hint_tween.kill()
+	_found_frame = Engine.get_process_frames()
+	_hint_tween = create_tween().set_ignore_time_scale(true)
+	_hint_tween.tween_property(hint_panel, "modulate:a", 1.0, FOUND_IN)
+	_hint_tween.tween_interval(FOUND_HOLD)
+	_hint_tween.tween_property(hint_panel, "modulate:a", 0.0, FOUND_OUT)
+	_hint_tween.tween_callback(func() -> void: _found_frame = -1)
 
 
 func flash_message(text: String, duration := 0.0) -> void:
