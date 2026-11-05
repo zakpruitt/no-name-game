@@ -15,6 +15,7 @@ const BIND := preload("res://scripts/floor_bind.gd")
 const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
 const COMIC_BOULDER := preload("res://scripts/comic_boulder.gd")  # crossover looks (round 37)
+const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -712,14 +713,10 @@ static func _fault_line(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 	var foes: Array = FOES.near(hero.get_tree(), at, FAULT_REACH * hero._cast_grow()).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e))
 	if foes.is_empty():
-		ELEMENTS.fissure(parent, at, fwd, 4.0, 5, "earth", 0.8)
+		COMIC_FAULT.spawn(parent, at, [at + fwd * 4.0])
 		return 0
+	COMIC_FAULT.spawn(parent, at, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
 	for e: Node3D in foes:
-		var to := _flat(e.global_position - at)
-		var spot := _flat(e.global_position)
-		if to.length() > 0.5:
-			ELEMENTS.fissure(parent, at, to.normalized(), to.length(), 4, "earth", 0.7)
-		ELEMENTS.pillar(parent, spot, "wind", 2.6, 0.9)
 		var buried: bool = e in hero._void.buried
 		e.take_hit(FAULT_DAMAGE * power * (FAULT_BURIED_MULT if buried else 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else FAULT_LAUNCH, true)
 		Game.register_hit("cast")
@@ -831,21 +828,20 @@ static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> voi
 static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
 	var damage: float = b.damage * hero._dmg_mult * mult
+	var spots := []
 	for e: Node3D in seized:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
-		var spot := _flat(e.global_position)
+		spots.append(_flat(e.global_position))
 		e.take_hit(damage, Vector3.DOWN * CATACLYSM_DOWN, 0.0, true)
 		Game.register_hit("breaker")
-		ELEMENTS.storm_strike(parent, spot, "wind")
-		under(parent, spot, "earth")
+	COMIC_FAULT.spawn(parent, at, spots, true)  # (a crack to each, a strike where it arrives: was a strike + geyser + spikes each)
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if e in seized:
 			continue
 		var from := _flat(e.global_position - at)
 		e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
-	_pop(parent, at, "hammer")
 	Game.shake(0.7)
 
 
