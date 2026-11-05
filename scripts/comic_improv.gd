@@ -8,6 +8,12 @@ extends "res://scripts/comic_flat.gd"
 ##   buried x ice     Frozen In: ice plates close over its crack ring on the floor, three ice tips at its feet
 ##   buried x magma   Aftershock: two hot shock rings run out of the crater with its cracks, a drive stroke
 ##   buried x dark    Swallowed: a dark mouth on the floor closes its jaws over the crater
+##   molten x storm   Firestorm: a wind band carrying ember streaks round it, an ember line to the next foe
+##   molten x ice     Quench: a small steam puff over it, ice chips spilling, a hot star going out
+##   molten x magma   Flare-up: a hot splat under it, three flame tongues licking up after it
+##   molten x dark    Smother: a violet lid comes down on it, embers squirting out at its feet
+##   skewered x ice   Ice Spreads: a frost line runs along the floor to the next foe, ice tips where it arrives
+##   skewered x dark  Torn Off: the stake snaps in two halves and a void tear (comic_rip) as it's yanked
 ## Its word is ComicFx.IMPROV_WORDS[cell] (ComicFx.improv: said over the move's own word).
 ##   ComicImprov.spawn(parent, "frozen_x_void", foe, hero_spot, neighbour_or_null)
 
@@ -23,6 +29,12 @@ const LOOKS := {
 	"buried_x_water": {"name": "Frozen In", "life": 0.45, "ride": false, "a": "water", "b": "earth"},
 	"buried_x_earth": {"name": "Aftershock", "life": 0.42, "ride": false, "a": "earth", "b": "earth"},
 	"buried_x_void": {"name": "Swallowed", "life": 0.45, "ride": false, "a": "void", "b": "earth"},
+	"molten_x_wind": {"name": "Firestorm", "life": 0.42, "ride": true, "a": "wind", "b": "earth"},
+	"molten_x_water": {"name": "Quench", "life": 0.45, "ride": true, "a": "water", "b": "earth"},
+	"molten_x_earth": {"name": "Flare-up", "life": 0.4, "ride": true, "a": "earth", "b": "earth"},
+	"molten_x_void": {"name": "Smother", "life": 0.42, "ride": false, "a": "void", "b": "earth"},
+	"skewered_x_water": {"name": "Ice Spreads", "life": 0.45, "ride": false, "a": "water", "b": "water"},
+	"skewered_x_void": {"name": "Torn Off", "life": 0.35, "ride": false, "a": "void", "b": "water"},
 }
 const BAND_R := 0.62  # m: a band round a foe (a dummy is ~0.5 m across; the ice cube 0.9)
 const BAND_W := 0.11
@@ -105,6 +117,12 @@ func _draw(s: int) -> void:
 		"buried_x_water": _frozen_in(s, k, a)
 		"buried_x_earth": _aftershock(s, k, a)
 		"buried_x_void": _swallowed(s, k, a)
+		"molten_x_wind": _firestorm(s, k, a)
+		"molten_x_water": _quench(s, k, a)
+		"molten_x_earth": _flare_up(s, k, a)
+		"molten_x_void": _smother(s, k, a)
+		"skewered_x_water": _ice_spreads(s, k, a)
+		"skewered_x_void": _torn_off(s, k, a)
 
 
 # --- The cells ---------------------------------------------------------------------------------------------
@@ -221,6 +239,123 @@ func _swallowed(s: int, _k: float, a: float) -> void:
 	if gap <= 0.1:  # shut: a hot seam where it closed
 		_layer()
 		_floor_strip(PackedVector2Array([c + Vector2(-JAW * 0.9, 0.0), c, c + Vector2(JAW * 0.9, 0.0)]), 0.06, 0.06, PAL.fade(_a.light, a))
+
+
+func _firestorm(s: int, _k: float, a: float) -> void:
+	var c := Vector3.UP * -0.35
+	var head := _turn + s * 1.4 + PI * 1.3
+	_band(c, BAND_R * 1.2, head - PI * 1.3, PI * 1.3, BAND_W, _a.body, a)
+	for i in 4:  # embers carried on the band, along it
+		var ang := head - i * 0.55
+		var p := c + Vector3(cos(ang), 0.0, sin(ang) * 0.9) * BAND_R * 1.2 + Vector3.UP * (0.12 + 0.1 * i)
+		var tng := Vector3(-sin(ang), 0.0, cos(ang) * 0.9).normalized()
+		_wedge(p - tng * 0.45, tng, 0.45, 0.12, PAL.fade(_b.light if i % 2 == 0 else _b.body, a))
+	if to is Vector3 and s <= 2:  # the flames catching the next one: an ember line to it
+		var end: Vector3 = _local(to) + Vector3.UP * CHEST
+		var mid := end * 0.5 + Vector3.UP * 0.35
+		var n := clampf((s + 1) / 2.0, 0.0, 1.0)
+		var pts := PackedVector3Array([Vector3.ZERO, Vector3.ZERO.lerp(mid, n), mid.lerp(end, n)])
+		_strip(pts, PAL.LINE * 2.0, 0.14 + PAL.LINE * 2.0, PAL.fade(INK, 0.0), INK)
+		_strip(pts, 0.0, 0.14, PAL.fade(_b.body, 0.0), _b.body)
+		_strip(pts, 0.0, 0.05, PAL.fade(_b.hot, 0.0), _b.hot)
+		if s >= 1:
+			_star(end, 0.3, _b)
+
+
+func _quench(s: int, k: float, a: float) -> void:
+	if s == 0:
+		_star(Vector3.UP * -0.2, 0.36, _b)
+	var puffs := []
+	for i in 3:
+		var x := (i - 1) * 0.3
+		var at := Vector3.UP * (0.55 + 0.9 * k + (0.12 if i == 1 else 0.0)) + _right * x
+		puffs.append([at, _ring(_shape, (0.22 + 0.06 * (1 - absi(i - 1))) * (1.0 + 0.5 * sqrt(k)))])
+	for p: Array in puffs:
+		_outline(p[0], p[1], PAL.LINE * 1.3, PAL.fade(INK, a))
+	for p: Array in puffs:
+		_fan(p[0], p[1], PAL.fade(Color(1, 1, 1), 0.95 * a), PAL.fade(Color(0.66, 0.76, 0.9), 0.85 * a))
+	_flung(s, a, _a, -0.2)
+
+
+func _flare_up(s: int, k: float, a: float) -> void:
+	var c := _floor_c()
+	if s <= 2:
+		var star := _floor_star(0.7 if s == 0 else 0.85, 7)
+		var rim := PackedVector2Array()
+		for p in star:
+			rim.append(p * (1.0 + PAL.LINE * 2.0 / 0.7))
+		_floor_fan(c, rim, PAL.fade(INK, a))
+		_layer()
+		_floor_fan(c, star, PAL.fade(_a.hot if s == 0 else _a.light, a), PAL.fade(_a.body, 0.8 * a))
+	var floor_p := _local(_spot) + Vector3.UP * 0.05
+	for i in 3:  # three flame tongues licking up after it
+		var x := (i - 1) * 0.36
+		var h := (1.35 - absf(x)) * (0.75 if s == 0 else 1.0) * (1.0 - 0.4 * k)
+		var pts := PackedVector3Array()
+		for j in 4:
+			var kk := j / 3.0
+			pts.append(floor_p + _right * (x * (1.0 - kk * 0.4) + (0.09 if (j + s + i) % 2 == 0 else -0.09) * kk) + _up * h * kk)
+		_strip(pts, 0.26 + PAL.LINE * 2.0, PAL.LINE, PAL.fade(INK, a))
+		_strip(pts, 0.26, 0.0, PAL.fade(_a.body, 0.9 * a), PAL.fade(_a.light, a))
+		_strip(pts, 0.08, 0.0, PAL.fade(_a.hot, a))
+
+
+func _smother(s: int, k: float, a: float) -> void:
+	var drop: float = [0.75, 0.3, 0.05, 0.0, 0.0, 0.0][mini(s, 5)]
+	var c := _up * (0.25 + drop)
+	var wide := 0.6 + 0.2 * (1.0 - drop)
+	var lid := PackedVector3Array()
+	for i in 9:  # a dome: an arc over the top, a flat bottom edge
+		var ang := PI * i / 8.0
+		lid.append(_right * cos(ang) * wide + _up * sin(ang) * 0.32 * (0.8 + drop * 0.3))
+	lid.append(_right * -wide * 0.7 - _up * 0.06)
+	lid.append(_right * wide * 0.7 - _up * 0.06)
+	_outline(c, lid, PAL.LINE, PAL.fade(INK, a))
+	_fan(c + _up * 0.05, _shifted(lid, -_up * 0.05), PAL.fade(_a.deep, 0.92 * a), PAL.fade(_a.body, 0.88 * a))
+	_strip(PackedVector3Array([c + _right * -wide * 0.6 + _up * 0.22, c + _up * 0.32, c + _right * wide * 0.6 + _up * 0.22]), 0.05, 0.0, PAL.fade(_a.light, a))
+	if s >= 1 and s <= 4:  # the embers it squeezes out at its feet
+		var foot := -_up * 0.75
+		for side: float in [-1.0, 1.0]:
+			var d := (_right * side + _up * 0.25).normalized()
+			_wedge(foot + d * (0.3 + 0.5 * k), d, 0.55, 0.15, PAL.fade(_b.light if s < 3 else _b.body, a))
+
+
+func _ice_spreads(s: int, _k: float, a: float) -> void:
+	var c := _floor_c()
+	if not to is Vector3:  # nobody to spread to: a frost ring round it
+		for i in 6:
+			var ang := _turn + TAU * i / 6.0
+			_tip(_local(_spot) + Vector3(cos(ang), 0.0, sin(ang)) * 0.7, _up, 0.4 * (0.7 if s == 0 else 1.0), 0.13, _a, a)
+		return
+	var end := Vector2(to.x - global_position.x, to.z - global_position.z)
+	if _cracks.is_empty():
+		_cracks.append(_jagged(c, end, 0.3, 0.35))
+	var line: PackedVector2Array = _cracks[0]
+	var n := clampf((s + 1) / 2.0, 0.0, 1.0)
+	var shown := PackedVector2Array()
+	for i in line.size():
+		if float(i) / (line.size() - 1) <= n + 0.001:
+			shown.append(line[i])
+	if shown.size() >= 2:
+		_floor_strip(shown, 0.3 + PAL.LINE * 2.0, 0.14 + PAL.LINE * 2.0, PAL.fade(INK, a))
+		_layer()
+		_floor_strip(shown, 0.3, 0.14, PAL.fade(_a.light, a), PAL.fade(_a.body, 0.85 * a))
+	if n >= 1.0:  # ice tips up where it arrives
+		var at := _local(to)
+		for i in 3:
+			var x := (i - 1) * 0.36
+			_tip(at + _right * x + Vector3.UP * 0.05, _up, (0.5 - absf(x) * 0.4) * (0.7 if s == 2 else 1.0), 0.15, _a, a)
+
+
+func _torn_off(s: int, _k: float, a: float) -> void:
+	for b: Array in _bits:  # the stake's halves, spinning off
+		var tt := (s + 1) / STEPS_PER_S
+		var at: Vector3 = b[0] * (0.2 + float(b[1]) * tt) - _up * GRAVITY * tt * tt * 0.5
+		var d := _screen(float(b[4]) + float(b[3]) * tt)
+		var side := _screen(float(b[4]) + float(b[3]) * tt + PI * 0.5)
+		var shard := PackedVector3Array([d * -0.32 - side * 0.07, d * -0.32 + side * 0.07, d * 0.34])
+		_outline(at, shard, PAL.LINE, PAL.fade(INK, a))
+		_fan(at, shard, PAL.fade(_b.light, a), PAL.fade(_b.body, 0.9 * a))
 
 
 # --- Shapes ------------------------------------------------------------------------------------------------

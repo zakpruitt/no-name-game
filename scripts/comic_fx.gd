@@ -62,6 +62,8 @@ const BREAKER_SCALE := 0.78
 const IMPROV_WORDS := {
 	"frozen_x_wind": "FWISSH!", "frozen_x_void": "SHA-KRAK!",
 	"buried_x_water": "KRRIK!", "buried_x_earth": "BA-DOOM!", "buried_x_void": "GULP!",
+	"molten_x_wind": "FWAAASH!", "molten_x_water": "HSSSSK!", "molten_x_earth": "FWUMP!", "molten_x_void": "SMOOSH!",
+	"skewered_x_water": "KRIK-KRIK!", "skewered_x_void": "RRRIP!",
 }
 const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
 const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
