@@ -19,6 +19,7 @@ const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
 const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
 const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 const COMIC_ARC := preload("res://scripts/comic_arc.gd")
+const COMIC_SPLAT := preload("res://scripts/comic_splat.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -876,8 +877,9 @@ static func meteor_wall(hero: CharacterBody3D) -> void:
 		var out := _flat(e.global_position - at)
 		var dir: Vector3 = out.normalized() if out.length() > 0.3 else hero._brk_dir.rotated(Vector3.UP, TAU * i / maxf(foes.size(), 1.0))
 		Fx.shards(parent, _flat(e.global_position) + Vector3.UP * 0.4, ELEMENTS.LOOK.earth.color, 6, Vector3.UP, 6.0, 0.14, 0.4)
-		THROWN.launch(hero, e, _flat(e.global_position) + dir * METEOR_WALL_LENGTH, METEOR_WALL_DAMAGE * power,
+		var flight: Node = THROWN.launch(hero, e, _flat(e.global_position) + dir * METEOR_WALL_LENGTH, METEOR_WALL_DAMAGE * power,
 			{"el": "earth", "solid": false, "tether": true, "speed": METEOR_WALL_SPEED, "land_y": 0.0, "wall_mult": METEOR_WALL_MULT})
+		COMIC_SPLAT.watch(parent, flight, e)  # (a star where it splats on a wall)
 
 
 ## Is anyone in the pile still in the air from the last beat?
@@ -921,6 +923,7 @@ static func meteor_gather(hero: CharacterBody3D) -> void:
 		slot += 1
 	void_grab.dark_spot = pile
 	hero._brk_zone = pile
+	COMIC_SPLAT.pile_word(parent, small, pile)
 	var to := pile - at
 	if to.length() > 0.1:
 		hero._brk_dir = to.normalized()
