@@ -78,7 +78,8 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - a robustness fix, such as "only on connect" or "velocity carry-over".
 
 ## Filming and judging feel (feel audit 2026-11-04)
-- **Film the string, not a still.** `godot --path . -s tests/string_film.gd` films every `BOT_STRINGS` string at 12 fps
+- **Film the string, not a still.** `godot --path . -s tests/string_film.gd -- --dir=<name>` films every `BOT_STRINGS` string at 12 fps
+  (into your own `user://<name>/`: the default folder is shared by every worktree)
   from the game camera, played by the real bot, plus a frame marked HIT the first drawn frame after each new hit or
   breaker slam, with an INDEX line per frame (real ms, move, hits done, `Engine.time_scale`). Contact holds and freezes
   almost never land on a 12 fps beat; without the HIT frame the sheet shows the wind-up and the recovery and skips the blow.

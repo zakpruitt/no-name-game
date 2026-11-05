@@ -443,8 +443,20 @@ the autotest's `breakers=`, `strings=`, `endings=`, `moves=` and `[improv]` coun
 - **Death recap leftovers removed**: `player.last_hit_by`, `_describe_attacker`, `take_hit`'s `cause`, `bone_cage.CAUSE`,
   bone_spike's and the bomber blast's cause strings, the foes' `title` meta.
 - **Dead names** (`tools/dead_refs.py`): `breaker_quake.eruption_line`, `enemy.chill_hits`, `enemy.fuse_left`,
-  `fx_palette.TAIL_ALPHA`, `void_element.MAGMA_RADIUS` / `MAGMA_DAMAGE` / `MAGMA_LAUNCH` / `MAGMA_WELLS` /
-  `MAGMA_WELL_R` / `CUBE_FOE_GAP`. Kept because a doc names them: `breaker_quake.shockwave`,
-  `comic_fx.WORD_GAP_MS`, `enemy.crumble`, `enemy.set_glow`, `fx.heal`.
+  `fx_palette.TAIL_ALPHA`.
 - Not done (stop-point): the constants comment pass (on `agent/cleanup2-style`: it shifted `[improv] buried_x_water`
-  1 -> 3 with the same values), the camera's timing-window framing and the CLAUDE.md script list (ROADMAP round 31 / 36).
+  1 -> 3 with the same values), the camera's timing-window framing.
+
+## Round 3 (2026-11-05, landed from agent/baseline)
+
+- Round 2 rebased past the camera lane. Its hunks in the files the Meteor Fall lane is rewriting (hero_leap.gd,
+  void_element.gd, camera_rig.gd, training_bot.gd and their pages) were dropped: those files are as on dev, and
+  player.gd keeps the forwarders they call (`_cast_power()`, `_cast_grow()`, `cancel_point()`, `combo_window()`,
+  `COMBO_TIER_SFX`, `COMBO_SFX_DB`). Drop them once those files call `HERO_FX` / `HERO_INPUT` directly.
+- Dead names only a doc still named, deleted: `breaker_quake.shockwave`, `enemy.crumble`, `enemy.set_glow` (and the
+  `_glow_mat` overlay loop it fed), `fx.heal`, `comic_fx.WORD_GAP_MS`, comic_check's `TIP_ON_FLOOR`.
+- Still dead, left for the Meteor Fall lane's file: `void_element.MAGMA_RADIUS` / `MAGMA_DAMAGE` / `MAGMA_LAUNCH` /
+  `MAGMA_WELLS` / `MAGMA_WELL_R` / `CUBE_FOE_GAP`. `fx_free_check._log_error` is a Logger virtual: keep it.
+- No unreferenced scripts, shaders or tests: every tests/*.gd is in agent.sh's list or named in a doc.
+- CLAUDE.md's script list covers every scripts/*.gd and the check list matches agent.sh; no dead links in docs/.
+- Harness: `agent.sh remove`, `check`'s rhythm_check retry and post-run tidy (docs/agents.md, "The harness").

@@ -47,8 +47,11 @@ fast-forward, so no agent edits another's files or index.
 6. **Rebase often** (`git rebase dev`) on long work, so conflicts stay small.
 7. **Shared user data.** `user://` (`%APPDATA%/Godot/app_userdata/Awaken/`)
    is shared by every checkout, so screenshots from two agents can overwrite
-   each other. Look at your shots straight after taking them. Never touch
-   Zak's `settings.cfg`, `records.cfg` or `altar.cfg`.
+   each other. Look at your shots straight after taking them. Films go in
+   your own folder: `tests/string_film.gd -- --dir=<name>_before` (and
+   `_after`) writes `user://<name>_before/`; the default `user://string_film/`
+   is everyone's. Never touch Zak's `settings.cfg`, `records.cfg` or
+   `altar.cfg`.
 8. **Windowed Godot steals focus.** Only open it when Zak has said that's OK.
 
 ## Lessons
@@ -161,7 +164,7 @@ fast-forward, so no agent edits another's files or index.
 - **Film a loop frame by frame:** `heretic_shots.gd -- --clips --clips-only=Run_F --clips-step=0.0333 --clips-near=0.75`; the default 12-a-second step gives 5 shots of a 0.42 s run. The cyan dots round him in those shots are the orbiting motes, not his eyes. `--clips-tag` folders accumulate: copy per clip with the clip's prefix.
 - **A stiff spring in a modifier needs a capped, sub-stepped delta (round 35 c):** `heretic_rig._lean_into_turns` (stiffness 600, damping 34) diverges on an explicit step past ~0.06 s, so a windowed frame spike sent the lean to NaN, "axis must be normalized" every frame after, and the hero vanished; headless never spikes, so no check saw it. Cap the delta, step it in small pieces, reset non-finite state, and test it by calling the function with a 0.5 s delta (`tests/lean_spike_check.gd`, FAIL 4 on the old code).
 - **Before / after films of a clip:** `heretic_shots.gd -- --clips --clips-step=0.0333 --clips-max=40 --clips-only=Ab_L1,Ab_L3` (a list since round 35 c); film "before" into the scratchpad before the first edit, then compare frame by frame at the contact. For string_film before / after, swap only the GLB (`git show HEAD:<glb> > <glb>`, `--import`, film into `--dir=`, put the new one back, `--import`) and restore the `.import` files (`git checkout -- '*.import'`: an import rewrites every one's line endings).
-- **`rhythm_check` can flake under load:** "L1 hands over to L2 sooner on a hit (224 < 233 ms)" failed once in `land` and passed twice right after with nothing changed. Rerun it alone before chasing it.
+- **`rhythm_check` can flake under load:** "L1 hands over to L2 sooner on a hit (224 < 233 ms)" failed once in `land` and passed twice right after with nothing changed. `agent.sh check` now reruns it once on a FAIL (`RETRY` in agent.sh, it prints `retry rhythm_check`); a FAIL on both runs is real.
 
 - **Backslashes in heredocs reach Python halved here**: a backreference typed as two backslashes and 1 in a quoted
   heredoc patch arrived as one backslash, which Python read as a 0x01 byte and wrote into agent.sh. Write regex
@@ -232,10 +235,6 @@ fast-forward, so no agent edits another's files or index.
   above 0, rhythm_check green three runs), back out the piece that cost a cell, and leave the rest as `- [ ]` in ROADMAP.
 - **Scratch SceneTrees in `tests/_<lane>_*.gd` leave `.uid` files** beside them after a run; delete both before landing.
 
-## When you're done
-
-Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
-the worktree, and deletes the branch once it has been merged.
 - **Filming feel:** `tests/string_film.gd` (windowed, about a minute) films every bot string at 12 fps into
   `user://string_film/<string>/` with an INDEX.txt; copy it out at once. Grab frames into memory (half size) and write
   them while the bot walks between strings: saving a PNG mid-string stalls that frame and stretches the hitstop
@@ -381,3 +380,29 @@ the worktree, and deletes the branch once it has been merged.
 - **Camera framing in a hang:** a box test at the pushed-in distance trips for a foe 2 m ahead (its 1.6 m head
   leaves the 72% band), so "respect the box in the window" also undoes ordinary breaker push-ins. Probe
   `_frame_to` per breaker in the autotest before changing the window.
+- **Dropping another lane's hunks after a rebase** (cleanup round 3): when a refactor touched files a live lane is
+  rewriting, `git checkout dev -- <their files>` and put back the few forwarders those files still call (player.gd's
+  `_cast_power()`, `_cast_grow()`, `cancel_point()`, `combo_window()`). Find them with a grep of `hero.X` / `player.X`
+  in their files against player.gd's names; a missing one is a SCRIPT ERROR only when the bot reaches it.
+- **Dead code check:** `python tools/dead_refs.py --docs` also lists names only a doc mentions. A name only the
+  cleanup audit or a stale doc line names is still dead: delete it and the doc line together.
+
+## The harness (`tools/agent.sh`)
+
+- `new <name>`: worktree `../awaken-<name>` on `agent/<name>` from dev, imported, line-ending noise dropped.
+- `check [--quick]`: every test in its list (skipped if the file is gone), then the autotest, which must land every
+  breaker and string. `rhythm_check` is retried once on a FAIL. Afterwards it restores files whose only change is line
+  endings (`tidy`: the headless runs re-import, and Godot writes `.import` files LF while the checkout is CRLF).
+  A `.gitattributes` `*.import eol=lf` rule was tried and left out: git still lists the rewritten files as modified.
+- `land [--quick]`: tidy, refuse if dirty, rebase on dev, check, fast-forward dev.
+- `remove <name>`: drops line-ending noise, refuses over uncommitted changes and untracked files other than `.uid`, then
+  `worktree remove --force` (untracked `.uid` files, `.godot/` and shots don't block it), deletes whatever Windows
+  left ("Permission denied" from a file a Godot run still holds: it says so if a file is still locked; close it
+  and run `remove` again), prunes, and deletes `agent/<name>` only when dev has every commit (otherwise it keeps it
+  and says how many commits are not on dev).
+- `list`: worktrees and how far each branch is ahead of / behind dev.
+
+## When you're done
+
+Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
+the worktree, and deletes the branch once it has been merged.
