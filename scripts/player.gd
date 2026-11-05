@@ -193,6 +193,7 @@ var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
 var bot_enabled := false
 var bot_move := Vector3.ZERO
 var bot_alt := false  # the bot's window press takes `alt`
+var bot_out := false  # the bot may dash out of a breaker's hang (its "out" token; hero_leap.tick)
 ## The bot's `[autotest]` lines, printed by main at the end: a print mid-fight with stdout piped costs
 ## 2-10 ms, the windowed autotest's only frame spikes.
 var bot_log: Array[String] = []

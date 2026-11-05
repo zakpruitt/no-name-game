@@ -55,7 +55,7 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 | `tests/improv_shots.gd` | Look (windowed): every cell played for real on the dummies, six crops 83 ms apart (`--alone`: the payoff only, `--only=<cells>`) |
 | `scripts/floor_bind.gd` | The "bound" state: `BOUND` meta while a bind holds a foe, `holds()`, `let_go_of()` (Torn Loose) |
 | `scripts/move_list.gd` | The IMPROVISING section: one text row per bold cell |
-| `scripts/training_bot.gd` | Three bot strings reach a cell each; the autotest prints `[improv] <state>_x_<element>=N` |
+| `scripts/training_bot.gd` | Five bot strings reach a cell each (tokens `face`, `out`, `wait`); the autotest prints `[improv] <state>_x_<element>=N` |
 | `tests/void_arm_check.gd` | `_element_matrix()`: every cell on a stand-in foe, the moves' own cells left alone, a whole Harpoon cashing in `buried` |
 
 ## How it works
@@ -122,8 +122,12 @@ Breakers don't improvise (they read their own states in `breaker_impact()`), so 
 ## Testing
 
 - `godot --headless --path . -s tests/void_arm_check.gd`: `_element_matrix()` (PASS/FAIL).
-- `godot --headless --path . -- --autotest`: `[improv] frozen_x_void=3, buried_x_water=1, airborne_x_water=1`
-  from the bot's `line D L H D H`, `L H L L D L H` and `L H D L H`.
+- `godot --headless --path . -- --autotest`: `[improv] frozen_x_void=3, buried_x_water=3, airborne_x_water=1,
+  molten_x_wind=3, bound_x_wind=1` from the bot's `line D L H D H`, `face L H L L D L H`, `face L H D L H`,
+  `line out face D L H H H L D wait L H` (dash out of Meltdown, Updraft Lash fans the flames) and
+  `out face L L L H H D wait L H` (dash out of Undertow's hang, Updraft Lash tears them loose).
+  `out` lets the bot dash out of a breaker's hang (`player.bot_out`, `hero_leap.tick`); `wait` holds the next
+  press until he stands again, so L is L1 and not Dash Stab.
 
 ## Gotchas / open questions
 
@@ -132,8 +136,8 @@ Breakers don't improvise (they read their own states in `breaker_impact()`), so 
   the payer (the middle 60% of 640x480, effect-coloured pixels): 0.04-0.15 alone, at most 0.27 with the move's own hit
   (Molten Palm's stars), under the 0.40 cap.
 - Meteor Spike's falling line hides under Molten Palm's stars when the move plays; its word and dent carry it.
-- Only three cells have a bot string; the rest are covered by the headless check. Molten can't be reached by the
-  bot (Meltdown always opens its window and the bot always takes it): try it by hand, dashing out of the hang.
+- Five cells have a bot string; the rest are covered by the headless check. Still to try by hand: the timing of a
+  real dash out of the hang (the bot dashes on the first hang frame).
 - The reach follows each move's own shape since round 4. A long chain grows the shapes (`_cast_grow()`): Updraft
   Lash's 4.5 m gale circle 3.5 m ahead then reaches behind him, as its own hit does.
 - The bot's dash strings aim at the nearest foe (`face` token): the dash and Dash Stab's lunge carry him past the

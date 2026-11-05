@@ -101,8 +101,8 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 	hero.velocity.z = 0.0
 	# Dash cancels anything, a breaker's hang included. (Not for the autotest
 	# bot: its dodge presses would throw away the breakers it's there to test;
-	# he's untouchable in the hang anyway.)
-	if hero._brk_phase == 0 and hero._dash_buffer_t > 0.0 and hero._dash_cd <= 0.0 and not hero.bot_enabled:
+	# he's untouchable in the hang anyway. A string with the bot's "out" token does dash out: bot_out.)
+	if hero._brk_phase == 0 and hero._dash_buffer_t > 0.0 and hero._dash_cd <= 0.0 and (not hero.bot_enabled or hero.bot_out):
 		_dash_out(hero)
 		return
 	hero._void.seized_tick(hero._brk_phase, t, b)
