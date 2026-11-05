@@ -18,6 +18,7 @@ const COMIC_BOULDER := preload("res://scripts/comic_boulder.gd")  # crossover lo
 const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
 const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
 const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
+const COMIC_ARC := preload("res://scripts/comic_arc.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -783,7 +784,7 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 	var last := hand
 	for i in foes.size():
 		var e: Node3D = foes[i]
-		ELEMENTS.arc(parent, last, e.global_position + Vector3.UP, ELEMENTS.LOOK.wind.color)
+		COMIC_ARC.jump(parent, last, e.global_position + Vector3.UP)
 		last = e.global_position + Vector3.UP
 		if hero._void.is_heavy(e):
 			e.take_hit(PITCH_DAMAGE * power * 0.6, Vector3.ZERO, 0.0, true)
@@ -792,8 +793,9 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 		THROWN.cut(e)  # (still on Tow Line's tether: the axe takes it from there)
 		var side := (float(i) - (foes.size() - 1) * 0.5) * PITCH_SPREAD
 		var dir := fwd.rotated(Vector3.UP, side)
-		THROWN.launch(hero, e, _flat(e.global_position) + dir * PITCH_LENGTH, PITCH_DAMAGE * power,
+		var flight: Node = THROWN.launch(hero, e, _flat(e.global_position) + dir * PITCH_LENGTH, PITCH_DAMAGE * power,
 			{"el": "wind", "solid": true, "speed": PITCH_SPEED, "zap": true})
+		COMIC_ARC.ride(parent, e, flight)  # (the storm rides it for the flight)
 	return foes.size()
 
 

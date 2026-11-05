@@ -257,7 +257,7 @@ func _zap(at: Vector3) -> void:
 		return
 	_zaps += 1
 	_next_zap = _time + ZAP_STEP
-	VOID_ELEMENT.ELEMENTS.arc(hero.get_parent(), at + Vector3.UP, best.global_position + Vector3.UP, VOID_ELEMENT.ELEMENTS.LOOK.wind.color)
+	VOID_ELEMENT.COMIC_ARC.jump(hero.get_parent(), at + Vector3.UP, best.global_position + Vector3.UP)
 	best.take_hit(VOID_ELEMENT.WIRE_DAMAGE * float(hero.get("_dmg_mult")), Vector3.ZERO, 0.0, false)
 	Game.register_hit("cast")
 
