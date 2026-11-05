@@ -106,10 +106,13 @@ const KIND_TONES := {
 	# round 39: the shield is a wall of planks; at full brush its grain broke into a checker from the game camera
 	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.1, "inner": 0.06}},
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
-	# His weapons grow out of the limb, so they carry its painted magenta, not the old hero's violet.
+	# His weapons grow out of the claw, so they carry its paint: fx_palette's void (round 40). Hafts are the
+	# claw's violet, heads and blades the void's deep and ink, and each keeps one element accent of its own
+	# (the axe's green edge, the spear's ice, the hammer's lava); the hammer's rock studs go void too.
 	"heretic": {
-		"P_Tendril": {"shadow": Color(0.12, 0.012, 0.16), "mid": Color(0.44, 0.07, 0.4), "light": Color(0.68, 0.15, 0.58), "rim": Color(0.62, 0.2, 0.62), "brush": 0.14},
-		"P_VoidHard": {"shadow": Color(0.05, 0.01, 0.07), "mid": Color(0.2, 0.04, 0.2), "light": Color(0.4, 0.1, 0.38), "rim": Color(0.62, 0.2, 0.62), "brush": 0.14},
+		"P_Tendril": {"shadow": Color(0.22, 0.07, 0.42), "mid": Color(0.5, 0.23, 0.86), "light": Color(0.66, 0.36, 1.0), "rim": Color(1.0, 0.52, 0.95), "brush": 0.1},
+		"P_VoidHard": {"shadow": Color(0.03, 0.01, 0.06), "mid": Color(0.13, 0.05, 0.25), "light": Color(0.3, 0.1, 0.56), "rim": Color(0.62, 0.3, 1.0), "brush": 0.1},
+		"P_Rock": {"shadow": Color(0.08, 0.02, 0.14), "mid": Color(0.3, 0.1, 0.56), "light": Color(0.5, 0.24, 0.84), "rim": Color(1.0, 0.52, 0.95), "brush": 0.1, "inner": 0.12},
 	},
 }
 ## Model name -> clip the game asks for -> clip it has ("" = keep what's playing,

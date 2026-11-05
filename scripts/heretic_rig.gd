@@ -120,6 +120,8 @@ const RIM_COLOR := Color(1.0, 0.96, 0.84)  # paper, past his ink (_add_rim)
 const RIM_PX := 2.4  # px of rim past the ink line
 const RIM_PUSH := 0.06  # m pushed back past the ink hull's, so the ink hides the rim's inner part
 const RIM_PRIORITY := 100  # after every effect in the transparent pass
+## The weapons keep only their thin ink (round 40, the sleek fx look): no paper rim round a haft or blade.
+const RIM_SKIP_FORMS := ["axe", "spear", "hammer"]
 
 var void_arm: Node
 var _chains := []  # [{bones: PackedInt32Array, phase: float}]
@@ -197,8 +199,12 @@ func _add_rim(skel: Skeleton3D) -> void:
 	var ink: Material = Fx.ink_material().duplicate()
 	ink.next_pass = rim
 	var copies := {}
+	var skip := {}
+	for f: String in RIM_SKIP_FORMS:
+		for part: String in ComicLook.HERO_FORMS.get(f, []):
+			skip[part] = true
 	for mi: MeshInstance3D in skel.find_children("*", "MeshInstance3D", true, false):
-		if mi.mesh == null or mi.get_parent() == self:
+		if mi.mesh == null or mi.get_parent() == self or skip.has(String(mi.name)):
 			continue
 		for i in mi.mesh.get_surface_count():
 			var m := mi.get_surface_override_material(i)
