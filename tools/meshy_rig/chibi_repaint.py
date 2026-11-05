@@ -23,10 +23,13 @@ TONES = {
     "face": (0.045, 0.035, 0.085), "eye": (0.4, 1.0, 0.95),
     "scarf": (0.84, 0.17, 0.2), "scarf_end": (0.64, 0.09, 0.15),
     "sash": (0.6, 0.08, 0.15), "sash_end": (0.48, 0.06, 0.13),
-    "tunic": (0.12, 0.6, 0.62), "tunic_hem": (0.06, 0.42, 0.48), "sleeve": (0.06, 0.42, 0.48),
-    "boot": (0.78, 0.7, 0.58), "boot_cuff": (0.58, 0.5, 0.45), "boot_sole": (0.28, 0.22, 0.3),
-    "glove": (0.78, 0.7, 0.58), "wrap": (0.78, 0.7, 0.58),
-    "trousers": (0.26, 0.17, 0.34), "skirt": (0.38, 0.2, 0.44), "skirt_hem": (0.25, 0.12, 0.32),
+    # hero pass 2: a three-value figure, the bone-white hood over a deep dark body, the violet claw and
+    # cyan eyes the bright accents; the crimson scarf and sash are the only colour on the body. The dark
+    # leans cool (blue-black, not the floor's indigo) and the paper rim (hero_rim) keeps its edge.
+    "tunic": (0.1, 0.11, 0.16), "tunic_hem": (0.05, 0.05, 0.09), "sleeve": (0.07, 0.08, 0.12),
+    "boot": (0.16, 0.14, 0.19), "boot_cuff": (0.6, 0.08, 0.15), "boot_sole": (0.04, 0.03, 0.06),
+    "glove": (0.16, 0.14, 0.19), "wrap": (0.6, 0.08, 0.15),
+    "trousers": (0.06, 0.06, 0.1), "skirt": (0.12, 0.1, 0.17), "skirt_hem": (0.05, 0.04, 0.08),
     "claw": VOID_BODY, "claw_tip": VOID_LIGHT, "claw_root": VOID_DEEP,
 }
 DEBUG_TONES = {"hood": (1, 1, 1), "lining": (1, .5, 0), "face": (0, 0, 0), "eye": (0, 1, 1),
