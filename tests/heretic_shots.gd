@@ -170,6 +170,7 @@ const CLIP_SET := [
 	["Jump_Start", "", "hand"], ["Jump_Idle", "", "hand"], ["Run_Start", "", "hand"], ["Run_Stop", "", "hand"],
 	["Run_Start_B", "", "hand"], ["Run_Start_L", "", "hand"], ["Run_Start_R", "", "hand"], ["Run_Stop_B", "", "hand"],
 	["Run_Stop_L", "", "hand"], ["Run_Stop_R", "", "hand"], ["Run_Stop_Ready", "", "hand"], ["Run_Stop_L_Ready", "", "hand"],
+	["Death_A", "", "hand"], ["Ab_Swing", "", "hand"],  # (round 35 c keys; --clips-only=Death_A,Ab_Swing found nothing before)
 ]
 
 
