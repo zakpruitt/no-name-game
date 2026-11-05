@@ -88,25 +88,6 @@ static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble
 			Fx.burst(parent, floor_at + Vector3.UP * 0.3, look.glow, 14, 3.0, 0.18, 0.8, Vector3.UP, 12.0, 4.0, 1.6, "dot", true)
 
 
-## A shockwave dome bursting out flat from an impact at `pos`:
-## a low see-through shell racing out to `radius` and thinning away.
-static func shockwave(parent: Node, pos: Vector3, c: Color, radius: float) -> void:
-	var s := SphereMesh.new()
-	s.radius = 1.0
-	s.height = 2.0  # (the full sphere's height; is_hemisphere keeps the top half)
-	s.radial_segments = 20
-	s.rings = 6
-	s.is_hemisphere = true
-	var dome := ELEMENTS._mi(s, ELEMENTS.glow(Color(c.lerp(Color.WHITE, 0.25), 0.35), 1.3))
-	parent.add_child(dome)
-	dome.global_position = Vector3(pos.x, 0.0, pos.z)
-	dome.scale = Vector3(0.5, 0.6, 0.5)
-	var tw := dome.create_tween().set_parallel()
-	tw.tween_property(dome, "scale", Vector3(radius, 1.3, radius), 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(dome, "transparency", 1.0, 0.3).set_ease(Tween.EASE_IN)
-	tw.chain().tween_callback(dome.queue_free)
-
-
 ## The floor breaks under an impact at `pos`: cracks of `el`'s colour split out
 ## to `radius` and cool to soot, and (`rim`) slabs heave up round the edge and
 ## sink back. `big` (a perfect) throws more rubble and longer cracks.

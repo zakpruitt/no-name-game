@@ -298,8 +298,7 @@ turns the models).
 kept that, so `abilities.py` now solves carries: `arm()` takes where the hand goes and where the axe points.
 Both axes are `AXE_SIZE` and he drags them. Idle and the runs carry a `drag.l`/`drag.r` key instead of a hand
 rotation: `keyed` aims the handle from where the hand really is that frame and `drag_rotation` leans the blade
-so its tip lands on `TIP_Z`, so torso motion can't lift it off the floor (`comic_check` holds it within
-`TIP_ON_FLOOR`). `Idle` is a 4 s loop of breath, weight drift and glances. `player._comic_stand` holds `Idle_Ready`, a low guard, for
+so its tip lands on `TIP_Z`, so torso motion can't lift it off the floor. `Idle` is a 4 s loop of breath, weight drift and glances. `player._comic_stand` holds `Idle_Ready`, a low guard, for
 `READY_HOLD` after an attack or hit, then relaxes, and plays `HERO_FIDGETS` in turn every `FIDGET_EVERY`.
 A clip named `Hero_X` replaces the retargeted `X` at export: `Idle`, `2H_Melee_Idle`, `Hit_A`,
 `Dodge_Forward`, `Jump_Start`, `Jump_Idle` are hand-keyed at their old lengths. The runs use the same carry.
@@ -606,7 +605,7 @@ over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075
   parts with a hull each, so a wide hull with no push covers the model in black. The POC's own widths
   and `inner` values suit close-up renders only.
 - `FILL_ENERGY` is above the POC's: below about 0.2, shadow sides drop under `spot` and go solid black.
-- `ComicFx`: `WORDS`, `WORD_SCALE`, `WORD_GAP_MS`.
+- `ComicFx`: `WORDS`, `WORD_SCALE`.
 
 ## Extending
 

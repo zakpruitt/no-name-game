@@ -33,7 +33,6 @@ const WORD_FRAMES := 14
 const OUTLINE_DIV := 9  # FONT_SIZE / this: the ink line (was / 4)
 const POOL := 6
 # Words can't stack into noise on a crowd: at most one per gap.
-const WORD_GAP_MS := 110
 const WORD_GAP_REDUCED_MS := 400
 const WORD_GAP_HERETIC_MS := 240  # his moves hit whole crowds at once
 const WORD_RISE_PX := 1.3  # per frame

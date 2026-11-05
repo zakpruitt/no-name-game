@@ -20,7 +20,6 @@ const BY_ROLE := {
 const RUN_ONESHOTS := ["Run_Start", "Run_Stop"]
 const RUN_ONESHOT_KINDS := ["rogue", "minion"]
 const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
-const TIP_ON_FLOOR := 0.2  # m either way, a dragged blade's tip
 const AXE_AHEAD_MAX := 0.45  # m in front of him, axe head, in anything he holds
 const MOVE_TAIL_FROM := 0.75  # abilities.into_guard: from here a move's arms ease into the guard
 const BOSS_ONLY := ["Enrage", "Jump_Idle", "Jump_Land", "Spellcast_Shoot"]
