@@ -78,6 +78,10 @@ const LEAN_SUBSTEP := 1.0 / 120.0  # s per spring step
 ## burst (no depth test), shown only while his face is towards the camera: from the game camera
 ## (54 degrees down) the hood hides the face itself, so they read as eyes glowing in its shadow.
 const EYES := {"chibi": [Vector3(-0.034, 1.25, 0.13), Vector3(0.155, 1.25, 0.13)]}
+## Hero pass 2 (round 40): tools/meshy_rig/chibi_presence.py grew the chibi's head and hood about the
+## neck joint (the head bone's head); EYES and GRIN stay the round-40 spots and move through the same map,
+## and the decals grow with it.
+const HEAD_GROW := {"chibi": 1.2}
 const EYE_SIZE := Vector2(0.095, 0.04)  # m: an almond, wide and narrow
 const EYE_TILT := 16.0  # degrees: inner corners down, a scowl
 const EYE_INK := 0.018  # m of ink round it
@@ -143,6 +147,7 @@ var eyes: Node3D  # the glow, when this model has one (EYES)
 var grin: Node3D  # the teeth (GRIN), on its own attachment so `eyes` holds only the two eyes
 var squint := 0.0  # 0 open .. 1 shut (_step_face)
 var _blink_t := 0.0
+var _face_k := 1.0  # HEAD_GROW for this model: the decals' size
 var keyed := false  # the clips key the claws (KEYED_ARM, CLAW_TRACK)
 var _cover := PackedInt32Array()  # bones that can pass in front of the eyes (_cover_points)
 var _root := -1  # the root bone (turn lean)
@@ -310,6 +315,7 @@ func _add_eyes(skel: Skeleton3D) -> void:
 	skel.add_child(follow)
 	eyes = follow
 	var rest := skel.get_bone_global_rest(head)
+	_face_k = HEAD_GROW.get(Game.hero_model, 1.0)
 	var mid: Vector3 = (at[0] + at[1]) * 0.5
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -328,8 +334,14 @@ func _add_eyes(skel: Skeleton3D) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.set_meta("no_ghost", true)
-		mi.position = rest.affine_inverse() * p
+		mi.position = rest.affine_inverse() * _grown(p, rest.origin)
+		mi.scale = Vector3.ONE * _face_k
 		follow.add_child(mi)
+
+
+## A round-40 face spot moved through chibi_presence.py's head growth about the neck joint.
+func _grown(p: Vector3, neck: Vector3) -> Vector3:
+	return neck + (p - neck) * _face_k
 
 
 ## One eye in billboard space (+z towards the camera): ink, then the glow, then a hot core.
@@ -374,7 +386,9 @@ func _add_grin(skel: Skeleton3D) -> void:
 	mi.material_override = (eyes.get_child(0) as MeshInstance3D).material_override
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_ghost", true)
-	mi.position = skel.get_bone_global_rest(skel.find_bone("head")).affine_inverse() * (GRIN[Game.hero_model] as Vector3)
+	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
+	mi.position = rest.affine_inverse() * _grown(GRIN[Game.hero_model] as Vector3, rest.origin)
+	mi.scale = Vector3.ONE * _face_k
 	follow.add_child(mi)
 
 
@@ -458,11 +472,11 @@ func _step_face(delta: float) -> void:
 	squint = move_toward(squint, want, delta * SQUINT_SPEED)
 	var open := lerpf(1.0, SQUINT_MIN, squint)
 	for mi: Node3D in eyes.get_children():
-		mi.scale = Vector3(1.0 + 0.12 * squint, open, 1.0)
+		mi.scale = Vector3(1.0 + 0.12 * squint, open, 1.0) * _face_k
 	if grin != null:
 		var m: Node3D = grin.get_child(0)
-		var sc := Vector2(m.scale.x, m.scale.y).lerp(mouth, minf(delta * SQUINT_SPEED, 1.0))
-		m.scale = Vector3(sc.x, sc.y, 1.0)
+		var sc := (Vector2(m.scale.x, m.scale.y) / _face_k).lerp(mouth, minf(delta * SQUINT_SPEED, 1.0))
+		m.scale = Vector3(sc.x, sc.y, 1.0) * _face_k
 
 
 ## One empty triangle in the burst's material, so its shader is ready before the first swing.

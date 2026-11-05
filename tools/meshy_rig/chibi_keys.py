@@ -30,6 +30,12 @@ RUN_SWAY = -0.05  # m the hips shift sideways per footfall, over the planted foo
 RUN_ROLL = -10.0  # degrees of roll per footfall, leaning over the planted foot
 
 arm = bpy.data.objects["Armature"]
+# chibi_presence.py scales the armature object (the glTF node carries it): every pose here is in armature
+# space, so a distance that must hold on the floor (the run's ground speed) is divided by it.
+WORLD_K = arm.matrix_world.to_scale().x
+AW_INV = arm.matrix_world.inverted()
+# m each foot sits further out from its rest in every keyed pose (armature space): a wider, planted stance
+STANCE_W = 0.05
 BONES = arm.data.bones
 R = {b.name: b.matrix_local.copy() for b in BONES}
 RQ = {k: v.to_quaternion() for k, v in R.items()}
@@ -65,7 +71,7 @@ def ydir(b):
 
 def mesh_centroid(name):
     o = bpy.data.objects.get(name)
-    vs = [o.matrix_world @ v.co for v in o.data.vertices]
+    vs = [AW_INV @ o.matrix_world @ v.co for v in o.data.vertices]
     return sum(vs, Vector()) / len(vs)
 
 
@@ -181,7 +187,7 @@ def solve(P, form):
     # legs: feet where the pose puts them, flat, knees forward and out
     for s, key, out in (("l", "fl", -1.0), ("r", "fr", 1.0)):
         off = P[key]
-        T = head_of("foot." + s) + RIGHT * off[0] + FWD * off[1] + UP * off[2]
+        T = head_of("foot." + s) + RIGHT * (off[0] + out * STANCE_W) + FWD * off[1] + UP * off[2]
         S = carried(G, "upperleg." + s).translation
         a = (head_of("lowerleg." + s) - head_of("upperleg." + s)).length
         c = (head_of("foot." + s) - head_of("lowerleg." + s)).length
@@ -556,7 +562,7 @@ LOOP0 = set()
 LOOP_SPEED = 1.1  # player._play: loops play at 1.1
 MOVE_SPEED = 7.5  # player.move_speed, m/s
 RUN_N = 14  # frames per cycle (two steps): 0.424 s of play at LOOP_SPEED, 4.7 steps a second
-RUN_GROUND = MOVE_SPEED / LOOP_SPEED / 30.0  # m the floor passes under him per clip frame (0.227)
+RUN_GROUND = MOVE_SPEED / WORLD_K / LOOP_SPEED / 30.0  # m the floor passes under him per clip frame (0.227)
 RUN_PLANT = 3.0  # frames a foot is down (a whole number: Godot samples between keys); the rest he is in the air
 RUN_REACH = 0.30  # m ahead of the hip joint a foot lands (behind it on Run_B)
 RUN_FOLLOW = 0.0  # of the floor speed the foot keeps going back as it leaves the floor (0: it kicks straight up and through)
@@ -778,7 +784,8 @@ def floor_d(i, v0, a):
     """m the floor has passed under him `i` clip frames (at LOOP_SPEED) into a ramp from v0 at a m/s^2,
     capped between 0 and MOVE_SPEED."""
     t = i / 30.0 / LOOP_SPEED
-    t_end = ((MOVE_SPEED if a > 0 else 0.0) - v0) / a
+    v0, a = v0 / WORLD_K, a / WORLD_K  # armature space
+    t_end = ((MOVE_SPEED / WORLD_K if a > 0 else 0.0) - v0) / a
     if t <= t_end:
         return v0 * t + 0.5 * a * t * t
     return v0 * t_end + 0.5 * a * t_end * t_end + (v0 + a * t_end) * (t - t_end)

@@ -388,7 +388,7 @@ func _check_facing(model: Node, kind: String) -> void:
 	var node: Node = skel
 	while node != null:
 		if node is Node3D:
-			ahead = node.basis * ahead
+			ahead = node.basis.orthonormalized() * ahead  # a turn, not a scale (the chibi's Armature node is scaled)
 		node = node.get_parent()
 	_expect(ahead.z > 0.99, "%s: skeleton sits square in the model (its +Z goes to %s)" % [kind, ahead])
 	var head := skel.find_bone("head")
