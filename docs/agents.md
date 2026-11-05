@@ -329,4 +329,9 @@ the worktree, and deletes the branch once it has been merged.
 - Python edits to these CRLF files: read with `newline=''`, swap to LF, edit, write back with CRLF (a helper in
   the scratchpad); a bash heredoc holding Python with apostrophes broke once, so long edits go in a `.py` file.
 - The autotest's `AUTOTEST_MAX` caps the bot: a 22nd string silently missed (`strings=21/22`) until it went 60 -> 80 s.
+- **The scratchpad is shared with other agents' files:** an `inspect.py` someone left there shadowed the stdlib and
+  broke `import numpy`. Keep your helpers in a subfolder of your own and run them with `python -I`.
+- **Warnings are errors in this project's scripts:** `var n := {...}.get(k, 0)` (a Variant inferred) is a parse error
+  that breaks every script preloading it (void_element, then ComicFx). Type it (`var n: int = ...`) and run the real
+  `void_arm_check` rather than `--check-only -s`, whose "Identifier not found: Game" cascade hides the real line.
 
