@@ -9,7 +9,11 @@ extends Node3D
 ## `time` and is gone FADE_OUT later.
 
 const FADE_IN := 0.04
-const FADE_OUT := 0.1  # (round 33, sleek: 0.14)
+const FADE_OUT := 0.06  # (round 33, sleek: 0.14; sleek 5: 0.1 hung it into L3's wind-up)
+## Round 33, sleek 5: the ghost blade is drawn to VISUAL_REACH of `radius` (the hit reach, unchanged: _hit_swept
+## still reads `radius`, and the swoosh's thin line still marks it). The full-reach 3-3.5 m blade on L2 covered
+## about a third of the middle of the frame, over his own swing.
+const VISUAL_REACH := 0.7
 const HEIGHT := 1.0  # sweep height above the floor
 const PAL := preload("res://scripts/fx_palette.gd")
 const FILL_SHADER := preload("res://shaders/ghost_halftone.gdshader")
@@ -59,7 +63,7 @@ func _ready() -> void:
 	# out from the hero (+Z), blade leads the sweep, flat side faces the camera.
 	var side := -1.0 if flip else 1.0
 	var basis := Basis(Vector3(-side, 0, 0), Vector3(0, 0, 1), Vector3(0, side, 0))
-	_scale = maxf(radius - 0.4, 0.5) / 0.95  # blade tip lands on the arc's edge
+	_scale = maxf(radius * VISUAL_REACH - 0.4, 0.5) / 0.95  # blade tip at VISUAL_REACH of the arc's edge
 	axe.transform = Transform3D(basis.scaled(Vector3.ONE * _scale), Vector3(0, 0, 0.4))
 	_pivot.add_child(axe)
 	pose(0.0)
@@ -152,7 +156,8 @@ func pose(t: float) -> void:
 
 
 func _start() -> void:
-	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT)
+	# Lines only at the real reach: the ghost blade is the body, and a 3.9 m teal crescent under it was the fan.
+	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT, true)
 
 
 ## Enemies within reach whose bearing the blade has passed are hit once.

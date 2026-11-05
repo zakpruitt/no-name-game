@@ -10,7 +10,8 @@ extends SceneTree
 ##   - round 33, sleek 4: the combo-name callout over him fades after callout_cap.HOLD_S real s (slow motion
 ##     can't hold it) and as soon as the next string starts; a hit's word (every tier) and number (any total) draw
 ##     the same on-screen ink (fx_palette.TEXT_INK_PX);
-##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser); Deep Freeze's cords one thin line (void_tendril.line).
+##   - round 33, sleek 5 (density): a landing's rim geyser is one thin column (elements.rim_geyser); Deep Freeze's cords one thin line (void_tendril.line);
+##     the spirit echo's blade drawn to spirit_echo.VISUAL_REACH of its (unchanged) reach.
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -184,3 +185,12 @@ func _sleek5(main: Node, _p: CharacterBody3D) -> void:
 		t.queue_free()
 	_ok(spans[1][0] < spans[0][0] and spans[1][1] < spans[0][1] * 0.6,  # (the sag is in both)
 		"a pinning cord is one thin line (%s)" % str(spans))
+	# The spirit echo's ghost blade draws short of its reach; the reach (the hit) is the cast's radius.
+	var echo_s: GDScript = load("res://scripts/spirit_echo.gd")
+	var echo: Node3D = echo_s.new()
+	echo.axe_mesh = BoxMesh.new()
+	echo.radius = 3.9
+	echo.delay = 5.0  # (never sweeps here)
+	main.add_child(echo)
+	_ok(echo.radius == 3.9 and echo._scale < (3.9 - 0.4) / 0.95 * 0.8, "the echo's blade is drawn short of its reach (%.2f)" % echo._scale)
+	echo.queue_free()

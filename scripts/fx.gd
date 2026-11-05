@@ -90,7 +90,7 @@ static func _label(text: String, font_size: int, color: Color, outline_color: Co
 ## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and player._swoosh's second, wider
 ## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
 static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float,
-		color: Color, flip := false, time := 0.26, height := 0.8) -> void:
+		color: Color, flip := false, time := 0.26, height := 0.8, lines_only := false) -> void:
 	var gold := _hero_awakened(parent)
 	if gold and height > SWOOSH_SECOND_HEIGHT:
 		return
@@ -113,7 +113,7 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var a_mult := 0.5 if Game.reduce_flashing else 1.0
 	mat.set_shader_parameter("color", Color(color, color.a * a_mult))
 	mat.set_shader_parameter("edge_color", Color(color.lerp(Color.WHITE, 0.45), a_mult))
-	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold else 0.0)
+	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold or lines_only else 0.0)  # (lines_only: the spirit echo, whose ghost blade is the body)
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()
 	m.material_override = mat
