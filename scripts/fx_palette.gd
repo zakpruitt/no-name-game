@@ -35,6 +35,10 @@ const ELEMENTS := {
 	"gold": {"ink": Color(0.08, 0.04, 0.01), "deep": Color(0.82, 0.48, 0.08), "body": Color(1.0, 0.78, 0.3),
 		"light": Color(1.0, 0.93, 0.66), "hot": Color(1.0, 1.0, 0.9)},
 }
+## Locomotion dust (comic_dust.gd: run start, skid, dodge), kept out of ELEMENTS so nearest() never picks it:
+## a warm paper puff in a soft brown ink (soot or black vanish on the indigo floor).
+const DUST := {"ink": Color(0.08, 0.04, 0.06), "deep": Color(0.55, 0.47, 0.42), "body": Color(0.78, 0.7, 0.6),
+	"light": Color(0.95, 0.9, 0.8), "hot": Color(1.0, 0.98, 0.92)}
 ## Names other code uses for the same element.
 const ALIAS := {"storm": "wind", "ice": "water", "frost": "water", "magma": "earth", "lava": "earth",
 	"dark": "void"}

@@ -59,6 +59,16 @@ func _initialize() -> void:
 			await process_frame
 		d.queue_free()
 		cases += 1
+	# Pooled locomotion dust (comic_dust.gd) whose parent goes mid-puff: the pool drops it, a new one is made.
+	var dust: GDScript = load("res://scripts/comic_dust.gd")
+	var holder := Node3D.new()
+	_main.add_child(holder)
+	dust.spawn(holder, Vector3(1, 0, 1), Vector3.FORWARD, "stop")
+	await process_frame
+	holder.queue_free()
+	await process_frame
+	dust.spawn(_main, Vector3(1, 0, 1), Vector3.FORWARD, "dodge")
+	cases += 1
 	await create_timer(1.5).timeout  # every flash / squash / lean / ink tween would have run out
 	_catch.on = false
 	if _catch.errors.is_empty():

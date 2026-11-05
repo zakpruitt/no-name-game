@@ -3,7 +3,10 @@ extends SceneTree
 ##   - a breaker landing's hits on several foes make one damage number with their total (comic_number.gd);
 ##     the same hits outside a breaker make one number per foe;
 ##   - standing effects (a comic crack, a dark pool, the frost spear's frost) born before a string are
-##     cleared on its first hit, and ones born after it started stay (standing_fx.gd).
+##     cleared on its first hit, and ones born after it started stay (standing_fx.gd);
+##   - round 33, part 3: locomotion dust (comic_dust.gd) puffs once when the hero's clip turns to Run_Stop,
+##     Dodge_Forward or Run_Start (not again while it plays, not on an air dodge), stays within its pool and
+##     clears itself.
 ## Run: godot --headless --path . -s tests/fx_sleek_check.gd
 
 var _fails: Array[String] = []
@@ -72,6 +75,32 @@ func _initialize() -> void:
 	_ok(not is_instance_valid(crack), "the old crack is gone")
 	_ok(not is_instance_valid(pool), "the pool is gone")
 	_ok(is_instance_valid(own), "the string's own crack is still up")
+	# Locomotion dust.
+	var dust: GDScript = load("res://scripts/comic_dust.gd")
+	var ap: AnimationPlayer = p.anim
+	ap.play(p._clip_name("Idle"))
+	await process_frame
+	dust.watch(p)
+	var n0: int = dust.spawned
+	ap.play(p._clip_name("Run_Stop"))
+	await process_frame  # (ComicFx watches every frame too)
+	dust.watch(p)
+	_ok(dust.spawned == n0 + 1, "one puff on Run_Stop (%d)" % (dust.spawned - n0))
+	await process_frame
+	dust.watch(p)
+	_ok(dust.spawned == n0 + 1, "no second puff while it plays")
+	p.global_position.y = 1.5
+	ap.play(p._clip_name("Dodge_Forward"))
+	await process_frame
+	dust.watch(p)
+	_ok(dust.spawned == n0 + 1, "no puff on an air dodge")
+	p.global_position.y = 0.0
+	for i in 10:
+		dust.spawn(main, Vector3(i, 0, 0), Vector3.FORWARD, ["stop", "dodge", "start"][i % 3])
+	var mine := main.get_children().filter(func(c: Node) -> bool: return c.get_script() == dust)
+	_ok(mine.size() <= dust.POOL, "dust stays in its pool (%d nodes)" % mine.size())
+	await create_timer(0.6).timeout
+	_ok(mine.all(func(c: Node) -> bool: return not c.busy and not c.visible), "dust clears itself")
 	print("[fx_sleek] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	quit()
 

@@ -7,6 +7,7 @@ extends CanvasLayer
 ## The static calls do nothing when no instance exists, i.e. with the flag off.
 
 const STANDING := preload("res://scripts/standing_fx.gd")
+const COMIC_DUST := preload("res://scripts/comic_dust.gd")
 const FONT_PATH := "res://assets/fonts/Bangers-Regular.ttf"
 const FONT_SIZE := 96  # rendered big and scaled down, so one size serves every tier
 const INK := Color(0.012, 0.01, 0.02)
@@ -290,6 +291,7 @@ func _watch_hero() -> void:
 	if hero == null or not "_move_id" in hero:
 		return
 	STANDING.watch(hero)  # the last string's floor fades on this one's first hit
+	COMIC_DUST.watch(hero)  # a puff (and skid marks) on his run start, skid and dodge
 	var id: String = hero._move_id
 	if hero._hits_done == 0:
 		_move_seen = ""
