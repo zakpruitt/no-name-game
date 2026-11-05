@@ -352,3 +352,7 @@ the worktree, and deletes the branch once it has been merged.
   quaternion built from a cross product needs a zero-length guard when the body can tip over (`foe_lean.gd`).
 - **Foe model pass 2 (round 39 b):** copy the kit from a worktree that has it (`.gdignore` first), then prove the rebuild (refine_pass + foe_keys + comic_glb gave every committed GLB byte for byte). A foe_shots `--clip` film with `--only=<three kinds>` keeps the close camera at 5.6 m, the same framing as a before taken the same way; `--only=<one>` zooms to 3.2 m and crops the warrior's blade out of frame. The revert-noise loop prints a CRLF warning per file: send its stderr to /dev/null. The training room's floor tiles differ between runs (a grate under one foe), so crop before / after pairs to the foe itself.
 - **Spar is legion and cult only** (`spar.KINDS`: minion, rogue, shield, warrior); the grave pair can only be judged in the `foe_shots.gd` lineup, which is also the best crowd read (in a spar the effects cover the foe).
+- **A stop-point order mid-lane:** commit each finished item as you go (one commit, its check green) so landing at
+  short notice means docs + rebase + checks, not untangling a half-done diff; list the rest as `- [ ]` in ROADMAP.
+- **A delayed effect needs a real-time guard on its subject:** the Awakening flourish waited 0.4 s for a landing and
+  then drew nothing in a check because the hero wasn't `awakened` there; set the field the guard reads in the test.

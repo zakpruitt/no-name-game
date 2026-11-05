@@ -559,6 +559,21 @@ over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075
 - Checks: `fx_sleek_check` (breaker name in the top band and gone after its hold, combo name over him, one star a
   breaker frame, three bolts, three rim geysers, three staggered strikes, a hit outside a breaker keeps its star).
 
+### Feel audit 2 (round 41, effects / HUD lane)
+- **Awakening flourish** (item 1): in the comic style `Fx.awaken_burst` is `scripts/awaken_flourish.gd`, one thin
+  inked column (ghost halftone, gold, `RADIUS` 0.24 m, `HIGH` 5 m, 0.36 s on real time) and a thin gold hoop
+  (`HOOP_R` 2.6 m); no 12 m beam, 11 m flare, 7 m hoop or motes. It waits while he is in a breaker (State.LEAP) and
+  until `AFTER_BREAKER_S` 0.4 real s after a landing (`note(hero)` from ComicFx reads `breakers_landed`), at most
+  `WAIT_MAX_S`, then draws where he is. Only the look moves: `hero_awaken.gd` still buffs, freezes and blasts on the press.
+- **Names over him** (item 3): `callout_cap.names_move(id)`: only enders (ids in `void_element.BREAKERS`), crossovers
+  (`X*`) and the breakers' names go up; a light mid's callout is taken down before it draws and `Fx.combo_pop` skips
+  its strokes. The mids keep their `MOVE_WORDS` word.
+- **"New combo:" banner** (item 4, `hud.show_found`): 1.2 s of real time (`FOUND_IN` / `FOUND_HOLD` / `FOUND_OUT`), cut
+  in `FOUND_CUT` on the next string's first hit (`standing_fx.first_hit_frame`).
+- **`LAST n` tags** (item 2): see `docs/features/training.md`.
+- Checks: `fx_sleek_check` `_audit2` (the flourish waits and is thin, mids unnamed, the banner capped and cut);
+  `enemy_feel_check` (the tag).
+
 ## Invariants
 
 - `settings.cfg` never gains a comic key.
