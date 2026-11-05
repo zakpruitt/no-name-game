@@ -22,6 +22,7 @@ const COMIC_SPLAT := preload("res://scripts/comic_splat.gd")
 const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
 const COMIC_MELT := preload("res://scripts/comic_melt.gd")
 const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
+const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1036,7 +1037,7 @@ static func _impale(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: flo
 	if not planted:
 		s = SPEAR.plant(parent, at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD)))
 	var spot: Vector3 = _flat(s.global_position) if is_instance_valid(s) else at + fwd * TOW_AHEAD
-	SPEAR.frost_ring(parent, spot, IMPALE_RING + 2.0, 0.25)
+	COMIC_IMPALE.burst(parent, spot, IMPALE_RING + 1.4)  # (ice racing out of its foot: was frost_ring's torus)
 	_pop(parent, spot, "spear")
 	var foes: Array = FOES.near(hero.get_tree(), at, IMPALE_GRAB)
 	var small: int = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e)).size()
@@ -1049,10 +1050,12 @@ static func _impale(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: flo
 		encase(e)
 		mark(e, "skewered")
 		if hero._void.is_heavy(e):
+			COMIC_IMPALE.stake(parent, spot, e, null)
 			continue
 		var a := TAU * slot / maxf(small, 1.0)
 		var to := spot + Vector3(sin(a), 0.0, cos(a)) * (IMPALE_RING if small > 1 else 0.6)
-		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "water", "speed": IMPALE_SPEED, "land_y": 0.0})
+		var flight: Node = THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "water", "speed": IMPALE_SPEED, "land_y": 0.0})
+		COMIC_IMPALE.stake(parent, spot, e, flight)  # (the stake through it once it lands on the spear)
 		slot += 1
 	return foes.size()
 
