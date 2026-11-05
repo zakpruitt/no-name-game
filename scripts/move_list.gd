@@ -69,26 +69,46 @@ const SECTIONS := [
 		{"input": "L L H, Dash H H L, H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the lot into the floor, a crater each."},
 	]},
 	# The element matrix (round 34, third pass; void_element.IMPROV, docs/features/element-matrix.md): what any move of
-	# an element does to a foe another string left in a state. storm = L H, ice = L L H / Dash L H / Dash L H H,
-	# magma = L L L H / L L L H H, dark = H L / H L H / H H / hold H / Dash H.
-	{"title": "IMPROVISING", "hint": "States last 2 s: dash out and hit them with another element.", "rows": [
-		{"input": "frozen, then storm", "kind": "text", "name": "Gale Lift", "tier": 1, "note": "The gale takes the cube up, still in its ice."},
-		{"input": "frozen, then dark", "kind": "text", "name": "Shatter", "tier": 1, "note": "The dark crushes the ice, and the shards cut the one beside it."},
-		{"input": "buried, then ice", "kind": "text", "name": "Frozen In", "tier": 1, "note": "Frozen where Rockslide stuck them in the floor."},
-		{"input": "buried, then magma", "kind": "text", "name": "Aftershock", "tier": 1, "note": "Driven back into the floor, harder."},
-		{"input": "buried, then dark", "kind": "text", "name": "Swallowed", "tier": 1, "note": "The dark drags them under and holds them there a moment."},
-		{"input": "molten, then storm", "kind": "text", "name": "Firestorm", "tier": 1, "note": "The gale fans the flames up, and onto the one beside it."},
-		{"input": "molten, then ice", "kind": "text", "name": "Quench", "tier": 1, "note": "Water on the burning: it goes off in steam and up."},
-		{"input": "molten, then magma", "kind": "text", "name": "Flare-up", "tier": 1, "note": "The floor erupts under the burning."},
-		{"input": "molten, then dark", "kind": "text", "name": "Smother", "tier": 1, "note": "The dark puts the fire out by driving them into the floor."},
-		{"input": "skewered, then ice", "kind": "text", "name": "Ice Spreads", "tier": 1, "note": "The spear's ice climbs onto the nearest foe and skewers it too."},
-		{"input": "skewered, then dark", "kind": "text", "name": "Torn Off", "tier": 1, "note": "Ripped off the spear towards him."},
-		{"input": "in the air, then ice", "kind": "text", "name": "Freeze Aloft", "tier": 1, "note": "Frozen up there: it comes down a cube."},
-		{"input": "in the air, then magma", "kind": "text", "name": "Meteor Spike", "tier": 1, "note": "Driven down out of the air into a crater."},
-		{"input": "held by tendrils, then storm", "kind": "text", "name": "Torn Loose", "tier": 1, "note": "The gale tears them out of Undertow or Overwhelm and up."},
-		{"input": "held by tendrils, then ice", "kind": "text", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
+	# an element does to a foe another string left in a state, every cell in plain words (round 4: the "Mix elements"
+	# page; the cells the moves pay themselves too, `own`). storm = L H, ice = L L H / Dash L H / Dash L H H,
+	# magma = L L L H / L L L H H, dark = H L / H L H / H H / hold H / Dash H. `state` / `el` name the cell
+	# (mix_name(): the combo guide's "+ name" tag on a row whose move would pay it).
+	{"title": "MIX ELEMENTS", "hint": "States last 2 s: dash out, and any move of another element pays.", "rows": [
+		{"input": "frozen, then storm", "kind": "text", "state": "frozen", "el": "wind", "name": "Gale Lift", "tier": 1, "note": "The gale takes the cube up, still in its ice."},
+		{"input": "frozen, then ice", "kind": "text", "state": "frozen", "el": "water", "own": true, "name": "Refreeze", "tier": 1, "note": "Ice Cube takes the frozen first, and ice on ice freezes again."},
+		{"input": "frozen, then magma", "kind": "text", "state": "frozen", "el": "earth", "own": true, "name": "Steam", "tier": 1, "note": "Molten Palm goes off as Steam Burst on the ice."},
+		{"input": "frozen, then dark", "kind": "text", "state": "frozen", "el": "void", "name": "Shatter", "tier": 1, "note": "The dark crushes the ice, and the shards cut the one beside it."},
+		{"input": "buried, then storm", "kind": "text", "state": "buried", "el": "wind", "own": true, "name": "Dug Up", "tier": 1, "note": "Updraft Lash and Storm Pitch throw them out of the floor again."},
+		{"input": "buried, then ice", "kind": "text", "state": "buried", "el": "water", "name": "Frozen In", "tier": 1, "note": "Frozen where Rockslide stuck them in the floor."},
+		{"input": "buried, then magma", "kind": "text", "state": "buried", "el": "earth", "name": "Aftershock", "tier": 1, "note": "Driven back into the floor, harder."},
+		{"input": "buried, then dark", "kind": "text", "state": "buried", "el": "void", "name": "Swallowed", "tier": 1, "note": "The dark drags them under and holds them there a moment."},
+		{"input": "molten, then storm", "kind": "text", "state": "molten", "el": "wind", "name": "Firestorm", "tier": 1, "note": "The gale fans the flames up, and onto the one beside it."},
+		{"input": "molten, then ice", "kind": "text", "state": "molten", "el": "water", "name": "Quench", "tier": 1, "note": "Water on the burning: it goes off in steam and up."},
+		{"input": "molten, then magma", "kind": "text", "state": "molten", "el": "earth", "name": "Flare-up", "tier": 1, "note": "The floor erupts under the burning."},
+		{"input": "molten, then dark", "kind": "text", "state": "molten", "el": "void", "name": "Smother", "tier": 1, "note": "The dark puts the fire out by driving them into the floor."},
+		{"input": "skewered, then storm", "kind": "text", "state": "skewered", "el": "wind", "own": true, "name": "Backdraft", "tier": 1, "note": "The gale hauls the whole kebab back to him (L L H, Dash H H L)."},
+		{"input": "skewered, then ice", "kind": "text", "state": "skewered", "el": "water", "name": "Ice Spreads", "tier": 1, "note": "The spear's ice climbs onto the nearest foe and skewers it too."},
+		{"input": "skewered, then magma", "kind": "text", "state": "skewered", "el": "earth", "own": true, "name": "Steam", "tier": 1, "note": "Still frozen: Molten Palm goes off in steam on them."},
+		{"input": "skewered, then dark", "kind": "text", "state": "skewered", "el": "void", "name": "Torn Off", "tier": 1, "note": "Ripped off the spear towards him."},
+		{"input": "in the air, then storm", "kind": "text", "state": "airborne", "el": "wind", "own": true, "name": "Air String", "tier": 1, "note": "Up after them: Air Slash juggles, Live Wire holds them up there."},
+		{"input": "in the air, then ice", "kind": "text", "state": "airborne", "el": "water", "name": "Freeze Aloft", "tier": 1, "note": "Frozen up there: it comes down a cube."},
+		{"input": "in the air, then magma", "kind": "text", "state": "airborne", "el": "earth", "name": "Meteor Spike", "tier": 1, "note": "Driven down out of the air into a crater."},
+		{"input": "in the air, then dark", "kind": "text", "state": "airborne", "el": "void", "own": true, "name": "Air Rip", "tier": 1, "note": "Tow Line rips them out of the air, harder."},
+		{"input": "held by tendrils, then storm", "kind": "text", "state": "bound", "el": "wind", "name": "Torn Loose", "tier": 1, "note": "The gale tears them out of Undertow or Overwhelm and up."},
+		{"input": "held by tendrils, then ice", "kind": "text", "state": "bound", "el": "water", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
+		{"input": "held by tendrils, then magma", "kind": "text", "state": "bound", "el": "earth", "own": true, "name": "Meteor Fall", "tier": 1, "note": "Undertow's window: the tentacles rip the biggest out and he comes down on them."},
+		{"input": "held by tendrils, then dark", "kind": "text", "state": "bound", "el": "void", "own": true, "name": "Abyss", "tier": 1, "note": "Overwhelm's window: they sink through the floor and are thrown back up."},
 	]},
 ]
+
+
+## The MIX ELEMENTS row's name for a state x element cell ("" if none): the combo guide's payoff tag.
+static func mix_name(state: String, el: String) -> String:
+	for section: Dictionary in SECTIONS:
+		for row: Dictionary in section.rows:
+			if row.get("state", "") == state and row.get("el", "") == el:
+				return row.name
+	return ""
 
 
 ## What the row is called.

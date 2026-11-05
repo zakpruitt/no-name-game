@@ -12,6 +12,13 @@ const CROP := Vector2i(760, 300)
 var _fails: Array[String] = []
 
 
+## A stand-in foe for the payoff tag (round 4): just what improv_reach / improv_state read.
+class Foe extends Node3D:
+	var radius := 0.5
+	func is_alive() -> bool: return true
+	func is_airborne() -> bool: return false
+
+
 func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
@@ -69,11 +76,40 @@ func _initialize() -> void:
 	p._set_state(p.State.CHARGE)
 	_check(p.combo_options().size() == 1 and p.combo_options()[0].hold, "charging shows the hold row")
 	p._set_state(p.State.MOVE)
+	_mixing(main, p)
 
 	if DisplayServer.get_name() != "headless":
 		await _sheet(main, p, guide)
 	print("[guide] PASS" if _fails.is_empty() else "[guide] FAIL " + "; ".join(_fails))
 	quit()
+
+
+## Round 4: mixing elements on the rows. A crossover row names its element change; a row whose move would cash in a
+## foe's state in its own reach names the payoff (and the same move aimed away from it doesn't). Only tags: the row's
+## move is still the real route (the loop above).
+func _mixing(main: Node, p: Node3D) -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	_begin(p, "AL1")
+	var light: Dictionary = p.combo_options()[0]
+	_check(light.id == "XR" and light.get("mix", "") == "storm > magma", "off Air Slash, Rockslide's row says storm > magma (%s)" % light.get("mix", ""))
+	_begin(p, "L1")
+	_check(p.combo_options().all(func(r: Dictionary) -> bool: return not r.has("mix")), "L1's rows stay in their element: no mix tag")
+	p.global_position = Vector3.ZERO
+	p._face(Vector3(0, 0, 1))
+	var foe := Foe.new()
+	main.add_child(foe)
+	foe.global_position = Vector3(0, 0, 3.0)
+	foe.add_to_group("enemies")
+	el.mark(foe, "buried")
+	p._set_state(p.State.MOVE)
+	p._post_dash_t = 0.3
+	_begin(p, "DL")
+	var heavy: Dictionary = p.combo_options()[1]
+	_check(heavy.id == "EF" and heavy.get("pay", "") == "Frozen In", "Harpoon's row off Dash Stab, a buried foe on its line: + Frozen In (%s)" % heavy.get("pay", ""))
+	p._face(Vector3(0, 0, -1))
+	_check(not p.combo_options()[1].has("pay"), "aimed away from it, no payoff tag")
+	foe.free()
+	p._set_state(p.State.MOVE)
 
 
 func _begin(p: Node3D, from: String) -> void:
@@ -87,11 +123,11 @@ func _tag(awake: bool) -> String:
 	return " (Awakened)" if awake else ""
 
 
-## Six states, cropped round the hero, in a 2x3 sheet.
+## Six states, cropped round the hero, in a 2x3 sheet (Air Slash: the mix tag on Rockslide).
 func _sheet(main: Node, p: Node3D, guide: Control) -> void:
 	var shots: Array[Image] = []
 	var setups := [
-		["", false, "L1", false], ["", false, "L2", false], ["", true, "L3", true],
+		["", false, "L1", false], ["", false, "AL1", false], ["", true, "L3", true],
 		["", true, "EC", false], ["", true, "dash", false], ["", false, "charge", false]]
 	for s: Array in setups:
 		p._set_awakened(s[1])

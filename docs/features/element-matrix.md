@@ -54,7 +54,8 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 | `scripts/comic_fx.gd` | `IMPROV_WORDS` by cell, `improv()` (once a move), the move's own word held `IMPROV_HOLD_MS` after it |
 | `tests/improv_shots.gd` | Look (windowed): every cell played for real on the dummies, six crops 83 ms apart (`--alone`: the payoff only, `--only=<cells>`) |
 | `scripts/floor_bind.gd` | The "bound" state: `BOUND` meta while a bind holds a foe, `holds()`, `let_go_of()` (Torn Loose) |
-| `scripts/move_list.gd` | The IMPROVISING section: one text row per bold cell |
+| `scripts/move_list.gd` | The MIX ELEMENTS section: every cell in plain words (`state` / `el` keys; `own` for the moves' cells), `mix_name()` |
+| `scripts/hero_moves.gd` | `pays()`: the payoff a guide row's move would cash in now (the combo guide's "+ name" tag) |
 | `scripts/training_bot.gd` | Five bot strings reach a cell each (tokens `face`, `out`, `wait`); the autotest prints `[improv] <state>_x_<element>=N` |
 | `tests/void_arm_check.gd` | `_element_matrix()`: every cell on a stand-in foe, the moves' own cells left alone, a whole Harpoon cashing in `buried` |
 

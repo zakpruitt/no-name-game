@@ -22,6 +22,12 @@ const NAME_SIZE := 19
 const NEXT_SIZE := 15
 const KEY_SIZE := 15
 const PAUSE_TEXT := "or pause: "  # before a row's pause combo (player.combo_options() `pause`)
+## Round 34, fourth pass: mixing elements shows on the rows. A crossover row carries its element change ("storm >
+## magma", `mix`) and a row whose move would cash in a state on a foe in its reach the payoff's name ("+ Shatter",
+## `pay`, from hero_moves.pays()); both only read the real routes and the foes, like every row.
+const MIX_SIZE := 14
+const MIX_COLOR := Color(0.72, 0.6, 1.0)  # the tag's ink: the void arm's violet, lifted
+const PAY_TEXT := "+ "
 const SIDE_GAP := 76.0  # px from the hero's centre to the rows
 const CHEST := 1.1  # metres above the feet the rows centre on
 const EDGE := 330.0  # flip to the hero's left this close to the right edge (and right near the left)
@@ -96,7 +102,7 @@ func _process(_delta: float) -> void:
 	_last_us = now
 	var rows: Array = player.combo_options() if Game.combo_guide and is_instance_valid(player) else []
 	if not rows.is_empty():
-		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s" % [r.kind, r.id, r.next.get("id", "")]))
+		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s:%s" % [r.kind, r.id, r.next.get("id", ""), r.get("pay", "")]))
 		if sig != _sig:
 			_sig = sig
 			_swap_t = 0.0
@@ -191,9 +197,19 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 	var name: String = row.name
 	if row.hold:
 		name = ("RELEASE  " if usable else "HOLD  ") + name
+	if row.has("mix"):  # (before the name: the element it turns into)
+		var mw := _font.get_string_size(row.mix, HORIZONTAL_ALIGNMENT_LEFT, -1, MIX_SIZE).x
+		parts.append(["mix", x, mw, row.mix])
+		x += mw + 8.0
 	var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
 	parts.append(["name", x, nw, name])
 	x += nw
+	if row.has("pay"):
+		x += 8.0
+		var pt: String = PAY_TEXT + row.pay
+		var pw := _font.get_string_size(pt, HORIZONTAL_ALIGNMENT_LEFT, -1, NEXT_SIZE).x
+		parts.append(["pay", x, pw, pt])
+		x += pw
 	if not row.next.is_empty():
 		x += 10.0
 		parts.append(["arrow", x, 8.0])
@@ -245,6 +261,10 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 					draw_arc(c, p[4] * 0.5 + 4.0, 0.0, TAU, 32, Color(col, alpha), 2.5, true)
 			"name":
 				_text(Vector2(px, base.y), p[3], NAME_SIZE, Color(col.lightened(0.15 * pressed), alpha * lit))
+			"mix":
+				_text(Vector2(px, base.y), p[3], MIX_SIZE, Color(MIX_COLOR, 0.95 * alpha * lit))
+			"pay":
+				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(player.COMBO_TIER_COLORS[1], alpha * lit))
 			"arrow":
 				var a := Vector2(px, base.y)
 				draw_polyline([a + Vector2(0, -5), a + Vector2(5, 0), a + Vector2(0, 5)], Color(1, 1, 1, 0.45 * alpha), 2.0, true)

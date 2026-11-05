@@ -167,3 +167,25 @@ off them stay true while the spear is up.
 Third pass: the element matrix's payoffs aren't routes (they read a foe's state, `void_element.IMPROV`), so the guide
 doesn't show them; the pause MOVES panel has an IMPROVISING section, one text row per cell (`move_list.gd`), whose
 inputs name the state and the element ("frozen, then dark") and so never route.
+
+Fourth pass (round 4, finding the mixes): the rows say when a press mixes elements, still only on real routes.
+
+```
+ (LMB) storm > magma Rockslide > (RMB) Fault Line
+ (RMB) Harpoon + Frozen In
+```
+
+- **`mix`** (`hero_moves.mix_of()`): a crossover row (`X*`) names the element change from the move he's in to the one
+  it starts, in the matrix's words (`ELEMENT_WORDS`: storm, ice, magma, dark; weapons from `WEAPON_ELEMENT`), drawn
+  small in violet before the name (`MIX_SIZE`, `MIX_COLOR`).
+- **`pay`** (`hero_moves.pays()`): a row whose base element move would cash in a state on a foe inside that move's own
+  hit shape (`void_element.improv_reach()` from where he stands and faces, `improv_state()`) adds "+ <payoff>" in the
+  tier-2 colour (`PAY_TEXT`), named from the move list (`move_list.mix_name()`). It is the improvisation rule shown at
+  the moment it applies: dash out of a Rockslide and the Harpoon row reads "+ Frozen In". The row signature includes
+  it, so the rows slide in again when a payoff comes into reach.
+- The pause MOVES panel's IMPROVISING section is now **MIX ELEMENTS**: all 24 state x element cells in plain words
+  ("frozen, then dark: Shatter"), the 15 improvised ones and the 9 the moves pay themselves (`own`), each with
+  `state` / `el` keys.
+- `guide_check._mixing()`: Rockslide's row off Air Slash says "storm > magma", L1's rows carry no tag, and a buried
+  foe on Harpoon's line tags Harpoon's row off Dash Stab "+ Frozen In" until he faces away. The windowed sheet's second
+  shot is Air Slash (the mix tag on Rockslide; was L2).

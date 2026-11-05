@@ -7,6 +7,11 @@ extends RefCounted
 
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
+const MOVE_LIST := preload("res://scripts/move_list.gd")
+## Round 34, fourth pass (combo guide): the element each weapon move swings, beside the void moves' ELEMENT_OF, and
+## the words the guide uses for them (the move list's and the element matrix's).
+const WEAPON_ELEMENT := {"L1": "wind", "AL1": "wind", "L2": "water", "DL": "water", "L3": "earth", "GR": "void"}
+const ELEMENT_WORDS := {"wind": "storm", "water": "ice", "earth": "magma", "void": "dark"}
 
 ## String pacing (round 30; the ms are real time at anim_speed 1.7, printed by tests/rhythm_check.gd).
 const L1_SPEED := 1.1  # opener: hit 216 -> 196 ms, so the first beat comes quickly
@@ -386,6 +391,31 @@ static func combo_options(hero: CharacterBody3D) -> Array:
 	return rows
 
 
+## The element change a crossover row makes ("storm > magma"), or "" when the move stays in its element.
+static func mix_of(from: String, id: String) -> String:
+	if not id.begins_with("X"):
+		return ""
+	var a: String = VOID_ELEMENT.ELEMENT_OF.get(from, WEAPON_ELEMENT.get(from, ""))
+	var b: String = VOID_ELEMENT.ELEMENT_OF.get(id, "")
+	if a == "" or b == "" or a == b:
+		return ""
+	return "%s > %s" % [ELEMENT_WORDS[a], ELEMENT_WORDS[b]]
+
+
+## The improvised payoff move `id` would cash in right now ("" if none): the first foe in its own hit shape
+## (void_element.improv_reach) in a state its element pays (IMPROV). The guide tags the row "+ <name>".
+static func pays(hero: CharacterBody3D, id: String) -> String:
+	if id.begins_with("X") or not VOID_ELEMENT.ELEMENT_OF.has(id):
+		return ""
+	var el: String = VOID_ELEMENT.ELEMENT_OF[id]
+	var at := Vector3(hero.global_position.x, 0.0, hero.global_position.z)
+	for e: Node3D in VOID_ELEMENT.improv_reach(hero, id, at, hero._facing()):
+		var state: String = "" if VOID_ELEMENT.THROWN.flying(e) else VOID_ELEMENT.improv_state(e, el)
+		if state != "":
+			return MOVE_LIST.mix_name(state, el)
+	return ""
+
+
 ## What dash-then-light starts from here (the combo guide's dash row): Dash Stab, in the air too.
 static func dash_light(hero: CharacterBody3D) -> String:
 	return void_route("light", hero._move_id, false, hero._chain_i, true)
@@ -395,6 +425,12 @@ static func dash_light(hero: CharacterBody3D) -> String:
 static func option(hero: CharacterBody3D, kind: String, id: String, hold := false) -> Dictionary:
 	var o := {"kind": kind, "id": id, "name": guide_name(id), "tier": COMBOS[id].tier if COMBOS.has(id) else 0,
 		"hold": hold, "next": {}}
+	var mix := mix_of(hero._move_id, id)
+	if mix != "":
+		o.mix = mix
+	var pay := pays(hero, id)
+	if pay != "":
+		o.pay = pay
 	if o.tier < 3 and not hold:
 		var best := 0
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties
