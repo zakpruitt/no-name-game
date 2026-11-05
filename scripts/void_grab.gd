@@ -251,7 +251,7 @@ func attack_tick(t: float, delta: float) -> void:
 		_tick_grab(t)
 	elif hero._move_id == "VS":
 		_tick_slam(t)
-	elif hero._move_id == "EC" or hero._move_id == "XF":
+	elif hero._move_id in ["EC", "XF", "XG"]:
 		_tick_sweep(t)
 	elif hero._move_id == "EF":
 		_tick_spear(t)

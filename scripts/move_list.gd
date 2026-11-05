@@ -61,6 +61,12 @@ const SECTIONS := [
 		{"input": "Dash L H H L", "kind": "move", "id": "XS", "note": "Ice into magma: the molten fist goes into the ice and every frozen foe goes off in steam, scalding the rest."},
 		{"input": "Dash L H H L, H in the window", "kind": "text", "name": "Flash Freeze", "tier": 3, "note": "The steam freezes on them as he dives, and the landing shatters it again."},
 		{"input": "Dash H L", "kind": "move", "id": "XT", "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass."},
+		{"input": "Dash L H H H", "kind": "move", "id": "XG", "note": "Ice into storm: a whirlwind carries every frozen foe up, still in its ice, and he climbs after them."},
+		{"input": "Dash L H H H L", "kind": "move", "id": "XM", "note": "Storm into magma, in the air: the molten hammer bursts the ice off them and brings them down burning."},
+		{"input": "Dash L H H H L, H in the window", "kind": "text", "name": "Eruption", "tier": 3, "note": "The floor goes up under each of them, the burning hardest."},
+		{"input": "L L H, Dash H H", "kind": "move", "id": "XK", "note": "Dark into ice: the tentacles throw Tow Line's bunch onto the spear and they freeze round it. Without the spear first it plants one."},
+		{"input": "L L H, Dash H H L", "kind": "move", "id": "XW", "note": "Ice into storm: the gale blows the spear apart and hauls the frozen kebab back up to him."},
+		{"input": "L L H, Dash H H L, H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the lot into the floor, a crater each."},
 	]},
 ]
 

@@ -31,7 +31,10 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"],
 	# Crossovers (round 34): Rockslide into Fault Line and Cataclysm, Steam Burst into Flash Freeze, Storm Pitch,
 	# and Black Ice ("alt": the window's press is L, Maw's other ending).
-	["L", "H", "L", "L", "H"], ["D", "L", "H", "H", "L"], ["D", "H", "L"], ["alt", "H", "L", "H"]]
+	["L", "H", "L", "L", "H"], ["D", "L", "H", "H", "L"], ["D", "H", "L"], ["alt", "H", "L", "H"],
+	# Three elements a string (second pass): Hailstorm, Meltdown and Eruption in the air; the spear, Impale, Backdraft
+	# and Anvil (Backdraft blows the spear apart, so it doesn't send the next string up it).
+	["D", "L", "H", "H", "H", "L"], ["L", "L", "H", "D", "H", "H", "L"]]
 const BOT_GAP := 0.35  # s standing between strings
 ## Every string starts from the same place (round 30, second pass): once the dummies stand again (or after
 ## BOT_SETTLE_MAX s) they're put back on their homes and the hero BOT_SPOT m from the first one, toward where
