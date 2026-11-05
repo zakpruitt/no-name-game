@@ -406,6 +406,27 @@ not thick crayon.
   halftone panel in the rank colour; the guide's rows and the breaker prompt as see-through pills / discs with
   halftone dots and thin lines (combo-guide.md, combo-breakers.md).
 
+### Round 4 (whole-game polish, every `string_film` string on a sheet)
+
+- **Nothing lingering, text too.** The combo / breaker name over the hero (`player._callout`) fades on its own tween
+  in game time; `scripts/callout_cap.gd` (ComicFx calls `watch(hero)`) fades it after `HOLD_S` 0.95 s of real time
+  or as soon as the next string starts (standing_fx's start), over `FADE_S` 0.15 s. The HUD's announcements
+  (`Game.announced`: AIRBORNE, SKY DANCER, PERFECT, GUARD BREAK) are 44 px at 0.2 of the screen height on a
+  real-time tween, in the words' font (`hud.ANNOUNCE_*`; were 64 px in the middle, over the hero).
+- **Cataclysm's strike:** `comic_fault` `STRIKE_*` 0.15 m wide, 5.5 m tall, no fork, at most `STRIKES` 3 per landing.
+- **Marks under a pile:** a `comic_crack` of `PILE_R` 2 m or more starts its cracks at the pile's edge
+  (`PILE_INNER` 0.38 of the radius, at most 1.5 m), runs them out over `RUN_STEPS` 3 steps with a hot line down
+  each, reaches 0.95-1.3 of the radius, up to `PILE_W_MAX` 0.34 m wide, and draws no splat.
+- **Breaker craters:** in the comic style `breaker_quake.crater` draws no box cracks and no rock slabs (they cooled
+  to brown and stood 1.6 s); its `Fx.scorch` is 1.15 of the radius and each vent is a 0.34 m inked star in the
+  element's palette (`VENT_STAR`) instead of soft flares and dots. `Fx.crater` (a foe driven into the floor) is a
+  0.6 s inked dent in the dust's warm tone (`CRATER_COMIC*`).
+- **One hit grammar.** Every hit on a foe or the Warden: an inked star in the blow's palette (`Fx.HIT_STAR` 0.9 /
+  `HIT_STAR_BIG` 1.3, star 0.45 / 0.65 m), at most one word on the beat (ComicFx's gap and replace), one number
+  per foe. Words and numbers take `fx_palette.TEXT_INK_PX` (3 px at 1080p) on screen whatever their scale
+  (`PAL.text_ink()`; `PX_PER_M` 48); a fixed font outline under the tier and total scales gave words 3.4-8.3 px
+  and numbers 2-3.3 px. Burn ticks show a number only, and a shield block a star only, on purpose.
+
 ## Invariants
 
 - `settings.cfg` never gains a comic key.

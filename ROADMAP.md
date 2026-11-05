@@ -438,6 +438,14 @@ Zak, after playing every combo: "very comicy, which I like, but ... sleeker and 
 - [x] Round 3: ice spikes, ice cubes and the frost spear's floor in the halftone ghost look (`shaders/halftone_floor.gdshader` for the floor zone)
 - [x] Round 3: an inked dust puff on run start, skid and dodge, with short skid marks (`scripts/comic_dust.gd`, watched from ComicFx, pooled)
 - [x] Round 3: HUD in the same language (`scripts/hud_ink.gd`): counter and callout in the words' font with thin ink over a halftone panel; guide rows and breaker prompt see-through with halftone dots and thin lines
+- [x] Round 4 (whole-game polish, every string filmed): `--collect-shaders` found nothing new (elements.prewarm already draws the halftone floor and ghost shaders); the HUD halftone costs ~0.2 ms GPU (median, HUD toggled every 20 frames under the bot); the announcements (AIRBORNE, PERFECT, GUARD BREAK) in the words' font and thin ink
+- [x] Round 4: the combo / breaker name over the hero fades after 0.95 s real or when the next string starts (`scripts/callout_cap.gd`, watched from ComicFx): slow motion held FLASH FREEZE PERFECT 5 s, CATACLYSM / ABYSS 1-1.3 s into the next string
+- [x] Round 4: announcements 44 px in the top fifth on real time (were 64 px mid-screen over the hero, AIRBORNE over Rockslide and Fault Line for 1.3 s)
+- [x] Round 4: Cataclysm's sky bolts 0.15 m, 5.5 m tall, no fork, at most three (were five fat 8 m zigzags filling the push-in)
+- [x] Round 4: a breaker-sized floor mark (Meteor Fall, the rip landing) runs its cracks out from the pile's edge with no hidden splat (`comic_crack` `PILE_*`)
+- [x] Round 4: breaker craters are one inked mark with small inked star vents (`breaker_quake.crater`: no brown box cracks or rock slabs for 1.6 s, no soft flares); a foe's crater a 0.6 s inked dent (was soft soot discs for 1.4 s)
+- [x] Round 4: one hit grammar: the same star size on foes and the Warden (`Fx.HIT_STAR` / `HIT_STAR_BIG`), words and numbers at one on-screen ink weight (`fx_palette.TEXT_INK_PX` 3 px; words were 3.4-8.3 px, numbers 2-3.3). Check: `fx_sleek_check`
+- [ ] Round 4 follow-ups: Meteor Fall's landing is still five flame geysers plus the column over the pile (the cracks now reach out but the geysers carry it); the frost zone plus Deep Freeze's rings, ropes and cubes over a crowd; the spirit echo's 3 m halftone fans on L2 / L3 cover a third of the frame; Undertow's magma crack web stands about 2 s; burn ticks show a number with no star (by design, a tick)
 
 ## Round 34 (multi-element combos)
 Zak: "more combos that utilize multiple elements together", "a few more complicated combos", and Meteor Fall's ending.

@@ -188,6 +188,17 @@ fast-forward, so no agent edits another's files or index.
 - **Foe attacks (round 38 b):** film each attack from the game camera (`tests/foe_shots.gd -- --clip=1H_Melee_Attack_Chop --frames=12 --only=warrior`), not only the Blender side sheet: the warrior's overhead sword read fine from the side and was hidden under its helmet in game. `foe_keys.py ... sheet=a,b noexport` gives a side + game-angle sheet in about 20 s per foe without touching the GLB. Moving a melee foe's hit frame means changing `attack_hit` in `enemy_types.gd` with it (`enemy.chop_speed()`).
 - **Splitting one file across commits by family:** stage an intermediate copy (`git show :path`, edit, `git update-index` via `git add` of a temp-restored file), commit, then restore the full file for the next commit; check `git diff --cached` each time.
 
+- **`git checkout <file>` after a temp sed also drops your uncommitted edits to it.** To prove a check fails with the old
+  value, commit first (or copy the file aside), flip, run, restore from the copy.
+- **`--collect-shaders` only collects StandardMaterial3D / ParticleProcessMaterial signatures.** A ShaderMaterial
+  (`ghost_halftone`, `halftone_floor`) is never listed: it has to be drawn in `elements.prewarm` at real size.
+- **GPU numbers with another app on the GPU:** World of Warcraft at 98% GPU made the autotest's `gpu avg` 20-30 ms.
+  For one layer's cost, toggle it every 20 frames while the bot plays and compare medians (outside load hits both
+  halves alike): the HUD's halftone measured ~0.2 ms that way.
+- **One-effect before/after:** `git stash`, run the scratch shot, `git stash pop`, run again; the same spawn spot and
+  dummies in both. Keep the scratch SceneTree in the scratchpad while `agent.sh check` runs (an untracked test in
+  `tests/` is harmless, but don't land it).
+
 ## When you're done
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
