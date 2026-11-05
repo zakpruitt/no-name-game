@@ -23,6 +23,7 @@ invariants and the gotchas.
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
 | Comic art style (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |
+| Camera: distance, aim, fight framing, `--cam-*=` flags | [camera.md](camera.md) | `scripts/camera_rig.gd` |
 | Enemy hit reactions (squash, lean, tinted flash, juggle hang/tumble/bounce/skid, crowd wave) | [enemy-hit-reactions.md](enemy-hit-reactions.md) | `enemy._hit_reaction()`, `enemy._gravity()`, `enemy._land_from_air()`, `Fx.flash_tint()` |
 
 ## Writing one

@@ -394,3 +394,6 @@ From `docs/feel-audit-2026-11-04.md`'s top 10 (numbers are the audit's).
 - [ ] 8. Molten Palm needs a palm: `comic_fist.gd` bigger than his head, knuckles forward
 - [ ] 4 / 9. Callouts end with their string; Dash Stab and Harpoon land soft (combo-rhythm lane)
 
+## Round 36 (camera distance)
+- [x] Zak: "zoom the camera out more, too close to the character". Rest camera 13 m (was 12.5) at FOV 37 (was 36), aimed `AIM_HEIGHT` 0.8 m up his body so the pile in front sits mid-screen instead of under the HUD: at 1080p the hero is 140 px (was 167; round 28 105) with +34% floor in frame. Fight framing: foes hit in the last 2.2 s pull the camera out up to x1.25 (~112 px) and lean it towards them, drifting back slowly. Kicks and shake scale with the distance, `PUNCH_GAIN` 1.25 on enders, `HANG_ZOOM` 0.12 -> 0.16. Flags `--cam-dist=` / `--cam-fov=` / `--cam-frame=` (`docs/features/camera.md`)
+- [ ] By hand: is 13 m far enough? Try `--cam-dist=14` / `15` and `--cam-frame=1` (framing off) and say which

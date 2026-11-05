@@ -171,6 +171,7 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 - Training camera `camera_rig.offset` (0, 10, 7.5), `FOV` 36 (was (0, 13, 9.5), 42): the chibi is about twice
   the size on screen. In a breaker hang (`State.LEAP`) the camera pushes in `HANG_ZOOM` 0.12 and its follow
   point rises with his model (`LIFT_FOLLOW` 0.75, `LIFT_MAX` 4 m), easing back after the slam.
+  Round 36 moved it out again (13 m, FOV 37, aimed at his chest, fight framing, `HANG_ZOOM` 0.16): see `camera.md`.
 - The hero has a paper rim past his ink (`heretic_rig._add_rim`, `shaders/hero_rim.gdshader`), drawn after
   the effects at render_priority 100, so his silhouette shows through bolts, rings and words.
 - Words: one live at a time, never the same generic word twice in a row, placed round the contact point

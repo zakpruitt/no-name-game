@@ -103,3 +103,10 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   breakers varied 5-7 per run from where the last string threw the foes. Read `breakers=N/N` before trusting a timing change.
 - A bot that presses at `combo_window().ready` (the full BUFFER_MS early) can lose the press when hit-stop and
   Awakening shift the cancel; it presses `BOT_LEAD` (0.15 s) early instead, still well inside the buffer.
+
+## Camera (round 36, `docs/features/camera.md`)
+- Distance and lens are `camera_rig.DIST` / `FOV` / `AIM_HEIGHT`; dial by hand with `--cam-dist=` / `--cam-fov=` /
+  `--cam-frame=` before changing a constant, and keep `camera_feel_check`'s hero-px and floor bounds in step.
+- Callers' push-ins (`ENDER_ZOOM`, `BREAKER_FOCUS_ZOOM`, punch values) are fractions tuned at 12.5 m; the rig scales them
+  (`PUNCH_GAIN`) and the metre-sized kicks (`dist / REF_DIST`), so new camera calls pass round-32-sized numbers.
+- The fight framing reads `last_hit_ms` on `"enemies"`: a new foe type gets framed only if it sets that on a hit.

@@ -185,3 +185,11 @@ the worktree, and deletes the branch once it has been merged.
   the flat gold axe still over L2 / L3 was the spirit cast echo, a different effect.
 - **A visual hook without touching a locked file:** read a marker the call already passes (`Fx.swoosh`'s
   `height` > 1.0 is player._swoosh's second arc) or watch a counter (`breakers_landed`) from your own file.
+- **Measure screen size headless with a SubViewport.** The headless root viewport is 64x64, so `unproject_position`
+  there gives square-screen numbers; a 1920x1080 `SubViewport` with a copy of the camera gives real px and the floor
+  footprint (corner rays to y = 0). "Hero px" estimates from the half-size film are off by 2.4x: say which.
+- **`string_film` folders keep stale frames.** A shorter rerun leaves the last run's higher-numbered PNGs in place;
+  build sheets from the frames INDEX.txt lists, not the folder.
+- **A camera aimed at the feet puts a top-down fight under the HUD.** From 53 deg the hero's body and the foes in front
+  of him project up-screen; aiming 0.8 m up him centred the pile without changing the distance. Raising the aim also
+  widens the floor in frame like a longer distance does, so re-measure the footprint after moving it.
