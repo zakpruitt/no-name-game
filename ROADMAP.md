@@ -435,5 +435,19 @@ Zak: "more combos that utilize multiple elements together", "a few more complica
 - [x] Black Ice (H L H, L in the window, dark into ice): Maw's other ending freezes the pool and shatters it
 - [x] Meteor Fall in three beats: thrown into the walls, dragged into one pile by the tentacles, the meteor into the pile (~1.1 s game time)
 - [x] Bot plays all of them (17 strings, `breakers=9/9`, `endings=`); `string_film.gd -- --from=N`
-- [ ] Looks for the crossovers and the beats (fx lane: the `TODO(fx lane)` note in `void_element.gd`)
+- [x] Looks for the crossovers and the beats (round 37)
 - [ ] Beat 1 throws leave the frame in the middle of the room: a camera pull-out for Meteor Fall's hang (camera lane)
+
+## Round 37 (Crossover FX)
+The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geysers, shards, arcs). Each now has its own flat comic drawer on `scripts/comic_flat.gd` (two surfaces on twos: camera-facing on heretic_form_fx's material, floor on comic_crack's; nothing new to compile). See `docs/features/void-element.md` "Crossover looks".
+- [x] Rockslide: one inked boulder slams down on the hammer's spot (squashed over a hot star, splits into four chunks), a hot crack dent under each foe it drove down (`comic_boulder.gd`); word KRUNCH!
+- [x] Fault Line: one glowing crack per foe runs out from him (nearest first, 0.06 s apart, on real time so the hit stop doesn't hold it) and the gale comes up where it arrives (`comic_fault.gd`); word SKRRRAK!
+- [x] Cataclysm, less busy: was a strike + geyser + 5 spikes per foe and a hammer burst; now one fat crack per foe out of his landing with a sky bolt where each arrives, staggered; word KRAKA-DOOM!
+- [x] Steam Burst: a nine-puff inked cumulus round each frozen foe and over its head, a magma star at its foot (`comic_steam.gd`); word PSSHHHH!
+- [x] Flash Freeze: a see-through crystal shell climbs each held foe as he dives, with ice tips and a glint (`comic_freeze_over.gd` `foe()`); word FSSHINK!
+- [x] Black Ice: the dark pool freezes over from the middle out (a two-ring mosaic of ice plates with ink between), and the landing breaks it into flying chips (`comic_freeze_over.gd` `pool()` / `shatter()`; was a frost ring, nova, splat, spikes and shards); word KLISSSH!
+- [x] Storm Pitch: inked lightning forks crackle off each thrown foe for its flight with speed strokes behind it, thinner jolts to whoever it passes (`comic_arc.gd`); word ZZWANNG!
+- [x] Meteor Fall: a flattened hot splat star where a beat-1 throw hits a wall (`comic_splat.gd` `watch()`), and DOGPILE! over the pile once beat 2 has them all in (`ComicFx.say()`)
+- [ ] Steam Burst rarely steams in the bot's string: Ice Cube's cube is still flying (thrown) when XS fires, so `frozen` is empty and only the fist shoves (combo lane: let a flying cube count, or film it on a standing frozen foe)
+- [ ] Meteor Fall's wall splats are mostly off camera at 13 m (camera lane's hang pull-out)
+- [ ] Cataclysm's hang is still Live Wire's green bolts and violet binds on every foe (`wire: true`); with the landing's crater it is still the busiest breaker. Try dropping `wire` or thinning Live Wire in the hang (combo lane)

@@ -682,11 +682,9 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 
 
 # --- Crossovers (round 34): a string that changes element, with a payoff only the pair gives --------------------
-# TODO(fx lane): the looks here are the existing helpers as placeholders. Hooks wanted: a falling-rock / boulder
-# slam for Rockslide, a crack that runs and glows for Fault Line, a steam cloud (white puffs, inked) for Steam Burst,
-# lightning that rides a thrown foe for Storm Pitch, a pool freezing over for Black Ice, a wall-splat star and a
-# pile-up word for Meteor Fall's beats, and ComicFx.MOVE_WORDS / BREAKER_WORDS for XR, XF, XS, XT, Cataclysm,
-# Flash Freeze and Black Ice.
+# Looks (round 37): comic_boulder (Rockslide), comic_fault (Fault Line, Cataclysm), comic_steam (Steam Burst),
+# comic_freeze_over (Flash Freeze, Black Ice), comic_arc (Storm Pitch), comic_splat (Meteor Fall's beats); words in
+# ComicFx.MOVE_WORDS / BREAKER_WORDS. See docs/features/void-element.md "Crossover looks".
 
 ## L H L L: wind into earth. The hammer comes down off the air string and everyone near the blow is driven into
 ## the floor together; the ones Updraft Lash had in the air take double.

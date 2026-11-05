@@ -73,8 +73,30 @@ clip with its `*_HIT` contact frame, with the arm's shape in `VOID_ELEMENT.FORM_
 | Dash H L | `XT` | Storm Pitch | dark into storm | Whoever Tow Line bunched (`PITCH_GRAB` round `PITCH_AHEAD`) is cut off its tether (`thrown_foe.cut()`) and hurled on along his aim, fanned `PITCH_SPREAD`; in flight lightning jumps from each to anyone it passes (`thrown_foe` `zap`: `ZAP_STEP`, `ZAP_REACH`, `ZAP_MAX`) and it bursts in wind where it lands. Big foes stay and take the jolt |
 | H L H, L in window | `VD`, its `alt` | Black Ice | dark into ice | The press freezes the pool with everyone in it (`freeze_pool()`, instead of the jaws), and the landing shatters it (`_black_ice`: `BLACK_ICE_DOWN`, x `FREEZE_BREAK`) |
 
-The looks are existing helpers as placeholders (pillars, fissures, spikes, geysers, shards, arcs); the fx lane's
-wish list is the `TODO(fx lane)` note above `_rockslide()` in `void_element.gd`.
+Their looks (round 37) are their own flat drawers, below.
+
+#### Crossover looks (round 37)
+
+All on `scripts/comic_flat.gd`: a Node3D that rebuilds two meshes on twos, `screen` (camera-facing, heretic_form_fx's
+material, no depth test) and `floor` (flat, comic_crack's depth-tested material, so foes stand on it; its vertex
+colours go through `srgb_to_linear()` or the palette washes out pale). `real_time` runs it on wall time (breaker
+hangs, hit stops); `_follow()` runs every frame for an effect that rides something, kept untyped and checked with
+`is_instance_valid`. Palettes from `fx_palette.gd`, thin `PAL.LINE` ink, gone in under 0.6 s unless held.
+
+| Move | Look | Script, call |
+|---|---|---|
+| Rockslide | One boulder (7-sided, earth body to deep, a lit facet, two ink cracks) on the hammer's spot, squashed over a hot star with three fall strokes, holds 2 steps, splits into 4 chunks; a hot crack dent under each foe driven down. 0.55 s | `comic_boulder.gd` `spawn(parent, spot, foe_spots)` in `_rockslide` (with `Fx.scorch`) |
+| Fault Line | One jagged crack per foe from 0.55 m out of his feet, nearest first `STAGGER` 0.06 s apart at `RUN` 30 m/s on real time; ink edge, earth body, hot core line while it runs; a hot splat and `comic_gale` (2.4 m) where it arrives. No foes: one crack 4 m ahead | `comic_fault.gd` `spawn(parent, at, spots)` |
+| Cataclysm | `big`: the same cracks fatter (0.34 m) and slower (22 m/s, game time, so they wait out the impact frame) out of his landing, a `comic_bolt` sky strike (0.3 m, star 0.8) where each arrives. No per-foe geyser, spikes or hammer burst | `comic_fault.gd` `spawn(..., true)` in `_cataclysm` |
+| Steam Burst | Nine puffs, six in a ring round the frozen foe's body and three over its head, every puff's ink first then every fill (only the cloud's outer edge is inked), white to blue-grey, rising and swelling; a magma star and paper strokes on the first frame. 0.55 s | `comic_steam.gd` `spawn(parent, spot)` per frozen foe |
+| Flash Freeze | A see-through crystal shell (`SHELL` 0.88 x 1.5 m) climbs each held foe from its feet (half, then 1.1 overshoot), light rim inside thin ink, three ice tips and a glint, riding the foe, 0.5 s real time | `comic_freeze_over.gd` `foe(parent, e)` from `hero_leap._start_dive` (`refreeze`) |
+| Black Ice | The pool freezes over from the middle (0.45, 0.8, 1.0 of `MAW_RADIUS` + 0.3 in three steps): a two-ring mosaic of plates on shared edges, ink between, glint lines, lifted 0.06 m over the dark pool; held (real time, 2.2 s at most) until the landing's `shatter()` throws the plates up as inked chips | `comic_freeze_over.gd` `pool()` in `freeze_pool`, `shatter(parent, spot, r)` in `_black_ice` |
+| Storm Pitch | Three inked zigzag forks crackle off each thrown foe's chest, new each step, with two pale speed strokes behind it, for its flight + 0.1 s; the jolts it throws (`thrown_foe._zap`) and the axe's chain at the throw are thin `comic_bolt`s (0.18 m, star 0.42) | `comic_arc.gd` `ride(parent, e, flight)` in `_pitch`, `jump(parent, a, b)` |
+| Meteor Fall beat 1 | A watcher rides each throw; if it ends on a wall (`_walled` and all the way out) a hot star flattened against the wall (1.25 m across, half that along), four ink spatter strokes back off it. Open-floor landings keep their earth burst | `comic_splat.gd` `watch(parent, flight, e)` in `meteor_wall` |
+| Meteor Fall beat 2 | DOGPILE! over the pile once nobody is in flight (or 0.6 s), at 0.62 scale; the landing's KA-THOOOM! replaces it | `comic_splat.gd` `pile_word()` in `meteor_gather`, `ComicFx.say()` |
+
+Words (`ComicFx.MOVE_WORDS` / `BREAKER_WORDS`): XR KRUNCH!, XF SKRRRAK!, XS PSSHHHH!, XT ZZWANNG!, Cataclysm
+KRAKA-DOOM!, Flash Freeze FSSHINK!, Black Ice KLISSSH!.
 
 ### Breakers (`VOID_ELEMENT.BREAKERS`)
 

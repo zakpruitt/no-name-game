@@ -175,6 +175,13 @@ fast-forward, so no agent edits another's files or index.
 - **Probe a feel number headless:** a scratch `-s` SceneTree that instances main, `Input.action_press`es a plan of moves
   and logs a field every physics frame (the rig's `lean`, the clip, the speed scale) gave the turn-lean numbers in one run.
   Fields the game resets each tick (`awakened` from the meter) must be set again every frame.
+- **Judge an effect without the string (round 37):** a scratch SceneTree that loads `main.tscn`, spawns the effect
+  by the dummies (`get_nodes_in_group("enemies")`) and saves 8 frames 83 ms apart gives a 4x2 sheet in 15 s. The
+  bot's string often never sets the effect up (Steam Burst found no frozen foe: the Ice Cube was still flying), and
+  a film can't tell "not drawn" from "hidden under the pile". Keep it in the scratchpad, out of `tests/`.
+- **A parse error in a script `void_element.gd` preloads breaks `game.gd`** (the autoload chain), so every test
+  fails with "Failed to load script game.gd". Load the new script once in a scratch run before filming; a typed
+  `var x := a if c else b` over a Dictionary value is the usual culprit (give it a type).
 
 ## When you're done
 
