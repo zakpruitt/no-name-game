@@ -421,6 +421,10 @@ static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float
 	tw.chain().tween_callback(m.queue_free)
 
 
+const BEAM_SLEEK_R := 0.7  # of the asked radius, comic style
+const BEAM_SLEEK_TIME := 0.7  # of the asked time
+
+
 ## Column of light that shoots up from `pos` and collapses inward over `time`:
 ## a coloured shell around a white-hot core.
 static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radius := 1.3,
@@ -429,7 +433,12 @@ static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radiu
 	parent.add_child(root)
 	root.global_position = pos
 	var mats: Array[StandardMaterial3D] = []
-	for layer: Array in [[radius, Color(color, 0.7)], [radius * 0.45, Color(1.0, 1.0, 1.0, 0.9)]]:
+	var layers := [[radius, Color(color, 0.7)], [radius * 0.45, Color(1.0, 1.0, 1.0, 0.9)]]
+	if Game.comic_style:  # round 33 (sleek): a see-through column with a thin hot core, not a gold slab over the pile
+		radius *= BEAM_SLEEK_R
+		layers = [[radius, Color(color, 0.32)], [radius * 0.22, Color(1.0, 1.0, 1.0, 0.75)]]
+		time *= BEAM_SLEEK_TIME
+	for layer: Array in layers:
 		var cyl := CylinderMesh.new()
 		cyl.top_radius = layer[0] * 0.7
 		cyl.bottom_radius = layer[0]
@@ -577,11 +586,11 @@ static func _crater_layer(parent: Node, at: Vector3, radius: float, tex: String,
 ## DAZE_STARS solid five-point stars inked in ComicFx.INK, on a DAZE_RING m
 ## ring `height` above `node`, spinning DAZE_SPIN rad/s, popping in and
 ## shrinking away over `time`. Named "DazeStars".
-const DAZE_STARS := 3
+const DAZE_STARS := 2  # round 33 (sleek): three stars on each of four dummies was a crown of clutter
 const DAZE_RING := 0.5  # m, the ring's radius
-const DAZE_SIZE := 0.2  # m, a star's outer radius
+const DAZE_SIZE := 0.16  # m, a star's outer radius
 const DAZE_INNER := 0.45  # a star's inner points, as a share of its outer radius
-const DAZE_INK := 1.35  # the ink star behind, as a share of the star
+const DAZE_INK := 1.2  # the ink star behind, as a share of the star
 const DAZE_SPIN := 7.0  # rad/s
 const DAZE_COLOR := Color(1.0, 0.86, 0.2)
 static var _star_mesh: ArrayMesh
