@@ -477,6 +477,30 @@ not thick crayon.
   crater under the hero). Meltdown's tongues (`comic_melt`) splay out (`FLAME_SPLAY`), lick side to side each step
   (`FLAME_LICK`) and hook at the tip with a second narrower wedge.
 
+### Round 5 (density: the moments where effects cover the fight)
+
+Coverage = the share of the middle 60% of a `string_film` HIT frame that is effect-coloured (saturated and bright,
+minus the dummies' red), peak of the HIT and the next two frames. Before: mean 0.11, Grounded 0.40, Worldbreaker 0.42.
+
+- **Meteor Fall's landing:** three column-only rim geysers (`elements.rim_geyser`: `RIM_GEYSER_WIDTH` 0.42,
+  `RIM_GEYSER_SQUASH` 0.55, no spikes or scorch), set at half-steps so none stands between the camera and the pile;
+  two spikes and six shards per foe (four, 14). The crater cracks carry the floor. 0.22 -> 0.17-0.19.
+- **Earth breakers per foe** (`void_element.under("earth")`, Worldbreaker, the rip): a rim geyser and three spikes
+  (a full geyser and five).
+- **Deep Freeze over a crowd:** the press's cords are one thin line (`void_tendril.line`: `LINE_ROOT_W` 0.075 m,
+  ink + violet, one coil turn; set by `void_grab.seize` for `press`, reset on release); each cratered foe's dust hoop
+  is a thin band at 1.1 of the radius (`Fx.CRATER_COMIC_RING_OUT`; was a 0.1 m band at 1.5); the frost spear's pulse
+  ring half as thick (0.985 inner), 0.55 alpha, every 1.2 s (0.7). The cubes are what reads.
+- **Spirit echo:** the ghost blade is drawn to `spirit_echo.VISUAL_REACH` 0.7 of `radius` and its swoosh is lines
+  only (`Fx.swoosh(..., lines_only)`) at the real reach; hits still read `radius`. `FADE_OUT` 0.06 s.
+- **Undertow's wells (comic):** no glowing pool, core or crust boxes (under the tiles the pool only lit the grout, an
+  orange web for `WELL_TIME` 4 s, and the grates glowed); one crack mark at `WELL_COMIC_CRACK` 0.85 of the radius
+  for `WELL_COMIC_SHOW` 0.9 s, placed deferred (the well is positioned after `add_child`). The burn keeps 4 s.
+- **Grounded's storm strikes:** `elements.STRIKE_*` 5 m, 0.15 m, no fork, 0.8 m star (9 m, 0.4 m, two forks).
+- **Awakening column:** `Fx.BEAM_SLEEK_R` 0.42, `BEAM_SLEEK_TIME` 0.55 (0.7 / 0.7); the bot Awakens as the meter
+  fills on a perfect landing, so it stood over the pile.
+- Checks: `fx_sleek_check` (rim geyser, cord line, echo blade vs reach, well look vs burn).
+
 ## Invariants
 
 - `settings.cfg` never gains a comic key.

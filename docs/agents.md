@@ -198,6 +198,16 @@ fast-forward, so no agent edits another's files or index.
 - **One-effect before/after:** `git stash`, run the scratch shot, `git stash pop`, run again; the same spawn spot and
   dummies in both. Keep the scratch SceneTree in the scratchpad while `agent.sh check` runs (an untracked test in
   `tests/` is harmless, but don't land it).
+- **`string_film -- --from=N --to=N` films one string** (BOT_STRINGS index, no freeplay) in about 40 s; the first
+  string of any run stutters on shader compiles, so its frame times run long. Compare HIT frames by move and time
+  scale, not by frame number.
+- **Run scratchpad Python with `-I`** and keep your helpers in a subfolder: another agent's `inspect.py` in the shared
+  scratchpad was imported by numpy and broke every script run from there.
+- **`_ready` runs inside `add_child`, before the caller sets `global_position`.** Anything a node spawns at its own
+  position in `_ready` lands at the parent's origin if the caller positions it after adding it (`elements.well` did);
+  defer it (`call_deferred`) or set the position first.
+- **The bot presses Awaken the frame the meter is full**, which is often right on a perfect breaker landing, so the
+  Awakening column shows up in that string's film. Read it as its own layer, not the breaker's.
 
 ## When you're done
 
