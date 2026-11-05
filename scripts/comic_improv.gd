@@ -14,6 +14,10 @@ extends "res://scripts/comic_flat.gd"
 ##   molten x dark    Smother: a violet lid comes down on it, embers squirting out at its feet
 ##   skewered x ice   Ice Spreads: a frost line runs along the floor to the next foe, ice tips where it arrives
 ##   skewered x dark  Torn Off: the stake snaps in two halves and a void tear (comic_rip) as it's yanked
+##   airborne x ice   Freeze Aloft: a burst of thin ice spikes round it in the air, a glint
+##   airborne x magma Meteor Spike: an ember line falls through it into the floor, a hot dent where it lands
+##   bound x storm    Torn Loose: the violet ropes snap and whip off its feet, wind strokes up
+##   bound x ice      Frozen in the Dark: violet coils round its legs ice over, small plates at its feet
 ## Its word is ComicFx.IMPROV_WORDS[cell] (ComicFx.improv: said over the move's own word).
 ##   ComicImprov.spawn(parent, "frozen_x_void", foe, hero_spot, neighbour_or_null)
 
@@ -35,6 +39,10 @@ const LOOKS := {
 	"molten_x_void": {"name": "Smother", "life": 0.42, "ride": false, "a": "void", "b": "earth"},
 	"skewered_x_water": {"name": "Ice Spreads", "life": 0.45, "ride": false, "a": "water", "b": "water"},
 	"skewered_x_void": {"name": "Torn Off", "life": 0.35, "ride": false, "a": "void", "b": "water"},
+	"airborne_x_water": {"name": "Freeze Aloft", "life": 0.38, "ride": true, "a": "water", "b": "water"},
+	"airborne_x_earth": {"name": "Meteor Spike", "life": 0.42, "ride": true, "a": "earth", "b": "earth"},
+	"bound_x_wind": {"name": "Torn Loose", "life": 0.4, "ride": true, "a": "wind", "b": "void"},
+	"bound_x_water": {"name": "Frozen in the Dark", "life": 0.45, "ride": false, "a": "water", "b": "void"},
 }
 const BAND_R := 0.62  # m: a band round a foe (a dummy is ~0.5 m across; the ice cube 0.9)
 const BAND_W := 0.11
@@ -123,6 +131,10 @@ func _draw(s: int) -> void:
 		"molten_x_void": _smother(s, k, a)
 		"skewered_x_water": _ice_spreads(s, k, a)
 		"skewered_x_void": _torn_off(s, k, a)
+		"airborne_x_water": _freeze_aloft(s, k, a)
+		"airborne_x_earth": _meteor_spike(s, k, a)
+		"bound_x_wind": _torn_loose(s, k, a)
+		"bound_x_water": _frozen_dark(s, k, a)
 
 
 # --- The cells ---------------------------------------------------------------------------------------------
@@ -356,6 +368,91 @@ func _torn_off(s: int, _k: float, a: float) -> void:
 		var shard := PackedVector3Array([d * -0.32 - side * 0.07, d * -0.32 + side * 0.07, d * 0.34])
 		_outline(at, shard, PAL.LINE, PAL.fade(INK, a))
 		_fan(at, shard, PAL.fade(_b.light, a), PAL.fade(_b.body, 0.9 * a))
+
+
+func _freeze_aloft(s: int, _k: float, a: float) -> void:
+	var grow: float = [0.75, 1.1, 1.0, 0.9, 0.8][mini(s, 4)]
+	for i in 7:
+		var ang := _turn + TAU * i / 7.0
+		var d := _screen(ang)
+		var l := (0.6 + 0.3 * (_shape[i] - 0.88) / 0.22) * grow
+		_tip(d * 0.32, d, l, 0.15, _a, a)
+	if s >= 1 and s <= 2:  # a glint
+		var g := _up * 0.55 + _right * 0.4
+		_fan(g, _star_ring(PackedFloat32Array([1.0, 1.0, 1.0, 1.0]), 0.2, 0.18, PI * 0.25 * s), PAL.fade(_a.hot, a))
+
+
+func _meteor_spike(s: int, _k: float, a: float) -> void:
+	var c := _floor_c()
+	var floor_p := _local(_spot) + Vector3.UP * 0.1
+	if s <= 1:  # the ember line falling through it into the floor
+		var top := Vector3.UP * 1.3
+		var pts := PackedVector3Array([top, top.lerp(floor_p, 0.5), floor_p])
+		_strip(pts, PAL.LINE * 2.0, 0.24 + PAL.LINE * 2.0, PAL.fade(INK, 0.0), INK)
+		_strip(pts, 0.0, 0.24, PAL.fade(_a.body, 0.0), _a.light)
+		_strip(pts, 0.0, 0.08, PAL.fade(_a.hot, 0.0), _a.hot)
+	if s >= 1:  # the dent it lands in
+		var hot := s < 3
+		var size := DENT * (0.8 if s == 1 else 1.0)
+		var ring := PackedVector2Array()
+		var rim := PackedVector2Array()
+		for i in _shape.size():
+			var ang := TAU * i / _shape.size()
+			var d := Vector2(cos(ang), sin(ang)) * _shape[i]
+			ring.append(d * size)
+			rim.append(d * (size + PAL.LINE * 2.5))
+		for pts: PackedVector2Array in _cracks:
+			_floor_strip(_off(pts, c), 0.12 + PAL.LINE * 2.0, 0.0, PAL.fade(INK, a))
+		_floor_fan(c, rim, PAL.fade(INK, a))
+		_layer()
+		_floor_fan(c, ring, PAL.fade(_a.body if hot else _a.deep, a), PAL.fade(_a.light if hot else _a.deep, a))
+		for pts: PackedVector2Array in _cracks:
+			_floor_strip(_off(pts, c), 0.08, 0.0, PAL.fade(_a.light if hot else _a.deep, a))
+
+
+func _torn_loose(s: int, k: float, a: float) -> void:
+	var foot := _local(_spot) + Vector3.UP * 0.08
+	var snap: float = [1.0, 0.75, 0.45, 0.25, 0.1, 0.0][mini(s, 5)]
+	for i in 4:  # the ropes snapping off its feet, whipping out
+		var ang := _turn + TAU * i / 4.0
+		var out := Vector3(cos(ang), 0.0, sin(ang))
+		var reach := 1.1 * snap
+		if reach < 0.08:
+			continue
+		var pts := PackedVector3Array([foot + out * 0.25, foot + out * (0.25 + reach * 0.5) + Vector3.UP * (0.3 + 0.2 * k),
+			foot + out * (0.25 + reach) + Vector3.UP * (0.15 + 0.5 * k) + _right * (0.12 if (s + i) % 2 == 0 else -0.12)])
+		_strip(pts, 0.14 + PAL.LINE * 2.0, PAL.LINE * 2.0, PAL.fade(INK, a))
+		_strip(pts, 0.14, 0.02, PAL.fade(_b.body, a), PAL.fade(_b.light, a))
+	if s <= 2:  # the gale tearing it up
+		for i in 3:
+			var x := (i - 1) * 0.42
+			_wedge(_right * x + _up * (-0.5 + 0.3 * s - absf(x) * 0.3), _up, 0.9, 0.13, PAL.fade(_a.light, a))
+
+
+func _frozen_dark(s: int, _k: float, a: float) -> void:
+	var base := _local(_spot)
+	for i in 2:  # coils round its legs, the ice running round them
+		var c := base + Vector3.UP * (0.22 + 0.32 * i)
+		var start := _turn + PI * i
+		_band(c, BAND_R * (0.95 - 0.12 * i), start, PI * 1.6, BAND_W, _b.body, a)
+		var ice := clampf((s + 0.5) / 2.0, 0.0, 1.0)
+		if ice > 0.0:
+			_band(c + Vector3.UP * 0.01, BAND_R * (0.95 - 0.12 * i), start, PI * 1.6 * ice, BAND_W * 0.75, _a.light, a, false)
+	var fc := _floor_c()
+	for i in 4:  # small ice plates at its feet
+		var ang := _turn + TAU * (i + 0.5) / 4.0
+		var d := Vector2(cos(ang), sin(ang))
+		var mid := fc + d * 0.72
+		var side := Vector2(-d.y, d.x)
+		var plate := PackedVector2Array([d * -0.14 - side * 0.12, d * 0.16 - side * 0.08, d * 0.2 + side * 0.1, d * -0.12 + side * 0.13])
+		var rim := PackedVector2Array()
+		for p in plate:
+			rim.append(p * (1.0 + PAL.LINE * 2.0 / 0.16))
+		_floor_fan(mid, rim, PAL.fade(INK, a))
+		_floor_fan(mid, plate, PAL.fade(_a.light, 0.9 * a), PAL.fade(_a.body, 0.8 * a))
+	if s == 2 or s == 3:
+		var g := base + Vector3.UP * 0.8 + _right * 0.45
+		_fan(g, _star_ring(PackedFloat32Array([1.0, 1.0, 1.0, 1.0]), 0.18, 0.18, PI * 0.25 * s), PAL.fade(_a.hot, a))
 
 
 # --- Shapes ------------------------------------------------------------------------------------------------
