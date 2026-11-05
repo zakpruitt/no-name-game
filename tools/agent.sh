@@ -4,7 +4,7 @@
 #   tools/agent.sh new <name>          worktree ../awaken-<name> on branch agent/<name> (from dev), imported
 #   tools/agent.sh check [--quick]     headless checks in the current checkout (PASS/FAIL tests + autotest)
 #   tools/agent.sh land [--quick]      from inside a worktree: rebase onto dev, check, fast-forward dev
-#   tools/agent.sh remove <name>       delete the worktree and its (merged) branch
+#   tools/agent.sh remove <name>       delete the worktree (even over untracked .uid / import files) and its merged branch
 #   tools/agent.sh list                worktrees and how far each branch is ahead of / behind dev
 #
 # Landing never overwrites anyone: the rebase stops on conflicts for this
@@ -24,12 +24,17 @@ dev_dir() {
 tidy() {
 	local real f
 	real=$(git diff --ignore-cr-at-eol --name-only 2>/dev/null)
-	for f in $(git ls-files -m); do
-		grep -qxF "$f" <<< "$real" || git checkout -q -- "$f"
+	for f in $(git ls-files -m 2>/dev/null); do
+		grep -qxF "$f" <<< "$real" || git checkout -q -- "$f" 2>/dev/null
 	done
 }
 godot_run() { timeout "$1" godot --headless --path "$(root)" "${@:2}" < /dev/null 2>&1 \
 	| grep -v "RID\|PagedAllocator\|Leaked instance\|instance_notify\|utilities.cpp" || true; }
+
+# Timing checks that can miss by a frame when other Godot runs load the machine
+# (rhythm_check "L1 hands over to L2 sooner on a hit (224 < 233 ms)"): rerun once
+# before failing. A real regression fails both runs.
+RETRY="rhythm_check"
 
 check() {
 	local quick=${1:-}
@@ -39,6 +44,9 @@ check() {
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue
 		out=$(godot_run 180 -s "tests/$t.gd")
+		if [[ " $RETRY " == *" $t "* ]] && echo "$out" | grep -q "\] FAIL"; then
+			echo "retry $t (timing check, can flake under load)"; out=$(godot_run 180 -s "tests/$t.gd")
+		fi
 		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error\|\] FAIL" || ! echo "$out" | grep -q "PASS"; then
 			echo "FAIL  $t"; echo "$out" | grep "FAIL\|SCRIPT ERROR\|Parse Error" | head -5; fail=1
 		else
@@ -57,6 +65,7 @@ check() {
 			echo "ok    $args"
 		fi
 	done
+	tidy  # (the runs re-import: drop line-ending-only .import diffs)
 	return $fail
 }
 
@@ -97,10 +106,29 @@ land)
 	;;
 remove)
 	name=${2:-}; [ -n "$name" ] || die "usage: remove <name>"
-	main=$(dev_dir)
+	main=$(dev_dir); [ -n "$main" ] || die "no checkout has dev"
 	dir="$(dirname "$main")/awaken-$name"
-	git -C "$main" worktree remove "$dir"
-	git -C "$main" branch -d "agent/$name"
+	[ "$(cd "$main" && pwd -P)" != "$(cd "$dir" 2>/dev/null && pwd -P)" ] || die "refusing to remove the dev checkout"
+	if [ -d "$dir" ]; then
+		(cd "$dir" && tidy) 2>/dev/null || true
+		if [ -n "$(git -C "$dir" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+			git -C "$dir" status --short --untracked-files=no | head -5
+			die "$dir has uncommitted changes to tracked files: commit or drop them first"
+		fi
+		# --force: untracked leftovers (.uid files, .godot/, shots) don't block it.
+		git -C "$main" worktree remove --force "$dir" 2>/dev/null || true
+		# Windows: a file still held open (a Godot run, an editor) gives "Permission denied"; delete what's left.
+		[ -d "$dir" ] && { rm -rf "$dir" 2>/dev/null || cmd //c rmdir /s /q "$(cygpath -w "$dir" 2>/dev/null || echo "$dir")" > /dev/null 2>&1 || true; }
+		[ -d "$dir" ] && echo "agent.sh: could not delete all of $dir (a program holds a file in it); close it and delete the folder"
+	fi
+	git -C "$main" worktree prune
+	if git -C "$main" show-ref -q --verify "refs/heads/agent/$name"; then
+		if git -C "$main" merge-base --is-ancestor "agent/$name" dev; then
+			git -C "$main" branch -D "agent/$name"
+		else
+			echo "agent.sh: kept branch agent/$name: $(git -C "$main" rev-list --count dev..agent/$name) commit(s) not on dev (git branch -D agent/$name to drop them)"
+		fi
+	fi
 	;;
 list)
 	git worktree list
