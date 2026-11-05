@@ -480,7 +480,7 @@ Zak: "more combos that utilize multiple elements together", "a few more complica
 - [x] Fourth pass, bot: `face` / `out` / `wait` tokens and two strings (dash out of Meltdown / Undertow into Updraft Lash): `[improv] frozen_x_void=3, buried_x_water=1, airborne_x_water=1, molten_x_wind=3, bound_x_wind=1` (24 strings, `AUTOTEST_MAX` 100 s)
 - [x] Fourth pass, guide: crossover rows say their element change ("storm > magma"), a row whose move would cash in a state in its reach says the payoff ("Harpoon + Frozen In"); the pause panel's MIX ELEMENTS page lists all 24 cells in plain words (`guide_check._mixing()`)
 - [ ] By hand: Dash Stab at `DASH_STAB_CANCEL` 0.5 covers half the dash's ground before the lunge: check the spacing into a pile; the "+ payoff" tag's reach is read from where he faces before the press, so an aimed press can still pay where the tag didn't show
-- [ ] Mixing placeholders (fx lane, `TODO(fx lane)` in `_pay()`); the mix / pay tags are plain text in the guide (a small element chip would read faster)
+- [ ] The guide's mix / pay tags are plain text (a small element chip in the fx palette would read faster)
 
 ## Round 37 (Crossover FX)
 The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geysers, shards, arcs). Each now has its own flat comic drawer on `scripts/comic_flat.gd` (two surfaces on twos: camera-facing on heretic_form_fx's material, floor on comic_crack's; nothing new to compile). See `docs/features/void-element.md` "Crossover looks".
