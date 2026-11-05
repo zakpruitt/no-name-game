@@ -526,10 +526,18 @@ Zak, on the chibi lineup: "I definitely like this chibi direction better. We can
 - [x] Faces: eyes 1.65x tipped up to the camera, slanted brows on the eye bones (the squint folds them shut), teeth scowl
 - [x] Heavier ink on the outer silhouette only (`ComicLook.silhouette`, `shaders/foe_silhouette.gdshader`, 4 px pushed 0.3 m back)
 - [x] Tri budget kept (each under round 38's +20%); health bars raised for the mage, necromancer and bomber
-- [ ] The warrior's tell still hides under its helmet from the game camera; a longer blade helped the idle read, not the overhead chop (anim lane: aim it wider past the shoulder)
-- [ ] The shield's planks still break into a light / dark checker under the cut tones (brush 0.1 did not fix it): flatten the plank geometry or give the wall one flat face
-- [ ] Minion: still the plainest; try a bigger skull cap or a hunch with a spine ridge, and a cleaver with a clear blade shape
-- [ ] By hand: spar each family and see whether the accent colour sorts a crowd at a glance (`--spar=minion|rogue|shield|warrior`)
+- [x] The warrior's tell still hides under its helmet from the game camera; a longer blade helped the idle read, not the overhead chop (anim lane: aim it wider past the shoulder)
+- [x] The shield's planks still break into a light / dark checker under the cut tones (brush 0.1 did not fix it): flatten the plank geometry or give the wall one flat face
+- [x] Minion: still the plainest; try a bigger skull cap or a hunch with a spine ridge, and a cleaver with a clear blade shape
+- [x] By hand: spar each family and see whether the accent colour sorts a crowd at a glance (`--spar=minion|rogue|shield|warrior`)
+- [x] Round 39 b: the warrior's chop re-keyed so the tell holds the sword out wide past its right shoulder (az -100..-112) with the free arm at the target, and the strike whips across its front to finish low past its left foot; `attack_hit` stays 19 (filmed with `foe_shots.gd -- --clip=1H_Melee_Attack_Chop`)
+- [x] Round 39 b: the shield's planks rebuilt as one flat slab (`refine_pass.py` `slab`: convex outline on the best-fit plane, inked `P_Black` rim, flat `P_Wood` face at brush 0, iron bands dropped, the orange boss centred); tris 9953 -> 8840
+- [x] Round 39 b: the minion's cleaver turned to face the camera and redrawn as a square steel cleaver with an inked spine (`cleaver`), and an orange skull cap fitted over the cranium with a ridge of four bone fins (`cap`); tris 7946 -> 8108
+- [x] Round 39 b: the training dummy takes the foes' face (eyes 1.65x tipped 30 degrees, angry brows on the eye bones, a scowl) and their heavy outer line (`SILHOUETTE_KINDS`); bag bones and spring untouched
+- [x] Round 39 b: crowd read from the lineup and `--spar=warrior|rogue|shield --autotest`: the archer's green cloth (grave's colour on a legion foe) went burnt orange and the necromancer's red shroud deep green (`KIND_TONES`)
+- [ ] The cult's void violet is also the hero's claw and void effect colour: mid-string a rogue or mage is the hardest foe to pick out; try a colder indigo or a pale rim for the cult
+- [ ] `--spar` takes only legion and cult kinds (`spar.KINDS`), so the grave pair was judged in the lineup only; add necromancer to the spar list to see the green family in motion
+- [ ] The shield's black rim merges with its ink line on the dark floor and reads as a thicker outline more than a rim; try an iron rim if it should read as metal
 
 ## Round 40 (hero model, chibi pass 2)
 Zak confirmed the chibi heretic as the art direction: "we can redesign him and fine tune it... chibi-esque, cartoony, not taking itself too seriously, but still badass." The model is fine-tuned with the rig, bone names, rest pose and every clip kept (contact_frames prints the same frames; `chibi_keys.py` re-run over each new blend). No Meshy credits spent (75 of 200). See `docs/features/heretic-hero.md` "Chibi pass 2". Seen in windowed `heretic_shots`, `foe_shots` and `string_film` stills, not played.

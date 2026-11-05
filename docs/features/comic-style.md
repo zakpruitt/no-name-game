@@ -279,6 +279,13 @@ python tools/comic_glb.py <kit>/out/enemies_keyed <name>
   bent down at the corners (scowl 0.6), buck teeth kept. `dummy` joined `ComicLook.SILHOUETTE_KINDS`, so it
   gets the same heavy outer line. The sack, its bag bones and the punching-bag spring are untouched
   (`enemy_feel_check`, `training_check` pass). Tris 9798 -> 9798.
+- **Crowd read.** In the lineup from the game camera the families sorted, except two: the archer (legion,
+  orange) still wore `P_Forest` green, so it sorted with the grave pair, and the necromancer (grave, green)
+  wore a red shroud no family has. `KIND_TONES` turns the archer's cloth burnt orange under its orange bow and
+  the necromancer's shroud deep green under its green glow; the meshes are untouched. Spars
+  (`--spar=warrior|rogue|shield --autotest`, windowed) only cover legion and cult; there the rogue's violet
+  reads at once, but it is also the hero's claw and void effect colour, so mid-string a cult foe is the
+  hardest to pick out (a follow-up, not changed here).
 
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
