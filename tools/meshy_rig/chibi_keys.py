@@ -445,11 +445,14 @@ CLIPS["Ab_H"] = (63, "hand", STEP_ATTACK, 15, [
 
 # Ab_LLH, Harpoon (EF) and the Frost Spear plant (IP), hit 0.34 = frame 20.1: up on his toes with the
 # spear raised high and turned tip-down, then lunged and driven into the floor ahead, held, leaning on it.
-LLH_RISE = pose(SP, hip=(0, 0.04, 0.02), hipr=(10, -10, 0), chest=(5, -12, 0), head=(-5, -8, 0), hsq=-0.14,
-                rh=(40, 62, 0.52), w=(10, -45), lh=(-60, 40, 0.39), claw=0.9)
-LLH_TOP = pose(LLH_RISE, hipr=(15, -14, 0), chest=(8, -15, 0), hsq=-0.18, rh=(50, 72, 0.5), w=(5, -55),
-               fl=(-0.05, 0.04, 0.05), fr=(0.05, -0.05, 0.06), claw=1.0)
-LLH_SHAKE = pose(LLH_TOP, rh=(46, 70, 0.51), hipr=(13, -13, 2), head=(-3, -7, 3))
+# Round 35 c: raised higher before the drive: the arm straight up over the hood (el 84, was 72), the
+# spear swollen and turned less tip-down (-32, was -55: a steeper spear foreshortens to a stub from the game
+# camera), up on his toes further.
+LLH_RISE = pose(SP, hip=(0, 0.04, 0.04), hipr=(10, -10, 0), chest=(5, -12, 0), head=(-5, -8, 0), hsq=-0.14,
+                rh=(35, 72, 0.55), w=(8, -40), lh=(-60, 40, 0.39), claw=0.9)
+LLH_TOP = pose(LLH_RISE, hip=(0, 0.04, 0.06), hipr=(15, -14, 0), chest=(8, -15, 0), hsq=-0.18, rh=(30, 84, 0.6),
+               w=(4, -32), fl=(-0.05, 0.04, 0.08), fr=(0.05, -0.05, 0.09), claw=1.0, hs=1.1)
+LLH_SHAKE = pose(LLH_TOP, rh=(28, 81, 0.59), hipr=(13, -13, 2), head=(-3, -7, 3))
 LLH_SMEAR = pose(LLH_TOP, hip=(0, -0.06, -0.08), hipr=(0, 18, 0), chest=(0, 12, 0), head=(0, 6, 0), hsq=0.0,
                  rh=(10, 20, 0.6), w=(5, -35), fl=(-0.06, 0.08, 0), fr=(0.06, -0.1, 0), hs=1.2)
 LLH_HIT = pose(LLH_SMEAR, hip=(0, -0.14, -0.22), hipr=(-10, 34, 0), chest=(-5, 16, 0), head=(5, 12, 0), hsq=0.26,
