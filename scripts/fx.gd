@@ -33,6 +33,7 @@ const PAL := preload("res://scripts/fx_palette.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
+const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -534,6 +535,9 @@ static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radiu
 ## Awakening activation at `pos`: light pillar, flash, double shockwave
 ## (`radius` = the blast), rising motes and a dust blast.
 static func awaken_burst(parent: Node, pos: Vector3, color: Color, radius := 7.0) -> void:
+	if Game.comic_style:  # feel audit 2, item 1: one thin inked column, held past a breaker landing (awaken_flourish.gd)
+		AWAKEN_FLOURISH.spawn(parent, pos)
+		return
 	beam(parent, pos, color, 12.0, 1.5, 0.6)
 	flare(parent, pos + Vector3.UP * 1.2, color, 11.0, 0.4, "flare")
 	flare(parent, pos + Vector3.UP * 1.2, Color.WHITE, 3.5, 0.18, "dot", true)

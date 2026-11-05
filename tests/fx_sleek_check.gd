@@ -222,6 +222,7 @@ func _initialize() -> void:
 	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser") and rim[0].width < 0.9 * els.GEYSER_WIDTH,
 		"a rim geyser is one thin column (%d nodes)" % rim.size())
 	await _sleek5(main, p)
+	await _audit2(main, p)
 	print("[fx_sleek] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	quit()
 
@@ -229,6 +230,38 @@ func _initialize() -> void:
 func _ok(cond: bool, what: String) -> void:
 	if not cond:
 		_fails.append(what)
+
+
+## Feel audit 2 (round 41, effects / HUD lane): later items add their checks here.
+func _audit2(main: Node, p: CharacterBody3D) -> void:
+	await process_frame
+	# Item 1: the Awakening flourish is one thin column and waits out a breaker landing; the buff is not its business.
+	var fxs: GDScript = load("res://scripts/fx.gd")
+	var fl: GDScript = load("res://scripts/awaken_flourish.gd")
+	var mine := func() -> Array: return main.get_children().filter(func(c: Node) -> bool: return c.get_script() == fl)
+	p.state = p.State.LEAP
+	p.awakened = true  # (the field only: a flourish whose Awakening ran out while it waited draws nothing)
+	var held0: int = fl.held
+	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
+	var f: Array = mine.call()
+	_ok(f.size() == 1 and fl.held == held0 + 1 and f[0].get_child_count() == 0, "an Awakening mid-breaker waits (%d nodes)" % f.size())
+	await create_timer(0.3, true, false, true).timeout
+	_ok(f.size() == 1 and is_instance_valid(f[0]) and f[0].get_child_count() == 0, "it waits while he is in the breaker")
+	p.state = p.State.MOVE
+	p.breakers_landed += 1  # the landing
+	fl.note(p)
+	await create_timer(fl.AFTER_BREAKER_S * 0.5, true, false, true).timeout
+	_ok(is_instance_valid(f[0]) and f[0].get_child_count() == 0, "it waits %.1f s past the landing" % fl.AFTER_BREAKER_S)
+	await create_timer(fl.AFTER_BREAKER_S * 0.5 + 0.08, true, false, true).timeout
+	var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
+	_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
+		"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
+	await create_timer(0.5, true, false, true).timeout
+	_ok(mine.call().is_empty(), "the column is gone in half a second")
+	var drawn0: int = fl.drawn
+	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
+	_ok(fl.drawn == drawn0 + 1, "away from a breaker it shows at once")
+	p.awakened = false
 
 
 ## Round 33, sleek 5 (the density pass): later items add their checks here.
