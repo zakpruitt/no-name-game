@@ -24,6 +24,7 @@ const COMIC_MELT := preload("res://scripts/comic_melt.gd")
 const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
 const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
 const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
+const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1112,21 +1113,24 @@ static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized:
 static func _anvil(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
 	var damage: float = b.damage * hero._dmg_mult * mult
+	var craters := []
 	for e: Node3D in seized:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
 		e.take_hit(damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
 		Game.register_hit("breaker")
-		ELEMENTS.spikes(parent, _flat(e.global_position), "earth", 1.0, 3)
+		craters.append(_flat(e.global_position))
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if e in seized:
 			continue
 		if e.is_airborne():
 			e.take_hit(damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
+			craters.append(_flat(e.global_position))
 		else:
 			var from := _flat(e.global_position - at)
 			e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
+	COMIC_ANVIL.spawn(parent, at, craters)  # (a crater each, nearest first: was three earth spikes each)
 	_pop(parent, at, "hammer")
 	Game.shake(0.7)
 
