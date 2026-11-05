@@ -546,3 +546,18 @@ Zak confirmed the chibi heretic as the art direction: "we can redesign him and f
 - [ ] He is still smaller than the warrior at the game camera (183 vs 209 px, 17.7k vs 28.4k px): the 2.05 m cap leaves a bigger bake or a hero `model_scale` as the next lever
 - [ ] The scarf tail reads from the side and behind; from the front the hood hides it, and its flutter is unplayed
 - [ ] By hand: whether the squint / grin on attacks reads in play or flickers across fast strings
+
+## Round 41 (Feel audit 2)
+From `docs/feel-audit-2026-11-05.md` (22 strings, the spar foes and six hero clips filmed at dev 9526983; round 1's
+items 1, 2, 6, 7 and 10 fixed, 3, 4, 5 and 8 half, 9 not). Zak's wake-up page: `docs/round2-2026-11-05.md`.
+- [ ] 1. The Awakening column buries every breaker landing (every coverage frame over 0.2): hold it until the landing clears, or ink-outline it at ~0.3 alpha (heretic-fx)
+- [ ] 2. `LAST n` tags on every dummy all the time: only the dummy hit most, number-sized, fading 1 s after the string (training)
+- [ ] 3. A name callout on every move (DASH STAB, HARPOON, ICE CUBE...): names on enders, crossovers and first finds only (heretic-fx / hud)
+- [ ] 4. The "New combo:" banner runs through the whole next string: cut it on the next string, `FOUND_HOLD` ~1.2 s real (hud / training)
+- [ ] 5. Dash Stab and Harpoon still land soft (x1.00 on their HIT frames): brake DL's lunge on a foe ahead, a stop on Harpoon's catch (combo-rhythm)
+- [ ] 6. Overwhelm's pool is the last thick colour (hold: mean coverage 0.22): the halftone floor look, one thin rim (heretic-fx)
+- [ ] 7. Molten Palm's coil is one held drawing (Ab_AF frames 8-46 of 61) and a blink at `EM_SPEED` 2.8: re-key a building ~16-frame coil, `EM_SPEED` ~1.8 (heretic anim, combo-rhythm)
+- [ ] 8. The run reads as a hood dragging a claw, Run_Stop as a spin: smaller claw swing, legs clear of the hood, keep the stop's facing (heretic anim)
+- [ ] 9. Meteor Fall's beats happen at the frame edge (throws off the top and right, tentacles leaving the screen): throw along `_brk_dir` inside the x2.0 view, a tighter gather (combo, camera)
+- [ ] 10. Dash hand-overs drag: EC / XR -> DL ~500 ms, -> TW 451-467, DL -> EF ~430 in the matrix routes, against the 362 ender (combo-rhythm)
+- [x] `foe_lean.gd` asked for a zero-axis Quaternion on a tipped-over rogue / minion (128 engine errors in one rogue spar film, now 0); `heretic_shots --clips` films Death_A and Ab_Swing (they weren't in `CLIP_SET`)

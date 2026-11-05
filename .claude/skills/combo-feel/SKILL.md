@@ -103,6 +103,17 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   breakers varied 5-7 per run from where the last string threw the foes. Read `breakers=N/N` before trusting a timing change.
 - A bot that presses at `combo_window().ready` (the full BUFFER_MS early) can lose the press when hit-stop and
   Awakening shift the cancel; it presses `BOT_LEAD` (0.15 s) early instead, still well inside the buffer.
+- **Feel audit 2 (2026-11-05):** take `[rhythm]` from a headless `--autotest`, not the film: the frame grabs ran
+  L3 -> EM 840 ms filmed against 541 ms headless. Film all 22 strings in ~5 min; spar films are
+  `string_film -- --spar=<kind> --to=2 --dir=<name>` (the live foe is gathered with the dummies, then circles at the edge).
+- **The middle-60% zoom misses breaker beats that use the room:** Meteor Fall's wall throws land at the frame edge, so
+  judge beats on the full sheet and crop the zoom for single hits only.
+- **Coverage maxes are the bot's Awakening:** every HIT frame over 0.2 was a breaker landing with the Awakening column;
+  compare landings with and without it before calling an effect dense.
+- **Film the clips, not only the strings:** `heretic_shots -- --clips --clips-step=0.0333` at every keyed frame showed
+  Ab_AF holding one drawing for 40 of 61 frames, which a 12 fps string film reads only as "too fast".
+- **Grep the film logs for ERROR:** the rogue spar film printed 128 engine errors (`foe_lean` zero axis) that no check
+  covers, since nothing in `agent.sh check` spars.
 
 ## Camera (round 36, `docs/features/camera.md`)
 - Distance and lens are `camera_rig.DIST` / `FOV` / `AIM_HEIGHT`; dial by hand with `--cam-dist=` / `--cam-fov=` /

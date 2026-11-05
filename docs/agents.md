@@ -346,4 +346,7 @@ the worktree, and deletes the branch once it has been merged.
   `sed -i` into a CRLF file between patch runs (it turned guide_check.gd LF until the next patch rewrote it).
 - **Bash's 120 s tool timeout moves a foreground autotest to the background mid-run** (24 strings take ~110 s plus
   the checks before it): run the autotest alone with `run_in_background`, not chained after another check.
-
+- **`--clips-only=` skips unknown names silently:** `heretic_shots --clips-only=Death_A,Ab_Swing` filmed nothing until
+  both went into `CLIP_SET`. Count the files per clip after a film.
+- **Spar and windowed films catch errors the checks don't:** count `ERROR` lines in each film's log (`grep -c`); a
+  quaternion built from a cross product needs a zero-length guard when the body can tip over (`foe_lean.gd`).
