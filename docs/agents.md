@@ -259,5 +259,15 @@ the worktree, and deletes the branch once it has been merged.
 - **Heredocs with long GDScript bodies:** a large quoted `<<'EOF'` patch failed with "unexpected EOF while looking
   for matching `'`" here; write the patch and the new code to scratchpad files and run `python <file>` (Windows
   Python needs `C:/...` paths, not `/c/...`).
+- **Crossover fx round 2 (comic_flat subclasses):** a subclass can't reuse a parent's member name (`CRACK`,
+  `_ring`) or give a var the name of one of its own static funcs (`var foe` + `static func foe()`); either is a parse
+  error that breaks the whole autoload chain through void_element's preloads. `godot --headless --check-only -s
+  scripts/<new>.gd` on each new script (ignore "Identifier not found: Game") finds them in seconds.
+- **A packed array inside a Dictionary is a copy on read:** `one.ring.append(x)` on `{"ring": PackedFloat32Array()}`
+  appends to a temporary. Fill a local and assign it.
+- **Commit per effect from one patched file:** rebuild the shared gameplay file from the base commit plus the wanted
+  hunks (line-level `difflib`, each hunk named by the effect it calls or the `static func` above it), write it with
+  `git hash-object -w --stdin` (LF: the index holds LF here) and `git update-index --cacheinfo`; the last group
+  leaves `git diff` empty. No interactive `add -p` needed.
 - **Windowed tools from a subagent:** the memory rule is headless only unless Zak said so; a lane told to film
   with `string_film.gd` left it as a follow-up and read the bot's `[rhythm]` lines instead.

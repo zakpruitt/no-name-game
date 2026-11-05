@@ -94,9 +94,25 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 | Storm Pitch | Three inked zigzag forks crackle off each thrown foe's chest, new each step, with two pale speed strokes behind it, for its flight + 0.1 s; the jolts it throws (`thrown_foe._zap`) and the axe's chain at the throw are thin `comic_bolt`s (0.18 m, star 0.42) | `comic_arc.gd` `ride(parent, e, flight)` in `_pitch`, `jump(parent, a, b)` |
 | Meteor Fall beat 1 | A watcher rides each throw; if it ends on a wall (`_walled` and all the way out) a hot star flattened against the wall (1.25 m across, half that along), four ink spatter strokes back off it. Open-floor landings keep their earth burst | `comic_splat.gd` `watch(parent, flight, e)` in `meteor_wall` |
 | Meteor Fall beat 2 | DOGPILE! over the pile once nobody is in flight (or 0.6 s), at 0.62 scale; the landing's KA-THOOOM! replaces it | `comic_splat.gd` `pile_word()` in `meteor_gather`, `ComicFx.say()` |
+| Hailstorm | A tight whirlwind under each frozen foe, four inked wind bands from the floor to its feet every step (so it stretches as the foe climbs), wider than the cube (1.05 m), three inked hail chips whirling round it; rides the foe, 0.5 s | `comic_hail.gd` `ride(parent, e)` in `_hailstorm` (was a full wind pillar each) |
+| Meltdown | One fat inked crescent (earth, hot leading edge) sweeping down round him, 0.25 s; per foe hit: the ice bursting off as four inked chips and a small star, three flame tongues streaming up off it while it falls, a hot splat with four cracks where it lands, cooling. Held in the hang (not down in `FALL_MAX` 0.3 s): no splat, it just goes | `comic_melt.gd` `swing(parent, at, fwd)`, `foe(parent, e, frozen)` in `_meltdown` (was shards, an earth burst and a scorch each) |
+| Eruption | Nearest first 0.05 s apart: a jagged hot break in the floor under each foe (bigger and with a hot star for the `molten`), three pointed rock slabs leaning out of it and three lava blobs off the top, sinking and cooling by 0.5 s; game time, so the hit stop holds it past the impact frame | `comic_erupt.gd` `spawn(parent, at, spots, hots)` in `_eruption` (was a geyser and five spikes each and a 3.5 m scorch) |
+| Impale | Eight ice spikes race out of the spear's foot across the floor (0.35 s); each foe gets a crystal stake from the spear's foot up through its chest and out past it once its throw lands, an ice star where it goes in, 0.45 s | `comic_impale.gd` `burst(parent, spot, r)`, `stake(parent, spot, e, flight)` in `_impale` (was frost_ring's torus) |
+| Backdraft | Eight inked wind strokes burst off the spear round a small star (0.3 s); per foe a see-through wind ribbon towards his hand (at most `RIBBON_MAX` 2.6 m of it, bowed 0.12) with three speed strokes, and the ice cracking off the skewered; rides the foe, 0.45 s | `comic_backdraft.gd` `blast(parent, spot)`, `haul(parent, e, hand, skewered)` in `_backdraft` (was a wind pillar and a lightning arc each) |
+| Anvil | Per crater, nearest first 0.04 s apart: three fat down strokes over it on the first two steps, an inked dent (hot then deep earth) with five cracks, two rubble chips; 0.5 s, game time | `comic_anvil.gd` `spawn(parent, at, spots)` in `_anvil` (was three earth spikes each) |
+| Tow Line's air rip | A jagged inked void tear across the airborne foe's chest, a small star, four ink drops flicked away from him; rides it, 0.3 s | `comic_rip.gd` `spawn(parent, e, at)` in `fire()` `TW` |
 
 Words (`ComicFx.MOVE_WORDS` / `BREAKER_WORDS`): XR KRUNCH!, XF SKRRRAK!, XS PSSHHHH!, XT ZZWANNG!, Cataclysm
-KRAKA-DOOM!, Flash Freeze FSSHINK!, Black Ice KLISSSH!.
+KRAKA-DOOM!, Flash Freeze FSSHINK!, Black Ice KLISSSH!; second pass XG WHIRRRL!, XM SIZZ-BLAM!, XK KSHUNK!,
+XW FWHOOOM!, Eruption BLOOORRM!, Anvil KLANNNG!.
+
+**State tells** (`scripts/comic_state_tell.gd`): a foe carrying an improvising state shows it until the state goes
+(`ELEMENT_HOLD`, real time, fading over its last 0.4 s; gone at once when a payoff spends it). `enemy._physics_process`
+calls `STATE_TELL.sync(self)` (three `has_meta` calls when it carries none); one tell node per foe, a child of the
+foe, draws every state it has and is out of `standing_fx` (it is meant to outlast the next string's first hit):
+molten is a see-through halftone glow over its lower body (earth dots, hot in the middle, pulsing on twos, an ember
+now and then), buried an inked crack ring on the floor round its feet (earth deep), skewered an ice stake stuck
+through its chest.
 
 ### Three-element strings (round 34, second pass)
 
