@@ -213,6 +213,9 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 		b.merge(b.alt, true)
 	if b.has("cubes") or b.has("refreeze"):
 		void_grab.freeze_seized()
+	if b.has("refreeze"):  # Flash Freeze: the frost climbs over each as he dives
+		for e: Node3D in void_grab.held_foes():
+			VOID_ELEMENT.COMIC_FREEZE.foe(hero.get_parent(), e)
 	if b.has("black_ice"):
 		VOID_ELEMENT.freeze_pool(hero)
 	elif b.has("maw"):

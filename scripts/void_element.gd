@@ -16,6 +16,8 @@ const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
 const COMIC_BOULDER := preload("res://scripts/comic_boulder.gd")  # crossover looks (round 37)
 const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
+const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
+const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -755,9 +757,8 @@ static func _steam_burst(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power
 		THROWN.remove_cube(e)
 		e.take_hit(STEAM_DAMAGE * power, Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else STEAM_LAUNCH, true)  # (frozen: x FREEZE_BREAK)
 		Game.register_hit("cast")
-		Fx.shards(parent, spot + Vector3.UP * 0.9, THROWN.CUBE_COLOR, 12, Vector3.UP, 9.0, 0.18, 0.6)
-		Fx.burst(parent, spot + Vector3.UP * 0.6, Color(0.96, 0.96, 1.0), 10, 6.0, 0.25, 0.6, Vector3.UP, 70.0)  # steam
-		ELEMENTS.geyser(parent, spot, GEYSER_RADIUS * 0.8, GEYSER_HIGH * 0.8, false)
+		Fx.shards(parent, spot + Vector3.UP * 0.9, THROWN.CUBE_COLOR, 6, Vector3.UP, 9.0, 0.16, 0.5)
+		COMIC_STEAM.spawn(parent, spot)
 		for o: Node3D in FOES.near(hero.get_tree(), spot, STEAM_SPLASH):
 			if o in frozen or scalded.has(o):
 				continue
