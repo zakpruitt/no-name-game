@@ -454,6 +454,7 @@ class MeteorShell extends Node3D:
 
 
 const GEYSER_QUAD := 1.5  # quad side per metre of column (the column stands 0.66 of the sheet at its peak)
+const GEYSER_COLUMN := 0.18  # the column's width, of the quad (gen_elements: w0 0.36 of the half frame)
 const GEYSER_TIMES := [0.04, 0.07, 0.07, 0.06, 0.06, 0.07, 0.08, 0.09]  # ~0.54 s: a rim geyser is a beat, not a wall
 
 
@@ -464,6 +465,8 @@ static func geyser(parent: Node, at: Vector3, high: float) -> Node3D:
 	var fx := _spawn(parent, "magma_geyser", foot, high * GEYSER_QUAD, "earth", GEYSER_TIMES, Vector2(0.62, 1.0))
 	fx.real_until = 1
 	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+	fx.add_to_group("comic_geyser")  # (fx_sleek_check counts them as geysers)
+	fx.set_meta("width", high * GEYSER_QUAD * GEYSER_COLUMN)
 	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
 	if cam != null:
 		var to := cam.global_position - foot

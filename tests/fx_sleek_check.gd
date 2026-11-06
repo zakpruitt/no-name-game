@@ -233,7 +233,8 @@ func _initialize() -> void:
 	main.add_child(rim_root)
 	els.rim_geyser(rim_root, Vector3(0, 0, -6), 0.9, 3.2, false)
 	var rim: Array = rim_root.get_children()
-	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser") and rim[0].width < 0.9 * els.GEYSER_WIDTH,
+	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser")
+		and rim[0].get_meta("width", rim[0].get("width")) < 0.9 * els.GEYSER_WIDTH,  # (designed: a meta)
 		"a rim geyser is one thin column (%d nodes)" % rim.size())
 	await _sleek5(main, p)
 	await _audit2(main, p)
