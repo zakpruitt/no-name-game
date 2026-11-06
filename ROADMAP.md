@@ -821,3 +821,15 @@ clicks as authored sheets and faceted meshes. See `docs/features/designed-fx.md`
 - [x] Clips: `awaken-combo-clips/22 Elements *` (before left, after right)
 - [ ] Still polygons: the breaker dive trail (`comic_comet.gd`, every element), the tentacle's lava / ice skins
 - [ ] Zak's call: the fireball stands behind him (he reads in front) rather than wrapping him; the ice block is see-through
+
+## Round 46 (fx-finish: the most-seen polygon effects as authored sheets)
+Orchestrator: "effects look weird, just polygons": make the Awakening, the every-hit flourishes, the echo, the weapon
+change and the crossover breakers drawn. `tools/vfx_gen/gen_finish.py`, `scripts/designed_finish.gd`,
+`docs/features/designed-fx.md` "Round 46".
+- [x] The Awakening: gather lines, a gold flame crown behind him, a floor sunburst (`awaken_flourish`)
+- [x] Chain halos, daze stars, combo burst strokes
+- [x] Spirit echo: a drawn axe head on the arc's edge, no 3 m halftone axe (feel-audit3 item 9)
+- [x] Weapon change burst as the element pop; axe aura tongues / motes off on the designed path
+- [x] Rockslide boulder, Steam Burst cloud, Eruption and Anvil landings
+- [ ] `hero_fx.rank_up`, `callout_cap`, `comic_fault` ground, freeze-over, melt, impale, rip, improv tells
+- [ ] Zak: is the Awakening crown big enough (5.4 m), and should the echo axe stay or go entirely?

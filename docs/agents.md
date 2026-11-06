@@ -450,6 +450,13 @@ fast-forward, so no agent edits another's files or index.
   right-edge slack branch reset the pile side every frame. For an off-screen payoff, a headless probe printing the
   rig's `_frame` / `_frame_to` and the worst foe's NDC every few frames (root at 1920x1080) gave the before / after
   number (1.47 -> 1.06) in two 20 s runs.
+- **Godot run in the integration checkout leaves noise** (2026-11-06, fx-finish): filming a "before" in `awaken/`
+  rewrote a uid in `assets/comic/heretic_chibi_hero_palette.png.import`. `git checkout --` that one file there (it is
+  only your own run's noise), or film befores with `--fx=classic` in your own worktree instead.
+- **MSYS rewrites `/c/...` arguments, not strings inside `python -c`:** paths in a Python one-liner need `C:/...`. A bash
+  heredoc of Python with many quotes fails as "unexpected EOF": write the script with the Write tool and run it.
+- **A background `land` prints other lanes' landings too** (it fast-forwards dev over whatever landed meanwhile): read
+  `git log dev` for your own subjects before re-landing.
 
 ## The harness (`tools/agent.sh`)
 

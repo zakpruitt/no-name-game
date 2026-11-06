@@ -421,3 +421,60 @@ radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOC
 Still polygons in this lane: the breaker dive trail (`comic_comet.gd`, shared by every element's breaker, so it was
 left for a cross-element pass), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own
 lava / ice skins.
+
+## Round 46: the finish (fx-finish lane)
+
+Zak: the effects "look weird" and are "just polygons". This lane took the most-seen polygon effects outside the
+ICE / MAGMA base moves (fx-elements' lane) and made them authored sheets. Sheets: `python tools/vfx_gen/gen_finish.py
+[names] [--preview=<dir>]`; runtime: `scripts/designed_finish.gd` (registers its sheets in `DESIGNED.extra_sheets`,
+`prewarm()` from `elements.prewarm`). Everything is behind `DESIGNED.on()`; `--fx=classic` plays the old drawers.
+
+**The Awakening** (`awaken_flourish._show` -> `designed_finish.awaken`): an authored gold event, not a beam and rings.
+- Anticipation (`awaken_gather`, 0.27 s real): long straight ink focus lines pulled in to him, a gold ring tightening.
+- Held peak (`awaken_crown`, sprite_depth stood 0.55 m behind him from the camera, following him): a radial crown of
+  seven fat S-curved gold flame tongues, one inked union with side flicks, hot cores, held two frames, then licking up
+  and eroding. It never covers him: he stands in front of it (depth tested).
+- `awaken_floor` (ground): a sunburst of three wedge clusters with gaps (a full ring read as a sawblade), eroding out.
+- The waiting logic (`awaken_flourish` waits for the activation) is untouched; `hero_fx.rank_up` is not converted.
+
+**Every hit.** `Fx.chain_spark` halos are `chain_halo` (a four-point inked sparkle, three tiers by size and frame band,
+element-coloured via `PAL.nearest`); `Fx.daze` stars are two `daze_star` quads (depth tested) orbiting on the old ring,
+boiling on twos; `Fx.combo_pop`'s strokes are `combo_burst` (fat-at-the-root focus lines round an open middle, so the
+hero shows through, scaled by tier).
+
+**Every swing.** The spirit echo's 3 m halftone axe is gone in designed mode: `echo_axe` is a drawn bearded axe head
+(lit edge band, hot glint, a haft stub, two edge echoes behind it) flown along the arc's outer edge at 0.82 of the
+radius, turned along the screen tangent. Hits are unchanged. `comic_axe_aura`'s tongues and drip motes are off in
+designed mode: on the v2 hero the blade they coat is hidden most of the time, so they read as cyan dots round him (the
+drag mark still runs).
+
+**Every named combo.** The weapon change burst (`heretic_form_fx.spawn`) is `designed_ink`'s element pop at 1.1 m in the
+form's element (axe wind, spear water, hammer earth, hand void), still in group `heretic_form_fx`.
+
+**Crossovers / breakers.** Rockslide's boulder (`rock_boulder`: drops stretched, lands squashed on a hot star, cracks
+open, chunks fly), Steam Burst's cloud (`steam_cloud`: inked cumulus, depth tested 0.55 m behind the foe so he shows),
+Eruption's landing (a `magma_burst` per foe, nearest first) and Anvil's (an earth `strike_scorch` + dust per foe).
+
+| Sheet | Grid | Kind | Used by |
+|---|---|---|---|
+| `awaken_gather` | 3x2 | sprite | Awakening anticipation |
+| `awaken_crown` | 4x2 | sprite_depth, anchor (0, -0.35) | Awakening peak |
+| `awaken_floor` | 3x2 | ground | Awakening sunburst |
+| `chain_halo` | 4x3 | sprite | `Fx.chain_spark` |
+| `daze_star` | 4x1 | sprite_depth | `Fx.daze` |
+| `combo_burst` | 3x2 | sprite | `Fx.combo_pop` |
+| `echo_axe` | 4x1 | sprite | `spirit_echo.gd` |
+| `rock_boulder` | 4x2 | sprite | `comic_boulder.gd` |
+| `steam_cloud` | 3x2 | sprite_depth | `comic_steam.gd` |
+
+Lessons:
+- A sprite_depth billboard leans into the floor: its lower part is clipped by the ground. Draw the roots above the
+  ground line in the sheet (the crown's lip sits at 0.83 of the frame) and lift the anchor.
+- Depth-tested and stood behind the subject (towards the camera's far side) is how a big effect sits round a hero or foe
+  without covering him: the crown, the steam cloud, the daze stars.
+- Movie Maker (`--write-movie f.png --fixed-fps 24`) films a scratch scene frame for frame at 24 fps, about 10x faster
+  than viewport readbacks; set `DESIGNED.game_time_only` so real-time timelines follow the fixed clock.
+
+Still polygons: `hero_fx.rank_up`, `callout_cap`, `comic_fault`'s ground, `comic_freeze_over`, `comic_melt`,
+`comic_impale`, `comic_rip`, the `comic_improv` tells, kills' `Fx.soul` and `last_kill` rings, `comic_drag_mark`,
+Dash Stab's claw lash.
