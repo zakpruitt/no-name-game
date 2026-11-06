@@ -20,6 +20,7 @@ from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, Frame, catmull, ellipse_mask, e
                     pack, poly_mask, preview, rng, save, shrink, star, stroke, wobble_ring)
 
 from air_sheets import AIR_SHEETS  # noqa: E402
+from storm_sheets import STORM_SHEETS  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
 
@@ -564,6 +565,7 @@ SHEETS = {
     "dust_puff": (dust_puff, 192, 4, 8, "dust", "edge", 0.6),
 }
 SHEETS.update(AIR_SHEETS)  # the air family (tools/vfx_gen/air_sheets.py)
+SHEETS.update(STORM_SHEETS)  # lightning payoffs (tools/vfx_gen/storm_sheets.py)
 
 
 def build(name, prev_dir=None):

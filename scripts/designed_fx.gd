@@ -46,6 +46,9 @@ const SHEETS := {
 	"air_wisp": {"tex": preload("res://assets/vfx/designed/air_wisp.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
 	"air_gust": {"tex": preload("res://assets/vfx/designed/air_gust.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
 	"air_debris": {"tex": preload("res://assets/vfx/designed/air_debris.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
+	# lightning payoffs (fx-air round 2, tools/vfx_gen/storm_sheets.py; designed_strike.gd)
+	"strike_scorch": {"tex": preload("res://assets/vfx/designed/strike_scorch.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
+	"arc_crawl": {"tex": preload("res://assets/vfx/designed/arc_crawl.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 }
 
 ## Timelines: seconds each frame shows. Frame 0 is the anticipation (one 30 Hz frame), the peak holds, the
@@ -75,6 +78,7 @@ const METEOR_SPLASH := 1.9  # m, the small crowns round the rim
 const SPLAT_SIZE := 1.9
 const ICE_SIZE := 2.3
 const STRIKE_BURST := 1.6
+const STRIKE_DROP := 3.0  # m: a bolt falling further than this is a sky strike (designed_strike.gd)
 const BOLT_TILE := 3.2  # the strip's length on the mesh, in widths: zigzags keep their drawn proportions
 const DUST_SIZE := 1.3
 const GROUND_LIFT := 0.065  # m: floor quads sit over the floor stones (their tallest is 0.05; at 0.03 only the grooves showed)
@@ -90,6 +94,7 @@ static var _plane: PlaneMesh
 
 ## Sheets other modules register (designed_ink.gd, round 44), in the SHEETS format.
 static var extra_sheets := {}
+static var _strike: GDScript
 
 
 static func sheet_of(name_: String) -> Dictionary:
@@ -164,6 +169,8 @@ var real_until := -1  # frames before this play in real time (anticipation -> pe
 var real_time := false  # the whole effect on real time (slow motion would stretch a lingering floor)
 var pop := 0.0  # extra scale on frame 0, settling by frame 2
 var first := 0  # the sheet frame the timeline's frame 0 shows (single-frame sheets: debris pieces)
+var follow: Node3D  # rides this node (at follow_off) while it lives: arcs crawling on a launched foe
+var follow_off := Vector3.ZERO
 var standing := false  # fades when the next string's first hit lands (standing_fx)
 var _mi: MeshInstance3D
 var _base_scale := Vector3.ONE
@@ -232,6 +239,11 @@ func _process(delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var real := float(now - _last_us) / 1000000.0
 	_last_us = now
+	if follow != null:
+		if is_instance_valid(follow):
+			global_position = follow.global_position + follow_off
+		else:
+			follow = null
 	tick(real if not game_time_only and (real_time or _frame < real_until) else delta)
 
 
@@ -385,12 +397,37 @@ static func ice_shatter(parent: Node, at: Vector3, size := 1.0) -> Node3D:
 ## A lightning bolt from `a` to `b` (comic_bolt.spawn: strikes out of the sky and the arcs between foes): the
 ## authored bolt strip on a camera-facing ribbon, its rows boiling on twos; with `star` it lands in a storm burst.
 static func bolt(parent: Node, a: Vector3, b: Vector3, width := 0.24, star := 0.0, _forks := 1) -> Node3D:
+	if a.y - b.y > STRIKE_DROP:  # out of the sky: the authored strike (designed_strike.gd)
+		if _strike == null:  # (loaded once and held: designed_strike preloads this script)
+			_strike = load("res://scripts/designed_strike.gd")
+		return _strike.spawn(parent, a, b, width, star)
 	var fx: Node3D = SELF.new()
 	fx.sheet = "bolt_strip"
 	parent.add_child(fx)
 	fx.top_level = true
 	fx.global_transform = Transform3D.IDENTITY
-	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
+	var mi := bolt_strip(fx, a, b, width)
+	var boil := randi() % 4
+	var life := 0.3
+	var tw := fx.create_tween()
+	tw.tween_method(func(p: float) -> void:
+		var step := int(p * life * 12.0)
+		mi.set_instance_shader_parameter("frame", float((boil + step) % 4))
+		mi.set_instance_shader_parameter("scroll", float(boil) * 0.37 + step * 0.21)
+		mi.set_instance_shader_parameter("erode", clampf((p - 0.45) / 0.55, 0.0, 1.0) * 0.98), 0.0, 1.0, life)
+	tw.tween_callback(fx.queue_free)
+	if star > 0.0:
+		var foot := Vector3(b.x, 0.0, b.z)
+		var burst := spawn(parent, "storm_burst", foot, STRIKE_BURST * clampf(star / 1.1, 0.6, 1.4), "wind", STORM_TIMES, Vector2(0.5, 1.0))
+		burst.real_until = 1
+		burst.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+	return fx
+
+
+## The bolt's ribbon mesh from `a` to `b` under `fx` (camera facing, thin out of the sky, full at the foot), drawn
+## with the bolt strip in the storm row. Shared by bolt() and the sky strike.
+static func bolt_strip(fx: Node3D, a: Vector3, b: Vector3, width: float) -> MeshInstance3D:
+	var cam := fx.get_viewport().get_camera_3d() if fx.is_inside_tree() else null
 	var view := cam.global_basis.z if cam != null else Vector3.BACK
 	var span := b - a
 	var across := span.cross(view)
@@ -402,7 +439,7 @@ static func bolt(parent: Node, a: Vector3, b: Vector3, width := 0.24, star := 0.
 	for i in n + 1:
 		var u := float(i) / n
 		var p := a + span * u
-		var taper := 0.55 + 0.45 * sin(minf(u * 1.4, 1.0) * PI * 0.5)  # thin out of the sky, full at the foot
+		var taper := 0.55 + 0.45 * sin(minf(u * 1.4, 1.0) * PI * 0.5)
 		verts.append_array([p + across * w * 0.5 * taper, p - across * w * 0.5 * taper])
 		uvs.append_array([Vector2(u, 1.0), Vector2(u, 0.0)])
 	var idx := PackedInt32Array()
@@ -426,21 +463,7 @@ static func bolt(parent: Node, a: Vector3, b: Vector3, width := 0.24, star := 0.
 	mi.set_instance_shader_parameter("pal_row", row("wind"))
 	mi.set_instance_shader_parameter("tiles", maxf(1.0, span.length() / (w * BOLT_TILE)))
 	mi.set_instance_shader_parameter("scroll", randf())
-	var boil := randi() % 4
-	var life := 0.3
-	var tw := fx.create_tween()
-	tw.tween_method(func(p: float) -> void:
-		var step := int(p * life * 12.0)
-		mi.set_instance_shader_parameter("frame", float((boil + step) % 4))
-		mi.set_instance_shader_parameter("scroll", float(boil) * 0.37 + step * 0.21)
-		mi.set_instance_shader_parameter("erode", clampf((p - 0.45) / 0.55, 0.0, 1.0) * 0.98), 0.0, 1.0, life)
-	tw.tween_callback(fx.queue_free)
-	if star > 0.0:
-		var foot := Vector3(b.x, 0.0, b.z)
-		var burst := spawn(parent, "storm_burst", foot, STRIKE_BURST * clampf(star / 1.1, 0.6, 1.4), "wind", STORM_TIMES, Vector2(0.5, 1.0))
-		burst.real_until = 1
-		burst.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
-	return fx
+	return mi
 
 
 ## A ground-dust puff (landings, skids, slams).
