@@ -792,3 +792,19 @@ Orchestrator: make Galvanize the showpiece, thin Live Wire's late hang, Short Ci
 - [ ] Short Circuit's far arcs land off the game camera at 10 m: read from the test and the [improv] line, not seen
 - [ ] fx-air2 to polish the bolt look (`live_current._trail_strip`, `_head`, `_claw`, `_pop`)
 - [ ] Zak plays Galvanize and Short Circuit by hand
+
+## Round 46 (feel-audit3: the whole game on film after rounds 44-45)
+Orchestrator: film every string, audit combat feel as a whole, fix the worst. `docs/feel-audit-2026-11-06.md`.
+- [x] Audit: 30 strings + free play filmed, ranked top 10 with frame evidence; audit 2's list re-scored
+- [x] Item 1: Live Wire's later pulses take a 0.012 s hair stop, not a 0.035 s freeze each (the hang stuttered)
+- [x] Item 2: the combo guide keeps the side away from the pile (an edge-slack bug sent it back onto the foes)
+- [x] Item 3: an ender's name goes to the top band in the hang, off his chest
+- [x] Item 4: the lava well's ticks are quiet burns (words and stars with nothing doing them)
+- [x] Item 5: Short Circuit cues its targets for the camera (`FRAME_CUE`), so the far arc lands in frame
+- [ ] Item 6: Meteor Fall's wall splat in the top-left corner (camera / combo lane: frame the splatted foe in the hang, or a shorter carry)
+- [ ] Item 7: L3 -> Molten Palm 538 ms (re-key Ab_AF's coil, then `EM_SPEED`; heretic anim + combo-rhythm)
+- [ ] Item 8: the frost spear's 5 m halftone floor (fx-elements, `frost_spear`)
+- [ ] Item 9: the spirit echo's brown halftone fan on L2 / L3 (fx-finish)
+- [ ] Item 10: Maw's landing total at the top edge (`comic_number` keeps totals inside the page margin)
+- [ ] The spear vault (IJ) is the only contact without a stop
+- [ ] Zak plays Live Wire / Short Circuit / Galvanize by hand after these

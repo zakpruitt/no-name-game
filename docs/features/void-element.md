@@ -35,7 +35,7 @@ on twos while it carries the charge (`void_tendril.electrify()`). A held foe is 
 crackle off its chest instead), nearer foes first. When every tentacle has delivered, arcs (`comic_bolt`) jump on,
 nearest first, `JUMP_STEP` apart, to everyone in reach no tentacle holds (heavies, past `SEIZE_MAX`). The first pulse
 waits `WIRE_START` 0.12 s, until the tentacles have landed, while the charge gathers at his claw (a star swelling,
-four spikes drawn in): the anticipation. `WIRE_STEP` 0.1, `WIRE_DAMAGE` 4.5 (was 0.08 / 0.09 / 3.5: about the same
+four spikes drawn in): the anticipation. Only the first pulse freezes (`LIVE_CURRENT.ZAP_STOP` 0.035 s); later ones take `ZAP_STOP_AFTER` 0.012 s (feel audit 3: a freeze each flicked the hang x0.03 / x1.0 frame to frame). `WIRE_STEP` 0.1, `WIRE_DAMAGE` 4.5 (was 0.08 / 0.09 / 3.5: about the same
 damage before a sweet-spot press). The dive ends the current (`finish()`): a late pulse mustn't hit what he throws.
 Every jolt leaves the foe **charged** for `ELEMENT_HOLD` (round 44; so do Grounded, Storm Pitch, Galvanize, Fault
 Line and Cataclysm): the element matrix's charged row ([element-matrix.md](element-matrix.md)) pays it with any other

@@ -434,6 +434,15 @@ fast-forward, so no agent edits another's files or index.
   stays. Route a new look by shape (a bolt falling > 3 m is a sky strike) inside your own function, not by editing
   every caller. Floor stamps under a foe hide behind it from the high camera: test them by a foe, not on open floor.
 
+- **Feel audit 3 (2026-11-06):** read the film's `scale=` column down a hang before judging its effects: Live Wire's
+  per-pulse freezes showed as x0.03 / x1.0 alternating frame to frame, which no single frame shows. Words with no
+  attack on screen mean a standing source is hitting with `take_hit`: count `hits=` / the HUD hits while he stands
+  (the lava well ticked full hits for 4 s after its look had gone). A `--from=N` film starts with string N, so a
+  carry-over from string N-1 needs `--from=N-1`. A layout rule that "never works" can be a later override: the guide's
+  right-edge slack branch reset the pile side every frame. For an off-screen payoff, a headless probe printing the
+  rig's `_frame` / `_frame_to` and the worst foe's NDC every few frames (root at 1920x1080) gave the before / after
+  number (1.47 -> 1.06) in two 20 s runs.
+
 ## The harness (`tools/agent.sh`)
 
 - `new <name>`: worktree `../awaken-<name>` on `agent/<name>` from dev, imported, line-ending noise dropped.
