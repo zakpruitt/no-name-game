@@ -241,6 +241,7 @@ const SC_DELAY := 0.12  # s (game) after the landing before the first arc: past 
 const SC_STEP := 0.06  # s between the arcs, each link's hit stop a step longer (SC_STOP + SC_STOP_PER per link)
 const SC_STOP := 0.02
 const SC_STOP_PER := 0.008
+const SC_CUE_MS := 900  # real ms the arcs' targets count for the camera's framing before they're struck (camera_rig.FRAME_CUE)
 const CRYSTAL_SIZE := 1.5
 const CUBE_STAGGER := 0.05  # s between the cubes leaving
 const CUBE_SEEK := 14.0  # m: how far a cube looks for someone to hit
@@ -1055,6 +1056,8 @@ static func _short_circuit(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 	out.sort_custom(func(a: Node3D, c: Node3D) -> bool:
 		return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
 	out = out.slice(0, SC_ARCS)
+	for e: Node3D in out:  # (feel audit 3: the camera takes them in before the arcs land, not after)
+		e.set_meta(&"frame_cue_ms", Time.get_ticks_msec() + SC_CUE_MS)
 	var each := damage * SC_ARC_MULT * (1.0 + SC_PER_HELD * maxi(held.size() - 1, 0))
 	var from: Array = held.duplicate() if not held.is_empty() else [hero]
 	for i in out.size():  # one after another, out from the pile: a link further each, a beat harder each
