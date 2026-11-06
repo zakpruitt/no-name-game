@@ -35,6 +35,7 @@ const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")  # round 43: authored flipbook effects (--fx=classic: off)
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -95,6 +96,9 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 		color: Color, flip := false, time := 0.26, height := 0.8, lines_only := false) -> void:
 	var gold := _hero_awakened(parent)
 	if gold and height > SWOOSH_SECOND_HEIGHT:
+		return
+	if DESIGNED.on():  # the authored brush stroke on the same arc (designed_fx.slash)
+		DESIGNED.slash(parent, pos, fwd, radius, arc_deg, "gold" if gold else PAL.nearest(color), flip, time, height, lines_only or gold)
 		return
 	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
 	var inner := radius * 0.4
@@ -192,6 +196,9 @@ static func _flush_crowd_stars() -> void:
 		return
 	crowd_merged += batch.size() - 1
 	var pal: Dictionary = batch[0][3]
+	if DESIGNED.on():
+		DESIGNED.hit(parent, mid / float(batch.size()), str(batch[0][4]), big)
+		return
 	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 
 
@@ -229,7 +236,10 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 		if in_breaker(parent):  # one star for the frame's hits, at their middle (_flush_crowd_stars)
 			if _crowd_stars.is_empty():
 				_flush_crowd_stars.call_deferred()
-			_crowd_stars.append([parent, at, size, pal])
+			_crowd_stars.append([parent, at, size, pal, _blow_element(parent)])
+			return
+		if DESIGNED.on():  # the authored impact star (designed_fx.hit)
+			DESIGNED.hit(parent, at, _blow_element(parent), size)
 			return
 		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
@@ -565,6 +575,9 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
 		if not _once_in_breaker(parent, "impact"):
 			return
+		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks)
+			DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
+			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
 			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
@@ -576,8 +589,11 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	burst(parent, at, Color(1.0, 0.97, 0.85), 8 if big else 4, 18.0, 0.18, 0.2, dir, 30.0, 0.0, 0.0, "dot", true)
 
 
+const DUST_MIN := 8  # Fx.dust calls under this many motes (footsteps, small skids) draw no designed puff
 static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void:
 	if Game.comic_style:
+		if DESIGNED.on() and amount >= DUST_MIN:  # round 43: one drawn puff for a landing or a slam
+			DESIGNED.dust(parent, pos, clampf(size / 0.6, 0.7, 1.6))
 		return  # no smoke in the comic look: the landing's ring and cracks carry it
 	burst(parent, pos + Vector3.UP * 0.2, Color(0.62, 0.57, 0.5, 0.6), amount, 4.0, size, 0.55, Vector3.UP, 80.0, 1.0, 0.45, "smoke")
 

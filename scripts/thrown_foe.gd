@@ -8,6 +8,7 @@ extends Node
 const FOES := preload("res://scripts/foes.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -307,6 +308,10 @@ func _burst(other: Node3D) -> void:
 	Game.shake(0.3)
 	if _walled and other == null:
 		foe.set_meta(WALL_META, Time.get_ticks_msec())
+		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
+			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
+	if DESIGNED.on() and el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
+		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
 	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)
 	_count(foe)
 	if other != null:

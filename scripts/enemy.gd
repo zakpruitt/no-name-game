@@ -648,7 +648,10 @@ func _thaw(shattered: bool) -> void:
 	if cube != null:
 		cube.queue_free()
 	if shattered:
-		Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
+		if Fx.DESIGNED.on():  # round 43: drawn faceted shards (designed_fx.ice_shatter)
+			Fx.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.9)
+		else:
+			Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
 		Game.register_hit("shatter_ice")
 
 
