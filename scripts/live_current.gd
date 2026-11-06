@@ -42,6 +42,8 @@ const LOST := 0.5  # s: a pulse whose tentacle never reached its foe zaps it any
 const TINT := Color(0.94, 1.0, 0.6)  # (fx_palette storm light, lime) the storm light the tentacle is washed in while it carries a pulse
 const CHEST := Vector3(0.0, 0.9, 0.0)
 const ZAP_STOP := 0.035  # s hit stop on the first foe each pulse reaches (a staccato, not a stall)
+const JUMP_STOP := 0.018  # s hit stop on a together pulse's arcs, the first...
+const JUMP_STOP_PER := 0.008  # ...and this much longer each link out
 ## Own tentacles (Galvanize): out over SHOOT before the charge, back over RETRACT once the current is done.
 const SHOOT := 0.08
 const RETRACT := 0.1
@@ -221,8 +223,11 @@ func _run(p: Dictionary, hand: Vector3) -> void:
 			continue
 		var src: Variant = _nearest(p.from, e.global_position)
 		var a: Vector3 = (src.global_position + CHEST) if src != null else hand
+		var k := mini(p.from.size() - p.hit.size(), 4)  # (the link further out: each arc a touch fatter, its star bigger)
 		if _cam != null:
-			COMIC_BOLT.spawn(get_parent(), a, e.global_position + CHEST, 0.2, 0.42)
+			COMIC_BOLT.spawn(get_parent(), a, e.global_position + CHEST, 0.2 + 0.035 * k, 0.42 + 0.07 * k)
+		if together > 0.0:  # (Galvanize's arcs: a hit stop a step longer each link; Live Wire's jolts stay staccato)
+			Game.hitstop(JUMP_STOP + JUMP_STOP_PER * k)
 		p.from.append(e)
 		if on_jump.is_valid():
 			on_jump.call(e, src)

@@ -300,6 +300,7 @@ const GALV_JUMPS := 4  # arcs at most
 const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
 const CATACLYSM_DOWN := 6.0  # m/s
 # Round 34, second pass: three elements in one string, and states that outlive it so a dash can improvise.
+const CHARGED_HOLD := 3.0  # s the charged state lasts (Galvanize's event, a wait and L L L H fit in it; 2 s didn't)
 const ELEMENT_HOLD := 2.0  # s a crossover's state (frozen, buried, molten, skewered) lasts: a dash and the next move
 const HAIL_REACH := 7.0  # m: Hailstorm lifts every frozen foe this close
 const HAIL_DAMAGE := 8.0  # (x FREEZE_BREAK: the ice gives as the gale takes it)
@@ -1117,7 +1118,8 @@ static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized
 ## A crossover's state on a foe ("buried", "molten", "skewered"), good for ELEMENT_HOLD s of real time.
 static func mark(e: Variant, state: String) -> void:
 	if is_instance_valid(e):
-		e.set_meta("x_" + state, Time.get_ticks_msec() + int(ELEMENT_HOLD * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
+		var hold := CHARGED_HOLD if state == "charged" else ELEMENT_HOLD  # (round 44 b: the charge outlasts a magma string's three swings)
+		e.set_meta("x_" + state, Time.get_ticks_msec() + int(hold * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
 
 
 static func marked(e: Variant, state: String) -> bool:
@@ -1966,11 +1968,13 @@ static func _overload(hero: CharacterBody3D, from: Node3D, at: Vector3, damage: 
 		return o != from and marked(o, "charged"))
 	var last: Node3D = from
 	var first: Variant = null
+	var k := 0  # (each link out a fatter bolt and a bigger star)
 	while not live.is_empty():
 		live.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 			return a.global_position.distance_to(last.global_position) < b.global_position.distance_to(last.global_position))
 		var o: Node3D = live.pop_front()
-		COMIC_BOLT.spawn(hero.get_parent(), last.global_position + Vector3.UP * 0.9, o.global_position + Vector3.UP * 0.9, 0.24, 0.4)
+		COMIC_BOLT.spawn(hero.get_parent(), last.global_position + Vector3.UP * 0.9, o.global_position + Vector3.UP * 0.9, 0.24 + 0.03 * mini(k, 5), 0.4 + 0.06 * mini(k, 5))
+		k += 1
 		unmark(o, "charged")
 		zap_hit(o, damage)
 		Game.register_hit("cast")

@@ -56,7 +56,10 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	# Galvanize charges the spread crowd, and Updraft Lash discharges them all at once (charged x storm: Overload).
 	["spread", "H", "L", "L", "wait", "L", "H"],
 	# Round 44 b: Short Circuit, Grounded's L ending ("spread": some stand past the tentacles, where the arcs go).
-	["spread", "far", "alt", "L", "H", "H"]]
+	["spread", "far", "alt", "L", "H", "H"],
+	# The other charged cells off Galvanize, in real moves: Reap (Conduct), Molten Palm (Arc Flash), Frost Spear (Superconduct;
+	# last: its spear stands 5 s and turns the next string's L L into the vault).
+	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
 const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far"]
 ## With "far", a "spread" string's last dummy stands this far out instead: past the tentacles (void_grab.SEIZE_RANGE).
