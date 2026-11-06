@@ -834,3 +834,17 @@ change and the crossover breakers drawn. `tools/vfx_gen/gen_finish.py`, `scripts
 - [x] Rockslide boulder, Steam Burst cloud, Eruption and Anvil landings
 - [ ] `hero_fx.rank_up`, `callout_cap`, `comic_fault` ground, freeze-over, melt, impale, rip, improv tells
 - [ ] Zak: is the Awakening crown big enough (5.4 m), and should the echo axe stay or go entirely?
+
+## Round 47 (fx-ice2: no crystals, ice blocks that fit)
+Zak: "get rid of the crystals. i love the new ice block, ensure they're covering the whole character model tho. the
+dummies part of them clip out." See `docs/features/designed-fx.md` "fx-ice2".
+- [x] No ice crystals in designed mode: water spikes (nova, Deep Freeze's ring, Worldbreaker, Harpoon's line) are
+  frost cracks on the floor and cold mist (`designed_elements.frost_mark`); the block's crown, the frost spear's ring
+  and crystal head, the frost floor's plates, the ice dive's crystal trail, Flash Freeze's shell, Impale's spikes and
+  stake and the improv tells' ice tips are gone (`ice_spike` / `ice_trail` sheets deleted; new `ice_mark` crack sheet;
+  the every-hit `pop_ice` redrawn as a shard-free ring and glint)
+- [x] Every ice block is fitted to the foe's posed model (`fit_block`, a margin, a random turn); frozen foes hold their
+  pose and stand upright, the dummy's wobble is held; `tests/ice_block_check.gd` checks every kind's vertices
+- [x] Clips: `awaken-combo-clips/25 Ice *` (before / after)
+- [ ] Weapons held out past 1.2 m still poke out of a spar foe's block (by design); the skewered stake tell stays
+- [ ] Zak: is a dummy's block (2.2 m across) too big now it holds the arms?

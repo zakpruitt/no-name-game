@@ -390,21 +390,19 @@ registered into `DESIGNED.extra_sheets` the first time anything spawns (`registe
 | `magma_geyser` | 384, 8 | sprite_depth | `elements.geyser` / `rim_geyser` (Worldbreaker's pile): the floor splits hot, a lumpy column punches up with a splash crown spilling over, drops fall, the column slumps into a crusted mound |
 | `magma_pool` | 384, 6 | ground | Undertow's lava well (`Well._comic_mark`, was an `Fx.scorch`): a hot crack opens into a round pool with crust rafts and popping domes, crusting over in `WELL_COMIC_SHOW` |
 | `magma_meteor` | 384, 5 | sprite_depth | Meteor Fall's fireball in flight (`void_element.meteor_shell`, was cones and spheres): a crusted molten ball with a white-hot bow and fat tongues streaming back, ignite frame then boiling on twos in real time, turned to the dive on screen and stood `METEOR_BACK` behind him from the camera so he reads in front |
-| `ice_spike` | 256, 6 | sprite_depth | ice spikes (`elements.spikes("water")`, so nova, the fissure in water, Worldbreaker's ice): faceted crystals on a hex plate with lit / shadow facets and one specular stripe, floor cracks and a glint first, cracking, then chips |
-| `ice_trail` | 256 strip, 4 rows | ribbon | an ice breaker's dive (`comic_comet.gd` when the dive's colour is water's, Avalanche): a big faceted crystal point at his end, a chain of shards shrinking behind it, chips and glints off the tail, boiling on twos; the other elements keep the polygon streak |
-| `ice_frost` | 512, 4 | ground | the frost spear's floor (frames 1-3 boil slowly: the glints move) and Deep Freeze's burst (frame 0 only, the cracks racing out) |
+| `ice_frost` | 512, 4 | ground | the frost spear's floor (frames 1-3 boil slowly: the glints move), Deep Freeze's burst and every frost mark (frame 0 only, the cracks racing out) |
 
 Not flipbooks: the ice block round a frozen or cubed foe (`thrown_foe.comic_cube`, so `comic_ice` too) and the frost
-spear are faceted meshes (`ice_block()`, `spear()`): a hex prism with crown crystals, the spear a violet faceted shaft
-with an ice crystal head. `shaders/ice_facet.gdshader` paints each face one flat cel tone by how it faces the camera
+spear are faceted meshes (`ice_block()`, `spear()`): a clean hex prism (fx-ice2 took its crown crystals off and fits it
+to the foe, see "fx-ice2" below), the spear a violet faceted shaft with one slim ice point. `shaders/ice_facet.gdshader` paints each face one flat cel tone by how it faces the camera
 (lit / body / shadow), a light rim band, one hot specular stripe on lit faces and a straight ink crack on some; the
 `ghost_ink` hull inks the silhouette. See-through in the middle so the foe inside shows.
 
 **Tuning.** `FIST_SIZE` 2.5 m, `SPURT_SIZE` 2.2, `ICE_SPIKE_SIZE` 2.5, `SPIKE_TOWARD_CAM` 0.35 m (stood towards the
 camera so the floor doesn't clip the plate), `CRACK_SIZE` 2.1, `METEOR_SIZE` 4.6 / `METEOR_BACK` 0.9 /
 `METEOR_IGNITE` 0.06 s, `GEYSER_QUAD` 1.5 (quad side per metre of column), `POOL_QUAD` 2.25 (per metre of the well's
-radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOCK_CROWN` 3, ice_facet `fill_alpha`
-0.42.
+radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, ice_facet `fill_alpha` 0.42 (the crystal
+sizes `ICE_SPIKE_SIZE` / `BLOCK_CROWN` went with fx-ice2).
 
 **Gotchas.**
 - Small sprites need fat ink in the sheet: a 256 sheet seen at 0.3-0.45 of its size needs 5-6 px of ink, a 384 floor
@@ -423,8 +421,55 @@ radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOC
   cracks) tween its scale on twos with an ignore-time-scale tween.
 - Bubbles drawn as a light ring round a dark middle read as eyes on the pool; draw them as lit domes.
 
-Still polygons in this lane: the breaker dive trail in the other elements (`comic_comet.gd`; only water's is drawn), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own
-lava / ice skins.
+Still polygons in this lane: the breaker dive trail (`comic_comet.gd`, every element: water's drawn crystal trail went
+with fx-ice2), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own lava / ice skins.
+
+## fx-ice2: no crystals, a block that fits (round 47)
+
+Zak, after playing round 46: "the ice is also a big improvement, but there are times these crystals manifest that look
+awful. get rid of the crystals. i love the new ice block, ensure they're covering the whole character model tho. the
+dummies part of them clip out."
+
+**What went, what took its place** (designed mode; `--fx=classic` keeps its own polygons):
+
+| Was | Now |
+|---|---|
+| `ice_spike` crystal clusters out of the floor: every water `elements.spikes` (the nova, Deep Freeze's ring, Worldbreaker's ice, `storm_strike` in water) and Harpoon's line (`elements.fissure` in water) | `designed_elements.frost_mark`: a new `ice_mark` ground sheet (2x2, `gen_elements.py ice_mark`): a pale hexagonal rime with seven fat straight inked cracks, hot on its first two frames, glinting, then eroding; and a low puff of cold mist (`dust_puff` in water's tones, 0.7 of its size). Harpoon's line is a crack every step with mist on every other one (the first try used `ice_frost` frame 0's cracks: too thin to read on the line) |
+| the block's three crown crystals (`BLOCK_CROWN`) | nothing: a clean prism, top a little narrower (`BLOCK_TAPER` 0.94) |
+| the frost spear's ring of six crystals and its crystal head; a burst of `ice_shatter` shards where it goes in | the faceted violet shaft with one slim four-sided ice point; a `frost_mark` where it goes in |
+| the frost floor's hexagonal ice plates (read as crystal cubes on the floor) | gone from `ice_frost` frames 1-3 (`gen_elements.py ice_frost`); its cracks, toothed edge and glints stay |
+| the ice dive's crystal trail (`ice_trail` on `comic_comet`, Avalanche) | the inked comet streak every other element dives with, in water's colour |
+| Flash Freeze's crystal shell climbing each held foe (`comic_freeze_over.foe`) | the ice block itself (`void_grab.freeze_seized` cubes them) and a `frost_mark` under each |
+| Impale's eight floor spikes and its crystal stake (`comic_impale`) | Deep Freeze's crack burst out to the ring and a `frost_mark` at the spear; a water hit star where each lands on it |
+| the every-hit ice pop (`pop_ice`, a cluster of faceted shards) | redrawn shard-free (`gen_cohesion.py pop_ice`): a glint, a thin hex ring opening with short straight rays off its corners, a glint in its middle |
+| the improv tells' ice tips (Frozen In, Ice Spreads, Freeze Aloft's ring of spikes in the air; `comic_improv._tip`) | none drawn; Ice Spreads with nobody to spread to makes a `frost_mark`, Freeze Aloft a water hit star (its block is the read) |
+
+The `ice_spike` and `ice_trail` sheets and their generators are deleted; `ice_mark` is new. Kept on purpose: `ice_shatter` (the block
+breaking into shards is debris from a break, not crystals growing), the skewered state's stake (`comic_state_tell`,
+the only tell for Backdraft), Black Ice's floor plates and the axe aura's shards (already off in designed mode).
+
+**The block fits the foe** (`designed_elements.fit_block(foe, ice)`, called by `thrown_foe.cube_on` and every
+`enemy.freeze`; `ice_block(r, high)` is unchanged for other callers):
+- `model_points(foe)`: each skinned mesh's vertices are sorted to their main bone and only the extreme ones along 14
+  directions are kept, once per mesh (`_boxes_of`, in the bone's rest space; about 5 ms the first time a kind freezes,
+  then cached), and a freeze moves those by the bones' current poses: 0.3-0.8 ms a foe. The model is taken standing upright at its own `model_scale` (a hit's squash is
+  gone in a beat).
+- `block_fit(points)`: the block centres on the body (the points within `FIT_CORE` 0.75 m of the foe's middle), its
+  radius encloses every point round that axis (a circle, so the cube may spin in flight without a corner swinging onto
+  him), narrowing with the taper, plus `FIT_MARGIN` 0.08 m, capped at `FIT_R_MAX` 1.2 m (weapons held out past it poke
+  out: a sword at arm's length made a 3 m slab); its height runs from the floor to `FIT_TOP` 0.1 m over the head.
+  Sizes round up to `BLOCK_STEP` 5 cm so fitted blocks share meshes.
+- Each block gets a random turn, so a row of frozen foes is a row of blocks, not one slab.
+- Frozen foes hold still: `enemy._clip_speed` holds the clip at 0 while `frozen_t` runs (also for `freeze_aloft`,
+  which sets `frozen_t` by hand) and gives it back at the thaw; `enemy.freeze` stands the model upright (a hit's lean
+  tween is cut) and the dummy's bag spring stays upright while frozen (`training_dummy._bag_step`), so the wobble can't
+  swing it out.
+
+Measured (`tests/ice_block_check.gd`, every kind hit and encased, its CPU-skinned vertices checked against the prism
+for a second): the dummy's block is 1.05 m round and 2.2 m tall (it was 0.75 x 1.5, and the bag's arms, head and
+squash poked out); the spar kinds come out at 1.2-1.3 m with weapon tips 0.2-0.7 m out (warrior, rogue, archer,
+shield, necromancer). Every body vertex is in.
+
 
 ## Round 46: the finish (fx-finish lane)
 
