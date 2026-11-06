@@ -14,6 +14,7 @@ instance uniform float tiles = 8.0;
 instance uniform float scroll = 0.0;
 instance uniform vec4 tint = vec4(0.0);
 instance uniform vec4 tint2 = vec4(0.0);
+instance uniform float accent_every = 0.0;  // round 45: > 0: only every Nth tile takes tint2 (an accent), not every other
 
 vec3 tint_ramp(float t, vec3 c) {
 	float x = clamp(t, 0.0, 1.0) * 4.0;
@@ -37,7 +38,9 @@ void fragment() {
 	vec3 c = d.rgb;
 	if (tint.a > 0.0) {
 		vec3 tc = tint.rgb;
-		if (tint2.a > 0.0 && mod(floor(x), 2.0) > 0.5) {
+		float n = accent_every > 0.5 ? accent_every : 2.0;
+		bool second = accent_every > 0.5 ? mod(floor(x), n) < 0.5 : mod(floor(x), n) > 0.5;
+		if (tint2.a > 0.0 && second) {
 			tc = tint2.rgb;
 		}
 		c = tint_ramp(s.r, tc);

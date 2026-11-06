@@ -12,8 +12,14 @@ const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK_FX := preload("res://scripts/designed_ink.gd")
 ## Round 44 (fx-cohesion): designed, the rings are hand-drawn brush strips (gen_cohesion.py stamp_cue) round the
 ## same radii in the same colours: the target a ring of inked brush dashes, the closing ring one fat brush line.
-const DESIGNED_TARGET_W := 0.26  # m: the band the dashes are drawn in
-const DESIGNED_CLOSING_W := 0.3  # (round 45: 0.4 read as a second thick hoop)
+## Round 45: the cue is quieter than the action. The target is a thin solid brush line (paper, gold in the window);
+## the closing ring is long broken cream dashes, a third of them in the ending's colour (two endings alternate).
+## A thick ring in the ending's colour (storm went electric lime) was the loudest thing on screen.
+const DESIGNED_TARGET_W := 0.17
+const DESIGNED_CLOSING_W := 0.2
+const DESIGNED_CLOSING_TILES := 6.0  # three long dashes a tile, whatever the radius
+const DESIGNED_ACCENT := 3.0  # every third tile in the ending's colour
+const CREAM := Color(0.93, 0.88, 0.76)
 const INK := Color(0.012, 0.01, 0.02)
 const PAPER := Color(1.0, 0.96, 0.85)
 const LOCKED := Color(0.42, 0.42, 0.46)
@@ -163,14 +169,23 @@ func _draw_designed(r: float) -> void:
 	var mat := INK_FX.stamp_material("cue")
 	INK_FX.annulus(_flat_mesh, TARGET, DESIGNED_TARGET_W, 64, mat)
 	_flat.set_instance_shader_parameter("tiles", INK_FX.tiles_for(TARGET, DESIGNED_TARGET_W))
-	_flat.set_instance_shader_parameter("frame", float(boil))
+	_flat.set_instance_shader_parameter("frame", 2.0 + boil)
 	_flat.set_instance_shader_parameter("tint", Color(target_c, 1.0))
 	_flat.set_instance_shader_parameter("alpha", _alpha)
 	INK_FX.annulus(_closing_mesh, r, DESIGNED_CLOSING_W, clampi(int(r * 16.0), 32, 96), mat)
-	_closing_mi.set_instance_shader_parameter("tiles", float(DASHES) if alt else INK_FX.tiles_for(r, DESIGNED_CLOSING_W))
-	_closing_mi.set_instance_shader_parameter("frame", 2.0 + boil)
-	_closing_mi.set_instance_shader_parameter("tint", Color(closing_c, 1.0))
-	_closing_mi.set_instance_shader_parameter("tint2", Color(alt_color, 1.0) if alt else Color(0, 0, 0, 0))
+	_closing_mi.set_instance_shader_parameter("tiles", DESIGNED_CLOSING_TILES)
+	_closing_mi.set_instance_shader_parameter("frame", float(boil))
+	if _locked:
+		_closing_mi.set_instance_shader_parameter("tint", Color(LOCKED, 1.0))
+		_closing_mi.set_instance_shader_parameter("tint2", Color(0, 0, 0, 0))
+	elif alt:  # two endings: their colours alternate tile by tile, as before
+		_closing_mi.set_instance_shader_parameter("tint", Color(closing_c, 1.0))
+		_closing_mi.set_instance_shader_parameter("tint2", Color(alt_color, 1.0))
+		_closing_mi.set_instance_shader_parameter("accent_every", 0.0)
+	else:
+		_closing_mi.set_instance_shader_parameter("tint", Color(CREAM, 1.0))
+		_closing_mi.set_instance_shader_parameter("tint2", Color(closing_c, 1.0))
+		_closing_mi.set_instance_shader_parameter("accent_every", DESIGNED_ACCENT)
 	_closing_mi.set_instance_shader_parameter("alpha", _alpha)
 
 
