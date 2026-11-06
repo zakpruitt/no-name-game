@@ -462,3 +462,13 @@ the worktree, and deletes the branch once it has been merged.
 - **Landing new assets**: `.godot/` is ignored, so assets imported in a worktree are not imported in the dev checkout; the game there then fails to preload them. `agent.sh land` now runs `godot --headless --path . --import` in the dev checkout when a land adds files under `assets/` (2026-11-06, the designed fx sheets broke the owner's boot).
 - **Land after another lane added assets: rebase, `--import`, revert the noise, then land** (2026-11-06, model-hero2). `agent.sh land` rebases and runs the checks in the worktree, whose `.godot/` never imported the other lane's new PNGs; every check then fails on "Could not preload resource file". Three lands in a row failed this way while dev kept moving. `git rebase dev && godot --headless --import --path .`, revert the `.import` line-ending noise (a uid-only diff on a KayKit texture shows up too), and land again straight after.
 - **Never set uncommitted work aside with a background copy-and-restore while landing.** A restore that ran while my copy was still being written put the committed files back over the WIP. Commit the WIP to a scratch branch, or keep it under the scratchpad and copy it in only once the land has finished.
+
+- **`agent.sh land` races on a busy dev (round 44 fx-air):** the full checks take ~8 min and three lanes landed in that
+  window three times running. Rebase onto dev, run `godot --headless --import --path .` (another lane's new textures
+  are otherwise missing: void_arm_check failed on "Could not preload tentacle_skin.png"), then land; once the full
+  checks have passed on your commits, a `land --quick` after a rebase over other lanes' already-checked commits closes
+  the window.
+- **A regenerated sheet is not in the game until it is imported:** a `string_film` run does not reimport, so a film
+  straight after `gen_designed.py` plays the old texture. Import before filming.
+- **`git checkout <file>` to undo a test sed also undid my uncommitted palette edit in that file** (the lesson above,
+  again). For an A/B of a constant, commit or copy the file aside first.

@@ -707,3 +707,19 @@ route than the original with hood and such". See `docs/features/heretic-hero.md`
 - [x] Before / after and the variant sheet: `awaken-combo-clips/18 Hero model v2 *.png`
 - [ ] Zak plays it: seen in stills and films from the game camera only
 - [ ] Re-keying with `chibi_keys.py` exports the old Meshy body: run `glb_swap.py` over the export afterwards
+## Round 44 (fx-air)
+Zak: "Air needs to be clearly air but stylistic, and make lightning combos more a part of everything." The storm
+element had one green for wind and lightning alike; its whirlwind read as a green spring. See
+`docs/features/designed-fx.md` (Air twister, Air gust, Lightning palette; shape language Air vs Lightning).
+- [x] Air palette row (`fx_palette.AIR`, designed row `air`): pale white-mint, one cool shadow tone, slate ink
+- [x] The designed twister for every `comic_gale` (Updraft Lash, Fault Line): floor swirl, three hooked wind ribbons
+  on depth-tested helix bands (far half a band darker), wisps flung off the top, leaves / paper / pebbles spiralling
+  up; four look rounds from the film (`scripts/designed_twister.gd`, `tools/vfx_gen/air_sheets.py`)
+- [x] Lightning in electric lime round a white-hot core (picked over yellow-white, which sat on the hit star's
+  yellow): storm row, `elements.LOOK.wind`, the axe form burst; bolt_strip / storm_burst redrawn
+- [x] Storm blows' directional half is a pale air gust (two a beat), storm swings in the air row; Hailstorm,
+  Backdraft, Gale Lift, Firestorm, Torn Loose in air; Storm Pitch lands in wind (`DESIGNED.wind_burst`)
+- [x] For the combo-lightning lane: `DESIGNED.bolt_path()` (a bolt along a polyline), `DESIGNED.zap()` (a pop on a foe)
+- [ ] Still the old look: `comic_axe_aura` storm sparks and the axe's own glow material (`P_GlowWind`, still green),
+  `comic_arc`'s speed strokes, the dash streak in storm
+- [ ] Zak's call on the look (clips `awaken-combo-clips/19 Air ...`)

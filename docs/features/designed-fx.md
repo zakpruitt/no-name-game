@@ -32,6 +32,20 @@ effects stay on their old code paths until Zak has judged the look; the conversi
   proportions, re-jagged on twos; a strike lands in a spiky storm burst with zigzag arcs crawling out.
 - **Dust puff** (`Fx.dust` calls of 8 motes or more: landings, slams, skids): a lumpy cartoon cloud with a curl
   line, lit top and shaded bottom, swelling, then holes eat it.
+- **Air twister** (fx-air lane; every `comic_gale.spawn`: Updraft Lash's whirlwind, Fault Line's gales, Hailstorm's
+  miss; `scripts/designed_twister.gd`): a volume, not a spring. A floor swirl (`air_swirl`: frame 0 pulls in, three
+  hooked spiral arms with grit, breaking into curls), three fat calligraphic wind ribbons on depth-tested helix bands
+  that widen upward (`air_ribbon` on `designed_ribbon_depth`: the lifted foes sit inside the column, the far half of
+  each band one cel band darker), each turning on twos with its stroke running head first; cloud wisps flung off the
+  top (`air_wisp`); leaves, paper scraps and pebbles spiralling up through it (`air_debris`, dust palette). The peak
+  overshoots, the dissolve swaps the ribbons to their broken-into-curls row and erodes them tail first.
+- **Air gust** (`DESIGNED.gust`; a storm blow's directional half instead of the lime impact wedges, at most two a
+  beat): a puff bursting where the wind starts and two curled ribbons streaming along the blow, turned to it on
+  screen. Storm swings (`Fx.swoosh` in the storm element) draw their stroke in the air row.
+- **Lightning palette** (fx-air): the storm row is electric lime round a white-hot core (bolt_strip and storm_burst
+  redrawn with a saturated rim, a light band and a fat hot core). Air and lightning no longer share one green. For
+  other lanes: `DESIGNED.bolt_path(parent, points, width)` runs lightning along a polyline (one bolt a leg) and
+  `DESIGNED.zap(parent, at, size)` is a small electric pop on a foe.
 
 **Toggle:** on by default. `--fx=classic` (after `--`, e.g. `godot --path . -- --fx=classic`, or
 `tests/string_film.gd -- --fx=classic --dir=x`) plays the old polygon effects from the same build, for before /
@@ -42,6 +56,9 @@ after films. In code, `DESIGNED.enabled = false`.
 | File | Role |
 |---|---|
 | `tools/vfx_gen/vfxlib.py` | The drawing kit: curves (`catmull`, `wobble_ring`, `star`, `stroke`, `jag_path`), `Frame` (paint at 4x, `fill(mask, tone, ink=px)` inks each shape over what is beneath it), `erode_field` (edge / centre / tail dissolve orders), `pack`, `preview` |
+| `tools/vfx_gen/air_sheets.py` | The air family (`air_ribbon`, `air_swirl`, `air_wisp`, `air_gust`, `air_debris`) and its shapes (`curl` hooks, `ribbon` calligraphic strokes with a lit and a shadow edge, scalloped `puff` clouds); `gen_designed.SHEETS` imports them |
+| `scripts/designed_twister.gd` | The air twister node (bands, swirl, wisps, debris, its timeline); `comic_gale.spawn` hands over to it when designed effects are on |
+| `shaders/designed_ribbon_depth.gdshader` | The ribbon shader with the depth test on, and the back face one cel band darker (`back_shade`): bands wrapped round a volume |
 | `tools/vfx_gen/gen_designed.py` | One function per sheet (`hit_spark`, `impact_streaks`, `slash_strip`, `magma_burst`, `magma_wave`, `magma_crust`, `magma_splat`, `ice_shatter`, `bolt_strip`, `storm_burst`, `dust_puff`) and `SHEETS` (frame px, columns, count, preview palette, erode mode) |
 | `assets/vfx/designed/*.png` | The sheets (lossless, mipmapped, `detect_3d` off in their `.import`: VRAM compression would smear the packed channels) |
 | `shaders/designed_fx.gdshaderinc` | Shared: the palette ramp (`ramp()`: five hard cel bands) and erosion with a burn line (`designed()`) |
@@ -90,7 +107,8 @@ resident from the first frame.
 | Neutral hit | Lopsided star with concave sides, two long spikes on a diagonal; hollows from the middle; speed wedges fanned along the blow | Round blobs, symmetrical flowers |
 | Magma (earth) | Thick blobby tongues with round tips, teardrop globs (pointed tail behind the motion), drips with fat heads, dark crust plates with hot cracks; burns away hot | Straight edges, thin lines |
 | Ice (water) | Hexagonal block, faceted shards (lit facet, shadow facet, one specular stripe), four-point glints, straight cracks | Curves, drips, soft edges |
-| Storm (wind) | Jagged branching zigzags with uneven segments and forks, spiky stars with straight sides, crawling arcs | Smooth curves, round blobs |
+| Air (the storm element's wind: gales, gusts, slashes; `air` palette row, `fx_palette.AIR`) | Fat calligraphic ribbons tapering at both ends into a curled hook (ukiyo-e / Wind Waker wind), spiral curls, puffy scalloped cloud wisps, bent speed lines, things carried in it (leaves, paper scraps, pebbles) to show direction and force. Pale white-mint, one cool shadow tone, slate ink | Jagged edges, zigzags, the lightning's lime, soft glow |
+| Lightning (the storm element's bolts and storm hit sparks; `wind` palette row, electric lime) | Jagged branching zigzags with uneven segments and forks, spiky stars with straight sides, crawling arcs; a saturated rim round a fat white-hot core | Smooth curves, round blobs, curls (those are air) |
 | Dust | Round lumps, a curl line, flat bottom | Spikes |
 | Dark (void) | Ink tendrils and smears: tapered curling strokes, splatter dots, negative-space holes (`pop_dark`); the tentacle: a smooth tapered spine, a fat base, suckers, a claw tip, a paper rim like the hero's | Hard geometry, corners, uniform widths |
 | Ground stamps | A few broken brush arcs a ring, fat at the front and dragged thin behind, a hot streak, splatter flung outward; erodes from the outline | Thin even hoops, dashed circles of many equal pieces, rings nested on one spot |
@@ -121,6 +139,10 @@ resident from the first frame.
 - Timing: the `*_TIMES` arrays (seconds per frame) and each call's erode span.
 - `Fx.DUST_MIN`: the smallest `Fx.dust` call that draws a puff.
 - Shapes: the sheet functions; rerun the generator.
+- Air twister (`designed_twister.gd`): `HEIGHT_SEEN` (of the asked height), `BANDS`, `BAND_W`, `BAND_Y`, `BAND_RISE`,
+  `SWEEP`, `RADIUS_FOOT` / `RADIUS_FLARE` (the profile), `FLARE_OUT` (how far a band leans out: the high camera sees
+  more of a leaning band), `TURN`, `PEAK_SCALE`, `ANTIC` / `ANTIC_SCALE`, `DISSOLVE`, `SWIRL_SIZE`, `WISPS` /
+  `WISP_SIZE` / `WISP_SPEED`, `DEBRIS` / `DEBRIS_SIZE` / `DEBRIS_SPIN`. Gust: `GUST_SIZE`, `GUST_BACK`, `GUST_MAX` a beat.
 
 ## Testing
 
@@ -135,6 +157,10 @@ resident from the first frame.
 
 ## Gotchas
 
+- After regenerating a sheet run `godot --headless --import --path .`: a film run does not reimport, and plays the old
+  texture.
+- A vertical band (a ring round a column) is foreshortened to ~60% from the 53-degree camera and reads thin: lean its
+  top edge out (`FLARE_OUT`) rather than only making it taller.
 - Floor quads must sit at `GROUND_LIFT` (0.065 m): the floor stones reach 0.05 m, and at 0.03 m only the grooves
   between stones showed the effect.
 - A node with no `times` (the ribbons, driven by their own tween) must not run the timeline, or it frees itself
@@ -149,7 +175,9 @@ resident from the first frame.
 
 Converted in the pilot: hit star, impact strokes, swing swoosh, Meteor Fall landing, Molten Palm wall splat, ice
 shatter / cube burst, every lightning bolt and arc (Grounded, Live Wire, Storm Pitch's zaps, Cataclysm's strikes,
-since they all draw through `comic_bolt.spawn`), the `Fx.dust` puff.
+since they all draw through `comic_bolt.spawn`), the `Fx.dust` puff. fx-air lane: every `comic_gale` (Updraft Lash's
+whirlwind, Fault Line's gales) as the designed twister, storm blows' streaks as air gusts, storm swings in the air
+row, Storm Pitch's landing in wind.
 
 Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash), every floor hoop (`Fx.ring`,
 `thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
