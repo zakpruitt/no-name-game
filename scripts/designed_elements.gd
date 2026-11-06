@@ -19,6 +19,13 @@ const SHEETS := {
 	"ice_spike": {"tex": preload("res://assets/vfx/designed/ice_spike.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "sprite_depth",
 		"anchor": Vector2(0.0, -0.3)},
 	"ice_frost": {"tex": preload("res://assets/vfx/designed/ice_frost.png"), "grid": Vector2(2, 2), "frames": 4, "kind": "ground"},
+	# the ball is drawn right of the middle (0.18 of the quad): the pivot sits on it, so it turns round him
+	"magma_meteor": {"tex": preload("res://assets/vfx/designed/magma_meteor.png"), "grid": Vector2(3, 2), "frames": 5,
+		"kind": "sprite_depth", "anchor": Vector2(0.18, 0.0), "burn": 1.0},
+	"magma_geyser": {"tex": preload("res://assets/vfx/designed/magma_geyser.png"), "grid": Vector2(4, 2), "frames": 8,
+		"kind": "sprite_depth", "anchor": Vector2(0.0, -0.33), "burn": 1.0},
+	"magma_pool": {"tex": preload("res://assets/vfx/designed/magma_pool.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "ground",
+		"burn": 1.0},
 }
 
 static var _registered := false
@@ -385,3 +392,94 @@ static func spear(node: Node3D, high: float, shaft_r: float, crystals: int, crys
 	mi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi2.set_meta("no_ghost", true)
 	node.add_child(mi2)
+
+
+# --- Meteor Fall's fireball in flight, the lava geysers, the lava pool under Undertow ------------------------------
+
+const METEOR_SIZE := 4.6  # m: the quad (the ball ~1.65 m across round him, the tongues streaming ~2.2 m back)
+const METEOR_BACK := 0.9  # m: stood this far behind him from the camera (depth tested: he reads in front of the ball)
+const METEOR_IGNITE := 0.06  # s on the white-hot ignite frame before the boil
+
+
+## What he comes down inside on Meteor Fall (void_element.meteor_shell, designed): the drawn fireball turned to the
+## dive on screen. hero_leap moves the returned node with him and frees it on landing (the landing burst takes over).
+static func meteor_shell(parent: Node, travel: Vector3) -> Node3D:
+	register()
+	var s := MeteorShell.new()
+	s.travel = travel
+	parent.add_child(s)
+	return s
+
+
+class MeteorShell extends Node3D:
+	var travel := Vector3.DOWN
+	var _mi: MeshInstance3D
+	var _t := 0.0
+	var _step := -1
+	var _last_us := 0
+
+	func _ready() -> void:
+		_mi = MeshInstance3D.new()
+		_mi.mesh = DESIGNED._mesh_for("sprite_depth")
+		_mi.material_override = DESIGNED.material("magma_meteor")
+		_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_mi.set_meta("no_ghost", true)
+		_mi.extra_cull_margin = METEOR_SIZE
+		_mi.scale = Vector3.ONE * METEOR_SIZE
+		add_child(_mi)
+		_mi.set_instance_shader_parameter("pal_row", DESIGNED.row("earth"))
+		_mi.set_instance_shader_parameter("erode", 0.0)
+		_last_us = Time.get_ticks_usec()
+		_follow()
+
+	func _process(_delta: float) -> void:
+		var now := Time.get_ticks_usec()
+		_t += float(now - _last_us) / 1000000.0  # real time: the dive's slow motion mustn't freeze the boil
+		_last_us = now
+		_follow()
+
+	func _follow() -> void:
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			_mi.position = -cam.global_basis.z * METEOR_BACK  # (the shell is never turned: hero_leap only moves it)
+			var d := travel.normalized()
+			var a := atan2(d.dot(cam.global_basis.y), d.dot(cam.global_basis.x))
+			var left := cos(a) < 0.0  # mirrored when it flies left, so its lit top stays up
+			_mi.set_instance_shader_parameter("spin", a + PI if left else a)
+			_mi.set_instance_shader_parameter("flip", -1.0 if left else 1.0)
+		var step := 0 if _t < METEOR_IGNITE else 1 + int((_t - METEOR_IGNITE) * 12.0) % 4  # boils on twos
+		if step != _step:
+			_step = step
+			_mi.set_instance_shader_parameter("frame", float(step))
+
+
+const GEYSER_QUAD := 1.5  # quad side per metre of column (the column stands 0.66 of the sheet at its peak)
+const GEYSER_TIMES := [0.04, 0.07, 0.07, 0.06, 0.06, 0.07, 0.08, 0.09]  # ~0.54 s: a rim geyser is a beat, not a wall
+
+
+## A lava geyser `high` m tall (elements.geyser / rim_geyser, designed): the drawn column punching up, its crown
+## splashing, falling back into a crusted mound. Depth tested, stood on the floor.
+static func geyser(parent: Node, at: Vector3, high: float) -> Node3D:
+	var foot := Vector3(at.x, 0.0, at.z)
+	var fx := _spawn(parent, "magma_geyser", foot, high * GEYSER_QUAD, "earth", GEYSER_TIMES, Vector2(0.62, 1.0))
+	fx.real_until = 1
+	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
+	if cam != null:
+		var to := cam.global_position - foot
+		fx.global_position += Vector3(to.x, 0.0, to.z).normalized() * SPIKE_TOWARD_CAM
+	return fx
+
+
+const POOL_QUAD := 2.6  # quad side per metre of the well's radius (the pool is drawn 0.36 of the quad round)
+const POOL_TIMES := [0.05, 0.12, 0.17, 0.17, 0.2, 0.2]  # ~0.9 s (elements.WELL_COMIC_SHOW): the burn outlasts the look
+
+
+## The lava pool a foe is pulled down into (elements.Well's comic mark, designed): a crack splitting open, the pool
+## boiling with crust rafts and popping domes, crusting over.
+static func pool(parent: Node, at: Vector3, radius: float) -> Node3D:
+	var fx := _spawn(parent, "magma_pool", Vector3(at.x, DESIGNED.GROUND_LIFT, at.z), radius * POOL_QUAD, "earth", POOL_TIMES,
+		Vector2(0.7, 1.0))
+	fx.real_until = 1
+	fx.rotation.y = randf() * TAU
+	return fx

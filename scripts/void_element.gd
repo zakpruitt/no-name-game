@@ -661,6 +661,7 @@ static func _undertow(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 
 ## What he comes down inside on Meteor Fall: a ball of fire with flames streaming back up the way he came.
 static func meteor_shell(parent: Node, travel: Vector3) -> Node3D:
+	if DESIGNED.on(): return ELEMENTS.DESIGNED_EL.meteor_shell(parent, travel)  # (designed: the drawn fireball)
 	var root := Node3D.new()
 	parent.add_child(root)
 	root.look_at_from_position(Vector3.ZERO, travel.normalized(), Vector3.RIGHT if absf(travel.normalized().y) > 0.95 else Vector3.UP)

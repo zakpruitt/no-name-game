@@ -903,6 +903,10 @@ static func _breaker_arc(parent: Node, a: Vector3, b: Vector3) -> void:
 ## `h`: how tall. `hot_core` is kept for the callers: the core is always the hot yellow band now.
 static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:
 	var at := _flat(pos)
+	if Game.comic_style and DESIGNED_EL.DESIGNED.on():  # (designed: the drawn column falls back into a crusted mound)
+		DESIGNED_EL.geyser(parent, at, h * GEYSER_SQUASH)
+		spikes(parent, at, "earth", 1.0, 3, 0.8)
+		return
 	COMIC_GEYSER.spawn(parent, at, h * GEYSER_SQUASH, radius * GEYSER_WIDTH)
 	spikes(parent, at, "earth", 1.2, 4, 0.8)
 	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
@@ -918,6 +922,9 @@ static func rim_geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot
 		geyser(parent, pos, radius, h, _hot_core)
 		return
 	if not _batch_take(_rim_batch, pos, RIM_GEYSER_MAX, RIM_GEYSER_SPACING):
+		return
+	if DESIGNED_EL.DESIGNED.on():
+		DESIGNED_EL.geyser(parent, _flat(pos), h * RIM_GEYSER_SQUASH)
 		return
 	COMIC_GEYSER.spawn(parent, _flat(pos), h * RIM_GEYSER_SQUASH, radius * RIM_GEYSER_WIDTH)
 
@@ -1001,7 +1008,8 @@ class Well extends Node3D:
 			return
 		_core.scale = Vector3.ONE * (1.0 + 0.12 * sin(_age * 9.0))
 		_bubble -= delta
-		if _bubble <= 0.0 and (_age < E.WELL_COMIC_SHOW or not Game.comic_style):
+		var drawn: bool = Game.comic_style and E.DESIGNED_EL.DESIGNED.on()  # (designed: the pool draws its own bubbles)
+		if _bubble <= 0.0 and (_age < E.WELL_COMIC_SHOW or not Game.comic_style) and not drawn:
 			_bubble = randf_range(0.12, 0.25)
 			var off := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * radius * 0.6
 			Fx.burst(get_parent(), global_position + off + Vector3.UP * 0.1, E.LAVA_HOT, 3, 3.0, 0.1, 0.45, Vector3.UP, 20.0, -6.0, 0.0, "dot", true)
@@ -1020,6 +1028,9 @@ class Well extends Node3D:
 
 	func _comic_mark() -> void:
 		if is_inside_tree():
+			if E.DESIGNED_EL.DESIGNED.on():
+				E.DESIGNED_EL.pool(get_parent(), global_position, radius)
+				return
 			Fx.scorch(get_parent(), global_position, E.LAVA, radius * E.WELL_COMIC_CRACK, E.WELL_COMIC_SHOW)
 
 	## Cools and sinks away.

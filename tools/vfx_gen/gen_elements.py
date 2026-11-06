@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, Frame, catmull, ellipse_mask, erode_field, fbm, pack,  # noqa: E402
                     poly_mask, preview, rng, save, star, stroke, wobble_ring, shrink, grow, SS)
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
+OUT = os.environ.get("VFX_OUT") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
 
 
 def lerp(a, b, t):
@@ -424,6 +424,183 @@ def ice_frost(i, n, size):
     return f.finish()
 
 
+
+# --- 6. Meteor Fall's fireball in flight (billboard, depth tested, stood behind him; drawn flying to +x) ------------
+# What he comes down inside: a round molten ball (crust plates with hot cracks, a white-hot bow on its front edge) with
+# fat blobby flame tongues streaming back with round tips and teardrop globs shed behind. Frame 0 ignites (a smaller
+# white-hot ball, short tongues); 1-4 boil on twos (the tongues whip, globs peel off).
+
+def magma_meteor(i, n, size):
+    f = Frame(size)
+    S, c = f.S, f.c
+    g = rng(411 + i * 5)
+    cx, cy = c + f.u(0.36), c
+    R = f.u(0.3 if i == 0 else 0.36)
+    tl = 0.45 if i == 0 else 1.0
+    ph = i * 1.9
+    # the tongues behind it (drawn first)
+    shapes, lits = [], []
+    for s, (dy, ln, w) in enumerate([(-0.24, 1.05, 0.26), (0.0, 1.4, 0.34), (0.25, 0.95, 0.24), (-0.1, 0.7, 0.2), (0.14, 0.78, 0.2)]):
+        pts = []
+        L = f.u(ln) * 0.68 * tl * (0.9 + 0.2 * math.sin(ph + s * 1.3))
+        for q in np.linspace(0, 1, 16):
+            x = cx - R * 0.3 - L * q
+            y = cy + f.u(dy) * (1 + 0.6 * q) + f.u(0.09) * math.sin(q * 6.0 + ph + s * 2.2) * q
+            pts.append((x, y))
+        shapes.append(tongue(pts, f.u(w), f.u(0.06)))
+        lits.append((pts, w))
+    m = poly_mask(shapes, S)
+    f.fill(m, BODY, ink=5.0)
+    lit = poly_mask([stroke([(x, y - f.u(0.03)) for x, y in p[1:11]], lambda q, w=w: f.u(w) * 0.32 * (1 - q), cap=False)
+                     for p, w in lits], S) * m
+    f.fill(lit, LIGHT)
+    # globs shed behind
+    if i > 0:
+        for s in range(3):
+            x = cx - f.u(0.8 + 0.2 * s + 0.08 * ((i + s) % 3))
+            y = cy + f.u(g.uniform(-0.45, 0.45))
+            if x < f.u(0.1):
+                continue
+            f.poly(tear(x, y, f.u(0.07 - 0.012 * s), math.pi), LIGHT, ink=4.0)
+    # the ball
+    ball = wobble_ring(cx, cy, R, 420 + i, amp=0.05, lumps=(5, 7), n=64)
+    mb = poly_mask([ball], S)
+    f.fill(mb, LIGHT if i == 0 else BODY, ink=5.5)
+    d, d2, lab = voronoi(S, [(cx + g.uniform(-1, 1) * R, cy + g.uniform(-1, 1) * R) for _ in range(8)])
+    yy, xx = np.mgrid[0:S, 0:S]
+    back = ((xx - cx) < R * 0.25).astype(np.float32)
+    plate = ((d2 - d) > f.u(0.04)).astype(np.float32) * shrink(mb, f.u(0.03)) * back
+    f.fill(plate, DEEP if i > 0 else BODY)
+    bevel = plate * (1 - shrink(plate, f.u(0.03)))
+    f.fill(bevel * ((yy - cy) < 0).astype(np.float32), BODY if i > 0 else LIGHT)
+    # the hot cracks between the plates, and a white-hot bow on the front edge
+    f.fill(mb * (1 - plate) * shrink(mb, f.u(0.03)) * back, LIGHT)
+    bow = mb * (1 - poly_mask([wobble_ring(cx - R * 0.28, cy, R * 0.95, 430, amp=0.04)], S))
+    f.fill(bow, HOT)
+    f.fill(ellipse_mask(cx + R * 0.35, cy - R * 0.35, R * 0.18, R * 0.12, S) * mb, HOT)
+    return f.finish()
+
+
+# --- 7. Lava geyser (billboard standing on the floor, depth tested): elements.geyser / rim_geyser ----------------------
+# Frame 0 the floor bulges and splits hot; 1 a thick lumpy column punches up (overshoot) with a crown of round-tipped
+# tongues; 2 full; 3 the crown breaks into globs; 4 the column's top falls away in blobs; 5 a short spout with drips;
+# 6 a slumped mound crusting; 7 cooled crust lumps.
+
+def magma_geyser(i, n, size):
+    f = Frame(size)
+    S, c = f.S, f.c
+    g = rng(451)
+    ground = f.u(1.66)
+    if i == 0:
+        f.fill(ellipse_mask(c, ground, f.u(0.34), f.u(0.1), S), LIGHT, ink=4.0)
+        f.fill(ellipse_mask(c, ground - f.u(0.02), f.u(0.18), f.u(0.05), S), HOT)
+        for a in (-2.6, -1.9, -1.25, -0.55):
+            x, y = polar(c, ground, f.u(0.32), a)
+            f.poly(tear(x, y - f.u(0.05), f.u(0.05), a), LIGHT, ink=3.0)
+        return f.finish()
+    top = [0, 1.32, 1.22, 1.16, 0.9, 0.56, 0.32, 0.22][i]  # column height in frame units
+    gap = [0, 0, 0, 0, 0.35, 0.3, 0, 0][i]  # the top falls away from the column
+    cool = [0, 0, 0, 0.1, 0.25, 0.45, 0.75, 1.0][i]
+    w0 = f.u([0, 0.34, 0.38, 0.36, 0.3, 0.26, 0.34, 0.32][i])
+    col = []
+    for q in np.linspace(0, 1, 18):
+        y = ground - f.u(top - gap) * q
+        x = c + f.u(0.05) * math.sin(q * 6 + i)
+        col.append((x, y))
+    shapes = [stroke(col, lambda q: w0 * (1.25 - 0.4 * q) * (1 + 0.12 * math.sin(q * 11 + i * 2)), cap=True)]
+    # the foot: a lumpy puddle round the column (a whole round shape: a dome cut on the ground line drew a straight edge)
+    foot = [(c + math.cos(a) * f.u(0.5) * (1 + 0.1 * math.sin(a * 5 + i)),
+             ground - f.u(0.04 + 0.06 * cool) + math.sin(a) * f.u(0.13 + 0.06 * cool) * (1 + 0.15 * math.sin(a * 3 + i)))
+            for a in np.linspace(0, math.tau, 40, endpoint=False)]
+    shapes.append(foot)
+    crown_y = ground - f.u(top)
+    tips = []
+    if i in (1, 2):  # the crown: a fat head with tongues splashing over and falling, round tips
+        shapes.append(wobble_ring(c, crown_y + f.u(0.12), w0 * 0.75, 452 + i, amp=0.1, lumps=(3, 5)))
+        for s, (a, ln) in enumerate([(-2.85, 0.62), (-2.3, 0.5), (-0.85, 0.52), (-0.3, 0.64)]):
+            L = f.u(ln) * (1.0 if i == 1 else 1.12)
+            sag = f.u(0.42 if i == 1 else 0.6)  # the splash spills over and falls
+            path = [(c + math.cos(a) * L * q, crown_y + f.u(0.12) + math.sin(a) * L * q + sag * q * q) for q in np.linspace(0, 1, 14)]
+            shapes.append(tongue(path, f.u(0.17), f.u(0.07)))
+            tips.append(path[-1])
+            if i == 2:  # a glob dropping off each tip
+                x, y = path[-1]
+                shapes.append(tear(x, y + f.u(0.17), f.u(0.05), math.pi * 0.5))
+    m = poly_mask(shapes, S)
+    f.fill(m, BODY, ink=5.5)
+    if cool < 0.8:
+        lit = poly_mask([stroke([(x - w0 * 0.3, y) for x, y in col[1:16]], lambda q: w0 * 0.55 * (1 - q * 0.5), cap=True)], S) * m
+        f.fill(lit, LIGHT)
+        f.fill(poly_mask([stroke([(x - w0 * 0.28, y) for x, y in col[1:13]], lambda q: w0 * 0.24 * (1 - q * 0.7), cap=True)], S) * m, HOT)
+        for x, y in tips:  # the splash's tips light up as they fall
+            f.fill(ellipse_mask(x - f.u(0.015), y - f.u(0.02), f.u(0.04), f.u(0.03), S) * m, LIGHT)
+    if cool > 0:  # crust closing from the foot up
+        d, d2, lab = voronoi(S, [(c + g.uniform(-0.5, 0.5) * f.u(1), ground - g.uniform(0, 1.5) * f.u(1)) for _ in range(16)])
+        yy, xx = np.mgrid[0:S, 0:S]
+        plate = ((d2 - d) > f.u(lerp(0.05, 0.022, cool))).astype(np.float32) * shrink(m, f.u(0.03))
+        plate *= ((ground - yy) < f.u(1.6) * cool).astype(np.float32)
+        f.fill(plate, DEEP if cool < 0.7 else INK + 0.12)
+    # globs: thrown from the crown, then the falling top
+    if i >= 3:
+        k = i - 3
+        for s, (dx, sp) in enumerate([(-0.4, 0.9), (0.35, 0.8), (-0.12, 1.0), (0.2, 1.1), (-0.3, 1.2)]):
+            x = c + f.u(dx) * (1 + 0.5 * k)
+            y = crown_y + f.u(0.25) * k * k * 0.5 + f.u(0.1) * s * 0.4 - f.u(0.15)
+            if y > ground - f.u(0.1) or y < f.u(0.06):
+                continue
+            f.poly(tear(x, y, f.u(0.07 - 0.008 * k), math.pi * 0.5), LIGHT if cool < 0.5 else BODY, ink=4.0)
+    return f.finish()
+
+
+# --- 8. Lava pool (floor): what Undertow pulls them down into (elements.Well, comic: was a scorch decal) --------------
+# Frame 0 a hot crack splitting open; 1 the pool opens (white-hot middle); 2-3 it boils (crust rafts drift, bubbles pop
+# as lit domes); 4-5 crust closes over it leaving glowing joins.
+
+def magma_pool(i, n, size):
+    f = Frame(size)
+    S, c = f.S, f.c
+    g = rng(471)
+    if i == 0:
+        p = jag_free(c, g)
+        f.poly(stroke(p, lambda q: f.u(0.09) * math.sin(math.pi * q) + 2, cap=False), LIGHT, ink=3.0)
+        f.poly(stroke(p, lambda q: f.u(0.035) * math.sin(math.pi * q) + 1, cap=False), HOT)
+        return f.finish()
+    R = f.u([0, 0.62, 0.7, 0.72, 0.72, 0.7][i])
+    pool = wobble_ring(c, c, R, 472, amp=0.06, lumps=(2, 3, 5), n=96)  # round, fat lobes (finer lumps read as a blast)
+    mp = poly_mask([pool], S)
+    f.fill(mp, BODY, ink=7.0)
+    f.fill(poly_mask([wobble_ring(c, c, R * 0.6, 473 + i, amp=0.1, lumps=(2, 3), n=72)], S), LIGHT)
+    f.fill(poly_mask([wobble_ring(c + f.u(0.04), c - f.u(0.03), R * 0.26, 476 + i, amp=0.15, n=48)], S), HOT)
+    cool = [0, 0, 0, 0.1, 0.5, 0.85][i]
+    # crust rafts drifting (more as it cools)
+    g2 = rng(480)
+    for k in range(5 + int(cool * 8)):
+        a = g2.uniform(0, math.tau) + i * 0.12
+        rr = R * g2.uniform(0.35, 0.85)
+        x, y = polar(c, c, rr, a)
+        r = f.u(g2.uniform(0.06, 0.11)) * (1 + cool)
+        f.fill(poly_mask([wobble_ring(x, y, r, 490 + k, amp=0.25, lumps=(3, 4))], S) * mp, DEEP, ink=2.5)
+    if 2 <= i <= 3:  # bubbles: lit domes popping
+        for k, (a, rr) in enumerate([(0.6, 0.3), (2.4, 0.45), (4.2, 0.2)]):
+            x, y = polar(c, c, R * rr, a + i)
+            r = f.u(0.05 + 0.02 * ((i + k) % 2))
+            f.fill(ellipse_mask(x, y, r, r * 0.8, S), BODY, ink=2.5)  # a dome of lava, lit on top (no dark middle: those read as eyes)
+            f.fill(ellipse_mask(x - r * 0.25, y - r * 0.3, r * 0.35, r * 0.22, S), HOT)
+    if cool > 0.3:
+        d, d2, lab = voronoi(S, [(c + g.uniform(-0.8, 0.8) * f.u(1), c + g.uniform(-0.8, 0.8) * f.u(1)) for _ in range(18)])
+        plate = ((d2 - d) > f.u(lerp(0.04, 0.02, cool))).astype(np.float32) * shrink(mp, f.u(0.02))
+        f.fill(plate, DEEP if cool < 0.7 else INK + 0.12)
+    # the dark crust lip round it
+    rim = mp * (1 - shrink(mp, f.u(0.05)))
+    f.fill(rim, DEEP)
+    return f.finish()
+
+
+def jag_free(c, g):
+    """A lumpy split line across the middle (the pool's first crack), as a smooth-ish path (magma: never straight)."""
+    pts = [(c + (q - 0.5) * c * 1.2, c + math.sin(q * 5.0) * c * 0.08) for q in np.linspace(0, 1, 9)]
+    return catmull(pts, 6)
+
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "magma_fist": (magma_fist, 256, 4, 8, "earth", "edge", 0.5),
@@ -431,6 +608,9 @@ SHEETS = {
     "magma_crack": (magma_crack, 256, 2, 4, "earth", "edge", 0.5),
     "ice_spike": (ice_spike, 256, 3, 6, "water", "edge", 0.35),
     "ice_frost": (ice_frost, 512, 2, 4, "water", "edge", 0.4),
+    "magma_meteor": (magma_meteor, 384, 3, 5, "earth", "edge", 0.5),
+    "magma_geyser": (magma_geyser, 384, 4, 8, "earth", "edge", 0.5),
+    "magma_pool": (magma_pool, 384, 3, 6, "earth", "edge", 0.5),
 }
 
 
