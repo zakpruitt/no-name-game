@@ -675,11 +675,17 @@ def weights_for(part, ob):
 # the farthest vertex from the hand must lie up the haft). Blades lie flat in the bone's x-y plane with the
 # edge towards -x, where the old ones had theirs, so chibi_keys.py's blade facing still holds. Oversized and
 # chunky, closed parts only (the ink hull needs volume). One mesh per GLB node, same names and materials.
+# The axe at full size (1.92 m to its spike) hid the dummies it hit in the play camera's film, Awakened worst:
+# everything built in its frame shrinks about the hand (haft, crescent, edge, core; tube thickness stays).
+WEAPON_K = {"weapon.axe": 0.8}
+
+
 def bone_frame(n):
     m = MW @ ARM.data.bones[n].matrix_local
     o = m.to_translation()
     r = m.to_3x3().normalized()
-    return o, r.col[0].normalized(), r.col[1].normalized(), r.col[2].normalized()
+    k = WEAPON_K.get(n, 1.0)
+    return o, r.col[0].normalized() * k, r.col[1].normalized() * k, r.col[2].normalized() * k
 
 
 def in_frame(f, x, y, z):
