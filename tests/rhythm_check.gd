@@ -56,6 +56,7 @@ func _initialize() -> void:
 	await _dash_out_of_everything()
 	await _breaker_windows()
 	await _dash_stab_lash()
+	await _awaken_ends_mid_move()
 	print("rhythm_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 	quit(1 if fails > 0 else 0)
 
@@ -282,6 +283,25 @@ func _dash_stab_lash() -> void:
 	_check(is_equal_approx(hp0 - foe.hp, c.damage + c.back_damage), "for %.0f + %.0f (took %.1f)" % [c.damage, c.back_damage, hp0 - foe.hp])
 	foe.free()
 	game.end_slowmo()
+
+
+## Awakening running out (or starting) mid-move leaves that move's pace alone: Steam Burst (EM_SPEED) used to drop
+## to 1x when the meter ran out on it, its palm came 2.8x late and Flash Freeze never opened (round 42 b).
+func _awaken_ends_mid_move() -> void:
+	await _settle()
+	for on: bool in [true, false]:
+		hero.HERO_AWAKEN.set_awakened(hero, not on)
+		await _settle()
+		hero._start_attack("EM")
+		var mult: float = hero._anim_mult
+		for i in 3:
+			await physics_frame
+		var before: float = hero.HERO_MOVES.progress(hero)
+		hero.HERO_AWAKEN.set_awakened(hero, on)
+		_check(is_equal_approx(hero._anim_mult, mult), "Awakening %s mid Molten Palm keeps its pace (x%.2f, now x%.2f)" % ["starting" if on else "ending", mult, hero._anim_mult])
+		_check(hero.HERO_MOVES.progress(hero) >= before, "and its progress doesn't jump back (%.3f -> %.3f)" % [before, hero.HERO_MOVES.progress(hero)])
+	hero.HERO_AWAKEN.set_awakened(hero, false)
+	await _settle()
 
 
 func _tap(action: String) -> void:
