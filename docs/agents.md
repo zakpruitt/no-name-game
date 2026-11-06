@@ -424,6 +424,12 @@ fast-forward, so no agent edits another's files or index.
   `godot --headless --path . --import` runs in your worktree; dev moving mid-land (about 15 min of checks) costs a
   rerun, so land several small commits together when other lanes are busy.
 
+- **Designed fx, round 44 b (fx-air):** an effect's anticipation shorter than ~0.09 s never lands on a 12 fps film
+  frame, so it is never seen: hold it longer or show it with motion that lasts (debris dragging in). A "white-hot"
+  shift that lifts every tone burns the shape flat white; lift one band and a bit (`heat` 0.35) so a saturated rim
+  stays. Route a new look by shape (a bolt falling > 3 m is a sky strike) inside your own function, not by editing
+  every caller. Floor stamps under a foe hide behind it from the high camera: test them by a foe, not on open floor.
+
 ## The harness (`tools/agent.sh`)
 
 - `new <name>`: worktree `../awaken-<name>` on `agent/<name>` from dev, imported, line-ending noise dropped.

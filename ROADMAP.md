@@ -755,3 +755,19 @@ Orchestrator review of round 44: the floor still read as circles, and the cue tu
   rings and vortex before-after.mp4`
 - [ ] Still polygons: `comic_axe_aura`, chain halos, daze stars, combo pop strokes, the Awakening, the spirit echo ghost
 - [ ] Zak's call on the cue (cream with an accent vs the ending's colour all round)
+
+## Round 44 b (fx-air, round 2)
+Orchestrator's round 2 for the air / lightning split. See `docs/features/designed-fx.md` (Sky strike, Crawling arcs,
+Tentacle lightning; tuning).
+- [x] Old storm greens: the axe glow rows `P_Wind` / `P_StormGreen` in the storm lime (`comic_look.EMITS`); the axe
+  aura and its sparks already read `ELEMENTS.LOOK` (lime); the dash streak is spirit teal / Awakened gold (no green)
+- [x] The sky strike as an authored moment (`designed_strike.gd`): leader, white-hot main bolt held through the hit,
+  forked afterimage, scorched star on the floor, arcs crawling on the struck foes; Grounded, Cataclysm, Fault Line;
+  three look rounds (an isolated shot twice, then the film)
+- [x] Wind presence: the twister's anticipation holds 0.12 s with debris dragging in along the floor; Fault Line's
+  gales at full twister size; Storm Pitch's burst gusts over the pile's heads; Backdraft's haul trails gusts
+- [x] The tentacle's conducted bolt fatter and crackling white-hot on twos; arcs crawl on every zapped foe
+- [ ] Left green on purpose: `comic_bolt` / `comic_gale` STORM consts (`--fx=classic` only), `fx.gd`'s classic
+  `element_hit` (fx-cohesion's), `P_GlowWind` (foe eye glow), `void_tendril.electrify`'s default tint (fx-cohesion's)
+- [ ] Galvanize's tentacles not filmed (no bot string in the film range); it shares Live Wire's code
+- [ ] Zak's call on the look (clips `awaken-combo-clips/19 Air f..` onward)

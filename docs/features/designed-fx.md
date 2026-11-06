@@ -46,6 +46,18 @@ effects stay on their old code paths until Zak has judged the look; the conversi
   redrawn with a saturated rim, a light band and a fat hot core). Air and lightning no longer share one green. For
   other lanes: `DESIGNED.bolt_path(parent, points, width)` runs lightning along a polyline (one bolt a leg) and
   `DESIGNED.zap(parent, at, size)` is a small electric pop on a foe.
+- **Sky strike** (fx-air round 2; `scripts/designed_strike.gd`): `DESIGNED.bolt` hands any bolt falling more than
+  `STRIKE_DROP` (3 m) to it, so Grounded's strikes (`elements._strike_bolt`) and Cataclysm's (`comic_fault`) share it.
+  One authored moment in beats: a thin dim leader on a kinked path (`LEADER_S` real s); the main bolt `MAIN_W` x
+  fatter, burned white-hot (the ribbon's `heat` uniform) and frozen on one drawing for `HOLD_GAME` game s (a hitstop
+  holds it) and at least `HOLD_REAL` real s, then cooling and boiling on twos as it erodes; a forked afterimage a band
+  dimmer, off to one side, eroding; a jagged scorched star on the floor (`strike_scorch`, white-hot cooling to dark,
+  breaking up, real time); small arcs crawling on each struck foe (`DESIGNED.crawl`, `arc_crawl`, riding the foe).
+- **Crawling arcs** (`DESIGNED.crawl(parent, foe, size)`): a few frames of short zigzags crawling round a foe's body,
+  following it as it flies; once per foe at a time. The sky strike's struck foes and the tentacle's zapped ones
+  (`live_current._pop`).
+- **Tentacle lightning** (`live_current.gd`, combo-lightning's; look only): the conducted strip is `TRAIL_W` 0.28 and
+  flashes `TRAIL_HEAT` hotter every other step, so the bolt on the tentacle crackles white-hot.
 
 **Toggle:** on by default. `--fx=classic` (after `--`, e.g. `godot --path . -- --fx=classic`, or
 `tests/string_film.gd -- --fx=classic --dir=x`) plays the old polygon effects from the same build, for before /
@@ -57,6 +69,8 @@ after films. In code, `DESIGNED.enabled = false`.
 |---|---|
 | `tools/vfx_gen/vfxlib.py` | The drawing kit: curves (`catmull`, `wobble_ring`, `star`, `stroke`, `jag_path`), `Frame` (paint at 4x, `fill(mask, tone, ink=px)` inks each shape over what is beneath it), `erode_field` (edge / centre / tail dissolve orders), `pack`, `preview` |
 | `tools/vfx_gen/air_sheets.py` | The air family (`air_ribbon`, `air_swirl`, `air_wisp`, `air_gust`, `air_debris`) and its shapes (`curl` hooks, `ribbon` calligraphic strokes with a lit and a shadow edge, scalloped `puff` clouds); `gen_designed.SHEETS` imports them |
+| `tools/vfx_gen/storm_sheets.py` | Lightning payoffs: `strike_scorch` (floor) and `arc_crawl` (sprite), played through the storm row |
+| `scripts/designed_strike.gd` | The sky strike node (leader, held white-hot main bolt, forked afterimage, scorch, crawls) |
 | `scripts/designed_twister.gd` | The air twister node (bands, swirl, wisps, debris, its timeline); `comic_gale.spawn` hands over to it when designed effects are on |
 | `shaders/designed_ribbon_depth.gdshader` | The ribbon shader with the depth test on, and the back face one cel band darker (`back_shade`): bands wrapped round a volume |
 | `tools/vfx_gen/gen_designed.py` | One function per sheet (`hit_spark`, `impact_streaks`, `slash_strip`, `magma_burst`, `magma_wave`, `magma_crust`, `magma_splat`, `ice_shatter`, `bolt_strip`, `storm_burst`, `dust_puff`) and `SHEETS` (frame px, columns, count, preview palette, erode mode) |
@@ -143,6 +157,15 @@ resident from the first frame.
   `SWEEP`, `RADIUS_FOOT` / `RADIUS_FLARE` (the profile), `FLARE_OUT` (how far a band leans out: the high camera sees
   more of a leaning band), `TURN`, `PEAK_SCALE`, `ANTIC` / `ANTIC_SCALE`, `DISSOLVE`, `SWIRL_SIZE`, `WISPS` /
   `WISP_SIZE` / `WISP_SPEED`, `DEBRIS` / `DEBRIS_SIZE` / `DEBRIS_SPIN`. Gust: `GUST_SIZE`, `GUST_BACK`, `GUST_MAX` a beat.
+  Round 2: `ANTIC` 0.12 (0.05 never reached a 12 fps film frame), `DRAG` / `DRAG_FROM` (the debris drags in along the
+  floor before it lifts: the anticipation), `MIN_HEIGHT` / `MIN_RADIUS` (Fault Line's small gales grow to read).
+  Storm Pitch's `wind_burst`: `BURST_SWIRL`, `BURST_UP` / `BURST_GUST` (gusts over the pile's heads, the first
+  trailing the throw). Backdraft's haul drops `HAUL_GUST` gusts behind the foe (`comic_backdraft.gd`).
+- Sky strike (`designed_strike.gd`): `LEADER_S` / `LEADER_W` / `LEADER_HEAT` / `LEADER_SWAY`, `MAIN_W`, `HOLD_GAME` /
+  `HOLD_REAL` / `HOLD_HEAT` (0.5 burned it all white; 0.35 keeps a thin lime rim), `MAIN_FADE`, `AFTER_LIFE` /
+  `AFTER_HEAT` / `AFTER_SHIFT`, `FORKS` / `FORK_LEN`, `SCORCH_SIZE` (2.0 hid under the struck foe) / `SCORCH_TIMES`,
+  `CRAWL_REACH`; `designed_fx`: `STRIKE_DROP`, `CRAWL_SIZE` / `CRAWL_UP` / `CRAWL_TIMES`. The ribbon shader's `heat`
+  shifts every coloured tone (never the ink) up or down the ramp: > 0 white-hot, < 0 an afterimage.
 
 ## Testing
 
@@ -168,6 +191,10 @@ resident from the first frame.
 - The game's camera pulls out in a fight: an effect that reads at the scratch shot's close framing is about half
   that size in `string_film`. Judge sizes in the film.
 - `Game` sets `Engine.time_scale` every frame from its stops: setting it from a test does nothing.
+- A floor stamp under a foe hides behind its body from the high camera: size it so the tips reach well past the foe
+  (the strike scorch needed 3.4 m for ~1 m tips).
+- An array literal indexed inline (`[0.0, 2.2][k]`) has no inferred type: write `var a: float = ...`, or the
+  whole `designed_fx` chain fails to compile and every effect after it errors.
 - A billboard drawn without the depth test covers the pile; a big one (the meteor crown) uses the depth-tested
   variant, stood behind the pile.
 
