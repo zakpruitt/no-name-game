@@ -4,6 +4,9 @@ extends SceneTree
 ##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
+##   `--layout=wall|stray` (with --from=11 --to=11, L L L H H + Meteor Fall): the dummies' homes near the back wall
+##     instead of the fan. wall: all four in Molten Palm's strip, it carries them into the wall and the meteor drops
+##     on them there; stray: one in the strip (splatted alone) and three bunched off to the side (the bigger group).
 ## Windowed only (headless draws nothing), about a minute. Frames are 800x450 (half the window); each grab stalls
 ## a few ms, so hitstop and rhythm run a touch slower than in play: read the INDEX's real ms, time scale and move,
 ## and take the autotest's `[rhythm]` lines for the numbers. Frames sit in memory and are written when the bot
@@ -27,6 +30,7 @@ var _t0 := 0  # ms the current film started
 var _n := 0  # frames due so far in this film (a fixed 1/FPS schedule from _t0)
 var _brk_seen := 0  # breakers landed at the last slam frame grabbed
 var _hit_seen := ""  # move id + hits done at the last contact frame grabbed
+var _laid := false  # `--layout=`: the INDEX lines add each dummy's spot (x,z), hp and a * if fresh off a wall splat
 
 
 func _initialize() -> void:
@@ -58,6 +62,11 @@ func _initialize() -> void:
 	# Scattered, dazed dummies after a breaker made the next string whiff whole (L L L H after Grounded): by
 	# default each string starts with the dummies in a fan in front of him. `-- --no-gather` films the room as is.
 	var gather := not "--no-gather" in OS.get_cmdline_user_args()
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--layout="):
+			gather = false
+			_laid = true
+			_layout(arg.get_slice("=", 1))
 	if gather:
 		_gather()
 	for arg: String in OS.get_cmdline_user_args():  # `-- --from=N`: start at BOT_STRINGS[N], the earlier ones count as filmed
@@ -122,6 +131,20 @@ func _gather() -> void:
 			foes[i].home = foes[i].global_position  # (or it strolls back mid-string)
 
 
+## `--layout=`: the dummies' homes (the bot puts them there before each string, and him BOT_SPOT m short of the
+## first one, facing it: here up the room at the back wall, z -16).
+const LAYOUTS := {
+	"wall": [Vector3(0, 0, -8.0), Vector3(-1.0, 0, -8.4), Vector3(1.0, 0, -8.4), Vector3(0, 0, -9.0)],
+	"stray": [Vector3(0, 0, -8.0), Vector3(4.2, 0, -8.6), Vector3(5.2, 0, -9.2), Vector3(4.4, 0, -9.9)],
+}
+func _layout(kind: String) -> void:
+	var foes: Array = _main._dummies
+	for i in foes.size():
+		foes[i].home = LAYOUTS[kind][i % LAYOUTS[kind].size()]
+		foes[i].global_position = foes[i].home
+		foes[i].velocity = Vector3.ZERO
+
+
 func _name(string: Array) -> String:
 	return "_".join(string)
 
@@ -147,6 +170,10 @@ func _grab() -> void:
 	var line := "%03d%s t=%5d ms move=%-3s state=%-6s hits=%d scale=%.2f brk=%d combo=%d" % [_frames.size(), " HIT" if hit else "    ", now - _t0,
 		_p._move_id if _p.state == _p.State.ATTACK else "-", _p.State.keys()[_p.state], _p._hits_done,
 		Engine.time_scale, _p._brk_phase if _p.state == _p.State.LEAP else -1, get_root().get_node("Game").combo_count]
+	if _laid:
+		var ve: GDScript = load("res://scripts/void_element.gd")
+		for d: Node3D in _main._dummies:
+			line += " | %.1f,%.1f hp%d%s" % [d.global_position.x, d.global_position.z, int(d.hp), "*" if ve.wall_fresh(d) else ""]
 	_frames.append([img, line])
 
 
