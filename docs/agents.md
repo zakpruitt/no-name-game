@@ -442,3 +442,9 @@ the worktree, and deletes the branch once it has been merged.
   set its `SIZE` to the window (1600x900), film your string into your own `--dir`, then `git checkout` the test.
 - **Bash heredocs holding Python with many quotes failed to parse** ("unexpected EOF while looking for matching '");
   write the patch script with the Write tool into your scratchpad folder and run it.
+- **`Game` owns `Engine.time_scale`:** `_update_hitstop` sets it every frame from `_stops`, so a test that sets it
+  does nothing. Slow the game from a test with a long stop (`game._stops.append([now_ms + 120000, 0, 0.06])`) and end
+  it with `game.end_slowmo()`. Viewport readbacks (`get_texture().get_image()`) stall ~100 ms each: take a few before
+  the moment you film, and step what you film on game time, or the frames skip.
+- **A reimport touches every `.import` file's line endings** (`git status` shows dozens modified): restore the ones you
+  didn't mean to change (`git checkout -- <path>`) before committing.

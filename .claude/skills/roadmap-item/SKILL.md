@@ -45,3 +45,9 @@ Read `CLAUDE.md` (layout, test flags) and `ROADMAP.md` first.
   - **Never push.**
 - If the change is visually notable, send Zak the screenshot with SendUserFile.
 - Tell him what changed and what you verified (paste the autotest stat that proves it), and flag anything you couldn't check (feel, audio, gamepad).
+
+## Effects are drawn, not assembled (round 43 b)
+- A new or reworked combat effect is an authored flipbook (`tools/vfx_gen/gen_designed.py`, played by
+  `scripts/designed_fx.gd`), not a set of runtime polygons. Steps: `docs/features/designed-fx.md` "Authoring a new
+  effect". Keep the old path behind `DESIGNED.on()` so `--fx=classic` can film the before.
+- Judge size in `tests/string_film.gd`, not a close scratch shot: the fight framing pulls the camera out to about half.

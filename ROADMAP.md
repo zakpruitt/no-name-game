@@ -658,3 +658,19 @@ constant (`PRINCE_MOVES.ONE_SWORD` / `SMASH_ANY_TIME` / `ROYAL_DRAW`, `SUNBRAND.
   `move_list_check` `_check_endings`; clip `awaken-combo-clips/16 Breaker choice indicator.mp4`
 - [ ] Zak picks which second endings to build (the proposal table); items / mechanics to nudge LMB vs RMB
 - [ ] The combo-name callout still overlaps the top of the circle in the hang
+
+## Round 43 b (designed effects pilot)
+Zak: "the effects are not really effects, they're just polygons you're putting together. I'd like them to actually be
+designs, still stylistic." See `docs/features/designed-fx.md`.
+- [x] Pipeline: authored flipbook sheets drawn by a seeded Python generator (`tools/vfx_gen/`: Pillow + numpy + scipy,
+  4x supersampled, inked rims, per-frame silhouettes), packed as (tone, erode order, boil, cover) and played by four
+  shaders (`shaders/designed_*.gdshader`: palette ramp per element, erosion with an ink / hot burn line, strip textures
+  on shaped meshes). One shared material per sheet, instance uniforms per effect, prewarmed in `elements.prewarm`
+- [x] Pilot: hit star, impact strokes, swing slash, Meteor Fall's landing (crown, lava wave, rim splashes, cooling
+  crust), Molten Palm's wall splat, ice shatter / cube burst, every lightning bolt and arc, the dust puff
+  (`scripts/designed_fx.gd`; call sites keep their old paths)
+- [x] On by default; `--fx=classic` plays the old polygon effects from the same build. Clips:
+  `awaken-combo-clips/17 Designed effects before-after.mp4`, `17 Designed effects sheet.png`, one side-by-side per effect
+- [ ] Zak's call on the look, then the conversion list in the doc, most seen first (element_hit chips, the axe ribbon,
+  comic_dust, the breaker and crossover effects, the dark element's ink tendrils)
+- [ ] The wall splat lands at the top edge of the frame (round 42 e's camera follow-up): mostly off screen in the film
