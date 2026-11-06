@@ -242,16 +242,20 @@ var last_hit_ms := -100000
 	_check(not rig.get_script().get_script_constant_map().has("HANG_FRAME_GAIN"), "no hang pull-out left (Meteor Fall's beats are gone)")
 	hero._brk_phase = 1  # the dive: 12 m in 0.4 s
 	var from: Vector3 = hero.global_position
-	var t0 := Time.get_ticks_msec()
 	var worst := 0.0
 	var ahead := -INF
 	var frame_max := 0.0
 	var last_rig: Vector3 = rig.global_position
 	var last_hero: Vector3 = hero.global_position
-	while Time.get_ticks_msec() - t0 < 400:
-		hero.global_position = from + Vector3(12.0, 0.0, 0.0) * clampf((Time.get_ticks_msec() - t0) / 400.0, 0.0, 1.0)
+	# Stepped by hand at 60 fps: he moves 1/24 of the dive and the rig follows one 1/60 s step. (This drove him by the
+	# wall clock while the rig follows with the engine's frame delta; headless the two disagree, two frames could land
+	# in one ms and the rig still stepped, so it read 0.21 m "over" every run with no snap in the rig.)
+	rig.set_process(false)
+	const STEPS := 24  # 0.4 s
+	for i in STEPS:
+		hero.global_position = from + Vector3(12.0, 0.0, 0.0) * (float(i + 1) / STEPS)
 		foe.last_hit_ms = Time.get_ticks_msec()
-		await process_frame
+		rig._process(1.0 / 60.0)
 		var step: float = (rig.global_position - last_rig).length()
 		worst = maxf(worst, step - (hero.global_position - last_hero).length())
 		ahead = maxf(ahead, rig.global_position.x - hero.global_position.x)
@@ -261,6 +265,7 @@ var last_hit_ms := -100000
 	_check(worst < 0.05, "the dive's follow never snaps: no frame moves the camera further than he moved (%.3f m over)" % worst)
 	_check(ahead < 0.05, "and it never runs ahead of him (%.2f m)" % ahead)
 	_check(frame_max < 1.02, "nor pulls out on the way down (x%.3f)" % frame_max)
+	rig.set_process(true)
 	hero.global_position = from + Vector3(12.0, 0.0, 0.0)
 	hero.state = 0
 	hero._brk_phase = -1
