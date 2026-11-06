@@ -24,6 +24,11 @@ static func prewarm(root: Node3D) -> void:
 		mi.material_override = stamp_material("shock") if n == "stamp" else DESIGNED.material(n)
 		root.add_child(mi)
 		mi.scale = Vector3.ONE * 20.0
+	var trail: MeshInstance3D = load("res://scripts/weapon_trail.gd").new()  # (its designed ribbon's shader)
+	root.add_child(trail)
+	trail.mesh = QuadMesh.new()
+	trail.scale = Vector3.ONE * 20.0
+	trail.set_process(false)
 	var smear := MeshInstance3D.new()
 	smear.mesh = QuadMesh.new()
 	smear.material_override = t.smear_material()

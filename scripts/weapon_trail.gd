@@ -5,6 +5,10 @@ extends MeshInstance3D
 ## a crescent with a bright leading edge whose tail erodes with noise.
 
 const SHADER := preload("res://shaders/weapon_trail.gdshader")
+## Round 44 (fx-cohesion): designed, the ribbon is the pilot's authored brush stroke (slash_strip) along it in the
+## colour's nearest element palette, not a soft gradient crescent. `--fx=classic` keeps SHADER.
+const DESIGNED_SHADER := preload("res://shaders/weapon_trail_designed.gdshader")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
 const NOISE := preload("res://assets/vfx/noise_soft.png")
 const SUBDIV := 3  # interpolated steps between frame samples (fast swings stay round)
 const REACH := 1.2  # trail tip past the blade tip, as a fraction of blade length
@@ -32,6 +36,8 @@ const AWAKEN_BODY_ALPHA := 0.18
 	set(c):
 		color = c
 		_mat.set_shader_parameter("edge_color", c.lerp(Color.WHITE, 0.7))
+		if _designed:
+			set_instance_shader_parameter("pal_row", DESIGNED.row(DESIGNED.PAL.nearest(c)))
 
 var weapon: MeshInstance3D
 var emitting := false
@@ -42,6 +48,7 @@ var _points: Array[Array] = []  # [base: Vector3, tip: Vector3, age: float, life
 var _imesh := ImmediateMesh.new()
 var _mat := ShaderMaterial.new()
 var _gold := false  # Awakened this frame (_vertex_pair thins the ribbon)
+var _designed := false
 
 
 func setup(weapon_mesh: MeshInstance3D) -> void:
@@ -60,8 +67,16 @@ func setup(weapon_mesh: MeshInstance3D) -> void:
 
 
 func _init() -> void:
-	_mat.shader = SHADER
-	_mat.set_shader_parameter("noise", NOISE)
+	_designed = DESIGNED.on()
+	if _designed:
+		_mat.shader = DESIGNED_SHADER
+		_mat.set_shader_parameter("sheet", DESIGNED.SHEETS.slash_strip.tex)
+		_mat.set_shader_parameter("palette", DESIGNED.palette())
+		_mat.set_shader_parameter("palette_rows", float(DESIGNED.ROWS.size()))
+		_mat.set_shader_parameter("rows", 4.0)
+	else:
+		_mat.shader = SHADER
+		_mat.set_shader_parameter("noise", NOISE)
 	color = color
 
 
@@ -87,7 +102,8 @@ func _process(delta: float) -> void:
 
 	_imesh.clear_surfaces()
 	_gold = _awakened()
-	_mat.set_shader_parameter("body_alpha", AWAKEN_BODY_ALPHA if _gold else BODY_ALPHA)
+	if not _designed:
+		_mat.set_shader_parameter("body_alpha", AWAKEN_BODY_ALPHA if _gold else BODY_ALPHA)
 	var n := _points.size()
 	if n < 2:
 		return
