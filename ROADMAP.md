@@ -617,3 +617,18 @@ has a best situation; Molten Palm punches a group into a wall, Meteor Fall dives
 - [x] Camera: the `HANG_FRAME_*` / `BEATS_PHASE` pull-out went with the beats; a hang settles at `HANG_SETTLE` and the 12 m dive follows without a snap (`camera_feel_check`)
 - [x] Checks: `void_arm_check` `_meteor_target()` (stray vs group, splatted vs equal group, bigger group vs splatted stray, empty) and palm-into-wall -> Undertow -> meteor dives past a nearer foe onto the splatted one
 - Supersedes round 41's item 9 and 10c's Meteor Fall throw (there is no throw now)
+
+## Round 42 d (second hero: dragon prince, first slice)
+Zak's open questions (dragon-prince.md section 9) are unanswered: built on the doc's recommended defaults, each a named
+constant (`PRINCE_MOVES.ONE_SWORD` / `SMASH_ANY_TIME` / `ROYAL_DRAW`, `SUNBRAND.REFORM_TIME`; the list is doc section 10).
+- [x] `--hero=prince` (`Game.hero`): `scripts/prince/prince.gd` extends player.gd on the tinted chibi body with a crown,
+  horns and a built Sunbrand; the heretic without the flag is unchanged (prince_check spawns both)
+- [x] Sword states in hand / out (flight, planted in the floor or a foe, returning) / shattered (`scripts/prince/sunbrand.gd`),
+  a sapphire beacon and gold floor ring on the planted sword
+- [x] Royal Chain (L L L), Ember Flick (L H), Javelin (L L H), Skyfall (H with the sword out: rise, hang, dive, 3.5 m blast),
+  the 700 ms re-form, Rightful Return (hold L), Talon claws (L while out), Dragon Breath (H)
+- [x] Combo guide rows and the pause MOVES panel are his (one-line hooks: `guide_rows()`, `move_sections()`)
+- [x] `tests/prince_check.gd` in `agent.sh check` (throw, smash, re-form, breath, recall: states and damage); windowed film
+  `tests/prince_film.gd`; clip `awaken-combo-clips/13 Dragon Prince core loop.mp4`
+- [ ] Next slices (doc section 10): the smash's window and Royal Draw, wall pin, Sword in the Stone / Kingsfall, kindled and
+  Heat the Blade, charged casts, parry, Majesty and the crown, the HUD sword icon, his model and clips

@@ -391,6 +391,17 @@ fast-forward, so no agent edits another's files or index.
 - **Removing a feature, grep its words too, not just its names:** after deleting Meteor Fall's beats, comments in
   other files (camera_rig, elements, comic_flat, CLAUDE.md, docs tables) still described them; `grep -rn` the
   feature's nouns (DOGPILE, gather, pile, beat) across scripts, tests and docs before landing.
+- **Overriding a built-in virtual by accident:** a helper named `_set(s)` on a Node3D collides with `Object._set(property,
+  value)`; name state setters `_enter()` or similar. Same for `_get`, `_notification`, `_init` with other signatures.
+- **A primitive mesh's `material_override` hides `Fx.outline`:** outline copies each surface's active material into a
+  surface override, and `material_override` wins over both. Put the material on the mesh (`BoxMesh.material = m`) when the
+  piece should be inked.
+- **A hero variant via `extends "res://scripts/player.gd"`** keeps every field the HUD, camera, comic_fx and the dummies read,
+  so most readers work unchanged; grep `hero\.|player\.` in the readers for consts and statics they call through the
+  hero's preloads (those can't be overridden) and give each a one-line `has_method` hook.
+- **Filming a scripted move sequence:** `tests/prince_film.gd` holds half-size RGB8 images in memory (30 a second, about
+  280 for 9 s, ~430 MB) and writes the PNGs after; ffmpeg `-framerate 30 -i %03d.png -c:v libx264 -pix_fmt yuv420p` makes
+  the mp4. Copy `user://<dir>` to the scratchpad first.
 
 ## The harness (`tools/agent.sh`)
 

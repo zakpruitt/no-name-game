@@ -245,3 +245,17 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   Vector3 arrays: stray vs group, splatted vs equal group, bigger group vs splatted stray, empty, out of reach.
 - Show the choice: re-aim the breaker cue every frame of the hang so the player sees where the dive will land.
 - `Object.get_meta(key, null)` still errors when the key is missing (a null default counts as none): use `has_meta`.
+
+## A second hero (round 42 d, the dragon prince)
+- A new hero can extend player.gd (`extends "res://scripts/player.gd"`) and override `_physics_process`: he keeps the body,
+  dash, hurt, Awakening and every field the HUD / camera / effects read, and none of the heretic's moves run. A subclass
+  can't shadow a parent const (`HERO_MOVES`), so readers that go through the hero's preloads (combo_guide, pause_menu) need a
+  duck-typed hook (`player.has_method("guide_rows")`), not a const swap.
+- Keep his MOVES in the heretic's shape (fractions of the clip, `hits` / `cancel` / `end` / `speed`): then
+  `HERO_MOVES.progress()`, `HERO_INPUT.cancel_point()`, `can_dash_cancel()` and `combo_window()` read his moves unchanged.
+- Pick his script with `load()` in main.gd, not `preload`: the heretic never compiles it, so a prince parse error can't
+  break the default game.
+- Default facing is +Z (toward the camera) and the dummies are at -Z: a scripted check or film must face him at a dummy
+  (`hero._face(to)`) before a throw, or it flies off the wrong way and the "missing damage" looks like a bug.
+- A thing that leaves his hand (a thrown sword) is its own node (`top_level`, child of the hero): its hits, timer and
+  beacon live there, the hero only asks `state_word()` for routing. The checks then assert its states directly.

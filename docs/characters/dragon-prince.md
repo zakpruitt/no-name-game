@@ -1,6 +1,8 @@
 # The dragon prince (second hero, design draft)
 
-Status: ideation, round 42 b. No code, models or clips exist yet. Working name **Prince Aurex**, heir to
+Status: round 42 d, first playable slice built (`--hero=prince`, section 10) on a placeholder body; the open
+questions (section 9) are still unanswered, so the slice runs on this doc's recommended defaults, each behind a
+named constant. No model or clips of his own yet. Working name **Prince Aurex**, heir to
 the Ember Throne; his summoned sword is **Sunbrand** (every one he conjures is a fresh Sunbrand). Names are
 placeholders (open question 8).
 
@@ -400,6 +402,9 @@ The heretic's clips are hand-keyed headless (`chibi_keys.py`); the same route ap
 
 ### First playable slice, in order
 
+Built so far (round 42 d, section 10): 1, most of 2 (Royal Chain, Javelin, Skyfall, an automatic re-form; no Royal
+Draw), recall and the Talon claws from 3, and Dragon Breath from 4 (no kindled).
+
 1. **Hero switch on a placeholder body:** the heretic's model with a box sword, the prince's route and moves
    table behind a flag (`--hero=prince`). Proves a second hero can exist without touching the heretic. L.
 2. **Royal Chain, Javelin, Skyfall, Royal Draw** on the training dummies: one throw, one smash, one resummon.
@@ -428,3 +433,92 @@ The heretic's clips are hand-keyed headless (`chibi_keys.py`); the same route ap
    (flag, then a menu), no in-run swapping until both kits are tuned.
 8. **Names:** Aurex and Sunbrand are placeholders. Keep them, or name him yourself? (Recommend a short
    two-syllable name the callouts can shout.)
+
+## 10. Built: the first slice (round 42 d)
+
+Launch: `godot --path . -- --hero=prince` (training room, the dummies). Without the flag the game is exactly the
+heretic as before (`Game.hero` defaults to `"heretic"`; main.gd loads the prince script only when asked).
+Check: `godot --headless --path . -s tests/prince_check.gd` (in `agent.sh check`). Film: windowed
+`godot --path . -s tests/prince_film.gd [-- --dir=name]` (30 fps to `user://prince_film/`, INDEX.txt per frame).
+Clip: `awaken-combo-clips/13 Dragon Prince core loop.mp4`.
+
+### What plays
+
+| Input | Move | Sword | What it does in the slice |
+|---|---|---|---|
+| L L L | **Royal Chain** (Slash, Riposte, Crown Cleave) | H > H | three gold arcs, the Cleave a big overhead (tier 1 callout) |
+| L H | **Ember Flick** | H > H | a slash plus a breath puff at 0.6 of Dragon Breath |
+| L L H | **Javelin** | H > O | throws Sunbrand straight (22 m/s, 9 m): it bites the first foe on its line (16, carried by the knockback) and stays in it, riding along; a whiff or a wall plants it in the floor |
+| H (sword out, within 9 m) | **Skyfall** (the smash) | O > S | rises 2.5 m in 0.3 s over the sword (it keeps tracking a branded foe), hangs 0.14 s, dives in 0.13 s (invulnerable on the dive); the sword explodes: 34 in 3.5 m, knockback and launch; "KRA-BLAMM!", tier 3 callout, big hitstop and camera kick; 0.3 s on one knee (dash cuts it) |
+| (after the blast) | re-form | S > H | a new sword forms in his hand 700 ms after the blast ("SHWING!", a sapphire star and a gold hoop) |
+| hold L (sword out) | **Rightful Return** | O > H | the sword flies back in 0.25 s along a line, hitting all on it (9 each); the foe it was in is hit and dragged toward him. The press starts a Talon, the hold (0.2 s) turns it into the recall |
+| L (sword out or shattered) | **Talon** string (Talon Fury on the third) | O > O | conjured claws: two rakes and a heavy, about 60% of the sword, shorter reach, orange arcs |
+| H (in hand, no string; or out of reach; or shattered) | **Dragon Breath** | any | a flat dragonfire cone, 60 deg x 4 m, two ticks of 6 ("FWAROOO!") |
+| L L L H | (placeholder) | H > H | breathes (`PRINCE_MOVES.LLLH_FALLBACK`) until Sword in the Stone exists |
+| Dash | dash | any | the heretic's dash; the sword stays where it is |
+| (6 s out) | auto-return | O > H | the sword flies home with no hits |
+
+Where it lives: `scripts/prince/prince.gd` (extends player.gd; his own `_physics_process`, states, hits, the smash
+phases, the callout, `guide_rows()` and `move_sections()`), `prince_moves.gd` (MOVES / COMBOS in the heretic's shape,
+`route()`, the MOVES panel's `SECTIONS`), `sunbrand.gd` (the sword: HELD / FLIGHT / PLANTED / RETURN / SHATTERED,
+bite, recall line, blast, re-form timer, beacon and floor ring), `prince_fx.gd` (the placeholder dressing and his
+effects). Shared files got one-line hooks only: `Game.hero` + the `--hero=prince` parse (game.gd), the script pick
+(main.gd), `player.guide_rows()` if the hero has it (combo_guide.gd), `player.move_sections()` if the hero has it
+(pause_menu.gd), and `prince_check` in agent.sh's list.
+
+Look (placeholder): the chibi heretic's body with its toon bands multiplied crimson / gold (`PRINCE_FX.TINT_*`), a
+five-point gold crown with a sapphire gem and two big cream horns swept back on the head bone, the heretic's weapon
+meshes hidden, and a built Sunbrand (wide pale-gold blade with a sapphire line, winged gold guard, navy grip, round
+pommel, inked) on the right hand along the axe's line. Out in the world it is the same mesh, point down, with a
+thin sapphire beacon line and a pulsing gold floor ring (faster during the smash's rise). The weapon trail follows
+the sword. The tentacle, hood and the heretic's glowing eyes and grin still show: it is his body.
+
+### Assumptions on the open questions (each a named constant)
+
+1. **One Sword** (`PRINCE_MOVES.ONE_SWORD = true`): a throw costs the sword until smash, recall or the 6 s
+   auto-return (`SUNBRAND.AUTO_RETURN`). The Armory flag exists but nothing reads it yet (it needs a second sword).
+2. **The smash any time the sword is out** (`PRINCE_MOVES.SMASH_ANY_TIME = true`), within `prince.SMASH_REACH`
+   (9 m) and only while the sword is planted (not mid-flight or returning); otherwise H is breath.
+3. **Royal Draw not built**; the re-form is automatic at `SUNBRAND.REFORM_TIME` (0.7 s). `PRINCE_MOVES.ROYAL_DRAW`
+   is the flag for the timed press when it lands.
+4. Decree input: not reached (no Majesty).
+5. Awakened colour: not touched; he uses the shared Awakening (gold rim, the heretic's numbers). His dash ghosts
+   and hit tint are sapphire (`prince._fx_color()`).
+6. The crown: a fixed mesh on the head bone; it doesn't tilt or fall (no Majesty).
+7. **A pick by flag** in the training room (`--hero=prince`), no menu, no in-run swap.
+8. **Names kept:** Prince Aurex, Sunbrand (`PRINCE_MOVES.HERO_NAME` / `SWORD_NAME`, unused in text so far).
+
+Also assumed: the smash is called **Skyfall** whatever the sword is in (floor or foe; the doc names the floor one
+Kingsfall only after Sword in the Stone); its blast is flat 34 (no "more from higher", no wall x1.5); the Javelin
+doesn't pierce, pin to walls or carry the foe a set 4 m (the bite's knockback carries it); the smash has no timed
+window yet (no PERFECT, no lock-out).
+
+### Stubbed or missing (the next slices)
+
+1. **The smash's window and Royal Draw:** a `hero_leap`-style window in the hang (PERFECT, early lock-out, float down
+   with the sword still out) and the timed L at the gleam (450 ms, 120 ms window, x1.3 next sword move).
+2. **Javelin's wall pin and carry** (thrown_foe), x1.5 at a wall; Royal Pin (Dash L H); Lunge Royale (Dash L).
+3. **Sword in the Stone (L L L H) and Kingsfall, Pull from the Stone**, Heaven Toss and the air string (Wing Slash,
+   Starfall), Tail Sweep (H H), Wingbeat (Dash H), hover on hold H.
+4. **States:** kindled (breath), branded as a state other moves read, humbled; Heat the Blade, Searing Edge.
+5. **Charged casts:** Empowered Breath / Dragonroar and Sovereign Light (hold H levels).
+6. **Royal Flourish** parry (hold L in hand), Insolence, Kneel.
+7. **Majesty, the crown that falls, the Decree**; his Awakened colour and Ascension.
+8. **The sword icon by him** on the HUD (the beacon is the only "where is my sword" cue now); the pause panel's
+   "n / m combos landed" line still counts the heretic's COMBOS.
+9. Breakers: Judgement, Coronation, Sundering, Meteor Crown.
+10. Model, rig and the 45 clips (section 8); until then he plays the heretic's clips (Ab_L1, KayKit Dualwield slice,
+    Ab_L3, Ab_L2 hurl, Ab_LH rake, Spellcast_Shoot / Raise, Jump_Start / Idle), so the poses are the heretic's.
+11. His effect materials aren't in `warmup.gd`'s shader list yet (`--collect-shaders` with `--hero=prince`): the
+    first breath / blast may hitch once.
+
+### Refactor that would make a second hero cleaner
+
+prince.gd extends player.gd and overrides `_physics_process`, so he inherits the heretic's `_ready` (tentacle, void
+arm, rig, axe trails, spirit motes) and then hides or replaces them. The clean split: a `hero_base.gd` with the body
+(collision, run / dash / hurt / death, Awakening, take_hit, the callout, `_play`), and the heretic and the prince each
+adding their kit (void_grab / void_arm / heretic_rig vs sunbrand / prince_fx). The readers that assume the heretic
+(`combo_guide` via `HERO_MOVES.combo_options`, `pause_menu` via `MOVE_LIST`, `HERO_FX.combo_callout` via its
+COMBOS, `comic_fx` MOVE_WORDS / BREAKER_WORDS, `fx._blow_element`) would read the hero's own tables through a small
+interface (`guide_rows()`, `move_sections()`, `combos()`, `words()`) instead of the duck-typed hooks used here.
+Not done now: player.gd is hot and another lane is editing around it.
