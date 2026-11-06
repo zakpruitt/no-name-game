@@ -435,3 +435,10 @@ the worktree, and deletes the branch once it has been merged.
   two disagree (two frames in one ms while the rig still steps), so `camera_feel_check`'s dive read 0.21 m "over"
   every run with no snap in the rig. Step it by hand (`set_process(false)`, call `_process(1/60)`), and check it still
   fails on a real fault (an injected lean jump did).
+- **Patch scripts on CRLF files:** read with `newline=''` and the text keeps `\r\n`, so an `old` string written with
+  `\n` silently matches nothing (a `str.replace` doesn't fail). Normalise to `\n` first and write back with the file's
+  own ending, or assert the count. A sabotage edit to check a test did nothing this way and the test "passed".
+- **Judging HUD text from film:** `tests/string_film.gd` saves 800x450 (half the window). For text size, temporarily
+  set its `SIZE` to the window (1600x900), film your string into your own `--dir`, then `git checkout` the test.
+- **Bash heredocs holding Python with many quotes failed to parse** ("unexpected EOF while looking for matching '");
+  write the patch script with the Write tool into your scratchpad folder and run it.

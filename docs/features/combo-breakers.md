@@ -47,7 +47,7 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
     the autotest's counts.
 - `scripts/breaker_cue.gd`: the floor cue: a target ring and a closing ring that meet at `sweet`; `lock()`, `hit(perfect)`.
 - `scripts/breaker_prompt.gd`: the timing circle up and to his left (the combo guide is on his right; `OFFSET`),
-  filling to the sweet spot with the button(s) and the breaker's name; on the player's own CanvasLayer.
+  filling to the sweet spot, with a mouse glyph and one chip per ending (round 43, below); on the player's own CanvasLayer.
   Round 33, part 3 (sleek HUD, `hud_ink.gd`): a see-through back disc (`BACK_ALPHA` 0.45) with halftone dots in
   the breaker's colour round the key (`DOTS_ALPHA`), a 6 px track between 1.5 px ink lines, 2 px rings, and the
   name in the words' font (Bangers, `NAME_SIZE` 18) with a thin ink outline.
@@ -119,7 +119,10 @@ so the autotest lands it.
 ## Testing
 
 - `godot --headless --path . -s tests/void_arm_check.gd`: the breakers' timing, holds and slams (PASS/FAIL).
-- `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero.
+- `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero, shows both endings of a
+  two-ending window (LMB first, the chips running left, off him), one for a single ending, and keeps the chosen one.
+- `void_arm_check` `_breaker_choice()`: real L / H presses in Live Wire's window pick Cold Front / Worldbreaker, and L
+  does nothing in Grounded's; `move_list_check` `_check_endings()`: every ending listed, the second marked `or`.
 - `godot --headless --path . -- --autotest`: prints `[autotest] combo_breaker #N <id> perfect=` per breaker and
   `breakers=N/N perfect_breakers=` on the done line (round 34: N is distinct `BREAKERS` ids landed, so an `alt` ending
   doesn't count twice; `endings=` names every ending landed, Black Ice included). The bot resets the dummies to their homes and the hero to
@@ -200,3 +203,94 @@ the back wall for ~37 each, then the meteor lands on them for ~150 each) and `--
 three bunched to the side: the cue and the dive go to the three). The splat lands ~9.5 m up-screen of him, at the top
 edge of the frame for a beat; the hang and the dive keep hero and target in frame. Checks: `void_arm_check` (a wall
 9 m behind: carried and splatted; no wall: 6 m; a splat past 12 m still a target, not past 17 m).
+
+## Round 43: the window shows every ending
+
+Zak: "make sure the indicator shows each option for the player to choose. We can later incentivize people to do one
+or the other based on items and game mechanics, but still have environmental."
+
+### What the prompt shows
+
+`hero_leap.options(hero)` lists the endings the breaker in play offers, left button first: `{button, name, element,
+color}` per ending, `color` = the element's `fx_palette` body (`PAL.of(erupt).body`). `window()` passes it as `options`
+and, once the window is over, says which button `chose` it. `breaker_prompt.gd` draws from that:
+
+- **A little inked mouse in the middle of the circle** (`_mouse()`, `MOUSE_W` x `MOUSE_H` px; it was a "RMB" key):
+  each button that does something is filled in its ending's colour. Two endings: both buttons lit (Black Ice's ice
+  blue on the left, Maw's violet on the right). One ending: only the right button.
+- **One chip per ending under the circle** (`_chips()`): `[LMB] BLACK ICE  or  [RMB] MAW`, each a key pill (the
+  combo guide's key style, its rim in the ending's colour) and the name in the words' font (`NAME_SIZE` 19) in that
+  colour, on a see-through ink capsule (`CHIP_BACK` 0.55; the names sat unread on Maw's violet pool without it).
+  One ending: `[RMB] GROUNDED`, the same chip. The row is centred under the circle unless it would reach more than
+  `CHIP_REACH` px past the circle's right edge, toward the hero; then it ends there and runs left (`_group_l` /
+  `_group_r`, which `_follow()` also keeps on screen).
+- **With two endings the fill is paper** (`PAPER`) until the window turns it gold: neither ending's colour.
+- **The press keeps the chosen chip** and drops the other (`_option_alpha()`); the circle and its ring flash in the
+  chosen ending's colour (gold on a PERFECT). A lockout or a miss greys both.
+
+Filmed at 1600x900 from the game camera (`tests/string_film.gd`, strings 4, 16 and 1): both chips read in every frame
+of the hang, about 0.6 s real from take-off to the press, at 12 fps that is 6-7 frames with both on screen. The
+combo-name callout ("BLACK TIDE") still overlaps the top of the circle, as before this round.
+
+### The floor cue
+
+Both two-ending pairs land on the same spot with the same reach (Worldbreaker / Cold Front at the zone ahead; Maw /
+Black Ice on the pool, `MAW_RADIUS` round `dark_spot`; only where he touches down differs, `short` 4.6 vs 2.0 m),
+so the cue keeps one target ring. What used to lie was its colour: the closing ring and its snap-out were the first
+ending's (violet) even when L picked Black Ice. Now the closing ring alternates both colours (`breaker_cue.alt_color`,
+`DASHES` 8 pieces) until he picks, and `_start_dive()` sets the cue to the picked ending's colour before `hit()`.
+
+### Pause menu
+
+`move_list.gd` rows for a breaker's second ending carry `"or": true`, and the MOVES panel prints them as
+`or L in the window` under the first (`pause_menu.input_text()`), so the pair reads as one choice:
+
+```
+H L H, H in the window      Maw
+      or L in the window    Black Ice
+```
+
+### Audit: every breaker's endings (round 43)
+
+| Ender (input) | Id | Endings | Buttons |
+|---|---|---|---|
+| Live Wire (L H H) | EE | Grounded | RMB |
+| Live Wire, air (L H L H) | EW | Worldbreaker / Cold Front | RMB / LMB |
+| Deep Freeze (L L H L H) | IS | Avalanche | RMB |
+| Undertow (L L L H H) | EV | Meteor Fall | RMB |
+| Singularity (H H) | VS | Collapse | RMB |
+| Black Tide (H L H) | VD | Maw / Black Ice | RMB / LMB |
+| Overwhelm (hold H) | OW | Abyss | RMB |
+| Fault Line (L H L L H) | XF | Cataclysm | RMB |
+| Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
+| Meltdown (Dash L H H H L) | XM | Eruption | RMB |
+| Backdraft (L L H, Dash H H L) | XW | Anvil | RMB |
+
+Two of eleven have a second ending. No ending, number or damage changed in this round.
+
+### Proposal: a second ending for each single-ending breaker (for Zak to pick)
+
+Following the design review's setup-vs-payoff pairing (`docs/design-review-2026-11-05.md`, section 2 and top-ten
+items 3 and 4): one ending of a pair is the **payoff** (ends the fight: big damage, a crater, a wall splat) and the
+other the **setup** (leaves the pile in a state the next string cashes in: frozen, stunned, up in the air, bound).
+A suggested convention: **RMB = payoff, LMB = setup**, which Maw / Black Ice already fit once Black Ice keeps them
+frozen instead of shattering (the review's proposal). Items and mechanics can then weight one side (a relic that
+pays on frozen foes pulls players to LMB). Environmental payoffs stay: Molten Palm into Meteor Fall's wall pile,
+Collapse's throw into walls, and any proposal below that uses a wall or pillar keeps it.
+
+| Breaker (now, RMB) | Its role now | Proposed LMB ending | Role | Notes |
+|---|---|---|---|---|
+| Grounded | payoff (slam, lightning under each) | **Short Circuit**: no slam; everyone held stays shocked and stunned ~1.5 s where they land | setup | The review's "stun payoff"; splits it from Worldbreaker, its near-duplicate |
+| Worldbreaker / Cold Front | already two | (Cold Front could become the setup: the cubes stay frozen where they land) | setup | Today both are payoffs |
+| Avalanche | payoff | none proposed | | Not to be touched |
+| Meteor Fall | payoff, environmental (the wall pile) | **Slag Pin**: he lands short and a ring of lava pins the pile against the wall, burning (molten + bound) | setup | Keeps the wall: the pile stays on it for a second string |
+| Collapse | payoff, environmental (throws everyone into walls) | **Event Horizon**: the hole holds instead of falling in, pulling everyone tight to its middle | setup | A gather to feed a crowd string; Collapse keeps the wall throws |
+| Maw / Black Ice | already two | (Black Ice as the setup: leave them frozen, no shatter) | setup | The review's pair |
+| Abyss | payoff (one big foe) | **Sinkhole**: the foe stays sunk waist-deep, bound, for the next string | setup | The review's "execute" stays on RMB |
+| Cataclysm | payoff (craters) | **Updraft**: the gale throws them back up off the strike, so an air string goes on | setup | The review's "bounce" extender, so it isn't a third crater |
+| Flash Freeze | setup loop (they land frozen) | **Scald**: the steam goes off instead, everyone held burns hard | payoff | Here the existing ending is the setup; with the convention it would move to LMB |
+| Eruption | payoff (floor goes up) | **Ash Rain**: they go up burning and hang, for an air string | setup | |
+| Anvil | spread payoff (a crater each) | **Kebab Throw**: the frozen kebab is hurled into the nearest wall or pillar (wall splat) | payoff, environmental | An environmental pair: Anvil in the open, the throw near a wall |
+
+Each new ending needs its keys in `BREAKERS[...].alt`, a branch in `breaker_impact()`, an `or` row in `move_list.gd`
+and a bot string (`"alt"`) so the autotest lands it; the prompt and the cue need nothing.

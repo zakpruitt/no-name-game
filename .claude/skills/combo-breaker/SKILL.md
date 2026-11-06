@@ -37,3 +37,18 @@ timeout 120 godot --headless --path . -- --autotest                # combo_break
 ```
 
 Then `bash tools/agent.sh check`, update the feature docs, commit and land.
+
+## Lessons
+- **A second ending (`alt`) shows itself.** `hero_leap.options()` reads `BREAKERS[...].alt`, and the prompt draws one
+  chip per ending and lights that mouse button; the cue goes two-tone. Add the `or` row in `move_list.gd` (checked by
+  `move_list_check` `_check_endings`) and an `"alt"` bot string; nothing in the prompt or cue needs touching.
+- **If an `alt` lands somewhere else or with a different reach** (another `short` is fine: the cue marks the effect's
+  spot, not his feet), the single target ring would lie: move the cue in `_start_dive()` with the merge, or give the
+  cue a second target ring.
+- **Testing a real window press headless:** `Input.action_press("attack_light")` right after `await physics_frame`,
+  release a frame later, with `bot_enabled` false; the bot path sets `_brk_alt` from `bot_alt` and never reads Input.
+  Flip the code to the wrong button once and see the check fail (a CRLF file swallowed a sabotage edit the first time,
+  so the check "passed" with broken code).
+- **Prompt at the game camera:** 1600x900, Bangers 19 px names on a see-through ink capsule read in every frame of the
+  hang; without the capsule a violet name on Maw's violet pool vanished. Film at full size (string_film's frames are
+  800x450, half the window) before judging text.

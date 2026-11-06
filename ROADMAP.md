@@ -644,3 +644,17 @@ constant (`PRINCE_MOVES.ONE_SWORD` / `SMASH_ANY_TIME` / `ROYAL_DRAW`, `SUNBRAND.
 - [x] Molten Palm carries a foe on to a wall within `PALM_WALL_REACH` 10.5 m; Meteor Fall follows a fresh splat to
   `METEOR_SPLAT_REACH` 17 m. Filmed with `string_film --layout=wall|stray`
 - [ ] The splat lands at the top edge of the frame for a beat (the hang turns the fight framing off): a camera follow-up
+
+## Round 43 (breaker choice indicator)
+- [x] Zak: "make sure the indicator shows each option for the player to choose". The breaker prompt shows every
+  ending at once: an inked mouse in the circle with each live button in its ending's colour, and one chip per ending
+  under it (`[LMB] BLACK ICE or [RMB] MAW`, key rim and name in the fx_palette colour); one ending shows the same
+  layout with one chip. The press keeps the chosen chip. `hero_leap.options()`, `breaker_prompt.gd`
+- [x] The floor cue no longer flashes the first ending's colour when L picks the other: the closing ring is two-tone
+  until he picks, then the picked colour (both pairs land on the same spot and reach)
+- [x] Pause MOVES: a second ending prints as "or L in the window" under the first (`move_list` `or`)
+- [x] Audit and a proposal table of second endings (setup vs payoff, environmental payoffs kept) in
+  `docs/features/combo-breakers.md` "Round 43"; checks in `prompt_follow_check`, `void_arm_check` `_breaker_choice`,
+  `move_list_check` `_check_endings`; clip `awaken-combo-clips/16 Breaker choice indicator.mp4`
+- [ ] Zak picks which second endings to build (the proposal table); items / mechanics to nudge LMB vs RMB
+- [ ] The combo-name callout still overlaps the top of the circle in the hang
