@@ -127,6 +127,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	load("res://scripts/designed_fx.gd").prewarm(root)  # round 43: one material per designed sheet
 	load("res://scripts/designed_ink.gd").prewarm(root)  # round 44: the tentacle's skin, ground stamps, hit pops
 	DESIGNED_EL.prewarm(root)  # round 46: the ice and magma sheets
+	load("res://scripts/designed_finish.gd").prewarm(root)  # round 46: the Awakening, halos
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
