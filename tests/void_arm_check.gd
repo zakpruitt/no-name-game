@@ -68,6 +68,7 @@ func _initialize() -> void:
 	await _elements()
 	await _breakers()
 	await _cold_front()
+	await _breaker_choice()
 	await _thrown_at_wall()
 	await _ice()
 	await _magma()
@@ -500,6 +501,60 @@ func _cold_front() -> void:
 	big.free()
 	await _settle()
 
+
+## Round 43: the window offers every ending, one per button (hero_leap.options(), what breaker_prompt.gd draws), and
+## a real press picks it: L in Live Wire's window is Cold Front, H is Worldbreaker; Grounded has one ending, and L
+## there does nothing.
+func _breaker_choice() -> void:
+	hero.bot_enabled = false
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var foe := _foe(Vector3(0, 0, 2.5))
+	for press: String in ["attack_light", "attack_heavy"]:
+		foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
+		hero._start_attack("EW")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		var opts: Array = hero.breaker_window().get("options", [])
+		_check(opts.size() == 2, "Live Wire's window offers two endings (%d)" % opts.size())
+		if opts.size() == 2:
+			_check(opts[0].button == "light" and opts[0].name == "Cold Front" and opts[0].element == "water",
+				"left button first: LMB Cold Front in ice (%s)" % str(opts[0]))
+			_check(opts[1].button == "heavy" and opts[1].name == "Worldbreaker" and opts[1].element == "earth",
+				"then RMB Worldbreaker in magma (%s)" % str(opts[1]))
+			_check(opts[0].color != opts[1].color, "each ending in its own colour")
+		await _until(func() -> bool: return hero._state_t >= hero._brk.open + 0.02, 2.0)
+		Input.action_press(press)
+		await physics_frame
+		Input.action_release(press)
+		await _until(func() -> bool: return hero._brk_phase == 1, 0.5)
+		var want := "Cold Front" if press == "attack_light" else "Worldbreaker"
+		_check(hero._brk_phase == 1, "%s in the window dives" % press)
+		_check(hero.HERO_LEAP.breaker_name(hero) == want, "%s picks %s (%s)" % [press, want, hero.HERO_LEAP.breaker_name(hero)])
+		_check(hero.breaker_window().get("chose", "") == ("light" if press == "attack_light" else "heavy"), "the window says which button chose it")
+		if is_instance_valid(hero._brk_cue):
+			_check(hero._brk_cue.alt_color.a == 0.0, "the floor cue drops the other ending's colour once he picks")
+		await _settle()
+	# One ending: the same layout with one option, and L in the window doesn't take it.
+	foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
+	hero._start_attack("EE")
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+	var one: Array = hero.breaker_window().get("options", [])
+	_check(one.size() == 1 and one[0].button == "heavy" and one[0].name == "Grounded", "Grounded offers one ending, on RMB (%s)" % str(one))
+	await _until(func() -> bool: return hero._state_t >= hero._brk.open + 0.02, 2.0)
+	Input.action_press("attack_light")
+	await physics_frame
+	Input.action_release("attack_light")
+	for i in 3:
+		await physics_frame
+	_check(hero._brk_phase == 0, "L does nothing in a one-ending window")
+	Input.action_press("attack_heavy")
+	await physics_frame
+	Input.action_release("attack_heavy")
+	await _until(func() -> bool: return hero._brk_phase == 1, 0.5)
+	_check(hero._brk_phase == 1 and hero.HERO_LEAP.breaker_name(hero) == "Grounded", "H takes Grounded")
+	await _settle()
+	foe.queue_free()
+	await physics_frame
 
 ## A throw stops at a wall instead of going through it, and still breaks.
 func _thrown_at_wall() -> void:

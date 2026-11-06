@@ -25,6 +25,11 @@ var color := Color(0.3, 0.95, 0.85)
 var open := 0.2
 var sweet := 0.38
 var close := 0.54
+## A breaker with two endings (hero_leap.options()): the closing ring alternates `color` (right click's ending) and
+## this (left click's) in DASHES pieces until he picks; then hero_leap sets `color` to the one picked and clears it,
+## so the snap-out (hit()) is in the ending that's coming. Both endings land on this spot.
+var alt_color := Color.TRANSPARENT
+const DASHES := 8
 var crisp := false  # thin hard rings: the tentacle's breakers land right on this spot
 
 var _t := 0.0
@@ -112,11 +117,12 @@ func _draw_flat(r: float) -> void:
 	var in_window := _t >= open and _t <= close
 	var target_c := LOCKED if _locked else (GOLD if in_window else PAPER)
 	var closing_c := LOCKED if _locked else color
-	for ring: Array in [[TARGET, CRISP_TARGET_W, target_c], [r, CRISP_CLOSING_W, closing_c]]:
+	var closing_c2 := alt_color if alt_color.a > 0.0 and not _locked else closing_c
+	for ring: Array in [[TARGET, CRISP_TARGET_W, target_c, target_c], [r, CRISP_CLOSING_W, closing_c, closing_c2]]:
 		var rad: float = ring[0]
 		var w: float = ring[1]
-		_band(verts, cols, rad - w * 0.5 - CRISP_INK, rad + w * 0.5 + CRISP_INK, INK)
-		_band(verts, cols, rad - w * 0.5, rad + w * 0.5, ring[2])
+		_band(verts, cols, rad - w * 0.5 - CRISP_INK, rad + w * 0.5 + CRISP_INK, INK, INK)
+		_band(verts, cols, rad - w * 0.5, rad + w * 0.5, ring[2], ring[3])
 	_flat_mesh.clear_surfaces()
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -126,14 +132,15 @@ func _draw_flat(r: float) -> void:
 	_flat_mesh.surface_set_material(0, FORM_FX.material())
 
 
-static func _band(verts: PackedVector3Array, cols: PackedColorArray, r0: float, r1: float, c: Color) -> void:
+static func _band(verts: PackedVector3Array, cols: PackedColorArray, r0: float, r1: float, c: Color, c2: Color) -> void:
 	r0 = maxf(r0, 0.0)
 	for i in CRISP_SEGS:
+		var ci: Color = c2 if (i * DASHES / CRISP_SEGS) % 2 == 1 else c
 		var a := Vector3(sin(TAU * i / CRISP_SEGS), 0.0, cos(TAU * i / CRISP_SEGS))
 		var b := Vector3(sin(TAU * (i + 1) / CRISP_SEGS), 0.0, cos(TAU * (i + 1) / CRISP_SEGS))
 		verts.append_array([a * r0, a * r1, b * r1, a * r0, b * r1, b * r0])
 		for k in 6:
-			cols.append(c)
+			cols.append(ci)
 
 
 ## Pressed too early: no breaker this time.
