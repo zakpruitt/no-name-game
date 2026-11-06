@@ -49,12 +49,21 @@ const ELEMENTS := {
 ## a warm paper puff in a soft brown ink (soot or black vanish on the indigo floor).
 const DUST := {"ink": Color(0.08, 0.04, 0.06), "deep": Color(0.55, 0.47, 0.42), "body": Color(0.78, 0.7, 0.6),
 	"light": Color(0.95, 0.9, 0.8), "hot": Color(1.0, 0.98, 0.92)}
+## Air (fx-air lane): the LOOK of moving wind, split from the storm element's lightning. "wind" stays the gameplay
+## element id and keeps the electric row above (bolts, storm hit stars); wind ribbons, gales, gusts, wisps and the
+## twister take this one: pale white-mint with one soft cool shadow tone and a slate ink, so moving air reads light
+## and calm against the indigo floor and never shares the lightning's saturated colour. Kept out of ELEMENTS so
+## nearest() never maps a caller's colour to it.
+const AIR := {"ink": Color(0.06, 0.1, 0.16), "deep": Color(0.45, 0.62, 0.72), "body": Color(0.8, 0.93, 0.95),
+	"light": Color(0.95, 1.0, 0.98), "hot": Color(1.0, 1.0, 1.0)}
 ## Names other code uses for the same element.
 const ALIAS := {"storm": "wind", "ice": "water", "frost": "water", "magma": "earth", "lava": "earth",
 	"dark": "void"}
 
 
 static func of(element: String) -> Dictionary:
+	if element == "air":
+		return AIR
 	var e: String = ALIAS.get(element, element)
 	return ELEMENTS.get(e, ELEMENTS.hit)
 

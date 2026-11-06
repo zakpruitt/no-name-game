@@ -18,9 +18,10 @@ const SPRITE := preload("res://shaders/designed_sprite.gdshader")
 const SPRITE_DEPTH := preload("res://shaders/designed_sprite_depth.gdshader")
 const GROUND := preload("res://shaders/designed_ground.gdshader")
 const RIBBON := preload("res://shaders/designed_ribbon.gdshader")
+const RIBBON_DEPTH := preload("res://shaders/designed_ribbon_depth.gdshader")
 
 ## Palette rows, in the order of the palette texture.
-const ROWS := ["hit", "wind", "water", "earth", "void", "spirit", "gold", "dust"]
+const ROWS := ["hit", "wind", "water", "earth", "void", "spirit", "gold", "dust", "air"]
 
 ## name -> texture, grid (cols, rows), frame count, shader kind, anchor (the pivot in quad units: sheets drawn
 ## standing on a ground line pivot there), burn (1 = the erosion edge burns hot, magma).
@@ -39,6 +40,12 @@ const SHEETS := {
 		"anchor": Vector2(0.0, -0.125)},
 	"dust_puff": {"tex": preload("res://assets/vfx/designed/dust_puff.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite",
 		"anchor": Vector2(0.0, -0.3)},
+	# the air family (fx-air, tools/vfx_gen/air_sheets.py): played through the "air" row, debris through "dust"
+	"air_ribbon": {"tex": preload("res://assets/vfx/designed/air_ribbon.png"), "grid": Vector2(1, 4), "frames": 4, "kind": "ribbon_depth"},
+	"air_swirl": {"tex": preload("res://assets/vfx/designed/air_swirl.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "ground"},
+	"air_wisp": {"tex": preload("res://assets/vfx/designed/air_wisp.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
+	"air_gust": {"tex": preload("res://assets/vfx/designed/air_gust.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
+	"air_debris": {"tex": preload("res://assets/vfx/designed/air_debris.png"), "grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
 }
 
 ## Timelines: seconds each frame shows. Frame 0 is the anticipation (one 30 Hz frame), the peak holds, the
@@ -122,12 +129,12 @@ static func material(sheet: String) -> ShaderMaterial:
 		return _mats[sheet]
 	var s: Dictionary = sheet_of(sheet)
 	var m := ShaderMaterial.new()
-	m.shader = {"sprite": SPRITE, "sprite_depth": SPRITE_DEPTH, "ground": GROUND, "ribbon": RIBBON}[s.kind]
+	m.shader = {"sprite": SPRITE, "sprite_depth": SPRITE_DEPTH, "ground": GROUND, "ribbon": RIBBON, "ribbon_depth": RIBBON_DEPTH}[s.kind]
 	m.set_shader_parameter("sheet", s.tex)
 	m.set_shader_parameter("palette", palette())
 	m.set_shader_parameter("palette_rows", float(ROWS.size()))
 	m.set_shader_parameter("burn_hot", s.get("burn", 0.0))
-	if s.kind == "ribbon":
+	if s.kind.begins_with("ribbon"):
 		m.set_shader_parameter("rows", s.grid.y)
 	else:
 		m.set_shader_parameter("grid", s.grid)
@@ -156,6 +163,7 @@ var erode_span := Vector2(0.6, 1.0)  # shares of the life
 var real_until := -1  # frames before this play in real time (anticipation -> peak through the hitstop)
 var real_time := false  # the whole effect on real time (slow motion would stretch a lingering floor)
 var pop := 0.0  # extra scale on frame 0, settling by frame 2
+var first := 0  # the sheet frame the timeline's frame 0 shows (single-frame sheets: debris pieces)
 var standing := false  # fades when the next string's first hit lands (standing_fx)
 var _mi: MeshInstance3D
 var _base_scale := Vector3.ONE
@@ -247,7 +255,7 @@ func tick(delta: float) -> void:
 			break
 	if f != _frame:
 		_frame = f
-		_mi.set_instance_shader_parameter("frame", float(f))
+		_mi.set_instance_shader_parameter("frame", float(f + first))
 		if pop > 0.0:
 			_mi.scale = _base_scale * (1.0 + pop * maxf(0.0, 1.0 - f * 0.5))
 	var share := _t / _life
