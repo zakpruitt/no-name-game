@@ -448,3 +448,5 @@ the worktree, and deletes the branch once it has been merged.
   the moment you film, and step what you film on game time, or the frames skip.
 - **A reimport touches every `.import` file's line endings** (`git status` shows dozens modified): restore the ones you
   didn't mean to change (`git checkout -- <path>`) before committing.
+
+- **Landing new assets**: `.godot/` is ignored, so assets imported in a worktree are not imported in the dev checkout; the game there then fails to preload them. `agent.sh land` now runs `godot --headless --path . --import` in the dev checkout when a land adds files under `assets/` (2026-11-06, the designed fx sheets broke the owner's boot).

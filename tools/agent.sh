@@ -99,10 +99,17 @@ land)
 		echo "nothing to land: $branch is already in dev"; exit 0
 	fi
 	check "$quick" || die "checks failed: fix on $branch, then land again"
+	before=$(git -C "$main" rev-parse HEAD)
 	if ! git -C "$main" merge --ff-only "$branch"; then
 		die "dev moved (another agent landed) or the dev checkout has local edits on the same files: land again"
 	fi
 	echo "landed on dev: $(git log --oneline -1)"
+	# New assets were only imported in this worktree (.godot/ is ignored): import them in the dev checkout too,
+	# or the game there fails to preload them ("Unable to open file ... .ctex").
+	if git diff --name-only --diff-filter=A "$before" HEAD -- assets | grep -qv '[.]import$'; then
+		echo "new assets: importing in $main"
+		(cd "$main" && godot --headless --path . --import >/dev/null 2>&1; tidy) || echo "import in $main failed: run godot --headless --path . --import there"
+	fi
 	;;
 remove)
 	name=${2:-}; [ -n "$name" ] || die "usage: remove <name>"
