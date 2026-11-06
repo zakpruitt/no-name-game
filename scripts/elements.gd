@@ -1008,7 +1008,13 @@ class Well extends Node3D:
 		if _tick <= 0.0:
 			_tick = E.WELL_TICK
 			for e in E.FOES.near(get_tree(), global_position, radius):
-				e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
+				# Feel audit 3 (2026-11-06): a burn, not a blow. As a full hit every tick put a hit star, a word and a
+				# number on each foe every 0.5 s for 4 s after Undertow's look had gone (WELL_COMIC_SHOW 0.9 s): words
+				# cycling over the dummies with nothing on screen doing it, into the next string's walk-up.
+				if e.has_method("burn_hit"):
+					e.burn_hit(E.WELL_DAMAGE)
+				else:
+					e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
 				Game.register_hit("lava")
 
 	func _comic_mark() -> void:
