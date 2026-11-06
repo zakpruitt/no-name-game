@@ -19,6 +19,7 @@ const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
 const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
 const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 const COMIC_ARC := preload("res://scripts/comic_arc.gd")
+const LIVE_CURRENT := preload("res://scripts/live_current.gd")
 const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
 const COMIC_MELT := preload("res://scripts/comic_melt.gd")
 const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
@@ -58,15 +59,15 @@ const CHARGED := "OW"  # holding right click
 const DASH_MOVE := "TW"  # right click off a dash or a swing
 ## L off these moves goes somewhere else than on down the string. The X* moves are the crossovers (round 34):
 ## a string that changes element on the way, with a payoff only the two together give.
-const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT",
+const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT", "VR": "XC",
 	"XG": "XM", "XK": "XW"}
 const CHAIN := {"EF": 2}
 const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "EA": "water", "IP": "water", "IJ": "water", "IS": "water", "EM": "earth", "EV": "earth",
 	"VS": "void", "VR": "void", "VD": "void", "OW": "void", "TW": "void",
-	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind",
+	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind", "XC": "wind",
 	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
 ## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
-const FORM_OF := {"XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
+const FORM_OF := {"XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
@@ -250,6 +251,18 @@ const PITCH_LENGTH := 9.0  # m they fly
 const PITCH_SPREAD := 0.35  # radians between them
 const PITCH_DAMAGE := 16.0
 const PITCH_SPEED := 26.0
+## Galvanize (H L L, round 44): Reap marked them where they stand; a tentacle goes out to each and the storm runs
+## down them (live_current.gd), then arcs on. Its place: a spread-out crowd, which Updraft Lash and Molten Palm
+## need bunched. More linked, harder each zap; Black Tide (H L H) is the other answer off Reap, gathering them.
+const GALV_REACH := 9.0  # m: how far a tentacle goes for a foe Reap marked
+const GALV_NEAR := 6.0  # m: with nobody marked, who it takes in front of him...
+const GALV_CONE := 1.35  # ...within this many radians of his aim (Reap's crescent)
+const GALV_LINKS := 5  # tentacles at most
+const GALV_DAMAGE := 7.0  # each linked foe's zap with one linked...
+const GALV_LINK_BONUS := 0.3  # ...and this much more per other foe linked (5 linked: x2.2, 15.4 each, 77 in all)
+const GALV_JUMP := 3.5  # m an arc jumps from a zapped foe to one no tentacle holds (and on from that one)
+const GALV_JUMP_DAMAGE := 6.0
+const GALV_JUMPS := 4  # arcs at most
 const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
 const CATACLYSM_DOWN := 6.0  # m/s
 # Round 34, second pass: three elements in one string, and states that outlive it so a dash can improvise.
@@ -410,6 +423,8 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 		"XT":
 			_cash_buried(hero, at + fwd * PITCH_AHEAD, PITCH_GRAB, PITCH_DAMAGE * power, 0.0)  # (buried into storm)
 			return _pitch(hero, at, fwd, power)
+		"XC":
+			return _galvanize(hero, at, fwd, power)
 		"XG":
 			return _hailstorm(hero, at, power)
 		"XM":
@@ -890,6 +905,56 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 			{"el": "wind", "solid": true, "speed": PITCH_SPEED, "zap": true})
 		COMIC_ARC.ride(parent, e, flight)  # (the storm rides it for the flight)
 	return foes.size()
+
+
+## H L L: dark into storm (round 44). A tentacle goes out to each foe Reap marked, wherever it stands (the nearest
+## GALV_LINKS within GALV_REACH; nobody marked: those in front within GALV_NEAR), the charge gathers at his claw and
+## runs down every tentacle (live_current.gd): each linked foe is zapped as it arrives, GALV_DAMAGE x (1 +
+## GALV_LINK_BONUS per other link), then arcs jump on to the foes near them no tentacle reached (GALV_JUMP, chained).
+static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var tree := hero.get_tree()
+	var near: Array = FOES.near(tree, at, GALV_REACH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	var linked: Array = near.filter(func(e: Node3D) -> bool: return DARK.marked(e))
+	if linked.is_empty():
+		linked = near.filter(func(e: Node3D) -> bool:
+			var to := _flat(e.global_position - at)
+			return to.length() <= GALV_NEAR and (to.length() < 0.5 or fwd.angle_to(to.normalized()) <= GALV_CONE))
+	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	linked = linked.slice(0, GALV_LINKS)
+	if linked.is_empty():  # nobody to latch onto: it crackles out ahead
+		var from := at + Vector3.UP * 1.3 + fwd * 0.6
+		for k: float in [3.0, 6.0]:
+			ELEMENTS.arc(hero.get_parent(), from, at + fwd * k + Vector3.UP, ELEMENTS.LOOK.wind.color)
+		return 0
+	var each: float = GALV_DAMAGE * power * (1.0 + GALV_LINK_BONUS * (linked.size() - 1))
+	var c: Node3D = LIVE_CURRENT.start(hero, linked.map(func(e: Node3D) -> Dictionary: return {"foe": e}), true)
+	c.on_zap = func(e: Node3D, _p: int) -> void:
+		zap_hit(e, each)
+		Game.register_hit("cast")
+	c.on_jump = func(e: Node3D, _from: Variant) -> void:
+		zap_hit(e, GALV_JUMP_DAMAGE * power)
+		Game.register_hit("cast")
+	c.find_jumps = func() -> Array: return _jumps(tree, linked, GALV_JUMP, GALV_JUMPS)
+	c.pulse()
+	return linked.size()
+
+
+## Who an arc reaches from `from`: foes within `reach` of one of them, then of those, and so on (nearest first),
+## none of `from` itself, at most `most`.
+static func _jumps(tree: SceneTree, from: Array, reach: float, most: int) -> Array:
+	var out := []
+	var front: Array = from.filter(func(e: Variant) -> bool: return is_instance_valid(e))
+	while not front.is_empty() and out.size() < most:
+		var nxt := []
+		for f: Node3D in front:
+			for o: Node3D in FOES.near(tree, f.global_position, reach):
+				if not o in from and not o in out and not o in nxt and not THROWN.flying(o):
+					nxt.append(o)
+		for o: Node3D in nxt.slice(0, most - out.size()):
+			out.append(o)
+		front = nxt
+	return out
 
 
 ## Black Ice's press (hero_leap._start_dive): the pool freezes, with everyone in it.
