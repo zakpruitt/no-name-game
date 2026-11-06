@@ -266,12 +266,22 @@ func _audit2(main: Node, p: CharacterBody3D) -> void:
 	fl.note(p)
 	await create_timer(fl.AFTER_BREAKER_S * 0.5, true, false, true).timeout
 	_ok(is_instance_valid(f[0]) and f[0].get_child_count() == 0, "it waits %.1f s past the landing" % fl.AFTER_BREAKER_S)
+	var fin: GDScript = load("res://scripts/designed_finish.gd")
+	var fin0: int = fin.drawn
 	await create_timer(fl.AFTER_BREAKER_S * 0.5 + 0.08, true, false, true).timeout
-	var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
-	_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
-		"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
-	await create_timer(0.5, true, false, true).timeout
-	_ok(mine.call().is_empty(), "the column is gone in half a second")
+	if load("res://scripts/designed_fx.gd").on():  # round 46: the designed event (designed_finish.awaken)
+		var dfx: GDScript = load("res://scripts/designed_fx.gd")
+		var live := func() -> Array: return main.get_children().filter(func(c: Node) -> bool:
+			return c.get_script() == fin or (c.get_script() == dfx and str(c.sheet).begins_with("awaken_")))
+		_ok(fin.drawn == fin0 + 1 and not live.call().is_empty(), "then the designed Awakening (%d nodes)" % live.call().size())
+		await create_timer(1.3, true, false, true).timeout
+		_ok(live.call().is_empty() and mine.call().is_empty(), "the Awakening is gone in about a second")
+	else:
+		var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
+		_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
+			"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
+		await create_timer(0.5, true, false, true).timeout
+		_ok(mine.call().is_empty(), "the column is gone in half a second")
 	var drawn0: int = fl.drawn
 	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
 	_ok(fl.drawn == drawn0 + 1, "away from a breaker it shows at once")
