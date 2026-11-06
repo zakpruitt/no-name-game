@@ -101,6 +101,10 @@ const SECTIONS := [
 		{"input": "held by tendrils, then ice", "kind": "text", "state": "bound", "el": "water", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
 		{"input": "held by tendrils, then magma", "kind": "text", "state": "bound", "el": "earth", "own": true, "name": "Meteor Fall", "tier": 1, "note": "Undertow's window: he dives on the biggest group it holds."},
 		{"input": "held by tendrils, then dark", "kind": "text", "state": "bound", "el": "void", "own": true, "name": "Abyss", "tier": 1, "note": "Overwhelm's window: they sink through the floor and are thrown back up."},
+		{"input": "charged, then storm", "kind": "text", "state": "charged", "el": "wind", "name": "Overload", "tier": 1, "note": "Every charged foe near goes off at once, each zap harder the more are charged. Best after Galvanize or Grounded charged a crowd."},
+		{"input": "charged, then ice", "kind": "text", "state": "charged", "el": "water", "name": "Superconduct", "tier": 1, "note": "Frozen, and the charge runs through every frozen foe near it. Best with cubes standing about."},
+		{"input": "charged, then magma", "kind": "text", "state": "charged", "el": "earth", "name": "Arc Flash", "tier": 1, "note": "The charge goes off and blows the ones beside it away, splatting them on a wall. Best in a corner."},
+		{"input": "charged, then dark", "kind": "text", "state": "charged", "el": "void", "name": "Conduct", "tier": 1, "note": "The dark carries the charge on to everyone near it not charged yet. Best on a pack, to set up Overload."},
 	]},
 ]
 

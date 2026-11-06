@@ -18,6 +18,10 @@ extends "res://scripts/comic_flat.gd"
 ##   airborne x magma Meteor Spike: an ember line falls through it into the floor, a hot dent where it lands
 ##   bound x storm    Torn Loose: the violet ropes snap and whip off its feet, wind strokes up
 ##   bound x ice      Frozen in the Dark: violet coils round its legs ice over, small plates at its feet
+##   charged x dark   Conduct: a violet band coils round it, storm crackles jumping out of it (comic_bolt to each it charges)
+##   charged x ice    Superconduct: an ice star with storm crackles running out of it (comic_bolt on through the ice)
+##   charged x magma  Arc Flash: a hot flash star swelling, a magma shock ring, storm spokes blown out of it
+##   charged x storm  Overload: two storm bands spin up round it, a hot core, crackles out every way (comic_bolt on)
 ## Its word is ComicFx.IMPROV_WORDS[cell] (ComicFx.improv: said over the move's own word).
 ##   ComicImprov.spawn(parent, "frozen_x_void", foe, hero_spot, neighbour_or_null)
 
@@ -43,6 +47,10 @@ const LOOKS := {
 	"airborne_x_earth": {"name": "Meteor Spike", "life": 0.42, "ride": true, "a": "earth", "b": "earth"},
 	"bound_x_wind": {"name": "Torn Loose", "life": 0.4, "ride": true, "a": "air", "b": "void"},
 	"bound_x_water": {"name": "Frozen in the Dark", "life": 0.45, "ride": false, "a": "water", "b": "void"},
+	"charged_x_void": {"name": "Conduct", "life": 0.4, "ride": true, "a": "void", "b": "wind"},
+	"charged_x_water": {"name": "Superconduct", "life": 0.42, "ride": false, "a": "water", "b": "wind"},
+	"charged_x_earth": {"name": "Arc Flash", "life": 0.38, "ride": false, "a": "earth", "b": "wind"},
+	"charged_x_wind": {"name": "Overload", "life": 0.4, "ride": true, "a": "wind", "b": "wind"},
 }
 const BAND_R := 0.62  # m: a band round a foe (a dummy is ~0.5 m across; the ice cube 0.9)
 const BAND_W := 0.11
@@ -135,6 +143,10 @@ func _draw(s: int) -> void:
 		"airborne_x_earth": _meteor_spike(s, k, a)
 		"bound_x_wind": _torn_loose(s, k, a)
 		"bound_x_water": _frozen_dark(s, k, a)
+		"charged_x_void": _conduct(s, k, a)
+		"charged_x_water": _superconduct(s, k, a)
+		"charged_x_earth": _arc_flash(s, k, a)
+		"charged_x_wind": _overload(s, k, a)
 
 
 # --- The cells ---------------------------------------------------------------------------------------------
@@ -453,6 +465,75 @@ func _frozen_dark(s: int, _k: float, a: float) -> void:
 	if s == 2 or s == 3:
 		var g := base + Vector3.UP * 0.8 + _right * 0.45
 		_fan(g, _star_ring(PackedFloat32Array([1.0, 1.0, 1.0, 1.0]), 0.18, 0.18, PI * 0.25 * s), PAL.fade(_a.hot, a))
+
+
+# --- The charged cells (round 44): each the other element's own shape, with the storm's crackles out of it ----
+
+func _conduct(s: int, k: float, a: float) -> void:
+	for i in 2:  # the dark coiling round it, the charge riding it
+		_band(Vector3.UP * (-0.35 + 0.5 * i), BAND_R * (1.1 - 0.12 * i), _turn + s * 1.6 + PI * i, PI * 1.1, BAND_W, _a.body, a)
+	var n := 3
+	for i in n:
+		var d := _screen(_turn + TAU * (i + 0.5 * (s % 2)) / n)
+		_zig(d * 0.3, d * (0.75 + 0.25 * k), 3, 0.09, 0.1, a)
+	if to is Vector3:  # the way it went on
+		var d2: Vector3 = (to - foe.global_position) if is_instance_valid(foe) else Vector3.RIGHT
+		d2 = (d2 - _view * d2.dot(_view)).normalized()
+		_zig(d2 * 0.4, d2 * 1.0, 3, 0.1, 0.12, a)
+
+
+func _superconduct(s: int, k: float, a: float) -> void:
+	var size := 0.42 + 0.18 * minf(k * 3.0, 1.0)
+	var star := _star_ring(PackedFloat32Array([1.0, 0.7, 1.0, 0.75, 0.95, 0.7]), size, 0.42, _turn)
+	_outline(Vector3.ZERO, star, PAL.LINE, PAL.fade(INK, a))
+	_fan(Vector3.ZERO, star, PAL.fade(_a.light, 0.85 * a), PAL.fade(_a.body, 0.7 * a))
+	if s == 0:
+		_fan(Vector3.ZERO, _star_ring(PackedFloat32Array([1.0, 1.0, 1.0, 1.0]), 0.16, 0.4, _turn), HOT_CORE)
+	for i in 4:  # the charge running out through the ice
+		var d := _screen(_turn + TAU * (i + 0.5) / 4.0)
+		_zig(d * size * 0.6, d * (size + 0.45), 3, 0.08, 0.09, a)
+
+
+func _arc_flash(s: int, k: float, a: float) -> void:
+	var size := 0.5 + 0.55 * minf(k * 2.5, 1.0)
+	var star := _star_ring(PackedFloat32Array([1.0, 0.8, 1.0, 0.85, 1.0, 0.8, 0.95]), size, 0.5, _turn + s * 0.2)
+	_outline(Vector3.ZERO, star, PAL.LINE, PAL.fade(INK, a))
+	_fan(Vector3.ZERO, star, PAL.fade(HOT_CORE if s <= 1 else _a.hot, a), PAL.fade(_a.body, 0.55 * a))
+	var c := _floor_c()  # the blast's shock ring on the floor
+	var ring := 0.6 + 1.2 * minf(k * 1.6, 1.0)
+	_floor_loop(c, ring, 0.08 + PAL.LINE * 2.0, PAL.fade(INK, 0.7 * a))
+	_layer()
+	_floor_loop(c, ring, 0.08, PAL.fade(_a.light, 0.8 * a))
+	for i in 6:  # storm spokes blown out of it
+		var d := _screen(_turn + TAU * (i + _rng.randf_range(-0.15, 0.15)) / 6.0)
+		_zig(d * size * 0.7, d * (size + 0.4 + 0.3 * k), 3, 0.08, 0.08, a)
+
+
+func _overload(s: int, k: float, a: float) -> void:
+	for i in 2:
+		var h := -0.55 + 0.45 * i + 0.4 * k
+		_band(Vector3.UP * h, BAND_R * (1.2 - 0.15 * i), _turn - s * 1.4 + PI * i, PI * 1.2, BAND_W, _a.body, a)
+	var core := _star_ring(PackedFloat32Array([1.0, 0.75, 1.0, 0.75, 1.0]), 0.3 if s == 0 else 0.22, 0.4, _turn)
+	_outline(Vector3.ZERO, core, PAL.LINE, PAL.fade(INK, a))
+	_fan(Vector3.ZERO, core, HOT_CORE if s <= 1 else PAL.fade(_a.light, a), PAL.fade(_a.body, 0.8 * a))
+	for i in 5:  # crackles out every way, a new set each step
+		var d := _screen(_rng.randf() * TAU)
+		_zig(d * 0.3, d * _rng.randf_range(0.8, 1.15), 4, 0.1, 0.1, a)
+
+
+## A storm crackle from `p0` to `p1` (local): kinked anew every step, `n` segments, `jag` m sideways; an ink line
+## round the storm body and a pale core (fx_palette "wind"), thin at its far end.
+func _zig(p0: Vector3, p1: Vector3, n: int, jag: float, w: float, a: float) -> void:
+	var p := PAL.of("wind")
+	var d := p1 - p0
+	var side := d.cross(_view).normalized()
+	var pts := PackedVector3Array([p0])
+	for i in range(1, n):
+		pts.append(p0 + d * (float(i) / n) + side * _rng.randf_range(-jag, jag))
+	pts.append(p1)
+	_strip(pts, w + PAL.LINE * 2.0, w * 0.4 + PAL.LINE * 2.0, PAL.fade(INK, a))
+	_strip(pts, w, w * 0.4, PAL.fade(p.body, a))
+	_strip(pts, w * 0.35, 0.0, PAL.fade(p.light, a))
 
 
 # --- Shapes ------------------------------------------------------------------------------------------------

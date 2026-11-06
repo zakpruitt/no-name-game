@@ -1012,18 +1012,54 @@ func _element_matrix() -> void:
 						shows = el.in_cube(o) and el.marked(o, "skewered")
 					"tear":
 						shows = e.last_kb.z < 0.0
+					"conduct":
+						shows = o.hits > 0 and el.marked(o, "charged") and el.marked(e, "charged")
+					"superconduct":
+						shows = el.in_cube(e)
+					"flash":
+						shows = o.hits > 0 and o.has_meta("thrown_foe_flying")
+					"overload":
+						shows = e.hits >= 1
 				_check(paid == 1 and e.hits >= 1 and shows, "%s: %s (paid %d, hits %d, kb %s, launch %.1f)" % [cell, kind, paid, e.hits, e.last_kb, e.last_launch])
 				if kind == "fan":
 					_check(el.marked(o, "molten") and o.hits > 0, "fan: the flames catch the one beside it")
 				if kind == "loose":
 					_check(not BIND.holds(e), "loose: out of the bind")
-				if state in ["buried", "molten", "skewered"]:
+				if state in ["buried", "molten", "skewered"] or (state == "charged" and kind != "conduct"):
 					_check(not el.marked(e, state), "%s: spent once" % cell)
 			if is_instance_valid(bind):
 				bind.free()
 			e.free()
 			o.free()
-	_check(cells >= 15, "the matrix has its cells (%d)" % cells)
+	_check(cells >= 19, "the matrix has its cells (%d)" % cells)
+	# Round 44: a jolt leaves them charged; Overload is harder the more are charged, and discharges them all, the
+	# ones out of the move's reach too.
+	var one := _foe(Vector3(0, 0, 2.0))
+	el.jolt(hero, one)
+	_check(el.marked(one, "charged"), "a jolt leaves it charged")
+	var before := one.hp
+	el.improvise(hero, "EC", Vector3.ZERO, 1.0)
+	var alone: float = before - one.hp
+	one.free()
+	var trio := [_foe(Vector3(0, 0, 2.0)), _foe(Vector3(4.0, 0, 3.0)), _foe(Vector3(-4.0, 0, 3.0))]
+	for e: Foe in trio:
+		el.mark(e, "charged")
+	el.improvise(hero, "EC", Vector3.ZERO, 1.0)
+	_check(500.0 - trio[0].hp > alone * 1.5 and trio[1].hits > 0 and trio[2].hits > 0
+		and not trio.any(func(e: Foe) -> bool: return el.marked(e, "charged")),
+		"Overload: harder with three charged (%.1f vs %.1f alone), all three discharged" % [500.0 - trio[0].hp, alone])
+	for e: Foe in trio:
+		e.free()
+	# Superconduct: the charge runs on through a cube standing 5 m off.
+	var payer := _foe(Vector3(0, 0, 2.0))
+	var cube := _foe(Vector3(5.0, 0, 3.0))
+	el.mark(payer, "charged")
+	el.encase(cube)
+	el.improvise(hero, "EF", Vector3.ZERO, 1.0)
+	_check(el.in_cube(payer) and cube.hits > 0 and el.marked(cube, "charged"), "Superconduct runs through the ice to the cube 5 m off")
+	payer.free()
+	cube.free()
+	await _settle()
 	# Round 4: the payoff follows the move's own hit shape. A foe behind him, well inside the old 5 m reach round
 	# him, is outside every one of these moves (the gale's circle ahead, the harpoon's line, the palm's line, the
 	# crescent) and doesn't pay; nor does one off to the side of the harpoon's line.

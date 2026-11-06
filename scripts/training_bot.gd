@@ -52,7 +52,9 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	["out", "face", "L", "L", "L", "H", "H", "D", "wait", "L", "H"],
 	# Round 44: Galvanize, a tentacle on everyone Reap marked and the current down them ("spread": the dummies stand
 	# apart in a wide arc ahead, the crowd it is for).
-	["spread", "H", "L", "L"]]
+	["spread", "H", "L", "L"],
+	# Galvanize charges the spread crowd, and Updraft Lash discharges them all at once (charged x storm: Overload).
+	["spread", "H", "L", "L", "wait", "L", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
 const BOT_SETUP := ["alt", "line", "out", "face", "spread"]
 ## A "spread" string's dummies stand on an arc BOT_SPREAD_R m ahead of him, BOT_SPREAD_ARC radians either side of his aim.
@@ -367,6 +369,8 @@ func _reset_spots() -> void:
 		if is_instance_valid(d):
 			d.global_position = d.home
 			d.velocity = Vector3.ZERO
+			if d.has_meta("x_charged"):
+				d.remove_meta("x_charged")  # (nearly every string charges them: each starts clean, or it pays the last's)
 	var target: Vector3 = main._dummies[0].home
 	var back := _start_pos - target
 	back.y = 0.0

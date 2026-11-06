@@ -66,6 +66,7 @@ const IMPROV_WORDS := {
 	"skewered_x_water": "KRIK-KRIK!", "skewered_x_void": "RRRIP!",
 	"airborne_x_water": "FRZZK!", "airborne_x_earth": "KA-CHUNK!",
 	"bound_x_wind": "SNAPP!", "bound_x_water": "KLINNK!",
+	"charged_x_void": "BZZT-ZAP!", "charged_x_water": "KRZZZK!", "charged_x_earth": "FWA-KOOM!", "charged_x_wind": "ZZRAAAK!",
 }
 const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
 const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
