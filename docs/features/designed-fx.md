@@ -295,3 +295,49 @@ the oldest sample, eroding first; boils on twos; palette row from the trail colo
 Strip sheets are drawn at about 280 px a metre but seen at about 48: an ink line that reads as 2 px on screen is
 about 10 px in the strip (`INK_PX`). The tentacle draws its ink in the shader in metres instead, so the thin tip
 keeps its line.
+
+## Round 45: one ring, quieter cue, dark conversions (fx-cohesion2 lane)
+
+The orchestrator's review of round 44: the floor still read as circles (in Live Wire's hang the cue's thick closing
+ring, a second green stamp and the dashed target were all on screen), and after fx-air turned storm electric lime the
+cue's ring was the loudest thing in the frame.
+
+**Floor marks: one at a time.**
+- A ground stamp is never a closed circle: `stamp_shock` draws one arc a tile over less than half of it (3-5 tiles, so
+  about 45% of the circle), fat near its front and dragged out concave to a hair. Its ink is its own tapered stroke:
+  a uniform `grow` turned the thin ends into ink dots.
+- Lives are 0.15-0.25 s (`SHOCK_LIFE`, real cap 0.35 s): a shock line is an accent, not a lingering ring.
+- `designed_ink.shock()` drops a second shock within `SHOCK_APART` (5 m) of a live one, and draws none while a breaker
+  cue is closing (`cue_on()` / `cue_live()`; the cue's `closing()`); a shock still running when a cue appears goes.
+  The press's snap is the one ring a press leaves (the closing ring hides on the press).
+- Ring-like floor marks per filmed frame (scratch `_fxcoh_film.gd` counts live shocks and the cue's two rings):
+
+  | String | round 44 max / mean / frames with 2+ / shocks during the cue | round 45 |
+  |---|---|---|
+  | Live Wire (L_H_H) | 4 / 0.81 / 11 / 4 | 3 / 0.68 / 10 / 2 (the press snap only) |
+  | Singularity / Collapse (H_H) | 5 / 1.53 / 14 / 8 | 3 / 0.60 / 8 / 2 |
+  | Reap / Black Tide (H_L_H) | 4 / 0.92 / 12 / 4 | 3 / 0.53 / 7 / 2 |
+
+  "2+" frames now are the cue itself (target + closing) and, for a frame or two, its fading target with the press snap.
+
+**The breaker cue, quieter.** Same timing, same colour meanings. The target is a thin solid brush line (0.17 m; paper,
+gold in the window, grey when locked). The closing ring is long broken cream dashes (0.2 m, six tiles of three
+dashes) with every third tile in the ending's colour (`accent_every` in `designed_stamp.gdshader`); two endings still
+alternate their colours tile by tile.
+
+**Dark, in the Dark shape language.**
+- Pools (`dark_fx.Pool`): `dark_pool`, an authored floor decal (an ink well, a violet body with negative-space holes,
+  tapered arms curling out with drops flung past their tips, a light rim so it lifts off the indigo floor), boiling on
+  twos (`designed_ink.floor_loop()`), eroding away at the pool's end. The group and timings are untouched.
+- The Singularity (`dark_fx.Hole`): `dark_vortex`, five curling arms swirling into an ink hole with a hot lip, spun by
+  the hole's `_spin`. Its rim arcs, edge hoop and the inward hoop every 0.45 s are gone in designed mode (the pull,
+  ticks and collapse are untouched).
+- Reap: the designed brush slash in the dark palette at 0.6 of the reach (the full 6.5 m arc's band was a 2 m slab).
+
+**Locomotion and kills.** `comic_dust` puffs are one drawn `dust_puff` each (skid marks stay); the dash streak is
+drawn speed strokes thrown back off the kick-off in his colour (once a frame); `Fx.death` is a held big hit star, a
+burst of strokes along the blow and a dust puff where he drops (the loose bone chips are gone).
+
+Still polygons: `comic_axe_aura`'s blade tongues (not converted this round; it has no void look of its own, so the
+"purple crescent" named in round 44's list still needs pinning down in a film), chain halos and daze stars, combo pop
+strokes, the Awakening, the spirit echo ghost.

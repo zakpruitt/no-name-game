@@ -740,3 +740,18 @@ and zaps everybody". See `docs/features/void-element.md` ("The tentacle conducts
 - [ ] Grounded's LMB ending (Short Circuit, combo-breakers.md round 43 table): not done
 - [ ] Feel pass (a rising pitch per chain link): `Game.sfx` has no pitch control; not done
 - [ ] Zak plays Galvanize and the four cells by hand
+
+## Round 45 (fx-cohesion2)
+Orchestrator review of round 44: the floor still read as circles, and the cue turned lime and loud. See
+`docs/features/designed-fx.md` "Round 45".
+- [x] One ring-like floor mark at a time: open hair-thin shock arcs (~45% of the circle) living 0.15-0.25 s, a second
+  within 5 m dropped, none while a breaker cue is closing (Live Wire max marks 4 -> 3, shocks during the cue 4 -> the
+  press snap only)
+- [x] Quieter breaker cue: thin target line, broken cream closing dashes with every third tile in the ending's colour
+- [x] Dark: authored pool and Singularity vortex decals (boiling on twos, light rim), the Reap crescent as the designed
+  slash; the hole's inward hoops gone
+- [x] Kills, dash streaks and locomotion dust drawn (`dust_puff`, impact streaks, a held hit star)
+- [x] Clips: `awaken-combo-clips/21 Cohesion Live Wire tentacle and rings before-after.mp4`, `21 Cohesion Singularity
+  rings and vortex before-after.mp4`
+- [ ] Still polygons: `comic_axe_aura`, chain halos, daze stars, combo pop strokes, the Awakening, the spirit echo ghost
+- [ ] Zak's call on the cue (cream with an accent vs the ending's colour all round)

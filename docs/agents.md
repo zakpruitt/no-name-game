@@ -418,6 +418,11 @@ fast-forward, so no agent edits another's files or index.
 - **Scratch files block `agent.sh land`** (it needs a clean tree, untracked included): list them in the common git
   dir's `info/exclude` (`git rev-parse --git-common-dir`), not `.gitignore`. Backslash line continuations inside a
   heredoc'd Python patch get eaten; keep patched lines on one line or use an editor tool.
+- **Round 45 (fx-cohesion2):** count what you are judging. A scratch copy of `string_film.gd` that appends a count of
+  live effect nodes to each INDEX line (`rings=N`) turned "the floor still reads as circles" into a number per frame
+  for before / after. A land after another lane adds assets fails every check with "Could not preload" until
+  `godot --headless --path . --import` runs in your worktree; dev moving mid-land (about 15 min of checks) costs a
+  rerun, so land several small commits together when other lanes are busy.
 
 ## The harness (`tools/agent.sh`)
 
