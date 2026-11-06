@@ -804,7 +804,7 @@ WEAPON_PARTS = {
     "hammer_void_haft": (build_hammer_haft, "weapon.hammer"), "hammer_void_head": (build_hammer_head, "weapon.hammer"),
     "hammer_void_lava": (build_hammer_lava, "weapon.hammer"), "hammer_void_rock": (build_hammer_rock, "weapon.hammer"),
 }
-WEAPON_COLOR = {"haft": (0.62, 0.3, 1.0), "blade": (0.15, 0.06, 0.3), "edge": (0.3, 1.0, 0.5), "core": (0.3, 1.0, 0.5),
+WEAPON_COLOR = {"haft": (0.62, 0.3, 1.0), "blade": (0.15, 0.06, 0.3), "edge": (0.72, 1.0, 0.14), "core": (0.72, 1.0, 0.14),
                 "collar": (0.15, 0.06, 0.3), "ice": (0.6, 0.9, 1.0), "head": (0.15, 0.06, 0.3), "lava": (1.0, 0.5, 0.1),
                 "rock": (0.5, 0.25, 0.8)}
 wpn = {}

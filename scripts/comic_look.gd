@@ -82,7 +82,8 @@ const EMITS := {
 	# the hero's own: the darkness in him is violet, and his elements fall to it in their lowest tone
 	"P_Fracture": [Color(0.34, 0.1, 0.62), Color(0.82, 0.55, 1)],
 	"P_LavaDark": [Color(0.2, 0.04, 0.28), Color(1, 0.86, 0.2), Color(1, 0.28, 0.02)],
-	"P_StormGreen": [Color(0.02, 0.25, 0.16), Color(0.86, 1, 0.72), Color(0.16, 0.85, 0.38)],
+	# the hero's axe edge (only his GLBs use it): fx_palette's storm row, electric lime (round 44 fx-air)
+	"P_StormGreen": [Color(0.3, 0.55, 0.02), Color(0.94, 1.0, 0.6), Color(0.72, 1.0, 0.14)],
 	"P_EyeWhite": [Color(0.965, 0.93, 0.82), Color(0.965, 0.93, 0.82)],
 	"P_EyeBlue": [Color(0.1, 0.45, 1), Color(0.7, 0.95, 1)],
 	"P_Pupil": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
@@ -118,7 +119,7 @@ const KIND_TONES := {
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
 	# His weapons grow out of the claw, so they carry its paint: fx_palette's void (round 40). Hafts are the
 	# claw's violet, heads and blades the void's deep and ink, and each keeps one element accent of its own
-	# (the axe's green edge, the spear's ice, the hammer's lava); the hammer's rock studs go void too.
+	# (the axe's edge, the spear's ice, the hammer's lava); the hammer's rock studs go void too.
 	"heretic": {
 		"P_Tendril": {"shadow": Color(0.22, 0.07, 0.42), "mid": Color(0.5, 0.23, 0.86), "light": Color(0.66, 0.36, 1.0), "rim": Color(1.0, 0.52, 0.95), "brush": 0.1},
 		"P_VoidHard": {"shadow": Color(0.03, 0.01, 0.06), "mid": Color(0.13, 0.05, 0.25), "light": Color(0.3, 0.1, 0.56), "rim": Color(0.62, 0.3, 1.0), "brush": 0.1},
