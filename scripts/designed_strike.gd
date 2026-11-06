@@ -31,10 +31,7 @@ const FORKS := 2
 const FORK_LEN := Vector2(0.9, 1.5)  # m
 const SCORCH_SIZE := 3.4  # m, the floor star's square (round 1: 2.0 hid under the struck foe)
 const SCORCH_TIMES := [0.06, 0.08, 0.14, 0.25, 0.35, 0.45]  # real s: white-hot, cooling, breaking up
-const CRAWL_SIZE := 1.9  # m, the crawling arcs' square (round 1: 1.5 read as specks)
-const CRAWL_UP := 0.8  # m above the foe's feet
-const CRAWL_REACH := 0.7  # m from the strike's foot
-const CRAWL_TIMES := [0.035, 0.06, 0.06, 0.06, 0.07, 0.08]
+const CRAWL_REACH := 0.7  # m from the strike's foot: the foes it crawls on (DesignedFx.crawl)
 
 var _sky := Vector3.ZERO
 var _foot := Vector3.ZERO
@@ -83,24 +80,7 @@ func _build(parent: Node, star: float) -> void:
 		burst.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 	if is_inside_tree():
 		for foe: Node3D in FOES.near(get_tree(), _foot, CRAWL_REACH):
-			_crawl(parent, foe)
-
-
-## Arcs crawling over a struck foe: one set per foe at a time.
-func _crawl(parent: Node, foe: Node3D) -> void:
-	var now := Time.get_ticks_msec()
-	if int(foe.get_meta("arc_crawl_until", 0)) > now:
-		return
-	var life := 0.0
-	for t: float in CRAWL_TIMES:
-		life += t
-	foe.set_meta("arc_crawl_until", now + int(life * 1000.0))
-	var off := Vector3(0.0, CRAWL_UP, 0.0)
-	var fx := DESIGNED.spawn(parent, "arc_crawl", foe.global_position + off, CRAWL_SIZE, "wind", CRAWL_TIMES, Vector2(0.5, 1.0))
-	fx.real_until = 1
-	fx.follow = foe
-	fx.follow_off = off
-	fx.vary(PI, true)
+			DESIGNED.crawl(parent, foe)
 
 
 func _strip_set(mi: MeshInstance3D, frame: int, heat: float, erode: float) -> void:

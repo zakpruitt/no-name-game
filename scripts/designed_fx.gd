@@ -545,6 +545,29 @@ static func zap(parent: Node, at: Vector3, size := 0.6) -> Node3D:
 	return fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 
 
+## Small arcs crawling over a struck foe for a few frames (arc_crawl), riding it as it flies: the sky strike's struck
+## foes and the tentacle's zapped ones (live_current). One set per foe at a time.
+static func crawl(parent: Node, foe: Node3D, size := 1.0) -> Node3D:
+	var now := Time.get_ticks_msec()
+	if int(foe.get_meta("arc_crawl_until", 0)) > now:
+		return null
+	var life := 0.0
+	for t: float in CRAWL_TIMES:
+		life += t
+	foe.set_meta("arc_crawl_until", now + int(life * 1000.0))
+	var off := Vector3(0.0, CRAWL_UP, 0.0)
+	var fx := spawn(parent, "arc_crawl", foe.global_position + off, CRAWL_SIZE * size, "wind", CRAWL_TIMES, Vector2(0.5, 1.0))
+	fx.real_until = 1
+	fx.follow = foe
+	fx.follow_off = off
+	return fx.vary(PI, true)
+
+
+const CRAWL_SIZE := 1.9  # m, the crawling arcs' square (1.5 read as specks)
+const CRAWL_UP := 0.8  # m above the foe's feet
+const CRAWL_TIMES := [0.035, 0.06, 0.06, 0.06, 0.07, 0.08]
+
+
 ## Draw every material once at real size under `root` (elements.prewarm), so no effect compiles on first use.
 static func prewarm(root: Node3D) -> void:
 	for name_: String in SHEETS:

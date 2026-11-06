@@ -32,7 +32,8 @@ const CHARGE := 0.1  # s the claw gathers before the first pulse leaves it (the 
 const LIT := 0.1  # s a tentacle stays lit along its whole length after its pulse arrives
 const JUMP_STEP := 0.045  # s between the arcs that jump on from the zapped
 const STEP_S := 1.0 / 12.0  # the strip boils and the tint flickers on twos
-const TRAIL_W := 0.2  # m: the lit trail's bolt (the strip's body is about a third of its 2.6x height)
+const TRAIL_W := 0.28  # m (fx-air: 0.2 read as a thin wash on the tentacle): the lit trail's bolt (the strip's body is about a third of its 2.6x height)
+const TRAIL_HEAT := 0.3  # the lit strip flashes this much hotter every other step (designed ribbon `heat`)
 const HEAD_R := 0.36  # m: the bright knot at a pulse's head
 const CLAW_R := 0.46  # m: the charge at his claw at its fullest
 const POP_LEN := 0.8  # m: a fork off a zapped foe
@@ -367,6 +368,7 @@ func _draw(hand: Vector3) -> void:
 	_trail_mi.set_instance_shader_parameter("frame", float(step % 4))
 	_trail_mi.set_instance_shader_parameter("scroll", float(step) * 0.37)
 	_trail_mi.set_instance_shader_parameter("erode", 0.0)
+	_trail_mi.set_instance_shader_parameter("heat", TRAIL_HEAT if step % 2 == 0 else 0.0)  # (fx-air: crackles white-hot on twos)
 
 
 ## 0..1 through the held beat (0 outside it).
@@ -463,6 +465,8 @@ func _pop(e: Node3D) -> void:
 		var a := turn + PI * i + _rng.randf_range(-0.4, 0.4)
 		var length := POP_LEN * (1.0 if together > 0.0 else 0.6)
 		COMIC_BOLT.spawn(get_parent(), at, at + (right * cos(a) + up * sin(a)) * length, 0.14 * (fat if together > 0.0 else 0.85))
+	if DESIGNED.on():  # fx-air: arcs crawl over it for a few frames, riding it (designed_fx.crawl; smaller on a quiet jolt)
+		DESIGNED.crawl(get_parent(), e, 0.85 if together > 0.0 else 0.65)
 
 
 func _star(at: Vector3, r: float, inner: float, turn: float, right: Vector3, up: Vector3, c: Color) -> void:
