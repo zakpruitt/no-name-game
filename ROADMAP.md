@@ -776,3 +776,19 @@ Tentacle lightning; tuning).
   `element_hit` (fx-cohesion's), `P_GlowWind` (foe eye glow), `void_tendril.electrify`'s default tint (fx-cohesion's)
 - [ ] Galvanize's tentacles not filmed (no bot string in the film range); it shares Live Wire's code
 - [ ] Zak's call on the look (clips `awaken-combo-clips/19 Air f..` onward)
+
+## Round 44 b (combo-lightning, second pass)
+Orchestrator: make Galvanize the showpiece, thin Live Wire's late hang, Short Circuit, real-move proof for the cells.
+- [x] Galvanize as an event: tentacles whip out to everyone within 8 m (Reap's marked from 11 m, x1.25), one by one;
+  a held charge beat in half-speed slow motion, the tentacles lighting out from his claw; one fat pulse lands on all
+  of them on the same frame (a real hit and stagger each), the hit stop and BZZRAKK! sized by how many are linked;
+  the arcs on, a longer hit stop each link; the tentacles snap back
+- [x] Live Wire: one small fork per arrival; the charged mark and its crackle only once the hang ends; the per-jolt
+  numbers already merge into one counting number per foe (`comic_number` `MERGE_S`)
+- [x] Short Circuit (Grounded's LMB): the held take half and are spent, the charge arcs out one after another to up
+  to 8 foes not held within 12 m; best when the room is full past the tentacles. Bot string `spread far alt L H H`
+- [x] Charged lasts 3 s; every charged cell has a real-move bot string (Overload, Conduct, Arc Flash, Superconduct)
+- [x] Clips: `awaken-combo-clips/20 Lightning r2 *`
+- [ ] Short Circuit's far arcs land off the game camera at 10 m: read from the test and the [improv] line, not seen
+- [ ] fx-air2 to polish the bolt look (`live_current._trail_strip`, `_head`, `_claw`, `_pop`)
+- [ ] Zak plays Galvanize and Short Circuit by hand

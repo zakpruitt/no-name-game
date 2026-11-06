@@ -23,6 +23,11 @@ Black Tide, Singularity, Overwhelm, Tow Line.
 
 Bold cells are the third pass's (`VOID_ELEMENT.IMPROV`); the rest were already paid by the moves themselves.
 Charged is last in `IMPROV_ORDER`: nearly every Live Wire leaves it, so it pays only when nothing rarer is there.
+It lasts `CHARGED_HOLD` 3 s, not `ELEMENT_HOLD` (round 44 b: Galvanize's event, a wait and L L L H did not fit in 2 s).
+Live Wire marks the foes it zapped only when the hang ends (`void_grab._charge_jolted`), so the crackle tell isn't
+drawn over the held pile; Short Circuit (Grounded's L ending) spends the held foes' charge and moves it into the
+ones it arcs to. Bot strings off Galvanize (`spread H L L wait ...`): `L H` Overload, `H L` Conduct, `L L L H` Arc
+Flash, `L L H` Superconduct (last: its spear stands 5 s and turns the next string's L L into the vault).
 The training bot clears it at the start of each string (`_reset_spots`), or each string would pay the last one's.
 Foes carry it visibly: two small storm crackles crawling on the outline (`comic_state_tell.gd` "charged").
 

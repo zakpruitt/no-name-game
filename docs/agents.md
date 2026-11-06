@@ -56,6 +56,10 @@ fast-forward, so no agent edits another's files or index.
 
 ## Lessons
 
+- **Bot strings share the room.** Frost Spear stands 5 s: a string after one that plants it gets the vault on its
+  L L instead of the swings. Put spear strings last, or read the autotest `[rhythm]` line for the moves it really did.
+- **Effects on a breaker's landing frame are hidden by the impact frame** (two inked flash frames). Delay what
+  must be seen (Short Circuit's arcs: `create_timer` 0.12 s) past it.
 - **Import after a rebase that brings new assets, before `land`.** A dev commit with new designed PNGs made every
   check in `land` fail on `Could not preload resource file`; `godot --headless --import --path .` in the worktree,
   then land. If the full checks pass and only the fast-forward loses the race, rebase, import and `land --quick`
