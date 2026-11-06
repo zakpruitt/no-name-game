@@ -56,6 +56,22 @@ func _initialize() -> void:
 	_save("user://training_pause.png")
 	pause._buttons[labels.find("Fill Awakening")].pressed.emit()
 	_check(game.awakening >= game.AWAKEN_MAX, "Fill Awakening fills the meter")
+	# Slow motion (T / the pause menu): the whole game at half, then quarter speed; hitstop multiplies on top.
+	_check("Slow motion: off" in labels, "the pause menu has the slow motion row")
+	game.set_slow(0.5)
+	await process_frame
+	_check(absf(Engine.time_scale - 0.5) < 0.001, "slow motion halves the game (%.2f)" % Engine.time_scale)
+	_check("SLOW MOTION" in main.hud.readout_label.text, "and the readout says so (%s)" % main.hud.readout_label.text)
+	game.hitstop(0.3, 0.1)
+	_check(Engine.time_scale <= 0.051, "a hitstop multiplies on top of it (%.3f)" % Engine.time_scale)
+	game.end_slowmo()
+	_check(absf(Engine.time_scale - 0.5) < 0.001, "and ends back at the slow speed, not full")
+	game.cycle_slow()
+	_check(absf(game.slow - 0.25) < 0.001, "the next step is a quarter")
+	game.cycle_slow()
+	await process_frame
+	_check(game.slow == 1.0 and absf(Engine.time_scale - 1.0) < 0.001, "then full speed again")
+	_check(not ("SLOW MOTION" in main.hud.readout_label.text), "and the readout drops the tag")
 	print("[training] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	game.stop_all_sfx()
 	await create_timer(0.2).timeout

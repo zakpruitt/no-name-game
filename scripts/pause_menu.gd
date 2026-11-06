@@ -47,6 +47,7 @@ func _open(focus := 0) -> void:
 	var items: Array = [
 		["Resume", close_menu],
 		["Fill Awakening", _train.bind("train_awaken")],
+		["Slow motion: %s" % Game.slow_text(), _cycle_slow],
 	]
 	var settings := items.size()
 	items.append_array([
@@ -56,6 +57,12 @@ func _open(focus := 0) -> void:
 	])
 	show_menu("TRAINING", "", items, "", 0.7, focus)
 	_build_moves()
+
+
+## Training's slow motion, one step on (Game.cycle_slow); the menu stays open on the same row to show it.
+func _cycle_slow() -> void:
+	Game.cycle_slow()
+	_open(2)
 
 
 func _train(method: String) -> void:

@@ -944,7 +944,7 @@ static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized
 ## A crossover's state on a foe ("buried", "molten", "skewered"), good for ELEMENT_HOLD s of real time.
 static func mark(e: Variant, state: String) -> void:
 	if is_instance_valid(e):
-		e.set_meta("x_" + state, Time.get_ticks_msec() + int(ELEMENT_HOLD * 1000.0))
+		e.set_meta("x_" + state, Time.get_ticks_msec() + int(ELEMENT_HOLD * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
 
 
 static func marked(e: Variant, state: String) -> bool:
@@ -1184,14 +1184,14 @@ static func meteor_target(at: Vector3, spots: Array, fresh: Array, reach := METE
 static func wall_fresh(e: Object) -> bool:
 	if not is_instance_valid(e) or not e.has_meta(THROWN.WALL_META):  # (get_meta's null default still errors)
 		return false
-	return Time.get_ticks_msec() - int(e.get_meta(THROWN.WALL_META)) <= METEOR_SPLAT_FRESH_MS
+	return Time.get_ticks_msec() - int(e.get_meta(THROWN.WALL_META)) <= METEOR_SPLAT_FRESH_MS / Game.slow
 
 
 ## Did Molten Palm hit `e` within METEOR_PALM_FRESH_MS?
 static func palm_fresh(e: Object) -> bool:
 	if not is_instance_valid(e) or not e.has_meta(PALM_META):
 		return false
-	return Time.get_ticks_msec() - int(e.get_meta(PALM_META)) <= METEOR_PALM_FRESH_MS
+	return Time.get_ticks_msec() - int(e.get_meta(PALM_META)) <= METEOR_PALM_FRESH_MS / Game.slow
 
 
 ## meteor_target over the living foes round the hero that this string's Molten Palm hit (the ones it pressed into a
