@@ -68,6 +68,16 @@ const STEAM_UP := 1.25  # m: the cloud's middle over the floor
 const STEAM_BACK := 0.55  # m behind the foe, away from the camera (depth tested: the foe reads in front of it)
 const STEAM_TIMES := [0.04, 0.09, 0.08, 0.09, 0.1, 0.12]
 
+## Eruption's landing (comic_erupt.gd, designed): the meteor's magma crown, small, up under each foe nearest first.
+const ERUPT_SIZE := 2.3  # m: magma_burst's square (its tongues stand ~0.8 m); molten foes x ERUPT_HOT
+const ERUPT_HOT := 1.3
+const ERUPT_BACK := 0.35  # m behind the foe (depth tested: the foe reads in front of its tongues)
+const ERUPT_STAGGER := 0.05  # game s, nearest first (comic_erupt.STAGGER)
+## Anvil's landing (comic_anvil.gd, designed): a drawn scorched crater star under each foe, a dust puff, staggered.
+const ANVIL_SIZE := 2.6  # m: strike_scorch's square in the earth row
+const ANVIL_STAGGER := 0.04
+const ANVIL_TIMES := [0.05, 0.08, 0.12, 0.16, 0.2, 0.24]
+
 static var _registered := false
 static var drawn := 0  # Awakenings drawn (checks)
 
@@ -284,3 +294,58 @@ static func steam(parent: Node, spot: Vector3) -> Node3D:
 	var fx := DESIGNED.spawn(parent, "steam_cloud", Vector3(spot.x, STEAM_UP, spot.z) + back, STEAM_SIZE, "water", STEAM_TIMES, Vector2(0.5, 1.0))
 	fx.real_until = 1
 	return fx.vary(0.15, true)
+
+
+## comic_erupt.spawn (designed): spots nearest `from` first, ERUPT_STAGGER apart on game time (the landing's hit stop
+## holds them until its impact frame has gone, as the flat version did).
+static func erupt(parent: Node, from: Vector3, spots: Array, molten: Array) -> void:
+	var order := range(spots.size())
+	order.sort_custom(func(a: int, b: int) -> bool:
+		return _flat_dist(spots[a], from) < _flat_dist(spots[b], from))
+	var back := _away(parent) * ERUPT_BACK
+	for n in order.size():
+		var i: int = order[n]
+		var spot: Vector3 = spots[i]
+		var hot: bool = bool(molten[i]) if i < molten.size() else false
+		_later(parent, n * ERUPT_STAGGER, func() -> void:
+			var fx := DESIGNED.spawn(parent, "magma_burst", Vector3(spot.x, 0.0, spot.z) + back,
+				ERUPT_SIZE * (ERUPT_HOT if hot else 1.0), "earth", DESIGNED.MAGMA_TIMES, Vector2(0.55, 1.0))
+			fx.real_until = 1
+			fx.set_spin(0.0, -1.0 if n % 2 else 1.0))
+
+
+## comic_anvil.spawn (designed).
+static func anvil(parent: Node, from: Vector3, spots: Array) -> void:
+	var order := spots.duplicate()
+	order.sort_custom(func(a: Vector3, b: Vector3) -> bool: return _flat_dist(a, from) < _flat_dist(b, from))
+	for n in order.size():
+		var spot: Vector3 = order[n]
+		_later(parent, n * ANVIL_STAGGER, func() -> void:
+			var fx := DESIGNED.spawn(parent, "strike_scorch", Vector3(spot.x, DESIGNED.GROUND_LIFT, spot.z), ANVIL_SIZE, "earth",
+				ANVIL_TIMES, Vector2(0.5, 1.0))
+			fx.real_until = 1
+			fx.rotation.y = randf() * TAU
+			DESIGNED.dust(parent, Vector3(spot.x, 0.0, spot.z), 0.9))
+
+
+static func _flat_dist(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Away from the camera on the floor (unit), or zero.
+static func _away(parent: Node) -> Vector3:
+	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
+	if cam == null:
+		return Vector3.ZERO
+	var away := -cam.global_basis.z
+	return Vector3(away.x, 0.0, away.z).normalized()
+
+
+## Run `f` after `delay` game s (0: now), if the parent is still there.
+static func _later(parent: Node, delay: float, f: Callable) -> void:
+	if delay <= 0.0:
+		f.call()
+		return
+	parent.get_tree().create_timer(delay, true, false, false).timeout.connect(func() -> void:
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			f.call())

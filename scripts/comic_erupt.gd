@@ -8,6 +8,8 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicErupt.spawn(parent, from, spots, hot)   (hot: Array of bool, one per spot)
 
 const SELF := preload("res://scripts/comic_erupt.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 const STAGGER := 0.05
 const SLABS := 3
 const SLAB_H := Vector2(0.5, 0.75)  # m
@@ -25,6 +27,9 @@ var _ones := []  # {c: Vector3 (local), delay, hot, slabs: [[angle, h]], blobs: 
 
 
 static func spawn(parent: Node, from: Vector3, at: Array, molten: Array) -> Node3D:
+	if DESIGNED.on():  # round 46: a drawn magma crown up under each (designed_finish.erupt)
+		DESIGNED_FINISH.erupt(parent, from, at, molten)
+		return null
 	var e: Node3D = SELF.new()
 	e.spots = at
 	e.hot = molten

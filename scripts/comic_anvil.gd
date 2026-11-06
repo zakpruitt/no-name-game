@@ -7,6 +7,8 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicAnvil.spawn(parent, from, spots)
 
 const SELF := preload("res://scripts/comic_anvil.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 const STAGGER := 0.04
 const DENT := 0.62  # m
 const CRACKS := 5
@@ -20,6 +22,9 @@ var _ones := []  # {c: Vector2, delay, ring, cracks, chips}
 
 
 static func spawn(parent: Node, from: Vector3, at: Array) -> Node3D:
+	if DESIGNED.on():  # round 46: a drawn crater star under each (designed_finish.anvil)
+		DESIGNED_FINISH.anvil(parent, from, at)
+		return null
 	var a: Node3D = SELF.new()
 	a.spots = at
 	a.begin(parent, Vector3(from.x, 0.0, from.z))
