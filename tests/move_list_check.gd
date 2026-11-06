@@ -21,6 +21,7 @@ func _initialize() -> void:
 	PLAYER = load("res://scripts/player.gd")
 	VOID = load("res://scripts/void_element.gd")
 	_check_rows()
+	_check_endings()
 	_check_combo_inputs()
 	_check_all_listed()
 	_check_reachable()
@@ -32,6 +33,29 @@ func _initialize() -> void:
 func _check(ok: bool, what: String) -> void:
 	if not ok:
 		_fails.append(what)
+
+
+## Every breaker ending is listed (round 43): each BREAKERS name as an H-in-the-window row and each `alt` as an
+## L-in-the-window row marked `or`, so the pause panel shows both endings of a two-ending window as one choice.
+func _check_endings() -> void:
+	var rows := {}
+	for section: Dictionary in LIST.SECTIONS:
+		for row: Dictionary in section.rows:
+			if row.kind == "text" and row.input.ends_with("in the window"):
+				rows[row.name] = row
+	var pause: GDScript = load("res://scripts/pause_menu.gd")
+	for key: String in VOID.BREAKERS:
+		var b: Dictionary = VOID.BREAKERS[key]
+		var main: Dictionary = rows.get(b.names.spirit, {})
+		_check(not main.is_empty() and main.input.ends_with("H in the window"), "breaker %s (%s) listed with H in the window" % [key, b.names.spirit])
+		if b.has("alt"):
+			var alt: Dictionary = rows.get(b.alt.names.spirit, {})
+			_check(not alt.is_empty() and alt.input.ends_with("L in the window") and alt.get("or", false),
+				"breaker %s's other ending %s listed with L in the window, marked or" % [key, b.alt.names.spirit])
+			_check(not alt.is_empty() and pause.input_text(alt).strip_edges().begins_with("or L in the window"),
+				"the panel prints %s as 'or L in the window'" % b.alt.names.spirit)
+		elif main.get("or", false):
+			_check(false, "%s has one ending but is marked or" % b.names.spirit)
 
 
 func _check_rows() -> void:
@@ -76,9 +100,9 @@ func _check_reachable() -> void:
 			dashed.post_dash = true
 			todo.append(dashed)
 		for kind: String in ["light", "heavy"]:
-			var id: String = PLAYER.void_route(kind, s.from, s.attacking, s.chain, s.post_dash)
+			var id: String = PLAYER.HERO_MOVES.void_route(kind, s.from, s.attacking, s.chain, s.post_dash)
 			reached[id] = true
-			todo.append({"from": id, "attacking": true, "chain": PLAYER.chain_after(id), "post_dash": false})
+			todo.append({"from": id, "attacking": true, "chain": PLAYER.HERO_MOVES.chain_after(id), "post_dash": false})
 	for id: String in reached:
 		_check(id == VOID.NEUTRAL or _listed(id), "void_route() reaches %s, not on the move list" % id)
 
@@ -112,10 +136,10 @@ func _press(input: String) -> String:
 				i += 1  # "hold H": the held right click
 				last = VOID.CHARGED
 			"L", "H":
-				last = PLAYER.void_route("light" if t == "L" else "heavy", from, attacking, chain, post_dash)
+				last = PLAYER.HERO_MOVES.void_route("light" if t == "L" else "heavy", from, attacking, chain, post_dash)
 				from = last
 				attacking = true
-				chain = PLAYER.chain_after(last)
+				chain = PLAYER.HERO_MOVES.chain_after(last)
 				post_dash = false
 			_:
 				_check(false, "unknown token %s in '%s'" % [t, input])

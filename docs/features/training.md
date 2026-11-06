@@ -4,7 +4,7 @@
 
 The game boots straight into the training room: one room with four training dummies (`main.DUMMY_SPOTS`) and the first layout's pillars (R swings on them), for practising the heretic's strings and breakers. There is no title screen, run, map or reward. Dummies never fight back and can't die. Hits on any of them add to the same string. Each takes hits, staggers, launches and juggles like any skeleton, then walks back to its spot and refills its HP once left alone.
 
-Under the room title, the HUD shows the current string's damage and hits, the last string's, and the best string so far. A string ends when the combo drops. Each dummy also carries a comic `LAST n` tag over its head: the damage that dummy took in the last string (it pops when the string ends and dims while the next one runs).
+Under the room title, the HUD shows the current string's damage and hits, the last string's, and the best string so far. A string ends when the combo drops. Each dummy also carries a comic `LAST n` tag over its head: the damage that dummy took in the last string (feel audit 2, item 2: it pops when that dummy's string ends, small, `TAG_SIZE` 40 in a `TAG_INK_PX` 1.5 px ink line, and fades out `TAG_SHOW_S` 1.5 real s later; the next hit on it takes it down).
 
 `--spar=minion|rogue|shield|warrior` adds one live foe of that type beyond the dummies, for trying strings on something that moves, dodges or blocks. It hits at 1/3 damage and comes back 1.5 s after it dies. Off by default.
 

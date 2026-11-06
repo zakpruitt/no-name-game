@@ -68,9 +68,11 @@ func _initialize() -> void:
 	await _elements()
 	await _breakers()
 	await _cold_front()
+	await _breaker_choice()
 	await _thrown_at_wall()
 	await _ice()
 	await _magma()
+	await _meteor_target()
 	await _dark()
 	await _crossovers()
 	await _three_elements()
@@ -82,7 +84,7 @@ func _initialize() -> void:
 
 
 func _routing() -> void:
-	var r: Callable = load("res://scripts/player.gd").void_route
+	var r: Callable = load("res://scripts/hero_moves.gd").void_route
 	_check(not InputMap.has_action("special"), "E is gone")
 	_check(InputMap.has_action("traverse"), "R is bound")
 	_check(r.call("light", "", false, 0, false) == "L1", "L: axe")
@@ -325,7 +327,7 @@ func _slam() -> void:
 	var f := _foe(Vector3(0, 0, 2))
 	hero._face(Vector3(0, 0, 1))
 	hero._start_attack("VS")
-	_check(hero.named_id() == "VS", "the slam has its name")
+	_check(hero._move_id == "VS", "the slam has its name")
 	var top := 0.0
 	var frames := 0
 	while f.hits == 0 and frames < 120:
@@ -364,7 +366,7 @@ func _elements() -> void:
 		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 		await create_timer(0.2).timeout
 		_check(foe.hp < hp, "%s hurts the foe in front (%.0f)" % [id, hp - foe.hp])
-		_check(hero._breaker_for(id).is_empty(), "%s opens no window" % id)
+		_check(hero.HERO_LEAP.entry_for(id).is_empty(), "%s opens no window" % id)
 	await _settle()
 	hero._start_attack("L1")
 	hero._start_attack("EC")
@@ -468,7 +470,7 @@ func _cold_front() -> void:
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
 	_check(hero.state == hero.State.LEAP, "the showcase opens its window")
 	await _until(func() -> bool: return hero._brk_phase == 1, 2.0)
-	_check(hero.breaker_name() == "Cold Front", "L is Cold Front (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Cold Front", "L is Cold Front (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(near.frozen, "it freezes what it holds")
 	_check(near.get_node_or_null("ThrownCube") != null, "in a cube")
 	_check(near.global_position.y > 1.5, "held up (%.1f m)" % near.global_position.y)
@@ -499,6 +501,60 @@ func _cold_front() -> void:
 	big.free()
 	await _settle()
 
+
+## Round 43: the window offers every ending, one per button (hero_leap.options(), what breaker_prompt.gd draws), and
+## a real press picks it: L in Live Wire's window is Cold Front, H is Worldbreaker; Grounded has one ending, and L
+## there does nothing.
+func _breaker_choice() -> void:
+	hero.bot_enabled = false
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var foe := _foe(Vector3(0, 0, 2.5))
+	for press: String in ["attack_light", "attack_heavy"]:
+		foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
+		hero._start_attack("EW")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		var opts: Array = hero.breaker_window().get("options", [])
+		_check(opts.size() == 2, "Live Wire's window offers two endings (%d)" % opts.size())
+		if opts.size() == 2:
+			_check(opts[0].button == "light" and opts[0].name == "Cold Front" and opts[0].element == "water",
+				"left button first: LMB Cold Front in ice (%s)" % str(opts[0]))
+			_check(opts[1].button == "heavy" and opts[1].name == "Worldbreaker" and opts[1].element == "earth",
+				"then RMB Worldbreaker in magma (%s)" % str(opts[1]))
+			_check(opts[0].color != opts[1].color, "each ending in its own colour")
+		await _until(func() -> bool: return hero._state_t >= hero._brk.open + 0.02, 2.0)
+		Input.action_press(press)
+		await physics_frame
+		Input.action_release(press)
+		await _until(func() -> bool: return hero._brk_phase == 1, 0.5)
+		var want := "Cold Front" if press == "attack_light" else "Worldbreaker"
+		_check(hero._brk_phase == 1, "%s in the window dives" % press)
+		_check(hero.HERO_LEAP.breaker_name(hero) == want, "%s picks %s (%s)" % [press, want, hero.HERO_LEAP.breaker_name(hero)])
+		_check(hero.breaker_window().get("chose", "") == ("light" if press == "attack_light" else "heavy"), "the window says which button chose it")
+		if is_instance_valid(hero._brk_cue):
+			_check(hero._brk_cue.alt_color.a == 0.0, "the floor cue drops the other ending's colour once he picks")
+		await _settle()
+	# One ending: the same layout with one option, and L in the window doesn't take it.
+	foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
+	hero._start_attack("EE")
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+	var one: Array = hero.breaker_window().get("options", [])
+	_check(one.size() == 1 and one[0].button == "heavy" and one[0].name == "Grounded", "Grounded offers one ending, on RMB (%s)" % str(one))
+	await _until(func() -> bool: return hero._state_t >= hero._brk.open + 0.02, 2.0)
+	Input.action_press("attack_light")
+	await physics_frame
+	Input.action_release("attack_light")
+	for i in 3:
+		await physics_frame
+	_check(hero._brk_phase == 0, "L does nothing in a one-ending window")
+	Input.action_press("attack_heavy")
+	await physics_frame
+	Input.action_release("attack_heavy")
+	await _until(func() -> bool: return hero._brk_phase == 1, 0.5)
+	_check(hero._brk_phase == 1 and hero.HERO_LEAP.breaker_name(hero) == "Grounded", "H takes Grounded")
+	await _settle()
+	foe.queue_free()
+	await physics_frame
 
 ## A throw stops at a wall instead of going through it, and still breaks.
 func _thrown_at_wall() -> void:
@@ -610,7 +666,7 @@ func _spear_string() -> void:
 	_check(not out.frozen, "not those off it")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "the slam opens a window (%d)" % hero.state)
-	_check(hero.breaker_name() == "Avalanche", "Avalanche (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Avalanche", "Avalanche (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(hero._void.held_foes().size() == 3, "a tentacle on each cube (%d)" % hero._void.held_foes().size())
 	var apart := near.global_position.distance_to(far.global_position)
 	var top := 0.0
@@ -654,6 +710,7 @@ func _spear_string() -> void:
 
 
 func _magma() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
 	var a := _foe(Vector3(0, 0, 3))
@@ -696,15 +753,14 @@ func _magma() -> void:
 	_check(world.get_children().any(func(n: Node) -> bool: return n.get_script() == load("res://scripts/floor_bind.gd")), "Undertow binds them")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "Undertow opens a window")
-	_check(hero.breaker_name() == "Meteor Fall", "Meteor Fall (%s)" % hero.breaker_name())
-	_check(hero._void.held_foes() == [big], "it goes for the big one")
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Meteor Fall", "Meteor Fall (%s)" % hero.HERO_LEAP.breaker_name(hero))
+	_check(hero._void.held_foes().is_empty(), "no tentacle hold: the meteor needs none")
 	await create_timer(0.1).timeout
 	_check(a.global_position.distance_to(pin) < 0.3, "the small one's stuck")
-	var big_before := big.hp
+	var a_before := a.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
-	_check(big_before - big.hp >= 60.0, "and rips it (%.0f)" % (big_before - big.hp))
-	_check(hero._void._seized.is_empty(), "then lets go")
-	var off := Vector2(hero.global_position.x - big.global_position.x, hero.global_position.z - big.global_position.z).length()
+	_check(a_before - a.hp >= 60.0, "two lone foes: he dives on the nearer and it takes the meteor (%.0f)" % (a_before - a.hp))
+	var off := Vector2(hero.global_position.x - a.global_position.x, hero.global_position.z - a.global_position.z).length()
 	_check(off < 1.0, "he lands on it (%.1f m off)" % off)
 	hero.bot_enabled = false
 	a.hp = 500.0
@@ -718,46 +774,101 @@ func _magma() -> void:
 	a.free()
 	big.free()
 	await _settle()
-	# Palm, Undertow, meteor: he goes after whoever the palm sent away, past the tentacles' usual reach.
+	# Palm into a wall, Undertow, meteor: he dives on the one the palm splatted on the wall, not the nearer one.
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
-	var shoved := _foe(Vector3(0, 0, 6))
-	var near := _foe(Vector3(6, 0, -3))
+	var shoved := _foe(Vector3(0, 0, 4))
+	var near := _foe(Vector3(5, 0, -3))
+	var near2 := _foe(Vector3(6, 0, -3.5))  # (a bigger group the palm never touched: it doesn't draw the dive)
+	var near3 := _foe(Vector3(5.5, 0, -2))
+	var back_wall := _wall(Vector3(0, 1, 9.5))
+	await physics_frame
+	await physics_frame
 	hero._start_attack("EM")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return not shoved.has_meta("thrown_foe_flying"), 2.0)
+	_check(ve.wall_fresh(shoved) and not ve.wall_fresh(near), "Molten Palm's wall splat marks it (last_wall_ms)")
+	_check(ve.palm_fresh(shoved) and not ve.palm_fresh(near), "and the palm marks who it hit (last_palm_ms)")
 	await _until(func() -> bool: return hero._state_t * hero.anim_speed * hero._anim_mult / hero._move_len >= hero._move.cancel, 2.0)
 	hero.bot_enabled = true
 	landed = hero.breakers_landed
 	hero._start_attack("EV")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 	_check(hero._void.bound.has(shoved), "Undertow follows who the palm shoved")
-	await _until(func() -> bool: return not shoved.has_meta("thrown_foe_flying"), 2.0)
 	var where := shoved.global_position
-	_check(where.z > 10.0, "out past the tentacles' reach (%.1f m)" % where.z)
-	await create_timer(0.1).timeout
-	_check(shoved.global_position.distance_to(where) < 0.3, "and pins it where it landed")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
-	_check(hero.breaker_name() == "Meteor Fall", "the breaker's the meteor")
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Meteor Fall", "the breaker's the meteor")
+	_check(shoved.global_position.distance_to(where) < 0.3, "and pins it where it splatted")
 	var hp_before := shoved.hp
+	var near_before := near.hp
 	await _until(func() -> bool: return hero._brk_phase == 1, 3.0)
 	_check(is_instance_valid(hero._brk_meteor), "he comes down in fire")
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(not is_instance_valid(hero._brk_meteor) or hero._brk_meteor.is_queued_for_deletion(), "which goes when he lands")
-	# (round 34: it threw them at the walls and dragged them into one pile; he lands on the pile)
-	for e: Node3D in [shoved, near]:
-		off = Vector2(hero.global_position.x - e.global_position.x, hero.global_position.z - e.global_position.z).length()
-		_check(off < 1.5, "the meteor comes down on the pile, with each of them in it (%.1f m off)" % off)
-	_check(shoved.hp < hp_before, "and it takes it (%.0f)" % (hp_before - shoved.hp))
+	off = Vector2(hero.global_position.x - shoved.global_position.x, hero.global_position.z - shoved.global_position.z).length()
+	_check(off < 1.0, "the meteor dives on the one the palm hit, not the three it never touched (%.1f m off)" % off)
+	_check(hp_before - shoved.hp >= 60.0 * ve.METEOR_SPLAT_MULT - 0.5, "it takes the splat bonus x%.1f (%.0f)" % [ve.METEOR_SPLAT_MULT, hp_before - shoved.hp])
+	_check(near_before - near.hp < 40.0, "and the stray out of the blast only burns in the lava (%.0f)" % (near_before - near.hp))
 	hero.bot_enabled = false
 	shoved.free()
 	near.free()
+	near2.free()
+	near3.free()
+	back_wall.free()
 	await _settle()
+	# Round 42 e: a wall past the 6 m shove but inside PALM_WALL_REACH: the palm carries them on to it and splats them.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var far := _foe(Vector3(0, 0, 4))
+	var far_wall := _wall(Vector3(0, 1, 4.0 + ve.PALM_SHOVE + 3.0))
+	await physics_frame
+	await physics_frame
+	hero._start_attack("EM")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return not far.has_meta("thrown_foe_flying"), 2.0)
+	_check(ve.wall_fresh(far) and far.global_position.z > 4.0 + ve.PALM_SHOVE + 1.0, "a wall 9 m behind: the palm carries it there and splats it (z %.1f)" % far.global_position.z)
+	far_wall.free()
+	await _settle()
+	far.global_position = Vector3(0, 0, 4)
+	await physics_frame
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	hero._start_attack("EM")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return not far.has_meta("thrown_foe_flying"), 2.0)
+	_check(absf(far.global_position.z - (4.0 + ve.PALM_SHOVE)) < 1.0, "no wall in reach: the plain %.0f m shove (z %.1f)" % [ve.PALM_SHOVE, far.global_position.z])
+	far.free()
+	await _settle()
+
+
+## Meteor Fall's target (void_element.meteor_target, pure): the biggest group in reach, the wall-splatted group on
+## a tie, a clearly bigger group over a splatted stray, and nothing to dive on with nobody in reach.
+func _meteor_target() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var at := Vector3.ZERO
+	var group := [Vector3(0, 0, 8), Vector3(1, 0, 8.5), Vector3(-1, 0, 7.6)]
+	var r: Dictionary = ve.meteor_target(at, [Vector3(4, 0, 0)] + group, [false, false, false, false])
+	_check(r.found and r.at.distance_to(Vector3(0, 0, 8.03)) < 0.2 and r.count == 3, "a group of three beats a nearer stray (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(-6, 0, 2), Vector3(-6.5, 0, 3)] + [Vector3(6, 0, 2), Vector3(6.5, 0, 3)], [false, false, true, true])
+	_check(r.found and r.at.x > 5.0, "two equal groups: the one the palm splatted on a wall wins (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(-3, 0, 2), Vector3(-6.5, 0, 3)] + group + [Vector3(1, 0, 7)], [true, false, false, false, false, false])
+	_check(r.found and r.count == 4 and r.at.z > 7.0, "a clearly bigger group beats a splatted stray (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(7, 0, 0), Vector3(7.5, 0, 0.5), Vector3(0, 0, 5)], [true, true, false])
+	_check(r.found and r.at.x > 6.0, "and the splatted pair beats a lone foe nearer (%s)" % r)
+	r = ve.meteor_target(at, [], [])
+	_check(not r.found, "nobody: no target (he lands ahead of him)")
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_REACH + 2.0)], [false])
+	_check(not r.found, "nobody in reach: no target either")
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_REACH + 2.0), Vector3(3, 0, 4)], [true, false])
+	_check(r.found and r.at.z > ve.METEOR_REACH, "a splatted one past the reach still counts: he follows the palm to the wall (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_SPLAT_REACH + 1.0)], [true])
+	_check(not r.found, "but not past METEOR_SPLAT_REACH")
 
 
 ## Round 34's crossovers: each cashes in what the element before it set up.
 func _crossovers() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
-	var r: Callable = load("res://scripts/player.gd").void_route
+	var r: Callable = load("res://scripts/hero_moves.gd").void_route
 	_check(r.call("light", "AL1", true, 0, false) == "XR", "L H L L: Rockslide")
 	_check(r.call("heavy", "XR", true, 0, false) == "XF", "L H L L H: Fault Line")
 	_check(r.call("light", "EA", true, 0, false) == "XS", "Dash L H H L: Steam Burst")
@@ -890,6 +1001,26 @@ func _element_matrix() -> void:
 			e.free()
 			o.free()
 	_check(cells >= 15, "the matrix has its cells (%d)" % cells)
+	# Round 4: the payoff follows the move's own hit shape. A foe behind him, well inside the old 5 m reach round
+	# him, is outside every one of these moves (the gale's circle ahead, the harpoon's line, the palm's line, the
+	# crescent) and doesn't pay; nor does one off to the side of the harpoon's line.
+	root.get_node("Game").combo_count = 0  # (a long chain grows the shapes: Updraft Lash's gale then reaches behind him)
+	var paying := {"wind": "frozen", "water": "buried", "earth": "molten", "void": "frozen"}
+	for element: String in base:
+		for spot: Vector3 in [Vector3(0, 0, -2.5), Vector3(3.5, 0, 1.0)] if element == "water" else [Vector3(0, 0, -2.5)]:
+			var e := _foe(spot)
+			if paying[element] == "frozen":
+				el.encase(e)
+			else:
+				el.mark(e, paying[element])
+			var paid: int = el.improvise(hero, base[element], Vector3.ZERO, 1.0)
+			_check(paid == 0 and e.hits == 0, "%s (%s) misses a %s foe at %s, %.1f m off: outside its shape (paid %d)" % [base[element], element,
+				paying[element], spot, spot.length(), paid])
+			e.free()
+	var ahead := _foe(Vector3(0, 0, 4.5))  # (and the harpoon's line still finds one 4.5 m out)
+	el.mark(ahead, "buried")
+	_check(el.improvise(hero, "EF", Vector3.ZERO, 1.0) == 1, "Harpoon's line pays the buried 4.5 m ahead")
+	ahead.free()
 	# A whole move cashes one in: Harpoon on someone Rockslide buried freezes them in the floor.
 	var buried := _foe(Vector3(0, 0, 3.0))
 	el.mark(buried, "buried")
@@ -914,7 +1045,7 @@ func _element_matrix() -> void:
 func _three_elements() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	var SPEAR: GDScript = load("res://scripts/frost_spear.gd")
-	var r: Callable = load("res://scripts/player.gd").void_route
+	var r: Callable = load("res://scripts/hero_moves.gd").void_route
 	_check(r.call("heavy", "EA", true, 0, false) == "XG", "Dash L H H H: Hailstorm")
 	_check(r.call("light", "XG", true, 0, false) == "XM", "Dash L H H H L: Meltdown")
 	_check(r.call("heavy", "TW", true, 0, false) == "XK", "Dash H H: Impale")
@@ -962,6 +1093,25 @@ func _three_elements() -> void:
 	a.free()
 	b.free()
 	await _settle()
+	# Round 4: Anvil's reel fans the kebab out across his aim (ANVIL_SPREAD), held and landed, a crater each:
+	# hauled to one point, three foes stuck round the spear landed in one pile.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var kebab := [_foe(Vector3(0.3, 0, 3.0)), _foe(Vector3(-0.3, 0, 3.2)), _foe(Vector3(0.0, 0, 2.7))]
+	hero._brk_zone = Vector3(0, 0, 1.5)
+	hero._void.seize(bw)
+	var lands := []
+	for s: Dictionary in hero._void._seized:
+		lands.append(hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - hero._void.SEIZE_IN) + s.get("fan", Vector3.ZERO) * hero._void.SEIZE_IN)
+	var closest := INF
+	for i in lands.size():
+		for j in range(i + 1, lands.size()):
+			closest = minf(closest, (lands[i] - lands[j]).length())
+	_check(lands.size() == 3 and closest >= el.ANVIL_SPREAD * 0.95, "Anvil's reel lands them %.2f m apart at least (ANVIL_SPREAD %.1f)" % [closest, el.ANVIL_SPREAD])
+	hero._void.release_seized()
+	for k: Node in kebab:
+		k.free()
+	await _settle()
 	# Hailstorm: only the frozen go up, in their ice; he climbs.
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
@@ -991,7 +1141,7 @@ func _three_elements() -> void:
 	_check(warm.hp == hp_warm, "a foe on the floor out of the ice is left alone")
 	_check(el.marked(ice, "molten"), "and they're alight")
 	await _until(func() -> bool: return hero.state != hero.State.ATTACK, 3.0)
-	_check(hero.state == hero.State.LEAP and hero.breaker_name() == "Eruption", "the window opens: Eruption (%s)" % hero.breaker_name())
+	_check(hero.state == hero.State.LEAP and hero.HERO_LEAP.breaker_name(hero) == "Eruption", "the window opens: Eruption (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	_check(hero._brk_y0 > 1.0, "from up there (%.1f m)" % hero._brk_y0)
 	await _until(func() -> bool: return hero.state != hero.State.LEAP, 3.0)
 	game_end_slowmo()
@@ -1097,7 +1247,7 @@ func _dark() -> void:
 	_check(Vector2(other.global_position.x - spot.x, other.global_position.z - spot.z).length() < gap - 0.5, "it drags them in")
 	_check(other.hp < hp, "and burns them")
 	_check(big.global_position.distance_to(big_at) < 0.5 and big.chill_t > 0.0, "a big one only slows")
-	_check(hero.breaker_name() == "Collapse", "the breaker's Collapse (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Collapse", "the breaker's Collapse (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	hp = other.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Collapse lands")
@@ -1139,7 +1289,7 @@ func _dark() -> void:
 	await _until(func() -> bool: return not other.has_meta("thrown_foe_flying"), 2.0)
 	_check(Vector2(other.global_position.x - spot.x, other.global_position.z - spot.z).length() < 1.5, "it fetches up in the pool")
 	_check(big.global_position.distance_to(big_stays) < 0.5, "and nobody else moved")
-	_check(hero.breaker_name() == "Maw", "the breaker's Maw (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Maw", "the breaker's Maw (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Maw lands")
 	_check(get_nodes_in_group("dark_maw").size() == 1, "its jaws are up")
@@ -1161,7 +1311,7 @@ func _dark() -> void:
 	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
 	_check(is_instance_valid(hero._void.dark_bind), "Overwhelm has them")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
-	_check(hero.breaker_name() == "Abyss", "the breaker's Abyss (%s)" % hero.breaker_name())
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Abyss", "the breaker's Abyss (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	hp = held.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Abyss lands")

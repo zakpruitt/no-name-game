@@ -103,8 +103,18 @@ const EMITS := {
 }
 ## A kind whose script defines a shared material name differently.
 const KIND_TONES := {
-	# round 39: the shield is a wall of planks; at full brush its grain broke into a checker from the game camera
-	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.1, "inner": 0.06}},
+	# round 39: the shield is a wall of planks; at full brush its grain broke into a checker from the game camera.
+	# Round 39 b: one flat slab now (refine_pass `slab`), lit on the light band's edge, so any brush splits it into
+	# leopard spots: brush 0, one tone.
+	"shield": {"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.46, 0.25, 0.13), "light": Color(0.74, 0.48, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.0, "inner": 0.06}},
+	# Round 39 b: the minion's cleaver is a flat steel slab held upright, so the sun barely reaches its face; pale
+	# steel tones keep it reading in shade, brush 0 keeps it one tone
+	"minion": {"P_Iron": {"shadow": Color(0.36, 0.42, 0.56), "mid": Color(0.56, 0.63, 0.76), "light": Color(0.78, 0.84, 0.94), "hi": Color(0.94, 0.97, 1), "rim": Color(0.3, 0.38, 0.52), "brush": 0.0, "inner": 0.0}},
+	# Round 39 b, crowd read: the archer (legion, earth orange) wore the grave family's green and the necromancer
+	# (grave, wind green) a red no family has, so a crowd sorted by colour put the archer with the Warden. The
+	# archer's cloth goes to a burnt orange under its orange bow, the necromancer's shroud to a deep grave green.
+	"archer": {"P_Forest": {"shadow": Color(0.3, 0.08, 0.03), "mid": Color(0.66, 0.26, 0.08), "light": Color(0.9, 0.44, 0.14), "hi": Color(1.0, 0.72, 0.4), "rim": Color(0.34, 0.1, 0.03), "brush": 0.16, "spot": 0.02}},
+	"necromancer": {"P_Shroud": {"shadow": Color(0.02, 0.1, 0.08), "mid": Color(0.06, 0.3, 0.2), "light": Color(0.14, 0.5, 0.3), "hi": Color(0.4, 0.8, 0.5), "rim": Color(0.04, 0.24, 0.14), "brush": 0.16}},
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
 	# His weapons grow out of the claw, so they carry its paint: fx_palette's void (round 40). Hafts are the
 	# claw's violet, heads and blades the void's deep and ink, and each keeps one element accent of its own
@@ -213,7 +223,7 @@ const FOE_SHADE_MATCH := 0.8
 ## The nine foes get a heavy outer line on top of Fx.outline (shaders/foe_silhouette.gdshader): a second
 ## hull sharing each skinned mesh, SILHOUETTE_PX wide and pushed SILHOUETTE_PUSH m back, so it shows only
 ## round the outside of the foe (art direction: thicker ink on the silhouette, thin inside).
-const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "bomber", "necromancer", "warden"]
+const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "bomber", "necromancer", "warden", "dummy"]
 const SILHOUETTE_SHADER := "res://shaders/foe_silhouette.gdshader"
 const SILHOUETTE_PX := 4.0
 const SILHOUETTE_PUSH := 0.3

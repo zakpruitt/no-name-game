@@ -7,7 +7,6 @@ extends Node3D
 
 const BONE_COLOR := Color(0.92, 0.88, 0.78)
 const WARN_COLOR := Color(1.0, 0.15, 0.1)
-const CAUSE := "the Bone Warden's cage"  # death recap
 
 var radius := 7.0  # starting ring radius (m)
 var end_radius := 1.0  # where the ring stops and stabs
@@ -154,7 +153,7 @@ func _check_escape() -> void:
 
 func _hurt(p: Node3D, to: Vector3) -> void:
 	var before: float = p.hp
-	p.take_hit(damage, -to.normalized() * 8.0, source if is_instance_valid(source) else null, CAUSE)
+	p.take_hit(damage, -to.normalized() * 8.0, source if is_instance_valid(source) else null)
 	# A dash through the wall (i-frames) doesn't count as getting hit.
 	_hit_done = p.hp < before
 
@@ -169,7 +168,7 @@ func _shut() -> void:
 		var to := p.global_position - global_position
 		to.y = 0.0
 		if to.length() <= end_radius + 0.4:
-			p.take_hit(damage, to.normalized() * 6.0 + Vector3.UP * 4.0, source if is_instance_valid(source) else null, CAUSE)
+			p.take_hit(damage, to.normalized() * 6.0 + Vector3.UP * 4.0, source if is_instance_valid(source) else null)
 	var tw := create_tween().set_parallel()
 	for piece in _pieces:
 		tw.tween_property(piece, "position:y", -2.0, 0.45).set_delay(0.25)

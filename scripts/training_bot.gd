@@ -12,7 +12,7 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 80.0  # (was 60: 22 strings with the element matrix's three)
+const AUTOTEST_MAX := 100.0  # (was 60, then 80: 24 strings with round 4's two hand-feel cells)
 
 var main: Node  # the training room
 var player: CharacterBody3D
@@ -28,6 +28,7 @@ var _max_combo := 0
 ## never played).
 const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "H"], ["H", "L", "H"],
 	["L", "H", "L", "H"], ["D", "L", "H"], ["D", "L", "H", "H"], ["D", "H"],
+	# (L L L H H: Molten Palm shoves the dummies, Undertow pins them, Meteor Fall dives on the biggest group of them.)
 	["L", "L", "H", "L", "H"], ["hold"], ["L", "L", "L", "H", "H"], ["L", "L", "L"],
 	# Crossovers (round 34): Rockslide into Fault Line and Cataclysm, Steam Burst into Flash Freeze, Storm Pitch,
 	# and Black Ice ("alt": the window's press is L, Maw's other ending).
@@ -40,9 +41,17 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	# The element matrix (third pass, void_element.IMPROV): a dash and a base move of another element on a state.
 	# Harpoon's ice, then Tow Line's dark shatters it (frozen x dark); Rockslide's buried, then Harpoon freezes them in
 	# the floor (buried x ice); Updraft Lash's air, then Harpoon freezes them up there (airborne x ice).
-	["line", "D", "L", "H", "D", "H"], ["L", "H", "L", "L", "D", "L", "H"], ["L", "H", "D", "L", "H"]]
+	# ("face": he aims at the nearest foe for the string, as a player would. The payoff follows the move's own hit
+	# shape (void_element.improv_reach), and the dash and Dash Stab's lunge leave the buried behind him.)
+	["line", "D", "L", "H", "D", "H"], ["face", "L", "H", "L", "L", "D", "L", "H"], ["face", "L", "H", "D", "L", "H"],
+	# Round 4: the two cells only a hand could reach. "out" lets him dash out of a breaker's hang (the bot never
+	# does otherwise), "wait" holds the next press until he stands again (so L is L1, not Dash Stab).
+	# Meltdown's molten, then Updraft Lash fans the flames (molten x storm); Undertow's bind, then Updraft Lash tears
+	# them loose (bound x storm).
+	["line", "out", "face", "D", "L", "H", "H", "H", "L", "D", "wait", "L", "H"],
+	["out", "face", "L", "L", "L", "H", "H", "D", "wait", "L", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line"]
+const BOT_SETUP := ["alt", "line", "out", "face"]
 ## A "line" string's column starts BOT_LINE_FROM m in front of him, BOT_LINE_GAP m apart: the dash and Dash Stab's
 ## lunge carry him ~5 m, straight through a column that starts at BOT_SPOT (Harpoon then fired at nobody).
 const BOT_LINE_FROM := 5.0
@@ -63,6 +72,7 @@ var _reset_done := false  # this string's start has been reset
 var _settle_t := 0.0
 var _press_frame := -1  # physics frame of the bot's last press
 var _bot_string := 0  # BOT_STRINGS index playing
+var _bot_face := false  # this string aims at the nearest foe ("face")
 var _homes := {}  # dummy -> its home, while a "line" string has it standing elsewhere
 var _bot_step := 0  # next token in it
 var _bot_wait := 1.0  # s before the next string starts
@@ -262,6 +272,8 @@ func _drive_bot() -> void:
 	var string: Array = BOT_STRINGS[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
 	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not "line" in string else Vector3.ZERO
+	if _bot_face and _bot_step > 0 and to.length() > 0.3:
+		player.bot_move = to.normalized()  # (aims every press at the nearest foe; he jogs at it between them)
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
 		Input.action_press("awaken")
 	if _bot_step >= string.size():  # the string is done: let it (and any breaker) play out
@@ -298,14 +310,21 @@ func _drive_bot() -> void:
 	if _bot_step == 0:
 		_bot_rhythm.clear()
 		player.bot_alt = "alt" in string
+		player.bot_out = "out" in string
+		_bot_face = "face" in string
 	if string[_bot_step] in BOT_SETUP:  # (not a press: bot_alt / the line is set for the whole string)
 		_bot_step += 1
+		return
+	if string[_bot_step] == "wait":  # (not a press: the next one waits until he stands again)
+		if player.state == player.State.MOVE and player._post_dash_t <= 0.0:
+			_bot_step += 1
 		return
 	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
 		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
-	if not ready or player.state == player.State.LEAP:
+	var out: bool = player.bot_out and string[_bot_step] == "D" and player.state == player.State.LEAP and player._brk_phase == 0
+	if (not ready or player.state == player.State.LEAP) and not out:
 		return
 	match string[_bot_step]:
 		"L":

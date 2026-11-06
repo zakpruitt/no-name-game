@@ -12,7 +12,7 @@ Pillar 1 is combat feel first. Strings should read as motion, not as standing st
   `hits`, `cancel`, `end`, `lunge` + `decay`, `range` / `arc` or `width`, `knockback`, `launch`, `stop` (hitstop), `shake`, `big`,
   `hop: [start, end, height]`, `air`, `climb`.
 - **`player.COMBOS`**: named combos (name, input, tier). Landing one plays `combo_<tier>` and shows the callout.
-- **`player.void_route()`**: the single routing function (`_routed()` adds the vault), used by `_next_move`, the combo guide and the checks.
+- **`hero_moves.void_route()`**: the single routing function (`_routed()` adds the vault), used by `_next_move`, the combo guide and the checks.
   Its tables are in `scripts/void_element.gd`: `LIGHT_AFTER`, `AFTER` (right click off each weapon), `DASH_MOVE`, `CHAIN`.
 - **`elements.CASTS`**: the spirit casts (see the `spirit-cast` skill). **`VOID_ELEMENT.BREAKERS`**: timed finishers (see `combo-breaker`).
 
@@ -78,7 +78,8 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - a robustness fix, such as "only on connect" or "velocity carry-over".
 
 ## Filming and judging feel (feel audit 2026-11-04)
-- **Film the string, not a still.** `godot --path . -s tests/string_film.gd` films every `BOT_STRINGS` string at 12 fps
+- **Film the string, not a still.** `godot --path . -s tests/string_film.gd -- --dir=<name>` films every `BOT_STRINGS` string at 12 fps
+  (into your own `user://<name>/`: the default folder is shared by every worktree)
   from the game camera, played by the real bot, plus a frame marked HIT the first drawn frame after each new hit or
   breaker slam, with an INDEX line per frame (real ms, move, hits done, `Engine.time_scale`). Contact holds and freezes
   almost never land on a 12 fps beat; without the HIT frame the sheet shows the wind-up and the recovery and skips the blow.
@@ -103,6 +104,17 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   breakers varied 5-7 per run from where the last string threw the foes. Read `breakers=N/N` before trusting a timing change.
 - A bot that presses at `combo_window().ready` (the full BUFFER_MS early) can lose the press when hit-stop and
   Awakening shift the cancel; it presses `BOT_LEAD` (0.15 s) early instead, still well inside the buffer.
+- **Feel audit 2 (2026-11-05):** take `[rhythm]` from a headless `--autotest`, not the film: the frame grabs ran
+  L3 -> EM 840 ms filmed against 541 ms headless. Film all 22 strings in ~5 min; spar films are
+  `string_film -- --spar=<kind> --to=2 --dir=<name>` (the live foe is gathered with the dummies, then circles at the edge).
+- **The middle-60% zoom misses breaker beats that use the room:** Meteor Fall's wall throws land at the frame edge, so
+  judge beats on the full sheet and crop the zoom for single hits only.
+- **Coverage maxes are the bot's Awakening:** every HIT frame over 0.2 was a breaker landing with the Awakening column;
+  compare landings with and without it before calling an effect dense.
+- **Film the clips, not only the strings:** `heretic_shots -- --clips --clips-step=0.0333` at every keyed frame showed
+  Ab_AF holding one drawing for 40 of 61 frames, which a 12 fps string film reads only as "too fast".
+- **Grep the film logs for ERROR:** the rogue spar film printed 128 engine errors (`foe_lean` zero axis) that no check
+  covers, since nothing in `agent.sh check` spars.
 
 ## Camera (round 36, `docs/features/camera.md`)
 - Distance and lens are `camera_rig.DIST` / `FOV` / `AIM_HEIGHT`; dial by hand with `--cam-dist=` / `--cam-fov=` /
@@ -188,3 +200,77 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
 - **Flow audit numbers (bot beats):** the long ones were all slow clip wind-ups, not stops: Ab_AF (palm 467 ms),
   Ab_LLH (327), Ab_VS in the air (278). `speed` is the cheap lever; keep recovery with a new `end` (`EM_END`).
 
+## Matrix reach, last beats, guide tags (round 34, fourth pass)
+- **A payoff's reach is the move's own shape, read from the body's constants.** `improv_reach()` duplicates each
+  move's filter (strip, circle, cone, pool, `reachable()`) before the move fires; a test that puts a foe behind him
+  inside the old radius must fail on the old code (it failed 5 ways). Zero `Game.combo_count` in such a test: the
+  chain's `hero_fx.cast_grow()` swells Updraft Lash's gale circle until it reaches behind him.
+- **A shape change can silently drop a bot cell.** `buried_x_water` went 1 -> 0 because the dash and Dash Stab carried
+  him past the buried and the harpoon flew the other way; the bot's `face` token (aim at the nearest foe every press)
+  brought it back. Read `[improv]` after any reach change, not only `breakers=`.
+- **Decompose a long beat before tuning it.** Move hit -> next hit = the hit's stop (plus the ender tier's) + its
+  hit-confirm + the next wind-up; EC -> AL1 was ~170 ms before Air Slash even started, so speed alone (`AL1_SPEED`)
+  wasn't enough and a `confirm` (`EC_CONFIRM`) took the rest. L2's speed is capped by rhythm_check's
+  "opener quickest" (L2's wind-up must stay over L1's 196 ms: 1.19 at most).
+- **Dash -> Dash Stab costs the whole `dash_time`.** A dash that cancelled a move (`player._dash_out`) now ends at
+  `DASH_STAB_CANCEL` when a light is buffered; fresh dashes keep their full length, so the D L openers didn't move.
+- **The bot never dashes out of a breaker hang.** `out` (`player.bot_out`) opens `hero_leap.tick`'s dash-out to it;
+  `wait` holds the next press until he stands, or a light in `_post_dash_t` is Dash Stab instead of L1. In ATTACK the
+  bot's D lands before the leap anyway (dash cancels after the first hit), so "out" matters only once LEAP began.
+- **A hold that hauls foes to one point piles them.** Anvil's `reel` lerped every foe to the same spot (0.08 m apart);
+  give each a slot across his aim sorted by where it stands, and add `fan * SEIZE_IN` on the landing, since the
+  dive's lerp towards `_brk_zone` shrinks any spread by `1 - SEIZE_IN`.
+- **A HIT frame at x1.00 is a whiff, not a missing stop** (round 41): `string_film` marks HIT on `_hits_done`, hit or
+  miss, and a connected `_do_hit` always freezes. Dash Stab and Harpoon had stops; the dash plus the 16 m/s lunge
+  carried him through the foe. Read the combo count on the frame too: a cast (the lash) can count hits the blade missed,
+  and it also sets `_connected`, so a whiffed blade still took the confirm cancel without the stop (D L H 330 ms).
+- **Fixing a whiff lengthens the beat:** once Dash Stab connected, its stop + tier-1 `ENDER_HITSTOP` added ~95 ms to
+  DL -> EF; pay it back with a `confirm` (`DASH_STAB_CONFIRM`) in the same change.
+- **Shortening a dash shortens Tow Line:** its reach is the dash's line (`_tow_line`); handing a buffered right click
+  over early cut frozen x dark 3 -> 0. Check `[improv]` after any dash-length change, not only `breakers=`.
+- **Guide tags that read state are not routes.** `mix` / `pay` ride on a real row (guide_check still compares the
+  row's id and next), so a hint about a foe's state belongs on the row whose move would pay it, never as a row.
+
+
+## Combos as set-ups for each other (round 42, Meteor dive)
+
+- Zak's rule: every combo has a best situation, and a player who uses them on purpose is very strong. Before adding
+  beats to a finisher, ask which earlier move sets it up and make the finisher pay off that set-up instead of doing
+  the set-up itself. Meteor Fall used to throw everyone into the walls and drag them back (the tentacles did Molten
+  Palm's job); now Molten Palm punches the group into the wall and Meteor Fall just dives on the biggest group.
+- Let the set-up leave a mark the payoff reads: a meta with a timestamp on the foe (`thrown_foe` `last_wall_ms`)
+  is cheap and survives other moves; weight it in the target choice (1.5 a foe) and in the damage (x1.3) so the
+  planned group wins ties and near-ties but a clearly bigger group still wins over a stray.
+- Make the choice a pure function (`void_element.meteor_target(at, spots, fresh)`) and test the cases with plain
+  Vector3 arrays: stray vs group, splatted vs equal group, bigger group vs splatted stray, empty, out of reach.
+- Show the choice: re-aim the breaker cue every frame of the hang so the player sees where the dive will land.
+- `Object.get_meta(key, null)` still errors when the key is missing (a null default counts as none): use `has_meta`.
+
+## A second hero (round 42 d, the dragon prince)
+- A new hero can extend player.gd (`extends "res://scripts/player.gd"`) and override `_physics_process`: he keeps the body,
+  dash, hurt, Awakening and every field the HUD / camera / effects read, and none of the heretic's moves run. A subclass
+  can't shadow a parent const (`HERO_MOVES`), so readers that go through the hero's preloads (combo_guide, pause_menu) need a
+  duck-typed hook (`player.has_method("guide_rows")`), not a const swap.
+- Keep his MOVES in the heretic's shape (fractions of the clip, `hits` / `cancel` / `end` / `speed`): then
+  `HERO_MOVES.progress()`, `HERO_INPUT.cancel_point()`, `can_dash_cancel()` and `combo_window()` read his moves unchanged.
+- Pick his script with `load()` in main.gd, not `preload`: the heretic never compiles it, so a prince parse error can't
+  break the default game.
+- Default facing is +Z (toward the camera) and the dummies are at -Z: a scripted check or film must face him at a dummy
+  (`hero._face(to)`) before a throw, or it flies off the wrong way and the "missing damage" looks like a bug.
+- A thing that leaves his hand (a thrown sword) is its own node (`top_level`, child of the hero): its hits, timer and
+  beacon live there, the hero only asks `state_word()` for routing. The checks then assert its states directly.
+
+## A set-up has to be reachable where players practise (round 42 e)
+
+- Check the set-up's distances against the room it will be learned in. Molten Palm's 6 m shove never reached the
+  training room's back wall (~10 m behind the dummies), so the wall splat, and Meteor Fall's reason to prefer that
+  group, never showed in training. A payoff that needs a wall should seek a wall in a capped reach
+  (`PALM_WALL_REACH` 10.5 m; past it, the plain shove) rather than wait for the room to be built round it. Geometry
+  in the room would also change every other string's throws there.
+- Let the follow-up reach what the set-up sends further: Meteor Fall goes `METEOR_SPLAT_REACH` 17 m to a fresh splat,
+  but stays at 12 m for any other group, so the longer reach doesn't make the dive go anywhere.
+- Film it with a layout made for it (`tests/string_film.gd --from=11 --to=11 --layout=wall|stray`): the bot's fan
+  only ever put one dummy in the palm's strip, which proves the code path but not the read.
+- Anything that sets `_anim_mult` mid-move drops the move's own `speed` (`EM_SPEED` 2.8 etc.). Awakening ending did
+  that; a crossover that needs its first hit before a state runs out (Steam Burst on the ice cube) then misses.
+  Leave a move in flight at the pace it started at; the next `_start_attack` picks up the new base.

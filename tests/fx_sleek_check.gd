@@ -115,7 +115,7 @@ func _initialize() -> void:
 	p._chain_i = 0
 	p._hits_done = 0
 	standing.watch(p)
-	p._combo_callout(p.COMBOS.keys()[0])
+	p.HERO_FX.combo_callout(p, "XR")
 	cap.watch(p)
 	_ok(p._callout.visible, "the callout goes up")
 	game.hitstop(2.0, 0.5)  # a breaker's slow motion (flat at 0.5): its own tween would hold it for ~2 s
@@ -126,7 +126,7 @@ func _initialize() -> void:
 	game.end_slowmo()
 	_ok(not p._callout.visible, "the callout is gone after ~1.1 s real in slow motion")
 	p._callout_done = false
-	p._combo_callout(p.COMBOS.keys()[0])
+	p.HERO_FX.combo_callout(p, "XR")
 	cap.watch(p)
 	await create_timer(0.1).timeout
 	p.state = p.State.ATTACK
@@ -142,7 +142,7 @@ func _initialize() -> void:
 	p._chain_i = 0
 	standing.watch(p)
 	p._callout_done = false
-	p._combo_callout(p.COMBOS.keys()[0])
+	p.HERO_FX.combo_callout(p, "XR")
 	cap.watch(p)
 	var cam: Camera3D = p.get_viewport().get_camera_3d()
 	var vh: float = p.get_viewport().get_visible_rect().size.y
@@ -222,6 +222,7 @@ func _initialize() -> void:
 	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser") and rim[0].width < 0.9 * els.GEYSER_WIDTH,
 		"a rim geyser is one thin column (%d nodes)" % rim.size())
 	await _sleek5(main, p)
+	await _audit2(main, p)
 	print("[fx_sleek] ", "PASS" if _fails.is_empty() else "FAIL " + "; ".join(_fails))
 	quit()
 
@@ -229,6 +230,81 @@ func _initialize() -> void:
 func _ok(cond: bool, what: String) -> void:
 	if not cond:
 		_fails.append(what)
+
+
+## Feel audit 2 (round 41, effects / HUD lane): later items add their checks here.
+func _audit2(main: Node, p: CharacterBody3D) -> void:
+	await process_frame
+	# Item 1: the Awakening flourish is one thin column and waits out a breaker landing; the buff is not its business.
+	var fxs: GDScript = load("res://scripts/fx.gd")
+	var fl: GDScript = load("res://scripts/awaken_flourish.gd")
+	var mine := func() -> Array: return main.get_children().filter(func(c: Node) -> bool: return c.get_script() == fl)
+	p.state = p.State.LEAP
+	p.awakened = true  # (the field only: a flourish whose Awakening ran out while it waited draws nothing)
+	var held0: int = fl.held
+	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
+	var f: Array = mine.call()
+	_ok(f.size() == 1 and fl.held == held0 + 1 and f[0].get_child_count() == 0, "an Awakening mid-breaker waits (%d nodes)" % f.size())
+	await create_timer(0.3, true, false, true).timeout
+	_ok(f.size() == 1 and is_instance_valid(f[0]) and f[0].get_child_count() == 0, "it waits while he is in the breaker")
+	p.state = p.State.MOVE
+	p.breakers_landed += 1  # the landing
+	fl.note(p)
+	await create_timer(fl.AFTER_BREAKER_S * 0.5, true, false, true).timeout
+	_ok(is_instance_valid(f[0]) and f[0].get_child_count() == 0, "it waits %.1f s past the landing" % fl.AFTER_BREAKER_S)
+	await create_timer(fl.AFTER_BREAKER_S * 0.5 + 0.08, true, false, true).timeout
+	var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
+	_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
+		"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
+	await create_timer(0.5, true, false, true).timeout
+	_ok(mine.call().is_empty(), "the column is gone in half a second")
+	var drawn0: int = fl.drawn
+	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
+	_ok(fl.drawn == drawn0 + 1, "away from a breaker it shows at once")
+	p.awakened = false
+	# Item 3: names over him only for enders, crossovers and breakers; a light mid keeps its word only.
+	var cap: GDScript = load("res://scripts/callout_cap.gd")
+	var shown := {}
+	for id: String in ["DL", "EF", "EA", "L3", "EE", "XR", "XF"]:
+		p._callout_done = false
+		p._move_id = id
+		p.HERO_FX.combo_callout(p, id)
+		cap.watch(p)
+		shown[id] = p._callout.visible
+		p._callout.hide()
+		cap.watch(p)
+	_ok(not shown.DL and not shown.EF and not shown.EA and not shown.L3, "light mids put up no name (%s)" % str(shown))
+	_ok(shown.EE and shown.XR and shown.XF, "enders and crossovers keep theirs (%s)" % str(shown))
+	_ok(cap.names_move("OW") and not cap.names_move("TW") and not cap.names_move("EM"), "Overwhelm is named, Tow Line and Molten Palm are not")
+	p._move_id = ""
+	# Item 4: the "New combo:" banner is up 1.2 s of real time, slow motion or not, and the next string's first hit cuts it.
+	var hud: CanvasLayer = main.hud
+	var game: Node = get_root().get_node("Game")
+	hud.show_found("New combo: test")
+	game.hitstop(2.0, 0.5)
+	await create_timer(0.6, true, false, true).timeout
+	_ok(hud.hint_panel.modulate.a > 0.9, "the banner is up (%.2f)" % hud.hint_panel.modulate.a)
+	await create_timer(0.75, true, false, true).timeout
+	game.end_slowmo()
+	_ok(hud.hint_panel.modulate.a < 0.05, "gone 1.2 s real later in slow motion (%.2f)" % hud.hint_panel.modulate.a)
+	var standing: GDScript = load("res://scripts/standing_fx.gd")
+	p.state = p.State.MOVE
+	p._chain_i = 0
+	p._hits_done = 0
+	standing.watch(p)
+	hud.show_found("New combo: test")
+	await create_timer(0.3, true, false, true).timeout
+	var cut0: int = hud.found_cut
+	p.state = p.State.ATTACK
+	p._chain_i = 1
+	standing.watch(p)  # the next string starts
+	p._hits_done = 1
+	standing.watch(p)  # its first hit
+	await create_timer(0.25, true, false, true).timeout
+	_ok(hud.found_cut == cut0 + 1 and hud.hint_panel.modulate.a < 0.05, "the next string's first hit cuts it (%.2f)" % hud.hint_panel.modulate.a)
+	p.state = p.State.MOVE
+	p._chain_i = 0
+	p._hits_done = 0
 
 
 ## Round 33, sleek 5 (the density pass): later items add their checks here.

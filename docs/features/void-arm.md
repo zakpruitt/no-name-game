@@ -1,10 +1,10 @@
 # The void arm: right click, R, weapon shapes, grab, swing, slam
 
-The heretic's right arm is a purple tentacle that shapes itself into his weapons. Right click sends it out, and R swings him on it (pad: left bumper). He is the only hero, so `player._void` is always set and `player.void_route()` is the only routing. There is no E any more.
+The heretic's right arm is a purple tentacle that shapes itself into his weapons. Right click sends it out, and R swings him on it (pad: left bumper). He is the only hero, so `player._void` is always set and `hero_moves.void_route()` is the only routing. There is no E any more.
 
 ## His moves
 
-`player.void_route()` (`hero_moves.void_route()`) replaces `route()` for him (through `hero_moves.routed()`, which `_next_move` and the combo guide share). What right click does off each weapon, and the kit still to come, are in [void-element.md](void-element.md).
+`hero_moves.void_route()` (`hero_moves.void_route()`) replaces `route()` for him (through `hero_moves.routed()`, which `_next_move` and the combo guide share). What right click does off each weapon, and the kit still to come, are in [void-element.md](void-element.md).
 
 | Input | Move | Shape |
 |---|---|---|

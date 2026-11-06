@@ -43,11 +43,11 @@ ring is 1-3 px (was 1-4). The breaker prompt and the combo counter use the same 
 
 | File | Role |
 |---|---|
-| `scripts/hero_moves.gd` `void_route()` | **The only routing function** (`player.void_route()` forwards to it, so `PLAYER.void_route` still works on the script). It decides which move a "light" or "heavy" press starts from a given state (the tables are `VOID_ELEMENT.LIGHT_AFTER`, `AFTER`, `DASH_MOVE`). `routed()` adds the vault (`VOID_ELEMENT.vaults()`: either press is `IJ` while the frost spear stands); `player._next_move()` passes it the live state. |
+| `scripts/hero_moves.gd` `void_route()` | **The only routing function** (`hero_moves.void_route()` forwards to it, so `PLAYER.void_route` still works on the script). It decides which move a "light" or "heavy" press starts from a given state (the tables are `VOID_ELEMENT.LIGHT_AFTER`, `AFTER`, `DASH_MOVE`). `routed()` adds the vault (`VOID_ELEMENT.vaults()`: either press is `IJ` while the frost spear stands); `player._next_move()` passes it the live state. |
 | `scripts/hero_moves.gd` `chain_after()` | The light-chain index after a move starts. `player._start_attack()` uses it, and the guide's one-press lookahead does too. |
-| `scripts/hero_moves.gd` `combo_options()` | Builds the guide's rows from the live state (`player.combo_options()` forwards). Returns `[]` when there's nothing to show. |
+| `scripts/hero_moves.gd` `combo_options()` | Builds the guide's rows from the live state (`hero_moves.combo_options()` forwards). Returns `[]` when there's nothing to show. |
 | `scripts/hero_moves.gd` `option()` | Builds one row, including the `next` lookahead. |
-| `scripts/hero_input.gd` `combo_window()` | Timing for the rings and the ready state: `{progress, ready, dash}` (`player.combo_window()` forwards). |
+| `scripts/hero_input.gd` `combo_window()` | Timing for the rings and the ready state: `{progress, ready, dash}` (`hero_input.combo_window()` forwards). |
 | `scripts/hero_moves.gd` `guide_name()`, `MOVE_NAMES` | Display names. Combos come from `COMBOS[id].name`. Plain moves come from `MOVE_NAMES`. |
 | `scripts/combo_guide.gd` | The `Control` that draws the guide. It has no child nodes; everything is drawn in `_draw()`. |
 | `scripts/hud.gd` | Creates the guide (`hud.combo_guide`) under the HUD root and sets `combo_guide.player` in `bind_player()`. |
@@ -61,7 +61,7 @@ ring is 1-3 px (was 1-4). The breaker prompt and the combo counter use the same 
 Each render frame (`combo_guide._process`):
 
 1. The guide works out its own real-time `dt` from `Time.get_ticks_usec()`, so hitstop (`Engine.time_scale` near 0.03) and the breakers' slow motion don't freeze its animations.
-2. It calls `player.combo_options()`. The player's state machine runs in `_physics_process`, so the rows always describe the state as of the last physics tick. They change on the frame a move starts.
+2. It calls `hero_moves.combo_options()`. The player's state machine runs in `_physics_process`, so the rows always describe the state as of the last physics tick. They change on the frame a move starts.
 3. It builds a signature from the rows (`kind:id:next_id`). When the signature changes, `_swap_t` resets, and the rows slide in from the hero's side over `SWAP_TIME`, staggered by `SWAP_STAGGER` per row.
 4. `_vis` fades in over `FADE_IN` and out over `FADE_OUT`. While fading out, the last rows are kept so they can fade instead of vanishing.
 5. `queue_redraw()`.
@@ -69,7 +69,7 @@ Each render frame (`combo_guide._process`):
 In `_draw()`:
 
 1. The hero's chest (`CHEST` m above the feet) is projected to the screen with `camera.unproject_position`. The rows are centred vertically on that point and offset `SIDE_GAP` px to the side. They flip to the left side within `EDGE` px of the right edge, with an 80 px gap before flipping back so they don't flicker. They are also clamped to stay below the top HUD band.
-2. `player.combo_window()` is read once. When `ready` turns true, `_ready_t` starts the key pop.
+2. `hero_input.combo_window()` is read once. When `ready` turns true, `_ready_t` starts the key pop.
 3. Each row is measured left to right into `parts`, then drawn mirrored if the guide has flipped. The main key's centre is stored in `_glyph_at[i]`, so a press flash can find it.
 
 How the rows are built (`combo_options`):
@@ -167,3 +167,25 @@ off them stay true while the spear is up.
 Third pass: the element matrix's payoffs aren't routes (they read a foe's state, `void_element.IMPROV`), so the guide
 doesn't show them; the pause MOVES panel has an IMPROVISING section, one text row per cell (`move_list.gd`), whose
 inputs name the state and the element ("frozen, then dark") and so never route.
+
+Fourth pass (round 4, finding the mixes): the rows say when a press mixes elements, still only on real routes.
+
+```
+ (LMB) storm > magma Rockslide > (RMB) Fault Line
+ (RMB) Harpoon + Frozen In
+```
+
+- **`mix`** (`hero_moves.mix_of()`): a crossover row (`X*`) names the element change from the move he's in to the one
+  it starts, in the matrix's words (`ELEMENT_WORDS`: storm, ice, magma, dark; weapons from `WEAPON_ELEMENT`), drawn
+  small in violet before the name (`MIX_SIZE`, `MIX_COLOR`).
+- **`pay`** (`hero_moves.pays()`): a row whose base element move would cash in a state on a foe inside that move's own
+  hit shape (`void_element.improv_reach()` from where he stands and faces, `improv_state()`) adds "+ <payoff>" in the
+  tier-2 colour (`PAY_TEXT`), named from the move list (`move_list.mix_name()`). It is the improvisation rule shown at
+  the moment it applies: dash out of a Rockslide and the Harpoon row reads "+ Frozen In". The row signature includes
+  it, so the rows slide in again when a payoff comes into reach.
+- The pause MOVES panel's IMPROVISING section is now **MIX ELEMENTS**: all 24 state x element cells in plain words
+  ("frozen, then dark: Shatter"), the 15 improvised ones and the 9 the moves pay themselves (`own`), each with
+  `state` / `el` keys.
+- `guide_check._mixing()`: Rockslide's row off Air Slash says "storm > magma", L1's rows carry no tag, and a buried
+  foe on Harpoon's line tags Harpoon's row off Dash Stab "+ Frozen In" until he faces away. The windowed sheet's second
+  shot is Air Slash (the mix tag on Rockslide; was L2).

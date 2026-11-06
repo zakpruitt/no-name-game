@@ -6,6 +6,8 @@ extends RefCounted
 ## Numbers: tests/rhythm_check.gd.
 
 const HERO_MOVES := preload("res://scripts/hero_moves.gd")
+const HERO_LEAP := preload("res://scripts/hero_leap.gd")
+const HERO_AWAKEN := preload("res://scripts/hero_awaken.gd")
 
 ## Input feel (round 30; tests/rhythm_check.gd).
 ## A press of L / right click / dash / R is remembered this long and fires on the first frame it's legal
@@ -20,6 +22,12 @@ const CANCEL_ON_HIT := 0.5  # a move's `confirm` overrides it (Rockslide: hero_m
 const HIT_CONFIRM_MIN := 0.03
 ## A dash cancels any move once its first hit is out, or this far into it on a whiff (fraction).
 const DASH_CANCEL_WHIFF := 0.2
+## A dash hands over to the press buffered in it (round 41, feel audit 2 item 10; hero_moves.DASH_STAB_CANCEL):
+## a dash that cancelled a move ends DASH_STAB_CANCEL of the way in for a light (Dash Stab); any dash with a light buffered ends once a foe ahead is inside DASH_ARRIVE m (after DASH_ARRIVE_MIN of
+## it), so the dash doesn't carry him through the foe the stab is for (the bot's D L H from 2 m went 3.8 m, past it).
+const DASH_ARRIVE := 2.8  # m: Dash Stab's range
+const DASH_ARRIVE_ARC := 35.0  # deg either side of the dash
+const DASH_ARRIVE_MIN := 0.25  # of dash_time: always this much dash (1 m), so it still reads as one
 ## Mouse aim keeps the foe a move started on (hero._aim_lock) while the cursor stays within AIM_LOCK_BREAK
 ## deg of it, so the per-frame turn doesn't flick between two foes mid-string; past that the cursor wins.
 const AIM_LOCK_BREAK := 40.0
@@ -50,7 +58,7 @@ static func read_input(hero: CharacterBody3D) -> void:
 	if Input.is_action_just_pressed("dash"):
 		hero._dash_buffer_t = hero.input_buffer
 	if Input.is_action_just_pressed("awaken"):
-		hero.try_awaken()
+		HERO_AWAKEN.try_awaken(hero)
 
 
 ## The last device touched decides, so a gamepad goes back to facing the way he runs.
@@ -80,7 +88,7 @@ static func cancel_point(hero: CharacterBody3D) -> float:
 		return c
 	var last: float = move.hits[-1]
 	var early := maxf(lerpf(c, last, move.get("confirm", CANCEL_ON_HIT)), last + HIT_CONFIRM_MIN * hero.anim_speed * hero._anim_mult / hero._move_len)
-	var brk: Dictionary = hero._breaker_for(hero._move_id)
+	var brk: Dictionary = HERO_LEAP.entry_for(hero._move_id)
 	if not brk.is_empty():
 		early = maxf(early, move.get("leap", brk.leap))
 	return minf(c, early)
@@ -90,6 +98,27 @@ static func cancel_point(hero: CharacterBody3D) -> float:
 ## DASH_CANCEL_WHIFF on a whiff. (R's swing follows the same rule.)
 static func can_dash_cancel(hero: CharacterBody3D, t: float) -> bool:
 	return hero._hits_done > 0 or t > DASH_CANCEL_WHIFF
+
+
+## Whether the dash ends now and hands over to the buffered press (DASH_ARRIVE*, hero_moves.DASH_STAB_CANCEL).
+static func dash_hands_over(hero: CharacterBody3D) -> bool:
+	if hero._buffered == "":
+		return false
+	var t: float = hero._state_t / maxf(hero.dash_time, 0.001)
+	if hero._buffered != "light":
+		return false  # (a right click waits out the dash: Tow Line's line is the dash, and a short one lost frozen x dark)
+	if hero._dash_out and t >= HERO_MOVES.DASH_STAB_CANCEL:
+		return true
+	if t < DASH_ARRIVE_MIN:
+		return false
+	for e in hero.get_tree().get_nodes_in_group("enemies"):
+		if not e.is_alive():
+			continue
+		var to: Vector3 = e.global_position - hero.global_position
+		to.y = 0.0
+		if to.length() <= DASH_ARRIVE and to.length() > 0.01 and rad_to_deg(hero._dash_dir.angle_to(to.normalized())) <= DASH_ARRIVE_ARC:
+			return true
+	return false
 
 
 ## How soon a press is taken: `progress` 0..1 toward the move's cancel point,

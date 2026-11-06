@@ -47,12 +47,16 @@ fast-forward, so no agent edits another's files or index.
 6. **Rebase often** (`git rebase dev`) on long work, so conflicts stay small.
 7. **Shared user data.** `user://` (`%APPDATA%/Godot/app_userdata/Awaken/`)
    is shared by every checkout, so screenshots from two agents can overwrite
-   each other. Look at your shots straight after taking them. Never touch
-   Zak's `settings.cfg`, `records.cfg` or `altar.cfg`.
+   each other. Look at your shots straight after taking them. Films go in
+   your own folder: `tests/string_film.gd -- --dir=<name>_before` (and
+   `_after`) writes `user://<name>_before/`; the default `user://string_film/`
+   is everyone's. Never touch Zak's `settings.cfg`, `records.cfg` or
+   `altar.cfg`.
 8. **Windowed Godot steals focus.** Only open it when Zak has said that's OK.
 
 ## Lessons
 
+- **Design reviews from film: contact sheets first.** For a judgement pass over many strings, a 30-line PIL script that tiles each `combo_clips/<string>/` (or `string_film`) folder's HIT frames plus every third frame at 400x225, labelled from INDEX.txt, gives one image per string; reading 6-8 sheets covers the kit in minutes instead of hundreds of PNG reads. Look for what repeats across sheets (identical breaker landings, the same star colour, a counter that never drops): that is where the design, not one move, is weak.
 - **`vendor_src/.gdignore` first.** Copying sources into a new worktree's `vendor_src/` without it makes `godot --import` scan the FBX and `.blend` files, fail on the blend importer, and silently skip re-importing your changed assets: the game keeps the old GLB and a shot looks unchanged. Check `.godot/imported/<name>.glb-*.md5` timestamps if a change doesn't show.
 - **Extracted textures are never overwritten.** Godot keeps an existing `<name>_<material>.png` beside a GLB. Copy the new texture over it yourself.
 - **Revert import noise in one loop:** for each `git ls-files -m` with an empty `git diff --ignore-cr-at-eol`, `git checkout` it. Leave your own assets out of the loop.
@@ -160,7 +164,7 @@ fast-forward, so no agent edits another's files or index.
 - **Film a loop frame by frame:** `heretic_shots.gd -- --clips --clips-only=Run_F --clips-step=0.0333 --clips-near=0.75`; the default 12-a-second step gives 5 shots of a 0.42 s run. The cyan dots round him in those shots are the orbiting motes, not his eyes. `--clips-tag` folders accumulate: copy per clip with the clip's prefix.
 - **A stiff spring in a modifier needs a capped, sub-stepped delta (round 35 c):** `heretic_rig._lean_into_turns` (stiffness 600, damping 34) diverges on an explicit step past ~0.06 s, so a windowed frame spike sent the lean to NaN, "axis must be normalized" every frame after, and the hero vanished; headless never spikes, so no check saw it. Cap the delta, step it in small pieces, reset non-finite state, and test it by calling the function with a 0.5 s delta (`tests/lean_spike_check.gd`, FAIL 4 on the old code).
 - **Before / after films of a clip:** `heretic_shots.gd -- --clips --clips-step=0.0333 --clips-max=40 --clips-only=Ab_L1,Ab_L3` (a list since round 35 c); film "before" into the scratchpad before the first edit, then compare frame by frame at the contact. For string_film before / after, swap only the GLB (`git show HEAD:<glb> > <glb>`, `--import`, film into `--dir=`, put the new one back, `--import`) and restore the `.import` files (`git checkout -- '*.import'`: an import rewrites every one's line endings).
-- **`rhythm_check` can flake under load:** "L1 hands over to L2 sooner on a hit (224 < 233 ms)" failed once in `land` and passed twice right after with nothing changed. Rerun it alone before chasing it.
+- **`rhythm_check` can flake under load:** "L1 hands over to L2 sooner on a hit (224 < 233 ms)" failed once in `land` and passed twice right after with nothing changed. `agent.sh check` now reruns it once on a FAIL (`RETRY` in agent.sh, it prints `retry rhythm_check`); a FAIL on both runs is real.
 
 - **Backslashes in heredocs reach Python halved here**: a backreference typed as two backslashes and 1 in a quoted
   heredoc patch arrived as one backslash, which Python read as a 0x01 byte and wrote into agent.sh. Write regex
@@ -225,11 +229,12 @@ fast-forward, so no agent edits another's files or index.
   status` must come back clean.
 - **`string_film` can stop early** (`strings=4/19` on a busy machine) and still print `done`: count the folders before
   calling a film complete.
+- **A model lane's chain runs on `set -e` + `grep`:** a step that prints nothing the grep wants (a Blender `SystemExit` message) stops the chain silently and the old GLB stays in `assets/`; two face edits were judged on an unchanged build that way. Print the step's last line unfiltered, or check the GLB's mtime, before shooting.
+- **Measuring presence:** `foe_shots` lineups mix sizes with depth; a scratch measure (each kind alone on the hero's spot, frozen camera copy, shadows off, diff against the empty frame) gave px height and area for all ten in one 60 s windowed run. Note `user://` is shared: write scratch frames with a lane prefix.
+- **A stop order mid-item:** land the part that already plays green (same `breakers=` / `strings=`, every `[improv]` cell
+  above 0, rhythm_check green three runs), back out the piece that cost a cell, and leave the rest as `- [ ]` in ROADMAP.
+- **Scratch SceneTrees in `tests/_<lane>_*.gd` leave `.uid` files** beside them after a run; delete both before landing.
 
-## When you're done
-
-Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
-the worktree, and deletes the branch once it has been merged.
 - **Filming feel:** `tests/string_film.gd` (windowed, about a minute) films every bot string at 12 fps into
   `user://string_film/<string>/` with an INDEX.txt; copy it out at once. Grab frames into memory (half size) and write
   them while the bot walks between strings: saving a PNG mid-string stalls that frame and stretches the hitstop
@@ -334,4 +339,112 @@ the worktree, and deletes the branch once it has been merged.
 - **Warnings are errors in this project's scripts:** `var n := {...}.get(k, 0)` (a Variant inferred) is a parse error
   that breaks every script preloading it (void_element, then ComicFx). Type it (`var n: int = ...`) and run the real
   `void_arm_check` rather than `--check-only -s`, whose "Identifier not found: Game" cascade hides the real line.
+- **One commit per item from one worktree (round 34 combo 4):** when a later item's edits are already in a shared file
+  (training_bot.gd held both the `face` token for item 1 and `out` / `wait` for item 4), copy the full file aside,
+  `git show HEAD:<file> > <file>`, re-run only the earlier item's patch script on it, `git add`, then copy the full
+  file back. Keeping each item's edits as a small Python patch script makes this a one-liner.
+- **A patch script that `sys.exit`s on a missing anchor writes nothing:** a second, no-op pair that didn't match
+  silently dropped the first, real one. Check the file after every patch run (`git diff --stat`), and never mix a
+  `sed -i` into a CRLF file between patch runs (it turned guide_check.gd LF until the next patch rewrote it).
+- **Bash's 120 s tool timeout moves a foreground autotest to the background mid-run** (24 strings take ~110 s plus
+  the checks before it): run the autotest alone with `run_in_background`, not chained after another check.
+- **`--clips-only=` skips unknown names silently:** `heretic_shots --clips-only=Death_A,Ab_Swing` filmed nothing until
+  both went into `CLIP_SET`. Count the files per clip after a film.
+- **Spar and windowed films catch errors the checks don't:** count `ERROR` lines in each film's log (`grep -c`); a
+  quaternion built from a cross product needs a zero-length guard when the body can tip over (`foe_lean.gd`).
+- **Foe model pass 2 (round 39 b):** copy the kit from a worktree that has it (`.gdignore` first), then prove the rebuild (refine_pass + foe_keys + comic_glb gave every committed GLB byte for byte). A foe_shots `--clip` film with `--only=<three kinds>` keeps the close camera at 5.6 m, the same framing as a before taken the same way; `--only=<one>` zooms to 3.2 m and crops the warrior's blade out of frame. The revert-noise loop prints a CRLF warning per file: send its stderr to /dev/null. The training room's floor tiles differ between runs (a grate under one foe), so crop before / after pairs to the foe itself.
+- **Spar is legion and cult only** (`spar.KINDS`: minion, rogue, shield, warrior); the grave pair can only be judged in the `foe_shots.gd` lineup, which is also the best crowd read (in a spar the effects cover the foe).
+- **A stop-point order mid-lane:** commit each finished item as you go (one commit, its check green) so landing at
+  short notice means docs + rebase + checks, not untangling a half-done diff; list the rest as `- [ ]` in ROADMAP.
+- **A delayed effect needs a real-time guard on its subject:** the Awakening flourish waited 0.4 s for a landing and
+  then drew nothing in a check because the hero wasn't `awakened` there; set the field the guard reads in the test.
 
+- **A deterministic run blinks on the same frame every time.** The hero blinks every `BLINK_EVERY` s from load, so a
+  scratch measure that grabbed its frame ~3.4 s in caught every run mid-blink and the eyes read as 2 px slits; it
+  looked like a sizing bug for four builds. Set `rig._blink_t = -100` before any face shot (`heretic_shots` does).
+- **A pixel assertion in a look test:** project the decal's node with `camera.unproject_position`, count pixels of its
+  exact flat colour (unshaded albedo comes out as its sRGB bytes, +-2) inside its projected radius. Keep a headless
+  geometric twin (`face_dot`) so `agent.sh check` still covers it.
+- **Removing a forwarder means grepping game scripts too, not just the checks** (cleanup round 2): of 21 player.gd
+  forwarders, combo_guide, move_list, hud, training_bot, comic_fx, void_grab, hero_input and hero_awaken called
+  half of them. Call through the hero's own preload (`hero.HERO_FX.cast_grow()`) from files hero_fx.gd itself
+  preloads (void_element, hero_moves, hero_leap), so no preload cycle; keep any method a test fake duck-types
+  (`breaker_window()`: prompt_follow_check and breaker_prompt_preview fake a player with only that).
+- **`godot --check-only -s <script>` is no static pass here:** every script that names an autoload fails with
+  "Identifier not found: Game". Use `python tools/dead_refs.py` for unused names and the real checks for compile
+  errors (`guide_check` loads main and every hero_*.gd in ~20 s, the quickest whole-game compile).
+- **Never run a check in the background and keep editing scripts:** Godot loads each script when the run reaches
+  it, so a half-done refactor fails the later tests in that run. Edit, then check; or edit only docs meanwhile.
+- **The autotest's `hits=` / `max_combo=` vary by a few run to run** (456 / 459 on the same commit): compare
+  `breakers=`, `strings=`, `endings=`, `moves=`, `casts=` and `[improv]` for "identical", and run dev once to see the spread.
+- **Camera framing in a hang:** a box test at the pushed-in distance trips for a foe 2 m ahead (its 1.6 m head
+  leaves the 72% band), so "respect the box in the window" also undoes ordinary breaker push-ins. Probe
+  `_frame_to` per breaker in the autotest before changing the window.
+- **Dropping another lane's hunks after a rebase** (cleanup round 3): when a refactor touched files a live lane is
+  rewriting, `git checkout dev -- <their files>` and put back the few forwarders those files still call (player.gd's
+  `_cast_power()`, `_cast_grow()`, `cancel_point()`, `combo_window()`). Find them with a grep of `hero.X` / `player.X`
+  in their files against player.gd's names; a missing one is a SCRIPT ERROR only when the bot reaches it.
+- **Dead code check:** `python tools/dead_refs.py --docs` also lists names only a doc mentions. A name only the
+  cleanup audit or a stale doc line names is still dead: delete it and the doc line together.
+- **`get_meta(key, null)` errors on a missing key** (a null default is no default) and prints one error per call: a
+  per-frame caller floods the log. Check `has_meta` first.
+- **Removing a feature, grep its words too, not just its names:** after deleting Meteor Fall's beats, comments in
+  other files (camera_rig, elements, comic_flat, CLAUDE.md, docs tables) still described them; `grep -rn` the
+  feature's nouns (DOGPILE, gather, pile, beat) across scripts, tests and docs before landing.
+- **Overriding a built-in virtual by accident:** a helper named `_set(s)` on a Node3D collides with `Object._set(property,
+  value)`; name state setters `_enter()` or similar. Same for `_get`, `_notification`, `_init` with other signatures.
+- **A primitive mesh's `material_override` hides `Fx.outline`:** outline copies each surface's active material into a
+  surface override, and `material_override` wins over both. Put the material on the mesh (`BoxMesh.material = m`) when the
+  piece should be inked.
+- **A hero variant via `extends "res://scripts/player.gd"`** keeps every field the HUD, camera, comic_fx and the dummies read,
+  so most readers work unchanged; grep `hero\.|player\.` in the readers for consts and statics they call through the
+  hero's preloads (those can't be overridden) and give each a one-line `has_method` hook.
+- **Filming a scripted move sequence:** `tests/prince_film.gd` holds half-size RGB8 images in memory (30 a second, about
+  280 for 9 s, ~430 MB) and writes the PNGs after; ffmpeg `-framerate 30 -i %03d.png -c:v libx264 -pix_fmt yuv420p` makes
+  the mp4. Copy `user://<dir>` to the scratchpad first.
+
+## The harness (`tools/agent.sh`)
+
+- `new <name>`: worktree `../awaken-<name>` on `agent/<name>` from dev, imported, line-ending noise dropped.
+- `check [--quick]`: every test in its list (skipped if the file is gone), then the autotest, which must land every
+  breaker and string. `rhythm_check` is retried once on a FAIL. Afterwards it restores files whose only change is line
+  endings (`tidy`: the headless runs re-import, and Godot writes `.import` files LF while the checkout is CRLF).
+  A `.gitattributes` `*.import eol=lf` rule was tried and left out: git still lists the rewritten files as modified.
+- `land [--quick]`: tidy, refuse if dirty, rebase on dev, check, fast-forward dev.
+- `remove <name>`: drops line-ending noise, refuses over uncommitted changes and untracked files other than `.uid`, then
+  `worktree remove --force` (untracked `.uid` files, `.godot/` and shots don't block it), deletes whatever Windows
+  left ("Permission denied" from a file a Godot run still holds: it says so if a file is still locked; close it
+  and run `remove` again), prunes, and deletes `agent/<name>` only when dev has every commit (otherwise it keeps it
+  and says how many commits are not on dev).
+- `list`: worktrees and how far each branch is ahead of / behind dev.
+
+## When you're done
+
+Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
+the worktree, and deletes the branch once it has been merged.
+
+- **A breaker that "sometimes" drops out of the autotest can be a meter, not the string.** Since Meteor Fall's dive
+  hit more, the Awakening meter ran out during Dash L H H L and `set_awakened` reset `_anim_mult` mid-move: Steam
+  Burst's palm came 2.8x late, after the ice cube shattered, and Flash Freeze missed in ~2 of 3 runs. A per-frame
+  trace of the string (state, move, progress, `_anim_mult`, `Engine.time_scale`, `awakened`, each dummy's spot and
+  `frozen_t`) buffered into `_rhythm_log` and diffed against a throwaway `git worktree add --detach` of the old base
+  found it in two runs; reading diffs of the files that changed didn't (the cause was in a file nobody touched).
+- **A `[rhythm]` beat that jumps is a clue, not the bug:** the XS beat 406 -> 1150 ms was in every run, passing or not.
+  Compare passing and failing runs before trusting the number that changed.
+- **Don't drive a test's motion by the wall clock when the code under test steps by the engine's delta.** Headless the
+  two disagree (two frames in one ms while the rig still steps), so `camera_feel_check`'s dive read 0.21 m "over"
+  every run with no snap in the rig. Step it by hand (`set_process(false)`, call `_process(1/60)`), and check it still
+  fails on a real fault (an injected lean jump did).
+- **Patch scripts on CRLF files:** read with `newline=''` and the text keeps `\r\n`, so an `old` string written with
+  `\n` silently matches nothing (a `str.replace` doesn't fail). Normalise to `\n` first and write back with the file's
+  own ending, or assert the count. A sabotage edit to check a test did nothing this way and the test "passed".
+- **Judging HUD text from film:** `tests/string_film.gd` saves 800x450 (half the window). For text size, temporarily
+  set its `SIZE` to the window (1600x900), film your string into your own `--dir`, then `git checkout` the test.
+- **Bash heredocs holding Python with many quotes failed to parse** ("unexpected EOF while looking for matching '");
+  write the patch script with the Write tool into your scratchpad folder and run it.
+- **`Game` owns `Engine.time_scale`:** `_update_hitstop` sets it every frame from `_stops`, so a test that sets it
+  does nothing. Slow the game from a test with a long stop (`game._stops.append([now_ms + 120000, 0, 0.06])`) and end
+  it with `game.end_slowmo()`. Viewport readbacks (`get_texture().get_image()`) stall ~100 ms each: take a few before
+  the moment you film, and step what you film on game time, or the frames skip.
+- **A reimport touches every `.import` file's line endings** (`git status` shows dozens modified): restore the ones you
+  didn't mean to change (`git checkout -- <path>`) before committing.

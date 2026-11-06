@@ -28,7 +28,7 @@ func _initialize() -> void:
 		root3d.add_child(player)
 		player.set_physics_process(false)
 		if awakened:
-			player._set_awakened(true)
+			player.HERO_AWAKEN.set_awakened(player, true)
 		await process_frame
 		player.anim.play(swing[0])
 		for trail in player._trails:

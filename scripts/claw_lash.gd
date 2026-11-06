@@ -1,5 +1,5 @@
 extends Node3D
-## Dash Stab's lash (elements.CASTS "lash", fired by player._cast on DL's first hit): the claw whips the
+## Dash Stab's lash (elements.CASTS "lash", fired by hero_fx.cast on DL's first hit): the claw whips the
 ## tentacle's inked ribbon (void_tendril.gd) straight out ahead to `reach`, cutting what its tip passes,
 ## then snaps it back, cutting again. Each foe once per leg. It replaced the shaman's spirit tomahawk
 ## (round 30, second pass) with the same damage, reach and timing: 0.3 s out, 0.32 s back.
@@ -11,7 +11,7 @@ const HEIGHT := 0.9  # m: the line it cuts along
 const WAVE := 0.12  # how hard the ribbon whips on the way out
 const SNAP_WAVE := 0.03  # nearly straight when it's taut, at the far end
 
-var color := Color(0.3, 0.95, 0.85)  # (set by player._spirit; the ink keeps the tentacle's own colours)
+var color := Color(0.3, 0.95, 0.85)  # (set by hero_fx.spirit; the ink keeps the tentacle's own colours)
 var el := "spirit"
 var dir := Vector3.FORWARD
 var hero: Node3D  # it comes out of his hand and goes back to it

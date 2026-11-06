@@ -424,3 +424,39 @@ roughly 11 500 lines.
 - Step 6 before 7 and 8 keeps `void_arm_check` green while the files it
   reaches through are deleted.
 - Steps 7 and 9 wait for Zak's answers; nothing earlier depends on them.
+
+## Round 2 (2026-11-05, agent/cleanup2)
+
+After 22 lanes landed ~40 scripts in a day. Behaviour unchanged: every check in `agent.sh check` passes and
+the autotest's `breakers=`, `strings=`, `endings=`, `moves=` and `[improv]` counts match dev (`hits` and
+`max_combo` move by a few between any two runs).
+
+- **player.gd split, part 2** (1062 -> 784 lines): the swoosh, spirit casts (`cast`, `spirit`, `cast_grow`,
+  `cast_power`, `axe_mesh`, `AXE_SOURCE`), the combo callout, the ender camera kick (`ENDER_ZOOM`), the
+  rank-up burst and the last kill (`LAST_KILL_SLOWMO`) are `scripts/hero_fx.gd`.
+- **Forwarders removed** (21): `void_route`, `chain_after`, `_effective_move`, `_can_air_dash`, `dash_light`,
+  `combo_options`, `guide_name`, `combo_name`, `named_id`, `_input_dir`, `_mouse_aiming`, `_mouse_dir`,
+  `_aim_want`, `cancel_point`, `combo_window`, `_start_leap`, `_breaker_for`, `breaker_name`, `try_awaken`,
+  `_set_awakened`, `_base_anim_mult`. Callers use `hero.HERO_MOVES` / `HERO_INPUT` / `HERO_LEAP` /
+  `HERO_AWAKEN` / `HERO_FX`. Kept: `breaker_window()` (breaker_prompt's test fakes duck-type it) and the
+  constant re-exports (`MOVES`, `COMBOS`, `COMBO_TIER_COLORS`, ...).
+- **Death recap leftovers removed**: `player.last_hit_by`, `_describe_attacker`, `take_hit`'s `cause`, `bone_cage.CAUSE`,
+  bone_spike's and the bomber blast's cause strings, the foes' `title` meta.
+- **Dead names** (`tools/dead_refs.py`): `breaker_quake.eruption_line`, `enemy.chill_hits`, `enemy.fuse_left`,
+  `fx_palette.TAIL_ALPHA`.
+- Not done (stop-point): the constants comment pass (on `agent/cleanup2-style`: it shifted `[improv] buried_x_water`
+  1 -> 3 with the same values), the camera's timing-window framing.
+
+## Round 3 (2026-11-05, landed from agent/baseline)
+
+- Round 2 rebased past the camera lane. Its hunks in the files the Meteor Fall lane is rewriting (hero_leap.gd,
+  void_element.gd, camera_rig.gd, training_bot.gd and their pages) were dropped: those files are as on dev, and
+  player.gd keeps the forwarders they call (`_cast_power()`, `_cast_grow()`, `cancel_point()`, `combo_window()`,
+  `COMBO_TIER_SFX`, `COMBO_SFX_DB`). Drop them once those files call `HERO_FX` / `HERO_INPUT` directly.
+- Dead names only a doc still named, deleted: `breaker_quake.shockwave`, `enemy.crumble`, `enemy.set_glow` (and the
+  `_glow_mat` overlay loop it fed), `fx.heal`, `comic_fx.WORD_GAP_MS`, comic_check's `TIP_ON_FLOOR`.
+- Still dead, left for the Meteor Fall lane's file: `void_element.MAGMA_RADIUS` / `MAGMA_DAMAGE` / `MAGMA_LAUNCH` /
+  `MAGMA_WELLS` / `MAGMA_WELL_R` / `CUBE_FOE_GAP`. `fx_free_check._log_error` is a Logger virtual: keep it.
+- No unreferenced scripts, shaders or tests: every tests/*.gd is in agent.sh's list or named in a doc.
+- CLAUDE.md's script list covers every scripts/*.gd and the check list matches agent.sh; no dead links in docs/.
+- Harness: `agent.sh remove`, `check`'s rhythm_check retry and post-run tidy (docs/agents.md, "The harness").

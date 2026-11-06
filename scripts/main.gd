@@ -65,7 +65,7 @@ func _ready() -> void:
 	for spec: Dictionary in ENEMY_TYPES.values() + [BOSS_SPEC]:
 		_model(spec.model)
 
-	player = PLAYER.new()
+	player = (load("res://scripts/prince/prince.gd") if Game.hero == "prince" else PLAYER).new()  # --hero=prince
 	add_child(player)
 	player.died.connect(_on_player_died)
 	player.ELEMENTS.prewarm(self, player.global_position)
@@ -104,7 +104,6 @@ func _start_training() -> void:
 		var dummy: Node = DUMMY.new()
 		_set_model(dummy, "dummy", "Skeleton_Warrior")  # the comic punching bag (assets/comic/dummy.glb)
 		dummy.set_meta("kind", "dummy")
-		dummy.set_meta("title", "training dummy")
 		add_child(dummy)
 		dummy.home = player.global_position + spot
 		dummy.global_position = dummy.home
@@ -181,11 +180,10 @@ func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	var spec: Dictionary = ENEMY_TYPES[kind]
 	_set_model(e, kind, spec.model)
 	for key in spec:
-		if key not in ["model", "title"]:
+		if key not in ["model", "title"]:  # (`title` is display data enemy.gd has no field for)
 			e.set(key, spec[key])
 	e.elite = elite
 	e.set_meta("kind", kind)
-	e.set_meta("title", spec.get("title", kind))
 	add_child(e)
 	if at != Vector3.INF:
 		e.global_position = at

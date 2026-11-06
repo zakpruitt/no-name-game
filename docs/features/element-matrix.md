@@ -54,16 +54,17 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 | `scripts/comic_fx.gd` | `IMPROV_WORDS` by cell, `improv()` (once a move), the move's own word held `IMPROV_HOLD_MS` after it |
 | `tests/improv_shots.gd` | Look (windowed): every cell played for real on the dummies, six crops 83 ms apart (`--alone`: the payoff only, `--only=<cells>`) |
 | `scripts/floor_bind.gd` | The "bound" state: `BOUND` meta while a bind holds a foe, `holds()`, `let_go_of()` (Torn Loose) |
-| `scripts/move_list.gd` | The IMPROVISING section: one text row per bold cell |
-| `scripts/training_bot.gd` | Three bot strings reach a cell each; the autotest prints `[improv] <state>_x_<element>=N` |
+| `scripts/move_list.gd` | The MIX ELEMENTS section: every cell in plain words (`state` / `el` keys; `own` for the moves' cells), `mix_name()` |
+| `scripts/hero_moves.gd` | `pays()`: the payoff a guide row's move would cash in now (the combo guide's "+ name" tag) |
+| `scripts/training_bot.gd` | Five bot strings reach a cell each (tokens `face`, `out`, `wait`); the autotest prints `[improv] <state>_x_<element>=N` |
 | `tests/void_arm_check.gd` | `_element_matrix()`: every cell on a stand-in foe, the moves' own cells left alone, a whole Harpoon cashing in `buried` |
 
 ## How it works
 
-1. `fire()` (a move's first hit) calls `improvise(hero, id, at, power)` first. Only base element moves improvise
+1. `fire()` (a move's first hit) calls `improvise(hero, id, at, power, fwd)` first. Only base element moves improvise
    (`ELEMENT_OF`, not `X*`: the crossovers read their own states in their bodies).
-2. It collects the foes within `IMPROV_REACH` of him (Tow Line: the foes on the dash he just made first,
-   `_tow_line()`), skips anyone in flight (`THROWN.flying`), and reads each one's state for this element:
+2. It collects the foes the move itself lands on (`improv_reach()`, round 4: was everyone `IMPROV_REACH` round
+   him), skips anyone in flight (`THROWN.flying`), and reads each one's state for this element:
    the first in `IMPROV_ORDER` with a cell. Every state is read before any is paid, so a chain that sets a state
    on the neighbour doesn't pay again in the same move.
 3. `_pay()` spends `buried` / `molten` / `skewered` (once) and runs the cell's kind: one hit of
@@ -71,6 +72,29 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
    `freeze_aloft()`) or a chain (`_chain()`: the nearest foe within `IMPROV_CHAIN_R`).
 4. Then the move itself runs (`_fire()`). A payoff never throws (`THROWN.launch`), so the move can still throw
    the same foe.
+
+**Reach = the move's own hit shape** (`improv_reach()`, read before the move fires, from the move body's own
+numbers):
+
+| Move | Who its payoff reaches |
+|---|---|
+| Updraft Lash (EC) | the gale's circle, `CUTTER_RADIUS` x the chain's grow, `CUTTER_AHEAD` in front of him |
+| Live Wire (EE, EW) | whoever the tentacles reach (`void_grab.reachable()`, `SEIZE_RANGE`) |
+| Ice Cube (EA) | the nearest within `BOWL_REACH` and the roll ahead of it (`BOWL_LENGTH`, `IMPROV_ROLL_HALF_WIDTH` 1 m either side) |
+| Harpoon (EF) | the spear tip's line (`HARPOON_LENGTH`, `HARPOON_HALF_WIDTH`, cut short by a wall) |
+| Frost Spear (IP) | the frost round where the spear goes in (`frost_spear.RADIUS`) |
+| Vault (IJ) | nobody: it hits nothing |
+| Deep Freeze (IS) | the frost ring round the spear (`DEEP_FREEZE_RADIUS`) |
+| Molten Palm (EM) | the fist's lava line (`PALM_LENGTH`, `PALM_HALF_WIDTH`) |
+| Undertow (EV) | `UNDERTOW_RADIUS` round him, and whoever the palm shoved within `UNDERTOW_CHASE` |
+| Singularity (VS) | the hole where the slam lands (`dark_fx.Hole.RADIUS`) |
+| Reap (VR) | the crescent: `REAP_REACH`, `REAP_HALF_ANGLE` either side of his aim |
+| Black Tide (VD) | the marked within `TIDE_REACH`, else `TIDE_NEAR` round him |
+| Overwhelm (OW) | the pool on whoever he aims at (`_overwhelm_spot()`, `OVERWHELM_RADIUS`) |
+| Tow Line (TW) | the line he just dashed along (`_tow_line()`) |
+| anything else | its MOVES `range` / `arc` / `width`, else `IMPROV_REACH` round him |
+
+Breakers don't improvise (they read their own states in `breaker_impact()`), so a breaker zone never pays a cell.
 
 ## Invariants
 
@@ -81,10 +105,12 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 - A payoff hits on ice x `FREEZE_BREAK` like any hit, and the hit thaws it: ice payoffs (`encase`, `freeze`,
   `spread`) hit first and freeze after.
 - Bosses never freeze (`encase`, `freeze_aloft`) and the heavy aren't launched.
+- A payoff lands only where the move does: a foe inside 5 m of him but outside the move's shape (behind him, off
+  the harpoon's line) never pays (`_element_matrix()`).
 
 ## Tuning
 
-`IMPROV_REACH` (5 m), `IMPROV_DAMAGE` (8), `IMPROV_MULT` (1.5), `IMPROV_LAUNCH` (8 m/s), `IMPROV_DOWN` (6 m/s),
+`IMPROV_REACH` (5 m, only for a move with no shape in `improv_reach()`), `IMPROV_ROLL_HALF_WIDTH` (1 m), `IMPROV_DAMAGE` (8), `IMPROV_MULT` (1.5), `IMPROV_LAUNCH` (8 m/s), `IMPROV_DOWN` (6 m/s),
 `IMPROV_CHAIN_R` (2.6 m), `IMPROV_CHAIN_DAMAGE` (5), `IMPROV_PULL` (6 m/s), `IMPROV_STEAM_MULT` (1.6),
 `IMPROV_HOLD` (0.6 s). Quench and Flare-up reuse `STEAM_LAUNCH`, `ERUPT_MOLTEN_MULT` and `ERUPT_LAUNCH`.
 
@@ -97,8 +123,12 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 ## Testing
 
 - `godot --headless --path . -s tests/void_arm_check.gd`: `_element_matrix()` (PASS/FAIL).
-- `godot --headless --path . -- --autotest`: `[improv] frozen_x_void=3, buried_x_water=1, airborne_x_water=1`
-  from the bot's `line D L H D H`, `L H L L D L H` and `L H D L H`.
+- `godot --headless --path . -- --autotest`: `[improv] frozen_x_void=3, buried_x_water=3, airborne_x_water=1,
+  molten_x_wind=3, bound_x_wind=1` from the bot's `line D L H D H`, `face L H L L D L H`, `face L H D L H`,
+  `line out face D L H H H L D wait L H` (dash out of Meltdown, Updraft Lash fans the flames) and
+  `out face L L L H H D wait L H` (dash out of Undertow's hang, Updraft Lash tears them loose).
+  `out` lets the bot dash out of a breaker's hang (`player.bot_out`, `hero_leap.tick`); `wait` holds the next
+  press until he stands again, so L is L1 and not Dash Stab.
 
 ## Gotchas / open questions
 
@@ -107,7 +137,9 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
   the payer (the middle 60% of 640x480, effect-coloured pixels): 0.04-0.15 alone, at most 0.27 with the move's own hit
   (Molten Palm's stars), under the 0.40 cap.
 - Meteor Spike's falling line hides under Molten Palm's stars when the move plays; its word and dent carry it.
-- Only three cells have a bot string; the rest are covered by the headless check. Molten can't be reached by the
-  bot (Meltdown always opens its window and the bot always takes it): try it by hand, dashing out of the hang.
-- Not played by hand yet: the reach (5 m round him) may want to follow each move's own shape (Harpoon's line,
-  Black Tide's pool).
+- Five cells have a bot string; the rest are covered by the headless check. Still to try by hand: the timing of a
+  real dash out of the hang (the bot dashes on the first hang frame).
+- The reach follows each move's own shape since round 4. A long chain grows the shapes (`hero_fx.cast_grow()`): Updraft
+  Lash's 4.5 m gale circle 3.5 m ahead then reaches behind him, as its own hit does.
+- The bot's dash strings aim at the nearest foe (`face` token): the dash and Dash Stab's lunge carry him past the
+  buried, and with the 5 m circle gone a harpoon thrown the other way paid nobody (`buried_x_water` 1 -> 0).

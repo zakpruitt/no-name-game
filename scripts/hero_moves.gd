@@ -7,6 +7,11 @@ extends RefCounted
 
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
+const MOVE_LIST := preload("res://scripts/move_list.gd")
+## Round 34, fourth pass (combo guide): the element each weapon move swings, beside the void moves' ELEMENT_OF, and
+## the words the guide uses for them (the move list's and the element matrix's).
+const WEAPON_ELEMENT := {"L1": "wind", "AL1": "wind", "L2": "water", "DL": "water", "L3": "earth", "GR": "void"}
+const ELEMENT_WORDS := {"wind": "storm", "water": "ice", "earth": "magma", "void": "dark"}
 
 ## String pacing (round 30; the ms are real time at anim_speed 1.7, printed by tests/rhythm_check.gd).
 const L1_SPEED := 1.1  # opener: hit 216 -> 196 ms, so the first beat comes quickly
@@ -25,6 +30,28 @@ const MELT_SPEED := 1.5  # Meltdown (was 1.2): XG -> XM beat 467 ms; the slam la
 const ROCKSLIDE_STOP := 0.07  # (was 0.1) Rockslide's hitstop: with its tier-2 ender stop it was 150 ms of the 393 ms
 # beat to Fault Line's hit; the weight moves into the boulder's held frames, the blow keeps its contact frame
 const ROCKSLIDE_CONFIRM := 0.8  # its hit-confirm cancel comes this far back to the hit (CANCEL_ON_HIT is 0.5)
+# Round 34, fourth pass: the three still-long beats (bot [rhythm], unawakened; contact frames unchanged).
+const AL1_SPEED := 1.25  # Air Slash (was 1.0): its cut landed 216 ms in; EC -> AL1 beats were 344-385 ms
+const EC_CONFIRM := 0.8  # Updraft Lash's hit-confirm comes this far back to the hit (was CANCEL_ON_HIT 0.5): of the
+# EC -> AL1 beat, ~170 ms was the lash's stop and hit-confirm before Air Slash even started
+const L2_SPEED := 1.15  # the spear (was 1.0): its throw landed 235 ms in, L1 -> L2 beats ~311 ms; at 204 ms it still
+# winds up longer than L1's 196 (rhythm_check: opener quickest)
+const DASH_STAB_CANCEL := 0.4  # of dash_time: a dash out of a move hands over to a buffered light (Dash Stab) this
+# early (hero_input.dash_hands_over). Dash Stab off a dash out of a move was 475-536 ms after the move's hit (the
+# whole 160 ms dash, then its wind-up), 405-421 at 0.5. 0.4 is 64 ms, ~1.5 m plus the carry; Dash Stab's own lunge
+# (16 m/s) covers the rest of the ground. (Tow Line off a dash keeps the whole dash: handing it over too took
+# EF -> TW 457 -> 411 ms but its line got short and the bot's frozen x dark cell went 3 -> 0.)
+const DASH_STAB_STOP := 0.06  # (was 0.07) a light's freeze (L1 0.045, L2 0.05): with its tier-1 ENDER_HITSTOP it's 85 ms
+const DASH_STAB_CONFIRM := 0.8  # its hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5): once the stab
+# connected (the brake below), its stop plus the 0.5 confirm made Dash Stab -> Harpoon 424-435 ms
+const HARPOON_STOP := 0.07  # a mid's freeze (EC 0.07), plus its tier-1 ENDER_HITSTOP: the catch, once it has foes
+# Round 41 (feel audit 2 item 5): Dash Stab and Harpoon landed soft (x1.00 on their HIT frames). Not a missing stop:
+# their blows whiffed. At 16 m/s the stab carried him ~2.7 m by its hit, through a foe 2-3 m ahead (outside its 90 deg
+# arc once behind him), and Harpoon then fired at nobody. The stab now brakes on the foe it aims at, so it lands in
+# front of him and gets the stop, kick and star every connected hit has.
+const DASH_STAB_BRAKE := 0.6  # of the stab's range: where the foe it aims at stands by the hit (centre to centre)
+const DASH_STAB_BRAKE_ARC := 50.0  # deg either side of his aim: the foes it brakes for
+const DASH_STAB_MIN_LUNGE := 3.0  # m/s: braked, it still steps in
 
 # Moves. Timings are fractions of the animation's length, so changing
 # anim_speed keeps everything in sync.
@@ -55,7 +82,7 @@ const MOVES := {
 		"lunge": 1.5, "knockback": 3.0, "launch": 6.0, "big": true, "stop": 0.09, "shake": 0.42},
 	"L2": {"anim": "Throw", "damage": 9.0, "range": 2.5, "arc": 160.0,
 		"hits": [0.42], "cancel": 0.5, "end": 0.7, "lunge": 6.0, "knockback": 2.5, "launch": 0.0,
-		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6]},
+		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6], "speed": L2_SPEED},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": L3_CANCEL, "end": L3_END, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
 		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9], "speed": L3_SPEED},
@@ -65,7 +92,7 @@ const MOVES := {
 	"EW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
 	"EC": {"anim": "Ab_LH", "damage": 4.0, "range": 2.6, "arc": 150.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
-		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.28, "hop": [VOID_ELEMENT.LH_HIT - 0.01, VOID_ELEMENT.LH_HIT + 0.29, 1.5]},
+		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "confirm": EC_CONFIRM, "shake": 0.28, "hop": [VOID_ELEMENT.LH_HIT - 0.01, VOID_ELEMENT.LH_HIT + 0.29, 1.5]},
 	"EA": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
 	"EV": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
@@ -79,7 +106,7 @@ const MOVES := {
 	"TW": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
 	"EF": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [VOID_ELEMENT.LLH_HIT], "cancel": VOID_ELEMENT.LLH_HIT + 0.16, "end": VOID_ELEMENT.LLH_HIT + 0.38,
-		"speed": LLH_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
+		"speed": LLH_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": HARPOON_STOP, "shake": 0.3},
 	"IP": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [VOID_ELEMENT.LLH_HIT], "cancel": VOID_ELEMENT.LLH_HIT + 0.16, "end": VOID_ELEMENT.LLH_HIT + 0.46,
 		"speed": LLH_SPEED, "lunge": 1.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
 	"IJ": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.2], "cancel": 0.3, "end": 0.8,
@@ -121,12 +148,12 @@ const MOVES := {
 	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).
 	"AL1": {"anim": "1H_Melee_Attack_Slice_Diagonal", "damage": 7.0, "range": 2.6, "arc": 170.0,
 		"hits": [0.32], "cancel": 0.42, "end": 0.7, "lunge": 2.0, "knockback": 0.6, "launch": 5.0,
-		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4},
+		"stop": 0.045, "shake": 0.12, "air": true, "climb": 0.4, "speed": AL1_SPEED},
 	# Light right out of a dash: long lunging stab, pouncing onto the foe
 	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
-		"stop": 0.07, "shake": 0.22, "hop": [0.03, 0.3, 0.6]},
+		"stop": DASH_STAB_STOP, "confirm": DASH_STAB_CONFIRM, "shake": 0.22, "hop": [0.03, 0.3, 0.6], "brake": true},
 }
 # The named combos: landing one plays its tier's sound and shows its name
 # above the hero. Moves not listed here (L1, L2, AL1) stay quiet. Also the
@@ -324,6 +351,28 @@ static func air_home(hero: CharacterBody3D) -> void:
 	move.lunge = clampf(maxf(move.lunge, need), 0.0, AIR_HOME_MAX)
 
 
+## Dash Stab's brake (DASH_STAB_*): a move with `brake` that would lunge past the foe it aimed at (hero._aim_lock,
+## set by hero_input.aim as it starts) lunges only far enough to have it DASH_STAB_BRAKE of its range ahead at the
+## hit. A foe further than the full lunge keeps the full lunge (the lash test's foe 8 m out).
+static func brake(hero: CharacterBody3D) -> void:
+	var move: Dictionary = hero._move
+	var foe: Variant = hero._aim_lock
+	if not move.get("brake", false) or not is_instance_valid(foe) or not foe.is_alive():
+		return
+	var to: Vector3 = foe.global_position - hero.global_position
+	to.y = 0.0
+	if to.length() < 0.01 or rad_to_deg(hero._facing().angle_to(to.normalized())) > DASH_STAB_BRAKE_ARC:
+		return
+	var length: float = hero._move_len / maxf(hero.anim_speed * hero._anim_mult, 0.01)
+	var decay: float = move.get("decay", 3.0)
+	var h: float = minf(move.hits[0], 1.0 / decay)
+	var per_speed: float = length * (h - decay * h * h * 0.5)  # metres by the hit per m/s of lunge
+	var need: float = to.length() - move.range * DASH_STAB_BRAKE
+	if per_speed <= 0.0 or need >= move.lunge * per_speed:
+		return
+	move.lunge = clampf(need / per_speed, DASH_STAB_MIN_LUNGE, move.lunge)
+
+
 ## Whether a dash now would be an air dash (AIR_DASH_*).
 static func can_air_dash(hero: CharacterBody3D) -> bool:
 	return hero._move_id in AIR_DASH_FROM and hero.model.position.y >= AIR_DASH_MIN and hero._air_dashes < AIR_DASHES
@@ -334,10 +383,10 @@ static func can_air_dash(hero: CharacterBody3D) -> bool:
 ## the dash direction. Grows with the chain like the casts.
 static func air_dash_cut(hero: CharacterBody3D) -> void:
 	var c: Dictionary = AIR_DASH_CUT
-	var echo: Node3D = hero._spirit(SPIRIT_ECHO.new(), c, hero.element())
+	var echo: Node3D = hero.HERO_FX.spirit(hero, SPIRIT_ECHO.new(), c, hero.element())
 	echo.fwd = hero._dash_dir
 	echo.arc_deg = c.arc
-	echo.radius = c.radius * hero._cast_grow()
+	echo.radius = c.radius * hero.HERO_FX.cast_grow()
 	echo.delay = 0.0
 	echo.time = c.time
 	hero.add_child(echo)
@@ -377,6 +426,31 @@ static func combo_options(hero: CharacterBody3D) -> Array:
 	return rows
 
 
+## The element change a crossover row makes ("storm > magma"), or "" when the move stays in its element.
+static func mix_of(from: String, id: String) -> String:
+	if not id.begins_with("X"):
+		return ""
+	var a: String = VOID_ELEMENT.ELEMENT_OF.get(from, WEAPON_ELEMENT.get(from, ""))
+	var b: String = VOID_ELEMENT.ELEMENT_OF.get(id, "")
+	if a == "" or b == "" or a == b:
+		return ""
+	return "%s > %s" % [ELEMENT_WORDS[a], ELEMENT_WORDS[b]]
+
+
+## The improvised payoff move `id` would cash in right now ("" if none): the first foe in its own hit shape
+## (void_element.improv_reach) in a state its element pays (IMPROV). The guide tags the row "+ <name>".
+static func pays(hero: CharacterBody3D, id: String) -> String:
+	if id.begins_with("X") or not VOID_ELEMENT.ELEMENT_OF.has(id):
+		return ""
+	var el: String = VOID_ELEMENT.ELEMENT_OF[id]
+	var at := Vector3(hero.global_position.x, 0.0, hero.global_position.z)
+	for e: Node3D in VOID_ELEMENT.improv_reach(hero, id, at, hero._facing()):
+		var state: String = "" if VOID_ELEMENT.THROWN.flying(e) else VOID_ELEMENT.improv_state(e, el)
+		if state != "":
+			return MOVE_LIST.mix_name(state, el)
+	return ""
+
+
 ## What dash-then-light starts from here (the combo guide's dash row): Dash Stab, in the air too.
 static func dash_light(hero: CharacterBody3D) -> String:
 	return void_route("light", hero._move_id, false, hero._chain_i, true)
@@ -386,6 +460,12 @@ static func dash_light(hero: CharacterBody3D) -> String:
 static func option(hero: CharacterBody3D, kind: String, id: String, hold := false) -> Dictionary:
 	var o := {"kind": kind, "id": id, "name": guide_name(id), "tier": COMBOS[id].tier if COMBOS.has(id) else 0,
 		"hold": hold, "next": {}}
+	var mix := mix_of(hero._move_id, id)
+	if mix != "":
+		o.mix = mix
+	var pay := pays(hero, id)
+	if pay != "":
+		o.pay = pay
 	if o.tier < 3 and not hold:
 		var best := 0
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties

@@ -72,15 +72,13 @@ var arm: Node  # void_arm.gd
 var tendril: Node3D
 var fist: Node3D  # Molten Palm's, on the end of the tentacle
 var shoved := []  # who Molten Palm just sent off: Undertow follows them
-var bound := []  # who Undertow has hold of: Meteor Fall goes for them
-var chased := []  # those of them the palm shoved: he goes after these first
+var bound := []  # who Undertow has hold of
 var dark_spot := Vector3.ZERO  # where the dark string gathered them: its breakers land here
 var hole: Node3D  # Singularity's
 var dark_bind: Node  # what Overwhelm has them in
 var dark_maw: Node3D  # Maw's jaws, up while he dives
 var buried := []  # who Rockslide drove into the floor out of the air: Fault Line throws them hardest
-var undertow: Node  # Undertow's floor_bind: Meteor Fall's first beat lets it go
-var pile := []  # Meteor Fall: who it threw at the walls, then dragged into the pile
+var undertow: Node  # Undertow's floor_bind: Meteor Fall's landing lets it go
 
 var _seized := []  # {foe, from, tendril}: held through a breaker
 var _spare := []  # tendrils from earlier breakers
@@ -155,9 +153,9 @@ static func is_heavy(e: Node) -> bool:
 
 
 func _aim_dir() -> Vector3:
-	if hero._mouse_aiming():
-		return hero._mouse_dir()
-	var d: Vector3 = hero._input_dir()
+	if hero.HERO_INPUT.mouse_aiming(hero):
+		return hero.HERO_INPUT.mouse_dir(hero)
+	var d: Vector3 = hero.HERO_INPUT.input_dir(hero)
 	return d.normalized() if d.length() > 0.1 else hero._facing()
 
 
@@ -392,24 +390,8 @@ func reachable() -> Array:
 		return e.is_alive() and (e.global_position - at).length() <= SEIZE_RANGE + float(e.radius))
 
 
-## The one Meteor Fall goes for, out of those Undertow has hold of: a boss, then the biggest, then whoever
-## the palm shoved, then the nearest.
-func rip_target() -> Node3D:
-	var at: Vector3 = hero.global_position
-	var best: Node3D = null
-	var best_score := -INF
-	var pool: Array = bound.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
-	for e: Node3D in pool if not pool.is_empty() else reachable():
-		var score: float = (100.0 if e.has_method("is_boss") else 0.0) + (20.0 if is_heavy(e) else 0.0) + (10.0 if e in chased else 0.0) \
-			+ float(e.radius) - (e.global_position - at).length() * 0.1
-		if score > best_score:
-			best_score = score
-			best = e
-	return best
-
-
-## Airborne ones first: they're what the string put up there. Some breakers hold differently: Meteor
-## Fall takes one target where it stands, and Avalanche takes every cube where it stands, for now.
+## Airborne ones first: they're what the string put up there. Some breakers hold differently: Avalanche
+## takes every cube where it stands, and the `no_hold` ones (Meteor Fall, the dark ones) take nobody.
 func seize(b := {}) -> void:
 	release_seized()
 	_zaps = 0
@@ -428,37 +410,36 @@ func seize(b := {}) -> void:
 				_seized.append({"foe": e, "from": e.global_position, "tendril": cord, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true})
 		aim_crush()
 		return
-	if b.has("rip"):
-		var e := rip_target()
-		if e != null:
-			var t: Node3D = _spare.pop_back() if not _spare.is_empty() else null
-			if t == null:
-				t = TENDRIL.new()
-				hero.add_child(t)
-			var other := TENDRIL.new()
-			hero.add_child(other)
-			var side := (e.global_position - hero.global_position).cross(Vector3.UP).normalized() * (float(e.radius) + 1.4)
-			_seized.append({"foe": e, "from": e.global_position, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER,
-				"anchored": true, "other": other, "other_from": Vector3(e.global_position.x, 0.0, e.global_position.z) + (side if side.length() > 0.1 else Vector3.RIGHT)})
-			if not is_heavy(e):
-				e.stagger(HOLD)
-		return
 	var at: Vector3 = hero.global_position
 	var foes: Array = reachable().filter(func(e: Node3D) -> bool: return not is_heavy(e) and not VOID_ELEMENT.THROWN.flying(e))
 	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		if a.is_airborne() != b.is_airborne():
 			return a.is_airborne()
 		return (a.global_position - at).length() < (b.global_position - at).length())
-	for e: Node3D in foes.slice(0, SEIZE_MAX):
+	var held: Array = foes.slice(0, SEIZE_MAX)
+	var side: Vector3 = hero._facing().cross(Vector3.UP).normalized()
+	var fan := {}  # (Anvil's reel: each its own slot across his aim, in the order they stand, so none cross)
+	if b.has("reel"):
+		var order := held.duplicate()
+		order.sort_custom(func(a: Node3D, c: Node3D) -> bool:
+			return (a.global_position - at).dot(side) < (c.global_position - at).dot(side))
+		for i in order.size():
+			fan[order[i]] = side * (i - (order.size() - 1) * 0.5) * VOID_ELEMENT.ANVIL_SPREAD
+	for e: Node3D in held:
 		var t: Node3D = _spare.pop_back() if not _spare.is_empty() else null
 		if t == null:
 			t = TENDRIL.new()
 			hero.add_child(t)
 		var from: Vector3 = e.global_position
+		var one := {"foe": e, "from": from, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER}
 		if b.has("reel"):  # (Anvil: hauled back towards him as they go up, the kebab coming back on the gale)
 			var to: Vector3 = at + hero._facing() * VOID_ELEMENT.ANVIL_REEL_GAP
 			from = Vector3(lerpf(from.x, to.x, b.reel), from.y, lerpf(from.z, to.z, b.reel))
-		_seized.append({"foe": e, "from": from, "tendril": t, "land": Vector3.ZERO, "stagger_at": _time + RESTAGGER})
+			# (fanned out across his aim: held a slot apart, and the dive keeps the slot, so a crater each)
+			var lateral: float = (from - to).dot(side)
+			one.from = from - side * lateral * (1.0 - SEIZE_IN) + fan[e]
+			one.fan = fan[e]
+		_seized.append(one)
 		e.stagger(HOLD)
 
 
@@ -475,7 +456,7 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 		if not is_instance_valid(e) or not e.is_alive():
 			s.tendril.visible = false
 			continue
-		if s.has("anchored"):  # pulled two ways where it stands
+		if s.has("anchored"):  # held where it stands (Avalanche's cubes)
 			if _time >= s.stagger_at and not is_heavy(e):
 				s.stagger_at = _time + RESTAGGER
 				e.stagger(HOLD)
@@ -485,8 +466,6 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 			var coil := float(e.radius) + 0.05
 			var out := smoothstep(0.0, SEIZE_SHOOT, t) if phase == 0 else 1.0
 			s.tendril.draw(hand, e.global_position + CHEST, out, 0.02, coil, _time)
-			if s.has("other"):
-				s.other.draw(s.other_from, e.global_position + CHEST, out, 0.02, coil, _time)
 			continue
 		if _time >= s.stagger_at and e.has_method("stagger"):  # (not every frame: each one flashes them white)
 			s.stagger_at = _time + RESTAGGER
@@ -504,7 +483,7 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 		else:
 			var k := clampf(t / float(b.dive), 0.0, 1.0)
 			var was: Vector3 = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
-			var land: Vector3 = hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - SEIZE_IN)
+			var land: Vector3 = hero._brk_zone.lerp(Vector3(s.from.x, 0.0, s.from.z), 1.0 - SEIZE_IN) + s.get("fan", Vector3.ZERO) * SEIZE_IN
 			e.global_position = was.lerp(land, k * k)
 			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.02, float(e.radius) + 0.05, _time)
 
@@ -567,8 +546,6 @@ func release_seized() -> void:
 		s.tendril.visible = false
 		s.tendril.line = false
 		_spare.append(s.tendril)
-		if s.has("other"):
-			s.other.queue_free()
 	_seized.clear()
 
 
@@ -625,7 +602,7 @@ func _begin_swing(a: Node3D) -> void:
 	_r = out.length()
 	_ang = atan2(out.z, out.x)
 	# Round whichever way carries him where he's pushing; left of the pillar by default.
-	var push: Vector3 = hero._input_dir()
+	var push: Vector3 = hero.HERO_INPUT.input_dir(hero)
 	if push.length() <= 0.1:
 		push = hero._facing()
 	_sign = -1.0 if out.cross(push).y > 0.0 else 1.0
@@ -706,7 +683,7 @@ func _drop_carry() -> void:
 	if not e.is_alive():
 		return
 	VOID_ELEMENT.THROWN.launch(hero, e, e.global_position + _tangent() * VOID_ELEMENT.CARRY_LENGTH,
-		VOID_ELEMENT.CARRY_DAMAGE * hero._dmg_mult * hero._cast_power(), {"el": "void"})
+		VOID_ELEMENT.CARRY_DAMAGE * hero._dmg_mult * hero.HERO_FX.cast_power(), {"el": "void"})
 
 
 func _tick_sky(delta: float) -> void:

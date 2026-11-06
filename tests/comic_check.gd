@@ -20,7 +20,6 @@ const BY_ROLE := {
 const RUN_ONESHOTS := ["Run_Start", "Run_Stop"]
 const RUN_ONESHOT_KINDS := ["rogue", "minion"]
 const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
-const TIP_ON_FLOOR := 0.2  # m either way, a dragged blade's tip
 const AXE_AHEAD_MAX := 0.45  # m in front of him, axe head, in anything he holds
 const MOVE_TAIL_FROM := 0.75  # abilities.into_guard: from here a move's arms ease into the guard
 const BOSS_ONLY := ["Enrage", "Jump_Idle", "Jump_Land", "Spellcast_Shoot"]
@@ -143,7 +142,7 @@ func _check_hero_bones(model: Node3D) -> void:
 
 ## The numbers: hit = frame / length, and the time after the hit unchanged.
 func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
-	var kaykit: Node = load(hero_script.AXE_SOURCE).instantiate()  # the old timings are its clips
+	var kaykit: Node = load(hero_script.HERO_FX.AXE_SOURCE).instantiate()  # the old timings are its clips
 	var old_rig: AnimationPlayer = kaykit.find_child("AnimationPlayer", true, false)
 	_expect(Look.HERO_MOVES.size() == 5, "five Ab_ clips routed")
 	var CONTACT: GDScript = load("res://tests/contact_frames.gd")
@@ -213,7 +212,7 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 	_expect(comic.model.find_child("AwakenEyes", true, false) == null, "no added eyes")
 	_expect(comic.model.find_children("Coat", "Node3D", true, false).is_empty(), "no axe coats")
 	_expect(comic._trails.size() == Look.HERO_AXES.size(), "a trail per axe")
-	_expect(comic._axe_mesh() != null, "spirit casts have an axe")
+	_expect(comic.HERO_FX.axe_mesh() != null, "spirit casts have an axe")
 	_check_run_clips(comic)
 	_check_stances(comic)
 	_check_drag(comic)
@@ -245,7 +244,7 @@ func _check_run_clips(comic: CharacterBody3D) -> void:
 	comic._facing_yaw = 0.0
 	_expect(comic._turned(Vector3(1, 0, 0), 45.0).is_equal_approx(Vector3(sin(PI / 4.0), 0, cos(PI / 4.0))), "a turn stops at its limit")
 	_expect(comic._turned(Vector3(1, 0, 0), 180.0).is_equal_approx(Vector3(1, 0, 0)), "a turn doesn't overshoot")
-	_expect(not comic._mouse_aiming(), "headless: no mouse aim, so the checks and bot aim as before")
+	_expect(not comic.HERO_INPUT.mouse_aiming(comic), "headless: no mouse aim, so the checks and bot aim as before")
 
 
 ## He carries the axes: their heads aren't out in front of him in anything he holds.
@@ -388,7 +387,7 @@ func _check_facing(model: Node, kind: String) -> void:
 	var node: Node = skel
 	while node != null:
 		if node is Node3D:
-			ahead = node.basis * ahead
+			ahead = node.basis.orthonormalized() * ahead  # a turn, not a scale (the chibi's Armature node is scaled)
 		node = node.get_parent()
 	_expect(ahead.z > 0.99, "%s: skeleton sits square in the model (its +Z goes to %s)" % [kind, ahead])
 	var head := skel.find_bone("head")

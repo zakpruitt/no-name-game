@@ -8,6 +8,7 @@ extends Node
 const FOES := preload("res://scripts/foes.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -31,6 +32,7 @@ static var _cube_mat: StandardMaterial3D
 static var _cube_meshes := {}  # (radius, height) in cm -> mesh
 const WALL_MARGIN := 0.5  # m short of a wall
 const FLYING := "thrown_foe_flying"  # meta on a foe in flight: nothing else may move it
+const WALL_META := "last_wall_ms"  # meta: Time.get_ticks_msec() of its last wall splat (Meteor Fall goes for these)
 const GROUP := "thrown_foes"  # every flight in progress (cut())
 const ZAP_STEP := 0.08  # s between a `zap` flight's jolts
 const ZAP_REACH := 3.2  # m it jumps to whoever it passes
@@ -203,12 +205,18 @@ func _aim(to: Vector3) -> void:
 
 ## How far it can fly before a wall.
 func _clear(length: float) -> float:
-	var start := Vector3(_from.x, 0.9, _from.z)
-	var q := PhysicsRayQueryParameters3D.create(start, start + _dir * (length + WALL_MARGIN), hero.collision_mask)
-	q.exclude = [foe.get_rid(), hero.get_rid()]
-	for o: Node in foe.get_tree().get_nodes_in_group("enemies"):
+	return clear_from(hero, foe, _from, _dir, length)
+
+
+## How far `e` can fly from `from` along `dir` before a wall (`length` if none that close). Molten Palm asks it
+## first, to carry them on to a wall in reach.
+static func clear_from(by: Node3D, e: Node3D, from: Vector3, dir: Vector3, length: float) -> float:
+	var start := Vector3(from.x, 0.9, from.z)
+	var q := PhysicsRayQueryParameters3D.create(start, start + dir * (length + WALL_MARGIN), by.collision_mask)
+	q.exclude = [e.get_rid(), by.get_rid()]
+	for o: Node in e.get_tree().get_nodes_in_group("enemies"):
 		q.exclude.append(o.get_rid())
-	var hit := foe.get_world_3d().direct_space_state.intersect_ray(q)
+	var hit := e.get_world_3d().direct_space_state.intersect_ray(q)
 	return length if hit.is_empty() else maxf(start.distance_to(hit.position) - WALL_MARGIN, 0.0)
 
 
@@ -298,6 +306,12 @@ func _burst(other: Node3D) -> void:
 	Game.sfx("hit_big", -2.0, 0.1)
 	Game.hitstop(0.04)
 	Game.shake(0.3)
+	if _walled and other == null:
+		foe.set_meta(WALL_META, Time.get_ticks_msec())
+		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
+			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
+	if DESIGNED.on() and el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
+		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
 	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)
 	_count(foe)
 	if other != null:

@@ -9,6 +9,7 @@ extends CanvasLayer
 const STANDING := preload("res://scripts/standing_fx.gd")
 const COMIC_DUST := preload("res://scripts/comic_dust.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
+const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
 const FONT_PATH := "res://assets/fonts/Bangers-Regular.ttf"
 const FONT_SIZE := 96  # rendered big and scaled down, so one size serves every tier
@@ -32,7 +33,6 @@ const WORD_FRAMES := 14
 const OUTLINE_DIV := 9  # FONT_SIZE / this: the ink line (was / 4)
 const POOL := 6
 # Words can't stack into noise on a crowd: at most one per gap.
-const WORD_GAP_MS := 110
 const WORD_GAP_REDUCED_MS := 400
 const WORD_GAP_HERETIC_MS := 240  # his moves hit whole crowds at once
 const WORD_RISE_PX := 1.3  # per frame
@@ -119,12 +119,6 @@ static func improv(cell: String, world: Vector3) -> void:
 static func hit(world: Vector3, big: bool) -> void:
 	if _inst != null:
 		_inst._word(world, mini(Fx.chain_tier(Game.combo_count) + (1 if big else 0), WORDS.size() - 1))
-
-
-## A word of an effect's own at `world` (Meteor Fall's pile-up), `base` its scale (WORD_SCALE / BREAKER_SCALE).
-static func say(text: String, world: Vector3, base: float) -> void:
-	if _inst != null:
-		_inst._say(text, world, base)
 
 
 ## Word size over its life in frames: pops past full size, settles, swells as it goes.
@@ -322,6 +316,7 @@ func _watch_hero() -> void:
 	STANDING.watch(hero)  # the last string's floor fades on this one's first hit
 	COMIC_DUST.watch(hero)  # a puff (and skid marks) on his run start, skid and dodge
 	CALLOUT_CAP.watch(hero)  # the combo / breaker name over him fades on real time, and on the next string
+	AWAKEN_FLOURISH.note(hero)  # when his breakers land: the Awakening flourish waits past one
 	var id: String = hero._move_id
 	if hero._hits_done == 0:
 		_move_seen = ""
@@ -334,7 +329,7 @@ func _watch_hero() -> void:
 			_say(MOVE_WORDS[id], at, WORD_SCALE[tier])
 	if hero.breakers_landed > _breakers_seen:
 		_breakers_seen = hero.breakers_landed
-		var word: String = BREAKER_WORDS.get(hero.breaker_name(), "")
+		var word: String = BREAKER_WORDS.get(hero.HERO_LEAP.breaker_name(hero), "")
 		if word != "":
 			_say(word, hero.global_position, BREAKER_SCALE)
 

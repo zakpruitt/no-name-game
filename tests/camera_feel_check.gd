@@ -5,8 +5,8 @@ extends SceneTree
 ## target so two opposite kicks in one frame cancel instead of jittering, and
 ## Game.register_hit / Game.shake drive them. Round 36: the rest distance shows the hero 125-160 px tall at
 ## 1080p with 25-40% more floor than round 32's camera, --cam-*= flags override it, and the fight framing eases
-## out to fit a foe thrown wide, then drifts back; in Meteor Fall's beats (a breaker hang after the press) it
-## pulls out past that cap, fast, and comes back in slower on the dive. Prints PASS/FAIL.
+## out to fit a foe thrown wide, then drifts back; a breaker hang stays centred, and the camera follows a long
+## dive (Meteor Fall) without a snap. Prints PASS/FAIL.
 ## Run: godot --headless --path . -s tests/camera_feel_check.gd
 
 var fails := 0
@@ -104,7 +104,7 @@ func _initialize() -> void:
 	await _fov_and_blow(rig)
 	await _distance(rig)
 	await _framing(rig, world)
-	await _hang_pullout(world)
+	await _hang_dive(world)
 	print("[camera] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
 
@@ -204,11 +204,11 @@ var last_hit_ms := -100000
 	foe.queue_free()
 
 
-## Breaker hang pull-out (camera round 2): Meteor Fall's beat 1 throws everyone ~10 m out into the walls. In the
-## timing window the hang keeps its push-in; in the beats (hero_leap phase 3) the camera eases out fast, past the
-## normal framing cap (to at most FRAME_MAX x HANG_FRAME_GAIN), so a foe 12 m off stays on a 16:9 screen; the dive
-## (phase 1) comes back in slower than it went out.
-func _hang_pullout(world: Node3D) -> void:
+## Breaker hang and dive (round 42, meteor dive): a foe hit 12 m out doesn't pull the hang out or lean it (he stays
+## centred in the push-in through the window), and when he dives 12 m onto a group (Meteor Fall) the camera
+## follows him there without a snap: no frame moves it further than he moved, it never runs ahead of him, and it
+## has caught up soon after he lands.
+func _hang_dive(world: Node3D) -> void:
 	var hero_script := GDScript.new()
 	hero_script.source_code = "extends Node3D
 enum State { MOVE, LEAP }
@@ -231,32 +231,47 @@ var last_hit_ms := -100000
 	var foe: Node3D = foe_script.new()
 	world.add_child(foe)
 	foe.add_to_group("enemies")
-	foe.global_position = hero.global_position + Vector3(12.0, 0.0, 2.0)  # thrown into the east wall
+	foe.global_position = hero.global_position + Vector3(12.0, 0.0, 2.0)  # the group the palm punched away
 	var rest: float = rig.offset.length()
+	await _settle(0.5)
 	hero.state = 1
 	hero._brk_phase = 0  # the rise and the timing window
 	await _hang_hold(foe, 0.6)
-	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.9, "in the timing window the hang keeps its push-in (x%.3f, %.2f of %.2f m)" % [rig._frame, rig.camera.position.length(), rest])
-	hero._brk_phase = 3  # the press: beat 1 throws, beat 2 gathers
-	await _hang_hold(foe, 0.25)
-	var early: float = rig.camera.position.length() / rest
-	await _hang_hold(foe, 0.5)
-	var out: float = rig.camera.position.length() / rest
-	var cap: float = rig.FRAME_MAX * float(rig.get_script().get_script_constant_map().get("HANG_FRAME_GAIN", 1.0))  # (1: none)
-	_check(out > rig.FRAME_MAX + 0.05 and out <= cap + 0.01, "Meteor Fall's beats pull out past the framing cap x%.2f, to at most x%.2f (x%.3f)" % [rig.FRAME_MAX, cap, out])
-	_check(early >= 1.0 + (out - 1.0) * 0.8, "fast: most of the way out 0.25 s after the press (x%.3f of x%.3f)" % [early, out])
-	var d: Vector3 = rig.camera.global_transform.affine_inverse() * foe.global_position
-	var ndc_x := d.x / (-d.z * tan(deg_to_rad(rig.camera.fov * 0.5)) * 16.0 / 9.0)
-	_check(absf(ndc_x) < 0.95, "so the foe thrown 12 m out is on a 16:9 screen (x at %.2f of the half-width)" % ndc_x)
-	hero._brk_phase = 1  # the dive
-	await process_frame
-	await process_frame
-	var first: float = rig._frame
-	await _hang_hold(foe, 0.25)
-	var back: float = rig._frame
-	_check(back < first - 0.05 and back > 1.0 + (first - 1.0) * 0.25, "the dive comes back in, slower than it went out (x%.3f after 0.25 s)" % back)
-	await _hang_hold(foe, 1.5)
-	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.95, "and lands back in the hang's push-in (x%.3f, %.2f m)" % [rig._frame, rig.camera.position.length()])
+	_check(rig._frame < 1.02 and rig.camera.position.length() < rest * 0.97, "in the window the hang keeps its push-in (x%.3f, %.2f of %.2f m)" % [rig._frame, rig.camera.position.length(), rest])
+	_check(absf(rig.global_position.x - hero.global_position.x) < 0.2, "and no lean towards the foe 12 m out (%.2f m)" % (rig.global_position.x - hero.global_position.x))
+	_check(not rig.get_script().get_script_constant_map().has("HANG_FRAME_GAIN"), "no hang pull-out left (Meteor Fall's beats are gone)")
+	hero._brk_phase = 1  # the dive: 12 m in 0.4 s
+	var from: Vector3 = hero.global_position
+	var worst := 0.0
+	var ahead := -INF
+	var frame_max := 0.0
+	var last_rig: Vector3 = rig.global_position
+	var last_hero: Vector3 = hero.global_position
+	# Stepped by hand at 60 fps: he moves 1/24 of the dive and the rig follows one 1/60 s step. (This drove him by the
+	# wall clock while the rig follows with the engine's frame delta; headless the two disagree, two frames could land
+	# in one ms and the rig still stepped, so it read 0.21 m "over" every run with no snap in the rig.)
+	rig.set_process(false)
+	const STEPS := 24  # 0.4 s
+	for i in STEPS:
+		hero.global_position = from + Vector3(12.0, 0.0, 0.0) * (float(i + 1) / STEPS)
+		foe.last_hit_ms = Time.get_ticks_msec()
+		rig._process(1.0 / 60.0)
+		var step: float = (rig.global_position - last_rig).length()
+		worst = maxf(worst, step - (hero.global_position - last_hero).length())
+		ahead = maxf(ahead, rig.global_position.x - hero.global_position.x)
+		frame_max = maxf(frame_max, rig._frame)
+		last_rig = rig.global_position
+		last_hero = hero.global_position
+	_check(worst < 0.05, "the dive's follow never snaps: no frame moves the camera further than he moved (%.3f m over)" % worst)
+	_check(ahead < 0.05, "and it never runs ahead of him (%.2f m)" % ahead)
+	_check(frame_max < 1.02, "nor pulls out on the way down (x%.3f)" % frame_max)
+	rig.set_process(true)
+	hero.global_position = from + Vector3(12.0, 0.0, 0.0)
+	hero.state = 0
+	hero._brk_phase = -1
+	await _settle(0.8)
+	var gap := Vector2(rig.global_position.x - hero.global_position.x, rig.global_position.z - hero.global_position.z).length()
+	_check(gap < 0.3, "it has caught up with him 0.8 s after he lands (%.2f m)" % gap)
 	foe.queue_free()
 	rig.queue_free()
 	hero.queue_free()

@@ -108,6 +108,16 @@ Zak: "we can redesign him and fine tune it... chibi-esque, cartoony, not taking 
 - **The hero's signature colour is the fx palette's void** (violet body, light tips, deep cuff), on the claw and on the weapons that grow out of it, so his body and his effects read as one set. Weapons keep only the thin ink and one element accent.
 - **Attitude lives over the hood:** the grin and the squinting slits are drawn over it (`heretic_rig.gd` `GRIN`, `squint`); a face texture can't be seen from the game camera.
 
+## The hero, presence pass (round 40, second lane)
+
+- **The avatar must out-read the crowd.** A grown head and hood (x1.2 about the neck), a claw x1.5 and a body to
+  2.05 m took him from 146 to 183 px at the game camera; the warrior is still 209 px. Area, not height, is
+  what reads from 54 degrees up: the hood's girth and the claw's spread count, the peak hardly does.
+- **Three values:** bone-white hood, blue-black body, violet claw with cyan eyes. A dark body on the indigo floor
+  only works because the paper rim carries its edge; keep `hero_rim` on him whenever the body is dark.
+- **A face under a hood is drawn, not painted:** from above the grin lands on whatever lies behind it, here the
+  hood's under-chin cowl. A depth-tested dark oval behind the decals reads as the hood's shadow from every yaw.
+
 ## Checking
 
 Look at the windowed `tests/heretic_shots.gd` (or `tests/comic_shots.gd`) game-camera shots before calling a model better. A Blender render is only for spotting problems.

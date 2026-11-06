@@ -304,27 +304,29 @@ def minion_swipe(ctx, X):
 
 
 def warrior_chop(ctx, X):
-    """Hit 19 of 35. Hauls the sword up over its head two-handed, the blade out past its right shoulder, arched
-    back on its toes; holds it high and shaking; falls onto it in two smeared drawings, the blade driven
-    into the floor ahead, squashed flat; stays down a beat, heaves it back up."""
+    """Hit 19 of 35. Coils to its right and hauls the sword out wide past its right shoulder, blade up and
+    out to the side (round 39 b: held over its head it hid under the helmet from the game camera), the free
+    arm thrown out ahead at the target; holds it shaking; whips it across its front in two smeared drawings
+    and ends low past its left foot, turned and squashed; stays down a beat, heaves it back to guard.
+    Arms and blade by `aim` (az, el, twist): az 0 ahead, + to its left, el + up."""
     mix = ctx['mix']
-    up = {'upperarm.r': (-30, 70, 0), 'lowerarm.r': (-10, 125, 0), 'upperarm.l': (30, 70, 0), 'lowerarm.l': (10, 125, 0),
-          'weapon': (-130, 30, 0)}
-    A = X(hip=(0, .05, .02), hipr=(-6, -10, 0), spine=(0, -8, 0), chest=(-8, -14, 0), head=(6, 22, 0), jaw=(0, 20, 0),
-          root={'sq': -.07}, eye=.5, tl=-14, tr=-14, aim=up, cloth=(0, -6, 0), **{'pauldron.r': (0, -10, 0)})
-    A2 = add(A, chest=(0, -6, 0), spine=(0, -4, 0), aim=dict(up, **{'lowerarm.r': (-10, 135, 0), 'lowerarm.l': (10, 135, 0),
-                                                                  'weapon': (-140, 20, 0)}))
-    S = X(hip=(0, -.04, -.02), hipr=(4, 8, 0), spine=(0, 10, 0), chest=(6, 16, 0), head=(-4, -6, 0), jaw=(0, 28, 0),
+    wide = {'upperarm.r': (-100, 25, 0), 'lowerarm.r': (-115, 70, 0), 'upperarm.l': (35, 5, 0), 'lowerarm.l': (45, 10, 0),
+            'weapon': (-100, 35, 0)}
+    A = X(hip=(0, .05, .0), hipr=(-24, -4, 0), spine=(-6, -4, 0), chest=(-18, -8, 0), head=(14, 10, 0), jaw=(0, 20, 0),
+          root={'sq': -.07}, eye=.5, tl=-8, tr=-8, aim=wide, cloth=(0, -6, 0), **{'pauldron.r': (0, -12, 0)})
+    A2 = add(A, hipr=(-6, 0, 0), chest=(-6, -4, 0), aim=dict(wide, **{'upperarm.r': (-110, 32, 0), 'lowerarm.r': (-125, 78, 0),
+                                                                     'weapon': (-112, 42, 0)}))
+    S = X(hip=(0, -.04, -.02), hipr=(4, 6, 0), spine=(4, 6, 0), chest=(10, 10, 0), head=(-6, -4, 0), jaw=(0, 28, 0),
           root={'sq': -.05}, eye=.3, scale={'hand.r': 1.5},
-          aim={'upperarm.r': (-20, 45, 0), 'lowerarm.r': (-5, 55, 0), 'upperarm.l': (20, 45, 0), 'lowerarm.l': (5, 55, 0),
-               'weapon': (0, 60, 0)})
-    H = X(hip=(0, -.1, -.14), hipr=(6, 26, 0), spine=(0, 12, 0), chest=(6, 18, 0), head=(-6, -22, 0), jaw=(0, 34, 0),
-          root={'sq': .16}, eye=.35, scale={'hand.r': 1.25}, fr=_foot(ctx, 'r', 0, .06, 0), fl=_foot(ctx, 'l', 0, -.1, 0),
-          aim={'upperarm.r': (-12, -25, 0), 'lowerarm.r': (0, -35, 0), 'upperarm.l': (12, -25, 0), 'lowerarm.l': (0, -35, 0),
-               'weapon': (0, -45, 0)},
+          aim={'upperarm.r': (-35, 10, 0), 'lowerarm.r': (-15, 5, 0), 'upperarm.l': (60, -20, 0), 'lowerarm.l': (80, -25, 0),
+               'weapon': (-5, 5, 0)})
+    H = X(hip=(0, -.1, -.12), hipr=(30, 6, 0), spine=(6, 2, 0), chest=(18, 4, 0), head=(-14, -10, 0), jaw=(0, 34, 0),
+          root={'sq': .16}, eye=.35, scale={'hand.r': 1.25}, fr=_foot(ctx, 'r', 0, -.08, 0), fl=_foot(ctx, 'l', 0, .04, 0),
+          aim={'upperarm.r': (55, -25, 0), 'lowerarm.r': (80, -30, 0), 'upperarm.l': (110, -40, 0), 'lowerarm.l': (140, -40, 0),
+               'weapon': (100, -30, 0)},
           cloth=(0, 20, 0), **{'pauldron.r': (0, 12, 0), 'pauldron.l': (0, 12, 0)})
-    O = add(H, hip=(0, 0, -.02), hipr=(0, 6, 0), root={'sq': .09}, cloth=(0, -16, 0),
-            aim=dict(H['aim'], weapon=(0, -55, 0)))
+    O = add(H, hip=(0, 0, -.02), hipr=(8, 4, 0), root={'sq': .09}, cloth=(0, -16, 0),
+            aim=dict(H['aim'], weapon=(115, -38, 0)))
     R = X(hip=(0, .02, .01), hipr=(-4, -6, 0), chest=(0, -6, 0), head=(0, 6, 0), root={'sq': -.03}, **{'upperarm.r': (0, -10, 0)})
     return ([(0, X(), 'out'), (6, A, 'hold')] + tremble(6, 16, A, A2, 1.5, mix=mix) +
             [(16, A2, 'hold'), (17, S, 'hold'), (18, mix(S, H, .6), 'hold'), (19, H, 'hold'),

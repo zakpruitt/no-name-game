@@ -8,6 +8,7 @@ extends Node3D
 const SELF := preload("res://scripts/comic_bolt.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
 const STEPS_PER_S := 12.0  # on twos
 const WIDTH_BY_STEP := [1.0, 0.85, 0.5]  # full, a new zigzag, then colour only, then gone
 const INK := Color(0.012, 0.01, 0.02)
@@ -40,6 +41,8 @@ var _colors := PackedColorArray()
 
 
 static func spawn(parent: Node, a: Vector3, b: Vector3, w := 0.24, star_size := 0.0, fork_count := 1) -> Node3D:
+	if DESIGNED.on():  # round 43: the authored bolt strip on a ribbon (designed_fx.bolt)
+		return DESIGNED.bolt(parent, a, b, w, star_size, fork_count)
 	var bolt: Node3D = SELF.new()
 	bolt.width = w
 	bolt.star = star_size

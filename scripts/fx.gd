@@ -1,7 +1,7 @@
 class_name Fx
 ## Small throwaway visual effects: damage numbers, hit sparks, flashes.
 
-const SWOOSH_SECOND_HEIGHT := 1.0  # player._swoosh lifts its second (ender / chain) arc to 1.15 m, the first sits at 0.8
+const SWOOSH_SECOND_HEIGHT := 1.0  # hero_fx.swoosh lifts its second (ender / chain) arc to 1.15 m, the first sits at 0.8
 const AWAKEN_SWOOSH_BAND := 0.72  # Awakened: the swoosh keeps only its outer band past this UV.y, inked inside
 ## Particle and flare sprites (Kenney Particle Pack, CC0): white with alpha, tinted per use.
 const TEX := {
@@ -33,6 +33,9 @@ const PAL := preload("res://scripts/fx_palette.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
+const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
+const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")  # round 43: authored flipbook effects (--fx=classic: off)
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -87,12 +90,15 @@ static func _label(text: String, font_size: int, color: Color, outline_color: Co
 ## across `arc_deg` (360 = full spin), sweeping across it over `time`.
 ## `flip` swings right-to-left instead of left-to-right.
 ## While the hero is Awakened (feel audit 2026-11-04 item 4: his gold crescents were opaque sheets 4-5x his
-## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and player._swoosh's second, wider
+## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and hero_fx.swoosh's second, wider
 ## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
 static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float,
 		color: Color, flip := false, time := 0.26, height := 0.8, lines_only := false) -> void:
 	var gold := _hero_awakened(parent)
 	if gold and height > SWOOSH_SECOND_HEIGHT:
+		return
+	if DESIGNED.on():  # the authored brush stroke on the same arc (designed_fx.slash)
+		DESIGNED.slash(parent, pos, fwd, radius, arc_deg, "gold" if gold else PAL.nearest(color), flip, time, height, lines_only or gold)
 		return
 	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
 	var inner := radius * 0.4
@@ -190,6 +196,9 @@ static func _flush_crowd_stars() -> void:
 		return
 	crowd_merged += batch.size() - 1
 	var pal: Dictionary = batch[0][3]
+	if DESIGNED.on():
+		DESIGNED.hit(parent, mid / float(batch.size()), str(batch[0][4]), big)
+		return
 	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 
 
@@ -227,7 +236,10 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 		if in_breaker(parent):  # one star for the frame's hits, at their middle (_flush_crowd_stars)
 			if _crowd_stars.is_empty():
 				_flush_crowd_stars.call_deferred()
-			_crowd_stars.append([parent, at, size, pal])
+			_crowd_stars.append([parent, at, size, pal, _blow_element(parent)])
+			return
+		if DESIGNED.on():  # the authored impact star (designed_fx.hit)
+			DESIGNED.hit(parent, at, _blow_element(parent), size)
 			return
 		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
@@ -291,12 +303,15 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 			burst(parent, at, Color(0.3, 0.95, 0.85), int(5 * k), 3.0, 0.12, 0.5, Vector3.UP, 50.0, -1.5, 0.25, "dot", true)
 
 
-## A named combo landing (player._combo_callout): star flare, ground ring and a
+## A named combo landing (hero_fx.combo_callout): star flare, ground ring and a
 ## spark spray at the hero, scaled by the combo's tier (1-3).
 static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> void:
 	var at := pos + Vector3.UP * 1.2
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.7), 1.0)
 	if Game.comic_style:  # strokes bursting out all round him, never a star over him
+		var hero: Node = parent.get_tree().get_first_node_in_group("player") if parent.is_inside_tree() else null
+		if hero != null and "_move_id" in hero and not CALLOUT_CAP.names_move(hero._move_id):
+			return  # feel audit 2, item 3: a light mid keeps its word only (callout_cap.names_move)
 		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
 			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
 			"hold": 2 if tier >= 3 else 1, "steps": 3})
@@ -534,6 +549,9 @@ static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radiu
 ## Awakening activation at `pos`: light pillar, flash, double shockwave
 ## (`radius` = the blast), rising motes and a dust blast.
 static func awaken_burst(parent: Node, pos: Vector3, color: Color, radius := 7.0) -> void:
+	if Game.comic_style:  # feel audit 2, item 1: one thin inked column, held past a breaker landing (awaken_flourish.gd)
+		AWAKEN_FLOURISH.spawn(parent, pos)
+		return
 	beam(parent, pos, color, 12.0, 1.5, 0.6)
 	flare(parent, pos + Vector3.UP * 1.2, color, 11.0, 0.4, "flare")
 	flare(parent, pos + Vector3.UP * 1.2, Color.WHITE, 3.5, 0.18, "dot", true)
@@ -557,6 +575,9 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
 		if not _once_in_breaker(parent, "impact"):
 			return
+		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks)
+			DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
+			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
 			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
@@ -568,8 +589,11 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	burst(parent, at, Color(1.0, 0.97, 0.85), 8 if big else 4, 18.0, 0.18, 0.2, dir, 30.0, 0.0, 0.0, "dot", true)
 
 
+const DUST_MIN := 8  # Fx.dust calls under this many motes (footsteps, small skids) draw no designed puff
 static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void:
 	if Game.comic_style:
+		if DESIGNED.on() and amount >= DUST_MIN:  # round 43: one drawn puff for a landing or a slam
+			DESIGNED.dust(parent, pos, clampf(size / 0.6, 0.7, 1.6))
 		return  # no smoke in the comic look: the landing's ring and cracks carry it
 	burst(parent, pos + Vector3.UP * 0.2, Color(0.62, 0.57, 0.5, 0.6), amount, 4.0, size, 0.55, Vector3.UP, 80.0, 1.0, 0.45, "smoke")
 
@@ -753,19 +777,6 @@ static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time
 	tw.tween_property(mat, "albedo_color", Color(0.18, 0.1, 0.08, 0.7), time * 0.35)
 	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5)
 	tw.tween_callback(m.queue_free)
-
-
-## Green "+N" and rising sparkles for healing.
-static func heal(parent: Node, pos: Vector3, amount: float) -> void:
-	var l := _label("+%d" % roundi(amount), 88, Color(0.45, 1.0, 0.5), Color(0.02, 0.12, 0.05))
-	parent.add_child(l)
-	l.global_position = pos + Vector3.UP * 2.4
-	var tw := l.create_tween().set_parallel()
-	tw.tween_property(l, "global_position:y", l.global_position.y + 1.2, 1.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(l, "modulate:a", 0.0, 0.4).set_delay(0.7)
-	tw.chain().tween_callback(l.queue_free)
-	burst(parent, pos + Vector3.UP * 0.2, Color(0.4, 1.0, 0.5), 24, 3.0, 0.12, 0.9, Vector3.UP, 30.0, 2.0, 0.8)
-	ring(parent, pos, Color(0.4, 1.0, 0.5, 0.7), 2.0, 0.4)
 
 
 ## Frozen translucent copy of a (skinned) model in its current pose.

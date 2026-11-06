@@ -72,5 +72,4 @@ func _stab() -> void:
 	var to := player.global_position - global_position
 	to.y = 0.0
 	if to.length() <= radius + 0.3:
-		player.take_hit(damage, to.normalized() * 6.0 + Vector3.UP * 4.0, source if is_instance_valid(source) else null,
-			"the Bone Warden's bone spikes")
+		player.take_hit(damage, to.normalized() * 6.0 + Vector3.UP * 4.0, source if is_instance_valid(source) else null)

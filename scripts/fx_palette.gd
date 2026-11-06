@@ -26,7 +26,6 @@ const PX_PER_M := 48.0  # screen px per metre at the game camera, 1080p (a 0.42 
 static func text_ink(px_per_font_px: float) -> int:
 	return maxi(1, roundi(TEXT_INK_PX / maxf(px_per_font_px, 0.01)))
 const EDGE_ALPHA := 0.55  # a fill's alpha at its outer edge (its middle is opaque)
-const TAIL_ALPHA := 0.0  # a stroke's or ribbon's alpha at its tail
 
 const ELEMENTS := {
 	"wind": {"ink": Color(0.02, 0.07, 0.05), "deep": Color(0.04, 0.42, 0.26), "body": Color(0.18, 0.86, 0.46),

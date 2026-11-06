@@ -30,6 +30,21 @@ RUN_SWAY = -0.05  # m the hips shift sideways per footfall, over the planted foo
 RUN_ROLL = -10.0  # degrees of roll per footfall, leaning over the planted foot
 
 arm = bpy.data.objects["Armature"]
+# chibi_presence.py scales the armature object (the glTF node carries it): every pose here is in armature
+# space, so a distance that must hold on the floor (the run's ground speed) is divided by it.
+# Hero pass 3: the game draws the model heretic_rig.gd MODEL_SCALE bigger, so floor distances are divided by
+# that too (read from the script, so the two can't drift).
+_RIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "scripts", "heretic_rig.gd")
+GAME_K = 1.0
+if os.path.exists(_RIG):
+    import re
+    _m = re.search(r'const MODEL_SCALE := \{"chibi": ([0-9.]+)\}', open(_RIG).read())
+    GAME_K = float(_m.group(1)) if _m else 1.0
+print("[keys] game model scale x%.3f" % GAME_K)
+WORLD_K = arm.matrix_world.to_scale().x * GAME_K
+AW_INV = arm.matrix_world.inverted()
+# m each foot sits further out from its rest in every keyed pose (armature space): a wider, planted stance
+STANCE_W = 0.05
 BONES = arm.data.bones
 R = {b.name: b.matrix_local.copy() for b in BONES}
 RQ = {k: v.to_quaternion() for k, v in R.items()}
@@ -65,7 +80,7 @@ def ydir(b):
 
 def mesh_centroid(name):
     o = bpy.data.objects.get(name)
-    vs = [o.matrix_world @ v.co for v in o.data.vertices]
+    vs = [AW_INV @ o.matrix_world @ v.co for v in o.data.vertices]
     return sum(vs, Vector()) / len(vs)
 
 
@@ -181,7 +196,7 @@ def solve(P, form):
     # legs: feet where the pose puts them, flat, knees forward and out
     for s, key, out in (("l", "fl", -1.0), ("r", "fr", 1.0)):
         off = P[key]
-        T = head_of("foot." + s) + RIGHT * off[0] + FWD * off[1] + UP * off[2]
+        T = head_of("foot." + s) + RIGHT * (off[0] + out * STANCE_W) + FWD * off[1] + UP * off[2]
         S = carried(G, "upperleg." + s).translation
         a = (head_of("lowerleg." + s) - head_of("upperleg." + s)).length
         c = (head_of("foot." + s) - head_of("lowerleg." + s)).length
@@ -556,7 +571,7 @@ LOOP0 = set()
 LOOP_SPEED = 1.1  # player._play: loops play at 1.1
 MOVE_SPEED = 7.5  # player.move_speed, m/s
 RUN_N = 14  # frames per cycle (two steps): 0.424 s of play at LOOP_SPEED, 4.7 steps a second
-RUN_GROUND = MOVE_SPEED / LOOP_SPEED / 30.0  # m the floor passes under him per clip frame (0.227)
+RUN_GROUND = MOVE_SPEED / WORLD_K / LOOP_SPEED / 30.0  # m the floor passes under him per clip frame (0.227)
 RUN_PLANT = 3.0  # frames a foot is down (a whole number: Godot samples between keys); the rest he is in the air
 RUN_REACH = 0.30  # m ahead of the hip joint a foot lands (behind it on Run_B)
 RUN_FOLLOW = 0.0  # of the floor speed the foot keeps going back as it leaves the floor (0: it kicks straight up and through)
@@ -702,7 +717,13 @@ for _way, _clip in (("F", "Run_F"), ("B", "Run_B"), ("L", "Strafe_L"), ("R", "St
 # (the free knee bends, its heel lifts), two slow breaths heave the chest and hood, the head tilts
 # and glances, the claw held out at his side, swollen, opening and closing and drifting out and back
 # (from the game camera a claw hanging low read small and dead), one claw flex half way.
+# Hero pass 3: the claw is raised beside his head (IDLE_RH / IDLE_W), its palm tipped up open to the game
+# camera like the face, instead of hanging out behind the hip.
 IDLE_N = 120
+IDLE_RH = (68, 30, 0.52)  # az, el, r: out at his right, up by the hood
+IDLE_W = (58, 52)  # the claw points out and up, so its spread faces the camera
+READY_RH = (52, 34, 0.55)  # guard: beside the head, a little ahead
+READY_W = (35, 58)
 
 
 def idle_frames():
@@ -721,7 +742,7 @@ def idle_frames():
                         hipr=(5 * wt, 4, 5 * wt), spine=(0, 3, 0),
                         chest=(-3 * wt, 9 - 3 * br, -8 * wt), head=(-4 + 9 * math.sin(ph - 0.5), 2 + 4 * lag, 10 * wt),
                         hsq=0.045 * lag, bsq=0.015 * br,
-                        rh=(45 + 8 * drift, -20 + 4 * br, 0.54), w=(50 + 16 * drift, 2 + 8 * lag),
+                        rh=(IDLE_RH[0] + 8 * drift, IDLE_RH[1] + 4 * br, IDLE_RH[2]), w=(IDLE_W[0] + 12 * drift, IDLE_W[1] + 8 * lag),
                         lh=(-45, -60 + 4 * br, 0.36), fl=(-0.04, 0.03, 0.025 * free_l), fr=(0.04, -0.05, 0.025 * free_r),
                         flr=(0, 18 * free_l, 0), frr=(0, 18 * free_r, 0),
                         claw=0.1 + 0.55 * math.sin(ph) + 0.15 * lag - 0.6 * flex, clawph=180 * ph / math.pi, hs=1.2))
@@ -778,7 +799,8 @@ def floor_d(i, v0, a):
     """m the floor has passed under him `i` clip frames (at LOOP_SPEED) into a ramp from v0 at a m/s^2,
     capped between 0 and MOVE_SPEED."""
     t = i / 30.0 / LOOP_SPEED
-    t_end = ((MOVE_SPEED if a > 0 else 0.0) - v0) / a
+    v0, a = v0 / WORLD_K, a / WORLD_K  # armature space
+    t_end = ((MOVE_SPEED / WORLD_K if a > 0 else 0.0) - v0) / a
     if t <= t_end:
         return v0 * t + 0.5 * a * t * t
     return v0 * t_end + 0.5 * a * t_end * t_end + (v0 + a * t_end) * (t - t_end)
@@ -999,7 +1021,8 @@ def ready_frames():
                         hipr=(8 + 5 * wt, 10, 6 * wt), spine=(0, 4, 0),
                         chest=(10 - 3 * wt, 12 - 3 * br, -7 * wt), head=(-8 + 6 * math.sin(ph - 0.5), -2 + 4 * lag, 8 * wt),
                         hsq=0.06 * lag, bsq=0.02 * br,
-                        rh=(30 + 4 * math.sin(ph + 0.6), 12 + 4 * br, 0.55), w=(22 + 6 * math.sin(ph + 0.6), 38 + 6 * lag),
+                        rh=(READY_RH[0] + 4 * math.sin(ph + 0.6), READY_RH[1] + 4 * br, READY_RH[2]),
+                        w=(READY_W[0] + 6 * math.sin(ph + 0.6), READY_W[1] + 6 * lag),
                         lh=(-35, -18 + 4 * br, 0.33), fl=(-0.09, 0.12, 0.025 * free_l), fr=(0.09, -0.12, 0.025 * free_r),
                         flr=(0, 15 * free_l, 0), frr=(0, 15 * free_r, 0),
                         claw=-0.5 + 0.3 * lag + 0.25 * math.sin(ph), clawph=180 * ph / math.pi, hs=1.2))

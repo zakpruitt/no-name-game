@@ -123,6 +123,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	Fx.dash_streak(root, at, Vector3.FORWARD, 1.0, Color.WHITE, 0.15)
 	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
 	load("res://scripts/dark_fx.gd").prewarm_pieces(root)
+	load("res://scripts/designed_fx.gd").prewarm(root)  # round 43: one material per designed sheet
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
@@ -897,9 +898,9 @@ static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_cor
 	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
 
 
-## Round 33, sleek 5: a thin geyser at a breaker landing's rim (Meteor Fall, the rip): the column only, narrower and
+## Round 33, sleek 5: a thin geyser at a breaker landing's rim (Meteor Fall): the column only, narrower and
 ## lower than `geyser`, with no spikes or scorch of its own (the landing's crater mark is under it). Five full
-## geysers with four spikes and a scorch each walled the DOGPILE in.
+## geysers with four spikes and a scorch each walled the pile in.
 const RIM_GEYSER_WIDTH := 0.42  # of the radius (geyser: GEYSER_WIDTH 0.75)
 const RIM_GEYSER_SQUASH := 0.55  # of the asked height (geyser: GEYSER_SQUASH 0.7)
 static func rim_geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:

@@ -23,10 +23,13 @@ TONES = {
     "face": (0.045, 0.035, 0.085), "eye": (0.4, 1.0, 0.95),
     "scarf": (0.84, 0.17, 0.2), "scarf_end": (0.64, 0.09, 0.15),
     "sash": (0.6, 0.08, 0.15), "sash_end": (0.48, 0.06, 0.13),
-    "tunic": (0.12, 0.6, 0.62), "tunic_hem": (0.06, 0.42, 0.48), "sleeve": (0.06, 0.42, 0.48),
-    "boot": (0.78, 0.7, 0.58), "boot_cuff": (0.58, 0.5, 0.45), "boot_sole": (0.28, 0.22, 0.3),
-    "glove": (0.78, 0.7, 0.58), "wrap": (0.78, 0.7, 0.58),
-    "trousers": (0.26, 0.17, 0.34), "skirt": (0.38, 0.2, 0.44), "skirt_hem": (0.25, 0.12, 0.32),
+    # hero pass 2: a three-value figure, the bone-white hood over a deep dark body, the violet claw and
+    # cyan eyes the bright accents; the crimson scarf and sash are the only colour on the body. The dark
+    # leans cool (blue-black, not the floor's indigo) and the paper rim (hero_rim) keeps its edge.
+    "tunic": (0.1, 0.11, 0.16), "tunic_hem": (0.05, 0.05, 0.09), "sleeve": (0.07, 0.08, 0.12),
+    "boot": (0.16, 0.14, 0.19), "boot_cuff": (0.6, 0.08, 0.15), "boot_sole": (0.04, 0.03, 0.06),
+    "glove": (0.16, 0.14, 0.19), "wrap": (0.6, 0.08, 0.15),
+    "trousers": (0.06, 0.06, 0.1), "skirt": (0.12, 0.1, 0.17), "skirt_hem": (0.05, 0.04, 0.08),
     "claw": VOID_BODY, "claw_tip": VOID_LIGHT, "claw_root": VOID_DEEP,
 }
 DEBUG_TONES = {"hood": (1, 1, 1), "lining": (1, .5, 0), "face": (0, 0, 0), "eye": (0, 1, 1),
@@ -44,6 +47,15 @@ SKIRT_HEM = 0.3        # of the skirt's height from its lowest point
 TIP_W = 0.5            # weight on a claw's last bone past which it is the tip
 CLAW_X = -0.34         # m: everything past the right wrist (rest pose) is claw, whatever the old paint
 CLAW_Y = -0.2          # m: and everything this far ahead of him (the claw is held out in front at rest)
+# The face (hero pass 2): Meshy's sculpted mask (a dark V between slanted cyan texture eyes, a chin
+# below, crimson lining showing at the cheeks) becomes one clean dark oval in the hood's opening, seen
+# from the front: every head texel inside it is painted face, the hood's low front brim included (from the
+# game camera's height the grin decal lands on the brim, not in the opening), the texture eyes included
+# (heretic_rig.gd's EYES decals are the eyes), and the lining rings it. Centre and radii in the
+# rest pose, Blender axes, round heretic_rig.gd's EYES and GRIN (x 0.06, z 1.25 / 1.185), reaching down
+# over the cowl under the chin, which is what lies behind the grin from above.
+FACE_OVAL = (0.06, 1.16, 0.17, 0.18)    # x, z centre, x, z radius (m)
+FACE_FRONT = 0.05                        # m: only surfaces in front of this y (his front is -y)
 ROOT_R = 0.075         # m round the wrist joint: the claw's root band, a cuff where it leaves the sleeve
 
 ob = bpy.data.objects["heretic"]
@@ -207,13 +219,22 @@ print("regions", Counter(lab).most_common())
 boot_top = np.percentile(c[lab == "boot", 2], 99)
 sk = c[lab == "skirt", 2]
 skirt_hem_z = sk.min() + (np.percentile(sk, 98) - sk.min()) * SKIRT_HEM
-FIELDS = np.stack([co[:, 2], w_tip, w_root], 1)   # z, tip weight, distance from the wrist
+FIELDS = np.stack([co[:, 2], w_tip, w_root, co[:, 0], co[:, 1]], 1)   # z, tip weight, distance from the wrist, x, y
 
 
 def tone(label, f):
     """Per-texel tone name from the triangle's region and the interpolated fields (z, tip, root)."""
-    z, tip, root = f[..., 0], f[..., 1], f[..., 2]
+    z, tip, root, x, y = f[..., 0], f[..., 1], f[..., 2], f[..., 3], f[..., 4]
     out = np.full(z.shape, label, object)
+    if label in ("face", "eye", "lining", "hood"):
+        cx, cz, rx, rz = FACE_OVAL
+        inside = (((x - cx) / rx) ** 2 + ((z - cz) / rz) ** 2 < 1.0) & (y < FACE_FRONT)
+        out[inside] = "face"
+        if label == "hood":   # the brim hangs over the face: seen from above, the grin lands on it
+            return out
+        if label != "lining":
+            out[~inside] = "lining"   # the mask's corners outside the oval: the hood's inside
+        return out
     if label == "claw":
         out[root < ROOT_R] = "claw_root"
         out[tip > TIP_W] = "claw_tip"

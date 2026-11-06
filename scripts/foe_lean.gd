@@ -46,5 +46,8 @@ func _process_modification_with_delta(delta: float) -> void:
 	var up_s := (inv * Vector3.UP).normalized()
 	var right_s := fwd_s.cross(up_s)
 	var dir := (right_s * lean.x + fwd_s * lean.y).normalized()
-	var q := Quaternion(up_s.cross(dir).normalized(), deg_to_rad(lean.length()))
+	var axis := up_s.cross(dir)
+	if axis.length_squared() < 1e-8:  # tipped over (a lie / launch spin puts its facing along up): nothing to lean on
+		return
+	var q := Quaternion(axis.normalized(), deg_to_rad(lean.length()))
 	skel.set_bone_pose_rotation(_root, q * skel.get_bone_pose_rotation(_root))

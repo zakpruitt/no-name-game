@@ -69,7 +69,11 @@ static func set_awakened(hero: CharacterBody3D, on: bool) -> void:
 	if not on:
 		Game.add_awakening(-Game.AWAKEN_MAX)  # always starts over from empty
 	hero._awaken_t = hero.awaken_duration
-	hero._anim_mult = ANIM_MULT if on else 1.0
+	# A move in flight keeps the pace it started at, its own `speed` too (the next move picks up the new base,
+	# player._start_attack): setting the base here mid-move dropped Steam Burst's EM_SPEED 2.8 when the meter ran
+	# out, so its palm came 2.8x late, after the ice cube had shattered, and Flash Freeze never opened.
+	if hero.state != hero.State.ATTACK:
+		hero._anim_mult = base_anim_mult(hero)
 	hero._dmg_mult = DAMAGE_MULT if on else 1.0
 	var light: OmniLight3D = hero._awaken_light
 	var rim: ShaderMaterial = hero._awaken_rim
@@ -82,7 +86,7 @@ static func set_awakened(hero: CharacterBody3D, on: bool) -> void:
 	for mi: MeshInstance3D in hero._meshes:
 		mi.material_overlay = rim if on else null
 	for trail in hero._trails:
-		trail.color = Color(c, 0.9) if on else hero._trail_rest_color()
+		trail.color = Color(c, 0.9) if on else hero.HERO_FX.trail_rest_color(hero)
 	for coat: Node in hero._coats:  # ComicLook.infuse_axes: the axe's element flares up
 		if is_instance_valid(coat):
 			coat.charge(on)

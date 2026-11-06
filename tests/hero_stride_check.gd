@@ -30,6 +30,9 @@ func _initialize() -> void:
 	var loop_speed: float = consts.get("LOOP_SPEED", 1.1)
 	var awake_clip: float = consts.get("AWAKENED_RUN_CLIP", 1.0)  # before round 35 b: none, the feet skated 1.2x
 	var model: Node3D = load("res://assets/comic/heretic_chibi.glb").instantiate()
+	# the game draws him heretic_rig.MODEL_SCALE bigger (hero pass 3): his feet cover that much more floor
+	var game_k: float = load("res://scripts/heretic_rig.gd").get_script_constant_map()["MODEL_SCALE"].get("chibi", 1.0)
+	model.scale = Vector3.ONE * game_k
 	get_root().add_child(model)
 	var anim: AnimationPlayer = model.find_children("*", "AnimationPlayer", true, false)[0]
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]

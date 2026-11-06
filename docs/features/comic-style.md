@@ -28,7 +28,7 @@ There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Set
 | `scripts/enemy.gd` | `comic_kind`, the mapping in `_play`, `_hold_clip`, `_clip_speed`, `_attach_comic_spark` |
 | `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
 | `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` |
-| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `_effective_move` (`hero_moves.effective_move`), `_axe_mesh`, `_turned`, `_play_locomotion` |
+| `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `hero_moves.effective_move`, `_turned`, `_play_locomotion` |
 | `scripts/hero_input.gd` | mouse aim: `mouse_aiming`, `mouse_dir`, `steer`, `aim`, `aim_want` |
 | `tools/comic_glb.py` | Copies GLBs into `assets/comic`, moving `g` to `COLOR_0` |
 | `assets/fonts/` | Bangers + `OFL.txt` (see `CREDITS.md`) |
@@ -183,7 +183,7 @@ frame; `Spellcasting` left `enemy.LOOPING`).
 | Kind | clip | tell | strike / hit | recovery |
 |---|---|---|---|---|
 | minion | 1H_Melee_Attack_Chop 28 | 4-11 coiled to its right, cleaver cocked back by its ear | 12-13 smear, hit 14 swiped across to its left | overshoot 20, guard 28 |
-| warrior | Chop 35 | 6-16 sword two-handed overhead, blade out past the right shoulder, on its toes | 17-18, hit 19 driven into the floor, squash 16% | down to 22, overshoot 25, guard 35 |
+| warrior | Chop 35 | 6-16 coiled to its right, sword held out wide past the right shoulder (az -100..-112, el 35-42), free arm thrown out at the target (round 39 b: overhead it hid under the helmet) | 17-18 whipped across its front, hit 19 low past its left foot (az 100), turned 30 deg, squash 16% | down to 22, overshoot 25, guard 35 |
 | shield | Chop 33 | 4-14 shoulder turned, sunk behind the shield (`keep`), sword cocked | 15-16, hit 17 shield rammed out at full reach, stepping in | overshoot 23, guard 33 |
 | rogue | Chop 23 | 3-9 both daggers raised over the shoulders pointing back, crouched | 9-10, hit 11 right stab, 13-14 left stab | skid back 19, guard 23 |
 | archer | 2H_Ranged_Aiming 24 / Shoot 32 | dip 6, rising into the draw leaning back, shaking 16-24 | shoot frame 0: kicked back 1-3, eyes shut | overshoot 7 |
@@ -256,6 +256,37 @@ blender -b <kit>/out/enemies_refined/<name>.blend -P tools/comic_art/foe_keys.py
 python tools/comic_glb.py <kit>/out/enemies_keyed <name>
 ```
 
+**Round 39 b (foe models, second pass).** Judged the same way, before / after `foe_shots.gd` sheets:
+
+- **Shield: one flat slab.** The planks were staggered and curved round him, so each caught its own tone and
+  the wall read as a light / dark checker. `refine_pass.py` `slab` replaces every vertex of `wood` on the
+  `shield` bone with its convex outline on the best-fit plane (13 sides): a 7 cm deep body in `P_Black` (the
+  inked rim, 9 cm wide on the face) under a flat face raised 1 cm in `P_Wood`, weighted 1.0 to `shield`; the
+  iron bands and studs on the shield bone are dropped and the orange boss is centred on the face and sat on
+  it. Flat, the face sits on the light band's edge, where any brush breaks it into leopard spots, so
+  `KIND_TONES.shield.P_Wood` has brush 0. Tris 9953 -> 8840.
+- **Minion: a cleaver and a crested cap.** The old leaf blade stood edge-on to the game camera (a brown line
+  hanging off the hand). `cleaver` turns the blade's plane a quarter about its length, through the hilt, and
+  draws a cleaver in it: a straight inked spine (`P_Black` band), a squared tip and a bellied edge, 0.55 x
+  1.3 m, a 5 cm wedge, in pale steel (`KIND_TONES.minion.P_Iron`, brush 0: held upright, the sun barely
+  reaches its face). `cap` drops the helmet scrap and horn and fits an orange skull cap over the cranium
+  (rays from outside onto the skull, pushed 3.5 cm out, 62 degrees round an axis tipped 25 degrees back off
+  the face, with a lip) with a ridge of four pale bone fins along its top. Tris 7946 -> 8108.
+- **Dummy: the foes' face and line.** `enemy_dummy.py` takes the refine_pass face: googly eyes x1.65 about
+  their centres (set 0.5 rad round the sack so they just meet), tipped 30 degrees back to face up the game
+  camera, with the eye and pupil bones tipped too (the squint and the Dazed pupil spin, now 5.5 cm, still
+  work); angry brows slanted down to the nose, on the eye bones so a hit folds them shut; the grin wider and
+  bent down at the corners (scowl 0.6), buck teeth kept. `dummy` joined `ComicLook.SILHOUETTE_KINDS`, so it
+  gets the same heavy outer line. The sack, its bag bones and the punching-bag spring are untouched
+  (`enemy_feel_check`, `training_check` pass). Tris 9798 -> 9798.
+- **Crowd read.** In the lineup from the game camera the families sorted, except two: the archer (legion,
+  orange) still wore `P_Forest` green, so it sorted with the grave pair, and the necromancer (grave, green)
+  wore a red shroud no family has. `KIND_TONES` turns the archer's cloth burnt orange under its orange bow and
+  the necromancer's shroud deep green under its green glow; the meshes are untouched. Spars
+  (`--spar=warrior|rogue|shield --autotest`, windowed) only cover legion and cult; there the rogue's violet
+  reads at once, but it is also the hero's claw and void effect colour, so mid-string a cult foe is the
+  hardest to pick out (a follow-up, not changed here).
+
 Look check: `godot --path . -s tests/foe_shots.gd -- --tag=x` (windowed) saves the room as it
 opens, every foe beside the hero at the game camera, closer along the same angle, and from the front
 (`--bars` shows every health bar, `--side` films the front row from 90 degrees off the sun, `--turn=deg`
@@ -267,8 +298,7 @@ turns the models).
 kept that, so `abilities.py` now solves carries: `arm()` takes where the hand goes and where the axe points.
 Both axes are `AXE_SIZE` and he drags them. Idle and the runs carry a `drag.l`/`drag.r` key instead of a hand
 rotation: `keyed` aims the handle from where the hand really is that frame and `drag_rotation` leans the blade
-so its tip lands on `TIP_Z`, so torso motion can't lift it off the floor (`comic_check` holds it within
-`TIP_ON_FLOOR`). `Idle` is a 4 s loop of breath, weight drift and glances. `player._comic_stand` holds `Idle_Ready`, a low guard, for
+so its tip lands on `TIP_Z`, so torso motion can't lift it off the floor. `Idle` is a 4 s loop of breath, weight drift and glances. `player._comic_stand` holds `Idle_Ready`, a low guard, for
 `READY_HOLD` after an attack or hit, then relaxes, and plays `HERO_FIDGETS` in turn every `FIDGET_EVERY`.
 A clip named `Hero_X` replaces the retargeted `X` at export: `Idle`, `2H_Melee_Idle`, `Hit_A`,
 `Dodge_Forward`, `Jump_Start`, `Jump_Idle` are hand-keyed at their old lengths. The runs use the same carry.
@@ -280,7 +310,7 @@ still have retargeted arms.
 (the hero's element is spirit, shown as wind's look through `HERO_AURA_AS`). `comic_axe_aura.gd` adds tongues along the edge, geometry stepped at 12 fps: `rise` flames stand up
 in the world and stream behind a swing, `spin` gusts whirl round the blade, `shard` crystals stay fixed. Each
 tongue is an outer colour on back faces round a hot core on front faces, so the core shows from any side.
-Motes come from `comic_axe_aura._drip` (`DRIP_AMOUNT`). `charge` grows them while Awakened (`player._set_awakened`).
+Motes come from `comic_axe_aura._drip` (`DRIP_AMOUNT`). `charge` grows them while Awakened (`hero_awaken.set_awakened`).
 
 **Drag marks.** Each aura has a `comic_drag_mark.gd` it feeds the blade's tip every frame. Within `LIFTED` of
 the floor the tip lays a point every `STEP_M`, and the points make a ribbon, an outer colour with a hot inner
@@ -528,6 +558,21 @@ over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075
 - Checks: `fx_sleek_check` (breaker name in the top band and gone after its hold, combo name over him, one star a
   breaker frame, three bolts, three rim geysers, three staggered strikes, a hit outside a breaker keeps its star).
 
+### Feel audit 2 (round 41, effects / HUD lane)
+- **Awakening flourish** (item 1): in the comic style `Fx.awaken_burst` is `scripts/awaken_flourish.gd`, one thin
+  inked column (ghost halftone, gold, `RADIUS` 0.24 m, `HIGH` 5 m, 0.36 s on real time) and a thin gold hoop
+  (`HOOP_R` 2.6 m); no 12 m beam, 11 m flare, 7 m hoop or motes. It waits while he is in a breaker (State.LEAP) and
+  until `AFTER_BREAKER_S` 0.4 real s after a landing (`note(hero)` from ComicFx reads `breakers_landed`), at most
+  `WAIT_MAX_S`, then draws where he is. Only the look moves: `hero_awaken.gd` still buffs, freezes and blasts on the press.
+- **Names over him** (item 3): `callout_cap.names_move(id)`: only enders (ids in `void_element.BREAKERS`), crossovers
+  (`X*`) and the breakers' names go up; a light mid's callout is taken down before it draws and `Fx.combo_pop` skips
+  its strokes. The mids keep their `MOVE_WORDS` word.
+- **"New combo:" banner** (item 4, `hud.show_found`): 1.2 s of real time (`FOUND_IN` / `FOUND_HOLD` / `FOUND_OUT`), cut
+  in `FOUND_CUT` on the next string's first hit (`standing_fx.first_hit_frame`).
+- **`LAST n` tags** (item 2): see `docs/features/training.md`.
+- Checks: `fx_sleek_check` `_audit2` (the flourish waits and is thin, mids unnamed, the banner capped and cut);
+  `enemy_feel_check` (the tag).
+
 ## Invariants
 
 - `settings.cfg` never gains a comic key.
@@ -560,7 +605,7 @@ over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075
   parts with a hull each, so a wide hull with no push covers the model in black. The POC's own widths
   and `inner` values suit close-up renders only.
 - `FILL_ENERGY` is above the POC's: below about 0.2, shadow sides drop under `spot` and go solid black.
-- `ComicFx`: `WORDS`, `WORD_SCALE`, `WORD_GAP_MS`.
+- `ComicFx`: `WORDS`, `WORD_SCALE`.
 
 ## Extending
 
@@ -614,7 +659,7 @@ KayKit assumptions the comic hero runs into:
   and imported the bone as `head_2`, so every `head` attachment would have silently landed at the
   origin. `comic_check` now resolves every attachment.
 - The spirit casts' `axe_mesh` stays the KayKit Barbarian's `1H_Axe`. His weapons are skinned in
-  place and can't be ghosted from an origin, hence `_axe_mesh`.
+  place and can't be ghosted from an origin, hence `hero_fx.axe_mesh`.
 - `weapon_trail.gd` follows a mesh's transform; skinned axes never move theirs, so
   `ComicLook.hero_blades` rides invisible boxes on the hands. Direction from the axe head's bounds.
 - `Fx.afterimage` bakes every skinned mesh. He's 67k tris in 29 meshes, so dash ghosts may

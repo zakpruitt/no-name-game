@@ -7,7 +7,9 @@ extends CharacterBody3D
 ##   hero_input.gd   the press buffer, cancel points and hit-confirm, the dash cancel rule, aim
 ##   hero_leap.gd    combo breakers: the leap, window, press, dive and impact (VOID_ELEMENT.BREAKERS)
 ##   hero_awaken.gd  Awakening: activation burst, the buff, the drain
-## The forwarders below keep the names other scripts and tests call (_start_attack, cancel_point, ...).
+##   hero_fx.gd      the swoosh, spirit casts, the combo callout, ender camera, rank-up and last-kill bursts
+## Other scripts and the checks call the hero_*.gd functions directly (HERO_INPUT.cancel_point(hero), ...);
+## player.gd keeps the state machine, the hit, take_hit and the few methods duck-typed callers use.
 
 signal health_changed(hp: float, max_hp: float)
 signal awakened_changed(active: bool)
@@ -22,15 +24,13 @@ const HERO_MOVES := preload("res://scripts/hero_moves.gd")
 const HERO_INPUT := preload("res://scripts/hero_input.gd")
 const HERO_LEAP := preload("res://scripts/hero_leap.gd")
 const HERO_AWAKEN := preload("res://scripts/hero_awaken.gd")
+const HERO_FX := preload("res://scripts/hero_fx.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const VOID_GRAB := preload("res://scripts/void_grab.gd")
 const VOID_ARM := preload("res://scripts/void_arm.gd")
 const HERETIC_RIG := preload("res://scripts/heretic_rig.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const TRAIL := preload("res://scripts/weapon_trail.gd")
-const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
-const CLAW_LASH := preload("res://scripts/claw_lash.gd")
-const RANK_COLORS: Dictionary = preload("res://scripts/hud.gd").RANK_COLORS
 
 # Names other scripts and the checks read off the hero; the data lives in the hero_*.gd files.
 const MOVES := HERO_MOVES.MOVES
@@ -39,6 +39,9 @@ const GUIDE_LEARNED := HERO_MOVES.GUIDE_LEARNED
 const BUFFER_MS := HERO_INPUT.BUFFER_MS
 const BREAKER_SPILL := HERO_LEAP.BREAKER_SPILL
 const BREAKER_EARLY := HERO_LEAP.BREAKER_EARLY
+const COMBO_TIER_COLORS := HERO_FX.COMBO_TIER_COLORS
+const COMBO_TIER_SFX := HERO_FX.COMBO_TIER_SFX  # (hero_leap reads these off the hero)
+const COMBO_SFX_DB := HERO_FX.COMBO_SFX_DB
 
 const LOOPING := ["Idle", "Running_A", "2H_Melee_Idle", "Run_F", "Run_B", "Strafe_L", "Strafe_R", "Idle_Ready"]
 const LOOP_SPEED := 1.1  # loops, fidgets and the run one-shots (_loop_speed)
@@ -53,16 +56,7 @@ const RUN_ONESHOTS := ["Run_Start", "Run_Start_B", "Run_Start_L", "Run_Start_R",
 	"Run_Stop_L", "Run_Stop_R", "Run_Stop_Ready", "Run_Stop_B_Ready", "Run_Stop_L_Ready", "Run_Stop_R_Ready"]
 const RUN_START_BELOW := 0.3
 const RUN_STOP_ABOVE := 0.6
-const AXE_SOURCE := "res://assets/kaykit/characters/Barbarian.glb"  # the 1H_Axe spirit casts ghost (_axe_mesh)
-const CAST_GROW := 0.15  # spirit cast size per chain tier (_cast_grow)
-const CAST_POWER := 0.12  # spirit cast damage per chain tier
-const CAST_SFX_DB := -11.0
-const COMBO_TIER_COLORS := [Color(0.95, 0.92, 0.85), Color(1.0, 0.75, 0.3), Color(1.0, 0.45, 0.15)]
-const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
-const COMBO_SFX_DB := -9.0
 const ENDER_HITSTOP := 0.025  # extra hitstop per tier when a named combo's ender lands
-const ENDER_ZOOM := 0.035  # camera push-in per tier on a combo ender
-const LAST_KILL_SLOWMO := 0.55  # real seconds of slow motion on the fight's final blow
 const PULL_INVULN := 0.8  # s, on the tentacle (void_grab.gd)
 const SWING_COOLDOWN := 1.5  # s between presses of R
 const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
@@ -103,7 +97,6 @@ var _facing_yaw := 0.0
 var _invuln_t := 0.0
 var _anim_mult := 1.0
 var _dmg_mult := 1.0
-var last_hit_by := ""  # who landed the latest hit ("a rogue"), for the death recap
 
 # The move playing (hero_moves.gd).
 var _move_id := ""
@@ -129,6 +122,7 @@ var _mouse_active := true  # false once a gamepad is the last thing touched
 var _dash_cd := 0.0
 var _dash_dir := Vector3.FORWARD
 var _dash_from := Vector3.ZERO  # where his last dash or swing began (void_element._tow)
+var _dash_out := false  # this dash cancelled a move (a buffered light ends it early: HERO_MOVES.DASH_STAB_CANCEL)
 var _post_dash_t := 0.0
 var _air_dash := false  # this dash started up in the air string (AIR_DASH_*)
 var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
@@ -157,15 +151,13 @@ var _awaken_light: OmniLight3D
 var _meshes: Array[Node] = []
 var _awaken_rim: ShaderMaterial
 var _rank_i := 0  # current style rank as a step above D (Game.RANKS)
-static var _kaykit_axe: Mesh  # the spirit casts' axe (see _axe_mesh)
 
 var _void: Node  # his tentacle: grab, slam, swing, breaker holds (void_grab.gd)
 
 # The breaker in play (hero_leap.gd).
 var _brk: Dictionary = {}  # its BREAKERS entry
 var _brk_id := ""
-var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed), 3 Meteor Fall's beats before the dive
-var _brk_beat := 0  # phase 3: 0 thrown at the walls, 1 dragged into the pile, 2 diving
+var _brk_phase := 0  # 0 rising / hanging, 1 diving, 2 falling (missed)
 var _brk_press := -1.0  # s after take-off it was pressed (-1 none)
 var _brk_locked := false
 var _brk_held := false  # pressed just before `open`: dives as the window opens (BREAKER_EARLY)
@@ -193,6 +185,7 @@ var last_kills := 0  # fights ended with the slow-motion final blow (autotest)
 var bot_enabled := false
 var bot_move := Vector3.ZERO
 var bot_alt := false  # the bot's window press takes `alt`
+var bot_out := false  # the bot may dash out of a breaker's hang (its "out" token; hero_leap.tick)
 ## The bot's `[autotest]` lines, printed by main at the end: a print mid-fight with stdout piped costs
 ## 2-10 ms, the windowed autotest's only frame spikes.
 var bot_log: Array[String] = []
@@ -249,15 +242,7 @@ func _ready() -> void:
 	_charge_light.omni_range = 4.0
 	_charge_light.position.y = 1.0
 	add_child(_charge_light)
-	_callout = Label3D.new()
-	_callout.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_callout.no_depth_test = true
-	_callout.font_size = 84
-	_callout.outline_size = 24
-	_callout.pixel_size = 0.006
-	_callout.outline_modulate = Color(0.1, 0.05, 0.1)
-	_callout.visible = false
-	add_child(_callout)
+	_callout = HERO_FX.make_callout(self)
 	_orbit = ELEMENTS.Orbit.new()
 	_orbit.piece_size = ComicLook.HERO_ORBIT_SIZE
 	add_child(_orbit)
@@ -271,18 +256,8 @@ func _add_trail(weapon: MeshInstance3D) -> void:
 	var trail := TRAIL.new()
 	add_child(trail)
 	trail.setup(weapon)
-	trail.color = _trail_rest_color()
+	trail.color = HERO_FX.trail_rest_color(self)
 	_trails.append(trail)
-
-
-## The mesh spirit casts ghost. His axes are skinned in place, far from any
-## usable origin, so his spirits throw KayKit's axe (AXE_SOURCE).
-func _axe_mesh() -> Mesh:
-	if _kaykit_axe == null:
-		var kaykit: Node3D = load(AXE_SOURCE).instantiate()
-		_kaykit_axe = (kaykit.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
-		kaykit.free()
-	return _kaykit_axe
 
 
 func _coat_axes() -> Array[Node3D]:
@@ -362,13 +337,13 @@ func _input(event: InputEvent) -> void:
 # --- States ------------------------------------------------------------------
 
 func _state_move(delta: float) -> void:
-	var dir := _input_dir()
+	var dir := HERO_INPUT.input_dir(self)
 	var speed := move_speed * (HERO_AWAKEN.SPEED_MULT if awakened else 1.0)
 	var target := dir * speed
 	var grip := accel * (FLING_ACCEL_MULT if _fling_t > 0.0 else 1.0)
 	velocity.x = move_toward(velocity.x, target.x, grip * delta)
 	velocity.z = move_toward(velocity.z, target.z, grip * delta)
-	_face(_mouse_dir() if _mouse_aiming() else dir)
+	_face(HERO_INPUT.mouse_dir(self) if HERO_INPUT.mouse_aiming(self) else dir)
 	_play_locomotion(dir)
 
 	if _dash_buffer_t > 0.0 and _dash_cd <= 0.0:
@@ -433,11 +408,11 @@ func _start_charge() -> void:
 
 
 func _state_charge(delta: float) -> void:
-	var dir := _input_dir()
+	var dir := HERO_INPUT.input_dir(self)
 	var target := dir * move_speed * CHARGE_MOVE_MULT
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)
-	_face(_mouse_dir() if _mouse_aiming() else dir)
+	_face(HERO_INPUT.mouse_dir(self) if HERO_INPUT.mouse_aiming(self) else dir)
 	var k := clampf(_state_t / CHARGE_TIME, 0.0, 1.0)
 	_charge_light.light_energy = k * 2.5
 	_charge_fx_t -= delta
@@ -460,7 +435,7 @@ func _state_attack(delta: float) -> void:
 	var t := HERO_MOVES.progress(self)
 	if _void != null:
 		_void.attack_tick(t, delta)
-	if _mouse_aiming() and not _hop_air:  # (in the air hero_moves.air_home has him)
+	if HERO_INPUT.mouse_aiming(self) and not _hop_air:  # (in the air hero_moves.air_home has him)
 		HERO_INPUT.steer(self, delta)
 	# Lunge decays quickly so attacks feel snappy, not slidey.
 	var lunge: float = _move.lunge * maxf(0.0, 1.0 - t * _move.get("decay", 3.0))
@@ -475,9 +450,9 @@ func _state_attack(delta: float) -> void:
 	while _hits_done < hits.size() and t >= hits[_hits_done]:
 		_hits_done += 1
 		_do_hit()
-	var brk := _breaker_for(_move_id)
+	var brk := HERO_LEAP.entry_for(_move_id)
 	if not brk.is_empty() and _connected and t >= _move.get("leap", brk.leap):  # (a whiff plays out normally)
-		_start_leap(_move_id, brk)
+		HERO_LEAP.start(self, _move_id, brk)
 		return
 
 	# Dash cancels anything once the first hit has come out (or early on whiff).
@@ -487,7 +462,7 @@ func _state_attack(delta: float) -> void:
 		return
 	if can_cancel and _try_swing():
 		return
-	if t >= cancel_point() and _buffered != "":
+	if t >= HERO_INPUT.cancel_point(self) and _buffered != "":
 		_start_attack(_next_move(_buffered))
 		return
 	if t >= _move.end:
@@ -502,7 +477,7 @@ func _state_dash(delta: float) -> void:
 		Fx.afterimage(get_parent(), model, Color(_fx_color(), 0.45))
 	velocity.x = _dash_dir.x * dash_speed
 	velocity.z = _dash_dir.z * dash_speed
-	if _state_t >= dash_time:
+	if _state_t >= dash_time or HERO_INPUT.dash_hands_over(self):
 		velocity.x *= 0.3
 		velocity.z *= 0.3
 		_post_dash_t = 0.3
@@ -536,8 +511,8 @@ func _start_attack(id: String) -> void:
 		return
 	var prev_id := _move_id
 	_move_id = id
-	_move = _effective_move(id)
-	_anim_mult = _base_anim_mult() * _move.get("speed", 1.0)
+	_move = HERO_MOVES.effective_move(anim, id)
+	_anim_mult = HERO_AWAKEN.base_anim_mult(self) * _move.get("speed", 1.0)
 	_move_len = anim.get_animation(_clip_name(_move.anim)).length
 	_hits_done = 0
 	_connected = false
@@ -551,6 +526,8 @@ func _start_attack(id: String) -> void:
 	HERO_INPUT.aim(self, state == State.ATTACK)
 	if _hop_air:
 		HERO_MOVES.air_home(self)
+	else:
+		HERO_MOVES.brake(self)  # (Dash Stab stops in front of the foe it aims at)
 	_set_state(State.ATTACK)
 	_void.on_move(id, prev_id)
 	attack_started.emit(id)
@@ -574,13 +551,14 @@ func _try_swing() -> bool:
 
 func _start_dash() -> void:
 	_dash_from = global_position
-	_air_dash = _can_air_dash()
+	_dash_out = state == State.ATTACK
+	_air_dash = HERO_MOVES.can_air_dash(self)
 	if _air_dash:
 		_air_dashes += 1
 	_dash_buffer_t = 0.0
 	_dash_cd = dash_cooldown
-	_anim_mult = _base_anim_mult()
-	var dir := _input_dir()
+	_anim_mult = HERO_AWAKEN.base_anim_mult(self)
+	var dir := HERO_INPUT.input_dir(self)
 	_dash_dir = dir.normalized() if dir.length() > 0.1 else _facing()
 	_face(_dash_dir)
 	_invuln_t = dash_time + 0.08
@@ -609,7 +587,7 @@ func _do_hit() -> void:
 	var named_before := _callout_done  # a combo ender lands its extra punch once
 	# (not on H's moves: the element is the swing, and the arc hides it)
 	if not VOID_ELEMENT.is_element_move(_move_id):
-		_swoosh(fwd)
+		HERO_FX.swoosh(self, fwd)
 	var hit_any := false
 	var any_airborne := false
 	# (a move with no reach is all fire(): its `range` 0 still caught a foe standing on him, a 0-damage touch that
@@ -638,62 +616,22 @@ func _do_hit() -> void:
 		_connected = true
 	# Slot effects that fire on the move's first active frame, hit or miss.
 	if _hits_done == 1:
-		_cast(fwd)
+		HERO_FX.cast(self, fwd)
 		if VOID_ELEMENT.is_element_move(_move_id) and VOID_ELEMENT.fire(self, _move_id, fwd) > 0:
 			hit_any = true
 			_connected = true
 	if _move_id == "VS":
 		_void.slam_landed()
 	if hit_any:
-		var named := named_id()
-		var ender: int = COMBOS[named].tier if COMBOS.has(named) and not named_before else 0
-		_combo_callout(named)
+		var ender: int = COMBOS[_move_id].tier if COMBOS.has(_move_id) and not named_before else 0
+		HERO_FX.combo_callout(self, _move_id)
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		if _move.get("big", false):
 			Game.rumble("hit_big")
 		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0) + ender * ENDER_HITSTOP)
 		Game.shake(_move.shake)
 		if ender > 0 or _move.get("big", false):
-			_camera_hit(fwd, ender)
-
-
-## Combo enders push the camera in (more per tier); big hits and enders kick it
-## along the swing.
-func _camera_hit(fwd: Vector3, ender: int) -> void:
-	if Game.camera_rig == null:
-		return
-	Game.camera_rig.kick(fwd, 0.18 + ender * 0.12)
-	if ender > 0:
-		Game.camera_rig.punch(1.0 - ENDER_ZOOM * ender, 0.08 + 0.05 * ender)
-
-
-## Names a landed combo (COMBOS) above the hero with its tier's sound, once per move.
-func _combo_callout(id: String) -> void:
-	if _callout_done or not COMBOS.has(id):
-		return
-	_callout_done = true
-	var c: Dictionary = COMBOS[id]
-	var tier: int = c.tier
-	combos_landed[id] = combos_landed.get(id, 0) + 1
-	if combos_landed[id] == 1:
-		combo_found.emit(id)
-	Game.sfx(COMBO_TIER_SFX[tier - 1], COMBO_SFX_DB, 0.03)
-	_callout.text = combo_name(id)
-	_callout.modulate = COMBO_TIER_COLORS[tier - 1]
-	var pop_color: Color = VOID_ELEMENT.color_of(_move_id, _fx_color())
-	if not VOID_ELEMENT.is_element_move(_move_id):  # (his tentacle moves land on him: a pop there hides what they're doing)
-		Fx.combo_pop(get_parent(), global_position, pop_color if tier < 3 else _callout.modulate, tier)
-	_callout.position = Vector3(0.0, 2.9, 0.0)
-	_callout.scale = Vector3.ONE * 0.6
-	_callout.visible = true
-	if _callout_tw:
-		_callout_tw.kill()
-	_callout_tw = _callout.create_tween()
-	_callout_tw.tween_property(_callout, "scale", Vector3.ONE * 1.15, 0.08)
-	_callout_tw.tween_property(_callout, "scale", Vector3.ONE, 0.08)
-	_callout_tw.parallel().tween_property(_callout, "position:y", 3.2, 0.6).set_ease(Tween.EASE_OUT)
-	_callout_tw.tween_property(_callout, "modulate:a", 0.0, 0.3).set_delay(0.35)
-	_callout_tw.tween_callback(_callout.hide)
+			HERO_FX.camera_hit(fwd, ender)
 
 
 func _facing() -> Vector3:
@@ -740,94 +678,15 @@ func element() -> String:
 	return "spirit"
 
 
-## The swing's arc (Fx.swoosh) out to the move's reach, in the trail's colour.
-## Strip moves (`width`) thrust instead of sweep and get none.
-func _swoosh(fwd: Vector3) -> void:
-	if _move.has("width"):
-		return
-	_swoosh_flip = not _swoosh_flip
-	var c: Color = _trails[0].color if not _trails.is_empty() else _trail_rest_color()
-	var big: bool = _move.get("big", false)
-	var time := 0.32 if big else 0.24
-	var at := global_position + model.position  # up with him in a hop / the air string, beside him in a weave
-	Fx.swoosh(get_parent(), at, fwd, _move.range * 0.9, _move.arc, c, _swoosh_flip, time)
-	# Escalation: combo enders and long chains add a wider, hotter arc above the
-	# first, so a string visibly builds to its finish.
-	var tier := Fx.chain_tier(Game.combo_count)
-	if COMBOS.has(_move_id) or tier >= 2:
-		var hot := c.lerp(Color.WHITE, 0.35)
-		hot.a = 0.75 + 0.08 * tier
-		Fx.swoosh(get_parent(), at, fwd, _move.range * (1.05 + 0.04 * tier), _move.arc, hot,
-				_swoosh_flip, time * 1.15, 1.15)
-
-
 ## Colour for the hero's own effects (dash ghosts and streak): Awakening's
 ## gold while Awakened, otherwise the element's.
 func _fx_color() -> Color:
 	return HERO_AWAKEN.AWAKEN_COLOR if awakened else ELEMENTS.color(element())
 
 
-## Swing trail colour outside Awakening: the current element's.
-func _trail_rest_color() -> Color:
-	return Color(ELEMENTS.color(element()), 0.85)
-
-
-## The element cast that comes with the current move (ELEMENTS.CASTS), on its first active frame.
-func _cast(fwd: Vector3) -> void:
-	if not ELEMENTS.CASTS.has(_move_id) or _move_id in VOID_ELEMENT.NO_CAST:
-		return
-	var c: Dictionary = ELEMENTS.CASTS[_move_id]
-	var el := element()
-	var parent := get_parent()
-	ELEMENTS.casts += 1
-	Game.sfx(ELEMENTS.LOOK[el].sfx, CAST_SFX_DB, 0.1)
-	var g := _cast_grow()  # spirit weapons swell with the chain
-	match c.kind:
-		"echo":
-			var echo = _spirit(SPIRIT_ECHO.new(), c, el)
-			echo.fwd = fwd
-			echo.flip = _swoosh_flip  # follows the swing's own swoosh
-			echo.arc_deg = c.arc
-			echo.radius = c.radius * g
-			echo.delay = c.delay
-			echo.time = c.time
-			parent.add_child(echo)
-			echo.global_position = Vector3(global_position.x, model.position.y, global_position.z)  # (air slashes: in the air)
-		"lash":  # Dash Stab: the claw whips its ribbon out ahead and back (claw_lash.gd)
-			var lash = _spirit(CLAW_LASH.new(), c, el)
-			lash.dir = fwd
-			lash.hero = self
-			lash.size = c.size * g
-			lash.reach = minf(c.range, _clear_ahead(lash.dir, c.range) + 0.4)
-			lash.back_damage = c.back_damage * _dmg_mult * _cast_power()
-			parent.add_child(lash)
-			lash.global_position = Vector3(global_position.x, 0.0, global_position.z) + lash.dir * 0.6
-
-
-## The common setup of a spirit cast node (spirit_*.gd): the hero's axe,
-## colour, element, damage (scaled by the chain) and hit callback.
-func _spirit(node: Node3D, c: Dictionary, el: String) -> Node3D:
-	if "axe_mesh" in node:
-		node.axe_mesh = _axe_mesh()
-	node.color = _fx_color()
-	node.el = el
-	node.damage = c.damage * _dmg_mult * _cast_power()
-	return node
-
-
-## Spirit casts grow with the chain: CAST_GROW more size/reach per Fx chain
-## tier (10 / 20 / 35 hits), CAST_POWER more damage.
-func _cast_grow() -> float:
-	return 1.0 + CAST_GROW * Fx.chain_tier(Game.combo_count)
-
-
-func _cast_power() -> float:
-	return 1.0 + CAST_POWER * Fx.chain_tier(Game.combo_count)
-
-
 func _on_enemy_killed(e: Node) -> void:
 	if state != State.DEAD and _is_last_kill():
-		_last_kill(e)
+		HERO_FX.last_kill(self, e)
 
 
 ## Style rank climbed: a burst in the new rank's colour (the HUD's), bigger the higher it goes.
@@ -835,13 +694,7 @@ func _on_combo_changed(_count: int, rank: String) -> void:
 	var i := Game.RANKS.size() - 1 - Game.RANKS.map(func(r: Array) -> String: return r[0]).find(rank)
 	if i > _rank_i and state != State.DEAD and is_inside_tree():
 		rank_ups += 1
-		var c: Color = RANK_COLORS.get(rank, Color.WHITE)
-		var at := global_position + Vector3.UP * 1.1
-		# Thin and hard: a soft ring and star sat on him and fought his effects.
-		VOID_ELEMENT.DARK.hoop_run(get_parent(), global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
-		Fx.burst(get_parent(), at, c, 6 + i * 4, 9.0, 0.14, 0.35, Vector3.UP, 120.0, -6.0, 0.3, "spark")
-		if i >= 4 and Game.camera_rig != null:  # S and up
-			Game.camera_rig.punch(0.94, 0.15)
+		HERO_FX.rank_up(self, i, rank)
 	_rank_i = i
 
 
@@ -851,22 +704,6 @@ func _is_last_kill() -> bool:
 		return false
 	var queue = get_parent().get("_queue")
 	return queue is Array and queue.is_empty()
-
-
-## The fight's final blow: slow motion, a camera push-in and a gold shock ring.
-func _last_kill(e: Node) -> void:
-	last_kills += 1
-	if "--autotest" in OS.get_cmdline_user_args():
-		bot_log.append("[autotest] last_kill #%d rank_ups=%d" % [last_kills, rank_ups])
-	Game.hitstop(LAST_KILL_SLOWMO, 0.2)
-	if Game.camera_rig != null:
-		Game.camera_rig.punch(0.82, LAST_KILL_SLOWMO + 0.15)
-	var at: Vector3 = (e as Node3D).global_position
-	var gold := Color(1.0, 0.82, 0.3)
-	Fx.ring(get_parent(), at, Color(gold, 0.95), 5.0, 0.5)
-	Fx.ring(get_parent(), at, Color(1, 1, 1, 0.8), 2.5, 0.3)
-	Fx.flare(get_parent(), at + Vector3.UP * 1.1, gold, 6.0, 0.3, "star8")
-	Fx.burst(get_parent(), at + Vector3.UP * 0.8, gold, 30, 12.0, 0.16, 0.6, Vector3.UP, 120.0, -10.0, 0.2, "spark")
 
 
 # --- Taking hits -------------------------------------------------------------
@@ -894,20 +731,7 @@ func _perfect_dodge(attacker: Node) -> void:
 		attacker.stagger(perfect_dodge_stun)
 
 
-## "a spike trap" (no attacker), "the Bone Warden", "an elite skeleton
-## archer"... (titles come from main.ENEMY_TYPES).
-static func _describe_attacker(attacker: Node) -> String:
-	if attacker == null:
-		return "a spike trap"
-	if attacker.has_method("is_boss"):
-		return "the Bone Warden"
-	var kind: String = ("elite " if attacker.elite else "") + attacker.get_meta("title", "skeleton")
-	return ("an " if kind[0] in "aeiou" else "a ") + kind
-
-
-## `cause` names hazards for the death recap ("the Bone Warden's cage");
-## otherwise the attacker is described.
-func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause := "") -> void:
+func take_hit(damage: float, knockback: Vector3, attacker: Node = null) -> void:
 	if state == State.DEAD:
 		return
 	if _invuln_t > 0.0:
@@ -915,7 +739,6 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 			_perfect_dodge(attacker)
 		return
 	hp = maxf(hp - damage * (HERO_AWAKEN.DAMAGE_TAKEN if awakened else 1.0), 0.0)
-	last_hit_by = cause if cause != "" else _describe_attacker(attacker)
 	health_changed.emit(hp, max_hp)
 	Game.player_damaged()
 	Game.sfx("player_hurt")
@@ -929,7 +752,7 @@ func take_hit(damage: float, knockback: Vector3, attacker: Node = null, cause :=
 	if hp <= 0.0:
 		_set_state(State.DEAD)
 		if awakened:
-			_set_awakened(false)
+			HERO_AWAKEN.set_awakened(self, false)
 		_play("Death_A", 0.1, true)
 		died.emit()
 		return
@@ -957,103 +780,26 @@ func _loop_speed(clip: String) -> float:
 	return LOOP_SPEED * (AWAKENED_RUN_CLIP if awakened and run else 1.0)
 
 
-# --- Forwarders (names other scripts and the checks call; hero_*.gd do the work) ---
-
-## hero_moves.gd routing (static: move_list.gd and the checks call it on the script).
-static func void_route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
-	return HERO_MOVES.void_route(kind, from, attacking, chain, post_dash)
-
-
-static func chain_after(id: String) -> int:
-	return HERO_MOVES.chain_after(id)
-
-
-func _effective_move(id: String) -> Dictionary:
-	return HERO_MOVES.effective_move(anim, id)
-
-
-func _can_air_dash() -> bool:
-	return HERO_MOVES.can_air_dash(self)
-
-
-func dash_light() -> String:
-	return HERO_MOVES.dash_light(self)
-
-
-## The combo guide's rows (hero_moves.combo_options; combo_guide.gd reads it every frame).
-func combo_options() -> Array:
-	return HERO_MOVES.combo_options(self)
-
-
-func guide_name(id: String) -> String:
-	return HERO_MOVES.guide_name(id)
-
-
-func combo_name(id: String) -> String:
-	return COMBOS[id].name
-
-
-## The COMBOS id the current move lands as.
-func named_id() -> String:
-	return _move_id
-
-
-func _input_dir() -> Vector3:
-	return HERO_INPUT.input_dir(self)
-
-
-func _mouse_aiming() -> bool:
-	return HERO_INPUT.mouse_aiming(self)
-
-
-func _mouse_dir() -> Vector3:
-	return HERO_INPUT.mouse_dir(self)
-
-
-## Where an attack wants to point (hero_input.aim_want; rhythm_check asks it mid-move).
-func _aim_want(held := false) -> Vector3:
-	return HERO_INPUT.aim_want(self, held)
-
-
-## Where the current move takes the next press (hero_input.cancel_point; rhythm_check reads it).
-func cancel_point() -> float:
-	return HERO_INPUT.cancel_point(self)
-
-
-## How soon a press is taken (hero_input.combo_window; combo_guide.gd and the bot read it).
-func combo_window() -> Dictionary:
-	return HERO_INPUT.combo_window(self)
-
-
-## Combo breaker: off a connected ender into State.LEAP (hero_leap.gd; rhythm_check starts one directly).
-func _start_leap(id: String, entry: Dictionary) -> void:
-	HERO_LEAP.start(self, id, entry)
-
-
-## The breaker this move leads to, if any (void_element.BREAKERS).
-func _breaker_for(id: String) -> Dictionary:
-	return HERO_LEAP.entry_for(id)
-
+# --- Read by duck-typed callers (breaker_prompt.gd and its test fakes) -------
 
 ## The breaker window breaker_prompt.gd draws (hero_leap.window).
 func breaker_window() -> Dictionary:
 	return HERO_LEAP.window(self)
 
 
-## The breaker in play's name for the current element (comic_fx.gd shouts it).
-func breaker_name() -> String:
-	return HERO_LEAP.breaker_name(self)
+# Forwarders kept for hero_leap.gd, void_element.gd and training_bot.gd (owned by another lane; drop
+# these once those files call HERO_FX / HERO_INPUT directly).
+func _cast_grow() -> float:
+	return HERO_FX.cast_grow()
 
 
-## Awakening with a full meter (hero_awaken.gd); the awaken press and the pause menu call it.
-func try_awaken() -> void:
-	HERO_AWAKEN.try_awaken(self)
+func _cast_power() -> float:
+	return HERO_FX.cast_power()
 
 
-func _set_awakened(on: bool) -> void:
-	HERO_AWAKEN.set_awakened(self, on)
+func cancel_point() -> float:
+	return HERO_INPUT.cancel_point(self)
 
 
-## Animation speed before per-move boosts (Awakening is faster).
-func _base_anim_mult() -> float:
-	return HERO_AWAKEN.base_anim_mult(self)
+func combo_window() -> Dictionary:
+	return HERO_INPUT.combo_window(self)

@@ -1,10 +1,10 @@
 extends Control
 ## Combo guide: beside the hero mid-string, one row per input that continues
 ## it (button glyph + the move it starts, coloured by combo tier) and, dimmer,
-## the best named combo one press past that. Reads `player.combo_options()`
+## the best named combo one press past that. Reads `hero_moves.combo_options()`
 ## every frame, so it changes the instant a move starts. A ring round each
 ## glyph fills toward the move's cancel point and the rows light up once a
-## press would be taken (`player.combo_window()`); pressing flashes the row
+## press would be taken (`hero_input.combo_window()`); pressing flashes the row
 ## straight from `_input`, before the move even starts. Animates in real time
 ## so hitstop and slow motion don't stall it. Off in Settings (Game.combo_guide).
 
@@ -21,7 +21,13 @@ const SMALL_GLYPH_H := 18.0
 const NAME_SIZE := 19
 const NEXT_SIZE := 15
 const KEY_SIZE := 15
-const PAUSE_TEXT := "or pause: "  # before a row's pause combo (player.combo_options() `pause`)
+const PAUSE_TEXT := "or pause: "  # before a row's pause combo (hero_moves.combo_options() `pause`)
+## Round 34, fourth pass: mixing elements shows on the rows. A crossover row carries its element change ("storm >
+## magma", `mix`) and a row whose move would cash in a state on a foe in its reach the payoff's name ("+ Shatter",
+## `pay`, from hero_moves.pays()); both only read the real routes and the foes, like every row.
+const MIX_SIZE := 14
+const MIX_COLOR := Color(0.72, 0.6, 1.0)  # the tag's ink: the void arm's violet, lifted
+const PAY_TEXT := "+ "
 const SIDE_GAP := 76.0  # px from the hero's centre to the rows
 const CHEST := 1.1  # metres above the feet the rows centre on
 const EDGE := 330.0  # flip to the hero's left this close to the right edge (and right near the left)
@@ -94,9 +100,10 @@ func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var dt := minf((now - _last_us) / 1000000.0, 0.1)
 	_last_us = now
-	var rows: Array = player.combo_options() if Game.combo_guide and is_instance_valid(player) else []
+	var rows: Array = [] if not Game.combo_guide or not is_instance_valid(player) else (player.guide_rows()
+		if player.has_method("guide_rows") else player.HERO_MOVES.combo_options(player))  # (guide_rows: the prince)
 	if not rows.is_empty():
-		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s" % [r.kind, r.id, r.next.get("id", "")]))
+		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s:%s" % [r.kind, r.id, r.next.get("id", ""), r.get("pay", "")]))
 		if sig != _sig:
 			_sig = sig
 			_swap_t = 0.0
@@ -142,7 +149,7 @@ func _draw() -> void:
 	elif _side < 0.0 and at.x < screen.x - EDGE - 80.0:
 		_side = 1.0
 	_anchor = at + Vector2(_side * SIDE_GAP, 0.0)
-	var win: Dictionary = player.combo_window()
+	var win: Dictionary = player.HERO_INPUT.combo_window(player)
 	var ready: bool = win.ready
 	if ready and not _was_ready:
 		_ready_t = 0.0
@@ -191,9 +198,19 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 	var name: String = row.name
 	if row.hold:
 		name = ("RELEASE  " if usable else "HOLD  ") + name
+	if row.has("mix"):  # (before the name: the element it turns into)
+		var mw := _font.get_string_size(row.mix, HORIZONTAL_ALIGNMENT_LEFT, -1, MIX_SIZE).x
+		parts.append(["mix", x, mw, row.mix])
+		x += mw + 8.0
 	var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
 	parts.append(["name", x, nw, name])
 	x += nw
+	if row.has("pay"):
+		x += 8.0
+		var pt: String = PAY_TEXT + row.pay
+		var pw := _font.get_string_size(pt, HORIZONTAL_ALIGNMENT_LEFT, -1, NEXT_SIZE).x
+		parts.append(["pay", x, pw, pt])
+		x += pw
 	if not row.next.is_empty():
 		x += 10.0
 		parts.append(["arrow", x, 8.0])
@@ -245,6 +262,10 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 					draw_arc(c, p[4] * 0.5 + 4.0, 0.0, TAU, 32, Color(col, alpha), 2.5, true)
 			"name":
 				_text(Vector2(px, base.y), p[3], NAME_SIZE, Color(col.lightened(0.15 * pressed), alpha * lit))
+			"mix":
+				_text(Vector2(px, base.y), p[3], MIX_SIZE, Color(MIX_COLOR, 0.95 * alpha * lit))
+			"pay":
+				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(player.COMBO_TIER_COLORS[1], alpha * lit))
 			"arrow":
 				var a := Vector2(px, base.y)
 				draw_polyline([a + Vector2(0, -5), a + Vector2(5, 0), a + Vector2(0, 5)], Color(1, 1, 1, 0.45 * alpha), 2.0, true)

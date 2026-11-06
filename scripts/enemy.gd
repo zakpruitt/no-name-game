@@ -223,15 +223,12 @@ var _telegraph: MeshInstance3D
 var _telegraph_mat: StandardMaterial3D
 var _edge: MeshInstance3D  # bright pulsing rim + dark outline on the telegraph ring (Fx.edge_ring)
 var _edge_t := 0.0
-var _glow_mat: ShaderMaterial  # set_glow() rim, kept on through hit flashes
-var _glow_meshes: Array[Node] = []
 var _attack_cd := 0.0
 var _freeze_t := 0.0
 # Cold (the void ice moves): chilled foes move and act at chill_mult speed; frozen ones
 # are encased (stunned) and the next hit shatters the ice for frozen_mult damage.
 var chill_t := 0.0
 var chill_mult := 1.0
-var chill_hits := 0
 var frozen_t := 0.0
 var frozen_mult := 1.0
 var _ice: MeshInstance3D
@@ -328,10 +325,6 @@ func is_ranged() -> bool:
 	return attack_kind in ["ranged", "line", "raise"]
 
 
-func fuse_left() -> float:
-	return _fuse
-
-
 ## Targetable: spawned, not dead, and not mid-dodge.
 func is_alive() -> bool:
 	return state != State.DEAD and state != State.SPAWN and state != State.DODGE
@@ -345,11 +338,6 @@ func _physics_process(delta: float) -> void:
 	STATE_TELL.sync(self)  # (a crossover state's tell: buried / molten / skewered, comic_state_tell.gd)
 	if _telegraph.visible:
 		_pulse_edge(delta)
-	# Fx.flash clears overlays on hit; put the glow back afterwards.
-	if _glow_mat != null:
-		for mi: MeshInstance3D in _glow_meshes:
-			if is_instance_valid(mi) and mi.material_overlay == null:
-				mi.material_overlay = _glow_mat
 	# Hit freeze: hold the pose and shudder; knockback starts once it ends.
 	if _freeze_t > 0.0:
 		_freeze_t -= delta
@@ -660,7 +648,10 @@ func _thaw(shattered: bool) -> void:
 	if cube != null:
 		cube.queue_free()
 	if shattered:
-		Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
+		if Fx.DESIGNED.on():  # round 43: drawn faceted shards (designed_fx.ice_shatter)
+			Fx.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.9)
+		else:
+			Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
 		Game.register_hit("shatter_ice")
 
 
@@ -1005,12 +996,6 @@ func _corpse_tumble(delta: float) -> void:
 	_lean_tween.tween_property(model, "rotation:z", roundf(model.rotation.z / TAU) * TAU, TUMBLE_SETTLE)
 
 
-## Fall apart on the spot (e.g. when the boss that summoned it dies).
-func crumble() -> void:
-	if state != State.DEAD:
-		_die(Vector3.ZERO)
-
-
 ## True if the shield stopped this hit. Big hits/launchers break the guard
 ## instead (and land).
 func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
@@ -1191,9 +1176,7 @@ func _blast() -> void:
 		var to: Vector3 = _player.global_position - at
 		to.y = 0.0
 		if to.length() <= blast_radius:
-			var who: String = _player._describe_attacker(self)
-			_player.take_hit(attack_damage, to.normalized() * 10.0, self,
-				("%s's blast" if attack_kind == "bomb" else "%s's dying burst") % who)
+			_player.take_hit(attack_damage, to.normalized() * 10.0, self)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var to: Vector3 = e.global_position - at
 		to.y = 0.0
@@ -1312,13 +1295,6 @@ func _squash(amount: Vector3, time := SQUASH_TIME, hold := 0.0) -> void:
 	if hold > 0.0:
 		_squash_tween.tween_interval(hold)
 	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, time) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-
-
-## A coloured rim glow over the whole model (e.g. split minions).
-func set_glow(color: Color) -> void:
-	_glow_mat = Fx.rim_material().duplicate()
-	_glow_mat.set_shader_parameter("glow_color", color)
-	_glow_meshes = model.find_children("*", "MeshInstance3D", true, false)
 
 
 func _build_elite_aura() -> void:

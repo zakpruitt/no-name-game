@@ -12,6 +12,7 @@ const BREAKER_QUAKE := preload("res://scripts/breaker_quake.gd")
 const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
 
 # Combo breakers (VOID_ELEMENT.BREAKERS, timed finishers). The move leaps into the air at `leap`
 # (fraction of its anim), hops `back` m while rising `height` m over `rise` s
@@ -67,17 +68,19 @@ static func start(hero: CharacterBody3D, id: String, entry: Dictionary) -> void:
 	_aim(hero)
 
 
-## Some of his breakers land where the string put them, however far off that is: Meteor Fall on whoever
-## the tentacle has hold of, the dark ones `short` of dark_spot.
+## Some of his breakers land where the string put them, however far off that is: Meteor Fall on the biggest group
+## in reach (VOID_ELEMENT.meteor_spot; the cue shows which), the dark ones `short` of dark_spot.
 static func _aim(hero: CharacterBody3D) -> void:
 	var b: Dictionary = hero._brk
 	var void_grab: Node = hero._void
 	var spot: Vector3
 	if b.has("at_spot"):
 		spot = void_grab.dark_spot
-	elif b.has("meteor") and not void_grab.held_foes().is_empty():
-		var held: Node3D = void_grab.held_foes()[0]
-		spot = Vector3(held.global_position.x, 0.0, held.global_position.z)
+	elif b.has("meteor"):
+		var target: Dictionary = VOID_ELEMENT.meteor_spot(hero)
+		if not target.found:
+			return  # (nobody in reach: start()'s zone ahead of him)
+		spot = target.at
 	else:
 		return
 	var to := spot - Vector3(hero.global_position.x, 0.0, hero.global_position.z)
@@ -101,8 +104,8 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 	hero.velocity.z = 0.0
 	# Dash cancels anything, a breaker's hang included. (Not for the autotest
 	# bot: its dodge presses would throw away the breakers it's there to test;
-	# he's untouchable in the hang anyway.)
-	if hero._brk_phase == 0 and hero._dash_buffer_t > 0.0 and hero._dash_cd <= 0.0 and not hero.bot_enabled:
+	# he's untouchable in the hang anyway. A string with the bot's "out" token does dash out: bot_out.)
+	if hero._brk_phase == 0 and hero._dash_buffer_t > 0.0 and hero._dash_cd <= 0.0 and (not hero.bot_enabled or hero.bot_out):
 		_dash_out(hero)
 		return
 	hero._void.seized_tick(hero._brk_phase, t, b)
@@ -122,6 +125,10 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 		if t >= b.cue and hero._brk_cue == null:
 			var cue := BREAKER_CUE.new()
 			cue.color = color(hero)
+			var opts := options(hero)
+			if opts.size() > 1:  # two endings: the closing ring in both colours until he picks (_start_dive)
+				cue.color = opts[1].color
+				cue.alt_color = opts[0].color
 			cue.crisp = true
 			cue.open = b.open - b.cue
 			cue.sweet = b.sweet - b.cue
@@ -182,8 +189,6 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 			hero._brk_meteor.global_position = model.global_position + Vector3.UP
 		if k >= 1.0:
 			_impact(hero)
-	elif hero._brk_phase == 3:
-		_tick_beats(hero, t)
 	else:
 		var k: float = clampf(t / b.fall, 0.0, 1.0)
 		model.position.y = b.height * (1.0 - k * k)
@@ -228,41 +233,15 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	var perfect: bool = absf(hero._brk_press - b.sweet) <= b.perfect
 	hero._brk_ended = "perfect" if perfect else "hit"
 	if is_instance_valid(hero._brk_cue):
+		hero._brk_cue.color = color(hero)  # the ending he picked (after the `alt` merge), not the first one's
+		hero._brk_cue.alt_color = Color.TRANSPARENT
 		hero._brk_cue.hit(perfect)
 	if hero._brk_focus:
 		Game.end_slowmo()
 	if perfect:
 		Game.hitstop(BREAKER_PERFECT_STOP, 0.05)
 		Game.sfx("perfect", -4.0, 0.0)
-	if b.has("gather"):  # Meteor Fall: two beats in the hang before the dive (_tick_beats)
-		hero._brk_phase = 3
-		hero._brk_beat = 0
-		hero._state_t = 0.0
-		Fx.flash(hero.model)
-		VOID_ELEMENT.meteor_wall(hero)
-		return
 	_dive(hero)
-
-
-## Meteor Fall's hang after the press (phase 3): beat 1 (meteor_wall, on the press) has thrown them at the walls;
-## once they've hit, beat 2 drags them all into one pile (meteor_gather), and once that's in, beat 3 is the dive.
-static func _tick_beats(hero: CharacterBody3D, t: float) -> void:
-	var b: Dictionary = hero._brk
-	hero.model.position.y = b.height + sin(t * 9.0) * 0.06
-	hero._face(hero._brk_dir)
-	var flying: bool = VOID_ELEMENT.pile_flying(hero)
-	if hero._brk_beat == 0:
-		if t >= VOID_ELEMENT.METEOR_GATHER_AT and (not flying or t >= VOID_ELEMENT.METEOR_GATHER_LATE):
-			hero._brk_beat = 1
-			hero._state_t = 0.0
-			Game.hitstop(VOID_ELEMENT.METEOR_BEAT_STOP)
-			hero._play("Ab_GR", 0.05, true)
-			VOID_ELEMENT.meteor_gather(hero)
-	elif t >= VOID_ELEMENT.METEOR_DRAG_TIME and (not flying or t >= VOID_ELEMENT.METEOR_DIVE_LATE):
-		hero._brk_beat = 2
-		Game.hitstop(VOID_ELEMENT.METEOR_BEAT_STOP)
-		Game.sfx("hit_big", -4.0, 0.1)
-		_dive(hero)
 
 
 ## The dive itself: down onto the zone in `dive` s (phase 1), as the meteor where the breaker is one.
@@ -271,6 +250,7 @@ static func _dive(hero: CharacterBody3D) -> void:
 	var model: Node3D = hero.model
 	if b.has("meteor"):
 		var run: Vector3 = hero._brk_zone - Vector3(hero.global_position.x, 0.0, hero.global_position.z)
+		b.dive = maxf(b.dive, run.length() / VOID_ELEMENT.METEOR_DIVE_SPEED)  # (a far group: a longer dive, not a blur)
 		hero._brk_meteor = VOID_ELEMENT.meteor_shell(hero.get_parent(), Vector3(run.x, -b.height, run.z))
 		hero._brk_meteor.global_position = model.global_position + Vector3.UP
 	hero._brk_phase = 1
@@ -294,7 +274,7 @@ static func _impact(hero: CharacterBody3D) -> void:
 	var mult: float = (b.perfect_mult if perfect else 1.0) * hero._cast_power()
 	if is_instance_valid(hero._brk_meteor):
 		hero._brk_meteor.queue_free()
-	VOID_ELEMENT.breaker_impact(hero, b, at, void_grab.held_foes() if b.has("cubes") or b.has("rip") else void_grab.slam_seized(), mult)
+	VOID_ELEMENT.breaker_impact(hero, b, at, void_grab.held_foes() if b.has("cubes") else void_grab.slam_seized(), mult)
 	# Barbaric landing: the floor breaks (the element erupts under each foe already).
 	if not b.has("press") and not b.has("at_spot"):  # (its ice buried the cubes as they left; the dark ones have their own)
 		BREAKER_QUAKE.crater(hero.get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
@@ -373,13 +353,32 @@ static func _comet(hero: CharacterBody3D, c: Color) -> void:
 ## The breaker timing prompt (breaker_prompt.gd) reads this every frame:
 ## `live` while the press is still to come (times in s since take-off, the
 ## hero's colour); otherwise how the last one `ended` ("perfect", "hit",
-## "lock" = too early, "miss" = no press).
+## "lock" = too early, "miss" = no press) and which button `chose` it ("light" / "heavy", "" for a miss).
+## `options` is every ending the window offers (options()): the prompt draws one chip per ending.
 static func window(hero: CharacterBody3D) -> Dictionary:
 	if hero.state == hero.State.LEAP and hero._brk_phase == 0 and not hero._brk_locked:
 		var b: Dictionary = hero._brk
 		return {"live": true, "t": hero._state_t, "open": b.open, "sweet": b.sweet, "close": b.close, "color": color(hero),
-			"name": breaker_name(hero), "alt_name": b.alt.names.spirit if b.has("alt") else ""}
-	return {"ended": hero._brk_ended}
+			"name": breaker_name(hero), "alt_name": b.alt.names.spirit if b.has("alt") else "", "options": options(hero)}
+	var chose := ""
+	if hero._brk_ended != "miss" and hero._brk_ended != "":
+		chose = "light" if hero._brk_alt else "heavy"
+	return {"ended": hero._brk_ended, "chose": chose}
+
+
+## The endings the breaker in play offers, in mouse order (left button first): one per button, each with its name,
+## the element it lands in and that element's fx_palette body colour. One ending: right click only.
+static func options(hero: CharacterBody3D) -> Array:
+	var b: Dictionary = hero._brk
+	if b.is_empty():
+		return []
+	var main := {"button": "heavy", "name": breaker_name(hero), "element": b.get("erupt", hero.element())}
+	main.color = PAL.of(main.element).body
+	if not b.has("alt"):
+		return [main]
+	var alt := {"button": "light", "name": b.alt.names.spirit, "element": b.alt.get("erupt", main.element)}
+	alt.color = PAL.of(alt.element).body
+	return [alt, main]
 
 
 ## The timing circle, made on his first leap in its own CanvasLayer.

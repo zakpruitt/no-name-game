@@ -12,6 +12,13 @@ const CROP := Vector2i(760, 300)
 var _fails: Array[String] = []
 
 
+## A stand-in foe for the payoff tag (round 4): just what improv_reach / improv_state read.
+class Foe extends Node3D:
+	var radius := 0.5
+	func is_alive() -> bool: return true
+	func is_airborne() -> bool: return false
+
+
 func _initialize() -> void:
 	await process_frame
 	var game: Node = get_root().get_node("Game")
@@ -28,20 +35,20 @@ func _initialize() -> void:
 	var guide: Control = main.hud.combo_guide
 
 	for awake: bool in [false, true]:
-		p._set_awakened(awake)
+		p.HERO_AWAKEN.set_awakened(p, awake)
 		for from: String in FROM:
 			_begin(p, from)
-			var rows: Array = p.combo_options()
+			var rows: Array = p.HERO_MOVES.combo_options(p)
 			_check(not rows.is_empty(), "%s%s shows rows" % [from, _tag(awake)])
 			for row: Dictionary in rows:
 				_begin(p, from)
-				var want: String = p.dash_light() if row.kind == "dash" else p._next_move(row.kind)
+				var want: String = p.HERO_MOVES.dash_light(p) if row.kind == "dash" else p._next_move(row.kind)
 				_check(row.id == want, "%s%s %s -> %s (guide says %s)" % [from, _tag(awake), row.kind, want, row.id])
 				if row.next.is_empty():
 					continue
 				_begin(p, from)
 				if row.kind == "dash":
-					p._air_dash = p._can_air_dash()
+					p._air_dash = p.HERO_MOVES.can_air_dash(p)
 					p._set_state(p.State.MOVE)
 					p._post_dash_t = 0.3
 				p._start_attack(row.id)
@@ -50,30 +57,59 @@ func _initialize() -> void:
 		# Out of a dash: light is the Dash Stab, heavy is Tow Line.
 		p._set_state(p.State.MOVE)
 		p._post_dash_t = 0.3
-		var rows: Array = p.combo_options()
+		var rows: Array = p.HERO_MOVES.combo_options(p)
 		_check(not rows.is_empty() and rows[0].id == "DL", "post-dash light -> DL" + _tag(awake))
 		_check(rows.size() > 1 and rows[1].id == "TW" and p._next_move("heavy") == "TW", "post-dash heavy -> TW" + _tag(awake))
-	p._set_awakened(false)
+	p.HERO_AWAKEN.set_awakened(p, false)
 	# A combo landed GUIDE_LEARNED times is no longer hinted as the follow-up.
 	_begin(p, "L1")
-	var hinted: String = p.combo_options()[1].next.get("id", "")
+	var hinted: String = p.HERO_MOVES.combo_options(p)[1].next.get("id", "")
 	_check(hinted != "", "L1's heavy row hints a combo")
 	p.combos_landed[hinted] = p.GUIDE_LEARNED
 	_begin(p, "L1")
-	_check(p.combo_options()[1].next.get("id", "") != hinted, "a learned %s is no longer hinted" % hinted)
+	_check(p.HERO_MOVES.combo_options(p)[1].next.get("id", "") != hinted, "a learned %s is no longer hinted" % hinted)
 	p.combos_landed.clear()
 	p._set_state(p.State.MOVE)
 	p._post_dash_t = 0.0
 	p._chain_i = 0
-	_check(p.combo_options().is_empty(), "no rows in neutral")
+	_check(p.HERO_MOVES.combo_options(p).is_empty(), "no rows in neutral")
 	p._set_state(p.State.CHARGE)
-	_check(p.combo_options().size() == 1 and p.combo_options()[0].hold, "charging shows the hold row")
+	_check(p.HERO_MOVES.combo_options(p).size() == 1 and p.HERO_MOVES.combo_options(p)[0].hold, "charging shows the hold row")
 	p._set_state(p.State.MOVE)
+	_mixing(main, p)
 
 	if DisplayServer.get_name() != "headless":
 		await _sheet(main, p, guide)
 	print("[guide] PASS" if _fails.is_empty() else "[guide] FAIL " + "; ".join(_fails))
 	quit()
+
+
+## Round 4: mixing elements on the rows. A crossover row names its element change; a row whose move would cash in a
+## foe's state in its own reach names the payoff (and the same move aimed away from it doesn't). Only tags: the row's
+## move is still the real route (the loop above).
+func _mixing(main: Node, p: Node3D) -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	_begin(p, "AL1")
+	var light: Dictionary = p.HERO_MOVES.combo_options(p)[0]
+	_check(light.id == "XR" and light.get("mix", "") == "storm > magma", "off Air Slash, Rockslide's row says storm > magma (%s)" % light.get("mix", ""))
+	_begin(p, "L1")
+	_check(p.HERO_MOVES.combo_options(p).all(func(r: Dictionary) -> bool: return not r.has("mix")), "L1's rows stay in their element: no mix tag")
+	p.global_position = Vector3.ZERO
+	p._face(Vector3(0, 0, 1))
+	var foe := Foe.new()
+	main.add_child(foe)
+	foe.global_position = Vector3(0, 0, 3.0)
+	foe.add_to_group("enemies")
+	el.mark(foe, "buried")
+	p._set_state(p.State.MOVE)
+	p._post_dash_t = 0.3
+	_begin(p, "DL")
+	var heavy: Dictionary = p.HERO_MOVES.combo_options(p)[1]
+	_check(heavy.id == "EF" and heavy.get("pay", "") == "Frozen In", "Harpoon's row off Dash Stab, a buried foe on its line: + Frozen In (%s)" % heavy.get("pay", ""))
+	p._face(Vector3(0, 0, -1))
+	_check(not p.HERO_MOVES.combo_options(p)[1].has("pay"), "aimed away from it, no payoff tag")
+	foe.free()
+	p._set_state(p.State.MOVE)
 
 
 func _begin(p: Node3D, from: String) -> void:
@@ -87,14 +123,14 @@ func _tag(awake: bool) -> String:
 	return " (Awakened)" if awake else ""
 
 
-## Six states, cropped round the hero, in a 2x3 sheet.
+## Six states, cropped round the hero, in a 2x3 sheet (Air Slash: the mix tag on Rockslide).
 func _sheet(main: Node, p: Node3D, guide: Control) -> void:
 	var shots: Array[Image] = []
 	var setups := [
-		["", false, "L1", false], ["", false, "L2", false], ["", true, "L3", true],
+		["", false, "L1", false], ["", false, "AL1", false], ["", true, "L3", true],
 		["", true, "EC", false], ["", true, "dash", false], ["", false, "charge", false]]
 	for s: Array in setups:
-		p._set_awakened(s[1])
+		p.HERO_AWAKEN.set_awakened(p, s[1])
 		p.global_position = Vector3.ZERO
 		p._set_state(p.State.MOVE)
 		p._post_dash_t = 0.0
@@ -115,7 +151,7 @@ func _sheet(main: Node, p: Node3D, guide: Control) -> void:
 				p._post_dash_t = 5.0
 			if s[2] == "charge":
 				Input.action_press("attack_heavy")
-			var w: Dictionary = p.combo_window()
+			var w: Dictionary = p.HERO_INPUT.combo_window(p)
 			if guide._vis >= 1.0 and guide._swap_t > 0.15 and (w.progress > 0.35 if s[3] else w.ready):
 				break
 		var img := main.get_viewport().get_texture().get_image()

@@ -2,7 +2,7 @@ extends Node3D
 ## Spirit echo: the bound ancestor in the axe finishes the swing. A giant
 ## spectral copy of the hero's axe sweeps the same arc a beat after the real
 ## hit, laid flat so its silhouette reads from the top-down camera, hitting
-## each enemy in its arc once and leaving a swoosh. Spawned by player._cast
+## each enemy in its arc once and leaving a swoosh. Spawned by hero_fx.cast
 ## for casts of kind "echo" (elements.CASTS).
 ## Round 33 (sleek): a thin ink line round a see-through halftone fill (about FILL alpha) in the element's
 ## palette (fx_palette: teal spirit, gold Awakened), not a 60% slab under an additive rim. It sweeps in

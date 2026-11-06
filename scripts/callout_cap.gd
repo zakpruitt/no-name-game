@@ -1,6 +1,6 @@
 extends RefCounted
 ## Round 33, sleek 4 (nothing lingering): the combo-name / breaker-name callout over the hero (player._callout,
-## raised by player._combo_callout and hero_leap._callout) fades on its tween, which runs on game time. Hitstop
+## raised by hero_fx.combo_callout and hero_leap._callout) fades on its tween, which runs on game time. Hitstop
 ## and a breaker's slow motion stretched it: CATACLYSM / ABYSS / GROUNDED PERFECT hung 1-1.3 s into the next
 ## string and FLASH FREEZE PERFECT for 5 s. ComicFx calls `watch(hero)` every frame (no edit to the hero's
 ## files): a new callout is a new `_callout_tw`; after HOLD_S of real time, or as soon as the next string starts
@@ -21,7 +21,7 @@ static var capped := 0  # callouts cut short (fx_sleek_check)
 ## Round 33, sleek 6: a breaker's name (hero_leap._callout: WORLDBREAKER / PERFECT) went up over his head as he
 ## landed on the pile, so in most of the densest frames it sat on the foes. A breaker callout is moved to the top
 ## band of the screen, centred, where the HUD's AIRBORNE / PERFECT announcements are (hud.ANNOUNCE_Y 0.2), just above
-## them, and held BREAKER_HOLD_S real s. The combo-name callout (player._combo_callout) stays over him.
+## them, and held BREAKER_HOLD_S real s. The combo-name callout (hero_fx.combo_callout) stays over him.
 const BREAKER_Y := 0.11  # of the screen height: the name's middle (the announcements' row is 0.2)
 const BREAKER_HOLD_S := 0.6  # real s whole, then FADE_S
 const BREAKER_SCALE := 0.85  # of the label's scale, settled (it pops from BREAKER_POP)
@@ -30,6 +30,27 @@ const BREAKER_POP_S := 0.12  # real s
 static var _is_breaker := false
 static var breakers_placed := 0  # breaker callouts moved to the top band (fx_sleek_check)
 static var _names := {}
+
+## Feel audit 2, item 3: a name popped over him on every named move (DASH STAB, HARPOON, ICE CUBE...), so every
+## beat had a name plus a word plus a number on him. A name now goes up only for an ender (a move with a breaker:
+## void_element.BREAKERS), a crossover (`X*`, the string's element change paying off) and the breakers' own names;
+## the light mids keep their word (ComicFx.MOVE_WORDS) and lose the name and its stroke pop (Fx.combo_pop).
+static var muted := 0  # mid callouts taken down (fx_sleek_check)
+static var _named := {}  # COMBOS names that still go up
+
+
+## Does this COMBOS id get its name over him? Enders and crossovers.
+static func names_move(id: String) -> bool:
+	return id.begins_with("X") or load("res://scripts/void_element.gd").BREAKERS.has(id)
+
+
+## Is this callout text the name of a move that gets one (names_move)?
+static func is_named_text(hero: Node, text: String) -> bool:
+	if _named.is_empty() and "COMBOS" in hero:
+		for id: String in hero.COMBOS:
+			if names_move(id):
+				_named[hero.COMBOS[id].name] = true
+	return _named.has(text.get_slice("\n", 0))
 
 
 ## Is this callout text a breaker's name (its first line)?
@@ -71,6 +92,12 @@ static func watch(hero: Node) -> void:
 		_shown_ms = now
 		_fade_from_ms = -1
 		_is_breaker = is_breaker_text(label.text)
+		if not _is_breaker and not is_named_text(hero, label.text):
+			muted += 1
+			if tw is Tween and tw.is_valid():
+				tw.kill()
+			label.hide()  # (before it draws: ComicFx's _process runs ahead of the frame)
+			return
 		if _is_breaker:
 			breakers_placed += 1
 			if tw is Tween and tw.is_valid():

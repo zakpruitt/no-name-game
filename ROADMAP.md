@@ -379,7 +379,10 @@ Zak: "reduce the game to JUST the heretic combat system for now. Remove the rogu
 - [x] `scripts/hero_leap.gd` (369 lines): State.LEAP, the breaker press / dive / impact / callout / dash-out, the prompt feed, `BREAKER_*`
 - [x] `scripts/hero_awaken.gd` (90 lines): activation and burst, the buff (its numbers named: `ANIM_MULT`, `DAMAGE_MULT`, `SIZE`, `SPEED_MULT`, `DAMAGE_TAKEN`), the drain, the rim
 - [x] player.gd (1023 lines): declarations grouped by job, functions in sections; dead code gone (`spikes`, `callouts`, `last_callout_tier`, `_last_combo`, `heal()`, `_cast_target()`, the KayKit H / CH charge branch). `comic_check` scans `hero_*.gd` for clip names too
-- [ ] Next: casts / swoosh / callouts (~200 lines) could be a `hero_fx.gd`; `last_hit_by` + `_describe_attacker` feed a death recap that no longer exists (enemy.gd still builds the cause string); the forwarders could go once the checks call the hero_*.gd functions directly
+- [x] Cleanup round 2: casts / swoosh / callouts / ender camera / rank-up / last-kill moved to `scripts/hero_fx.gd` (player.gd 1062 -> 784 lines); every forwarder gone except `breaker_window()` (game scripts and checks call `HERO_*` directly); the death recap's `last_hit_by` / `_describe_attacker` / `take_hit` cause strings gone. Autotest breakers / strings / endings / moves / improv identical
+- [x] Cleanup round 2: `tools/dead_refs.py` (names no code uses; comments don't count, docs-only names listed apart) found and removed 10 (`breaker_quake.eruption_line`, `enemy.chill_hits` / `fuse_left`, `fx_palette.TAIL_ALPHA`, six dead `void_element` consts)
+- [ ] Cleanup round 2, not landed (branch `agent/cleanup2-style`): one-line comments on ~100 of today's tuning constants plus `comic_crack.LINE` = `PAL.LINE`, `comic_gale.STORM` / `LIGHT` = comic_bolt's, `comic_flat.FALL_GRAVITY`. Same values, yet on dev `4ec20ad` it moved the headless autotest's `[improv] buried_x_water` 1 -> 3 (twice; dev and the two commits before it give 1): find why (the new preloads in comic_crack / comic_gale changing load timing?) before landing
+- [ ] Cleanup round 2 left: CLAUDE.md's Layout doesn't name ~30 of today's scripts and tests (the `comic_*` crossover effects, `callout_cap`, `standing_fx`, `hud_ink`, `fx_sleek_check`, `hero_stride_check`, `lean_spike_check`, `improv_shots`, `fx_coverage.py`, `dead_refs.py`); `docs/features/README.md` lists every doc. Duplicates owned by other lanes: `enemy.RUN_START_BELOW` / `RUN_STOP_ABOVE` = player's, `foe_lean.LEAN_*` = heretic_rig's
 
 ## Round 32 (feel audit fixes)
 From `docs/feel-audit-2026-11-04.md`'s top 10 (numbers are the audit's).
@@ -417,7 +420,7 @@ Zak: "the movement animation is awful". The chibi's runs, idle and dash re-keyed
 - [x] Camera round 2: Meteor Fall's beats (press to dive) pull the camera out past the framing cap, up to `frame_max` x `HANG_FRAME_GAIN` 1.6 (x2.0, 26 m, hero ~70 px), on foes hit within 22 m, leaning up to 5 m and undoing the hang push-in while they need the room; out at 12/s (90% in 0.19 s, before the throw hits the wall), back at 4/s on the dive (its punch-in kept). The rise and the timing window keep the push-in. Filmed (`string_film -- --from=11`): the beat-1 splats on the east wall and every thrown foe in frame (before: off the right edge). The rig's real delta is measured now (delta / time_scale snapped the dive's return home in a frame)
 - [x] Camera round 2: `comic_shots`, `foe_shots`, `heretic_shots` shoot from `camera_rig.rest_view()` (the rig's offset and FOV, flags included) instead of round 28's (0, 13, 9.5) FOV 42
 - [ ] By hand: is x2.0 too far for the beats (the hero ~70 px for ~0.6 s), or still too close (a throw to both side walls wants ~x3.5; the corner foe can sit at the edge)? `--cam-frame=` scales it
-- [ ] The timing window before the press still pushes in on foes Undertow spread off screen (Meteor Fall's string): pull out there too, or leave the window tight?
+- [ ] The timing window before the press still pushes in on foes Undertow spread off screen (Meteor Fall's string): pull out there too, or leave the window tight? Tried in cleanup round 2 and not landed (stop-point): running the framing in the window and capping at `frame_max` also undid most of the push-in for a single foe 2 m ahead (x1.18, the head out of the 72% box), so the box test needs the hang's lift or a rest-distance test first; measure `_frame_to` per breaker in the window before choosing
 
 ## Round 33 (FX sleek)
 Zak, after playing every combo: "very comicy, which I like, but ... sleeker and more put together. Right now it's very thick colours." Same comic language, less weight: `docs/features/comic-style.md` "Sleek effects".
@@ -473,7 +476,14 @@ Zak: "more combos that utilize multiple elements together", "a few more complica
 - [x] Third pass, the element matrix (`docs/features/element-matrix.md`): state (frozen, buried, molten, skewered, airborne, bound) x element (storm, ice, magma, dark), 15 new cells paid by base moves through `void_element.improvise()`, move list IMPROVISING rows, three bot strings (`[improv] frozen_x_void=3, buried_x_water=1, airborne_x_water=1`), `void_arm_check._element_matrix()`
 - [x] Fixes: range-0 moves skip `_do_hit`'s melee loop (a 0-damage touch broke a foe's ice); Rockslide's stop 0.1 -> 0.07 and hit-confirm 0.8 (Fault Line beat 393 -> ~320 ms); the bot's `line` setup so Harpoon reels three and Hailstorm lifts them all
 - [x] Flow audit (bot `[rhythm]` beats vs 196 / 235 / 362 ms): Molten Palm / Steam Burst `EM_SPEED` 2.1 -> 2.8 (L3 -> EM 655 -> 549, EA -> XS 612 -> 515), Harpoon / Frost Spear `LLH_SPEED` 1.6 (DL -> EF 424-514 -> 350-432), Meltdown `MELT_SPEED` 1.5 (467 -> 413). Still long: Air Slash after Updraft Lash (344-372), L2 in the spear strings (325-333), Dash Stab after a dash out of a move (475-536)
-- [ ] By hand: molten payoffs (dash out of Meltdown's hang), bound x storm off Undertow / Overwhelm; the matrix's reach (5 m round him) against each move's own shape
+- [x] (bot strings, round 4) Molten payoffs (dash out of Meltdown's hang), bound x storm off Undertow; the matrix's reach (5 m round him) against each move's own shape
+- [x] Fourth pass, matrix reach: a payoff lands only inside the move's own hit shape (`void_element.improv_reach()`: the gale's circle, the harpoon / palm lines, the crescent, the pools, the tentacles, Tow Line's dash line; nothing for the vault); `_element_matrix()` adds foes behind him / off the line inside 5 m that must not pay (fails 5 ways on the old reach)
+- [x] Fourth pass, beats (bot `[rhythm]`): Updraft Lash -> Air Slash 307-385 -> 232-295 ms (`AL1_SPEED` 1.25, `EC_CONFIRM` 0.8), L1 -> L2 311 -> 280-292 ms unawakened (`L2_SPEED` 1.15), a move -> Dash Stab off a dash 510-534 -> 444-449 ms (`DASH_STAB_CANCEL` 0.5 of a dash that cancelled a move)
+- [x] Fourth pass, Anvil: the reel fans the kebab across his aim (`ANVIL_SPREAD` 1.5 m, kept through the dive), a crater each (was 0.08 m apart, one pile)
+- [x] Fourth pass, bot: `face` / `out` / `wait` tokens and two strings (dash out of Meltdown / Undertow into Updraft Lash): `[improv] frozen_x_void=3, buried_x_water=1, airborne_x_water=1, molten_x_wind=3, bound_x_wind=1` (24 strings, `AUTOTEST_MAX` 100 s)
+- [x] Fourth pass, guide: crossover rows say their element change ("storm > magma"), a row whose move would cash in a state in its reach says the payoff ("Harpoon + Frozen In"); the pause panel's MIX ELEMENTS page lists all 24 cells in plain words (`guide_check._mixing()`)
+- [ ] By hand: Dash Stab at `DASH_STAB_CANCEL` 0.5 covers half the dash's ground before the lunge: check the spacing into a pile; the "+ payoff" tag's reach is read from where he faces before the press, so an aimed press can still pay where the tag didn't show
+- [ ] The guide's mix / pay tags are plain text (a small element chip in the fx palette would read faster)
 
 ## Round 37 (Crossover FX)
 The round 34 crossovers had placeholder looks (pillars, fissures, spikes, geysers, shards, arcs). Each now has its own flat comic drawer on `scripts/comic_flat.gd` (two surfaces on twos: camera-facing on heretic_form_fx's material, floor on comic_crack's; nothing new to compile). See `docs/features/void-element.md` "Crossover looks".
@@ -519,10 +529,18 @@ Zak, on the chibi lineup: "I definitely like this chibi direction better. We can
 - [x] Faces: eyes 1.65x tipped up to the camera, slanted brows on the eye bones (the squint folds them shut), teeth scowl
 - [x] Heavier ink on the outer silhouette only (`ComicLook.silhouette`, `shaders/foe_silhouette.gdshader`, 4 px pushed 0.3 m back)
 - [x] Tri budget kept (each under round 38's +20%); health bars raised for the mage, necromancer and bomber
-- [ ] The warrior's tell still hides under its helmet from the game camera; a longer blade helped the idle read, not the overhead chop (anim lane: aim it wider past the shoulder)
-- [ ] The shield's planks still break into a light / dark checker under the cut tones (brush 0.1 did not fix it): flatten the plank geometry or give the wall one flat face
-- [ ] Minion: still the plainest; try a bigger skull cap or a hunch with a spine ridge, and a cleaver with a clear blade shape
-- [ ] By hand: spar each family and see whether the accent colour sorts a crowd at a glance (`--spar=minion|rogue|shield|warrior`)
+- [x] The warrior's tell still hides under its helmet from the game camera; a longer blade helped the idle read, not the overhead chop (anim lane: aim it wider past the shoulder)
+- [x] The shield's planks still break into a light / dark checker under the cut tones (brush 0.1 did not fix it): flatten the plank geometry or give the wall one flat face
+- [x] Minion: still the plainest; try a bigger skull cap or a hunch with a spine ridge, and a cleaver with a clear blade shape
+- [x] By hand: spar each family and see whether the accent colour sorts a crowd at a glance (`--spar=minion|rogue|shield|warrior`)
+- [x] Round 39 b: the warrior's chop re-keyed so the tell holds the sword out wide past its right shoulder (az -100..-112) with the free arm at the target, and the strike whips across its front to finish low past its left foot; `attack_hit` stays 19 (filmed with `foe_shots.gd -- --clip=1H_Melee_Attack_Chop`)
+- [x] Round 39 b: the shield's planks rebuilt as one flat slab (`refine_pass.py` `slab`: convex outline on the best-fit plane, inked `P_Black` rim, flat `P_Wood` face at brush 0, iron bands dropped, the orange boss centred); tris 9953 -> 8840
+- [x] Round 39 b: the minion's cleaver turned to face the camera and redrawn as a square steel cleaver with an inked spine (`cleaver`), and an orange skull cap fitted over the cranium with a ridge of four bone fins (`cap`); tris 7946 -> 8108
+- [x] Round 39 b: the training dummy takes the foes' face (eyes 1.65x tipped 30 degrees, angry brows on the eye bones, a scowl) and their heavy outer line (`SILHOUETTE_KINDS`); bag bones and spring untouched
+- [x] Round 39 b: crowd read from the lineup and `--spar=warrior|rogue|shield --autotest`: the archer's green cloth (grave's colour on a legion foe) went burnt orange and the necromancer's red shroud deep green (`KIND_TONES`)
+- [ ] The cult's void violet is also the hero's claw and void effect colour: mid-string a rogue or mage is the hardest foe to pick out; try a colder indigo or a pale rim for the cult
+- [ ] `--spar` takes only legion and cult kinds (`spar.KINDS`), so the grave pair was judged in the lineup only; add necromancer to the spar list to see the green family in motion
+- [ ] The shield's black rim merges with its ink line on the dark floor and reads as a thicker outline more than a rim; try an iron rim if it should read as metal
 
 ## Round 40 (hero model, chibi pass 2)
 Zak confirmed the chibi heretic as the art direction: "we can redesign him and fine tune it... chibi-esque, cartoony, not taking itself too seriously, but still badass." The model is fine-tuned with the rig, bone names, rest pose and every clip kept (contact_frames prints the same frames; `chibi_keys.py` re-run over each new blend). No Meshy credits spent (75 of 200). See `docs/features/heretic-hero.md` "Chibi pass 2". Seen in windowed `heretic_shots`, `foe_shots` and `string_film` stills, not played.
@@ -531,7 +549,128 @@ Zak confirmed the chibi heretic as the art direction: "we can redesign him and f
 - [x] Face: a toothy smirk drawn with the eyes (`heretic_rig.gd` `GRIN`), eyes squinting on attacks, squeezing shut when hit, blinking at rest; the grin bares or grits with them (`squint`, `_step_face`; checked in `heretic_shots`)
 - [x] Weapons (`chibi_weapons.py` + `ComicLook.KIND_TONES["heretic"]`): fatter hafts in the claw's violet, void deep/ink heads, one element accent each, a 1.6x spear head and a hammer reaching 1.62 m (was 1.34); no paper rim on them (`heretic_rig.RIM_SKIP_FORMS`), thin ink only
 - [x] Before / after lineup with the nine foes and the dummy at the game camera (`tests/foe_shots.gd -- --tag=`)
-- [ ] He reads smaller than most foes and the dummy in the lineup (1.85 m against KayKit's 2.18 m and the chibi-passed heads): try a bigger hood and claw before a taller bake
-- [ ] A trailing scarf tail on its own spring chain (new geometry and weights; not done: the rig was frozen this round)
-- [ ] The face texture under the hood is still Meshy's mask shape (the grin decal is what reads); the eye decal and texture eyes could share one position
+- [x] Presence (second lane, `chibi_presence.py`): head and hood x1.2 about the neck, the hood x1.25 wider and 6 cm taller, the claw x1.5 about the wrist with its bones, a 5 cm wider stance per foot, the hood tip at 2.05 m (Armature node scale; `chibi_keys.py` divides the run's ground speed by it). Game camera: 146 -> 183 px tall, 12.3k -> 17.7k px of silhouette (warrior 209 px, 28.4k)
+- [x] Contrast: a three-value figure, bone-white hood over a blue-black body, violet claw and cyan eyes the accents, crimson scarf, sash, cuffs and wrap
+- [x] A crimson scarf tail on its own spring chain (`chibi_scarf.py`: 0.89 m ribbon, scarf.01-04 off chest; `heretic_rig.gd` `ScarfSprings` + `_flutter_scarf`)
+- [x] The face: a dark oval painted over Meshy's mask (`chibi_repaint.FACE_OVAL`) and a depth-tested dark `FaceShade` oval behind the eye and grin decals, so the grin sits on shadow in 3/4 views
+- [x] Before / after lineup (`foe_shots -- --tag=mh2_before / mh2_after`) and a four-string film (`string_film -- --to=3`)
+- [ ] He is still smaller than the warrior at the game camera (183 vs 209 px, 17.7k vs 28.4k px): the 2.05 m cap leaves a bigger bake or a hero `model_scale` as the next lever
+- [ ] The scarf tail reads from the side and behind; from the front the hood hides it, and its flutter is unplayed
 - [ ] By hand: whether the squint / grin on attacks reads in play or flickers across fast strings
+- [x] Hero pass 3, face to camera (`chibi_faceup.py`: head tipped back 28 degrees about a point over the neck, the hood's front rim cut 5 cm wider; `heretic_rig.FACE_TIP`): bigger eyes (0.15 x 0.085 m), grin and a dark face oval drawn `FACE_PULL` 0.22 m nearer the camera so the brim stops hiding it. Idle at the game camera: face 1.7% -> 7% of his silhouette; `heretic_shots` checks the facing headless and samples the face and both eyes' pixels windowed
+- [x] Hood point hooked (`chibi_hook.py`): sheared back and up, its last part bent over to his left at an angle, one hard corner in the outline
+- [x] Scale: `heretic_rig.MODEL_SCALE` 1.15 on his Armature node (hit areas unchanged; `chibi_keys.py` reads it for the strides, `hero_stride_check` 1.00): Idle 214 px tall vs the warrior's 226 (0.95), 29.3k px vs 32.9k of silhouette (pass 2: 196 px, 20.1k on the same camera)
+- [x] Claw raised beside his head in Idle and Idle_Ready, its spread tipped up to the camera (`chibi_keys.py` `IDLE_RH` / `READY_RH`)
+- [ ] Round-3 lineup before / after (`foe_shots -- --tag=`) and the four-string film (`string_film -- --to=3`): cut at Zak's stop-point before the demo
+- [ ] By hand: whether the pulled face oval draws over the claw in VS / lift poses in play (it hides with the mouth when the claw covers it)
+
+## Round 41 (Feel audit 2)
+From `docs/feel-audit-2026-11-05.md` (22 strings, the spar foes and six hero clips filmed at dev 9526983; round 1's
+items 1, 2, 6, 7 and 10 fixed, 3, 4, 5 and 8 half, 9 not). Zak's wake-up page: `docs/round2-2026-11-05.md`.
+- [x] 1. The Awakening column buries every breaker landing (every coverage frame over 0.2): hold it until the landing clears, or ink-outline it at ~0.3 alpha (heretic-fx). Done: `awaken_flourish.gd`, one thin inked column held 0.4 s past a landing
+- [x] 2. `LAST n` tags on every dummy all the time: only the dummy hit most, number-sized, fading 1 s after the string (training). Done: every hit dummy's tag, 40 px thin ink, gone 1.5 s after its string
+- [x] 3. A name callout on every move (DASH STAB, HARPOON, ICE CUBE...): names on enders, crossovers and first finds only (heretic-fx / hud). Done: enders, crossovers and breakers (`callout_cap.names_move`)
+- [x] 4. The "New combo:" banner runs through the whole next string: cut it on the next string, `FOUND_HOLD` ~1.2 s real (hud / training). Done: `hud.show_found`
+- [x] 5. Dash Stab and Harpoon still land soft (x1.00 on their HIT frames): brake DL's lunge on a foe ahead, a stop on Harpoon's catch (combo-rhythm). They whiffed: the dash now arrives (`DASH_ARRIVE`) and the stab brakes (`DASH_STAB_BRAKE`); not yet re-filmed
+- [ ] 10b. Tow Line off a dash out of a move (EF / IP -> TW 457-526 ms): hand it over early without shortening its line (the frozen x dark cell went 3 -> 0 when tried) (combo-rhythm)
+- [ ] 10c. L3 -> EM 527-544 ms and Molten Palm's two-speed retime (item 7's combo side), Meteor Fall's throw sized to `camera_rig`'s frame cap (item 9's combo side): left out at Zak's demo stop (combo-rhythm)
+- [ ] 6. Overwhelm's pool is the last thick colour (hold: mean coverage 0.22): the halftone floor look, one thin rim (heretic-fx)
+- [ ] 7. Molten Palm's coil is one held drawing (Ab_AF frames 8-46 of 61) and a blink at `EM_SPEED` 2.8: re-key a building ~16-frame coil, `EM_SPEED` ~1.8 (heretic anim, combo-rhythm)
+- [ ] 8. The run reads as a hood dragging a claw, Run_Stop as a spin: smaller claw swing, legs clear of the hood, keep the stop's facing (heretic anim)
+- [ ] 9. Meteor Fall's beats happen at the frame edge (throws off the top and right, tentacles leaving the screen): throw along `_brk_dir` inside the x2.0 view, a tighter gather (combo, camera)
+- [x] 10. (Dash Stab side: move -> DL 326-406, DL -> EF 282-370 ms; Tow Line is 10b) Dash hand-overs drag: EC / XR -> DL ~500 ms (444-449 after 3f27472), -> TW 451-467, DL -> EF ~430 in the matrix routes, against the 362 ender (combo-rhythm)
+- [ ] Overwhelm's pool (item 6): halftone it like the frost floor (`halftone_floor.gdshader`), a thin ink rim, fade with the hold (`dark_fx.Pool`); left out at Zak's demo stop-point (effects lane)
+- [ ] The combo guide's mix / pay tags are plain text: a small element chip (dot in the element's palette) before each (`combo_guide.gd`); left out at the demo stop-point (effects lane)
+- [ ] Film the round 41 effects lane after (`string_film`, `fx_coverage.py --per-string`) against the audit's 0.090 mean / 0.309 max; the lane landed on headless checks only at the demo stop-point
+- [x] `foe_lean.gd` asked for a zero-axis Quaternion on a tipped-over rogue / minion (128 engine errors in one rogue spar film, now 0); `heretic_shots --clips` films Death_A and Ab_Swing (they weren't in `CLIP_SET`)
+
+## Round 42 (Design review)
+From `docs/design-review-2026-11-05.md` (combos, effects and designs against Zak's rule "every combo has a good time
+to use it; used on purpose, you are very strong"; judged from the docs, the move tables and the `combo_clips` film).
+Meteor Fall diving onto the largest group is decided (combo lane); Avalanche is not to be touched.
+- [ ] 1. Training drills with live foes that each ask one question (shield wall, back line, rush, bomb squad, against the wall): nothing in the room asks for one move over another
+- [ ] 2. A wall rule for every big knockback (splat + bounce; pillars count) and walls in reach (smaller room or inner walls): Molten Palm's wall drive can't be found in a 32 m room
+- [ ] 3. Breakers with different end states (stun, bounce up, stay frozen, throw to walls, execute one): nine breakers end in the same crater
+- [ ] 4. Name each foe's answer in code and on screen (Triple Chop breaks shields, throw a lit bomber, Black Tide pulls the back line, Overwhelm holds the heavy): the hooks exist in `enemy.gd`, nothing teaches them
+- [ ] 5. Split the overlaps: rename the air Live Wire, Steam Burst as the room-wide frozen cash-out, Black Ice leaves them frozen (setup) and Maw is the payoff
+- [ ] 6. Make the element matrix uneven (a few big cells, the rest small) and teach it as two rules (the element decides what happens, the state how much)
+- [ ] 7. Combo counter and rank react: drop on a hit or a pause, grade by wall splats, matrix cells, PERFECTs and guard breaks (418 HITS SSS all session now)
+- [ ] 8. A counter window after a perfect dodge (next string's first hit crits): the dash is the only defence and pays nothing past survival
+- [ ] 9. Tint the dummies away from the hero's cream and colour hit stars by element: the hero and the element are lost in piles
+- [ ] 10. One element ink shape per breaker impact frame, smaller per-hit numbers on lights: numbers are the loudest thing on screen
+
+## Round 42 b (second hero: dragon prince, ideation)
+Zak: "a spellblade younger dragon prince... throwing sword, flying up and smashing into it to explode it then
+resummoning a new magic sword... dragon abilities like an evoker... royal sword play... kingly/pride features."
+- [x] Design draft: `docs/characters/dragon-prince.md` (sword states and the One Sword rules, dragon magic, royal
+  swordplay and parry, Majesty and the falling crown, a 16-string move list with four throw/fly/smash routes,
+  look and Meshy prompt, clips, reuse vs new code, build order, 8 open questions). No code, models or credits
+- [ ] Zak answers the open questions (doc section 9), then the first slice: a hero switch on a placeholder body,
+  then Royal Chain, Javelin, Skyfall and Royal Draw on the dummies
+
+## Round 42 c (Meteor dive, item from the design review)
+Zak: Meteor Fall shouldn't use the tentacles to slam everyone into the nearest surface and regather them. Every combo
+has a best situation; Molten Palm punches a group into a wall, Meteor Fall dives on that group.
+- [x] Meteor Fall's beat 1 (tentacle throw into the walls) and beat 2 (tentacle gather, DOGPILE!) are gone: hero_leap phase 3, `METEOR_WALL_*` / `_GATHER_*` / `_DRAG_*` / `_PILE_AHEAD` / `_PILE_RING` / `_BEAT_STOP` / `_DIVE_LATE`, `comic_splat.gd`, `ComicFx.say()`, the rip hold (`rip_target`, `_tear`, the two-way tentacle) and `void_grab.pile` / `chased`
+- [x] `void_element.meteor_target()` (pure): groups within 12 m by 3 m, a foe splatted on a wall in the last 3 s counts 1.5 (`thrown_foe` meta `last_wall_ms`), best group wins (nearer on a tie), lands on its middle; nobody in reach: ahead of him. The cue sits on it through the hang. A far group stretches the 0.3 s dive at 30 m/s (12 m: 0.4 s)
+- [x] The landing hits everyone in 3 m (crater), x1.3 on the freshly wall-splatted, x1.5 on big ones; Undertow lets go as he lands. Molten Palm's x2.5 wall splat checked (34 on a test foe vs 14 for the palm alone), not tuned
+- [x] Camera: the `HANG_FRAME_*` / `BEATS_PHASE` pull-out went with the beats; a hang settles at `HANG_SETTLE` and the 12 m dive follows without a snap (`camera_feel_check`)
+- [x] Checks: `void_arm_check` `_meteor_target()` (stray vs group, splatted vs equal group, bigger group vs splatted stray, empty) and palm-into-wall -> Undertow -> meteor dives past a nearer foe onto the splatted one
+- Supersedes round 41's item 9 and 10c's Meteor Fall throw (there is no throw now)
+
+## Round 42 d (second hero: dragon prince, first slice)
+Zak's open questions (dragon-prince.md section 9) are unanswered: built on the doc's recommended defaults, each a named
+constant (`PRINCE_MOVES.ONE_SWORD` / `SMASH_ANY_TIME` / `ROYAL_DRAW`, `SUNBRAND.REFORM_TIME`; the list is doc section 10).
+- [x] `--hero=prince` (`Game.hero`): `scripts/prince/prince.gd` extends player.gd on the tinted chibi body with a crown,
+  horns and a built Sunbrand; the heretic without the flag is unchanged (prince_check spawns both)
+- [x] Sword states in hand / out (flight, planted in the floor or a foe, returning) / shattered (`scripts/prince/sunbrand.gd`),
+  a sapphire beacon and gold floor ring on the planted sword
+- [x] Royal Chain (L L L), Ember Flick (L H), Javelin (L L H), Skyfall (H with the sword out: rise, hang, dive, 3.5 m blast),
+  the 700 ms re-form, Rightful Return (hold L), Talon claws (L while out), Dragon Breath (H)
+- [x] Combo guide rows and the pause MOVES panel are his (one-line hooks: `guide_rows()`, `move_sections()`)
+- [x] `tests/prince_check.gd` in `agent.sh check` (throw, smash, re-form, breath, recall: states and damage); windowed film
+  `tests/prince_film.gd`; clip `awaken-combo-clips/13 Dragon Prince core loop.mp4`
+- [ ] Next slices (doc section 10): the smash's window and Royal Draw, wall pin, Sword in the Stone / Kingsfall, kindled and
+  Heat the Blade, charged casts, parry, Majesty and the crown, the HUD sword icon, his model and clips
+
+## Round 42 e (Molten Palm reaches the wall; Flash Freeze regression)
+- [x] Regression: breakers=10/11 in ~2 of 3 autotests since Meteor Fall's dive, Flash Freeze missing. Cause: Awakening
+  ran out during Dash L H H L (the dive's extra hits moved the meter) and `hero_awaken.set_awakened` reset
+  `_anim_mult` mid-move, dropping Steam Burst's `EM_SPEED` 2.8: its palm came ~2.8x late, after the ice cube had
+  shattered on the back wall. Now a move in flight keeps its pace; the next takes the new base. A player hits it too
+  (any move with a `speed` when the meter runs out). `rhythm_check` covers it; XS beat back to ~406 ms
+- [x] `camera_feel_check`'s dive (0.21 m "over" every run) was the test: the hero moved by wall clock, the rig by the
+  engine delta. Stepped by hand now; the rig never snapped
+- [x] Molten Palm carries a foe on to a wall within `PALM_WALL_REACH` 10.5 m; Meteor Fall follows a fresh splat to
+  `METEOR_SPLAT_REACH` 17 m. Filmed with `string_film --layout=wall|stray`
+- [ ] The splat lands at the top edge of the frame for a beat (the hang turns the fight framing off): a camera follow-up
+
+## Round 43 (breaker choice indicator)
+- [x] Zak: "make sure the indicator shows each option for the player to choose". The breaker prompt shows every
+  ending at once: an inked mouse in the circle with each live button in its ending's colour, and one chip per ending
+  under it (`[LMB] BLACK ICE or [RMB] MAW`, key rim and name in the fx_palette colour); one ending shows the same
+  layout with one chip. The press keeps the chosen chip. `hero_leap.options()`, `breaker_prompt.gd`
+- [x] The floor cue no longer flashes the first ending's colour when L picks the other: the closing ring is two-tone
+  until he picks, then the picked colour (both pairs land on the same spot and reach)
+- [x] Pause MOVES: a second ending prints as "or L in the window" under the first (`move_list` `or`)
+- [x] Audit and a proposal table of second endings (setup vs payoff, environmental payoffs kept) in
+  `docs/features/combo-breakers.md` "Round 43"; checks in `prompt_follow_check`, `void_arm_check` `_breaker_choice`,
+  `move_list_check` `_check_endings`; clip `awaken-combo-clips/16 Breaker choice indicator.mp4`
+- [ ] Zak picks which second endings to build (the proposal table); items / mechanics to nudge LMB vs RMB
+- [ ] The combo-name callout still overlaps the top of the circle in the hang
+
+## Round 43 b (designed effects pilot)
+Zak: "the effects are not really effects, they're just polygons you're putting together. I'd like them to actually be
+designs, still stylistic." See `docs/features/designed-fx.md`.
+- [x] Pipeline: authored flipbook sheets drawn by a seeded Python generator (`tools/vfx_gen/`: Pillow + numpy + scipy,
+  4x supersampled, inked rims, per-frame silhouettes), packed as (tone, erode order, boil, cover) and played by four
+  shaders (`shaders/designed_*.gdshader`: palette ramp per element, erosion with an ink / hot burn line, strip textures
+  on shaped meshes). One shared material per sheet, instance uniforms per effect, prewarmed in `elements.prewarm`
+- [x] Pilot: hit star, impact strokes, swing slash, Meteor Fall's landing (crown, lava wave, rim splashes, cooling
+  crust), Molten Palm's wall splat, ice shatter / cube burst, every lightning bolt and arc, the dust puff
+  (`scripts/designed_fx.gd`; call sites keep their old paths)
+- [x] On by default; `--fx=classic` plays the old polygon effects from the same build. Clips:
+  `awaken-combo-clips/17 Designed effects before-after.mp4`, `17 Designed effects sheet.png`, one side-by-side per effect
+- [ ] Zak's call on the look, then the conversion list in the doc, most seen first (element_hit chips, the axe ribbon,
+  comic_dust, the breaker and crossover effects, the dark element's ink tendrils)
+- [ ] The wall splat lands at the top edge of the frame (round 42 e's camera follow-up): mostly off screen in the film

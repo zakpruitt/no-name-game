@@ -8,7 +8,7 @@
 import bpy, sys, os, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import comic_lib as C, comic_rig as CR
-from mathutils import Vector as V
+from mathutils import Vector as V, Euler
 NAME = 'dummy'
 OUT = os.path.join(C.DIR, 'out', 'enemies'); os.makedirs(OUT, exist_ok=True)
 
@@ -52,21 +52,31 @@ C.blob(B['red'], BE, (.2, .045, .2), seg=18, rings=8)
 C.blob(B['limb'], BE + V((0, -.012, 0)), (.13, .045, .13), seg=16, rings=8)
 C.blob(B['red'], BE + V((0, -.024, 0)), (.06, .045, .06), seg=12, rings=6)
 
-# ---- the face, high and tipped up so the game camera sees it
-EZ = 1.5
-eyes = {}
+# ---- the face, high and tipped up so the game camera sees it. Round 39 b: the foes' face treatment (refine_pass
+# FACE): eyes x EYE_K about their centre and tipped TIP degrees back to face up the game camera, slanted angry
+# brows over them on the eye bones (the hit squint folds them shut), the grin bent down at the corners (SCOWL).
+EZ, EYE_K, TIP, SCOWL = 1.5, 1.65, 30, .6
+TIPM = Euler((-math.radians(TIP), 0, 0)).to_matrix()
+eyes, pupils = {}, {}
 for sx, side in ((1, 'l'), (-1, 'r')):
-    c = surf(EZ, sx * .32, .02)
+    c = surf(EZ, sx * .5, .06)   # wider apart (an angle round the sack): the bigger eyes just meet
     eyes[side] = c
-    C.blob(B['white'], c, (.14, .07, .16), seg=16, rings=10)                     # googly eye
-    C.blob(B['pupil'], c + V((sx * -.02, -.07, -.01)), (.055, .03, .06), seg=10, rings=6)
-    C.tube(B['brow'], [c + V((sx * .13, -.02, .19)), c + V((sx * .02, -.07, .22)), c + V((sx * -.1, -.06, .17))], [.022, .03, .018], sides=6, sub=2)  # cocky brow
-MZ = 1.25
+    E = lambda x, y, z: c + TIPM @ (V((x, y, z)) * EYE_K)
+    C.blob(B['white'], c, (.14 * EYE_K, .07 * EYE_K, .16 * EYE_K), seg=16, rings=10, rot=(-math.radians(TIP), 0, 0))   # googly eye
+    pupils[side] = E(sx * -.02, -.07, -.01)
+    C.blob(B['pupil'], pupils[side], (.055 * EYE_K, .03 * EYE_K, .06 * EYE_K), seg=10, rings=6, rot=(-math.radians(TIP), 0, 0))
+    C.tube(B['brow'], [E(sx * .14, -.03, .2), E(sx * .02, -.07, .16), E(sx * -.11, -.07, .09)], [.024, .032, .022], sides=6, sub=2)  # angry brow, inner end down
+MZ = 1.22
 mouth = surf(MZ, 0, .0)
-C.blob(B['mouth'], mouth + V((0, -.02, 0)), (.18, .05, .11), seg=16, rings=8, p=2.4)   # open grin, a bit cocky
-C.blob(B['red'], mouth + V((.03, -.05, -.055)), (.09, .03, .045), seg=10, rings=6)       # tongue
+scowl_from = {k: len(B[k].v) for k in ('mouth', 'red', 'teeth')}
+C.blob(B['mouth'], mouth + V((0, -.02, 0)), (.21, .05, .09), seg=16, rings=8, p=2.4)   # wide scowl
+C.blob(B['red'], mouth + V((.03, -.05, -.05)), (.09, .03, .04), seg=10, rings=6)        # tongue
 for sx in (-1, 1):
-    C.blob(B['teeth'], mouth + V((sx * .045, -.065, .07)), (.042, .02, .045), seg=8, rings=5, p=2.6)  # buck teeth off the top lip
+    C.blob(B['teeth'], mouth + V((sx * .045, -.065, .06)), (.042, .02, .045), seg=8, rings=5, p=2.6)  # buck teeth off the top lip
+for k, i0 in scowl_from.items():   # corners bent down: the grin becomes a scowl
+    for v in B[k].v[i0:]:
+        u = (v.x - mouth.x) / .21
+        v.z -= SCOWL * .09 * u * u
 # plaster cross on its head: it has been hit before
 pc = surf(1.66, -.55, .01)
 for r in (.7, -.7):
@@ -110,10 +120,10 @@ bones = {
     'head': (V((0, 0, 1.42)), V((0, 0, 1.95)), 'chest'),
     'knot': (V((0, 0, 1.86)), V((0, 0, 2.08)), 'head'),
     'jaw': (mouth + V((0, .05, .03)), mouth + V((0, -.12, -.03)), 'head'),
-    'eye.l': (eyes['l'], eyes['l'] + V((0, -.12, 0)), 'head'),
-    'eye.r': (eyes['r'], eyes['r'] + V((0, -.12, 0)), 'head'),
-    'pupil.l': (eyes['l'] + V((-.02, -.07, -.01)), eyes['l'] + V((-.02, -.15, -.01)), 'eye.l'),
-    'pupil.r': (eyes['r'] + V((.02, -.07, -.01)), eyes['r'] + V((.02, -.15, -.01)), 'eye.r'),
+    'eye.l': (eyes['l'], eyes['l'] + TIPM @ V((0, -.12, 0)), 'head'),
+    'eye.r': (eyes['r'], eyes['r'] + TIPM @ V((0, -.12, 0)), 'head'),
+    'pupil.l': (pupils['l'], pupils['l'] + TIPM @ V((0, -.08, 0)), 'eye.l'),
+    'pupil.r': (pupils['r'], pupils['r'] + TIPM @ V((0, -.08, 0)), 'eye.r'),
     'upperarm.l': (shL, elL, 'chest'), 'lowerarm.l': (elL, wrL, 'upperarm.l'), 'hand.l': (wrL, wrL + V((0, -.2, .02)), 'lowerarm.l'),
     'upperarm.r': (shR, elR, 'chest'), 'lowerarm.r': (elR, wrR, 'upperarm.r'), 'hand.r': (wrR, wrR + V((0, -.2, .02)), 'lowerarm.r'),
     'upperleg.l': (hpL, knL, 'hips'), 'lowerleg.l': (knL, anL, 'upperleg.l'), 'foot.l': (anL, anL + V((0, -.2, -.08)), 'lowerleg.l'),
@@ -133,8 +143,8 @@ R.skin_islands(objs['pupil'], ('pupil.l', 'pupil.r'))
 for k in ('mouth', 'teeth'):
     R.skin_fixed(objs[k], 'jaw')
 
-for k in ('brow', 'tape'):
-    R.skin_fixed(objs[k], 'head')
+R.skin_islands(objs['brow'], ('eye.l', 'eye.r'))
+R.skin_fixed(objs['tape'], 'head')
 C.ink_pass(scale=2.0)
 
 # ------------------------------------------------------------------ animation (24 fps)
@@ -197,8 +207,8 @@ clip('Spawn_Ground_Skeletons', 24, {0: SQ, (10, 'out'): UP, 24: IDLE_A}, eyes=[(
 # dazed: pupils spin round the eyes, the head lolls, the sack wobbles, arms dangle
 def daze(t):
     a = t * 6.283
-    pl = (.035 * math.cos(a), 0, .035 * math.sin(a))
-    pr = (.035 * math.cos(a + 3.1), 0, .035 * math.sin(-a))
+    pl = (.055 * math.cos(a), 0, .055 * math.sin(a))
+    pr = (.055 * math.cos(a + 3.1), 0, .055 * math.sin(-a))
     return P({'hips': {'rot': (0, 0, 4 * math.sin(a)), 'loc': (0, 0, -.03)}, 'spine': (4, 0, -6 * math.sin(a)), 'chest': (4 * math.cos(a), 0, -8 * math.sin(a)),
               'head': (-6 + 6 * math.cos(a), 0, 14 * math.sin(a)), 'knot': (0, 24 * math.sin(a), 0), 'jaw': (14, 0, 0),
               'pupil.l': {'rot': (0, 0, 0), 'loc': pl}, 'pupil.r': {'rot': (0, 0, 0), 'loc': pr},

@@ -78,7 +78,24 @@ const LEAN_SUBSTEP := 1.0 / 120.0  # s per spring step
 ## burst (no depth test), shown only while his face is towards the camera: from the game camera
 ## (54 degrees down) the hood hides the face itself, so they read as eyes glowing in its shadow.
 const EYES := {"chibi": [Vector3(-0.034, 1.25, 0.13), Vector3(0.155, 1.25, 0.13)]}
-const EYE_SIZE := Vector2(0.095, 0.04)  # m: an almond, wide and narrow
+## Hero pass 2 (round 40): tools/meshy_rig/chibi_presence.py grew the chibi's head and hood about the
+## neck joint (the head bone's head); EYES and GRIN stay the round-40 spots and move through the same map,
+## and the decals grow with it.
+const HEAD_GROW := {"chibi": 1.2}
+## Hero pass 3 (round 40): his whole model drawn this much bigger in the game (the rig node under
+## player.model: Awakening tweens player.model's own scale), so he stands as tall as the warrior at the
+## game camera. Collision, hit ranges and the hit areas are unchanged. tools/meshy_rig/chibi_keys.py reads
+## this line and shortens the run strides by it, so his feet still hold the floor (hero_stride_check
+## scales the model by it too).
+const MODEL_SCALE := {"chibi": 1.15}
+## Hero pass 3 (round 40): tools/meshy_rig/chibi_faceup.py tipped the head back [deg] about a point [m] over
+## the neck joint, chin up, so the face opening points up at the game camera; every face spot (eyes, grin,
+## shade) and the facing test turn with it after HEAD_GROW.
+const FACE_TIP := {"chibi": [28.0, 0.3]}
+## Eye spots are the round-40 ones spread wider for the bigger eyes (pass 3): x -0.034 / 0.155 before.
+const EYE_SPREAD := 1.35
+const EYE_SIZE := Vector2(0.15, 0.085)  # m: an almond, wide and narrow (pass 3: was 0.095 x 0.04)
+const EYE_LID := 0.7  # of the half height above the middle: a flatter top scowls (pass 3: was 0.55)
 const EYE_TILT := 16.0  # degrees: inner corners down, a scowl
 const EYE_INK := 0.018  # m of ink round it
 const EYE_LOW := Color(0.2, 0.95, 0.95)
@@ -91,12 +108,22 @@ const EYE_CLAW_GAP := 0.04  # m: a point this close in front of the eye is the h
 ## The grin (round 40): a jagged crescent of paper teeth under the eyes, drawn like them (camera-facing,
 ## no depth test, hidden with them), skeleton rest space per Game.hero_model. A smirk: the corners turn
 ## up and it tilts, so it reads as attitude rather than a smile.
-const GRIN := {"chibi": Vector3(0.062, 1.185, 0.13)}
-const GRIN_SIZE := Vector2(0.15, 0.05)  # m: corner to corner, the mouth's depth at its middle
+const GRIN := {"chibi": Vector3(0.062, 1.17, 0.13)}  # pass 3: 1.5 cm lower for the bigger eyes
+const GRIN_SIZE := Vector2(0.2, 0.068)  # m: corner to corner, the mouth's depth at its middle
 const GRIN_TILT := 7.0  # degrees: the smirk's lift
 const GRIN_TEETH := 5  # top row; the bottom row sits between them
 const GRIN_MOUTH := Color(0.16, 0.02, 0.12)
 const GRIN_TOOTH := Color(1.0, 0.96, 0.84)  # the rim's paper
+## The face (hero pass 2): a clean dark oval in the hood's opening behind the eyes and the grin, so they
+## sit on shadow from every side instead of on Meshy's mask (a dark V with the white cowl round it, which
+## the grin overlapped in 3/4 views). Camera-facing like them but depth-tested: the brim and the claw
+## cover it, so it reads as the shadow under the hood's edge. Skeleton rest space before HEAD_GROW, radii in m.
+## Pass 3: bigger, and drawn FACE_PULL m nearer the camera than it sits, so the brim no longer hides it
+## from 54 degrees up but a claw lifted further in front still does (shader depth, not no_depth_test).
+const FACE_SHADE := {"chibi": Vector3(0.062, 1.215, 0.09)}
+const FACE_SHADE_SIZE := Vector2(0.22, 0.17)
+const FACE_PULL := 0.22
+const FACE_SHADE_COLOR := Color(0.045, 0.035, 0.085)  # chibi_repaint.TONES["face"]
 ## Squint (round 40): the eye slits narrow on an attack, squeeze nearly shut when he is hit, blink now and
 ## then, and the grin bares wider on an attack and grits flat when hit. `squint` is public for checks.
 const SQUINT_ATTACK := 0.5  # 0 open .. 1 shut
@@ -113,6 +140,20 @@ const SKIRT_STIFFNESS := 2.2
 const SKIRT_DRAG := 0.55
 const SKIRT_GRAVITY := 0.9
 const SKIRT_RADIUS := 0.035
+## The scarf tail (round 40, hero pass 2: tools/meshy_rig/chibi_scarf.py): scarf.01 .. scarf.NN off chest, on
+## its own spring (looser than the skirt) with a body capsule so it never folds into his back. Before the
+## spring reads the pose, `_flutter_scarf` waves it and lifts it back with his speed, so it streams out
+## behind a run and the spring carries the overshoot after a dash or a stop. Skipped on models without it.
+const SCARF_ROOT := "scarf.01"
+const SCARF_STIFFNESS := 1.6
+const SCARF_DRAG := 0.35
+const SCARF_GRAVITY := 0.6
+const SCARF_RADIUS := 0.045
+const SCARF_BODY := ["spine", 0.17, 0.5]  # bone, capsule radius, length up it
+const SCARF_FLUTTER_DEG := 7.0  # per bone at rest; grows to x2.5 at full run
+const SCARF_FLUTTER_HZ := 1.6
+const SCARF_LIFT_DEG := 35.0  # first bones lifted back at full run (move_speed)
+const SCARF_RUN_SPEED := 7.5  # m/s: player.move_speed
 ## Bone -> capsule radius, length: so the skirt rides over his thighs.
 const LEG_CAPSULES := {"upperleg.l": [0.11, 0.42], "upperleg.r": [0.11, 0.42]}
 const RIM_SHADER := preload("res://shaders/hero_rim.gdshader")
@@ -143,12 +184,18 @@ var eyes: Node3D  # the glow, when this model has one (EYES)
 var grin: Node3D  # the teeth (GRIN), on its own attachment so `eyes` holds only the two eyes
 var squint := 0.0  # 0 open .. 1 shut (_step_face)
 var _blink_t := 0.0
+var _face_k := 1.0  # HEAD_GROW for this model: the decals' size
+var _face_tip := Basis.IDENTITY  # FACE_TIP's turn, skeleton rest space
+var _tip_pivot := Vector3.ZERO
 var keyed := false  # the clips key the claws (KEYED_ARM, CLAW_TRACK)
 var _cover := PackedInt32Array()  # bones that can pass in front of the eyes (_cover_points)
 var _root := -1  # the root bone (turn lean)
 var _vel_lag := Vector3.ZERO
 var lean := Vector2.ZERO  # degrees: x towards his right, y towards his front
 var _lean_v := Vector2.ZERO
+var _scarf := PackedInt32Array()  # scarf.01 .., when the model has the tail
+var _scarf_speed := 0.0  # 0..1, eased
+var _time_scarf := 0.0
 
 
 func setup(arm: Node, skel: Skeleton3D) -> void:
@@ -176,12 +223,23 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	_last_form = arm.form
 	keyed = _clips_key_claws(arm.hero.anim)
 	_root = skel.find_bone("root")
+	_scale_model(arm.hero.model, skel)
 	skel.add_child(self)
 	_warm_fx(skel)
 	_add_springs(skel)
 	_add_eyes(skel)
 	_add_grin(skel)
 	_add_rim(skel)
+
+
+## MODEL_SCALE on the node under the model root that holds the skeleton (the GLB's Armature node).
+static func _scale_model(model: Node3D, skel: Skeleton3D) -> void:
+	var k: float = MODEL_SCALE.get(Game.hero_model, 1.0)
+	var n: Node = skel
+	while n.get_parent() != model and n.get_parent() != null:
+		n = n.get_parent()
+	if n is Node3D and n.get_parent() == model:
+		(n as Node3D).scale *= k
 
 
 ## Feel audit 2026-11-04 item 3: in breaker hangs and slams he was lost under the bolts, rings and words.
@@ -289,6 +347,7 @@ func _add_springs(skel: Skeleton3D) -> void:
 		sim.set_drag(i, SKIRT_DRAG)
 		sim.set_gravity(i, SKIRT_GRAVITY)
 		sim.set_radius(i, SKIRT_RADIUS)
+	_add_scarf(skel)
 	for bone: String in LEG_CAPSULES:
 		var cap := SpringBoneCollisionCapsule3D.new()
 		cap.bone_name = bone
@@ -296,6 +355,51 @@ func _add_springs(skel: Skeleton3D) -> void:
 		cap.height = LEG_CAPSULES[bone][1]
 		cap.position_offset = Vector3(0.0, LEG_CAPSULES[bone][1] * 0.5, 0.0)
 		sim.add_child(cap)
+
+
+func _add_scarf(skel: Skeleton3D) -> void:
+	for i in MAX_CHAIN:
+		var b := skel.find_bone("scarf.%02d" % (i + 1))
+		if b < 0:
+			break
+		_scarf.append(b)
+	if _scarf.is_empty():
+		return
+	var sim := SpringBoneSimulator3D.new()
+	sim.name = "ScarfSprings"
+	skel.add_child(sim)
+	sim.setting_count = 1
+	sim.set_root_bone_name(0, SCARF_ROOT)
+	sim.set_end_bone_name(0, skel.get_bone_name(_scarf[_scarf.size() - 1]))
+	sim.set_extend_end_bone(0, true)
+	sim.set_end_bone_direction(0, SkeletonModifier3D.BONE_DIRECTION_FROM_PARENT)
+	sim.set_end_bone_length(0, 0.1)
+	sim.set_stiffness(0, SCARF_STIFFNESS)
+	sim.set_drag(0, SCARF_DRAG)
+	sim.set_gravity(0, SCARF_GRAVITY)
+	sim.set_radius(0, SCARF_RADIUS)
+	var cap := SpringBoneCollisionCapsule3D.new()
+	cap.bone_name = SCARF_BODY[0]
+	cap.radius = SCARF_BODY[1]
+	cap.height = SCARF_BODY[2]
+	cap.position_offset = Vector3(0.0, SCARF_BODY[2] * 0.4, 0.0)
+	sim.add_child(cap)
+
+
+## Wave the scarf chain and lift it back with his speed, on top of the rest pose (no clip keys it).
+func _flutter_scarf(delta: float, skel: Skeleton3D) -> void:
+	if _scarf.is_empty():
+		return
+	var hero: CharacterBody3D = void_arm.hero
+	var v := Vector2(hero.velocity.x, hero.velocity.z).length() / SCARF_RUN_SPEED
+	_scarf_speed = move_toward(_scarf_speed, clampf(v, 0.0, 1.0), delta * 4.0)
+	var amp := SCARF_FLUTTER_DEG * lerpf(1.0, 2.5, _scarf_speed)
+	var hz := SCARF_FLUTTER_HZ * lerpf(1.0, 2.2, _scarf_speed)
+	for j in _scarf.size():
+		var wave := sin(_time_scarf * TAU * hz - j * 0.9)
+		var lift := SCARF_LIFT_DEG * _scarf_speed * (1.0 if j < 2 else 0.4)
+		var q := Quaternion(Vector3.RIGHT, deg_to_rad(wave * amp - lift)) * Quaternion(Vector3.FORWARD, deg_to_rad(wave * amp * 0.4))
+		skel.set_bone_pose_rotation(_scarf[j], skel.get_bone_rest(_scarf[j]).basis.get_rotation_quaternion() * q)
 
 
 ## Two glowing almonds on the head bone, facing the camera, drawn as the burst is drawn.
@@ -310,6 +414,10 @@ func _add_eyes(skel: Skeleton3D) -> void:
 	skel.add_child(follow)
 	eyes = follow
 	var rest := skel.get_bone_global_rest(head)
+	_face_k = HEAD_GROW.get(Game.hero_model, 1.0)
+	var tip: Array = FACE_TIP.get(Game.hero_model, [0.0, 0.0])
+	_face_tip = Basis(Vector3.RIGHT, -deg_to_rad(tip[0]))
+	_tip_pivot = rest.origin + Vector3.UP * float(tip[1])
 	var mid: Vector3 = (at[0] + at[1]) * 0.5
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -328,8 +436,16 @@ func _add_eyes(skel: Skeleton3D) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.set_meta("no_ghost", true)
-		mi.position = rest.affine_inverse() * p
+		mi.position = rest.affine_inverse() * _grown(mid + (p - mid) * Vector3(EYE_SPREAD, 1.0, 1.0), rest.origin)
+		mi.scale = Vector3.ONE * _face_k
 		follow.add_child(mi)
+
+
+## A round-40 face spot moved through chibi_presence.py's head growth about the neck joint, then
+## chibi_faceup.py's tip (FACE_TIP).
+func _grown(p: Vector3, neck: Vector3) -> Vector3:
+	var q := neck + (p - neck) * _face_k
+	return _tip_pivot + _face_tip * (q - _tip_pivot)
 
 
 ## One eye in billboard space (+z towards the camera): ink, then the glow, then a hot core.
@@ -346,7 +462,7 @@ func _eye_mesh(side: float) -> ArrayMesh:
 		for i in 12:
 			var a := TAU * i / 12.0
 			# an almond: pointed at the corners, flatter on top so it scowls
-			var y := sin(a) * h * (0.55 if sin(a) > 0.0 else 1.0)
+			var y := sin(a) * h * (EYE_LID if sin(a) > 0.0 else 1.0)
 			ring.append(Vector3(cos(a) * w, y, layer[2]).rotated(Vector3.BACK, tilt))
 		for i in ring.size():
 			verts.append_array([Vector3(0.0, 0.0, layer[2]), ring[i], ring[(i + 1) % ring.size()]])
@@ -371,11 +487,70 @@ func _add_grin(skel: Skeleton3D) -> void:
 	grin = follow
 	var mi := MeshInstance3D.new()
 	mi.mesh = grin_mesh()
-	mi.material_override = (eyes.get_child(0) as MeshInstance3D).material_override
+	# the eyes' material one step under them: the grin's ink corners must not cover the eyes (pass 3)
+	var mat: StandardMaterial3D = (eyes.get_child(0) as MeshInstance3D).material_override.duplicate()
+	mat.render_priority = 1
+	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_ghost", true)
-	mi.position = skel.get_bone_global_rest(skel.find_bone("head")).affine_inverse() * (GRIN[Game.hero_model] as Vector3)
+	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
+	mi.position = rest.affine_inverse() * _grown(GRIN[Game.hero_model] as Vector3, rest.origin)
+	mi.scale = Vector3.ONE * _face_k
 	follow.add_child(mi)
+	if FACE_SHADE.has(Game.hero_model):
+		follow.add_child(_face_shade(rest))
+
+
+## The dark oval behind the face decals (FACE_SHADE): child 1 of the grin's attachment, shown with it.
+func _face_shade(rest: Transform3D) -> MeshInstance3D:
+	var verts := PackedVector3Array()
+	var n := 20
+	for i in n:
+		var a := TAU * i / n
+		var b := TAU * (i + 1) / n
+		verts.append_array([Vector3.ZERO, Vector3(cos(b) * FACE_SHADE_SIZE.x, sin(b) * FACE_SHADE_SIZE.y, 0.0),
+			Vector3(cos(a) * FACE_SHADE_SIZE.x, sin(a) * FACE_SHADE_SIZE.y, 0.0)])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mat := ShaderMaterial.new()
+	mat.shader = _face_shade_shader()
+	mat.set_shader_parameter("color", FACE_SHADE_COLOR)
+	mat.set_shader_parameter("pull", FACE_PULL)
+	var mi := MeshInstance3D.new()
+	mi.name = "FaceShade"
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.set_meta("no_ghost", true)
+	mi.position = rest.affine_inverse() * _grown(FACE_SHADE[Game.hero_model] as Vector3, rest.origin)
+	mi.scale = Vector3.ONE * _face_k
+	return mi
+
+
+## A camera-facing flat colour, depth-tested but drawn `pull` m nearer the camera than it is.
+static var _shade_shader: Shader
+static func _face_shade_shader() -> Shader:
+	if _shade_shader == null:
+		_shade_shader = Shader.new()
+		_shade_shader.code = """shader_type spatial;
+render_mode unshaded, cull_disabled, fog_disabled, shadows_disabled;
+uniform vec4 color : source_color;
+uniform float pull = 0.2;
+void vertex() {
+	float k = length(MODEL_MATRIX[0].xyz);
+	vec4 at = VIEW_MATRIX * vec4(MODEL_MATRIX[3].xyz, 1.0);
+	vec4 v = at + vec4(VERTEX.xy * k, 0.0, 0.0);
+	v.z += pull;
+	POSITION = PROJECTION_MATRIX * v;
+}
+void fragment() {
+	ALBEDO = color.rgb;
+}
+"""
+	return _shade_shader
 
 
 ## The grin's upper lip at x (billboard space, before the tilt): the corners curve up.
@@ -458,11 +633,11 @@ func _step_face(delta: float) -> void:
 	squint = move_toward(squint, want, delta * SQUINT_SPEED)
 	var open := lerpf(1.0, SQUINT_MIN, squint)
 	for mi: Node3D in eyes.get_children():
-		mi.scale = Vector3(1.0 + 0.12 * squint, open, 1.0)
+		mi.scale = Vector3(1.0 + 0.12 * squint, open, 1.0) * _face_k
 	if grin != null:
 		var m: Node3D = grin.get_child(0)
-		var sc := Vector2(m.scale.x, m.scale.y).lerp(mouth, minf(delta * SQUINT_SPEED, 1.0))
-		m.scale = Vector3(sc.x, sc.y, 1.0)
+		var sc := (Vector2(m.scale.x, m.scale.y) / _face_k).lerp(mouth, minf(delta * SQUINT_SPEED, 1.0))
+		m.scale = Vector3(sc.x, sc.y, 1.0) * _face_k
 
 
 ## One empty triangle in the burst's material, so its shader is ready before the first swing.
@@ -529,6 +704,8 @@ func _process_modification_with_delta(delta: float) -> void:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
 	_lean_into_turns(delta, skel)
+	_time_scarf += delta
+	_flutter_scarf(delta, skel)
 	if eyes != null:
 		_step_face(delta)
 		_face_eyes(skel)  # last: the claw is where this frame puts it
@@ -580,10 +757,7 @@ func _face_eyes(skel: Skeleton3D) -> void:
 	if cam == null:
 		return
 	var head := skel.global_transform * skel.get_bone_global_pose(skel.find_bone("head"))
-	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
-	var ahead := head.basis.orthonormalized() * (rest.basis.orthonormalized().inverse() * Vector3.BACK)
-	var to_cam := (cam.global_position - head.origin).normalized()
-	eyes.visible = ahead.normalized().dot(to_cam) > EYE_FACING
+	eyes.visible = face_dot(skel, cam.global_position) > EYE_FACING
 	if grin != null:
 		grin.visible = eyes.visible
 	if not eyes.visible:
@@ -597,6 +771,17 @@ func _face_eyes(skel: Skeleton3D) -> void:
 	if grin != null:
 		var mouth: Node3D = grin.get_child(0)
 		mouth.visible = not _covered(cam.global_position, head * mouth.position, cover, claw_r)
+		if grin.get_child_count() > 1:  # the shade is drawn FACE_PULL nearer: the claw over the mouth hides it too
+			grin.get_child(1).visible = mouth.visible
+
+
+## cos of the angle between where his face points (the tipped face, FACE_TIP) and the way to `cam`:
+## 1 = looking straight at it. Public for heretic_shots.
+func face_dot(skel: Skeleton3D, cam: Vector3) -> float:
+	var head := skel.global_transform * skel.get_bone_global_pose(skel.find_bone("head"))
+	var rest := skel.get_bone_global_rest(skel.find_bone("head"))
+	var ahead := head.basis.orthonormalized() * (rest.basis.orthonormalized().inverse() * (_face_tip * Vector3.BACK))
+	return ahead.normalized().dot((cam - head.origin).normalized())
 
 
 ## Points along the claw (hand.r and every tentacle bone, with the midpoints of their bones) and along
