@@ -48,7 +48,8 @@ static var _named := {}  # COMBOS names that still go up
 
 ## Does this COMBOS id get its name over him? Enders and crossovers.
 static func names_move(id: String) -> bool:
-	return id.begins_with("X") or load("res://scripts/void_element.gd").BREAKERS.has(id)
+	var breakers: Dictionary = load("res://scripts/void_element.gd").BREAKERS
+	return id.begins_with("X") or (breakers.has(id) and not breakers[id].get("pause", false))  # (a pause ender is still a mid)
 
 
 ## Is this callout text the name of a move that gets one (names_move)?

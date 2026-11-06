@@ -128,7 +128,7 @@ const BREAKERS := {
 	# Dash L H H) and he leaps with a tentacle on each cube (`hold_cubes`), landing just behind the row (`zone`).
 	# RMB Shatterstorm: thunder on every cube where it stands, reliable anywhere. LMB Slapshot: a molten fist punches the
 	# row along his aim; a cube that reaches a wall shatters on it for the most, one that doesn't slides to a stop.
-	"EF": {"erupt": "wind", "hold_cubes": true, "thunder": true, "damage": SHATTER_DAMAGE, "leap": LLH_HIT + LEAP_AFTER_HARPOON,
+	"EF": {"erupt": "wind", "hold_cubes": true, "pause": true, "thunder": true, "damage": SHATTER_DAMAGE, "leap": LLH_HIT + LEAP_AFTER_HARPOON,
 		"zone": 0.6, "awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Shatterstorm"},
 		"alt": {"erupt": "earth", "slapshot": true, "damage": SLIDE_DAMAGE * SLIDE_WALL_MULT, "names": {"spirit": "Slapshot"}}},
 }
