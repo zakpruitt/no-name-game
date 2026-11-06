@@ -126,11 +126,21 @@ func _move_row(list: Control, row: Dictionary, player: Node) -> void:
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 8)
 	list.add_child(line)
-	var input := _label(line, row.input, 16, color)
+	var input := _label(line, input_text(row), 16, color)
 	input.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	input.custom_minimum_size = Vector2(MOVES_INPUT_WIDTH, 0)
 	var title := _label(line, MOVE_LIST.row_name(row, player) + ("   ×%d" % times if times > 0 else ""), 16, color)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
+## What the MOVES panel prints for a row's input: a breaker's other ending (`or`, move_list.gd) as "or L in the
+## window" under the first, so the two endings read as one choice.
+static func input_text(row: Dictionary) -> String:
+	var text: String = row.input
+	if not row.get("or", false) or text.find(", ") < 0:
+		return text
+	var cut := text.find(", ")
+	return "      or " + text.substr(cut + 2)
 
 
 func _quit() -> void:

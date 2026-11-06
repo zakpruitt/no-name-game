@@ -10,6 +10,8 @@ extends RefCounted
 ##   text     `name` is literal, not a routed press (the breakers, the grab, R)
 ## `tier`: colour for rows that aren't COMBOS (player.COMBO_TIER_COLORS).
 ## `note`: what it does.
+## `or`: a breaker's other ending, pressed in the same window (void_element.BREAKERS `alt`): the pause panel draws
+## it under the first as "or L in the window", so the pair reads as one choice (round 43).
 
 const SECTIONS := [
 	{"title": "WEAPONS", "rows": [
@@ -25,7 +27,7 @@ const SECTIONS := [
 		{"input": "L H L", "kind": "move", "id": "AL1", "note": "Up after them with the axe."},
 		{"input": "L H L H", "kind": "move", "id": "EW", "note": "Live Wire from the air. The window has two endings."},
 		{"input": "L H L H, H in the window", "kind": "text", "name": "Worldbreaker", "tier": 3, "note": "Slammed into the floor, with magma erupting under each."},
-		{"input": "L H L H, L in the window", "kind": "text", "name": "Cold Front", "tier": 3, "note": "Frozen solid and hurled at the others as ice cubes."},
+		{"input": "L H L H, L in the window", "kind": "text", "name": "Cold Front", "or": true, "tier": 3, "note": "Frozen solid and hurled at the others as ice cubes."},
 	]},
 	{"title": "ICE", "rows": [
 		{"input": "L L H", "kind": "move", "id": "IP", "note": "Plants the spear. Frost spreads out from it and slows whoever's on it."},
@@ -47,7 +49,7 @@ const SECTIONS := [
 		{"input": "H L", "kind": "move", "id": "VR", "note": "A crescent of darkness through everyone in front of him. It marks them."},
 		{"input": "H L H", "kind": "move", "id": "VD", "note": "A pool opens ahead, and everyone marked is dragged across the floor into it, however far off."},
 		{"input": "H L H, H in the window", "kind": "text", "name": "Maw", "tier": 3, "note": "Jaws of darkness come up out of the pool and shut on them."},
-		{"input": "H L H, L in the window", "kind": "text", "name": "Black Ice", "tier": 3, "note": "Dark into ice: the pool freezes over with them in it, and he lands and shatters it."},
+		{"input": "H L H, L in the window", "kind": "text", "name": "Black Ice", "or": true, "tier": 3, "note": "Dark into ice: the pool freezes over with them in it, and he lands and shatters it."},
 		{"input": "hold H", "kind": "move", "id": "OW", "note": "A black pool under what he's aiming at, with tendrils piling on. Works on big foes."},
 		{"input": "hold H, H in the window", "kind": "text", "name": "Abyss", "tier": 3, "note": "They sink through the floor, then black spikes throw them back up."},
 		{"input": "Dash H", "kind": "move", "id": "TW", "note": "Latches onto whoever he just passed and yanks them into each other."},
