@@ -462,10 +462,10 @@ def build_claws(bm, which):
 # ---------------------------------------------------------------- build
 cav = cutter("cavity", build_cavity)
 parts = {}
-parts["hood"] = part_object("hood", build_head, voxel=0.012, target=4200, subtract=cav)
+parts["hood"] = part_object("hood", build_head, voxel=0.012, target=3400, subtract=cav)
 parts["face"] = part_object("face", build_face, voxel=0.012, target=900)
 parts["rim"] = part_object("rim", build_rim, voxel=0.01, target=900)
-parts["torso"] = part_object("torso", build_torso, voxel=0.012, target=2200)
+parts["torso"] = part_object("torso", build_torso, voxel=0.012, target=1800)
 parts["belt"] = part_object("belt", build_belt, voxel=0.01, target=500)
 parts["scarf_wrap"] = part_object("scarf_wrap", build_scarf_wrap, voxel=0.01, target=900)
 parts["scarf_tail"] = part_object("scarf_tail", build_scarf_tail, voxel=0.01, target=700)
@@ -478,7 +478,7 @@ parts["glove"] = part_object("glove", build_glove, voxel=0.012, target=900)
 parts["wrap"] = part_object("wrap", build_wrap, voxel=0.01, target=400)
 parts["arm_r"] = part_object("arm_r", build_tentacle_arm, voxel=0.012, target=1600)
 parts["palm"] = part_object("palm", build_palm, voxel=0.012, target=1000)
-parts["claws"] = part_object("claws", lambda bm: build_claws(bm, CLAWS), voxel=0.01, target=2400)
+parts["claws"] = part_object("claws", lambda bm: build_claws(bm, CLAWS), voxel=0.01, target=2000)
 parts["thumb"] = part_object("thumb", lambda bm: build_claws(bm, THUMB), voxel=0.01, target=500)
 
 
@@ -630,6 +630,176 @@ def weights_for(part, ob):
     return names, W
 
 
+# ---------------------------------------------------------------- weapons (formed by the claw)
+# Each in its weapon bone's own frame (head on the hand, y along the haft, as the game's _read_form expects:
+# the farthest vertex from the hand must lie up the haft). Blades lie flat in the bone's x-y plane with the
+# edge towards -x, where the old ones had theirs, so chibi_keys.py's blade facing still holds. Oversized and
+# chunky, closed parts only (the ink hull needs volume). One mesh per GLB node, same names and materials.
+def bone_frame(n):
+    m = MW @ ARM.data.bones[n].matrix_local
+    o = m.to_translation()
+    r = m.to_3x3().normalized()
+    return o, r.col[0].normalized(), r.col[1].normalized(), r.col[2].normalized()
+
+
+def in_frame(f, x, y, z):
+    o, X, Y, Z = f
+    return o + X * x + Y * y + Z * z
+
+
+def crescent(bm, f, y0, y1, reach, thick, inner=0.0, n=14):
+    """A flat axe blade on the -x side: from the haft at y0..y1 out to `reach`, a curved edge."""
+    o, X, Y, Z = f
+    rot = Matrix((X, Y, Z)).transposed()
+    for k in range(n):
+        t = k / (n - 1)
+        y = y0 + (y1 - y0) * t
+        bulge = math.sin(math.pi * t) ** 0.6
+        x = -(inner + (reach - inner) * (0.55 + 0.45 * bulge))
+        # an overlapping row of flattened blobs from the haft out to the edge makes one solid blade
+        mid = (inner + abs(x)) * 0.5
+        blob(bm, in_frame(f, -mid, y, 0.0), ((abs(x) - inner) * 0.5 + 0.03, (y1 - y0) / n * 1.6, thick), rot=rot, seg=16, ring=10)
+
+
+def build_axe_haft(bm):
+    f = bone_frame("weapon.axe")
+    tube(bm, [in_frame(f, 0, -0.1, 0), in_frame(f, 0, 0.6, 0), in_frame(f, 0.0, 1.45, 0)], [0.06, 0.05, 0.05], n=16, seg=12)
+    blob(bm, in_frame(f, 0, -0.12, 0), (0.08, 0.08, 0.08))  # pommel
+    # the top spike: the farthest point, so the game reads the haft's direction from it
+    tube(bm, [in_frame(f, 0, 1.4, 0), in_frame(f, 0, 1.92, 0)], [0.07, 0.012], n=8, seg=12)
+
+
+AXE_C = (0.02, 1.24)    # the blade's arc centre on the bone's x-y plane (m)
+AXE_R = 0.6             # its radius: the edge
+AXE_ARC = (118.0, 242.0)  # degrees from +x, through -x: the crescent on the -x side
+
+
+def axe_arc(k, n, r=AXE_R):
+    a = math.radians(AXE_ARC[0] + (AXE_ARC[1] - AXE_ARC[0]) * k / (n - 1))
+    return AXE_C[0] + math.cos(a) * r, AXE_C[1] + math.sin(a) * r
+
+
+def build_axe_blade(bm):
+    """A crescent: radial wedges from the haft out to the arc, thick at the haft, its two horns flaring."""
+    f = bone_frame("weapon.axe")
+    n = 15
+    for k in range(n):
+        ex, ey = axe_arc(k, n, AXE_R - 0.02)
+        hx, hy = 0.0, AXE_C[1] + (ey - AXE_C[1]) * 0.45
+        tube(bm, [in_frame(f, hx, hy, 0), in_frame(f, ex, ey, 0)], [0.07, 0.05], n=6, seg=10, flat=0.55, up=f[2])
+    # a back hook on the +x side
+    tube(bm, [in_frame(f, 0.0, 1.26, 0), in_frame(f, 0.18, 1.24, 0), in_frame(f, 0.3, 1.1, 0)], [0.07, 0.05, 0.012],
+         n=10, seg=10, flat=0.6, up=f[2])
+
+
+def build_axe_edge(bm):
+    f = bone_frame("weapon.axe")
+    pts = [in_frame(f, *axe_arc(k, 15, AXE_R + 0.01), 0) for k in range(15)]
+    tube(bm, pts, lambda t: 0.06 * (math.sin(math.pi * t) ** 0.35) + 0.014, n=40, seg=10, flat=0.6, up=f[2])
+
+
+def build_axe_core(bm):
+    f = bone_frame("weapon.axe")
+    o, X, Y, Z = f
+    blob(bm, in_frame(f, -0.24, AXE_C[1], 0.0), (0.085, 0.085, 0.075), rot=Matrix((X, Y, Z)).transposed())
+
+
+def build_spear_haft(bm):
+    f = bone_frame("weapon.spear")
+    tube(bm, [in_frame(f, 0, -0.12, 0), in_frame(f, 0, 0.7, 0), in_frame(f, 0, 1.3, 0)], [0.055, 0.048, 0.045], n=16, seg=12)
+    blob(bm, in_frame(f, 0, -0.14, 0), (0.075, 0.075, 0.075))
+
+
+def build_spear_collar(bm):
+    f = bone_frame("weapon.spear")
+    o, X, Y, Z = f
+    ring(bm, in_frame(f, 0, 1.2, 0), X, Z, 0.07, 0.07, 0.04)
+    ring(bm, in_frame(f, 0, 1.3, 0), X, Z, 0.08, 0.08, 0.045)
+
+
+def build_spear_ice(bm):
+    f = bone_frame("weapon.spear")
+    o, X, Y, Z = f
+    # a broad leaf head with two barbs: flat in x-y, so it reads from above as a big blade
+    pts = [in_frame(f, 0, 1.28, 0), in_frame(f, 0, 1.5, 0), in_frame(f, 0, 1.75, 0), in_frame(f, 0, 2.02, 0)]
+    tube(bm, pts, lambda t: 0.2 * math.sin(math.pi * min(1.0, t * 1.25 + 0.08)) ** 0.8 + 0.012, n=24, seg=14, flat=0.3, up=Z)
+    for sx in (-1, 1):
+        tube(bm, [in_frame(f, 0.08 * sx, 1.36, 0), in_frame(f, 0.22 * sx, 1.32, 0), in_frame(f, 0.27 * sx, 1.22, 0)],
+             [0.05, 0.035, 0.012], n=8, seg=10, flat=0.5, up=Z)
+
+
+def build_hammer_haft(bm):
+    f = bone_frame("weapon.hammer")
+    tube(bm, [in_frame(f, 0, -0.12, 0), in_frame(f, 0, 0.6, 0), in_frame(f, 0, 1.2, 0)], [0.065, 0.058, 0.058], n=16, seg=12)
+    blob(bm, in_frame(f, 0, -0.14, 0), (0.09, 0.09, 0.09))
+
+
+def build_hammer_head(bm):
+    f = bone_frame("weapon.hammer")
+    o, X, Y, Z = f
+    blob(bm, in_frame(f, 0, 1.3, 0), (0.42, 0.21, 0.22), rot=Matrix((X, Y, Z)).transposed(), seg=28, ring=18, exp=0.45)
+
+
+def build_hammer_lava(bm):
+    f = bone_frame("weapon.hammer")
+    o, X, Y, Z = f
+    for sx in (-1, 1):  # glowing bands round both ends of the head
+        ring(bm, in_frame(f, 0.3 * sx, 1.3, 0), Y, Z, 0.215, 0.225, 0.035, n=32)
+
+
+def build_hammer_rock(bm):
+    f = bone_frame("weapon.hammer")
+    o, X, Y, Z = f
+    # a spike on top (the farthest point) and studs on the faces
+    tube(bm, [in_frame(f, 0, 1.45, 0), in_frame(f, 0, 1.72, 0)], [0.09, 0.012], n=8, seg=12)
+    for sx in (-1, 1):
+        tube(bm, [in_frame(f, 0.4 * sx, 1.3, 0), in_frame(f, 0.56 * sx, 1.3, 0)], [0.09, 0.015], n=8, seg=12)
+
+
+WEAPON_PARTS = {
+    "axe_void_haft": (build_axe_haft, "weapon.axe"), "axe_void_blade": (build_axe_blade, "weapon.axe"),
+    "axe_void_edge": (build_axe_edge, "weapon.axe"), "axe_void_core": (build_axe_core, "weapon.axe"),
+    "spear_void_haft": (build_spear_haft, "weapon.spear"), "spear_void_collar": (build_spear_collar, "weapon.spear"),
+    "spear_void_ice": (build_spear_ice, "weapon.spear"),
+    "hammer_void_haft": (build_hammer_haft, "weapon.hammer"), "hammer_void_head": (build_hammer_head, "weapon.hammer"),
+    "hammer_void_lava": (build_hammer_lava, "weapon.hammer"), "hammer_void_rock": (build_hammer_rock, "weapon.hammer"),
+}
+WEAPON_COLOR = {"haft": (0.62, 0.3, 1.0), "blade": (0.15, 0.06, 0.3), "edge": (0.3, 1.0, 0.5), "core": (0.3, 1.0, 0.5),
+                "collar": (0.15, 0.06, 0.3), "ice": (0.6, 0.9, 1.0), "head": (0.15, 0.06, 0.3), "lava": (1.0, 0.5, 0.1),
+                "rock": (0.5, 0.25, 0.8)}
+wpn = {}
+wpn_tris = {}
+for wname, (fn, bone) in WEAPON_PARTS.items():
+    budget = {"haft": 320, "blade": 600, "edge": 260, "core": 120, "collar": 200, "ice": 460, "head": 520, "lava": 300, "rock": 260}
+    ob = part_object("w_" + wname, fn, voxel=0.01, smooth=2, target=budget[wname.split("_")[-1]])
+    me = ob.data
+    me.calc_loop_triangles()
+    P = np.array([(v.co.x, v.co.z, -v.co.y) for v in me.vertices], np.float32)
+    N = np.array([(v.normal.x, v.normal.z, -v.normal.y) for v in me.vertices], np.float32)
+    idx = np.array([lt.vertices[:] for lt in me.loop_triangles], np.uint32)
+    nv = len(P)
+    wpn[wname + "|pos"] = P
+    wpn[wname + "|nrm"] = N
+    wpn[wname + "|uv"] = np.zeros((nv, 2), np.float32)
+    wpn[wname + "|joints"] = np.array([[bone] * 4] * nv)
+    wpn[wname + "|weights"] = np.tile(np.array([1, 0, 0, 0], np.float32), (nv, 1))
+    wpn[wname + "|idx"] = idx
+    wpn_tris[wname] = len(idx)
+    ob.parent = ARM
+    ob.matrix_parent_inverse = ARM.matrix_world.inverted()
+    g = ob.vertex_groups.new(name=bone)
+    g.add(list(range(nv)), 1.0, "REPLACE")
+    m = ob.modifiers.new("arm", "ARMATURE")
+    m.object = ARM
+    col = me.color_attributes.new("col", "BYTE_COLOR", "CORNER")
+    c = WEAPON_COLOR[wname.split("_")[-1]]
+    for li in range(len(me.loops)):
+        col.data[li].color = (c[0] ** 2.2, c[1] ** 2.2, c[2] ** 2.2, 1.0)
+    ob.hide_render = True
+np.savez(os.path.join(OUT, "weapons.npz"), **wpn)
+print("[hero_v2] weapons %d tris %s" % (sum(wpn_tris.values()), wpn_tris))
+
+
 # ---------------------------------------------------------------- export arrays (glTF space)
 JOINTS = None  # joint order of the GLB's skin, read by glb_swap.py from the GLB itself; here names
 pos_all, nrm_all, uv_all, jn_all, jw_all, idx_all = [], [], [], [], [], []
@@ -751,13 +921,17 @@ if RENDER:
     cam.data.type = "ORTHO"
     cam.data.ortho_scale = 2.7
     views = {"front": (0, -1, 0), "side": (1, 0, 0), "game": (0, -math.cos(math.radians(54)), math.sin(math.radians(54))), "back": (0, 1, 0)}
-    poses = ["rest"] + [p for p in (argv[4].split(",") if len(argv) > 4 else ["Idle:0", "Ab_L1:11", "Ab_GR:7", "Run_F:4"])]
+    poses = ["rest"] + [p for p in (argv[4].split(",") if len(argv) > 4 else ["Idle:0", "Ab_L1:11", "Ab_GR:7", "Run_F:4", "Ab_L2:12", "Ab_L3:24"])]
     for pose in poses:
         if pose != "rest":
             a, fr = pose.split(":")
             ARM.animation_data_create()
             ARM.animation_data.action = bpy.data.actions[a]
             sc.frame_set(int(fr))
+        form = {"Ab_L1": "axe", "Ab_L2": "spear", "Ab_L3": "hammer"}.get(pose.split(":")[0], "")
+        for o in bpy.data.objects:
+            if o.name.startswith("w_"):
+                o.hide_render = not (form and o.name.startswith("w_" + form))
         for vn, d in views.items():
             if pose != "rest" and vn in ("back",):
                 continue

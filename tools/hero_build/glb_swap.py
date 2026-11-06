@@ -138,8 +138,11 @@ def write(path, doc, binary):
 def prim_arrays(npz, prefix, joint_index):
     names = npz[prefix + "joints"]
     joints = np.vectorize(joint_index.__getitem__)(names).astype(np.int32)
-    return {"pos": npz[prefix + "pos"], "nrm": npz[prefix + "nrm"], "uv": npz[prefix + "uv"],
-            "joints": joints, "weights": npz[prefix + "weights"]}, npz[prefix + "idx"]
+    attrs = {"pos": npz[prefix + "pos"], "nrm": npz[prefix + "nrm"], "uv": npz[prefix + "uv"],
+             "joints": joints, "weights": npz[prefix + "weights"]}
+    if prefix:  # weapons: toned by material (KIND_TONES), white COLOR_0 like the kit's exports
+        attrs["col"] = np.ones((len(attrs["pos"]), 4), np.float32)
+    return attrs, npz[prefix + "idx"]
 
 
 def main():
