@@ -61,6 +61,7 @@ Fall onto a group up to 12 m off) it follows him there smoothly. Hits, enders, h
 | `FRAME_HIT_MS`, `FRAME_RANGE` | 2200 ms, 11 m | which foes count as the fight |
 | `FRAME_OUT`, `FRAME_BACK` | 2.5, 0.6 /s | ease out, slow return |
 | `FRAME_CUE`, `FRAME_CUE_OUT` | meta, 7 /s | a foe a move is about to strike counts for the framing until the meta's real ms, and the view eases out fast (feel audit 3: Short Circuit's targets, `void_element.SC_CUE_MS` 900; its far arc landed at ndc 1.47, now 1.06) |
+| `FRAME_CUE_LEAN_MAX` | 3.5 m | the lean's cap while a cued foe is in the fight (`FRAME_LEAN_MAX` 1.5 otherwise): Slapshot's cubes sliding 8-10 m up-screen hit the wall on the top edge at 1.5 (round 47, `void_element.SLIDE_CUE_MS` 1400) |
 | `FRAME_LEAN`, `FRAME_LEAN_MAX`, `FRAME_LEAN_RAMP` | 0.6, 1.5 m, 0.25 | lean towards the fight, only as the fight needs room (none while it fits at rest) |
 | `HANG_ZOOM` | 0.16 | breaker hang push-in (0.12 at 12.5 m) |
 | `HANG_FRAME_GAIN` | 1.3 | beats cap: `frame_max` x this (x1.625, 21 m; was x2.0; an uncapped two-wall throw wants ~x3.5) |

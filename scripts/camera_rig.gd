@@ -108,6 +108,8 @@ const FRAME_CUE_OUT := 7.0  # per real second
 const FRAME_BACK := 0.6  # per real second, the slow return
 const FRAME_LEAN := 0.6  # of the way from him to the middle of the fight's box (heads included)
 const FRAME_LEAN_MAX := 1.5  # metres (was 2.5: he sat visibly off-centre)
+const FRAME_CUE_LEAN_MAX := 3.5  # metres while a cued foe is in the fight (round 47: Slapshot's cubes sliding 8-10 m
+# up-screen into a wall hit on the top edge at 1.5; a cue is a short, deliberate look away from him)
 const FRAME_LEAN_RAMP := 0.25  # the lean fades in over this much needed zoom-out; a fight that fits at rest has none
 # The camera aims AIM_HEIGHT m above his feet, not at them: from 53 deg his body and anything in front of him
 # (the dummies, a pile in the air) sits up-screen under the HUD, and the round-36 film put their heads on the top
@@ -297,7 +299,8 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 		return
 	var mid := (lo + hi) * 0.5
 	pts.append(hero)
-	var lean := (Vector3(mid.x - hero.x, 0.0, mid.y - hero.z) * FRAME_LEAN).limit_length(FRAME_LEAN_MAX)
+	var lean := (Vector3(mid.x - hero.x, 0.0, mid.y - hero.z) * FRAME_LEAN).limit_length(
+		FRAME_CUE_LEAN_MAX if _cued else FRAME_LEAN_MAX)
 	# Lean only as far as the fight needs room: none while everyone fits around him at rest.
 	_lean_to = lean * clampf((_need(pts, goal) - 1.0) / FRAME_LEAN_RAMP, 0.0, 1.0)
 	_frame_to = minf(_need(pts, goal + _lean_to), frame_max)
