@@ -633,10 +633,27 @@ func _process_modification_with_delta(delta: float) -> void:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
 	_lean_into_turns(delta, skel)
+	_soften_hood(skel)
 	_time_scarf += delta
 	_flutter_scarf(delta, skel)
 	if eyes != null:
 		_step_face(delta)
+
+
+## The clips squash and stretch the head bone (chibi_keys.py `hsq`: VS, LLH and Death_A reach y 0.7, x/z 1.41),
+## keyed for the Meshy hood. On v2 the head is 42% of him with horns out to the sides, so the full squash
+## flattened the hood into a pancake and threw the horns wide. Keep HOOD_SQUASH_K of it: the beat still reads.
+const HOOD_SQUASH_K := 0.45
+var _head_bone := -2
+
+
+func _soften_hood(skel: Skeleton3D) -> void:
+	if _head_bone == -2:
+		_head_bone = skel.find_bone("head")
+	if _head_bone < 0:
+		return
+	var sc := skel.get_bone_pose_scale(_head_bone)
+	skel.set_bone_pose_scale(_head_bone, Vector3.ONE.lerp(sc, HOOD_SQUASH_K))
 
 
 func _lean_into_turns(delta: float, skel: Skeleton3D) -> void:
