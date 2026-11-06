@@ -27,6 +27,7 @@ extends "res://scripts/comic_flat.gd"
 
 const SELF := preload("res://scripts/comic_improv.gd")
 const RIP := preload("res://scripts/comic_rip.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
 const CHEST := 0.9  # m up the foe: the screen layer's middle
 const GRAVITY := 9.0  # m/s/s on flung chips (screen down)
 ## cell ("state_x_element", void_element.improvise's improv_paid keys) -> its look: life (real s), whether it rides
@@ -347,6 +348,11 @@ func _smother(s: int, k: float, a: float) -> void:
 func _ice_spreads(s: int, _k: float, a: float) -> void:
 	var c := _floor_c()
 	if not to is Vector3:  # nobody to spread to: a frost ring round it
+		if DESIGNED_EL.DESIGNED.on():  # (fx-ice2: frost cracking out round it and cold mist, in place of ice tips)
+			if s == 0 and not has_meta("marked"):
+				set_meta("marked", true)
+				DESIGNED_EL.frost_mark(get_parent(), _spot, 0.8, 0.45)
+			return
 		for i in 6:
 			var ang := _turn + TAU * i / 6.0
 			_tip(_local(_spot) + Vector3(cos(ang), 0.0, sin(ang)) * 0.7, _up, 0.4 * (0.7 if s == 0 else 1.0), 0.13, _a, a)
@@ -383,6 +389,9 @@ func _torn_off(s: int, _k: float, a: float) -> void:
 
 
 func _freeze_aloft(s: int, _k: float, a: float) -> void:
+	if DESIGNED_EL.DESIGNED.on() and s == 0 and not has_meta("starred"):  # (fx-ice2: a clean water star, no spikes)
+		set_meta("starred", true)
+		DESIGNED_EL.DESIGNED.hit(get_parent(), global_position, "water", 1.1)
 	var grow: float = [0.75, 1.1, 1.0, 0.9, 0.8][mini(s, 4)]
 	for i in 7:
 		var ang := _turn + TAU * i / 7.0
@@ -568,6 +577,8 @@ func _star(c: Vector3, size: float, p: Dictionary) -> void:
 
 ## An ice tip from `base` along `d`, `h` m long and `w` wide at its root (ink line, light to body).
 func _tip(base: Vector3, d: Vector3, h: float, w: float, p: Dictionary, a: float) -> void:
+	if DESIGNED_EL.DESIGNED.on():  # fx-ice2: no ice tips standing up (Zak: "get rid of the crystals")
+		return
 	var side := d.cross(_view).normalized()
 	var tri := PackedVector3Array([side * -w * 0.5, d * h, side * w * 0.5])
 	var mid := d * h * 0.3

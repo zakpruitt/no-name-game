@@ -98,15 +98,15 @@ func _ready() -> void:
 	_stuck = Node3D.new()
 	add_child(_stuck)
 	var lean := randf() * TAU
-	if _designed:  # round 46: a faceted shaft and ice crystals (designed_elements.spear), no bare cylinders or spheres
-		DESIGNED_EL.spear(_stuck, SHAFT_HIGH, SHAFT_R, CRYSTALS, CRYSTAL_HIGH, CRYSTAL_OUT)
+	if _designed:  # round 46: a faceted shaft with an ice point (designed_elements.spear; fx-ice2: no crystal ring)
+		DESIGNED_EL.spear(_stuck, SHAFT_HIGH, SHAFT_R)
 		_stuck.rotation = Vector3(TILT * cos(lean), 0.0, TILT * sin(lean))
 	else:
 		_build_stuck(lean)
 	_stuck.scale = Vector3(1.0, 0.1, 1.0)
 	create_tween().tween_property(_stuck, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	if _designed:  # a small drawn burst of shards where it goes in
-		DESIGNED_EL.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.4, 0.55)
+	if _designed:  # frost cracking out and cold mist where it goes in (fx-ice2: was a burst of crystal shards)
+		DESIGNED_EL.frost_mark(get_parent(), global_position, 0.8, 0.6)
 	else:
 		Fx.shards(get_parent(), global_position + Vector3.UP * 0.3, ICE_LIGHT, 12, Vector3.UP, 7.0, 0.12, 0.5)
 

@@ -8,9 +8,6 @@ extends Node3D
 const SELF := preload("res://scripts/comic_comet.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
-const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
-const ELEMENTS := preload("res://scripts/elements.gd")
-const ICE_TRAIL_W := 1.1  # m: the designed ice comet's strip height (its head crystal ~1 m across)
 const INK := Color(0.012, 0.01, 0.02)
 const HOT_CORE := Color(1.0, 0.88, 0.25)
 const STEPS_PER_S := 12.0  # the wobble changes on twos; the head follows him every frame
@@ -36,7 +33,6 @@ var _view := Vector3.BACK
 var _mesh := ArrayMesh.new()
 var _verts := PackedVector3Array()
 var _colors := PackedColorArray()
-var _ice: MeshInstance3D  # designed (round 46): an ice dive drawn as the authored crystal trail, not the polygon streak
 
 
 ## The comet on `model`, made on the first beat and fed by the rest.
@@ -68,12 +64,6 @@ func setup(model: Node3D) -> void:
 	mi.set_meta("no_ghost", true)
 	mi.extra_cull_margin = 16.0
 	add_child(mi)
-	if DESIGNED_EL.DESIGNED.on() and color.is_equal_approx(ELEMENTS.LOOK.water.color):
-		DESIGNED_EL.register()
-		_ice = mi
-		mi.material_override = DESIGNED_EL.DESIGNED.material("ice_trail")
-		mi.set_instance_shader_parameter("pal_row", DESIGNED_EL.DESIGNED.row("water"))
-		mi.set_instance_shader_parameter("erode", 0.0)
 
 
 func feed() -> void:
@@ -143,9 +133,6 @@ func _draw() -> void:
 	_mesh.clear_surfaces()
 	if pts.size() < 2:
 		return
-	if _ice != null:
-		_draw_ice(pts)
-		return
 	_ribbon(pts, WIDTH + 0.07, INK)
 	_ribbon(pts, WIDTH, Color(color, 0.88))
 	if not Game.reduce_flashing:
@@ -183,33 +170,6 @@ func _ribbon(pts: PackedVector3Array, w: float, c: Color) -> void:
 		var a0 := PI * i / 8.0 - PI * 0.5
 		var a1 := PI * (i + 1) / 8.0 - PI * 0.5
 		_tri(pts[0], pts[0] + (dir * cos(a0) + across * sin(a0)) * r, pts[0] + (dir * cos(a1) + across * sin(a1)) * r, c)
-
-
-## The designed ice comet: the crystal trail strip laid along the path (head crystal at him, chips off the tail),
-## its frames boiling on twos.
-func _draw_ice(pts: PackedVector3Array) -> void:
-	var n := pts.size()
-	var verts := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	for i in n:
-		var a := pts[maxi(i - 1, 0)]
-		var b := pts[mini(i + 1, n - 1)]
-		var across := (b - a).cross(_view)
-		across = across.normalized() if across.length() > 0.001 else _right
-		var u := 1.0 - float(i) / (n - 1)  # (the strip's head is u = 1, at pts[0])
-		verts.append_array([pts[i] + across * ICE_TRAIL_W * 0.5, pts[i] - across * ICE_TRAIL_W * 0.5])
-		uvs.append_array([Vector2(u, 1.0), Vector2(u, 0.0)])
-	var idx := PackedInt32Array()
-	for i in n - 1:
-		var k := i * 2
-		idx.append_array([k, k + 1, k + 2, k + 1, k + 3, k + 2])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = idx
-	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	_ice.set_instance_shader_parameter("frame", float(_step % 4))
 
 
 func _tri(a: Vector3, b: Vector3, c: Vector3, color_: Color) -> void:

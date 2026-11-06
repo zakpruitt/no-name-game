@@ -327,32 +327,28 @@ def pop_magma(i, n, size):
     return f.finish()
 
 
-# Ice: straight-edged faceted shards bursting out (lit facet, shadow facet), a four-point glint at the middle.
+# Ice (fx-ice2): a clean frost burst, no shards (Zak: "get rid of the crystals"): a four-point glint, then a thin
+# hexagonal ring racing out with a short straight frost line off each corner, the glint shrinking in the middle.
 def pop_ice(i, n, size):
     f = Frame(size)
     c = f.c
-    g = rng(221)
     if i == 0:
         _glint(f, c, f.u(0.42), rot=0.0)
         return f.finish()
-    out = [0, 0.0, 0.12, 0.26, 0.38, 0.48][i]
-    for s in range(6):
-        a = 0.2 + math.tau * s / 6 + g.uniform(-0.15, 0.15)
-        L = f.u(g.uniform(0.38, 0.6)) * (1.0 - 0.12 * max(0, i - 2))
-        W = f.u(g.uniform(0.11, 0.16))
-        p0 = np.array([math.cos(a), math.sin(a)])
-        nrm = np.array([-p0[1], p0[0]])
-        b = c + p0 * f.u(0.08 + out)
-        tip = b + p0 * L
-        left = b + p0 * L * 0.35 + nrm * W
-        right = b + p0 * L * 0.3 - nrm * W * 0.8
-        f.poly([tuple(b), tuple(left), tuple(tip), tuple(right)], BODY, ink=2.4)
-        f.poly([tuple(b), tuple(left), tuple(tip)], LIGHT)
-        if i <= 3:
-            st = [b + p0 * L * 0.45 + nrm * W * 0.35, b + p0 * L * 0.8 + nrm * W * 0.12]
-            f.fill(poly_mask([stroke(st, [f.u(0.025), f.u(0.012)], cap=False)], f.S), HOT)
+    r = f.u([0, 0.3, 0.42, 0.5, 0.56, 0.6][i])
+    w = f.u([0, 0.07, 0.06, 0.045, 0.035, 0.025][i])
+    turn = 0.2
+    ring = [(c + math.cos(turn + math.tau * q / 6) * r, c + math.sin(turn + math.tau * q / 6) * r) for q in range(7)]
+    f.poly(stroke(ring, [w] * 7, cap=False), LIGHT, ink=2.4)
+    for q in range(6):
+        a = turn + math.tau * q / 6
+        p0 = (c + math.cos(a) * (r + w * 0.6), c + math.sin(a) * (r + w * 0.6))
+        p1 = (c + math.cos(a) * (r + f.u(0.16)), c + math.sin(a) * (r + f.u(0.16)))
+        f.poly(stroke([p0, p1], [w * 0.9, 1.0], cap=False), LIGHT, ink=2.0)
+    if i <= 3:  # the hot line inside the ring
+        f.fill(poly_mask([stroke(ring, [w * 0.35] * 7, cap=False)], f.S), HOT)
     if i <= 2:
-        _glint(f, c, f.u(0.3 if i == 1 else 0.2), rot=0.0)
+        _glint(f, c, f.u(0.3 if i == 1 else 0.18), rot=0.0)
     return f.finish()
 
 

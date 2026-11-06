@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwt5pd5jg33fo"
-path="res://.godot/imported/ice_trail.png-3f30f84e6e7b56d7e3e4e26e9b83c604.ctex"
+uid="uid://br50ord5ldrmn"
+path="res://.godot/imported/ice_mark.png-65a7b94ff43521ed90d2e76c5522b160.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/designed/ice_trail.png"
-dest_files=["res://.godot/imported/ice_trail.png-3f30f84e6e7b56d7e3e4e26e9b83c604.ctex"]
+source_file="res://assets/vfx/designed/ice_mark.png"
+dest_files=["res://.godot/imported/ice_mark.png-65a7b94ff43521ed90d2e76c5522b160.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -37,4 +37,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1

@@ -1,6 +1,6 @@
 """Generate the fx-elements sheets (round 46, docs/features/designed-fx.md): the ice and magma base moves that were
 still runtime polygon assemblies (Molten Palm's fist and fissure, the lava spurts and geysers, Meteor Fall's fireball,
-the ice spikes, the frost spear's floor, the Deep Freeze burst, the lava pool under Undertow).
+the frost spear's floor, the Deep Freeze burst, the lava pool under Undertow).
 
     python tools/vfx_gen/gen_elements.py [name ...] [--preview=<dir>]
 
@@ -288,81 +288,6 @@ def magma_crack(i, n, size):
     return f.finish()
 
 
-# --- 4. Ice spike (billboard standing on the floor, depth tested): every water `elements.spikes` (Harpoon's line,
-# the nova ring, Deep Freeze, the crystals). A cluster of three faceted shards (lit facet, body facet, shadow facet,
-# one specular stripe each) on a broken hexagonal plate. Frame 0 straight cracks and a glint on the floor; the peak
-# overshoots; then they crack across and fall apart into chips.
-
-def _crystal(f, bx, by, h, w, lean, cracked=0.0, seed=0):
-    """A faceted shard standing on (bx, by): five corners, three facets, a specular stripe."""
-    tip = (bx + lean * h, by - h)
-    bl, br = (bx - w, by), (bx + w, by)
-    sl, sr = (bx - w * 0.92 + lean * h * 0.3, by - h * 0.42), (bx + w * 0.85 + lean * h * 0.36, by - h * 0.5)
-    ml = (bx - w * 0.25 + lean * h * 0.08, by + w * 0.08)  # the ridge's feet (the front facet between them)
-    mr = (bx + w * 0.3 + lean * h * 0.08, by + w * 0.06)
-    f.poly([bl, sl, tip, sr, br], BODY, ink=5.5)
-    f.poly([bl, sl, tip, ml], LIGHT)
-    f.poly([mr, tip, sr, br], DEEP)
-    # specular stripe in the lit facet, parallel to its long edge
-    p0 = (lerp(sl[0], ml[0], 0.35), lerp(sl[1], ml[1], 0.35))
-    f.poly([p0, (p0[0] + w * 0.12, p0[1]), (lerp(p0[0], tip[0], 0.8) + w * 0.06, lerp(p0[1], tip[1], 0.8)),
-            (lerp(p0[0], tip[0], 0.8), lerp(p0[1], tip[1], 0.8))], HOT)
-    if cracked > 0:  # a straight crack across it, ink
-        g = rng(seed)
-        y = by - h * g.uniform(0.35, 0.6)
-        f.poly(stroke([(bx - w * 1.1, y + w * 0.3), (bx + lean * h * 0.4, y - w * 0.1), (bx + w * 1.1, y - w * 0.35)],
-                      [f.u(0.02) * cracked] * 3, cap=False), INK)
-
-
-def ice_spike(i, n, size):
-    f = Frame(size)
-    S, c = f.S, f.c
-    g = rng(371)
-    ground = f.u(1.6)
-    if i == 0:  # the floor cracks and glints (straight lines only)
-        hexa = [polar(c, ground, f.u(0.3), math.tau * k / 6 + 0.26) for k in range(6)]
-        hexa = [(x, ground + (y - ground) * 0.4) for x, y in hexa]
-        f.poly(hexa, BODY, ink=2.5)
-        for k in range(5):
-            a = math.tau * k / 5 + 0.3
-            p = [(c, ground), polar(c, ground, f.u(0.22), a), polar(c, ground, f.u(0.42), a + 0.18)]
-            p = [(x, ground + (y - ground) * 0.4) for x, y in p]
-            f.poly(stroke(p, [f.u(0.035), f.u(0.025), f.u(0.008)], cap=False), LIGHT)
-        glint(f, c, ground - f.u(0.1), f.u(0.26), ink=3.5)
-        facet_order(f, 372)
-        return f.finish()
-    h = [0, 1.22, 1.0, 1.0, 0.92, 0.5][i]
-    # the broken hex plate it stands on
-    plate = [polar(c, ground, f.u(0.42), math.tau * k / 6 + 0.26) for k in range(6)]
-    plate = [(x, ground + (y - ground) * 0.38) for x, y in plate]
-    if i <= 4:
-        f.poly(plate, LIGHT, ink=5.0)
-        f.poly([(x * 0.6 + c * 0.4, y * 0.6 + ground * 0.4) for x, y in plate], BODY)
-    shards = [(-0.24, 0.6, 0.16, -0.3), (0.02, 0.92, 0.21, 0.04), (0.26, 0.68, 0.17, 0.3)]
-    if i <= 4:
-        for k, (dx, hh, w, lean) in enumerate(shards):
-            _crystal(f, c + f.u(dx), ground + f.u(0.02), f.u(1.1) * hh * h, f.u(w) * (1.1 if i == 1 else 1.0), lean,
-                     cracked=1.0 if i == 4 else 0.0, seed=380 + k)
-        if i in (1, 3):
-            glint(f, c + f.u(0.06), ground - f.u(1.1) * h * 0.92, f.u(0.24 if i == 1 else 0.16), ink=3.5)
-    else:  # broken: faceted chips tumbling down and out
-        for k in range(6):
-            a = -math.pi * 0.5 + (k - 2.5) * 0.45
-            x, y = polar(c, ground - f.u(0.5), f.u(0.45 + 0.1 * (k % 2)), a)
-            y += f.u(0.3)
-            L, W = f.u(g.uniform(0.15, 0.24)), f.u(g.uniform(0.08, 0.12))
-            r = a + g.uniform(-1, 1)
-            d = np.array([math.cos(r), math.sin(r)])
-            nrm = np.array([-d[1], d[0]])
-            p = np.array([x, y])
-            full = [tuple(p + d * L), tuple(p + nrm * W), tuple(p - d * L * 0.6), tuple(p - nrm * W * 0.8)]
-            f.poly(full, BODY, ink=4.5)
-            f.poly([full[0], full[1], tuple(p)], LIGHT)
-            f.poly([full[2], full[3], tuple(p)], DEEP)
-    facet_order(f, 373 + i, by_y=0.35)
-    return f.finish()
-
-
 # --- 5. Frost floor (floor, seen from above): what the frost spear spreads (frost_spear.gd). Straight cracks out
 # from the spear, kinked and forked, a few hexagonal ice plates between them, a jagged toothed edge of ice facets, bare
 # floor between (a flat disc washed out everything on it). Frame 0 the cracks running out; 1-3 the full frost with its
@@ -386,17 +311,15 @@ def ice_frost(i, n, size):
             tip = polar(c, c, f.u(0.96 - dep), am)
             f.poly([o0, o1, tip], LIGHT if k % 2 == 0 else BODY, ink=1.6)
             f.poly([o0, ((o0[0] + o1[0]) / 2, (o0[1] + o1[1]) / 2), tip], DEEP if k % 3 == 0 else LIGHT)
-    # hexagonal plates between the cracks
+    # (fx-ice2: the hexagonal ice plates between the cracks are gone: at the game camera they read as crystal
+    # cubes standing on the floor. Kept drawn into nothing so the rng sequence below stays the same.)
     if i > 0:
         for k in range(6):
             a = math.tau * (k + 0.5) / 6 + g.uniform(-0.25, 0.25)
             x, y = polar(c, c, f.u(g.uniform(0.38, 0.72)), a)
             r = f.u(g.uniform(0.06, 0.1))
             rot = g.uniform(0, 1)
-            hexa = [polar(x, y, r, math.tau * q / 6 + rot) for q in range(6)]
-            f.poly(hexa, BODY, ink=2.0)
-            f.poly([hexa[0], hexa[1], hexa[2], (x, y)], LIGHT)
-            f.poly([hexa[3], hexa[4], (x, y)], DEEP)
+            hexa = [polar(x, y, r, math.tau * q / 6 + rot) for q in range(6)]  # (not drawn)
     # straight cracks: three kinked spans, forked once, wide at the spear, to a point; light with a hot core
     g2 = rng(397)
     for k in range(11):
@@ -423,6 +346,39 @@ def ice_frost(i, n, size):
     facet_order(f, 401, cells=40)
     return f.finish()
 
+
+
+# --- 5 b. Frost mark (floor, seen from above; fx-ice2): where an ice crystal cluster used to burst up out of the floor
+# (every water `elements.spikes`, Harpoon's line, the spear going in). A patch of frost: a see-through hexagon of
+# rime, fat straight cracks racing out of the middle past its edge, glints. Frame 0 the cracks
+# half out (anticipation), 1 out with a hot core, 2-3 settling (the glints move). Fat ink: it is seen ~1.5 m across.
+
+def ice_mark(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(431)
+    reach = [0.55, 1.05, 1.0, 1.0][i]
+    turn = 0.3
+    hexa = [polar(c, c, f.u(0.6 * reach * (1.0 if q % 2 == 0 else 0.9)), turn + math.tau * q / 6) for q in range(6)]
+    f.fill(poly_mask([hexa], f.S), BODY, ink=0.0, alpha=0.4)
+    g2 = rng(433)
+    for k in range(7):
+        a = math.tau * (k + g2.uniform(-0.25, 0.25)) / 7
+        rr = f.u(g2.uniform(0.62, 0.9) * reach)
+        pts = [(c, c)]
+        for q in (0.4, 1.0):
+            pts.append(polar(c, c, rr * q, a + g2.uniform(-0.18, 0.18)))
+        w = f.u(0.075)
+        f.poly(stroke(pts, [w, w * 0.6, 2.0], cap=False), LIGHT, ink=5.0)
+        if i <= 1:
+            f.poly(stroke(pts[:2], [w * 0.4, w * 0.2], cap=False), HOT)
+    if i >= 1:
+        g3 = rng(440 + i)
+        for k in range(2):
+            x, y = polar(c, c, f.u(g3.uniform(0.25, 0.5)), g3.uniform(0, math.tau))
+            glint(f, x, y, f.u(0.09))
+    facet_order(f, 437, cells=24)
+    return f.finish()
 
 
 # --- 6. Meteor Fall's fireball in flight (billboard, depth tested, stood behind him; drawn flying to +x) ------------
@@ -602,72 +558,16 @@ def jag_free(c, g):
     return catmull(pts, 6)
 
 
-# --- 9. Ice comet strip (ribbon along a breaker's dive: comic_comet.gd, water) ----------------------------------------
-# Strip frames are wide: x = along the dive (0 tail -> 1 head), y = across. A big faceted crystal point at the head,
-# a chain of faceted shards behind it shrinking to the tail (lit facet up, shadow facet down, one specular stripe),
-# chips and four-point glints shed off the tail. Frames boil (the shards shift and turn, glints move).
-
-def ice_trail(i, n, size):
-    f = Frame(size * 2)
-    S = f.S
-    g = rng(611 + i * 3)
-    h = S / 4.0
-    y0 = (S - h) / 2
-
-    def P(u, v):
-        return (u * S, y0 + (1 - v) * h)
-
-    def shard(u, l_back, l_front, w, dv=0.0, tone_scale=1.0):
-        c = 0.5 + dv
-        back, top, front, bot = P(u - l_back, c), P(u, c + w), P(u + l_front, c), P(u, c - w)
-        f.poly([back, top, front, bot], BODY, ink=4.0)
-        f.poly([top, front, P(u, c)], LIGHT)  # lit facet (upper front)
-        f.poly([back, bot, P(u, c)], DEEP)  # shadow facet (lower back)
-        # one specular stripe along the lit facet's edge
-        a, b = P(u + l_front * 0.12, c + w * 0.62), P(u + l_front * 0.62, c + w * 0.2)
-        a2, b2 = P(u + l_front * 0.2, c + w * 0.72), P(u + l_front * 0.7, c + w * 0.27)
-        f.poly([a, a2, b2, b], HOT)
-
-    # shards from the tail to the head, growing (drawn tail first so the bigger ones overlap them)
-    k = 0
-    u = 0.2 + 0.03 * (i % 2)
-    while u < 0.8:
-        q = (u - 0.2) / 0.6
-        w = lerp(0.14, 0.38, q) * g.uniform(0.85, 1.1)
-        dv = g.uniform(-0.16, 0.16) * (1 - q * 0.6)
-        shard(u, lerp(0.05, 0.11, q), lerp(0.04, 0.09, q), w, dv)
-        u += lerp(0.07, 0.1, q) * g.uniform(0.85, 1.15)
-        k += 1
-    shard(0.86, 0.14, 0.13, 0.46)  # the head: one big crystal point
-    # chips and glints shed behind
-    for s in range(5):
-        cu = g.uniform(0.02, 0.22)
-        cv = 0.5 + g.uniform(-0.35, 0.35)
-        x, y = P(cu, cv)
-        r = h * g.uniform(0.04, 0.07)
-        f.poly([(x - r, y), (x, y - r * 0.7), (x + r * 1.3, y), (x, y + r * 0.7)], LIGHT, ink=3.0)
-    for s in range(3):
-        x, y = P(g.uniform(0.08, 0.7), 0.5 + g.choice([-1, 1]) * g.uniform(0.36, 0.44))
-        glint(f, x, y, h * 0.17, HOT, ink=3.0)
-    facet_order(f, 620 + i, cells=40)
-    tone, alpha, order = f.finish()
-    s2 = size * 2
-    hh = s2 // 4
-    y = (s2 - hh) // 2
-    return tone[y:y + hh, :], alpha[y:y + hh, :], (order[y:y + hh, :] if order is not None else None)
-
-
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "magma_fist": (magma_fist, 256, 4, 8, "earth", "edge", 0.5),
     "magma_spurt": (magma_spurt, 256, 4, 7, "earth", "edge", 0.5),
     "magma_crack": (magma_crack, 256, 2, 4, "earth", "edge", 0.5),
-    "ice_spike": (ice_spike, 256, 3, 6, "water", "edge", 0.35),
     "ice_frost": (ice_frost, 512, 2, 4, "water", "edge", 0.4),
+    "ice_mark": (ice_mark, 256, 2, 4, "water", "edge", 0.4),
     "magma_meteor": (magma_meteor, 384, 3, 5, "earth", "edge", 0.5),
     "magma_geyser": (magma_geyser, 384, 4, 8, "earth", "edge", 0.5),
     "magma_pool": (magma_pool, 384, 3, 6, "earth", "edge", 0.5),
-    "ice_trail": (ice_trail, 256, 1, 4, "water", "tail", 0.35),
 }
 
 

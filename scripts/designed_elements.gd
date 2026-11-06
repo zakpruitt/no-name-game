@@ -4,8 +4,10 @@ extends RefCounted
 ## and shaders are designed_fx.gd's. Every caller branches on DESIGNED.on() and keeps its old path (--fx=classic).
 ##   magma: Molten Palm's fist (comic_fist.gd draws `magma_fist` on its node), the fissure (`fissure`: a crack
 ##          decal a step and a lava spurt every other one), every earth `elements.spikes` (`spikes`: `magma_spurt`).
-##   ice:   every water `elements.spikes` (`ice_spike`: Harpoon's line, the nova, Deep Freeze, the crystals), the frost
-##          spear's floor (`frost_floor` / `ice_frost`) and the Deep Freeze burst (`frost_burst`).
+##   ice:   every water `elements.spikes` (`frost_mark`: Harpoon's line, the nova, Deep Freeze, Worldbreaker's ice: a
+##          frost crack on the floor and a puff of cold mist; fx-ice2 took the `ice_spike` crystals out: Zak, "get rid of
+##          the crystals"), the frost spear's floor (`frost_floor` / `ice_frost`), the Deep Freeze burst (`frost_burst`)
+##          and the ice block round a frozen foe, fitted to its model (`fit_block`).
 
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 
@@ -16,9 +18,8 @@ const SHEETS := {
 		"kind": "sprite_depth", "anchor": Vector2(0.0, -0.31), "burn": 1.0},
 	"magma_crack": {"tex": preload("res://assets/vfx/designed/magma_crack.png"), "grid": Vector2(2, 2), "frames": 4, "kind": "ground",
 		"burn": 1.0},
-	"ice_spike": {"tex": preload("res://assets/vfx/designed/ice_spike.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "sprite_depth",
-		"anchor": Vector2(0.0, -0.3)},
 	"ice_frost": {"tex": preload("res://assets/vfx/designed/ice_frost.png"), "grid": Vector2(2, 2), "frames": 4, "kind": "ground"},
+	"ice_mark": {"tex": preload("res://assets/vfx/designed/ice_mark.png"), "grid": Vector2(2, 2), "frames": 4, "kind": "ground"},
 	# the ball is drawn right of the middle (0.18 of the quad): the pivot sits on it, so it turns round him
 	"magma_meteor": {"tex": preload("res://assets/vfx/designed/magma_meteor.png"), "grid": Vector2(3, 2), "frames": 5,
 		"kind": "sprite_depth", "anchor": Vector2(0.18, 0.0), "burn": 1.0},
@@ -26,7 +27,6 @@ const SHEETS := {
 		"kind": "sprite_depth", "anchor": Vector2(0.0, -0.33), "burn": 1.0},
 	"magma_pool": {"tex": preload("res://assets/vfx/designed/magma_pool.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "ground",
 		"burn": 1.0},
-	"ice_trail": {"tex": preload("res://assets/vfx/designed/ice_trail.png"), "grid": Vector2(1, 4), "frames": 4, "kind": "ribbon"},
 }
 
 static var _registered := false
@@ -58,7 +58,7 @@ static func prewarm(root: Node3D) -> void:
 	var sp := Node3D.new()
 	root.add_child(sp)
 	sp.scale = Vector3.ONE * 20.0
-	spear(sp, 2.3, 0.13, 3, 1.4, 0.32)
+	spear(sp, 2.3, 0.13)
 
 
 static func _spawn(parent: Node, sheet: String, at: Vector3, size: float, element: String, times: Array, erode: Vector2) -> Node3D:
@@ -122,8 +122,13 @@ static func fist_step(mi: MeshInstance3D, t: float, time: float, hold: float) ->
 # --- Spikes: lava spurts (earth) and ice crystal clusters (water) --------------------------------------------------
 
 const SPURT_SIZE := 2.2  # m: the quad at size 1 (the tongues stand ~1.2 m)
-const ICE_SPIKE_SIZE := 2.5  # m (the crystals stand ~1.25 m, as the halftone cones did)
 const SPIKE_TOWARD_CAM := 0.35  # m: stood a little towards the camera so the floor doesn't clip the plate
+## Ice on the floor where a crystal cluster used to burst up (fx-ice2): a frost patch with fat straight cracks
+## racing out (`ice_mark`) and a low puff of cold mist (`dust_puff` in water's tones).
+const FROST_MARK_SIZE := 1.7  # m: the tile at size 1 (the cracks reach ~0.85 of it across)
+const FROST_MIST_SIZE := 0.7  # of DESIGNED.dust's size at size 1
+const FROST_MARK_TIMES := [0.04, 0.09, 0.2, 0.14]  # s: cracks half out, out (hot), settling, eroding by facets
+const FROST_MIST_TIMES := [0.04, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12]
 
 
 ## elements.spikes, designed: one drawn cluster (it holds three shards / tongues) in place of `count` cones; four or
@@ -138,21 +143,35 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 
 static func _spike(parent: Node, foot: Vector3, el: String, size: float, life: float) -> Node3D:
 	var hold := maxf(0.05, life * 0.4)
-	var fx: Node3D
-	if el == "water":
-		# anticipation, peak (overshoot), settle, hold, cracked, broken into chips
-		var times := [0.033, 0.07, 0.06, hold, 0.083, 0.1]
-		fx = _spawn(parent, "ice_spike", foot, ICE_SPIKE_SIZE * size, "water", times, Vector2(0.72, 1.0))
-	else:
-		# bulge, the throw, two settles, the slump crusting, cooled
-		var times := [0.04, 0.083, 0.083, maxf(0.06, hold * 0.6), 0.083, 0.1, 0.12]
-		fx = _spawn(parent, "magma_spurt", foot, SPURT_SIZE * size, "earth", times, Vector2(0.68, 1.0))
+	if el == "water":  # (fx-ice2: no crystal clusters out of the floor any more)
+		return frost_mark(parent, foot, size, life)
+	# bulge, the throw, two settles, the slump crusting, cooled
+	var times := [0.04, 0.083, 0.083, maxf(0.06, hold * 0.6), 0.083, 0.1, 0.12]
+	var fx := _spawn(parent, "magma_spurt", foot, SPURT_SIZE * size, "earth", times, Vector2(0.68, 1.0))
 	fx.real_until = 1
 	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
 	if cam != null:
 		var to := cam.global_position - foot
 		fx.global_position += Vector3(to.x, 0.0, to.z).normalized() * SPIKE_TOWARD_CAM
+	return fx
+
+
+## A water `elements.spikes` (fx-ice2, in place of the `ice_spike` crystals): frost cracks racing out on the floor
+## at `foot` and a low puff of cold mist rolling off them. Nothing stands up out of the floor.
+static func frost_mark(parent: Node, foot: Vector3, size := 1.0, life := 0.7, mist := true) -> Node3D:
+	var k := clampf(life / 0.7, 0.7, 1.5)
+	var times := FROST_MARK_TIMES.duplicate()
+	times[2] *= k
+	times[3] *= k
+	var fx := _spawn(parent, "ice_mark", Vector3(foot.x, DESIGNED.GROUND_LIFT, foot.z), FROST_MARK_SIZE * size, "water",
+		times, Vector2(0.55, 1.0))
+	fx.real_until = 2
+	fx.rotation.y = randf() * TAU
+	if mist:
+		var m := _spawn(parent, "dust_puff", foot, DESIGNED.DUST_SIZE * FROST_MIST_SIZE * size, "water", FROST_MIST_TIMES,
+			Vector2(0.35, 1.0))
+		m.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 	return fx
 
 
@@ -178,7 +197,8 @@ static func fissure(parent: Node, from: Vector3, dir: Vector3, length: float, st
 				if i % 2 == 0:
 					_spike(parent, Vector3(at.x, 0.0, at.z), "earth", size * k * 0.85, 0.5)
 			else:
-				_spike(parent, Vector3(at.x, 0.0, at.z), el, size * k * (1.0 if i % 2 == 0 else 0.78), 0.7)
+				# a frost line racing along the floor (Harpoon): a crack every step, mist on every other one
+				frost_mark(parent, Vector3(at.x, 0.0, at.z), size * k * (1.0 if i % 2 == 0 else 0.78), 0.7, i % 2 == 0)
 		if i == 0:
 			go.call()
 		else:
@@ -241,7 +261,6 @@ static func frost_burst(parent: Node, spot: Vector3, radius: float) -> Node3D:
 const FACET_SHADER := preload("res://shaders/ice_facet.gdshader")
 const INK_SHADER := preload("res://shaders/ghost_ink.gdshader")
 const FACET_INK_PX := 3.0
-const BLOCK_CROWN := 3  # crystals standing out of the block's top
 static var _facet_mats := {}
 static var _blocks := {}
 
@@ -355,7 +374,9 @@ class Facets:
 
 
 ## The ice block round a frozen foe (thrown_foe.comic_cube): a hexagonal prism `r` round (to its flats) and `high`
-## tall, centred on its middle, with a few crystals standing out of its top. Cached per size.
+## tall, centred on its middle, its top a little narrower (BLOCK_TAPER). Clean faces only: fx-ice2 took the crown
+## crystals off its top (Zak: "get rid of the crystals. i love the new ice block"). Cached per size, in BLOCK_STEP
+## steps so fitted blocks share meshes. `fit_block` sizes one to the foe inside.
 static func ice_block(r: float, high: float) -> ArrayMesh:
 	var key := Vector2i(roundi(r * 100.0), roundi(high * 100.0))
 	if _blocks.has(key):
@@ -363,19 +384,169 @@ static func ice_block(r: float, high: float) -> ArrayMesh:
 	var f := Facets.new()
 	var h := high * 0.5
 	var rc := r / cos(PI / 6.0)  # corner radius, so the flats sit at r
-	f.prism(Vector3.ZERO, 6, rc, rc * 0.94, -h, h, 0.2)
-	for k in BLOCK_CROWN:
-		var a := 0.2 + TAU * (k * 2 + 1) / 6.0 + 0.15
-		var d := Vector3(cos(a), 0.0, -sin(a))
-		f.crystal(d * rc * 0.62 + Vector3.UP * (h - 0.06), 4, rc * 0.17, high * 0.1, high * (0.16 + 0.05 * k), d * 0.35, a)
+	f.prism(Vector3.ZERO, 6, rc, rc * BLOCK_TAPER, -h, h, 0.2)
 	var mesh := f.commit(facet_material("water"))
 	_blocks[key] = mesh
 	return mesh
 
 
-## The frost spear (frost_spear.gd): a faceted shaft in the tentacle's violet driven into the floor, an ice
-## crystal head, and a ring of ice crystals round its foot. Built along +Y from the floor, in its own node.
-static func spear(node: Node3D, high: float, shaft_r: float, crystals: int, crystal_high: float, out: float) -> void:
+# --- Fitting the block to the foe inside (fx-ice2) -----------------------------------------------------------------
+# Zak: "ensure they're covering the whole character model tho. the dummies part of them clip out." The block used to
+# be `radius + 0.2` round and 1.5 m tall at the foe's feet whatever the model; now it is measured from the model's
+# own posed meshes: each skinned mesh's vertices are boxed per bone once (in the bone's rest space, cached per mesh),
+# so a freeze only moves ~30 boxes by their bones' poses. The foe holds its pose while frozen (enemy.gd stops its
+# clip; the dummy's bag spring holds its tilt), so the block made at the freeze still holds it.
+
+const BLOCK_TAPER := 0.94  # the top's radius, of the bottom's
+const BLOCK_STEP := 0.05  # m: fitted sizes round up to this (the mesh cache)
+const FIT_MARGIN := 0.08  # m clear round the model's widest point
+const FIT_TOP := 0.1  # m clear over its head
+const FIT_CORE := 0.75  # m from the foe's middle that counts as its body: the block centres on what is in there
+const FIT_R_MIN := 0.5
+const FIT_R_MAX := 1.2  # m: weapons held out further than this poke out ("within reason": a sword at arm's length
+	# made a 2.5 m slab that swallowed the dummy beside it)
+const FIT_H_MAX := 3.4
+const FIT_DIRS := [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, -1, 0), Vector3(0, 0, 1),
+	Vector3(0, 0, -1), Vector3(1, 1, 1), Vector3(1, 1, -1), Vector3(1, -1, 1), Vector3(1, -1, -1), Vector3(-1, 1, 1),
+	Vector3(-1, 1, -1), Vector3(-1, -1, 1), Vector3(-1, -1, -1)]  # a bone's extreme vertices are kept along these
+static var _bone_boxes := {}  # "mesh id:skin id" -> {bind index: PackedVector3Array, its extreme vertices in its rest space}
+
+
+## The extreme vertices of `foe`'s model meshes (per bone, posed by that bone), in `foe`'s space, with the model standing upright at its
+## own `model_scale` (enemy.freeze stands it up, and a hit's squash is gone in a beat). Empty if it has no meshes.
+static func model_points(foe: Node3D) -> PackedVector3Array:
+	var model: Node3D = foe.get("model") if foe.get("model") is Node3D else foe
+	var out := PackedVector3Array()
+	var ms: float = float(foe.get("model_scale")) if foe.get("model_scale") != null else 1.0
+	if model == foe:
+		ms = 1.0
+	var pose := Transform3D.IDENTITY if model == foe else Transform3D(Basis(Vector3.UP, model.rotation.y).scaled(Vector3.ONE * ms), Vector3.ZERO)
+	var model_inv := model.global_transform.affine_inverse()
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null or not mi.is_visible_in_tree() or mi.has_meta("no_ghost") or mi.name == "ThrownCube":
+			continue
+		var sk := mi.get_node_or_null(mi.skeleton) as Skeleton3D
+		var local: Array[Transform3D] = []  # mesh-ish space -> model space, one per set
+		var sets: Array[PackedVector3Array] = []
+		if sk != null and mi.skin != null:
+			var per := _boxes_of(mi, sk)
+			var to_model := model_inv * sk.global_transform
+			for b: int in per:
+				var bone := mi.skin.get_bind_bone(b)
+				if bone < 0:
+					bone = sk.find_bone(mi.skin.get_bind_name(b))
+				if bone < 0:
+					continue
+				local.append(to_model * sk.get_bone_global_pose(bone))
+				sets.append(per[b])
+		else:
+			local.append(model_inv * mi.global_transform)
+			var box := mi.mesh.get_aabb()
+			var corners := PackedVector3Array()
+			for c in 8:
+				corners.append(box.get_endpoint(c))
+			sets.append(corners)
+		for i in sets.size():
+			var xf := pose * local[i]
+			for v in sets[i]:
+				out.append(xf * v)
+	return out
+
+
+## A skinned mesh's vertices sorted to their main bone, in that bone's rest space, and only each bone's extreme ones
+## along FIT_DIRS kept (a box's corners turned with the bone came out ~10% wide; these are real vertices).
+static func _boxes_of(mi: MeshInstance3D, sk: Skeleton3D) -> Dictionary:
+	var key := "%d:%d" % [mi.mesh.get_instance_id(), mi.skin.get_instance_id()]
+	if _bone_boxes.has(key):
+		return _bone_boxes[key]
+	var skin: Skin = mi.skin
+	var binds: Array[Transform3D] = []
+	for b in skin.get_bind_count():
+		binds.append(skin.get_bind_pose(b))
+	var per := {}
+	for s in mi.mesh.get_surface_count():
+		var arr := mi.mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		if arr[Mesh.ARRAY_BONES] == null or verts.is_empty():
+			continue
+		var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+		var n := bones.size() / verts.size()
+		for i in verts.size():
+			var b := -1  # its main bone: a vertex boxed by every bone it is weighted to swung whole limbs' boxes
+			var best := 0.0  # round a hand (every box came out 1.5 m round)
+			for k in n:
+				if weights[i * n + k] > best:
+					best = weights[i * n + k]
+					b = bones[i * n + k]
+			if b < 0 or b >= binds.size():
+				continue
+			var p := binds[b] * verts[i]
+			if not per.has(b):
+				var first := PackedVector3Array()
+				first.resize(FIT_DIRS.size())
+				first.fill(p)
+				per[b] = first
+				continue
+			var ext: PackedVector3Array = per[b]
+			for d in FIT_DIRS.size():
+				if p.dot(FIT_DIRS[d]) > ext[d].dot(FIT_DIRS[d]):
+					ext[d] = p
+			per[b] = ext
+	_bone_boxes[key] = per
+	return per
+
+
+## The block that encloses `points` (foe space): {centre: Vector3 (the middle of the prism), r: flat radius, high}.
+## Round, so the block may turn (the ice cube spins in flight) without a corner swinging in onto the model.
+static func block_fit(points: PackedVector3Array, floor_y := -INF) -> Dictionary:
+	if points.is_empty():
+		return {"centre": Vector3(0.0, 0.75, 0.0), "r": 0.6, "high": 1.5}
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var y0 := INF
+	var y1 := -INF
+	for p in points:
+		y0 = minf(y0, p.y)
+		y1 = maxf(y1, p.y)
+		if Vector2(p.x, p.z).length() <= FIT_CORE:
+			lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.z))
+			hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.z))
+	var c := (lo + hi) * 0.5 if lo.x <= hi.x else Vector2.ZERO
+	y0 = maxf(y0, floor_y)
+	y1 = minf(y1 + FIT_TOP, y0 + FIT_H_MAX)
+	var high := ceilf((y1 - y0) / BLOCK_STEP) * BLOCK_STEP
+	var need := 0.0
+	var core := 0.0
+	for p in points:
+		if p.y < y0 - 0.01 or p.y > y1:
+			continue
+		var t := clampf((p.y - y0) / maxf(high, 0.01), 0.0, 1.0)
+		var d := Vector2(p.x, p.z).distance_to(c) / lerpf(1.0, BLOCK_TAPER, t)
+		need = maxf(need, d)
+		if Vector2(p.x, p.z).length() <= FIT_CORE:
+			core = maxf(core, d)
+	var r := clampf(maxf(minf(need, FIT_R_MAX), core) + FIT_MARGIN, FIT_R_MIN, FIT_R_MAX + FIT_MARGIN)
+	r = ceilf(r / BLOCK_STEP) * BLOCK_STEP
+	return {"centre": Vector3(c.x, y0 + high * 0.5, c.y), "r": r, "high": high}
+
+
+## Sizes the ice `ice` (a MeshInstance3D child of `foe`: enemy._ice, thrown_foe's cube) to the foe's model as it
+## stands now and centres it on it, turned at random so a row of frozen foes doesn't line up into one slab.
+static func fit_block(foe: Node3D, ice: MeshInstance3D) -> Dictionary:
+	var floor_y := -0.08 - foe.global_position.y  # (never down through the floor: a sword tip under it pokes out)
+	var fit := block_fit(model_points(foe), floor_y)
+	ice.mesh = ice_block(fit.r, fit.high)
+	ice.material_override = null
+	ice.position = fit.centre
+	ice.rotation = Vector3(0.0, randf() * TAU, 0.0)
+	return fit
+
+
+## The frost spear (frost_spear.gd): a faceted shaft in the tentacle's violet driven into the floor with a clean
+## faceted ice point on it. Built along +Y from the floor, in its own node. fx-ice2: no ring of crystals round its
+## foot and no crystal head (`crystals`, `crystal_high`, `out` kept for the callers, unused).
+static func spear(node: Node3D, high: float, shaft_r: float, _crystals := 0, _crystal_high := 0.0, _out := 0.0) -> void:
 	var shaft := Facets.new()
 	shaft.prism(Vector3.ZERO, 6, shaft_r * 0.7, shaft_r, -0.1, high * 0.82, 0.3)
 	var mi := MeshInstance3D.new()
@@ -384,12 +555,8 @@ static func spear(node: Node3D, high: float, shaft_r: float, crystals: int, crys
 	mi.set_meta("no_ghost", true)
 	node.add_child(mi)
 	var ice := Facets.new()
-	ice.crystal(Vector3.UP * high * 0.74, 4, shaft_r * 2.2, high * 0.14, high * 0.2, Vector3.ZERO, 0.4)  # the head
-	for i in crystals:
-		var a := TAU * i / crystals + 0.35 * (i % 2)
-		var d := Vector3(cos(a), 0.0, -sin(a))
-		var h := crystal_high * (0.55 + 0.4 * float((i * 5) % 3) / 2.0)
-		ice.crystal(d * out, 4, h * 0.22, h * 0.45, h * 0.55, d * 0.42, a)
+	# one slim four-sided point on the shaft's end: a spearhead, not a cluster
+	ice.crystal(Vector3.UP * high * 0.8, 4, shaft_r * 1.35, high * 0.06, high * 0.2, Vector3.ZERO, 0.4)
 	var mi2 := MeshInstance3D.new()
 	mi2.mesh = ice.commit(facet_material("water"))
 	mi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

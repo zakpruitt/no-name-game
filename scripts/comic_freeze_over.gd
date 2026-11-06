@@ -11,6 +11,7 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicFreezeOver.shatter(parent, spot, radius): breaks the pool there (spawning one already broken if there is none).
 
 const SELF := preload("res://scripts/comic_freeze_over.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
 const GROUP := "comic_freeze_pool"
 const SHELL := Vector2(0.88, 1.5)  # m: half its width, its height (a dummy is about 1.5 m)
 const SHELL_POINTS := 12
@@ -36,6 +37,9 @@ var _chips := []  # {pos, vel, size, shape, turn}
 
 static func foe(parent: Node, e: Variant) -> Node3D:
 	if not is_instance_valid(e):
+		return null
+	if DESIGNED_EL.DESIGNED.on():  # fx-ice2: the ice block (freeze_seized's cube) is the frost-over; frost and mist under it
+		DESIGNED_EL.frost_mark(parent, e.global_position, 0.75, 0.5)
 		return null
 	var f: Node3D = SELF.new()
 	f.mode = "foe"
