@@ -515,13 +515,16 @@ static func wind_burst(parent: Node, spot: Vector3, dir := Vector3.ZERO) -> void
 	swirl.real_until = 1
 	swirl.rotation.y = randf() * TAU
 	var a0 := atan2(dir.x, dir.z) if dir.length() > 0.01 else randf() * TAU
-	for k in 3:
-		var a := a0 + TAU * k / 3.0
+	for k in 3:  # over the pile's heads (round 2: at 0.7 m they hid in it), the first trailing the throw
+		var a: float = a0 + [0.0, 2.2, -2.2][k]
 		var out := Vector3(sin(a), 0.0, cos(a))
-		gust(parent, foot + out * 0.5 + Vector3.UP * 0.7, out, 0.9, true)
+		var at := foot - out * 0.4 if k == 0 else foot + out * 0.6
+		gust(parent, at + Vector3.UP * (BURST_UP if k == 0 else BURST_UP * 0.8), out, BURST_GUST if k == 0 else 1.0, true)
 
 
-const BURST_SWIRL := 2.4  # m: the floor swirl's square
+const BURST_SWIRL := 3.0  # m: the floor swirl's square (round 2: 2.4 sat under the foes)
+const BURST_UP := 1.6  # m: the gusts ride above the foes' heads
+const BURST_GUST := 1.35
 const BURST_SWIRL_TIMES := [0.04, 0.07, 0.06, 0.06, 0.06, 0.06, 0.08, 0.1]
 
 

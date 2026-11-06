@@ -15,7 +15,7 @@ extends Node3D
 const SELF := preload("res://scripts/designed_twister.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const STEPS_PER_S := 12.0  # on twos
-const ANTIC := 0.05  # s (real time): the pull-in before the peak
+const ANTIC := 0.12  # s (real time): the pull-in before the peak (round 2: 0.05 never reached a 12 fps film frame)
 const BANDS := 3
 const HEIGHT_SEEN := 0.82  # of the asked height: from the high camera a 3.5 m column ran off the top of the frame
 const SWEEP := [1.25, 1.4, 1.5]  # of PI, each band's arc round the column (the gaps show it's turning)
@@ -38,6 +38,10 @@ const WISP_TIMES := [0.04, 0.08, 0.07, 0.07, 0.07, 0.08, 0.08, 0.1]
 const DEBRIS := 7
 const DEBRIS_SIZE := 0.56  # m (0.46 was specks in the half-size film)
 const DEBRIS_SPIN := 6.5  # rad/s round the column
+const DRAG := 0.24  # s: the debris drags in along the floor from DRAG_FROM x the radius before it lifts (the anticipation)
+const DRAG_FROM := 2.3
+const MIN_HEIGHT := 3.0  # m: smaller asks (Fault Line's gales, 2.4 x 0.75) grow to this, so they read as twisters
+const MIN_RADIUS := 1.0  # m
 
 var height := 3.5
 var radius := 1.3
@@ -54,8 +58,8 @@ var _rng := RandomNumberGenerator.new()
 
 static func spawn(parent: Node, spot: Vector3, h: float, r: float, time: float) -> Node3D:
 	var g: Node3D = SELF.new()
-	g.height = h * HEIGHT_SEEN
-	g.radius = r
+	g.height = maxf(h, MIN_HEIGHT) * HEIGHT_SEEN
+	g.radius = maxf(r, MIN_RADIUS)
 	g.life = maxf(time * 1.2, 0.5)
 	parent.add_child(g)
 	g.global_position = Vector3(spot.x, 0.0, spot.z)
@@ -85,6 +89,7 @@ func setup() -> void:
 		mi.set_instance_shader_parameter("span", 1.0)
 		mi.set_instance_shader_parameter("tiles", 0.0)
 		_bands.append(mi)
+	_lift_debris()  # (on the floor round it first: they drag in through the anticipation)
 	tick(0.0)
 
 
@@ -181,8 +186,6 @@ func _draw_step(step: int, moved: int) -> void:
 		mi.set_instance_shader_parameter("frame", 3.0 if dissolving else float((_boil + maxi(step, 0) + k) % 3))
 	if step == 1:
 		_fling_wisps()
-	if step == 0:
-		_lift_debris()
 	for d: Array in _debris:
 		var n: Variant = d[0]
 		if is_instance_valid(n):
@@ -215,7 +218,7 @@ func _fling_wisps() -> void:
 
 func _lift_debris() -> void:
 	for k in DEBRIS:
-		var span := life * _rng.randf_range(0.55, 0.85)
+		var span := life * _rng.randf_range(0.55, 0.85) + DRAG
 		var d := DESIGNED.spawn(get_parent(), "air_debris", global_position, DEBRIS_SIZE * _rng.randf_range(0.75, 1.15),
 				"dust", [span], Vector2(0.75, 1.0))
 		d.first = (k + _rng.randi()) % 8
@@ -235,8 +238,16 @@ func _move_riders(delta: float) -> void:
 		var n: Variant = d[0]
 		if not is_instance_valid(n):
 			continue
-		var k := clampf((tq - ANTIC) / float(d[2]) + float(d[3]), 0.0, 1.0)
-		var y := lerpf(0.25, height * 1.05, k)
+		var y := 0.25
 		var a: float = d[1] + DEBRIS_SPIN * tq
 		var r := _radius_at(y) * 1.05
+		if _t < DRAG:  # dragging in along the floor, on 24 fps steps (the anticipation is short)
+			var kin := floorf(_t * 24.0) / 24.0 / DRAG
+			r = lerpf(radius * DRAG_FROM, r, kin * kin)
+			a = float(d[1]) + kin * 1.4
+		else:
+			var k := clampf((tq - DRAG) / (float(d[2]) - DRAG) + float(d[3]) * 0.5, 0.0, 1.0)
+			y = lerpf(0.25, height * 1.05, k)
+			a = float(d[1]) + 1.4 + DEBRIS_SPIN * (tq - DRAG)
+			r = _radius_at(y) * 1.05
 		n.global_position = global_position + Vector3(cos(a) * r, y, sin(a) * r)
