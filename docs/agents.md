@@ -489,3 +489,4 @@ the worktree, and deletes the branch once it has been merged.
   straight after `gen_designed.py` plays the old texture. Import before filming.
 - **`git checkout <file>` to undo a test sed also undid my uncommitted palette edit in that file** (the lesson above,
   again). For an A/B of a constant, commit or copy the file aside first.
+- **Judge a hero's look in the play camera's film, not close-ups** (2026-11-06, model-hero2 round 2): close shots of v2 read well while the string film showed a pale blob, because the camera mostly sees the top and back of the hood. Contrast on the top surface (dark horns, a crimson stripe, a wide scarf) fixed it; an additive fresnel overlay tuned for a pale body turned every dark region gold.

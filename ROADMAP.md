@@ -706,7 +706,12 @@ route than the original with hood and such". See `docs/features/heretic-hero.md`
   broad cyan leaf spear with barbs, a lava-banded hammer block with spikes (3.7k tris)
 - [x] Before / after and the variant sheet: `awaken-combo-clips/18 Hero model v2 *.png`
 - [ ] Zak plays it: seen in stills and films from the game camera only
-- [ ] Re-keying with `chibi_keys.py` exports the old Meshy body: run `glb_swap.py` over the export afterwards
+- [x] Second pass, judged on the play camera's film: void-dark horns with crimson tips (violet merged into the
+  claw), a crimson stripe over the crown and a longer back point, a wider and longer scarf, a crimson skirt hem;
+  Awakened keeps his colours (tight gold fresnel edge instead of a gold wash); the clips' hood squash damped to
+  45%; the axe 0.8x (it hid the dummies); the axe edge in the storm lime; `chibi_keys.py` puts the v2 body back
+  after every export. Clip: `awaken-combo-clips/18 Hero model v2 before-after.mp4`
+- [ ] Zak: horn tips crimson or violet, the Awakened edge strength, whether to re-key the hood squash for v2
 ## Round 44 (fx-air)
 Zak: "Air needs to be clearly air but stylistic, and make lightning combos more a part of everything." The storm
 element had one green for wind and lightning alike; its whirlwind read as a green spring. See

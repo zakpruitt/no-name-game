@@ -292,12 +292,28 @@ Zak: "the heretic model sucks and is super buggy in game ... fine going a differ
 Rebuild (from the repo root; the base GLB is the round-40 committed one, kept at `vendor_src/hero_v2/base_r40.glb`):
 
 ```
-blender -b --factory-startup -P tools/hero_build/hero_v2.py -- <abs base_r40.glb> <abs vendor_src/hero_v2/out> horns 1
+blender -b --factory-startup -P tools/hero_build/hero_v2.py -- <abs base_r40.glb> <abs vendor_src/hero_v2/out> horns render
 python tools/hero_build/glb_swap.py vendor_src/hero_v2/base_r40.glb vendor_src/hero_v2/out assets/comic/heretic_chibi.glb
 godot --headless --import --path .
 ```
 
-`render` (the 1) writes workbench front / side / back / game-angle renders per pose (`r_<pose>_<view>.png`); `hook` / `twin` build the other variants. Keep the base GLB: re-keying with `chibi_keys.py` still exports the old Meshy body, so after a re-key run `glb_swap.py` over the new export to put v2's meshes back.
+`render` writes workbench front / side / back / game-angle renders per pose (`r_<pose>_<view>.png`); `hook` / `twin` build the other variants. Keep the base GLB and the build in `vendor_src/hero_v2/out`: `chibi_keys.py` puts v2's meshes back over its own export from there (below).
+
+### Hero model v2, second pass: reading from the play camera
+
+Judged only on `string_film` frames. The play camera mostly sees the top and back of his hood, which was one pale blob.
+
+- **Horns** are their own part (`build_horns`, `horn_points`), void-dark with crimson tips (`HERO_TIP`, default `crimson`; `violet` builds the other), bigger (0.155 m at the root) and splayed out to 0.62 m, so they break the outline from above. Crimson won in film: violet tips merged into the claw.
+- **Crimson stripe**: a ridge over the crown and along the back point (`build_stripe`), and the back point is longer (`BACK_POINT`, 0.8 m back).
+- **Scarf tail** wider (to 0.15 m) and running `SCARF_MORE` 0.16 m past its last bone (weighted to it), with a bigger swallowtail.
+- **Body**: shoulders and skirt a little wider, skirt hem crimson.
+- **Awakened**: the overlay `player._awaken_rim` (`rim_glow.gdshader`, additive fresnel, power 2.2, intensity 2.5) turned every dark region gold. `heretic_rig._tighten_awaken_rim` sets the hero's own copy to `AWAKEN_RIM_POWER` 5 and `AWAKEN_RIM_INTENSITY` 1.6: his colours stay, gold only at the edge.
+- **Hood squash**: the clips scale the head bone for the Meshy hood (VS, LLH and Death_A reach y 0.7, x/z 1.41). `heretic_rig._soften_hood` keeps `HOOD_SQUASH_K` 0.45 of it each frame.
+- **Axe** built 0.8x about the hand (`WEAPON_K`, about 1.54 m): at full size the Awakened crescent hid the dummies it hit.
+- **Axe edge** in fx_palette's storm lime: `ComicLook.EMITS["P_StormGreen"]`, a material only the hero's GLBs use.
+- **Re-keying keeps the v2 body**: `chibi_keys.py` runs `glb_swap.py` over its own export with `HERO_BUILD` (default `vendor_src/hero_v2/out`) and stops if there is no build; `--meshy-body` exports the old body on purpose. Not run end to end: the baked blend it keys over is not on this machine.
+
+Body 21.9k tris, weapons 3.7k.
 
 ## The rig
 
@@ -367,7 +383,7 @@ Rebuild as above (`chibi_keys.py` over the baked blend, `comic_glb.py`, `--impor
 - The change has no sound of its own.
 - The orbiting motes are still the old soft cyan dots (`elements.Orbit`).
 - v2 (round 44) has only been seen in stills and filmed strings, not played by hand.
-- The slam clip (VS) squashes the hood flat: the clip scales the head bone, keyed for the Meshy hood.
+- The clips' hood squash is only damped in the engine (`HOOD_SQUASH_K`), not re-keyed for the v2 hood.
 - The main tentacle's last bone assumes `Vector3.UP` as its direction, because nothing follows it to measure from.
 - `mid` and `low` bulge when coiled hard, where they're fused to the limb.
 - High knees can stretch the skirt where it meets the thigh.
