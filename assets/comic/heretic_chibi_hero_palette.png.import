@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://qaxuy7k3g4f2"
-path="res://.godot/imported/heretic_chibi_Material_0_baseColor.jpg-81f66d69c20023d89cb7c5170f633ef5.ctex"
+uid="uid://cyldqgxn1c18d"
+path="res://.godot/imported/heretic_chibi_hero_palette.png-63cc39e011eee5460d0f084c0e1950f9.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "fb8fb69988a4a0cd8c56479ae61f36ee"
+"md5": "2f7e0153433ac8a26e3f63a4b26678c6"
 }
 
 [deps]
 
-source_file="res://assets/comic/heretic_chibi_Material_0_baseColor.jpg"
-dest_files=["res://.godot/imported/heretic_chibi_Material_0_baseColor.jpg-81f66d69c20023d89cb7c5170f633ef5.ctex"]
+source_file="res://assets/comic/heretic_chibi_hero_palette.png"
+dest_files=["res://.godot/imported/heretic_chibi_hero_palette.png-63cc39e011eee5460d0f084c0e1950f9.ctex"]
 
 [params]
 
@@ -26,7 +26,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
