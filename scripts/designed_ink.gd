@@ -18,7 +18,7 @@ static func prewarm(root: Node3D) -> void:
 	t.draw(at, at + Vector3(3.0, 0.0, 0.0), 1.0, 0.1, 0.5, 0.0)
 	t.draw(at, at + Vector3(0.0, 0.0, 3.0), 1.0, 0.1, 0.0, 0.1)  # (a jump: no smear; the smear is warmed below)
 	_register()
-	for n: String in ["pop_storm", "pop_magma", "pop_ice", "pop_dark", "stamp"]:
+	for n: String in ["pop_storm", "pop_magma", "pop_ice", "pop_dark", "stamp"] + LOOP_SHEETS:
 		var mi := MeshInstance3D.new()
 		mi.mesh = QuadMesh.new()
 		mi.material_override = stamp_material("shock") if n == "stamp" else DESIGNED.material(n)
@@ -222,6 +222,9 @@ static func _register() -> void:
 	for n: String in ["pop_storm", "pop_magma", "pop_ice", "pop_dark"]:
 		DESIGNED.extra_sheets[n] = {"tex": load("res://assets/vfx/designed/%s.png" % n), "grid": Vector2(3, 2), "frames": 6,
 			"kind": "sprite"}
+	for n: String in LOOP_SHEETS:
+		DESIGNED.extra_sheets[n] = {"tex": load("res://assets/vfx/designed/%s.png" % n), "grid": Vector2(2, 2), "frames": 4,
+			"kind": "ground"}
 
 
 ## How big this frame's next hit pop should be: 1, POP_SMALL_K, or 0 (none).
@@ -273,3 +276,65 @@ static func once_a_frame(key: String) -> bool:
 		return false
 	_once[key] = f
 	return true
+
+
+# --- Floor loops (round 45): dark pools and the Singularity's vortex as authored decals ---------------------------
+# A ground quad that boils through its sheet's four frames on twos for as long as its owner lives, then erodes away
+# (`erode_out`). The owner keeps its own gameplay (groups, pulls, timers); this is only the look.
+
+const LOOP_SHEETS: Array[String] = ["dark_pool", "dark_vortex"]
+
+
+static func floor_loop(parent: Node3D, sheet: String, size: float, element := "void") -> FloorLoop:
+	_register()
+	var l := FloorLoop.new()
+	parent.add_child(l)
+	l.setup(sheet, size, element)
+	return l
+
+
+class FloorLoop extends Node3D:
+	var _mi: MeshInstance3D
+	var _t := 0.0
+	var _step := -1
+	var _erode_t := -1.0
+	var _erode_for := 0.25
+	var _last_us := 0
+
+	func setup(sheet: String, size: float, element: String) -> void:
+		_mi = MeshInstance3D.new()
+		_mi.mesh = DESIGNED._mesh_for("ground")
+		_mi.material_override = DESIGNED.material(sheet)
+		_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_mi.set_meta("no_ghost", true)
+		_mi.extra_cull_margin = size
+		_mi.scale = Vector3.ONE * size
+		_mi.position.y = DESIGNED.GROUND_LIFT
+		add_child(_mi)
+		_mi.set_instance_shader_parameter("pal_row", DESIGNED.row(element))
+		_mi.set_instance_shader_parameter("erode", 0.0)
+		_mi.set_instance_shader_parameter("frame", float(randi() % 4))
+		rotation.y = randf() * TAU
+		_last_us = Time.get_ticks_usec()
+
+	## Eat it away over `time` s (real time), then free it.
+	func erode_out(time := 0.25) -> void:
+		if _erode_t < 0.0:
+			_erode_t = 0.0
+			_erode_for = maxf(time, 0.05)
+
+	func _process(_delta: float) -> void:
+		var now := Time.get_ticks_usec()
+		var real := float(now - _last_us) / 1000000.0
+		_last_us = now
+		_t += real
+		var step := int(_t * 12.0)
+		if step != _step:
+			_step = step
+			_mi.set_instance_shader_parameter("frame", float(step % 4))
+		if _erode_t >= 0.0:
+			_erode_t += real
+			var k := clampf(_erode_t / _erode_for, 0.0, 1.0)
+			_mi.set_instance_shader_parameter("erode", k * 0.98)
+			if k >= 1.0:
+				queue_free()

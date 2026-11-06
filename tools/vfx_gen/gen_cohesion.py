@@ -14,7 +14,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, Frame, catmull, ellipse_mask, erode_field, fbm, pack,  # noqa: E402
-                    poly_mask, preview, rng, save, star, stroke, wobble_ring)
+                    poly_mask, preview, rng, save, star, stroke, wobble_ring, grow, SS)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
 
@@ -390,6 +390,97 @@ def pop_dark(i, n, size):
     return f.finish()
 
 
+# Dark pool (a floor decal, top-down, 4 boil frames looped on twos): an ink well in the middle, a violet body
+# round it with negative-space holes, tapered tendrils curling out with splatter flung past their tips, and a
+# light rim outside the ink so the violet separates from the indigo floor.
+def dark_pool(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(611)  # the layout holds; only the boil moves
+    b = rng(700 + i)
+    S = f.S
+    body = poly_mask([wobble_ring(c, c, f.u(0.27), 61 + i, amp=0.16, lumps=(3, 5, 8))], S)
+    arms = np.zeros_like(body)
+    for s in range(7):
+        a = math.tau * s / 7 + g.uniform(-0.35, 0.35)
+        ln = f.u(g.uniform(0.12, 0.2))
+        curl = g.choice([-1, 1]) * g.uniform(0.7, 1.3)
+        r0 = f.u(0.22)
+        w0 = f.u(g.uniform(0.09, 0.12))
+        wob = 0.08 * math.sin(i * 1.7 + s)
+        path = []
+        for q in np.linspace(0, 1, 18):
+            aa = a + (curl + wob) * q * q
+            path.append((c + math.cos(aa) * (r0 + ln * q), c + math.sin(aa) * (r0 + ln * q)))
+        arms = np.maximum(arms, poly_mask([stroke(path, lambda q, w0=w0: w0 * (1 - q) ** 1.5 + 1.5, cap=False)], S))
+        # a flung drop past the tip
+        tx, ty = path[-1]
+        dd = f.u(g.uniform(0.03, 0.05))
+        rr = f.u(g.uniform(0.012, 0.022))
+        arms = np.maximum(arms, ellipse_mask(tx + math.cos(a + curl) * dd, ty + math.sin(a + curl) * dd, rr, rr, S))
+    m = np.maximum(body, arms)
+    for s in range(5):  # loose splatter round the rim
+        a = g.uniform(0, math.tau)
+        d = f.u(g.uniform(0.33, 0.44))
+        r = f.u(g.uniform(0.012, 0.026))
+        m = np.maximum(m, ellipse_mask(c + math.cos(a) * d, c + math.sin(a) * d, r, r * 0.8, S))
+    f.fill(grow(m, 3.5 * SS), LIGHT)  # the light rim that lifts it off the floor
+    f.fill(m, BODY, ink=2.5)
+    f.fill(poly_mask([wobble_ring(c - f.u(0.01), c + f.u(0.01), f.u(0.19), 71 + i, amp=0.18, lumps=(2, 4, 7))], S) * m, DEEP)
+    well = poly_mask([wobble_ring(c, c, f.u(0.12), 81 + i, amp=0.2, lumps=(2, 3, 6))], S)
+    f.fill(well, INK)
+    # hot glints on the body's lit side: short curved nicks
+    for s in range(3):
+        a = -2.3 + s * 0.45 + b.uniform(-0.05, 0.05)
+        rr = f.u(0.215 + 0.01 * s)
+        path = [(c + math.cos(a + q * 0.35) * rr, c + math.sin(a + q * 0.35) * rr) for q in np.linspace(0, 1, 10)]
+        f.fill(poly_mask([stroke(path, lambda q: f.u(0.018) * math.sin(q * math.pi) + 1, cap=False)], S) * m, LIGHT)
+    # negative space: holes through the body, rimmed in ink
+    for s in range(4):
+        a = g.uniform(0, math.tau)
+        d = f.u(g.uniform(0.15, 0.22))
+        r = f.u(g.uniform(0.016, 0.03)) * (1 + 0.12 * math.sin(i * 2 + s))
+        hx, hy = c + math.cos(a) * d, c + math.sin(a) * d
+        f.fill(ellipse_mask(hx, hy, r * 1.5, r * 1.2, S) * m, INK)
+        f.cut(ellipse_mask(hx, hy, r, r * 0.75, S))
+    return f.finish()
+
+
+# Singularity (a floor decal under the hole, spun by the node): curling tapered arms swirling into an ink hole
+# with a hot lip, floor showing between the arms, a light rim outside the ink, drops flung off the arm tips.
+def dark_vortex(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(631)
+    S = f.S
+    arms = np.zeros((S, S), np.float32)
+    k_arms = 5
+    for s in range(k_arms):
+        a0 = math.tau * s / k_arms + g.uniform(-0.15, 0.15) + i * 0.09
+        r_out = f.u(g.uniform(0.4, 0.46))
+        w0 = f.u(g.uniform(0.07, 0.095))
+        path = []
+        for q in np.linspace(0, 1, 28):
+            rr = r_out * (1 - q) + f.u(0.1) * q
+            aa = a0 + 2.4 * q ** 0.8
+            path.append((c + math.cos(aa) * rr, c + math.sin(aa) * rr))
+        arms = np.maximum(arms, poly_mask([stroke(path, lambda q, w0=w0: w0 * (math.sin(min(1, q * 1.6) * math.pi * 0.5) ** 0.6) * (1 - 0.35 * q) + 1.5, cap=False)], S))
+        tx, ty = path[0]
+        for d in range(2):
+            rr = f.u(0.016 - 0.005 * d)
+            dd = f.u(0.035 + 0.035 * d)
+            arms = np.maximum(arms, ellipse_mask(tx + math.cos(a0 - 0.5) * dd, ty + math.sin(a0 - 0.5) * dd, rr, rr, S))
+    hole = poly_mask([wobble_ring(c, c, f.u(0.13), 91 + i, amp=0.12, lumps=(3, 5))], S)
+    m = np.maximum(arms, grow(hole, f.u(0.025)))
+    f.fill(grow(m, 5.0 * SS), LIGHT)
+    f.fill(m, BODY, ink=2.5)
+    # each arm's inner (leading) edge darker: a deep band along the swirl
+    f.fill(poly_mask([wobble_ring(c, c, f.u(0.24), 95, amp=0.1, lumps=(5,))], S) * m, DEEP)
+    f.fill(grow(hole, f.u(0.012)), HOT)  # the hot lip round the hole
+    f.fill(hole, INK)
+    return f.finish()
+
+
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "tentacle_skin": (tentacle_skin, 256, 1, 3, "void", "none", 0.9),
@@ -400,6 +491,8 @@ SHEETS = {
     "pop_magma": (pop_magma, 256, 3, 6, "earth", "edge", 0.5),
     "pop_ice": (pop_ice, 256, 3, 6, "water", "edge", 0.35),
     "pop_dark": (pop_dark, 256, 3, 6, "void", "edge", 0.5),
+    "dark_pool": (dark_pool, 384, 2, 4, "void", "edge", 0.5),
+    "dark_vortex": (dark_vortex, 384, 2, 4, "void", "edge", 0.5),
 }
 
 
