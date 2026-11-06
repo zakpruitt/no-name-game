@@ -186,6 +186,7 @@ static func fissure(parent: Node, from: Vector3, dir: Vector3, length: float, st
 
 # --- The frost spear's floor and the Deep Freeze burst -------------------------------------------------------------
 
+const FROST_BURST_REACH := 0.4  # of Deep Freeze's ring radius the burst's cracks run out to
 const FROST_BOIL := 0.33  # s a frame once the frost has spread (ice boils slowly: its glints move)
 static var _unit_plane: PlaneMesh
 
@@ -218,8 +219,9 @@ static func frost_step(mi: MeshInstance3D, t: float, spread: float) -> void:
 static func frost_burst(parent: Node, spot: Vector3, radius: float) -> Node3D:
 	# only the sheet's first frame (the cracks running out, drawn to 0.55 of the frame), sized so they reach `radius`:
 	# the full frost (teeth, plates) over a 13 m breaker landing was a wall of ice under the pile
-	var fx := _spawn(parent, "ice_frost", Vector3(spot.x, DESIGNED.GROUND_LIFT, spot.z), radius * 2.0 / 0.6, "water",
-		[0.38], Vector2(0.35, 1.0))
+	# (0.7 of `radius`, let alone all of it, still crossed the whole screen on the film)
+	var fx := _spawn(parent, "ice_frost", Vector3(spot.x, DESIGNED.GROUND_LIFT, spot.z), radius * FROST_BURST_REACH * 2.0 / 0.6,
+		"water", [0.32], Vector2(0.35, 1.0))
 	fx.real_until = 1
 	fx.scale = Vector3.ONE * 0.55  # the cracks race out on twos
 	var tw := fx.create_tween().set_ignore_time_scale()
