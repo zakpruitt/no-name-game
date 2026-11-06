@@ -723,3 +723,20 @@ element had one green for wind and lightning alike; its whirlwind read as a gree
 - [ ] Still the old look: `comic_axe_aura` storm sparks and the axe's own glow material (`P_GlowWind`, still green),
   `comic_arc`'s speed strokes, the dash streak in storm
 - [ ] Zak's call on the look (clips `awaken-combo-clips/19 Air ...`)
+
+## Round 44 (combo-lightning)
+Zak: "make lightning combos more a part of everything. I specifically want one where the tentacle conducts lightning
+and zaps everybody". See `docs/features/void-element.md` ("The tentacle conducts") and `element-matrix.md` (charged).
+- [x] Live Wire's hang is conducted (`scripts/live_current.gd`): the charge gathers at the claw, each `WIRE_STEP` jolt
+  runs out along every tentacle's drawn curve as a lime knot with the bolt strip lit behind it, the tentacle washed
+  storm-light on twos (`void_tendril.electrify`), each foe zapped as its pulse arrives (quiet `zap_hit`, two forks),
+  then arcs on to those no tentacle holds
+- [x] Galvanize (H L L, `XC`): a tentacle out to each foe Reap marked, wherever it stands, and one pulse down them all;
+  7 a zap x (1 + 0.3 per other link), arcs on (6). Best on a spread-out crowd; bot string `spread H L L`
+- [x] The charged state: set by Live Wire's jolts, Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm; a crackle
+  tell on the foe; cells Overload (storm), Superconduct (ice), Arc Flash (magma), Conduct (dark) with tells and
+  words; bot string `spread H L L wait L H` (Overload)
+- [x] Clips: `awaken-combo-clips/20 Lightning *`
+- [ ] Grounded's LMB ending (Short Circuit, combo-breakers.md round 43 table): not done
+- [ ] Feel pass (a rising pitch per chain link): `Game.sfx` has no pitch control; not done
+- [ ] Zak plays Galvanize and the four cells by hand

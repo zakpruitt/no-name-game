@@ -37,6 +37,9 @@ nearest first, `JUMP_STEP` apart, to everyone in reach no tentacle holds (heavie
 waits `WIRE_START` 0.12 s, until the tentacles have landed, while the charge gathers at his claw (a star swelling,
 four spikes drawn in): the anticipation. `WIRE_STEP` 0.1, `WIRE_DAMAGE` 4.5 (was 0.08 / 0.09 / 3.5: about the same
 damage before a sweet-spot press). The dive ends the current (`finish()`): a late pulse mustn't hit what he throws.
+Every jolt leaves the foe **charged** for `ELEMENT_HOLD` (round 44; so do Grounded, Storm Pitch, Galvanize, Fault
+Line and Cataclysm): the element matrix's charged row ([element-matrix.md](element-matrix.md)) pays it with any other
+element: Overload (storm), Superconduct (ice), Arc Flash (magma), Conduct (dark).
 
 ### Ice
 

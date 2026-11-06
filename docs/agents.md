@@ -56,6 +56,12 @@ fast-forward, so no agent edits another's files or index.
 
 ## Lessons
 
+- **Import after a rebase that brings new assets, before `land`.** A dev commit with new designed PNGs made every
+  check in `land` fail on `Could not preload resource file`; `godot --headless --import --path .` in the worktree,
+  then land. If the full checks pass and only the fast-forward loses the race, rebase, import and `land --quick`
+  straight away (the autotest still runs).
+- **`tests/improv_shots.gd` plays the real move**, and Reap's aim can pick another dummy than the one put in the
+  state: the dark cells then show nothing. Use `--alone` for them (and `--dir=` for your own folder).
 - **Design reviews from film: contact sheets first.** For a judgement pass over many strings, a 30-line PIL script that tiles each `combo_clips/<string>/` (or `string_film`) folder's HIT frames plus every third frame at 400x225, labelled from INDEX.txt, gives one image per string; reading 6-8 sheets covers the kit in minutes instead of hundreds of PNG reads. Look for what repeats across sheets (identical breaker landings, the same star colour, a counter that never drops): that is where the design, not one move, is weak.
 - **`vendor_src/.gdignore` first.** Copying sources into a new worktree's `vendor_src/` without it makes `godot --import` scan the FBX and `.blend` files, fail on the blend importer, and silently skip re-importing your changed assets: the game keeps the old GLB and a shot looks unchanged. Check `.godot/imported/<name>.glb-*.md5` timestamps if a change doesn't show.
 - **Extracted textures are never overwritten.** Godot keeps an existing `<name>_<material>.png` beside a GLB. Copy the new texture over it yourself.
