@@ -69,6 +69,8 @@ const IMPROV_WORDS := {
 	"charged_x_void": "BZZT-ZAP!", "charged_x_water": "KRZZZK!", "charged_x_earth": "FWA-KOOM!", "charged_x_wind": "ZZRAAAK!",
 }
 const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
+## Moves whose word is said by the move itself, later than its first hit (say()): Galvanize's on its discharge.
+const LATE_WORDS := ["XC"]
 const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
 ## captions): round the contact point, in the clearest of these directions (degrees off the way from
@@ -323,7 +325,7 @@ func _watch_hero() -> void:
 		_move_seen = ""
 	elif id != _move_seen:
 		_move_seen = id
-		if MOVE_WORDS.has(id) and Time.get_ticks_msec() - _improv_ms > IMPROV_HOLD_MS:
+		if MOVE_WORDS.has(id) and not id in LATE_WORDS and Time.get_ticks_msec() - _improv_ms > IMPROV_HOLD_MS:
 			var tier: int = hero.COMBOS[id].tier if hero.COMBOS.has(id) else 1
 			tier = mini(tier + (1 if Fx.chain_tier(Game.combo_count) >= 2 else 0), WORD_SCALE.size() - 1)
 			var at: Vector3 = _hit_world if Time.get_ticks_msec() - _hit_ms <= HIT_FRESH_MS else hero.global_position + hero._facing() * 1.4
@@ -371,3 +373,9 @@ func _process(_delta: float) -> void:
 ## Whole frames at FPS, held on twos.
 static func _frame(age_ms: int) -> int:
 	return int(age_ms / 1000.0 * FPS) / 2 * 2
+
+
+## A word said by a move on its own beat (LATE_WORDS: Galvanize's discharge), `base` its size (WORD_SCALE units).
+static func say(text: String, world: Vector3, base: float) -> void:
+	if _inst != null:
+		_inst._say(text, world, base)

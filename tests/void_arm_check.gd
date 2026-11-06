@@ -930,28 +930,33 @@ func _crossovers() -> void:
 	pitched.free()
 	passed.free()
 	await _settle()
-	# Galvanize (H L L): a tentacle on each marked foe, wherever it stands; the current zaps each as it arrives, harder
-	# the more are linked, and arcs on to the one beside them no tentacle took.
+	# Galvanize (H L L, round 44 b): a tentacle to everyone within GALV_REACH, and to the Reap marked further out; one
+	# pulse lands on all of them on the same frame, harder the more are linked, the marked harder still.
 	_check(r.call("light", "VR", true, 0, false) == "XC", "H L L: Galvanize")
 	var DARK: GDScript = load("res://scripts/dark_fx.gd")
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
 	var spread := [_foe(Vector3(-4.0, 0, 3.0)), _foe(Vector3(0, 0, 5.0)), _foe(Vector3(4.5, 0, 2.0))]
-	var beside := _foe(Vector3(6.5, 0, 3.0))  # (not marked: 2.2 m from the third)
+	var beside := _foe(Vector3(6.5, 0, 3.0))  # (not marked, inside GALV_REACH)
+	var far_marked := _foe(Vector3(0, 0, -10.0))  # (behind him, past GALV_REACH, marked)
+	var far := _foe(Vector3(-10.0, 0, -2.0))  # (past GALV_REACH, not marked, out of the arcs' reach)
 	for e: Foe in spread:
 		DARK.mark(e)
+	DARK.mark(far_marked)
+	var all := spread + [beside, far_marked]
 	hero._start_attack("XC")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
-	_check(spread.all(func(e: Foe) -> bool: return e.hits == 0), "the current hasn't arrived on the hit frame")
-	await _until(func() -> bool: return spread.all(func(e: Foe) -> bool: return e.hits > 0) and beside.hits > 0, 1.5)
-	var three: float = el.GALV_DAMAGE * (1.0 + el.GALV_LINK_BONUS * 2.0)
-	_check(spread.all(func(e: Foe) -> bool: return e.hits > 0 and 500.0 - e.hp >= three * 0.99), "Galvanize zaps every marked foe, spread out (%s)" % str(spread.map(func(e: Foe) -> float: return 500.0 - e.hp)))
-	_check(beside.hits > 0 and beside.hp > spread[2].hp, "and arcs on to the one beside them, less (%.0f)" % (500.0 - beside.hp))
-	_check(spread[1].hits == 1, "one zap per linked foe (%d)" % spread[1].hits)
+	_check(all.all(func(e: Foe) -> bool: return e.hits == 0), "the current hasn't arrived on the hit frame")
+	await _until(func() -> bool: return all.any(func(e: Foe) -> bool: return e.hits > 0), 1.5)
+	_check(all.all(func(e: Foe) -> bool: return e.hits == 1), "one pulse lands on all five on the same frame (%s)" % str(all.map(func(e: Foe) -> int: return e.hits)))
+	var five: float = el.GALV_DAMAGE * (1.0 + el.GALV_LINK_BONUS * 4.0)
+	_check(absf(500.0 - beside.hp - five) < 0.1, "five linked: %.1f each (%.1f)" % [five, 500.0 - beside.hp])
+	_check(spread.all(func(e: Foe) -> bool: return absf(500.0 - e.hp - five * el.GALV_MARK_MULT) < 0.1), "the marked x%.2f" % el.GALV_MARK_MULT)
+	_check(far.hits == 0, "nobody unmarked past GALV_REACH")
+	_check(el.marked(beside, "charged"), "Galvanize leaves them charged")
 	await _settle()
-	for e: Foe in spread:
+	for e: Foe in all + [far]:
 		e.free()
-	beside.free()
 	await _settle()
 	# Black Ice: the pool freezes them, the landing shatters them down into the floor.
 	var pooled := _foe(Vector3(0, 0, 4))

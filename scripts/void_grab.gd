@@ -87,6 +87,7 @@ var _seized := []  # {foe, from, tendril}: held through a breaker
 var _spare := []  # tendrils from earlier breakers
 var _zaps := 0  # jolts so far this hang
 var _current: Node3D  # Live Wire's current along the tentacles (live_current.gd)
+var _jolted := []  # who it zapped: charged once the hang ends (round 44 b: the crackle tell over the held pile was noise)
 var _spear_at := Vector3.ZERO  # Harpoon: where the spear tip's going
 var _carry: Node3D  # the foe he snatched off a swing
 var _carry_rope: Node3D
@@ -447,8 +448,9 @@ func seize(b := {}) -> void:
 		e.stagger(HOLD)
 	if b.has("wire"):  # the current runs along these tentacles, and arcs on to whoever they couldn't hold
 		_current = LIVE_CURRENT.start(hero, _seized.map(func(s: Dictionary) -> Dictionary: return {"foe": s.foe, "tendril": s.tendril}))
-		_current.on_zap = func(e: Node3D, _p: int) -> void: VOID_ELEMENT.jolt(hero, e)
-		_current.on_jump = func(e: Node3D, _from: Variant) -> void: VOID_ELEMENT.jolt(hero, e)
+		_jolted = []
+		_current.on_zap = func(e: Node3D, _p: int) -> void: _jolt(e)
+		_current.on_jump = func(e: Node3D, _from: Variant) -> void: _jolt(e)
 		_current.find_jumps = reachable
 
 
@@ -464,6 +466,7 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 	if phase != 0 and is_instance_valid(_current):  # the dive: the slam takes over (a late pulse mustn't hit what he throws)
 		_current.finish()
 		_current = null
+		_charge_jolted()
 	for s: Dictionary in _seized:
 		var e: Node3D = s.foe
 		if not is_instance_valid(e) or not e.is_alive():
@@ -558,6 +561,7 @@ func release_seized() -> void:
 	if is_instance_valid(_current):
 		_current.finish()
 	_current = null
+	_charge_jolted()
 	for s: Dictionary in _seized:
 		s.tendril.visible = false
 		s.tendril.line = false
@@ -814,3 +818,17 @@ func _release(fling: bool) -> void:
 		hero._post_dash_t = FLING_TIME  # so a press off the fling is the dash's lunge
 		hero._face(_tangent())
 	hero._set_state(hero.State.MOVE)
+
+
+## One Live Wire jolt on `e` (charged later, _charge_jolted).
+func _jolt(e: Node3D) -> void:
+	VOID_ELEMENT.jolt(hero, e, false)
+	if not e in _jolted:
+		_jolted.append(e)
+
+
+## The hang is over: everyone it zapped carries the charge (the element matrix's charged state).
+func _charge_jolted() -> void:
+	for e: Variant in _jolted:
+		VOID_ELEMENT.mark(e, "charged")
+	_jolted = []

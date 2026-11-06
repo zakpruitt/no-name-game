@@ -255,12 +255,28 @@ const PITCH_SPEED := 26.0
 ## Galvanize (H L L, round 44): Reap marked them where they stand; a tentacle goes out to each and the storm runs
 ## down them (live_current.gd), then arcs on. Its place: a spread-out crowd, which Updraft Lash and Molten Palm
 ## need bunched. More linked, harder each zap; Black Tide (H L H) is the other answer off Reap, gathering them.
-const GALV_REACH := 9.0  # m: how far a tentacle goes for a foe Reap marked
-const GALV_NEAR := 6.0  # m: with nobody marked, who it takes in front of him...
-const GALV_CONE := 1.35  # ...within this many radians of his aim (Reap's crescent)
-const GALV_LINKS := 5  # tentacles at most
+## Round 44 b: an event in three beats (live_current stagger / hold / together). Reach out: a tentacle whips out to
+## every foe in GALV_REACH round him, nearest first, GALV_STAGGER apart; Reap's mark only reaches further
+## (GALV_MARK_REACH) and hits harder (GALV_MARK_MULT), and the marked are taken first past GALV_LINKS. Charge:
+## GALV_HOLD s held in slow motion, the claw crackling and the tentacles lighting out from it. Discharge: one fat
+## pulse lands on all of them on the same frame (GALV_TOGETHER), a real hit each (star, flash, stagger), a hit stop
+## and the word on that frame, both bigger the more are linked; the arcs chain on; the tentacles snap back.
+const GALV_REACH := 8.0  # m round him: a tentacle goes to everyone this near...
+const GALV_MARK_REACH := 11.0  # ...and to the Reap marked this near
+const GALV_LINKS := 6  # tentacles at most
 const GALV_DAMAGE := 7.0  # each linked foe's zap with one linked...
 const GALV_LINK_BONUS := 0.3  # ...and this much more per other foe linked (5 linked: x2.2, 15.4 each, 77 in all)
+const GALV_MARK_MULT := 1.25  # a Reap-marked foe's zap
+const GALV_STAGGER := 0.035  # s between the tentacles leaving his claw
+const GALV_HOLD := 0.07  # s (game; x2 in the slow) the charge holds
+const GALV_TOGETHER := 0.07  # s the pulse takes down every tentacle
+const GALV_FAT := 1.8  # the pulse's width (Live Wire's is 1)
+const GALV_STUN := 0.45  # s each linked foe staggers (the jolt)
+const GALV_STOP := 0.045  # s hit stop on the burst...
+const GALV_STOP_PER := 0.015  # ...and this much more per other foe linked (max GALV_STOP_MAX)
+const GALV_STOP_MAX := 0.13
+const GALV_WORD := 0.4  # the word's size (ComicFx WORD_SCALE units) with one linked...
+const GALV_WORD_PER := 0.05  # ...and this much bigger per other
 const GALV_JUMP := 3.5  # m an arc jumps from a zapped foe to one no tentacle holds (and on from that one)
 const GALV_JUMP_DAMAGE := 6.0
 const GALV_JUMPS := 4  # arcs at most
@@ -441,11 +457,12 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 
 ## One of Live Wire's jolts reaching a foe: a pulse down its tentacle, or an arc on to one no tentacle holds
 ## (void_grab.seize's live_current calls it as the pulse arrives).
-static func jolt(hero: CharacterBody3D, e: Node3D) -> void:
+static func jolt(hero: CharacterBody3D, e: Node3D, charge := true) -> void:
 	if not is_instance_valid(e) or not e.is_alive():
 		return
 	zap_hit(e, WIRE_DAMAGE * hero._dmg_mult * hero._cast_power())
-	mark(e, "charged")  # (round 44: the lightning stays in them, the element matrix's charged state)
+	if charge:  # (round 44: the lightning stays in them, the element matrix's charged state; Live Wire marks after the hang)
+		mark(e, "charged")
 	Game.register_hit("cast")
 	Game.sfx("hit_big", -8.0, 0.15)
 
@@ -917,15 +934,20 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 ## GALV_LINK_BONUS per other link), then arcs jump on to the foes near them no tentacle reached (GALV_JUMP, chained).
 static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var tree := hero.get_tree()
-	var near: Array = FOES.near(tree, at, GALV_REACH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
-	var linked: Array = near.filter(func(e: Node3D) -> bool: return DARK.marked(e))
-	if linked.is_empty():
-		linked = near.filter(func(e: Node3D) -> bool:
-			var to := _flat(e.global_position - at)
-			return to.length() <= GALV_NEAR and (to.length() < 0.5 or fwd.angle_to(to.normalized()) <= GALV_CONE))
-	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+	var linked: Array = FOES.near(tree, at, GALV_MARK_REACH).filter(func(e: Node3D) -> bool:
+		return not THROWN.flying(e) and (DARK.marked(e) or _flat(e.global_position - at).length() <= GALV_REACH))
+	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (the marked first past the cap)
+		var ma: bool = DARK.marked(a)
+		if ma != DARK.marked(b):
+			return ma
 		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
 	linked = linked.slice(0, GALV_LINKS)
+	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (nearest first: they latch in that order)
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	var marked := {}
+	for e: Node3D in linked:
+		if DARK.marked(e):
+			marked[e] = true
 	if linked.is_empty():  # nobody to latch onto: it crackles out ahead
 		var from := at + Vector3.UP * 1.3 + fwd * 0.6
 		for k: float in [3.0, 6.0]:
@@ -933,10 +955,26 @@ static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 		return 0
 	var each: float = GALV_DAMAGE * power * (1.0 + GALV_LINK_BONUS * (linked.size() - 1))
 	var c: Node3D = LIVE_CURRENT.start(hero, linked.map(func(e: Node3D) -> Dictionary: return {"foe": e}), true)
-	c.on_zap = func(e: Node3D, _p: int) -> void:
-		zap_hit(e, each)
+	c.stagger = GALV_STAGGER
+	c.hold = GALV_HOLD
+	c.together = GALV_TOGETHER
+	c.fat = GALV_FAT
+	c.on_zap = func(e: Node3D, _p: int) -> void:  # a real hit: star, flash, number, and the jolt (a stagger)
+		var out := _flat(e.global_position - hero.global_position)
+		e.take_hit(each * (GALV_MARK_MULT if marked.has(e) else 1.0), (out.normalized() if out.length() > 0.01 else fwd) * 2.0, 0.0, true)
+		if not hero._void.is_heavy(e) and e.has_method("stagger"):
+			e.stagger(GALV_STUN)
 		mark(e, "charged")
 		Game.register_hit("cast")
+	c.on_burst = func(foes: Array) -> void:  # all at once: the hit stop and the word, bigger the more linked
+		var n := linked.size()
+		Game.hitstop(minf(GALV_STOP + GALV_STOP_PER * (n - 1), GALV_STOP_MAX))
+		Game.shake(0.25 + 0.06 * n)
+		var mid := Vector3.ZERO
+		for e: Variant in foes:
+			if is_instance_valid(e):
+				mid += (e as Node3D).global_position
+		ComicFx.say(ComicFx.MOVE_WORDS["XC"], mid / maxf(foes.size(), 1), GALV_WORD + GALV_WORD_PER * (n - 1))
 	c.on_jump = func(e: Node3D, _from: Variant) -> void:
 		zap_hit(e, GALV_JUMP_DAMAGE * power)
 		mark(e, "charged")

@@ -15,6 +15,10 @@ extends Node3D
 ## nothing but still zaps.
 ##   var c := LIVE_CURRENT.start(hero, links, own)   # links: [{"foe": e, "tendril": t}]; own: draws its tentacles
 ##   c.on_zap = func(e, pulse): ...;  c.pulse()
+## Galvanize stages it as one event (round 44 b): `stagger` (own tentacles latch one by one), `hold` (the charge holds
+## in a slow beat, the tentacles brightening out from his claw), `together` (one fat pulse lands on all of them on the
+## same frame: `on_burst`), `fat` (its width). The tentacle bolt is drawn by _trail_strip (the lit strip), _head (the
+## travelling knot), _claw (the charge) and _pop (the forks on arrival); the hits' own pops are enemy.take_hit's.
 
 const SELF := preload("res://scripts/live_current.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
@@ -41,6 +45,8 @@ const ZAP_STOP := 0.035  # s hit stop on the first foe each pulse reaches (a sta
 const SHOOT := 0.08
 const RETRACT := 0.1
 const OWN_WAVE := 0.05
+const HOLD_SLOW := 0.5  # Engine time scale through a `hold` (Game.hitstop: flat slow motion, no ramp or impact frame)
+const HOLD_LIT := 0.4  # of each tentacle's length the hold brightens out from his claw by its end
 
 var hero: Node3D
 var links := []  # [{foe, tendril}]: who a tentacle touches
@@ -48,9 +54,14 @@ var own := false  # draws (and frees) its own tentacles; Live Wire's are void_gr
 var on_zap := Callable()  # (foe, pulse index) when a pulse reaches a linked foe
 var on_jump := Callable()  # (foe, from foe or null) when an arc jumps on to one no tentacle holds
 var find_jumps := Callable()  # () -> Array of foes for the arcs, asked once per pulse as it delivers
+var stagger := 0.0  # own: s between the tentacles leaving his claw, nearest first (they latch one by one)
+var hold := 0.0  # s (game) the charge holds once all have latched, in HOLD_SLOW
+var together := 0.0  # s: > 0, each pulse takes this long down every tentacle whatever its length, so all land at once
+var fat := 1.0  # the pulse's width: its lit strip and its head
+var on_burst := Callable()  # (foes) once a frame that a together pulse lands on them
+var _held := false
 var _pulses := []  # {t0, hit: {link i: true}, jumps: [], next_jump, from}
 var _t := 0.0
-var _first := 0.0  # when the first pulse may leave the claw
 var _end_t := -1.0  # own: when the current finished (the tentacles draw back)
 var _closing := false
 var _trail_mi: MeshInstance3D
@@ -77,7 +88,6 @@ func _ready() -> void:
 	top_level = true
 	global_transform = Transform3D.IDENTITY
 	_rng.randomize()
-	_first = (SHOOT if own else 0.0) + CHARGE
 	if own:
 		for l: Dictionary in links:
 			var t: Node3D = TENDRIL.new()
@@ -105,7 +115,27 @@ func _mesh_instance(mesh: ArrayMesh) -> MeshInstance3D:
 
 ## Another pulse out of the claw (the first waits for the charge).
 func pulse() -> void:
-	_pulses.append({"t0": maxf(_t, _first), "hit": {}, "jumps": [], "asked": false, "next_jump": 0.0, "from": []})
+	_pulses.append({"t0": maxf(_t, _first()), "hit": {}, "jumps": [], "asked": false, "next_jump": 0.0, "from": []})
+
+
+## When the tentacles have all latched (own), and when the first pulse may leave the claw.
+func _latched() -> float:
+	return (SHOOT + stagger * maxi(links.size() - 1, 0)) if own else 0.0
+
+
+func _first() -> float:
+	return _latched() + CHARGE + hold
+
+
+## How far down a `length` m tentacle pulse `p` has run, and when it arrives.
+func _ran(p: Dictionary, length: float) -> float:
+	if together > 0.0:
+		return clampf((_t - p.t0) / together, 0.0, 1.0) * length
+	return (_t - p.t0) * SPEED
+
+
+func _arrives(p: Dictionary, length: float) -> float:
+	return p.t0 + (together if together > 0.0 else length / SPEED)
 
 
 ## Stop: no more pulses; own tentacles draw back, then it frees itself. Live Wire's let go (release_seized) frees it.
@@ -130,6 +160,9 @@ func _physics_process(delta: float) -> void:
 		_draw_tentacles(hand)
 	for l: Dictionary in links:
 		l["path"] = _path(l)
+	if hold > 0.0 and not _held and _t >= _latched() + CHARGE:  # the held beat: the world slows while it charges
+		_held = true
+		Game.hitstop(hold / HOLD_SLOW, HOLD_SLOW)
 	for p: Dictionary in _pulses:
 		_run(p, hand)
 	if own and _end_t < 0.0 and not _pulses.is_empty() and _pulses.all(func(p: Dictionary) -> bool: return _delivered(p)):
@@ -145,8 +178,8 @@ func _physics_process(delta: float) -> void:
 func _run(p: Dictionary, hand: Vector3) -> void:
 	if _t < p.t0:
 		return
-	var run: float = (_t - p.t0) * SPEED
 	var first: bool = p.hit.is_empty()
+	var landed := []
 	for i in links.size():
 		if p.hit.has(i):
 			continue
@@ -157,15 +190,18 @@ func _run(p: Dictionary, hand: Vector3) -> void:
 		var path: PackedVector3Array = l.path
 		if path.is_empty() and _t - p.t0 < LOST:  # (the tentacle hasn't reached it yet)
 			continue
-		if run >= _length(path):
+		if _t >= _arrives(p, _length(path)):
 			p.hit[i] = true
 			p.from.append(l.foe)
+			landed.append(l.foe)
 			_pop(l.foe)
-			if first:
+			if first and together <= 0.0:
 				first = false
 				Game.hitstop(ZAP_STOP)
 			if on_zap.is_valid():
 				on_zap.call(l.foe, _pulses.find(p))
+	if not landed.is_empty() and together > 0.0 and on_burst.is_valid():
+		on_burst.call(landed)
 	if p.hit.size() < links.size():
 		return
 	if not p.asked:  # every tentacle has delivered: the arcs jump on
@@ -236,10 +272,11 @@ static func _length(pts: PackedVector3Array) -> float:
 
 ## Galvanize's own tentacles: out to each linked foe, held while the current runs, drawn back after.
 func _draw_tentacles(hand: Vector3) -> void:
-	var reach := smoothstep(0.0, SHOOT, _t)
-	if _end_t >= 0.0:
-		reach = 1.0 - smoothstep(_end_t + LIT, _end_t + LIT + RETRACT, _t)
-	for l: Dictionary in links:
+	for i in links.size():
+		var l: Dictionary = links[i]
+		var reach := smoothstep(stagger * i, stagger * i + SHOOT, _t)
+		if _end_t >= 0.0:
+			reach = 1.0 - smoothstep(_end_t + LIT, _end_t + LIT + RETRACT, _t)
 		if not is_instance_valid(l.tendril):
 			continue
 		if not _alive(l.foe):
@@ -255,14 +292,16 @@ func _tint() -> void:
 		if not is_instance_valid(t):
 			continue
 		var k := 0.0
-		if _t < _first:
-			k = 0.25 * clampf(_t / _first, 0.0, 1.0)
+		if _t < _first():
+			k = 0.25 * clampf(_t / _first(), 0.0, 1.0)
+			if hold > 0.0 and _t >= _latched():  # the held beat: brightening
+				k = lerpf(0.35, 1.0, _hold_k())
 		for p: Dictionary in _pulses:
 			if _t < p.t0:
 				continue
-			var run: float = (_t - p.t0) * SPEED
 			var length := _length(links[i].get("path", PackedVector3Array()))
-			var arrived: float = p.t0 + length / SPEED
+			var run := _ran(p, length)
+			var arrived := _arrives(p, length)
 			if run < length or _t - arrived < LIT:
 				k = 1.0
 			elif not _closing:
@@ -284,29 +323,35 @@ func _draw(hand: Vector3) -> void:
 	var tv := PackedVector3Array()
 	var tu := PackedVector2Array()
 	var ti := PackedInt32Array()
-	if _t < _first or (_pulses.is_empty() and not _closing):  # the charge gathering at his claw
-		_claw(hand, clampf(_t / maxf(_first, 0.01), 0.0, 1.0), right, up)
+	if _t < _first() or (_pulses.is_empty() and not _closing):  # the charge gathering at his claw
+		var hk := _hold_k()
+		_claw(hand, clampf(_t / maxf(_first(), 0.01), 0.0, 1.0) * (1.0 + 0.5 * hk), right, up)
+		if hk > 0.0:  # the held beat: the tentacles light out from his claw, boiling
+			for l: Dictionary in links:
+				if is_instance_valid(l.tendril) and l.tendril.visible:
+					var path: PackedVector3Array = l.get("path", PackedVector3Array())
+					_trail_strip(path, _length(path) * HOLD_LIT * hk, view, tv, tu, ti, 0.7)
 	for p: Dictionary in _pulses:
 		if _t < p.t0:
 			continue
-		var run: float = (_t - p.t0) * SPEED
-		if run < 0.06 * SPEED:  # the claw flashes as each pulse leaves it
-			_claw(hand, 0.7, right, up)
+		if _t - p.t0 < 0.06:  # the claw flashes as each pulse leaves it
+			_claw(hand, 0.7 * fat, right, up)
 		for i in links.size():
 			var l: Dictionary = links[i]
 			if not is_instance_valid(l.tendril) or not l.tendril.visible:
 				continue
 			var path: PackedVector3Array = l.get("path", PackedVector3Array())
 			var length := _length(path)
-			var arrived: float = p.t0 + length / SPEED
+			var arrived := _arrives(p, length)
+			var run := _ran(p, length)
 			var to := run
-			if run >= length:
+			if _t >= arrived:
 				if _t - arrived >= LIT:
 					continue
 				to = length
 			else:
 				_head(_along(path, run), right, up)
-			_trail_strip(path, to, view, tv, tu, ti)
+			_trail_strip(path, to, view, tv, tu, ti, fat)
 	_commit(_flat, _fv, _fc, FORM_FX.material())
 	_trail.clear_surfaces()
 	if tv.is_empty():
@@ -324,6 +369,13 @@ func _draw(hand: Vector3) -> void:
 	_trail_mi.set_instance_shader_parameter("erode", 0.0)
 
 
+## 0..1 through the held beat (0 outside it).
+func _hold_k() -> float:
+	if hold <= 0.0 or _t < _latched() + CHARGE:
+		return 0.0
+	return clampf((_t - _latched() - CHARGE) / hold, 0.0, 1.0)
+
+
 ## The point `d` metres along the curve's straight part.
 static func _along(pts: PackedVector3Array, d: float) -> Vector3:
 	var n := pts.size()
@@ -337,11 +389,11 @@ static func _along(pts: PackedVector3Array, d: float) -> Vector3:
 
 ## The bolt strip along the tentacle's curve from his claw to `to` metres out: the tentacle lit behind the pulse.
 ## UV.x runs in strip tiles (one tile is TRAIL_W x 2.6 x DESIGNED.BOLT_TILE long), so the zigzags keep their shape.
-func _trail_strip(pts: PackedVector3Array, to: float, view: Vector3, tv: PackedVector3Array, tu: PackedVector2Array, ti: PackedInt32Array) -> void:
+func _trail_strip(pts: PackedVector3Array, to: float, view: Vector3, tv: PackedVector3Array, tu: PackedVector2Array, ti: PackedInt32Array, width := 1.0) -> void:
 	var n := pts.size()
 	if n < 2 or to <= 0.05:
 		return
-	var w := TRAIL_W * 2.6
+	var w := TRAIL_W * 2.6 * width
 	var tile := w * DESIGNED.BOLT_TILE
 	var line := PackedVector3Array([pts[0]])
 	var d := 0.0
@@ -374,10 +426,11 @@ func _trail_strip(pts: PackedVector3Array, to: float, view: Vector3, tv: PackedV
 func _head(at: Vector3, right: Vector3, up: Vector3) -> void:
 	var turn := _rng.randf() * TAU
 	var p: Dictionary = PAL.of("wind")
-	_star(at, HEAD_R * 1.45, 0.35, turn + 0.4, right, up, PAL.fade(p.body, 0.8))
-	_star(at, HEAD_R + PAL.LINE, 0.42, turn, right, up, p.ink)
-	_star(at, HEAD_R, 0.42, turn, right, up, p.light)
-	_star(at, HEAD_R * 0.45, 0.6, turn, right, up, p.hot)
+	var r := HEAD_R * sqrt(fat)
+	_star(at, r * 1.45, 0.35, turn + 0.4, right, up, PAL.fade(p.body, 0.8))
+	_star(at, r + PAL.LINE, 0.42, turn, right, up, p.ink)
+	_star(at, r, 0.42, turn, right, up, p.light)
+	_star(at, r * 0.45, 0.6, turn, right, up, p.hot)
 
 
 ## The charge at his claw, `k` 0..1: a star swelling and four spikes drawn in towards it.
@@ -396,7 +449,8 @@ func _claw(at: Vector3, k: float, right: Vector3, up: Vector3) -> void:
 	_star(at, r * 0.3, 0.6, turn, right, up, p.hot)
 
 
-## A zapped foe: three short forks crackle off its chest.
+## A zapped foe: one short fork off its chest (Live Wire: the travelling pulse is the star, round 44 b: two a
+## jolt plus the charged crackles stacked on the held pile), two longer ones for a together burst.
 func _pop(e: Node3D) -> void:
 	if _cam == null:
 		return
@@ -404,9 +458,11 @@ func _pop(e: Node3D) -> void:
 	var right := _cam.global_basis.x
 	var up := _cam.global_basis.y
 	var turn := _rng.randf() * TAU
-	for i in 2:  # (three per foe per pulse were a scribble over the pile)
+	var forks := 2 if together > 0.0 else 1
+	for i in forks:
 		var a := turn + PI * i + _rng.randf_range(-0.4, 0.4)
-		COMIC_BOLT.spawn(get_parent(), at, at + (right * cos(a) + up * sin(a)) * POP_LEN, 0.14)
+		var length := POP_LEN * (1.0 if together > 0.0 else 0.6)
+		COMIC_BOLT.spawn(get_parent(), at, at + (right * cos(a) + up * sin(a)) * length, 0.14 * (fat if together > 0.0 else 0.85))
 
 
 func _star(at: Vector3, r: float, inner: float, turn: float, right: Vector3, up: Vector3, c: Color) -> void:
