@@ -471,7 +471,7 @@ static func geyser(parent: Node, at: Vector3, high: float) -> Node3D:
 	return fx
 
 
-const POOL_QUAD := 2.6  # quad side per metre of the well's radius (the pool is drawn 0.36 of the quad round)
+const POOL_QUAD := 2.25  # quad side per metre of the well's radius (drawn 0.36 of the quad round: 2.6 merged a pile's pools)
 const POOL_TIMES := [0.05, 0.12, 0.17, 0.17, 0.2, 0.2]  # ~0.9 s (elements.WELL_COMIC_SHOW): the burn outlasts the look
 
 
