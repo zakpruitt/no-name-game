@@ -197,6 +197,7 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	_last_form = arm.form
 	keyed = _clips_key_claws(arm.hero.anim)
 	_root = skel.find_bone("root")
+	_tighten_awaken_rim(arm.hero)
 	_scale_model(arm.hero.model, skel)
 	skel.add_child(self)
 	_warm_fx(skel)
@@ -217,6 +218,20 @@ static func _scale_model(model: Node3D, skel: Skeleton3D) -> void:
 
 
 ## Feel audit 2026-11-04 item 3: in breaker hangs and slams he was lost under the bolts, rings and words.
+## Awakened, every mesh gets the additive fresnel overlay (player._awaken_rim, shaders/rim_glow.gdshader). Its
+## defaults (power 2.2, intensity 2.5) turn every dark region of the v2 body gold from the play camera: a flat
+## gold blob. A tight, dimmer fresnel keeps his own colours with a gold edge. The material is the hero's own copy.
+const AWAKEN_RIM_POWER := 5.0
+const AWAKEN_RIM_INTENSITY := 1.6
+
+
+func _tighten_awaken_rim(hero: Node) -> void:
+	var rim = hero.get("_awaken_rim")
+	if rim is ShaderMaterial:
+		rim.set_shader_parameter("power", AWAKEN_RIM_POWER)
+		rim.set_shader_parameter("intensity", AWAKEN_RIM_INTENSITY)
+
+
 ## A paper rim (shaders/hero_rim.gdshader) past his ink, drawn after the effects, keeps his silhouette.
 ## Chained after Fx.outline's ink pass on his own copies of his surfaces (the ink material is shared).
 func _add_rim(skel: Skeleton3D) -> void:
