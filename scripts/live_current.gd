@@ -42,6 +42,10 @@ const LOST := 0.5  # s: a pulse whose tentacle never reached its foe zaps it any
 const TINT := Color(0.94, 1.0, 0.6)  # (fx_palette storm light, lime) the storm light the tentacle is washed in while it carries a pulse
 const CHEST := Vector3(0.0, 0.9, 0.0)
 const ZAP_STOP := 0.035  # s hit stop on the first foe each pulse reaches (a staccato, not a stall)
+## Feel audit 3 item 1: a 0.035 s freeze on every pulse (each WIRE_STEP 0.1 s) made the hang flick x0.03 / x1.0
+## frame to frame on film, a stalling engine instead of current, and ~35% longer. The first pulse keeps ZAP_STOP
+## (it connected); each later one this much, a tick in the rhythm.
+const ZAP_STOP_AFTER := 0.012
 const JUMP_STOP := 0.018  # s hit stop on a together pulse's arcs, the first...
 const JUMP_STOP_PER := 0.008  # ...and this much longer each link out
 ## Own tentacles (Galvanize): out over SHOOT before the charge, back over RETRACT once the current is done.
@@ -200,7 +204,7 @@ func _run(p: Dictionary, hand: Vector3) -> void:
 			_pop(l.foe)
 			if first and together <= 0.0:
 				first = false
-				Game.hitstop(ZAP_STOP)
+				Game.hitstop(ZAP_STOP if _pulses.find(p) == 0 else ZAP_STOP_AFTER)
 			if on_zap.is_valid():
 				on_zap.call(l.foe, _pulses.find(p))
 	if not landed.is_empty() and together > 0.0 and on_burst.is_valid():
