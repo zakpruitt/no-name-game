@@ -470,6 +470,15 @@ static func shard_mat() -> StandardMaterial3D:
 static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 		color := Color(0.93, 0.89, 0.78)) -> void:
 	var at := pos + Vector3.UP * 0.9
+	if Game.comic_style and DESIGNED.on():  # round 45: the drawn kill: a big held star, a burst of strokes thrown
+		# along the blow, a dust puff where he drops (the bone chips were loose polygons)
+		var star := DESIGNED.spawn(parent, "hit_spark", at, DESIGNED.HIT_SIZE * (1.6 if big else 1.3), "hit", DESIGNED_INK.KILL_TIMES, Vector2(0.55, 1.0))
+		star.real_until = 1
+		star.pop = 0.15
+		star.vary(PI, true)
+		DESIGNED.streaks(parent, at, dir, "hit", true)
+		DESIGNED.dust(parent, pos, 1.1 if big else 0.85)
+		return
 	if Game.comic_style:  # a held kill star, strokes all round, bone chips; no smoke, no soft ring
 		COMIC_POP.spawn(parent, at, {"star": 1.15 if big else 0.9, "spikes": 11, "hold": 2, "steps": 3,
 			"strokes": 8, "radial": true, "gap": 0.7, "stroke_len": 0.6, "stroke_w": 0.18,
@@ -487,6 +496,11 @@ static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 ## narrowing and fading over `time`.
 static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float, color: Color,
 		time := 0.3, width := 2.2) -> void:
+	if Game.comic_style and DESIGNED.on():  # round 45: drawn speed strokes thrown back off his kick-off, in his colour
+		var d0 := Vector3(dir.x, 0.0, dir.z).normalized()
+		if DESIGNED_INK.once_a_frame("dash"):
+			DESIGNED.streaks(parent, from + Vector3.UP * 0.5 - d0 * 0.2, -d0, DESIGNED.PAL.nearest(color))
+		return
 	# The dot stretched along the dash: a soft speed smear.
 	var mat := unshaded_mat(Color(color, color.a * (0.5 if Game.reduce_flashing else 1.0)), "dot")
 	var plane := PlaneMesh.new()

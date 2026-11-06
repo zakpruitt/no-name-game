@@ -207,6 +207,7 @@ const POP_FULL := 2  # full-size pops in one frame
 const POP_SMALL := 2  # then this many at POP_SMALL_K
 const POP_SMALL_K := 0.6
 const STREAKS_A_FRAME := 1  # impact streaks (Fx.impact) in one frame
+const KILL_TIMES := [0.033, 0.12, 0.08, 0.06, 0.06, 0.06, 0.07, 0.08]  # round 45: the kill star holds its peak (hit_spark's 8)
 
 static var _registered := false
 static var _frame := -1
