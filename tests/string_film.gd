@@ -1,7 +1,7 @@
 extends SceneTree
 ## Films every autotest bot string (training_bot.BOT_STRINGS: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
-##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name]
+##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name] [--fps=N] [--tail=MS: film on after the string]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ##   `--layout=wall|stray` (with --from=11 --to=11, L L L H H + Meteor Fall): the dummies' homes near the back wall
@@ -27,6 +27,8 @@ var _p: CharacterBody3D
 var _bot: Node
 var _frames: Array = []  # [Image, index line]
 var _t0 := 0  # ms the current film started
+var _fps := FPS  # `-- --fps=N`: film denser (clips for Zak; frames still land on the display's 60 Hz)
+var _tail := 0.0  # `-- --tail=MS`: keep filming a string this long after the bot moves on (a slide or a fall that outlasts it)
 var _n := 0  # frames due so far in this film (a fixed 1/FPS schedule from _t0)
 var _brk_seen := 0  # breakers landed at the last slam frame grabbed
 var _hit_seen := ""  # move id + hits done at the last contact frame grabbed
@@ -56,6 +58,10 @@ func _initialize() -> void:
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--dir="):
 			_dir = "user://" + arg.get_slice("=", 1)
+		if arg.begins_with("--fps="):
+			_fps = float(arg.get_slice("=", 1))
+		if arg.begins_with("--tail="):
+			_tail = float(arg.get_slice("=", 1))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_dir))
 	var strings: Array = _bot.BOT_STRINGS
 	var filming := 0
@@ -81,6 +87,12 @@ func _initialize() -> void:
 	while _bot._bot_strings_done.size() < strings.size():
 		_bot._autotest_t = 0.0
 		await RenderingServer.frame_post_draw
+		if _bot._bot_string != filming and _tail > 0.0:  # (the tail: film on until the next string's reset)
+			var tail_t0 := Time.get_ticks_msec()
+			while Time.get_ticks_msec() - tail_t0 < _tail and not _bot._reset_done:
+				_bot._autotest_t = 0.0
+				_grab()
+				await RenderingServer.frame_post_draw
 		if _bot._bot_string != filming:  # the bot moved on: write the last string out
 			_flush(_name(strings[filming]))
 			filming = _bot._bot_string
@@ -160,11 +172,11 @@ func _grab() -> void:
 	if _p.breakers_landed != _brk_seen:  # a breaker's slam
 		_brk_seen = _p.breakers_landed
 		hit = true
-	var due := now - _t0 >= _n * 1000.0 / FPS
+	var due := now - _t0 >= _n * 1000.0 / _fps
 	if not due and not hit:
 		return
 	if due:
-		_n = int((now - _t0) * FPS / 1000.0) + 1
+		_n = int((now - _t0) * _fps / 1000.0) + 1
 	var img: Image = get_root().get_texture().get_image()
 	img.resize(SIZE.x, SIZE.y, Image.INTERPOLATE_BILINEAR)
 	var line := "%03d%s t=%5d ms move=%-3s state=%-6s hits=%d scale=%.2f brk=%d combo=%d" % [_frames.size(), " HIT" if hit else "    ", now - _t0,
@@ -180,7 +192,7 @@ func _grab() -> void:
 func _flush(film: String) -> void:
 	var dir := "%s/%s" % [_dir, film]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
-	var index := PackedStringArray(["%s at %d fps, %dx%d, game camera" % [film, int(FPS), SIZE.x, SIZE.y]])
+	var index := PackedStringArray(["%s at %d fps, %dx%d, game camera" % [film, int(_fps), SIZE.x, SIZE.y]])
 	for i in _frames.size():
 		_frames[i][0].save_png("%s/%03d.png" % [dir, i])
 		index.append(_frames[i][1])
