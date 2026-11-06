@@ -276,6 +276,8 @@ static func hit(parent: Node, at: Vector3, element: String, size := 0.9) -> Node
 
 ## The directional half of a hit (Fx.impact): streaks thrown along the knockback, turned to it on screen.
 static func streaks(parent: Node, at: Vector3, dir: Vector3, element: String, big := false) -> Node3D:
+	if PAL.ALIAS.get(element, element) == "wind":  # fx-air: a storm blow's directional half is a pale gust, not lime wedges
+		return gust(parent, at, dir, 1.25 if big else 0.95)
 	var size := STREAK_SIZE * (1.3 if big else 1.0)
 	var fx := spawn(parent, "impact_streaks", at, size, element, STREAK_TIMES, Vector2(0.55, 1.0))
 	fx.real_until = 1
@@ -309,6 +311,8 @@ static func slash(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_d
 		st.add_vertex(d * r_in)
 		st.set_uv(Vector2(u, 1.0))
 		st.add_vertex(d * radius)
+	if PAL.ALIAS.get(element, element) == "wind":  # fx-air: the storm axe's swing is a stroke of wind (air row)
+		element = "air"
 	var fx: Node3D = SELF.new()
 	fx.sheet = "slash_strip"
 	parent.add_child(fx)
@@ -443,6 +447,40 @@ static func bolt(parent: Node, a: Vector3, b: Vector3, width := 0.24, star := 0.
 static func dust(parent: Node, at: Vector3, size := 1.0) -> Node3D:
 	var fx := spawn(parent, "dust_puff", Vector3(at.x, 0.0, at.z), DUST_SIZE * size, "dust", DUST_TIMES, Vector2(0.4, 1.0))
 	return fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+
+
+# --- air (fx-air lane) ----------------------------------------------------------------------------------------
+
+const GUST_SIZE := 1.2  # m: the quad (the drawing's puff sits a third in from its back edge)
+const GUST_BACK := 0.3  # of the size: the quad moves this far along the blow, so the puff sits on the hit
+const GUST_MAX := 2  # gusts per beat from streaks() (crowd hits)
+const GUST_BEAT_MS := 120
+static var _gusts: Array = []
+const GUST_TIMES := [0.033, 0.06, 0.05, 0.05, 0.05, 0.06, 0.06, 0.07]
+
+
+## A directional gust (air_gust): a puff bursting where the wind starts and two curled ribbons streaming along
+## `dir` (turned to it on screen). Storm blows' directional half (streaks()), Gale Lift, throws, wind dashes.
+static func gust(parent: Node, at: Vector3, dir: Vector3, size := 1.0, always := false) -> Node3D:
+	var now := Time.get_ticks_msec()
+	if not always:  # a crowd hit is one gust or two, not a white cage over every foe
+		_gusts = _gusts.filter(func(t: int) -> bool: return now - t < GUST_BEAT_MS)
+		if _gusts.size() >= GUST_MAX:
+			return null
+		_gusts.append(now)
+	var s := GUST_SIZE * size
+	var fx := spawn(parent, "air_gust", at, s, "air", GUST_TIMES, Vector2(0.45, 1.0))
+	fx.real_until = 1
+	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
+	var a := randf() * TAU
+	if cam != null and dir.length() > 0.01:
+		var d := dir.normalized()
+		var sx := d.dot(cam.global_basis.x)
+		var sy := d.dot(cam.global_basis.y)
+		if Vector2(sx, sy).length() > 0.05:
+			a = atan2(sy, sx)
+		fx.position += (cam.global_basis.x * cos(a) + cam.global_basis.y * sin(a)) * s * GUST_BACK
+	return fx.set_spin(a, 1.0) if randf() < 0.5 else fx.set_spin(a + PI, -1.0)  # (the second: mirrored top to bottom)
 
 
 ## Draw every material once at real size under `root` (elements.prewarm), so no effect compiles on first use.
