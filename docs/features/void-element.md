@@ -26,6 +26,18 @@ These are the hero's only heavies and breakers: the KayKit hero's `route()`, `BR
 
 Live Wire is the hang itself: `void_grab.seized_tick` jolts every `WIRE_STEP`, so the lightning does its damage whether or not the press comes. Big foes can't be held, but the lightning still finds them (`reachable()`).
 
+**The tentacle conducts (round 44, `scripts/live_current.gd`).** Each jolt is a pulse that leaves his claw and runs
+out along every tentacle's own drawn curve (`void_tendril.points`) at `LIVE_CURRENT.SPEED` (34 m/s, game time, so
+the window's slow motion and each zap's hit stop hold it): a hot yellow knot at its head, the authored bolt strip
+(`designed_fx` "bolt_strip", tiled along the curve) lit behind it, the tentacle's own body flickering storm-light
+on twos while it carries the charge (`void_tendril.charge`). A held foe is zapped on the frame its pulse arrives
+(`void_element.jolt()` through `zap_hit()`: the number and a flash, no hit star or speed strokes; two short forks
+crackle off its chest instead), nearer foes first. When every tentacle has delivered, arcs (`comic_bolt`) jump on,
+nearest first, `JUMP_STEP` apart, to everyone in reach no tentacle holds (heavies, past `SEIZE_MAX`). The first pulse
+waits `WIRE_START` 0.12 s, until the tentacles have landed, while the charge gathers at his claw (a star swelling,
+four spikes drawn in): the anticipation. `WIRE_STEP` 0.1, `WIRE_DAMAGE` 4.5 (was 0.08 / 0.09 / 3.5: about the same
+damage before a sweet-spot press). The dive ends the current (`finish()`): a late pulse mustn't hit what he throws.
+
 ### Ice
 
 | Input | Id | Name | Effect |
@@ -70,6 +82,7 @@ clip with its `*_HIT` contact frame, with the arm's shape in `VOID_ELEMENT.FORM_
 | L H L L H, H in window | `XF` | Cataclysm | storm + earth | Held in the hang (no `wire` since round 37's review: Live Wire's bolts on every foe made it a wall of effects; `damage` 46 for the lost jolts), then down into the floor: a crater (`CATACLYSM_DOWN`), a sky strike and the earth under each |
 | Dash L H H L | `XS` | Steam Burst | ice into magma | The molten fist goes at the frozen: every foe in a cube or frozen within `STEAM_REACH` goes off (the cube Ice Cube is still bowling too: `THROWN.cut`, so the bot's string steams every run) in steam (`STEAM_DAMAGE` times the ice's `FREEZE_BREAK`, launched), scalding anyone within `STEAM_SPLASH`. Nobody frozen: a small shove. The window opens |
 | Dash L H H L, H in window | `XS` | Flash Freeze | magma into ice | The steam freezes on the held foes as he dives (`refreeze`: `freeze_seized()`), and the landing shatters it again |
+| H L L | `XC` | Galvanize | dark into storm | A tentacle shoots out to each foe Reap marked, wherever it stands (the nearest `GALV_LINKS` 5 within `GALV_REACH` 9 m; nobody marked: those within `GALV_NEAR` 6 m in front, `GALV_CONE`), the charge gathers at his claw, and one pulse runs down every tentacle (`live_current.gd`, own tentacles): each linked foe is zapped as it arrives for `GALV_DAMAGE` 7 x (1 + `GALV_LINK_BONUS` 0.3 per other link), then arcs jump on, chained, to up to `GALV_JUMPS` 4 foes within `GALV_JUMP` 3.5 m of a zapped one (`GALV_JUMP_DAMAGE` 6). **Best situation: a spread-out crowd.** Updraft Lash and Molten Palm want them bunched; Galvanize hits them where they stand, and the more it links the harder each zap (1 linked 7, 3 linked 11.2 each, 5 linked 15.4 each). Off Reap it is the other choice to Black Tide (H L H), which drags the marked together. No breaker |
 | Dash H L | `XT` | Storm Pitch | dark into storm | Whoever Tow Line bunched (`PITCH_GRAB` round `PITCH_AHEAD`) is cut off its tether (`thrown_foe.cut()`) and hurled on along his aim, fanned `PITCH_SPREAD`; in flight lightning jumps from each to anyone it passes (`thrown_foe` `zap`: `ZAP_STEP`, `ZAP_REACH`, `ZAP_MAX`) and it bursts in wind where it lands. Big foes stay and take the jolt |
 | H L H, L in window | `VD`, its `alt` | Black Ice | dark into ice | The press freezes the pool with everyone in it (`freeze_pool()`, instead of the jaws), and the landing shatters it (`_black_ice`: `BLACK_ICE_DOWN`, x `FREEZE_BREAK`) |
 
@@ -91,6 +104,7 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 | Steam Burst | Nine puffs, six in a ring round the frozen foe's body and three over its head, every puff's ink first then every fill (only the cloud's outer edge is inked), white to blue-grey, rising and swelling; a magma star and paper strokes on the first frame. 0.55 s | `comic_steam.gd` `spawn(parent, spot)` per frozen foe |
 | Flash Freeze | A see-through crystal shell (`SHELL` 0.88 x 1.5 m) climbs each held foe from its feet (half, then 1.1 overshoot), light rim inside thin ink, three ice tips and a glint, riding the foe, 0.5 s real time | `comic_freeze_over.gd` `foe(parent, e)` from `hero_leap._start_dive` (`refreeze`) |
 | Black Ice | The pool freezes over from the middle (0.45, 0.8, 1.0 of `MAW_RADIUS` + 0.3 in three steps): a two-ring mosaic of plates on shared edges, ink between, glint lines, lifted 0.06 m over the dark pool; held (real time, 2.2 s at most) until the landing's `shatter()` throws the plates up as inked chips | `comic_freeze_over.gd` `pool()` in `freeze_pool`, `shatter(parent, spot, r)` in `_black_ice` |
+| Galvanize | His own tentacles out to each linked foe (`SHOOT` 0.08 s), the claw charge (`CHARGE` 0.1 s), one pulse down all of them (hot knot, bolt strip lit behind it, the tentacles flickering storm-light), two forks off each foe it reaches, the arcs on, then the tentacles draw back (`RETRACT`). Word BZZRAKK! | `live_current.gd` `start(hero, links, true)` in `_galvanize` |
 | Storm Pitch | Three inked zigzag forks crackle off each thrown foe's chest, new each step, with two pale speed strokes behind it, for its flight + 0.1 s; the jolts it throws (`thrown_foe._zap`) and the axe's chain at the throw are thin `comic_bolt`s (0.18 m, star 0.42) | `comic_arc.gd` `ride(parent, e, flight)` in `_pitch`, `jump(parent, a, b)` |
 | Hailstorm | A tight whirlwind under each frozen foe, four inked wind bands from the floor to its feet every step (so it stretches as the foe climbs), wider than the cube (1.05 m), three inked hail chips whirling round it; rides the foe, 0.5 s | `comic_hail.gd` `ride(parent, e)` in `_hailstorm` (was a full wind pillar each) |
 | Meltdown | One fat inked crescent (earth, hot leading edge) sweeping down round him, 0.25 s; per foe hit: the ice bursting off as four inked chips and a small star, three flame tongues streaming up off it while it falls, a hot splat with four cracks where it lands, cooling. Held in the hang (not down in `FALL_MAX` 0.3 s): no splat, it just goes | `comic_melt.gd` `swing(parent, at, fwd)`, `foe(parent, e, frozen)` in `_meltdown` (was shards, an earth burst and a scorch each) |
