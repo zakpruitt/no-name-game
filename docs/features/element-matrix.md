@@ -19,8 +19,12 @@ Black Tide, Singularity, Overwhelm, Tow Line.
 | **skewered** (Impale) | Backdraft hauls them back in full | **Ice Spreads**: the nearest foe is frozen and skewered too | (still frozen) Molten Palm's steam; Anvil | **Torn Off**: x1.5, yanked off the spear towards him |
 | **airborne** (any launcher) | the air string: Air Slash re-juggles, Live Wire holds them up | **Freeze Aloft**: frozen up there, comes down a cube | Rockslide x2, Meltdown x1.5, Anvil; **Meteor Spike**: any magma move drives them down into a crater, x1.5 | Tow Line rips them out of the air (x`TOW_AIR_MULT`) |
 | **bound** (Undertow, Overwhelm tendrils) | **Torn Loose**: out of the bind and launched, x1.5 | **Frozen in the Dark**: frozen where they're held | Meteor Fall rips the biggest out of Undertow | Abyss off Overwhelm |
+| **charged** (round 44: Live Wire's jolts, Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm) | **Overload**: every charged foe within `OVERLOAD_R` 8 m of the move goes off at once, chained, each x(1 + `OVERLOAD_PER` 0.35 per other charged); best after Galvanize or Grounded charged a crowd | **Superconduct**: x1.5 and frozen, and the charge runs on through every frozen foe within `SUPER_R` 7 m (`SUPER_DAMAGE` 6 each, x `FREEZE_BREAK`, charged); best with cubes standing about | **Arc Flash**: x1.5, and everyone within `FLASH_R` 2.8 m is blown `FLASH_THROW` 4.5 m away from it (`FLASH_DAMAGE` 5, `FLASH_SPLAT` 6 where they land, x `PALM_WALL_MULT` on a wall); best in a corner | **Conduct**: the payer stays charged and the charge goes on to every uncharged foe within `CONDUCT_R` 3 m (`CONDUCT_MOST` 4, `CONDUCT_DAMAGE` 5 each, charged); best on a pack, to set up Overload |
 
 Bold cells are the third pass's (`VOID_ELEMENT.IMPROV`); the rest were already paid by the moves themselves.
+Charged is last in `IMPROV_ORDER`: nearly every Live Wire leaves it, so it pays only when nothing rarer is there.
+The training bot clears it at the start of each string (`_reset_spots`), or each string would pay the last one's.
+Foes carry it visibly: two small storm crackles crawling on the outline (`comic_state_tell.gd` "charged").
 
 ### Looks
 
@@ -44,6 +48,10 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 | airborne x magma | Meteor Spike | an ember line falls through it into the floor, a hot dent where it lands | KA-CHUNK! |
 | bound x storm | Torn Loose | the violet ropes snap and whip off its feet, three wind strokes up | SNAPP! |
 | bound x ice | Frozen in the Dark | the violet coils round its legs ice over from one end, small ice plates at its feet | KLINNK! |
+| charged x storm | Overload | two storm bands spin up round it, a hot core star, five crackles out every way; `comic_bolt` on through every charged foe | ZZRAAAK! |
+| charged x ice | Superconduct | an ice star with four storm crackles running out of it; `comic_bolt` on through the ice | KRZZZK! |
+| charged x magma | Arc Flash | a hot flash star swelling, a magma shock ring on the floor, six storm spokes blown out | FWA-KOOM! |
+| charged x dark | Conduct | two violet bands coil round it, storm crackles jumping off it; a `comic_bolt` to each foe it charges | BZZT-ZAP! |
 
 ## Files
 
@@ -70,8 +78,8 @@ its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV
 3. `_pay()` spends `buried` / `molten` / `skewered` (once) and runs the cell's kind: one hit of
    `IMPROV_DAMAGE` and a launch (`IMPROV_LAUNCH`), a crater (`Vector3.DOWN * IMPROV_DOWN`), ice (`encase()`,
    `freeze_aloft()`) or a chain (`_chain()`: the nearest foe within `IMPROV_CHAIN_R`).
-4. Then the move itself runs (`_fire()`). A payoff never throws (`THROWN.launch`), so the move can still throw
-   the same foe.
+4. Then the move itself runs (`_fire()`). A payoff never throws the foe that pays (`THROWN.launch`), so the move
+   can still throw it. Arc Flash throws the ones beside it (they are blown away from the payer, not hit by the move).
 
 **Reach = the move's own hit shape** (`improv_reach()`, read before the move fires, from the move body's own
 numbers):
@@ -113,6 +121,9 @@ Breakers don't improvise (they read their own states in `breaker_impact()`), so 
 `IMPROV_REACH` (5 m, only for a move with no shape in `improv_reach()`), `IMPROV_ROLL_HALF_WIDTH` (1 m), `IMPROV_DAMAGE` (8), `IMPROV_MULT` (1.5), `IMPROV_LAUNCH` (8 m/s), `IMPROV_DOWN` (6 m/s),
 `IMPROV_CHAIN_R` (2.6 m), `IMPROV_CHAIN_DAMAGE` (5), `IMPROV_PULL` (6 m/s), `IMPROV_STEAM_MULT` (1.6),
 `IMPROV_HOLD` (0.6 s). Quench and Flare-up reuse `STEAM_LAUNCH`, `ERUPT_MOLTEN_MULT` and `ERUPT_LAUNCH`.
+Charged: `CONDUCT_R` (3 m), `CONDUCT_MOST` (4), `CONDUCT_DAMAGE` (5), `SUPER_R` (7 m), `SUPER_DAMAGE` (6), `FLASH_R`
+(2.8 m), `FLASH_THROW` (4.5 m), `FLASH_DAMAGE` (5), `FLASH_SPLAT` (6), `FLASH_SPEED` (20 m/s), `OVERLOAD_R` (8 m),
+`OVERLOAD_PER` (0.35).
 
 ## Extending
 
