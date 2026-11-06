@@ -204,12 +204,18 @@ func _aim(to: Vector3) -> void:
 
 ## How far it can fly before a wall.
 func _clear(length: float) -> float:
-	var start := Vector3(_from.x, 0.9, _from.z)
-	var q := PhysicsRayQueryParameters3D.create(start, start + _dir * (length + WALL_MARGIN), hero.collision_mask)
-	q.exclude = [foe.get_rid(), hero.get_rid()]
-	for o: Node in foe.get_tree().get_nodes_in_group("enemies"):
+	return clear_from(hero, foe, _from, _dir, length)
+
+
+## How far `e` can fly from `from` along `dir` before a wall (`length` if none that close). Molten Palm asks it
+## first, to carry them on to a wall in reach.
+static func clear_from(by: Node3D, e: Node3D, from: Vector3, dir: Vector3, length: float) -> float:
+	var start := Vector3(from.x, 0.9, from.z)
+	var q := PhysicsRayQueryParameters3D.create(start, start + dir * (length + WALL_MARGIN), by.collision_mask)
+	q.exclude = [e.get_rid(), by.get_rid()]
+	for o: Node in e.get_tree().get_nodes_in_group("enemies"):
 		q.exclude.append(o.get_rid())
-	var hit := foe.get_world_3d().direct_space_state.intersect_ray(q)
+	var hit := e.get_world_3d().direct_space_state.intersect_ray(q)
 	return length if hit.is_empty() else maxf(start.distance_to(hit.position) - WALL_MARGIN, 0.0)
 
 

@@ -155,6 +155,10 @@ const PALM_LENGTH := 6.5
 const PALM_HALF_WIDTH := 2.6
 const PALM_DAMAGE := 14.0
 const PALM_SHOVE := 6.0  # m
+## Round 42 d: a wall this close behind a foe (m, along the punch) and the palm carries it all the way there and
+## splats it (PALM_WALL_MULT), so the wall payoff is there whenever a wall is near, not only at 6 m. The training
+## room's back wall is ~9-10 m behind the dummies after L L L. Past it: the plain PALM_SHOVE.
+const PALM_WALL_REACH := 10.5
 const PALM_SPEED := 24.0
 const PALM_WALL_MULT := 2.5  # the splat, on the damage below
 const PALM_SPLAT := 12.0
@@ -277,6 +281,7 @@ const TOW_AIR_MULT := 1.5  # airborne into dark: Tow Line rips foes out of the a
 # Meteor Fall (round 42, meteor dive): he dives onto the best group in reach (meteor_target). Molten Palm (L L L H)
 # punches a group into a wall; Meteor Fall (its breaker, L L L H H + H) drops on that group.
 const METEOR_REACH := 12.0  # m round him that he'll dive to (Molten Palm's 6.5 m lava line + its 6 m shove)
+const METEOR_SPLAT_REACH := 17.0  # m to a group round a fresh wall splat (the lava line + PALM_WALL_REACH)
 const METEOR_PILE_R := 3.0  # m round the landing that the meteor takes, and the size of a group he picks
 const METEOR_HEAVY_MULT := 1.5  # big ones still take it worst
 const METEOR_WALL_WEIGHT := 1.5  # a foe splatted on a wall in the last METEOR_SPLAT_FRESH_MS counts this much in a group
@@ -535,7 +540,8 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 		e.take_hit(PALM_DAMAGE * power, fwd * 4.0, 0.0, true)
 		Game.register_hit("cast")
 		if not hero._void.is_heavy(e) and e.is_alive():
-			THROWN.launch(hero, e, e.global_position + fwd * PALM_SHOVE, PALM_SPLAT * power,
+			var walled: bool = THROWN.clear_from(hero, e, e.global_position, fwd, PALM_WALL_REACH) < PALM_WALL_REACH
+			THROWN.launch(hero, e, e.global_position + fwd * (PALM_WALL_REACH if walled else PALM_SHOVE), PALM_SPLAT * power,
 				{"quiet": true, "solid": false, "el": "earth", "speed": PALM_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
 	return foes.size()
 
@@ -1137,24 +1143,27 @@ static func _anvil(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Ar
 
 # --- Meteor Fall's dive (round 42) -----------------------------------------------------------------------
 
-## Where Meteor Fall lands, pure so the check can walk it: of `spots` (flat foe positions) within `reach` of `at`,
+## Where Meteor Fall lands, pure so the check can walk it: of `spots` (flat foe positions) within `reach` of `at`
+## (`splat_reach` for a fresh one: he follows the palm's carry to the wall),
 ## each foe's group is everyone within `radius` of it, worth one a foe (METEOR_WALL_WEIGHT for those `fresh`: off a
 ## wall splat just now). The best group wins, the nearer on a tie; it lands on the group's middle. Returns
 ## {"found": false} with nobody in reach (he lands ahead of him, hero_leap.start's zone).
-static func meteor_target(at: Vector3, spots: Array, fresh: Array, reach := METEOR_REACH, radius := METEOR_PILE_R) -> Dictionary:
+static func meteor_target(at: Vector3, spots: Array, fresh: Array, reach := METEOR_REACH, radius := METEOR_PILE_R,
+		splat_reach := METEOR_SPLAT_REACH) -> Dictionary:
 	var best := {"found": false}
 	var best_score := -1.0
 	var best_d := INF
 	for i in spots.size():
 		var me: Vector3 = _flat(spots[i])
-		if _flat(me - at).length() > reach:
+		var r: float = splat_reach if fresh[i] else reach  # (he goes as far as the palm carried them to the wall)
+		if _flat(me - at).length() > r:
 			continue
 		var score := 0.0
 		var mid := Vector3.ZERO
 		var n := 0
 		for j in spots.size():
 			var other: Vector3 = _flat(spots[j])
-			if other.distance_to(me) <= radius and _flat(other - at).length() <= reach + radius:
+			if other.distance_to(me) <= radius and _flat(other - at).length() <= r + radius:
 				score += METEOR_WALL_WEIGHT if fresh[j] else 1.0
 				mid += other
 				n += 1
@@ -1177,7 +1186,7 @@ static func wall_fresh(e: Object) -> bool:
 ## meteor_target over the living foes round the hero.
 static func meteor_spot(hero: CharacterBody3D) -> Dictionary:
 	var at := _flat(hero.global_position)
-	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_REACH)
+	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH)
 	return meteor_target(at, foes.map(func(e: Node3D) -> Vector3: return e.global_position), foes.map(func(e: Node3D) -> bool: return wall_fresh(e)))
 
 

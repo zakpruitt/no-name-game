@@ -756,6 +756,29 @@ func _magma() -> void:
 	near.free()
 	back_wall.free()
 	await _settle()
+	# Round 42 d: a wall past the 6 m shove but inside PALM_WALL_REACH: the palm carries them on to it and splats them.
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var far := _foe(Vector3(0, 0, 4))
+	var far_wall := _wall(Vector3(0, 1, 4.0 + ve.PALM_SHOVE + 3.0))
+	await physics_frame
+	await physics_frame
+	hero._start_attack("EM")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return not far.has_meta("thrown_foe_flying"), 2.0)
+	_check(ve.wall_fresh(far) and far.global_position.z > 4.0 + ve.PALM_SHOVE + 1.0, "a wall 9 m behind: the palm carries it there and splats it (z %.1f)" % far.global_position.z)
+	far_wall.free()
+	await _settle()
+	far.global_position = Vector3(0, 0, 4)
+	await physics_frame
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	hero._start_attack("EM")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return not far.has_meta("thrown_foe_flying"), 2.0)
+	_check(absf(far.global_position.z - (4.0 + ve.PALM_SHOVE)) < 1.0, "no wall in reach: the plain %.0f m shove (z %.1f)" % [ve.PALM_SHOVE, far.global_position.z])
+	far.free()
+	await _settle()
 
 
 ## Meteor Fall's target (void_element.meteor_target, pure): the biggest group in reach, the wall-splatted group on
@@ -774,8 +797,12 @@ func _meteor_target() -> void:
 	_check(r.found and r.at.x > 6.0, "and the splatted pair beats a lone foe nearer (%s)" % r)
 	r = ve.meteor_target(at, [], [])
 	_check(not r.found, "nobody: no target (he lands ahead of him)")
-	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_REACH + 2.0)], [true])
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_REACH + 2.0)], [false])
 	_check(not r.found, "nobody in reach: no target either")
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_REACH + 2.0), Vector3(3, 0, 4)], [true, false])
+	_check(r.found and r.at.z > ve.METEOR_REACH, "a splatted one past the reach still counts: he follows the palm to the wall (%s)" % r)
+	r = ve.meteor_target(at, [Vector3(0, 0, ve.METEOR_SPLAT_REACH + 1.0)], [true])
+	_check(not r.found, "but not past METEOR_SPLAT_REACH")
 
 
 ## Round 34's crossovers: each cashes in what the element before it set up.
