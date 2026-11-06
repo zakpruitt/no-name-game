@@ -756,7 +756,7 @@ func _magma() -> void:
 	near.free()
 	back_wall.free()
 	await _settle()
-	# Round 42 d: a wall past the 6 m shove but inside PALM_WALL_REACH: the palm carries them on to it and splats them.
+	# Round 42 e: a wall past the 6 m shove but inside PALM_WALL_REACH: the palm carries them on to it and splats them.
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
 	var far := _foe(Vector3(0, 0, 4))

@@ -155,7 +155,7 @@ const PALM_LENGTH := 6.5
 const PALM_HALF_WIDTH := 2.6
 const PALM_DAMAGE := 14.0
 const PALM_SHOVE := 6.0  # m
-## Round 42 d: a wall this close behind a foe (m, along the punch) and the palm carries it all the way there and
+## Round 42 e: a wall this close behind a foe (m, along the punch) and the palm carries it all the way there and
 ## splats it (PALM_WALL_MULT), so the wall payoff is there whenever a wall is near, not only at 6 m. The training
 ## room's back wall is ~9-10 m behind the dummies after L L L. Past it: the plain PALM_SHOVE.
 const PALM_WALL_REACH := 10.5
