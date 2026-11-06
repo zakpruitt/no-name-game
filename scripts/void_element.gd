@@ -127,7 +127,7 @@ const CUTTER_PILLAR_R := 1.3
 const CUTTER_DAMAGE := 10.0
 const CUTTER_PULL := 7.0
 const CUTTER_LAUNCH := 9.5
-const WIRE_DAMAGE := 3.5  # each jolt, each foe
+const WIRE_DAMAGE := 4.5  # each jolt, each foe (round 44: 3.5 at a 0.09 s step; the pulses come every 0.1 s and later)
 const HARPOON_LENGTH := 10.0
 const HARPOON_HALF_WIDTH := 1.3
 const HARPOON_STEPS := 8
@@ -423,22 +423,26 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 
 # --- The moves ----------------------------------------------------------------
 
-## One jolt through everyone the tentacles have: from his hand along each one, and on between them.
-static func zap(hero: CharacterBody3D, foes: Array, hand: Vector3) -> void:
-	var parent: Node = hero.get_parent()
-	var color: Color = ELEMENTS.LOOK.wind.color
-	var damage: float = WIRE_DAMAGE * hero._dmg_mult * hero._cast_power()
-	var last := hand
-	for e: Node3D in foes:
-		if not is_instance_valid(e) or not e.is_alive():
-			continue
-		var to := e.global_position + Vector3.UP
-		ELEMENTS.arc(parent, last, to, color)
-		Fx.burst(parent, to, ELEMENTS.LOOK.wind.glow, 6, 7.0, 0.07, 0.16, Vector3.UP, 180.0, 0.0, 0.3, "spark", true)
-		e.take_hit(damage, Vector3.ZERO, 0.0, false)
-		Game.register_hit("cast")
-		last = to
+## One of Live Wire's jolts reaching a foe: a pulse down its tentacle, or an arc on to one no tentacle holds
+## (void_grab.seize's live_current calls it as the pulse arrives).
+static func jolt(hero: CharacterBody3D, e: Node3D) -> void:
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	zap_hit(e, WIRE_DAMAGE * hero._dmg_mult * hero._cast_power())
+	Game.register_hit("cast")
 	Game.sfx("hit_big", -8.0, 0.15)
+
+
+## A hit carried by a current (Live Wire, Galvanize, the charged cells): the number and a flash, without the hit
+## star and speed strokes a blow draws (live_current's pop is the zap's look; per jolt on five foes the stars and
+## strokes were a green thicket over the tentacles).
+static func zap_hit(e: Node3D, damage: float, launch := 0.0) -> void:
+	if e.has_method("burn_hit") and launch <= 0.0:
+		e.burn_hit(damage, false)
+		if is_instance_valid(e.get("model")):
+			Fx.flash(e.model)
+	else:
+		e.take_hit(damage, Vector3.ZERO, launch, false)
 
 
 ## The spear goes in the ground ahead of him. All the frost does is slow them (frost_spear.gd).
