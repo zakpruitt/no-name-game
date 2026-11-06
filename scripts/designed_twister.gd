@@ -36,7 +36,7 @@ const WISP_SIZE := 1.0  # m
 const WISP_SPEED := Vector2(2.4, 1.3)  # m/s out, up
 const WISP_TIMES := [0.04, 0.08, 0.07, 0.07, 0.07, 0.08, 0.08, 0.1]
 const DEBRIS := 7
-const DEBRIS_SIZE := 0.46  # m
+const DEBRIS_SIZE := 0.56  # m (0.46 was specks in the half-size film)
 const DEBRIS_SPIN := 6.5  # rad/s round the column
 
 var height := 3.5
