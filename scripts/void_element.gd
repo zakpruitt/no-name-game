@@ -592,7 +592,7 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	var length: float = minf(PALM_LENGTH * grow, hero._clear_ahead(fwd, PALM_LENGTH * grow) + 0.5)
 	hero._void.fist = _fist(parent, at, fwd, length)
 	ELEMENTS.fissure(parent, at, fwd, length, HARPOON_STEPS, "earth", 1.0)
-	Fx.scorch(parent, at + fwd * length * 0.5, ELEMENTS.LOOK.earth.color, length * 0.5, 1.4)
+	if not DESIGNED.on(): Fx.scorch(parent, at + fwd * length * 0.5, ELEMENTS.LOOK.earth.color, length * 0.5, 1.4)  # (designed: the fissure's seam is the mark)
 	var foes := _ahead(hero, at, fwd, length, PALM_HALF_WIDTH)
 	hero._void.shoved = foes
 	for e: Node3D in foes:

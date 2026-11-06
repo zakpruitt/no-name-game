@@ -43,6 +43,7 @@ const LOOK := {
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
 const COMIC_GEYSER := preload("res://scripts/comic_geyser.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: designed ice and magma
 const GEYSER_SQUASH := 0.7  # of the asked height: at 0.85 five of them walled off the whole landing
 const GEYSER_WIDTH := 0.75  # of the radius: the column's width at the top (1.5 hid every foe)
 const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)
@@ -125,6 +126,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	load("res://scripts/dark_fx.gd").prewarm_pieces(root)
 	load("res://scripts/designed_fx.gd").prewarm(root)  # round 43: one material per designed sheet
 	load("res://scripts/designed_ink.gd").prewarm(root)  # round 44: the tentacle's skin, ground stamps, hit pops
+	DESIGNED_EL.prewarm(root)  # round 46: the ice and magma sheets
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
@@ -497,6 +499,9 @@ static func pillar(parent: Node, pos: Vector3, el: String, height := 4.0, radius
 
 ## A cluster of spikes bursting up at `pos`: stone (earth) or ice (water); others make a small pillar.
 static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count := 3, life := 0.7) -> void:
+	if el in ["earth", "water"] and Game.comic_style and DESIGNED_EL.DESIGNED.on():  # drawn lava spurts / ice crystals
+		DESIGNED_EL.spikes(parent, pos, el, size, count, life)
+		return
 	if el not in ["earth", "water"]:
 		pillar(parent, pos, el, 2.2 * size, 0.7 * size, life * 0.7)
 		return
@@ -540,6 +545,9 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 
 ## Spikes or small pillars marching from `from` along `dir`.
 static func fissure(parent: Node, from: Vector3, dir: Vector3, length: float, steps: int, el: String, size := 1.0, step_time := 0.035) -> void:
+	if el in ["earth", "water"] and Game.comic_style and DESIGNED_EL.DESIGNED.on():  # a drawn lava seam / crystal line
+		DESIGNED_EL.fissure(parent, from, dir, length, steps, el, size, step_time)
+		return
 	for i in steps:
 		var at := from + dir * (1.0 + i * (length - 1.0) / maxf(steps - 1, 1))
 		var tw := parent.create_tween()

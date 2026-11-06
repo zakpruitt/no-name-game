@@ -33,6 +33,7 @@ const FROST_PATCHES := 4  # ice plates scattered between the cracks (round 33, s
 ## in place of the round-29 plates' flat two-tone ice. Cracks and teeth keep their ink.
 const ZONE_SHADER := preload("res://shaders/halftone_floor.gdshader")
 const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the drawn frost floor
 const ZONE_FILL := 0.26  # (0.34 read as a carpet 12 m across)
 const ZONE_INNER := 0.45  # of the radius: clear inside
 const ZONE_PLATES := false  # the round-29 plates (the zone's dots replace them)
@@ -46,6 +47,7 @@ var _cleared := false  # the frost's look has gone (standing_fx.gd)
 var _frost: MeshInstance3D
 var _zone: MeshInstance3D  # the halftone fill under the cracks (a child of _frost)
 var _stuck: Node3D
+var _designed := false  # the frost floor is the ice_frost sheet (designed_elements.frost_floor)
 
 
 ## Plants one at `spot`, in place of any already standing.
@@ -69,22 +71,48 @@ static func current(tree: SceneTree) -> Node3D:
 func _ready() -> void:
 	add_to_group(GROUP)
 	STANDING.add(self)
-	_frost = MeshInstance3D.new()
-	_frost.mesh = frost_mesh(RandomNumberGenerator.new())
-	_frost.material_override = frost_material()
-	_frost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_frost.position.y = 0.05
-	_frost.scale = Vector3(0.01, 1.0, 0.01)
-	add_child(_frost)
+	_designed = DESIGNED_EL.DESIGNED.on()
+	if _designed:
+		_frost = DESIGNED_EL.frost_floor()
+		_frost.position.y = DESIGNED_EL.DESIGNED.GROUND_LIFT
+		_frost.scale = Vector3(0.01, 1.0, 0.01)
+		add_child(_frost)
+	else:
+		_frost = MeshInstance3D.new()
+		_frost.mesh = frost_mesh(RandomNumberGenerator.new())
+		_frost.material_override = frost_material()
+		_frost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_frost.position.y = 0.05
+		_frost.scale = Vector3(0.01, 1.0, 0.01)
+		add_child(_frost)
 	_zone = MeshInstance3D.new()
 	_zone.mesh = zone_mesh()
 	_zone.material_override = zone_material()
 	_zone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_zone.position.y = 0.015  # over the cracks (0..0.008): below them it hid under the tiles but for the grout
-	_frost.add_child(_zone)
+	if not _designed:
+		_frost.add_child(_zone)
+	else:
+		_zone.free()
+		_zone = null
 	_stuck = Node3D.new()
 	add_child(_stuck)
 	var lean := randf() * TAU
+	if _designed:  # round 46: a faceted shaft and ice crystals (designed_elements.spear), no bare cylinders or spheres
+		DESIGNED_EL.spear(_stuck, SHAFT_HIGH, SHAFT_R, CRYSTALS, CRYSTAL_HIGH, CRYSTAL_OUT)
+		_stuck.rotation = Vector3(TILT * cos(lean), 0.0, TILT * sin(lean))
+	else:
+		_build_stuck(lean)
+	_stuck.scale = Vector3(1.0, 0.1, 1.0)
+	create_tween().tween_property(_stuck, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	if _designed:  # a small drawn burst of shards where it goes in
+		DESIGNED_EL.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.4, 0.55)
+	else:
+		Fx.shards(get_parent(), global_position + Vector3.UP * 0.3, ICE_LIGHT, 12, Vector3.UP, 7.0, 0.12, 0.5)
+
+
+## The round-29 spear: a cylinder shaft, a sphere knob and four-sided prisms (--fx=classic).
+func _build_stuck(lean: float) -> void:
 	var shaft := CylinderMesh.new()
 	shaft.top_radius = SHAFT_R
 	shaft.bottom_radius = SHAFT_R * 0.6
@@ -116,9 +144,6 @@ func _ready() -> void:
 		var c := _part(prism, ICE if i % 2 == 0 else ICE_LIGHT)
 		c.position = Vector3(cos(a) * CRYSTAL_OUT, high * 0.4, sin(a) * CRYSTAL_OUT)
 		c.rotation = Vector3(sin(a) * 0.5, randf() * TAU, -cos(a) * 0.5)
-	_stuck.scale = Vector3(1.0, 0.1, 1.0)
-	create_tween().tween_property(_stuck, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	Fx.shards(get_parent(), global_position + Vector3.UP * 0.3, ICE_LIGHT, 12, Vector3.UP, 7.0, 0.12, 0.5)
 
 
 ## The frost on the floor at radius 1 (scaled to how far it has spread): inked cracks out from the spear,
@@ -245,6 +270,8 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	_r = RADIUS * smoothstep(0.0, GROW, _t)
 	_frost.scale = Vector3(maxf(_r, 0.01), 1.0, maxf(_r, 0.01))
+	if _designed:
+		DESIGNED_EL.frost_step(_frost, _t, _r / RADIUS)
 	if _t >= _next_tick:
 		_next_tick += TICK
 		for e: Node3D in FOES.near(get_tree(), global_position, _r):
@@ -252,7 +279,7 @@ func _physics_process(delta: float) -> void:
 				e.chill(SLOW_TIME, SLOW)
 	if _t >= _next_pulse:
 		_next_pulse += PULSE_EVERY
-		if not _cleared:
+		if not _cleared and not _designed:  # (designed: the drawn frost's glints carry it; one ring at a time)
 			frost_ring(get_parent(), global_position, RADIUS, PULSE_TIME)
 	if _t >= LIFE:
 		melt()
@@ -260,6 +287,9 @@ func _physics_process(delta: float) -> void:
 
 ## A thin hard-edged ring of frost going out to `radius`.
 static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) -> void:
+	if DESIGNED_EL.DESIGNED.on():  # round 46: the frost cracking out in one drawn beat
+		DESIGNED_EL.frost_burst(parent, spot, radius)
+		return
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.985  # round 33 (sleek): a thin line racing out (sleek 5: 0.97 was 0.18 m at 6 m)
 	torus.outer_radius = 1.0
@@ -286,6 +316,9 @@ static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) 
 ## its chill stay for the ice breaker.
 func clear_standing() -> void:
 	_cleared = true
+	if _designed:
+		create_tween().tween_method(func(e: float) -> void: _frost.set_instance_shader_parameter("erode", e), 0.0, 0.98, STANDING.CLEAR_S)
+		return
 	var tw := create_tween().set_parallel()
 	tw.tween_property(_frost, "transparency", 1.0, STANDING.CLEAR_S)
 	tw.tween_method(func(a: float) -> void: _zone.set_instance_shader_parameter("alpha", a), 1.0, 0.0, STANDING.CLEAR_S)
@@ -298,6 +331,8 @@ func melt() -> void:
 	_gone = true
 	remove_from_group(GROUP)
 	var tw := create_tween()
+	if _designed and not _cleared:
+		create_tween().tween_method(func(e: float) -> void: _frost.set_instance_shader_parameter("erode", e), 0.0, 0.98, MELT)
 	tw.tween_property(self, "scale", Vector3(1.0, 0.01, 1.0), MELT)
 	tw.tween_callback(queue_free)
 
@@ -308,5 +343,8 @@ func shatter() -> void:
 		return
 	_gone = true
 	remove_from_group(GROUP)
-	Fx.shards(get_parent(), global_position + Vector3.UP * 0.8, ICE_LIGHT, 26, Vector3.UP, 13.0, 0.2, 0.8)
+	if _designed:
+		DESIGNED_EL.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.9, 1.0)
+	else:
+		Fx.shards(get_parent(), global_position + Vector3.UP * 0.8, ICE_LIGHT, 26, Vector3.UP, 13.0, 0.2, 0.8)
 	queue_free()

@@ -9,6 +9,7 @@ const FOES := preload("res://scripts/foes.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the faceted ice block
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -154,6 +155,8 @@ static func comic_ice(ice: MeshInstance3D, r: float, high: float) -> void:
 ## the last opaque-looking ice), with a white glint across the top on its own surface. Corner normals point out
 ## of the corner, so the ink hull (pushed out along them) closes round the box instead of splitting at its edges.
 static func comic_cube(r: float, high := CUBE_HIGH) -> ArrayMesh:
+	if DESIGNED.on():  # round 46: a hexagonal block of drawn facets (designed_elements.ice_block)
+		return DESIGNED_EL.ice_block(r, high)
 	var key := Vector2i(roundi(r * 100.0), roundi(high * 100.0))
 	if _cube_meshes.has(key):
 		return _cube_meshes[key]
