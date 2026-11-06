@@ -598,7 +598,10 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: fl
 			e.stagger(1.0)
 	g.on_set = func(e: Node3D) -> void:
 		encase(e)
-		Fx.shards(hero.get_parent(), e.global_position + Vector3.UP * 0.4, Color(0.88, 0.97, 1.0), 6, Vector3.UP, 4.0, 0.12, 0.4)
+		if Fx.DESIGNED.on():  # fx-ice3: frost cracks under the block, not ice chips (Zak: no crystals)
+			preload("res://scripts/designed_elements.gd").frost_mark(hero.get_parent(), _flat(e.global_position), 0.7, 0.5)
+		else:
+			Fx.shards(hero.get_parent(), e.global_position + Vector3.UP * 0.4, Color(0.88, 0.97, 1.0), 6, Vector3.UP, 4.0, 0.12, 0.4)
 	return foes.size()
 
 

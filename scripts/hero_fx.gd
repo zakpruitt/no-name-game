@@ -59,6 +59,8 @@ static func swoosh(hero: CharacterBody3D, fwd: Vector3) -> void:
 	var move: Dictionary = hero._move
 	if move.has("width"):
 		return
+	if move.get("thrust", false) and Fx.DESIGNED.on():
+		return  # fx-ice3: a thrust (Dash Stab) has no arc; in water's palette its two arcs read as ice blades
 	hero._swoosh_flip = not hero._swoosh_flip
 	var trails: Array = hero._trails
 	var c: Color = trails[0].color if not trails.is_empty() else trail_rest_color(hero)

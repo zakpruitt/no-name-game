@@ -340,11 +340,7 @@ def pop_ice(i, n, size):
     turn = 0.2
     ring = [(c + math.cos(turn + math.tau * q / 6) * r, c + math.sin(turn + math.tau * q / 6) * r) for q in range(7)]
     f.poly(stroke(ring, [w] * 7, cap=False), LIGHT, ink=2.4)
-    for q in range(6):
-        a = turn + math.tau * q / 6
-        p0 = (c + math.cos(a) * (r + w * 0.6), c + math.sin(a) * (r + w * 0.6))
-        p1 = (c + math.cos(a) * (r + f.u(0.16)), c + math.sin(a) * (r + f.u(0.16)))
-        f.poly(stroke([p0, p1], [w * 0.9, 1.0], cap=False), LIGHT, ink=2.0)
+    # (fx-ice3: no rays off its corners: the spiked hex read as a snowflake crystal)
     if i <= 3:  # the hot line inside the ring
         f.fill(poly_mask([stroke(ring, [w * 0.35] * 7, cap=False)], f.S), HOT)
     if i <= 2:
