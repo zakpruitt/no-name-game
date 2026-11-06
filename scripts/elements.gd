@@ -124,6 +124,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
 	load("res://scripts/dark_fx.gd").prewarm_pieces(root)
 	load("res://scripts/designed_fx.gd").prewarm(root)  # round 43: one material per designed sheet
+	load("res://scripts/designed_ink.gd").prewarm(root)  # round 44: the tentacle's skin, ground stamps, hit pops
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
