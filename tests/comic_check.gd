@@ -336,6 +336,11 @@ func _check_axe_auras(comic: CharacterBody3D) -> void:
 			var blade: float = aura._centre.length()
 			for t: MeshInstance3D in aura.tongues:
 				_expect(t.position.length() > blade * 0.4, "%s: a tongue sits out on the blade" % el)
+			if load("res://scripts/designed_fx.gd").on():  # round 46: designed, the tongues and motes are off
+				_expect(aura.tongues.all(func(m: MeshInstance3D) -> bool: return not m.visible) and not aura.drip.emitting,
+					"%s: designed, no polygon tongues or motes" % el)
+				aura.free()
+				continue
 			aura._process(0.1)
 			aura._process(0.1)
 			if aura.look.mode == "rise":

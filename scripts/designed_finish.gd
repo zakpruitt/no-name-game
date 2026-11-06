@@ -51,6 +51,12 @@ const BURST_TIMES := [0.033, 0.05, 0.05, 0.05, 0.06, 0.07]
 const ECHO_SIZE := 2.3  # m: the axe head's quad (the head is ~0.9 m tall in it; 1.25 read as a speck at the arc's edge)
 const ECHO_REACH := 0.82  # of the echo's radius: on the arc's outer edge, past his own blade
 
+## The limb changing into a weapon (heretic_form_fx.gd, designed): the weapon's element pop (designed_ink's drawn
+## storm / ice / magma / dark hit pops) up the new haft, clear of his hood, instead of a polygon star and chips.
+const FORM_ELEMENT := {"axe": "wind", "spear": "water", "hammer": "earth", "hand": "void"}
+const FORM_SIZE := 1.1  # m: the pop's quad (designed_ink.POP_SIZE is a hit's 1.5)
+const FORM_UP := 0.45  # m up the haft from the hand
+
 static var _registered := false
 static var drawn := 0  # Awakenings drawn (checks)
 
@@ -229,3 +235,17 @@ static func echo_pose(fx: Node3D, at: Vector3, ahead: Vector3) -> void:
 	var d := cam.unproject_position(ahead) - cam.unproject_position(at)
 	if d.length() > 0.001:
 		fx.set_spin(atan2(-d.y, d.x), 1.0)
+
+
+## heretic_form_fx.spawn (designed): one drawn element pop where the new weapon grows (group "heretic_form_fx", so
+## heretic_shots counts and ticks it like the old burst).
+static func form_burst(parent: Node, at: Vector3, form: String, dir: Vector3) -> Node3D:
+	var ink: GDScript = load("res://scripts/designed_ink.gd")
+	ink._register()
+	var e: String = FORM_ELEMENT.get(form, "void")
+	var spot := at + (dir * FORM_UP if dir != Vector3.ZERO else Vector3.UP * 0.2)
+	var fx := DESIGNED.spawn(parent, ink.POP_FOR[e], spot, FORM_SIZE, e, ink.POP_TIMES, Vector2(0.45, 1.0))
+	fx.real_until = 1
+	fx.pop = 0.12
+	fx.add_to_group("heretic_form_fx")
+	return fx.vary(PI, true)

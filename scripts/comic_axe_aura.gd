@@ -10,6 +10,7 @@ extends BoneAttachment3D
 const DRIP_AMOUNT := 5  # motes the blade sheds at rest (x3 Awakened)
 const MARK := preload("res://scripts/comic_drag_mark.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
 const LOOKS := {
 	"spirit": {"mode": "rise", "count": 5, "size": 0.36, "wiggle": 0.12, "r": 0.16},
 	"earth": {"mode": "rise", "count": 8, "size": 0.42, "wiggle": 0.12, "r": 0.26},
@@ -68,6 +69,14 @@ func setup(element: String, meshes: Array[ArrayMesh], edge: PackedVector3Array, 
 	drip = _drip(element, ELEMENTS.LOOK[element].color)
 	drip.position = centre
 	add_child(drip)
+	if DESIGNED.on():
+		# Round 46 (fx-finish): on the v2 hero the blade this coats is the tentacle's axe form, hidden most of the
+		# time, so the tongues whirled round an empty hand and the drip shed soft dots round him all fight. The
+		# axe's edge colour and the designed swing trail carry the element; only the drag mark stays.
+		for t in tongues:
+			t.visible = false
+		drip.emitting = false
+		drip.visible = false
 
 
 ## The grip is at the bone, so the handle runs through the origin towards the blade's centre.
@@ -109,7 +118,7 @@ func _process(delta: float) -> void:
 	var step := int(_t * STEPS_PER_S)
 	var stepped := step != _step
 	_step = step
-	if look.mode == "shard":
+	if look.mode == "shard" or DESIGNED.on():
 		return
 	var pos := global_transform * _centre
 	if _primed and delta > 0.0:
