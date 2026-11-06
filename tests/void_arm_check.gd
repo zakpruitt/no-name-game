@@ -724,6 +724,8 @@ func _magma() -> void:
 	hero._face(Vector3(0, 0, 1))
 	var shoved := _foe(Vector3(0, 0, 4))
 	var near := _foe(Vector3(5, 0, -3))
+	var near2 := _foe(Vector3(6, 0, -3.5))  # (a bigger group the palm never touched: it doesn't draw the dive)
+	var near3 := _foe(Vector3(5.5, 0, -2))
 	var back_wall := _wall(Vector3(0, 1, 9.5))
 	await physics_frame
 	await physics_frame
@@ -731,6 +733,7 @@ func _magma() -> void:
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 	await _until(func() -> bool: return not shoved.has_meta("thrown_foe_flying"), 2.0)
 	_check(ve.wall_fresh(shoved) and not ve.wall_fresh(near), "Molten Palm's wall splat marks it (last_wall_ms)")
+	_check(ve.palm_fresh(shoved) and not ve.palm_fresh(near), "and the palm marks who it hit (last_palm_ms)")
 	await _until(func() -> bool: return hero._state_t * hero.anim_speed * hero._anim_mult / hero._move_len >= hero._move.cancel, 2.0)
 	hero.bot_enabled = true
 	landed = hero.breakers_landed
@@ -748,12 +751,14 @@ func _magma() -> void:
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(not is_instance_valid(hero._brk_meteor) or hero._brk_meteor.is_queued_for_deletion(), "which goes when he lands")
 	off = Vector2(hero.global_position.x - shoved.global_position.x, hero.global_position.z - shoved.global_position.z).length()
-	_check(off < 1.0, "the meteor dives on the wall-splatted one, past the nearer foe (%.1f m off)" % off)
+	_check(off < 1.0, "the meteor dives on the one the palm hit, not the three it never touched (%.1f m off)" % off)
 	_check(hp_before - shoved.hp >= 60.0 * ve.METEOR_SPLAT_MULT - 0.5, "it takes the splat bonus x%.1f (%.0f)" % [ve.METEOR_SPLAT_MULT, hp_before - shoved.hp])
 	_check(near_before - near.hp < 40.0, "and the stray out of the blast only burns in the lava (%.0f)" % (near_before - near.hp))
 	hero.bot_enabled = false
 	shoved.free()
 	near.free()
+	near2.free()
+	near3.free()
 	back_wall.free()
 	await _settle()
 	# Round 42 e: a wall past the 6 m shove but inside PALM_WALL_REACH: the palm carries them on to it and splats them.

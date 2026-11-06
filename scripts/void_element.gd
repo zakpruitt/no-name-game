@@ -287,6 +287,8 @@ const METEOR_HEAVY_MULT := 1.5  # big ones still take it worst
 const METEOR_WALL_WEIGHT := 1.5  # a foe splatted on a wall in the last METEOR_SPLAT_FRESH_MS counts this much in a group
 const METEOR_SPLAT_FRESH_MS := 3000  # real ms: palm -> Undertow -> the window's press is ~1.5-2 s
 const METEOR_SPLAT_MULT := 1.3  # of the landing's damage on a foe still fresh off a wall splat
+const PALM_META := "last_palm_ms"  # meta: Time.get_ticks_msec() of Molten Palm's hit on it
+const METEOR_PALM_FRESH_MS := 4000  # real ms the palm's mark lasts: Meteor Fall only dives on the foes its palm hit
 const METEOR_DIVE_SPEED := 30.0  # m/s flat at most: a far group stretches the 0.3 s dive (12 m: 0.4 s)
 
 
@@ -538,6 +540,7 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	hero._void.shoved = foes
 	for e: Node3D in foes:
 		e.take_hit(PALM_DAMAGE * power, fwd * 4.0, 0.0, true)
+		e.set_meta(PALM_META, Time.get_ticks_msec())  # (Meteor Fall only dives on these: meteor_spot)
 		Game.register_hit("cast")
 		if not hero._void.is_heavy(e) and e.is_alive():
 			var walled: bool = THROWN.clear_from(hero, e, e.global_position, fwd, PALM_WALL_REACH) < PALM_WALL_REACH
@@ -1183,10 +1186,18 @@ static func wall_fresh(e: Object) -> bool:
 	return Time.get_ticks_msec() - int(e.get_meta(THROWN.WALL_META)) <= METEOR_SPLAT_FRESH_MS
 
 
-## meteor_target over the living foes round the hero.
+## Did Molten Palm hit `e` within METEOR_PALM_FRESH_MS?
+static func palm_fresh(e: Object) -> bool:
+	if not is_instance_valid(e) or not e.has_meta(PALM_META):
+		return false
+	return Time.get_ticks_msec() - int(e.get_meta(PALM_META)) <= METEOR_PALM_FRESH_MS
+
+
+## meteor_target over the living foes round the hero that this string's Molten Palm hit (the ones it pressed into a
+## wall among them, and worth more). Nobody else draws the dive; with none, he lands ahead of him.
 static func meteor_spot(hero: CharacterBody3D) -> Dictionary:
 	var at := _flat(hero.global_position)
-	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH)
+	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
 	return meteor_target(at, foes.map(func(e: Node3D) -> Vector3: return e.global_position), foes.map(func(e: Node3D) -> bool: return wall_fresh(e)))
 
 

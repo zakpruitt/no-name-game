@@ -69,7 +69,7 @@ Moves can leave the floor (`MOVES` keys, `hero_moves.hop()`; only the model lift
    cracks the floor, shakes, adds `awaken` / `awaken_perfect`, names the breaker and ends the leap.
 6. No press by `close`: `_brk_ended = "miss"`, the held foes drop, he floats down over `fall` s.
 7. Meteor Fall (`meteor`, round 42) holds nobody (`no_hold`). Each frame of the hang `_aim()` puts the cue on the
-   group `VOID_ELEMENT.meteor_spot()` picks, and the press dives there: the biggest group within 12 m, the one Molten
+   group `VOID_ELEMENT.meteor_spot()` picks, and the press dives there: the biggest group within 12 m of the foes its Molten Palm hit (`palm_fresh`; foes the palm never touched do not draw the dive), the one Molten
    Palm just splatted on a wall winning ties and near-ties. A far group stretches the dive (`METEOR_DIVE_SPEED`).
    Round 34's three beats (the wall throw, the tentacle gather, phase 3 `_tick_beats`) are gone.
 
