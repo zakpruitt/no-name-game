@@ -819,7 +819,8 @@ clicks as authored sheets and faceted meshes. See `docs/features/designed-fx.md`
 - [x] Ice: faceted crystal spikes (nova, the fissure in water, Worldbreaker), the frost spear's floor and Deep Freeze's
   cracks drawn; the ice block / frozen foe's ice and the frost spear as faceted meshes (`shaders/ice_facet.gdshader`)
 - [x] Clips: `awaken-combo-clips/22 Elements *` (before left, after right)
-- [ ] Still polygons: the breaker dive trail (`comic_comet.gd`, every element), the tentacle's lava / ice skins
+- [x] The ice dive (Avalanche) drawn as a crystal trail (`ice_trail` on `comic_comet`)
+- [ ] Still polygons: the breaker dive trail in the other elements (`comic_comet.gd`), the tentacle's lava / ice skins
 - [ ] Zak's call: the fireball stands behind him (he reads in front) rather than wrapping him; the ice block is see-through
 
 ## Round 46 (fx-finish: the most-seen polygon effects as authored sheets)

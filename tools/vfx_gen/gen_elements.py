@@ -601,6 +601,62 @@ def jag_free(c, g):
     pts = [(c + (q - 0.5) * c * 1.2, c + math.sin(q * 5.0) * c * 0.08) for q in np.linspace(0, 1, 9)]
     return catmull(pts, 6)
 
+
+# --- 9. Ice comet strip (ribbon along a breaker's dive: comic_comet.gd, water) ----------------------------------------
+# Strip frames are wide: x = along the dive (0 tail -> 1 head), y = across. A big faceted crystal point at the head,
+# a chain of faceted shards behind it shrinking to the tail (lit facet up, shadow facet down, one specular stripe),
+# chips and four-point glints shed off the tail. Frames boil (the shards shift and turn, glints move).
+
+def ice_trail(i, n, size):
+    f = Frame(size * 2)
+    S = f.S
+    g = rng(611 + i * 3)
+    h = S / 4.0
+    y0 = (S - h) / 2
+
+    def P(u, v):
+        return (u * S, y0 + (1 - v) * h)
+
+    def shard(u, l_back, l_front, w, dv=0.0, tone_scale=1.0):
+        c = 0.5 + dv
+        back, top, front, bot = P(u - l_back, c), P(u, c + w), P(u + l_front, c), P(u, c - w)
+        f.poly([back, top, front, bot], BODY, ink=4.0)
+        f.poly([top, front, P(u, c)], LIGHT)  # lit facet (upper front)
+        f.poly([back, bot, P(u, c)], DEEP)  # shadow facet (lower back)
+        # one specular stripe along the lit facet's edge
+        a, b = P(u + l_front * 0.12, c + w * 0.62), P(u + l_front * 0.62, c + w * 0.2)
+        a2, b2 = P(u + l_front * 0.2, c + w * 0.72), P(u + l_front * 0.7, c + w * 0.27)
+        f.poly([a, a2, b2, b], HOT)
+
+    # shards from the tail to the head, growing (drawn tail first so the bigger ones overlap them)
+    k = 0
+    u = 0.2 + 0.03 * (i % 2)
+    while u < 0.8:
+        q = (u - 0.2) / 0.6
+        w = lerp(0.14, 0.38, q) * g.uniform(0.85, 1.1)
+        dv = g.uniform(-0.16, 0.16) * (1 - q * 0.6)
+        shard(u, lerp(0.05, 0.11, q), lerp(0.04, 0.09, q), w, dv)
+        u += lerp(0.07, 0.1, q) * g.uniform(0.85, 1.15)
+        k += 1
+    shard(0.86, 0.14, 0.13, 0.46)  # the head: one big crystal point
+    # chips and glints shed behind
+    for s in range(5):
+        cu = g.uniform(0.02, 0.22)
+        cv = 0.5 + g.uniform(-0.35, 0.35)
+        x, y = P(cu, cv)
+        r = h * g.uniform(0.04, 0.07)
+        f.poly([(x - r, y), (x, y - r * 0.7), (x + r * 1.3, y), (x, y + r * 0.7)], LIGHT, ink=3.0)
+    for s in range(3):
+        x, y = P(g.uniform(0.08, 0.7), 0.5 + g.choice([-1, 1]) * g.uniform(0.36, 0.44))
+        glint(f, x, y, h * 0.17, HOT, ink=3.0)
+    facet_order(f, 620 + i, cells=40)
+    tone, alpha, order = f.finish()
+    s2 = size * 2
+    hh = s2 // 4
+    y = (s2 - hh) // 2
+    return tone[y:y + hh, :], alpha[y:y + hh, :], (order[y:y + hh, :] if order is not None else None)
+
+
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "magma_fist": (magma_fist, 256, 4, 8, "earth", "edge", 0.5),
@@ -611,12 +667,32 @@ SHEETS = {
     "magma_meteor": (magma_meteor, 384, 3, 5, "earth", "edge", 0.5),
     "magma_geyser": (magma_geyser, 384, 4, 8, "earth", "edge", 0.5),
     "magma_pool": (magma_pool, 384, 3, 6, "earth", "edge", 0.5),
+    "ice_trail": (ice_trail, 256, 1, 4, "water", "tail", 0.35),
 }
 
 
 def build(name, prev_dir=None):
     fn, size, cols, count, pal, mode, nw = SHEETS[name]
     frames = [fn(i, count, size) for i in range(count)]
+    if frames[0][0].shape[0] != frames[0][0].shape[1]:  # strips (ribbons): rows stacked, the tail goes first
+        tone = np.concatenate([fr[0] for fr in frames], 0)
+        alpha = np.concatenate([fr[1] for fr in frames], 0)
+        xs = np.tile(np.linspace(0, 1, alpha.shape[1]), (alpha.shape[0], 1))
+        if frames[0][2] is not None:  # ice: whole facets drop out, tail first
+            order = np.concatenate([fr[2] for fr in frames], 0)
+            g = np.clip(xs * (1 - nw) + order * nw, 0, 1)
+        else:
+            g = np.clip(xs * (1 - nw) + fbm(alpha.shape, 9, scales=(22, 9, 3)) * nw, 0, 1)
+        boil = fbm(alpha.shape, 99, scales=(6, 2, 1))
+        sheet = (np.clip(np.stack([tone, g, boil, alpha], -1), 0, 1) * 255 + 0.5).astype(np.uint8)
+        os.makedirs(OUT, exist_ok=True)
+        path = os.path.join(OUT, name + ".png")
+        save(sheet, path)
+        if prev_dir:
+            os.makedirs(prev_dir, exist_ok=True)
+            preview(sheet, pal, (0.0, 0.4, 0.7)).save(os.path.join(prev_dir, name + "_preview.png"))
+        print(name, sheet.shape[1], "x", sheet.shape[0], "->", os.path.normpath(path))
+        return
     erode = None
     if any(fr[2] is not None for fr in frames):  # authored orders (ice: straight-edged pieces) with a little noise
         erode = []

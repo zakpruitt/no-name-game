@@ -391,6 +391,7 @@ registered into `DESIGNED.extra_sheets` the first time anything spawns (`registe
 | `magma_pool` | 384, 6 | ground | Undertow's lava well (`Well._comic_mark`, was an `Fx.scorch`): a hot crack opens into a round pool with crust rafts and popping domes, crusting over in `WELL_COMIC_SHOW` |
 | `magma_meteor` | 384, 5 | sprite_depth | Meteor Fall's fireball in flight (`void_element.meteor_shell`, was cones and spheres): a crusted molten ball with a white-hot bow and fat tongues streaming back, ignite frame then boiling on twos in real time, turned to the dive on screen and stood `METEOR_BACK` behind him from the camera so he reads in front |
 | `ice_spike` | 256, 6 | sprite_depth | ice spikes (`elements.spikes("water")`, so nova, the fissure in water, Worldbreaker's ice): faceted crystals on a hex plate with lit / shadow facets and one specular stripe, floor cracks and a glint first, cracking, then chips |
+| `ice_trail` | 256 strip, 4 rows | ribbon | an ice breaker's dive (`comic_comet.gd` when the dive's colour is water's, Avalanche): a big faceted crystal point at his end, a chain of shards shrinking behind it, chips and glints off the tail, boiling on twos; the other elements keep the polygon streak |
 | `ice_frost` | 512, 4 | ground | the frost spear's floor (frames 1-3 boil slowly: the glints move) and Deep Freeze's burst (frame 0 only, the cracks racing out) |
 
 Not flipbooks: the ice block round a frozen or cubed foe (`thrown_foe.comic_cube`, so `comic_ice` too) and the frost
@@ -422,8 +423,7 @@ radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOC
   cracks) tween its scale on twos with an ignore-time-scale tween.
 - Bubbles drawn as a light ring round a dark middle read as eyes on the pool; draw them as lit domes.
 
-Still polygons in this lane: the breaker dive trail (`comic_comet.gd`, shared by every element's breaker, so it was
-left for a cross-element pass), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own
+Still polygons in this lane: the breaker dive trail in the other elements (`comic_comet.gd`; only water's is drawn), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own
 lava / ice skins.
 
 ## Round 46: the finish (fx-finish lane)

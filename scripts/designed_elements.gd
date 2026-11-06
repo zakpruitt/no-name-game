@@ -26,6 +26,7 @@ const SHEETS := {
 		"kind": "sprite_depth", "anchor": Vector2(0.0, -0.33), "burn": 1.0},
 	"magma_pool": {"tex": preload("res://assets/vfx/designed/magma_pool.png"), "grid": Vector2(3, 2), "frames": 6, "kind": "ground",
 		"burn": 1.0},
+	"ice_trail": {"tex": preload("res://assets/vfx/designed/ice_trail.png"), "grid": Vector2(1, 4), "frames": 4, "kind": "ribbon"},
 }
 
 static var _registered := false
