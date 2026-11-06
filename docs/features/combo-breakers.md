@@ -187,3 +187,16 @@ group = foes within `METEOR_PILE_R` 3 m of each other, a wall-splatted foe (last
 everyone in 3 m, x1.3 on the freshly splatted, x1.5 on big ones (perfect x1.5 as every breaker). Check:
 `void_arm_check` `_meteor_target()` (stray vs group, splatted vs equal group, bigger group vs splatted stray, empty)
 and the palm -> Undertow -> meteor run that dives past a nearer foe onto the splatted one.
+
+### Round 42 e: the palm reaches the wall
+
+The training room is ~32 m across and the palm's 6 m shove never reached a wall, so the flow never showed there.
+Molten Palm now carries a foe on to a wall within `PALM_WALL_REACH` 10.5 m behind it (past that, the plain 6 m
+shove), and Meteor Fall looks for a fresh splat up to `METEOR_SPLAT_REACH` 17 m away (other groups: 12 m, unchanged).
+Chosen over pillars or a wall segment in the training room: geometry there would also catch every other string's
+throws (Ice Cube's 12 m bowl, Fault Line, Storm Pitch) and the bot's layout, and a palm that seeks a nearby wall
+works in any room. Films: `tests/string_film.gd -- --from=11 --to=11 --layout=wall` (three of four carried ~6.5 m into
+the back wall for ~37 each, then the meteor lands on them for ~150 each) and `--layout=stray` (one splatted alone,
+three bunched to the side: the cue and the dive go to the three). The splat lands ~9.5 m up-screen of him, at the top
+edge of the frame for a beat; the hang and the dive keep hero and target in frame. Checks: `void_arm_check` (a wall
+9 m behind: carried and splatted; no wall: 6 m; a splat past 12 m still a target, not past 17 m).

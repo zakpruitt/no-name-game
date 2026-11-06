@@ -30,7 +30,7 @@ Fall onto a group up to 12 m off) it follows him there smoothly. Hits, enders, h
 3. `_frame` eases out at `FRAME_OUT` and back at `FRAME_BACK` (real time, measured with `Time.get_ticks_usec()`);
    the lean likewise.
 3b. **Breaker hangs.** In State.LEAP `_frame_fight()` returns at once: `_frame` and the lean settle back to 1 / none
-   at `HANG_SETTLE` (3 /s). The dive (Meteor Fall can cover 12 m in 0.4 s) is the normal exponential follow at
+   at `HANG_SETTLE` (3 /s). The dive (Meteor Fall can cover 12 m in 0.4 s, 17 m in ~0.57 s onto a fresh wall splat since round 42 e) is the normal exponential follow at
    `follow_speed` (x3 under the dive's `punch()`), so the camera trails him in and never snaps or runs ahead.
    (Round 36's `HANG_FRAME_*` / `BEATS_PHASE` pull-out was for Meteor Fall's wall throw and gather; both went in
    round 42.)
@@ -102,3 +102,9 @@ Meteor Fall lost its wall throw and gather (combo lane), so the beats' pull-out 
 `_HIT_MS` / `_OUT` / `_BACK`, `HANG_LEAN_MAX`, `BEATS_PHASE`) went with them. A hang now always keeps him centred,
 settling at `HANG_SETTLE` (the old `HANG_FRAME_BACK` 3 /s, the rate a hang came back in at before). The calm pass
 (`_squeeze()`, `PUNCH_MIN`, the lean ramp) is unchanged.
+
+Round 42 e: `camera_feel_check`'s dive failed every run (0.21 m over) because it moved the hero by the wall clock
+while the rig follows with the engine's frame delta; headless the two disagree. The check now steps the rig by
+hand at 1/60 s (24 steps for the 0.4 s dive), and an injected lean jump mid-dive still fails it. The Molten Palm
+films (`string_film --layout=wall|stray`) keep hero and target in frame through the hang and the dive; the wall
+splat itself sits ~9.5 m up-screen, at the top edge for a beat (the hang turns the fight framing off).

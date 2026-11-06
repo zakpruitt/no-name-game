@@ -259,3 +259,18 @@ When Zak asks to "keep improving combos in a loop", do one improvement per round
   (`hero._face(to)`) before a throw, or it flies off the wrong way and the "missing damage" looks like a bug.
 - A thing that leaves his hand (a thrown sword) is its own node (`top_level`, child of the hero): its hits, timer and
   beacon live there, the hero only asks `state_word()` for routing. The checks then assert its states directly.
+
+## A set-up has to be reachable where players practise (round 42 e)
+
+- Check the set-up's distances against the room it will be learned in. Molten Palm's 6 m shove never reached the
+  training room's back wall (~10 m behind the dummies), so the wall splat, and Meteor Fall's reason to prefer that
+  group, never showed in training. A payoff that needs a wall should seek a wall in a capped reach
+  (`PALM_WALL_REACH` 10.5 m; past it, the plain shove) rather than wait for the room to be built round it. Geometry
+  in the room would also change every other string's throws there.
+- Let the follow-up reach what the set-up sends further: Meteor Fall goes `METEOR_SPLAT_REACH` 17 m to a fresh splat,
+  but stays at 12 m for any other group, so the longer reach doesn't make the dive go anywhere.
+- Film it with a layout made for it (`tests/string_film.gd --from=11 --to=11 --layout=wall|stray`): the bot's fan
+  only ever put one dummy in the palm's strip, which proves the code path but not the read.
+- Anything that sets `_anim_mult` mid-move drops the move's own `speed` (`EM_SPEED` 2.8 etc.). Awakening ending did
+  that; a crossover that needs its first hit before a state runs out (Steam Burst on the ice cube) then misses.
+  Leave a move in flight at the pace it started at; the next `_start_attack` picks up the new base.

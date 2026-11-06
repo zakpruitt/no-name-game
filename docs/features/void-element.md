@@ -40,7 +40,7 @@ Live Wire is the hang itself: `void_grab.seized_tick` jolts every `WIRE_STEP`, s
 
 | Input | Id | Name | Effect |
 |---|---|---|---|
-| L L L H | `EM` | Molten Palm | The arm swells into a fist (`_tick_palm`) and shoves the crowd `PALM_SHOVE` 6 m back through lava. A wall splats them (`quiet`, `wall_mult` `PALM_WALL_MULT` 2.5, and marks `last_wall_ms`): the set-up for Meteor Fall |
+| L L L H | `EM` | Molten Palm | The arm swells into a fist (`_tick_palm`) and shoves the crowd `PALM_SHOVE` 6 m back through lava. A wall within `PALM_WALL_REACH` 10.5 m behind a foe and it carries that one all the way there (round 42 e, `thrown_foe.clear_from()`), so the training room's back wall is in reach from the dummies. The wall splats them (`quiet`, `wall_mult` `PALM_WALL_MULT` 2.5, and marks `last_wall_ms`): the set-up for Meteor Fall |
 | L L L H H | `EV` | Undertow | Lava wells and tendrils out of the floor drag foes waist-deep (`floor_bind.gd`, `sink` moves `enemy.model`, not the body). It follows those Molten Palm just shoved (`shoved`, `UNDERTOW_CHASE`), taking hold where they land. Big foes are only slowed. The window opens |
 
 ### Dark

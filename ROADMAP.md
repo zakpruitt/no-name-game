@@ -632,3 +632,15 @@ constant (`PRINCE_MOVES.ONE_SWORD` / `SMASH_ANY_TIME` / `ROYAL_DRAW`, `SUNBRAND.
   `tests/prince_film.gd`; clip `awaken-combo-clips/13 Dragon Prince core loop.mp4`
 - [ ] Next slices (doc section 10): the smash's window and Royal Draw, wall pin, Sword in the Stone / Kingsfall, kindled and
   Heat the Blade, charged casts, parry, Majesty and the crown, the HUD sword icon, his model and clips
+
+## Round 42 e (Molten Palm reaches the wall; Flash Freeze regression)
+- [x] Regression: breakers=10/11 in ~2 of 3 autotests since Meteor Fall's dive, Flash Freeze missing. Cause: Awakening
+  ran out during Dash L H H L (the dive's extra hits moved the meter) and `hero_awaken.set_awakened` reset
+  `_anim_mult` mid-move, dropping Steam Burst's `EM_SPEED` 2.8: its palm came ~2.8x late, after the ice cube had
+  shattered on the back wall. Now a move in flight keeps its pace; the next takes the new base. A player hits it too
+  (any move with a `speed` when the meter runs out). `rhythm_check` covers it; XS beat back to ~406 ms
+- [x] `camera_feel_check`'s dive (0.21 m "over" every run) was the test: the hero moved by wall clock, the rig by the
+  engine delta. Stepped by hand now; the rig never snapped
+- [x] Molten Palm carries a foe on to a wall within `PALM_WALL_REACH` 10.5 m; Meteor Fall follows a fresh splat to
+  `METEOR_SPLAT_REACH` 17 m. Filmed with `string_film --layout=wall|stray`
+- [ ] The splat lands at the top edge of the frame for a beat (the hang turns the fight framing off): a camera follow-up

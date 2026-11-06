@@ -422,3 +422,16 @@ fast-forward, so no agent edits another's files or index.
 
 Land your work, then run `bash tools/agent.sh remove <name>`. This deletes
 the worktree, and deletes the branch once it has been merged.
+
+- **A breaker that "sometimes" drops out of the autotest can be a meter, not the string.** Since Meteor Fall's dive
+  hit more, the Awakening meter ran out during Dash L H H L and `set_awakened` reset `_anim_mult` mid-move: Steam
+  Burst's palm came 2.8x late, after the ice cube shattered, and Flash Freeze missed in ~2 of 3 runs. A per-frame
+  trace of the string (state, move, progress, `_anim_mult`, `Engine.time_scale`, `awakened`, each dummy's spot and
+  `frozen_t`) buffered into `_rhythm_log` and diffed against a throwaway `git worktree add --detach` of the old base
+  found it in two runs; reading diffs of the files that changed didn't (the cause was in a file nobody touched).
+- **A `[rhythm]` beat that jumps is a clue, not the bug:** the XS beat 406 -> 1150 ms was in every run, passing or not.
+  Compare passing and failing runs before trusting the number that changed.
+- **Don't drive a test's motion by the wall clock when the code under test steps by the engine's delta.** Headless the
+  two disagree (two frames in one ms while the rig still steps), so `camera_feel_check`'s dive read 0.21 m "over"
+  every run with no snap in the rig. Step it by hand (`set_process(false)`, call `_process(1/60)`), and check it still
+  fails on a real fault (an injected lean jump did).
