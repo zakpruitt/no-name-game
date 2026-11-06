@@ -617,7 +617,7 @@ func _ice() -> void:
 	var c := _foe(Vector3(-1.5, 0, -3.5))
 	var big := _foe(Vector3(-3.0, 0, 5))
 	big.elite = true
-	var off := _foe(Vector3(11.5, 0, -1.0))  # (past HARPOON_REACH, grown by the chain: _cast_grow)
+	var off := _foe(Vector3(12.5, 0, -2.0))  # (past HARPOON_REACH even grown by a top-tier chain: x1.45, _cast_grow)
 	var start_ms := 0
 	hero._start_attack("EF")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)

@@ -462,10 +462,10 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 		_current = null
 		_charge_jolted()
 	for s: Dictionary in _seized:
-		var e: Node3D = s.foe
-		if not is_instance_valid(e) or not e.is_alive():
+		if not is_instance_valid(s.foe) or not s.foe.is_alive():
 			s.tendril.visible = false
 			continue
+		var e: Node3D = s.foe  # (checked first: a typed assign of a freed foe is an error)
 		if s.has("anchored"):  # held where it stands (Avalanche's cubes)
 			if _time >= s.stagger_at and not is_heavy(e):
 				s.stagger_at = _time + RESTAGGER
@@ -502,7 +502,7 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 func slam_seized() -> Array:
 	var foes := []
 	for s: Dictionary in _seized:
-		var e: Node3D = s.foe
+		var e: Variant = s.foe
 		if is_instance_valid(e) and e.is_alive():
 			if s.has("crush_to"):
 				e.global_position = s.crush_to
