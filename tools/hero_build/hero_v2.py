@@ -23,6 +23,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 RIG_GLB, OUT = argv[0], argv[1]
 VARIANT = argv[2] if len(argv) > 2 else "hook"
 RENDER = "render" in argv[3:]
+TIP = os.environ.get("HERO_TIP", "crimson")  # horn tips: crimson (picked by film: violet merged into the claw) or violet
 os.makedirs(OUT, exist_ok=True)
 
 # ---------------------------------------------------------------- palette (sRGB 0..1, flat swatches)
@@ -30,12 +31,13 @@ PALETTE = {
     "hood": (0.95, 0.91, 0.8), "hood_shade": (0.74, 0.68, 0.62), "lining": (0.55, 0.07, 0.14),
     "face": (0.03, 0.025, 0.06),
     "tunic": (0.1, 0.11, 0.16), "belt": (0.6, 0.08, 0.15), "trousers": (0.06, 0.06, 0.1),
-    "skirt": (0.12, 0.1, 0.17), "skirt_hem": (0.05, 0.04, 0.08),
+    "skirt": (0.12, 0.1, 0.17), "skirt_hem": (0.6, 0.08, 0.15),
     "scarf": (0.84, 0.17, 0.2), "scarf_end": (0.64, 0.09, 0.15),
     "boot": (0.16, 0.14, 0.19), "boot_cuff": (0.6, 0.08, 0.15), "sole": (0.04, 0.03, 0.06),
     "sleeve": (0.07, 0.08, 0.12), "glove": (0.16, 0.14, 0.19), "wrap": (0.6, 0.08, 0.15),
     "claw": (0.62, 0.3, 1.0), "claw_deep": (0.3, 0.1, 0.56), "claw_tip": (1.0, 0.52, 0.95),
-    "horn": (0.95, 0.91, 0.8),
+    "horn": (0.1, 0.06, 0.17), "horn_tip": (0.62, 0.3, 1.0) if TIP == "violet" else (0.84, 0.17, 0.2),
+    "stripe": (0.72, 0.1, 0.17),
 }
 REGIONS = list(PALETTE)
 SW = 16  # px per swatch
@@ -276,20 +278,46 @@ def build_head(bm):
                   HEAD_C + Vector((0.03, 0.33, 0.52)), HEAD_C + Vector((0.2, 0.42, 0.6))],
              lambda t: 0.25 * (1 - t) ** 1.25 + 0.012, n=28, seg=16)
     elif VARIANT == "horns":
-        for s in (-1, 1):  # two devil horns: out from the temples, up, the tips hooking forward
-            tube(bm, [HEAD_C + Vector((0.2 * s, 0.03, 0.14)), HEAD_C + Vector((0.38 * s, 0.03, 0.3)),
-                      HEAD_C + Vector((0.45 * s, -0.06, 0.52)), HEAD_C + Vector((0.37 * s, -0.2, 0.64))],
-                 lambda t: 0.135 * (1 - t) ** 1.1 + 0.014, n=28, seg=16)
-        # the hood's own point, swept back and drooping: a cowl, not a crown
-        tube(bm, [HEAD_C + Vector((0, 0.12, 0.17)), HEAD_C + Vector((0, 0.3, 0.27)),
-                  HEAD_C + Vector((-0.02, 0.48, 0.24)), HEAD_C + Vector((-0.06, 0.6, 0.12))],
-             lambda t: 0.2 * (1 - t) ** 1.2 + 0.014, n=26, seg=16)
+        # the hood's own point, swept back and drooping: a cowl, not a crown (horns: build_horns)
+        tube(bm, BACK_POINT, lambda t: 0.22 * (1 - t) ** 1.2 + 0.016, n=30, seg=16)
     elif VARIANT == "twin":
         # two long points swept back, the left one longer: an imp's hood
         for s, ln in ((-1, 0.75), (1, 1.0)):
             tube(bm, [HEAD_C + Vector((0.14 * s, 0.08, 0.18)), HEAD_C + Vector((0.22 * s, 0.22, 0.38)),
                       HEAD_C + Vector((0.3 * s, 0.4 * ln, 0.5 * ln)), HEAD_C + Vector((0.38 * s, 0.62 * ln, 0.5 * ln))],
                  lambda t: 0.17 * (1 - t) ** 1.2 + 0.012, n=26, seg=14)
+
+
+BACK_POINT = [HEAD_C + Vector((0, 0.12, 0.17)), HEAD_C + Vector((0, 0.34, 0.28)),
+              HEAD_C + Vector((-0.03, 0.58, 0.22)), HEAD_C + Vector((-0.09, 0.8, 0.04))]
+
+
+def horn_points(s):
+    # out from the temples, splayed wide, up, the tips hooking forward: breaks the outline from above
+    return [HEAD_C + Vector((0.18 * s, 0.04, 0.13)), HEAD_C + Vector((0.44 * s, 0.05, 0.27)),
+            HEAD_C + Vector((0.62 * s, -0.02, 0.5)), HEAD_C + Vector((0.58 * s, -0.17, 0.7))]
+
+
+def build_horns(bm):
+    for s in (-1, 1):
+        tube(bm, horn_points(s), lambda t: 0.155 * (1 - t) ** 1.1 + 0.016, n=30, seg=16)
+
+
+def stripe_points():
+    # down the hood's crown and back on its midline, then along the back point to its tip
+    pts = []
+    for k in range(7):
+        a = math.radians(-30 + 85 * k / 6)  # from a little ahead of the top to half way down the back
+        pts.append(HEAD_C + Vector((0.0, math.sin(a) * HEAD_R[1], math.cos(a) * HEAD_R[2])) * 1.07)
+    return pts
+
+
+def build_stripe(bm):
+    # a bold crimson ridge, half sunk into the hood, from the brow over the crown and down the back point
+    tube(bm, stripe_points(), lambda t: 0.09 - 0.02 * t, n=30, seg=12)
+    # on top of the back point: each centre lifted by most of the point's radius there
+    tube(bm, [p + Vector((0, 0, 0.8 * (0.22 * (1 - k / 3) ** 1.2 + 0.016))) for k, p in enumerate(BACK_POINT)][1:],
+         lambda t: 0.065 * (1 - t) + 0.012, n=20, seg=12)
 
 
 def build_cavity(bm):
@@ -308,7 +336,7 @@ def build_face(bm):
 def build_torso(bm):
     # a stubby pear: chest under the hood, a round belly
     blob(bm, TORSO_C, (0.2, 0.17, 0.2), seg=24, ring=16)
-    blob(bm, TORSO_C + Vector((0, -0.01, 0.12)), (0.22, 0.17, 0.12), seg=24, ring=12)
+    blob(bm, TORSO_C + Vector((0, -0.01, 0.12)), (0.26, 0.18, 0.12), seg=24, ring=12)
     tube(bm, [H("neck") - Vector((0, 0, 0.04)), T("neck") + Vector((0, 0, 0.04))], [0.09, 0.09], n=4, seg=12)
     # thighs to the knee, under the skirt
     for s in "lr":
@@ -325,17 +353,21 @@ def build_scarf_wrap(bm):
     blob(bm, c + Vector((0.06, -0.12, -0.05)), (0.08, 0.05, 0.07))  # the knot
 
 
+SCARF_MORE = 0.16  # m the ribbon runs on past the last scarf bone (weighted to it)
+
+
 def build_scarf_tail(bm):
     names = chain("scarf")
     pts = [H(names[0]) + Vector((0, -0.02, 0.0))] + [T(n) for n in names]
+    d = (pts[-1] - pts[-2]).normalized()
+    pts.append(pts[-1] + d * SCARF_MORE)
     # a flat ribbon, box section: wide side faces up/back so it reads from above
-    tube(bm, pts, [0.075, 0.09, 0.085, 0.08, 0.07], n=30, seg=12, flat=0.32, up=Vector((0, 0, 1)))
+    tube(bm, pts, [0.11, 0.15, 0.15, 0.14, 0.13, 0.12][:len(pts)], n=34, seg=12, flat=0.3, up=Vector((0, 0, 1)))
     # swallowtail end: two short points
-    end, prev = T(names[-1]), H(names[-1])
-    d = (end - prev).normalized()
+    end = pts[-1]
     side = d.cross(Vector((0, 0, 1))).normalized()
     for s in (-1, 1):
-        tube(bm, [end - d * 0.04, end + d * 0.08 + side * 0.06 * s], [0.045, 0.015], n=6, seg=10, flat=0.45)
+        tube(bm, [end - d * 0.05, end + d * 0.13 + side * 0.09 * s], [0.07, 0.018], n=8, seg=10, flat=0.45)
 
 
 def build_skirt(bm):
@@ -347,7 +379,7 @@ def build_skirt(bm):
         pts = []
         for i in range(4):
             z = np.interp(i, [0, 3], [top_z, bot_z + (0.0 if k % 2 else 0.05)])
-            r = np.interp(i, [0, 3], [0.2, 0.3])
+            r = np.interp(i, [0, 3], [0.22, 0.36])
             pts.append(Vector((SKIRT_C.x + math.cos(a0) * r * 1.05, SKIRT_C.y + math.sin(a0) * r * 0.9 - 0.06, z)))
         tube(bm, pts, [0.16, 0.19, 0.2, 0.1], n=10, seg=12, flat=0.35, up=Vector((math.cos(a0), math.sin(a0), 0)))
 
@@ -462,7 +494,10 @@ def build_claws(bm, which):
 # ---------------------------------------------------------------- build
 cav = cutter("cavity", build_cavity)
 parts = {}
-parts["hood"] = part_object("hood", build_head, voxel=0.012, target=3400, subtract=cav)
+parts["hood"] = part_object("hood", build_head, voxel=0.012, target=3000, subtract=cav)
+if VARIANT == "horns":
+    parts["horns"] = part_object("horns", build_horns, voxel=0.01, target=1400)
+    parts["stripe"] = part_object("stripe", build_stripe, voxel=0.01, target=700)
 parts["face"] = part_object("face", build_face, voxel=0.012, target=900)
 parts["rim"] = part_object("rim", build_rim, voxel=0.01, target=900)
 parts["torso"] = part_object("torso", build_torso, voxel=0.012, target=1800)
@@ -478,7 +513,7 @@ parts["glove"] = part_object("glove", build_glove, voxel=0.012, target=900)
 parts["wrap"] = part_object("wrap", build_wrap, voxel=0.01, target=400)
 parts["arm_r"] = part_object("arm_r", build_tentacle_arm, voxel=0.012, target=1600)
 parts["palm"] = part_object("palm", build_palm, voxel=0.012, target=1000)
-parts["claws"] = part_object("claws", lambda bm: build_claws(bm, CLAWS), voxel=0.01, target=2000)
+parts["claws"] = part_object("claws", lambda bm: build_claws(bm, CLAWS), voxel=0.01, target=1800)
 parts["thumb"] = part_object("thumb", lambda bm: build_claws(bm, THUMB), voxel=0.01, target=500)
 
 
@@ -504,6 +539,11 @@ def region_of(part, p):
         return "hood"
     if part == "rim":
         return "lining"
+    if part == "stripe":
+        return "stripe"
+    if part == "horns":
+        t, _ = seg_t(p, horn_points(1 if p.x > 0 else -1))
+        return "horn_tip" if t > 0.6 else "horn"
     if part == "cuffs":
         return "boot_cuff"
     if part == "wrap":
@@ -521,7 +561,7 @@ def region_of(part, p):
         t, _ = seg_t(p, [H(names[0])] + [T(n) for n in names])
         return "scarf_end" if t > 0.72 else "scarf"
     if part == "skirt":
-        return "skirt_hem" if p.z < 0.43 else "skirt"
+        return "skirt_hem" if p.z < 0.45 else "skirt"
     if part == "legs":
         return "trousers"
     if part == "boots":
@@ -557,11 +597,11 @@ def dist_seg(p, a, b):
 
 
 ALLOWED = {
-    "hood": ["head"], "face": ["head"], "rim": ["head"], "cuffs": ["lowerleg.l", "lowerleg.r"], "wrap": ["wrist.l"],
+    "hood": ["head"], "horns": ["head"], "stripe": ["head"], "face": ["head"], "rim": ["head"], "cuffs": ["lowerleg.l", "lowerleg.r"], "wrap": ["wrist.l"],
     "torso": ["hips", "spine", "chest", "neck", "upperleg.l", "upperleg.r"],
     "belt": ["hips", "spine"],
     "scarf_wrap": ["chest", "neck"],
-    "scarf_tail": ["chest"] + chain("scarf"),
+    "scarf_tail": ["chest"] + chain("scarf"),  # past the last bone: weighted to it
     "skirt": ["hips"] + [b for b in B if b.startswith("skirt.")],
     "legs": ["upperleg.l", "lowerleg.l", "upperleg.r", "lowerleg.r"],
     "boots": ["lowerleg.l", "foot.l", "toes.l", "lowerleg.r", "foot.r", "toes.r"],
@@ -920,7 +960,8 @@ if RENDER:
     sc.camera = cam
     cam.data.type = "ORTHO"
     cam.data.ortho_scale = 2.7
-    views = {"front": (0, -1, 0), "side": (1, 0, 0), "game": (0, -math.cos(math.radians(54)), math.sin(math.radians(54))), "back": (0, 1, 0)}
+    views = {"front": (0, -1, 0), "side": (1, 0, 0), "game": (0, -math.cos(math.radians(54)), math.sin(math.radians(54))), "back": (0, 1, 0),
+             "gameback": (0.3, math.cos(math.radians(54)), math.sin(math.radians(54)))}
     poses = ["rest"] + [p for p in (argv[4].split(",") if len(argv) > 4 else ["Idle:0", "Ab_L1:11", "Ab_GR:7", "Run_F:4", "Ab_L2:12", "Ab_L3:24"])]
     for pose in poses:
         if pose != "rest":
