@@ -459,6 +459,7 @@ def bolt_strip(i, n, size):
     w = h * 0.3
     body = stroke(main, lambda q: w * (0.75 + 0.25 * math.sin(q * 9 + i)), cap=False)
     forks = []
+    fork_paths = []
     for k in range(3):
         j = 2 + k * 3 + (i % 2)
         if j >= len(main) - 1:
@@ -469,9 +470,15 @@ def bolt_strip(i, n, size):
         fp = jag_path(a, b, S / 30, 0.5, 140 + i * 5 + k)
         fp[:, 1] = np.clip(fp[:, 1], y0 + 3, y0 + h - 3)
         forks.append(stroke(fp, lambda q: w * 0.45 * (1 - q) + 1.5, cap=False))
+        fork_paths.append(fp)
+    # fx-air: electric, not pale. A saturated rim (body) round a light band and a fat white-hot core, so the bolt
+    # reads as charge against the pale air and the violet tentacle; the forks get a light core.
     m = poly_mask([body] + forks, S)
-    f.fill(m, LIGHT, ink=2.5)
-    core = stroke(main, lambda q: w * 0.32, cap=False)
+    f.fill(m, BODY, ink=2.5)
+    for fp in fork_paths:
+        f.fill(poly_mask([stroke(fp, lambda q: w * 0.2 * (1 - q) + 1.0, cap=False)], S) * m, LIGHT)
+    f.fill(poly_mask([stroke(main, lambda q: w * 0.5 * (0.8 + 0.2 * math.sin(q * 9 + i)), cap=False)], S) * m, LIGHT)
+    core = stroke(main, lambda q: w * 0.3 * (0.8 + 0.2 * math.sin(q * 9 + i)), cap=False)
     f.fill(poly_mask([core], S), HOT)
     tone, alpha, _ = f.finish()
     s2 = size * 2
@@ -495,15 +502,17 @@ def storm_burst(i, n, size):
     r = f.u(lerp(0.62, 0.75, ease_out(t)))
     if t < 0.7:
         tips = [r * (1.0 if s % 2 == 0 else 0.62) * (1 - 0.6 * max(0, t - 0.3)) for s in range(k)]
-        f.poly(star(c, cy, tips, r * 0.25, rot=-math.pi / 2, bow=0.1, n_edge=2), LIGHT, ink=2.5)
-        f.poly(star(c, cy, [x * 0.5 for x in tips], r * 0.12, rot=-math.pi / 2, bow=0.1, n_edge=2), HOT)
+        f.poly(star(c, cy, tips, r * 0.25, rot=-math.pi / 2, bow=0.1, n_edge=2), BODY, ink=2.5)
+        f.poly(star(c, cy, [x * 0.68 for x in tips], r * 0.17, rot=-math.pi / 2, bow=0.1, n_edge=2), LIGHT)
+        f.poly(star(c, cy, [x * 0.42 for x in tips], r * 0.11, rot=-math.pi / 2, bow=0.1, n_edge=2), HOT)
     for s in range(5):  # arcs crawling outward
         a = -math.pi / 2 + (s - 2) * 0.62 + (0.1 if i % 2 else -0.1)
         r0 = r * lerp(0.3, 0.8, t)
         r1 = r * lerp(0.9, 1.25, t)
         p = jag_path(polar(0, r0, a), polar(0, r1, a), f.u(0.12), 0.6, 150 + s + i * 9)
         p = p + np.array([c, cy])
-        f.poly(stroke(p, lambda q: f.u(lerp(0.09, 0.04, t)) * (1 - 0.5 * q) + 2, cap=False), BODY if s % 2 else LIGHT, ink=2.0)
+        am = f.poly(stroke(p, lambda q: f.u(lerp(0.09, 0.04, t)) * (1 - 0.5 * q) + 2, cap=False), BODY, ink=2.0)
+        f.fill(poly_mask([stroke(p, lambda q: f.u(lerp(0.04, 0.018, t)) * (1 - 0.5 * q) + 1, cap=False)], S) * am, HOT)
     return f.finish()
 
 

@@ -35,7 +35,7 @@ const CASTS := {
 ## color: main glow; glow: hot core; rock: solid pieces (earth).
 const LOOK := {
 	"spirit": {"color": Color(0.3, 0.95, 0.85), "glow": Color(1.0, 0.88, 0.5), "sfx": "cast_spirit"},
-	"wind": {"color": Color(0.5, 1.0, 0.55), "glow": Color(0.92, 1.0, 0.9), "sfx": "cast_wind"},
+	"wind": {"color": Color(0.72, 1.0, 0.14), "glow": Color(0.96, 1.0, 0.75), "sfx": "cast_wind"},  # fx-air: the lightning lime (fx_palette "wind"); the wind's own look is fx_palette.AIR
 	"earth": {"color": Color(1.0, 0.38, 0.08), "glow": Color(1.0, 0.78, 0.3), "rock": Color(0.2, 0.16, 0.15), "sfx": "cast_earth"},
 	"water": {"color": Color(0.4, 0.78, 1.0), "glow": Color(0.88, 0.97, 1.0), "sfx": "cast_water"},
 	"void": {"color": Color(0.62, 0.3, 1.0), "glow": Color(1.0, 0.4, 0.95), "sfx": "cast_spirit"},  # the void arm's dark moves only
