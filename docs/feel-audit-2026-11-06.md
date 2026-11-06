@@ -94,3 +94,15 @@ Smaller things seen:
 - Updraft Lash's air twister swirl (pale blue S-curls) is the biggest shape of the L H strings for ~0.3 s (L_H_H 014-020); fine as a beat, but with Live Wire's hang straight after, it is still on screen under the prompt.
 - The "line" strings' walk-up puts the column at the top-left edge for ~1 s before the dash (bot setup, not play).
 - No old green: the storm lime is consistent (axe edge, pulses, arcs, Short Circuit). No pose pops seen on the v2 mesh at 12 fps; the smaller axe meets the dummies on every L HIT frame.
+
+## Fixed in this lane (before / after from film)
+
+Before / after sheets and clips: `C:\Users\pruit\Desktop\awaken-combo-clips\24 Feel *`.
+1. Live Wire's later pulses take `ZAP_STOP_AFTER` 0.012 s (first pulse keeps 0.035). L_H_H after: the hang reads
+   x0.03 on the first pulse, then a steady x1.0 / x0.6; the landing comes at 2232 ms of film (was 2320).
+2. `combo_guide.guide_side()`: the rows sit on his left, off the pile, in every right-facing string (L_H_H after 007-017).
+3. `callout_cap`: while his model is lifted (`HANG_LIFT` 0.6 m) a named callout goes to the top band (L_H_H after 018-028:
+   LIVE WIRE above the pile, then GROUNDED PERFECT in the same place).
+4. The lava well ticks with `burn_hit`: the walk-up into spread_H_L_L has numbers only, no stars or words.
+5. `camera_rig.FRAME_CUE`: Short Circuit cues its targets at the landing (`SC_CUE_MS` 900) and the view eases out at
+   `FRAME_CUE_OUT` 7 /s; the far foe is in frame as the arc lands (headless probe: worst foe NDC at the far arc 1.47 -> 1.06).
