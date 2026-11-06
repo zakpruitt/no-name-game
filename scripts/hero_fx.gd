@@ -182,7 +182,10 @@ static func rank_up(hero: CharacterBody3D, i: int, rank: String) -> void:
 	var c: Color = RANK_COLORS.get(rank, Color.WHITE)
 	var at := hero.global_position + Vector3.UP * 1.1
 	# Thin and hard: a soft ring and star sat on him and fought his effects.
-	VOID_ELEMENT.DARK.hoop_run(hero.get_parent(), hero.global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
+	# (round 44: designed, no floor hoop: a rank-up ring round him on every climb was one more flat circle
+	# under every fight, held by the hitstop; the HUD's rank and the burst carry it)
+	if not Fx.DESIGNED.on():
+		VOID_ELEMENT.DARK.hoop_run(hero.get_parent(), hero.global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
 	Fx.burst(hero.get_parent(), at, c, 6 + i * 4, 9.0, 0.14, 0.35, Vector3.UP, 120.0, -6.0, 0.3, "spark")
 	if i >= 4 and Game.camera_rig != null:  # S and up
 		Game.camera_rig.punch(0.94, 0.15)

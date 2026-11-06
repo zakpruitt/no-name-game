@@ -315,7 +315,8 @@ static func land_slam(hero: CharacterBody3D, peak: float) -> void:
 	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
 	var parent := hero.get_parent()
 	Fx.dust(parent, hero.global_position, int(6 * k), 0.5 * k)
-	if not VOID_ELEMENT.is_element_move(hero._move_id):  # (his tentacle moves land on him: it hid them)
+	# (his tentacle moves land on him: it hid them; round 44, designed: the landing's dust puff carries it)
+	if not VOID_ELEMENT.is_element_move(hero._move_id) and not Fx.DESIGNED.on():
 		Fx.ring(parent, hero.global_position + hero._facing() * 0.8, Color(hero._fx_color(), 0.8), 2.2 * k, 0.22)
 	Game.shake(0.12 * k)
 

@@ -35,7 +35,8 @@ const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
-const DESIGNED := preload("res://scripts/designed_fx.gd")  # round 43: authored flipbook effects (--fx=classic: off)
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # round 44: ground stamps, element hit pops  # round 43: authored flipbook effects (--fx=classic: off)
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -197,7 +198,7 @@ static func _flush_crowd_stars() -> void:
 	crowd_merged += batch.size() - 1
 	var pal: Dictionary = batch[0][3]
 	if DESIGNED.on():
-		DESIGNED.hit(parent, mid / float(batch.size()), str(batch[0][4]), big)
+		DESIGNED_INK.pop(parent, mid / float(batch.size()), str(batch[0][4]), big)
 		return
 	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 
@@ -238,8 +239,8 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 				_flush_crowd_stars.call_deferred()
 			_crowd_stars.append([parent, at, size, pal, _blow_element(parent)])
 			return
-		if DESIGNED.on():  # the authored impact star (designed_fx.hit)
-			DESIGNED.hit(parent, at, _blow_element(parent), size)
+		if DESIGNED.on():  # the authored impact pop in the blow's element (designed_ink.pop; capped in a crowd)
+			DESIGNED_INK.pop(parent, at, _blow_element(parent), size)
 			return
 		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
@@ -267,6 +268,8 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
 		if not _once_in_breaker(parent, "chain"):
 			return
+		if DESIGNED.on() and not DESIGNED_INK.once_a_frame("chain"):  # (round 44: one halo a frame in a crowd)
+			return
 		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
 			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
 			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
@@ -285,6 +288,8 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 	var at := pos + Vector3.UP * 1.0
 	var k := 1.5 if big else 1.0
 	if Game.comic_style:  # chunky chips of the element, flung along the blow
+		if DESIGNED.on():  # (round 44: the hit's designed pop is drawn in the element's shape; chips were clutter)
+			return
 		var el := _blow_element(parent)
 		var chip: Color = PAL.of(element if el == "hit" else el).body
 		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": chip,
@@ -575,8 +580,9 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
 		if not _once_in_breaker(parent, "impact"):
 			return
-		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks)
-			DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
+		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks), once a frame
+			if DESIGNED_INK.streaks_ok():
+				DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
 			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
@@ -657,7 +663,8 @@ static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> vo
 		COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
 		# Round 33, sleek 5: one thin dust hoop just past the dent (a 2.4 m 0.1 m band round every cube Deep Freeze
 		# drove down was four cream rings over the crowd).
-		COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
+		if not DESIGNED.on():  # (round 44: designed, the dent and the dust puff carry it; no hoop per cube)
+			COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
 		return
 	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
 	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)

@@ -9,6 +9,7 @@ const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
 const STANDING := preload("res://scripts/standing_fx.gd")
 
+const INK_FX := preload("res://scripts/designed_ink.gd")
 const INK := Color(0.03, 0.01, 0.06)
 const VIOLET := Color(0.62, 0.3, 1.0)
 const HOT := Color(1.0, 0.4, 0.95)
@@ -107,6 +108,9 @@ static func floor_ink() -> PlaneMesh:
 
 ## A hard-edged ring on the floor that runs from one size to another and goes.
 static func hoop_run(parent: Node, spot: Vector3, from: float, to: float, time: float, color := VIOLET, thin := 0.08) -> void:
+	if INK_FX.DESIGNED.on():  # round 44: a designed ground stamp (inked brush shock line), not a flat torus
+		INK_FX.shock(parent, spot, color, to, time + 0.08, clampf(thin * to * 1.6, INK_FX.SHOCK_THIN_W, 0.36))
+		return
 	var mat := flat_mat(color)
 	var root := Node3D.new()
 	parent.add_child(root)

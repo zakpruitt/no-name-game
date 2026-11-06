@@ -81,6 +81,14 @@ static var _quad: QuadMesh
 static var _plane: PlaneMesh
 
 
+## Sheets other modules register (designed_ink.gd, round 44), in the SHEETS format.
+static var extra_sheets := {}
+
+
+static func sheet_of(name_: String) -> Dictionary:
+	return SHEETS[name_] if SHEETS.has(name_) else extra_sheets[name_]
+
+
 ## Designed effects on? (`--fx=classic` turns them off for a before / after.)
 static func on() -> bool:
 	if not _args_read:
@@ -112,7 +120,7 @@ static func palette() -> ImageTexture:
 static func material(sheet: String) -> ShaderMaterial:
 	if _mats.has(sheet):
 		return _mats[sheet]
-	var s: Dictionary = SHEETS[sheet]
+	var s: Dictionary = sheet_of(sheet)
 	var m := ShaderMaterial.new()
 	m.shader = {"sprite": SPRITE, "sprite_depth": SPRITE_DEPTH, "ground": GROUND, "ribbon": RIBBON}[s.kind]
 	m.set_shader_parameter("sheet", s.tex)
@@ -173,7 +181,7 @@ static func spawn(parent: Node, name_: String, at: Vector3, size: float, element
 
 
 func _build(size: float, element: String) -> void:
-	var s: Dictionary = SHEETS[sheet]
+	var s: Dictionary = sheet_of(sheet)
 	_mi = MeshInstance3D.new()
 	_mi.mesh = _mesh_for(s.kind)
 	_mi.material_override = material(sheet)
