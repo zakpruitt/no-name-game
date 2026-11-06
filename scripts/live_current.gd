@@ -34,9 +34,8 @@ const CLAW_R := 0.46  # m: the charge at his claw at its fullest
 const POP_LEN := 0.8  # m: a fork off a zapped foe
 const ARRIVE := 0.45  # m past a foe's radius from its chest: the pulse has reached it (the coil round it is where it goes in)
 const LOST := 0.5  # s: a pulse whose tentacle never reached its foe zaps it anyway (no damage lost to a drawing)
-const TINT := Color(0.82, 1.0, 0.76)  # the storm light the tentacle is washed in while it carries a pulse
+const TINT := Color(0.94, 1.0, 0.6)  # (fx_palette storm light, lime) the storm light the tentacle is washed in while it carries a pulse
 const CHEST := Vector3(0.0, 0.9, 0.0)
-const HOT_YELLOW := Color(1.0, 0.88, 0.25)  # (comic_flat HOT_CORE: the impact stars' core)
 const ZAP_STOP := 0.035  # s hit stop on the first foe each pulse reaches (a staccato, not a stall)
 ## Own tentacles (Galvanize): out over SHOOT before the charge, back over RETRACT once the current is done.
 const SHOOT := 0.08
@@ -370,14 +369,14 @@ func _trail_strip(pts: PackedVector3Array, to: float, view: Vector3, tv: PackedV
 		ti.append_array([k, k + 1, k + 2, k + 1, k + 3, k + 2])
 
 
-## The bright knot at a pulse's head: a storm-green halo round an inked hot-yellow star with a white core, so the
-## head stands out from the green strip it leaves lit behind it.
+## The bright knot at a pulse's head: a lime halo round an inked pale-lime star with a white-hot core (fx_palette
+## storm row; was hot yellow, which sat on the hit stars), so the head stands out from the strip lit behind it.
 func _head(at: Vector3, right: Vector3, up: Vector3) -> void:
 	var turn := _rng.randf() * TAU
 	var p: Dictionary = PAL.of("wind")
 	_star(at, HEAD_R * 1.45, 0.35, turn + 0.4, right, up, PAL.fade(p.body, 0.8))
 	_star(at, HEAD_R + PAL.LINE, 0.42, turn, right, up, p.ink)
-	_star(at, HEAD_R, 0.42, turn, right, up, HOT_YELLOW)
+	_star(at, HEAD_R, 0.42, turn, right, up, p.light)
 	_star(at, HEAD_R * 0.45, 0.6, turn, right, up, p.hot)
 
 
@@ -393,7 +392,7 @@ func _claw(at: Vector3, k: float, right: Vector3, up: Vector3) -> void:
 		_wedge(at + d * far, -d, far - r * 0.6, 0.07, p.light)
 	_star(at, r + PAL.LINE, 0.4, turn, right, up, p.ink)
 	_star(at, r, 0.4, turn, right, up, p.body)
-	_star(at, r * 0.6, 0.5, turn, right, up, HOT_YELLOW)
+	_star(at, r * 0.6, 0.5, turn, right, up, p.light)
 	_star(at, r * 0.3, 0.6, turn, right, up, p.hot)
 
 
