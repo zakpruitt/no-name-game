@@ -413,6 +413,131 @@ def echo_axe(i, n, size):
     return f.finish()
 
 
+# --- rock_boulder: Rockslide's boulder (comic_boulder.gd, designed) -------------------------------------------
+# One fat faceted boulder: frame 0 it drops in stretched under three fall streaks, 1 lands squashed over a spiky hot
+# star, 2 settles with hot cracks running across it, 3 the cracks open (hot light in the gaps), 4-6 four chunks fly
+# out and up, turning and shrinking, pebbles with them, 7 a few crumbs. Earth row: dark rock with a lit facet.
+
+def _rock(f, cx, cy, r, seed, sx=1.0, sy=1.0, rot=0.0, cracks=0, hot_cracks=False):
+    ring = wobble_ring(cx, cy, r, seed, amp=0.1, lumps=(3, 5, 7), n=40, rot=rot)
+    ring = [(cx + (x - cx) * sx, cy + (y - cy) * sy) for x, y in ring]
+    m = poly_mask([ring], f.S)
+    f.fill(m, BODY, ink=3.0)
+    # shadow side (bottom right) and a lit facet (top left): a flat cel cut, not a gradient
+    shade = poly_mask([[(cx - r * 2, cy + r * 0.15), (cx + r * 2, cy - r * 0.55), (cx + r * 2, cy + r * 2), (cx - r * 2, cy + r * 2)]], f.S)
+    f.fill(shade * m, DEEP)
+    facet = wobble_ring(cx - r * 0.3 * sx, cy - r * 0.32 * sy, r * 0.42, seed + 3, amp=0.12, lumps=(3, 4), n=24, rot=rot)
+    f.fill(poly_mask([facet], f.S) * m, LIGHT)
+    g = rng(seed)
+    for k in range(cracks):
+        a = rot + k * 2.3 + g.uniform(-0.3, 0.3)
+        p0 = (cx + math.cos(a) * r * 1.05 * sx, cy + math.sin(a) * r * 1.05 * sy)
+        p1 = (cx + math.cos(a + 0.4) * r * 0.35, cy + math.sin(a + 0.4) * r * 0.35)
+        p2 = (cx + g.uniform(-0.1, 0.1) * r, cy + g.uniform(-0.1, 0.1) * r)
+        path = [p0, p1, p2]
+        if hot_cracks:
+            f.fill(poly_mask([stroke(path, [f.u(0.07), f.u(0.05), 0.0], cap=False)], f.S) * m, HOT, ink=2.0)
+        else:
+            f.fill(poly_mask([stroke(path, [f.u(0.03), f.u(0.025), 0.0], cap=False)], f.S) * m, INK)
+    return m
+
+
+def rock_boulder(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(1301)
+    r = f.u(0.36)
+    cy = c + f.u(0.1)
+    tips = [f.u(v) for v in g.uniform(0.62, 0.92, 9)]
+    if i == 0:
+        for k in range(3):
+            x = c + f.u((k - 1) * 0.28)
+            f.fill(poly_mask([stroke([(x, cy - f.u(0.95)), (x, cy - f.u(0.42))], [0.0, f.u(0.06)], cap=True)], f.S), LIGHT, ink=2.0)
+        _rock(f, c, cy - f.u(0.08), r * 0.92, 41, sx=0.86, sy=1.16)
+    elif i in (1, 2):
+        st = star(c, cy + f.u(0.12), tips if i == 1 else [t * 0.8 for t in tips], f.u(0.28), rot=0.2, bow=0.3)
+        m = poly_mask([st], f.S)
+        f.fill(m, LIGHT if i == 1 else BODY, ink=3.0)
+        f.fill(poly_mask([star(c, cy + f.u(0.12), [f.u(0.42)] * 9, f.u(0.2), rot=0.25, bow=0.3)], f.S) * m, HOT)
+        _rock(f, c, cy, r, 41, sx=1.22 if i == 1 else 1.08, sy=0.84 if i == 1 else 0.95, cracks=2 if i == 2 else 0, hot_cracks=True)
+    elif i == 3:
+        # the cracks open: four chunks a little apart, hot light in the gaps
+        f.fill(poly_mask([wobble_ring(c, cy, r * 1.02, 41)], f.S), HOT, ink=3.0)
+        for k in range(4):
+            a = math.pi * 0.25 + k * math.pi / 2
+            _rock(f, c + math.cos(a) * r * 0.48, cy + math.sin(a) * r * 0.48, r * 0.55, 50 + k, rot=a)
+    else:
+        u = (i - 3) / (n - 4)
+        for k in range(4):
+            a = math.pi * 0.25 + k * math.pi / 2 + g.uniform(-0.2, 0.2)
+            d = r * lerp(0.6, 2.0, ease_out(u))
+            rise = f.u(0.25) * math.sin(u * math.pi) - f.u(0.3) * u * u
+            rr = r * 0.55 * (1 - 0.45 * u)
+            if i == n - 1:
+                rr *= 0.5
+            _rock(f, c + math.cos(a) * d, cy + math.sin(a) * d * 0.6 - rise, rr, 50 + k, rot=a + u * 2.0 * (1 if k % 2 else -1))
+        for k in range(5):  # pebbles
+            a = g.uniform(0, math.tau)
+            d = r * lerp(0.8, 2.4, u) * g.uniform(0.7, 1.1)
+            pr = f.u(0.035) * (1 - 0.5 * u)
+            f.fill(ellipse_mask(c + math.cos(a) * d, cy + math.sin(a) * d * 0.6, pr, pr, f.S), LIGHT, ink=1.6)
+    return f.finish()
+
+
+# --- steam_cloud: Steam Burst's cloud (comic_steam.gd, designed) ------------------------------------------------
+# A billowing inked cumulus round a frozen foe going off: frame 0 a hot pop at its foot with small puffs bursting
+# out, 1 the peak, a fat cloud of round lobes (only the union inked), lit tops, a cool shadow curl under some lobes,
+# three steam jets shooting up; 2-5 it rises and swells, lobes breaking apart and holes eating in. Water row.
+
+def _cloud(f, lobes, curls=2, seed=0):
+    polys = [wobble_ring(x, y, r, seed + k, amp=0.06, lumps=(3, 5), n=40) for k, (x, y, r) in enumerate(lobes)]
+    M = poly_mask(polys, f.S)
+    f.fill(M, BODY, ink=3.0)
+    lit = [wobble_ring(x - r * 0.12, y - r * 0.2, r * 0.78, seed + 30 + k, amp=0.06, lumps=(3, 5), n=40) for k, (x, y, r) in enumerate(lobes)]
+    f.fill(poly_mask(lit, f.S) * M, LIGHT)
+    hot = [ellipse_mask(x - r * 0.25, y - r * 0.35, r * 0.28, r * 0.2, f.S) for (x, y, r) in lobes]
+    f.fill(np.clip(sum(hot), 0, 1) * M, HOT)
+    for k in range(min(curls, len(lobes))):
+        x, y, r = lobes[k]
+        pts = [(x + math.cos(a) * r * 0.55, y + math.sin(a) * r * 0.45 + r * 0.15) for a in np.linspace(0.3, 2.6, 12)]
+        f.fill(poly_mask([stroke(pts, lambda u: f.u(0.022) * math.sin(u * math.pi), cap=False)], f.S) * M, DEEP)
+    return M
+
+
+def steam_cloud(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(1409)
+    base = [(-0.32, 0.1, 0.2), (0.3, 0.12, 0.21), (-0.05, 0.18, 0.24), (-0.2, -0.12, 0.22), (0.18, -0.1, 0.23),
+            (0.0, -0.32, 0.2), (-0.42, -0.08, 0.15), (0.43, -0.05, 0.16)]
+    if i == 0:
+        st = star(c, c + f.u(0.25), [f.u(v) for v in g.uniform(0.25, 0.4, 8)], f.u(0.12), rot=0.3, bow=0.3)
+        m = poly_mask([st], f.S)
+        f.fill(m, LIGHT, ink=2.6)
+        f.fill(ellipse_mask(c, c + f.u(0.25), f.u(0.09), f.u(0.09), f.S) * m, HOT)
+        lobes = [(c + f.u(x) * 0.7, c + f.u(y) * 0.7 + f.u(0.1), f.u(r) * 0.55) for x, y, r in base]
+        _cloud(f, lobes, curls=0, seed=5)
+        return f.finish()
+    u = (i - 1) / (n - 2)
+    rise = f.u(lerp(0.0, 0.32, u))
+    grow = lerp(1.0, 1.25, u)
+    lobes = []
+    for k, (x, y, r) in enumerate(base):
+        spread = lerp(1.0, 1.35, u)
+        rr = f.u(r) * grow * (1 - 0.35 * u * (k % 3 == 0))
+        lobes.append((c + f.u(x) * spread, c + f.u(y) * spread - rise, rr))
+    if i == 1:  # three steam jets shooting up out of the top
+        for k in range(3):
+            x = c + f.u((k - 1) * 0.22)
+            f.fill(poly_mask([stroke([(x, c - f.u(0.3)), (x + f.u((k - 1) * 0.08), c - f.u(0.9))], [f.u(0.07), 0.0], cap=True)], f.S), LIGHT, ink=2.2)
+    _cloud(f, lobes, curls=2 if u < 0.6 else 0, seed=7 + i)
+    if u > 0.75:  # holes eat in as it thins (the erosion does the rest)
+        for k in range(int(u * 6)):
+            x, y, r = lobes[(k * 3) % len(lobes)]
+            f.cut(poly_mask([wobble_ring(x + r * 0.2, y + r * 0.1, r * lerp(0.2, 0.6, u), 90 + k, amp=0.15)], f.S))
+    return f.finish()
+
+
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "awaken_gather": (awaken_gather, 320, 3, 6, "gold", "edge", 0.5),
@@ -422,6 +547,8 @@ SHEETS = {
     "daze_star": (daze_star, 96, 4, 4, "gold", "edge", 0.4),
     "combo_burst": (combo_burst, 256, 3, 6, "void", "edge", 0.45),
     "echo_axe": (echo_axe, 192, 4, 4, "void", "edge", 0.4),
+    "rock_boulder": (rock_boulder, 256, 4, 8, "earth", "edge", 0.45),
+    "steam_cloud": (steam_cloud, 320, 3, 6, "water", "edge", 0.5),
 }
 
 

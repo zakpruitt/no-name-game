@@ -22,6 +22,8 @@ const SHEETS := {
 	"daze_star": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite_depth"},
 	"combo_burst": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"echo_axe": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite"},
+	"rock_boulder": {"grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
+	"steam_cloud": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite_depth"},
 }
 
 const GATHER_SIZE := 5.2  # m: the focus lines' square (the hole in it is 0.27 of the half: ~1.4 m across)
@@ -56,6 +58,15 @@ const ECHO_REACH := 0.82  # of the echo's radius: on the arc's outer edge, past 
 const FORM_ELEMENT := {"axe": "wind", "spear": "water", "hammer": "earth", "hand": "void"}
 const FORM_SIZE := 1.1  # m: the pop's quad (designed_ink.POP_SIZE is a hit's 1.5)
 const FORM_UP := 0.45  # m up the haft from the hand
+
+## Rockslide's boulder (comic_boulder.gd, designed): one drawn boulder slamming down and splitting, a dust puff.
+const BOULDER_SIZE := 2.6  # m per boulder size 1 (the rock is ~0.95 m across in it)
+const BOULDER_TIMES := [0.05, 0.09, 0.08, 0.06, 0.06, 0.07, 0.08, 0.1]
+## Steam Burst's cloud (comic_steam.gd, designed).
+const STEAM_SIZE := 2.6  # m
+const STEAM_UP := 1.25  # m: the cloud's middle over the floor
+const STEAM_BACK := 0.55  # m behind the foe, away from the camera (depth tested: the foe reads in front of it)
+const STEAM_TIMES := [0.04, 0.09, 0.08, 0.09, 0.1, 0.12]
 
 static var _registered := false
 static var drawn := 0  # Awakenings drawn (checks)
@@ -249,3 +260,27 @@ static func form_burst(parent: Node, at: Vector3, form: String, dir: Vector3) ->
 	fx.pop = 0.12
 	fx.add_to_group("heretic_form_fx")
 	return fx.vary(PI, true)
+
+
+## comic_boulder.spawn (designed): the drawn boulder at the slam, a dust puff under it (the floor dents are left to
+## the hit stars and the crater the foes make).
+static func boulder(parent: Node, at: Vector3, size: float) -> Node3D:
+	_register()
+	var fx := DESIGNED.spawn(parent, "rock_boulder", at, BOULDER_SIZE * size, "earth", BOULDER_TIMES, Vector2(0.55, 1.0))
+	fx.real_until = 1
+	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+	DESIGNED.dust(parent, Vector3(at.x, 0.0, at.z), 1.3)
+	return fx
+
+
+## comic_steam.spawn (designed): the drawn steam cloud round the foe going off.
+static func steam(parent: Node, spot: Vector3) -> Node3D:
+	_register()
+	var back := Vector3.ZERO
+	var cam := parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
+	if cam != null:
+		var away := -cam.global_basis.z
+		back = Vector3(away.x, 0.0, away.z).normalized() * STEAM_BACK
+	var fx := DESIGNED.spawn(parent, "steam_cloud", Vector3(spot.x, STEAM_UP, spot.z) + back, STEAM_SIZE, "water", STEAM_TIMES, Vector2(0.5, 1.0))
+	fx.real_until = 1
+	return fx.vary(0.15, true)

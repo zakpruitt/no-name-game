@@ -6,6 +6,8 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicBoulder.spawn(parent, spot, foe_spots, size)
 
 const SELF := preload("res://scripts/comic_boulder.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 const SIDES := 7
 const HIGH := 0.75  # m: the boulder's middle over the floor at impact
 const SQUASH := Vector2(1.18, 0.84)  # its first frame
@@ -27,6 +29,8 @@ var _p: Dictionary
 
 
 static func spawn(parent: Node, spot: Vector3, foe_spots: Array, boulder := 1.0) -> Node3D:
+	if DESIGNED.on():  # round 46: the drawn boulder (designed_finish.boulder)
+		return DESIGNED_FINISH.boulder(parent, Vector3(spot.x, HIGH, spot.z), boulder)
 	var b: Node3D = SELF.new()
 	b.size = boulder
 	b.spots = foe_spots
