@@ -55,6 +55,7 @@ var _collect_shaders := false  # --collect-shaders: note every material shader s
 
 func _ready() -> void:
 	Game.reset()
+	Game.slow_changed.connect(_on_slow_changed)
 	var autotest := "--autotest" in OS.get_cmdline_user_args()
 	_collect_shaders = "--collect-shaders" in OS.get_cmdline_user_args()
 	if autotest:
@@ -140,7 +141,8 @@ func _train_text() -> void:
 		parts.append("LAST  %d  ·  %s" % [_last_string.x, _hits_text(_last_string.y)])
 	if _best_string > 0.0:
 		parts.append("BEST  %d" % _best_string)
-	hud.set_readout("      ".join(parts) if not parts.is_empty() else "Hit the dummies: each string's damage shows here  ·  Esc: moves, Fill Awakening")
+	var slow_tag: String = "" if Game.slow >= 1.0 else "SLOW MOTION  %s  (T)      " % Game.slow_text()
+	hud.set_readout(slow_tag + "      ".join(parts) if not parts.is_empty() else slow_tag + "Hit the dummies: each string's damage shows here  ·  Esc: moves, Fill Awakening, T: slow motion")
 
 
 func _hits_text(n: float) -> String:
@@ -387,3 +389,9 @@ func _check_hints(delta: float) -> void:
 	if id != "":
 		Game.hint(id)
 		_hint_gap = HINT_GAP
+
+
+## Training's slow motion changed (T, the pause menu): the readout says so.
+func _on_slow_changed(_slow: float) -> void:
+	if hud != null:
+		_train_text()

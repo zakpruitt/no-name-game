@@ -49,9 +49,24 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	# Meltdown's molten, then Updraft Lash fans the flames (molten x storm); Undertow's bind, then Updraft Lash tears
 	# them loose (bound x storm).
 	["line", "out", "face", "D", "L", "H", "H", "H", "L", "D", "wait", "L", "H"],
-	["out", "face", "L", "L", "L", "H", "H", "D", "wait", "L", "H"]]
+	["out", "face", "L", "L", "L", "H", "H", "D", "wait", "L", "H"],
+	# Round 44: Galvanize, a tentacle on everyone Reap marked and the current down them ("spread": the dummies stand
+	# apart in a wide arc ahead, the crowd it is for).
+	["spread", "H", "L", "L"],
+	# Galvanize charges the spread crowd, and Updraft Lash discharges them all at once (charged x storm: Overload).
+	["spread", "H", "L", "L", "wait", "L", "H"],
+	# Round 44 b: Short Circuit, Grounded's L ending ("spread": some stand past the tentacles, where the arcs go).
+	["spread", "far", "alt", "L", "H", "H"],
+	# The other charged cells off Galvanize, in real moves: Reap (Conduct), Molten Palm (Arc Flash), Frost Spear (Superconduct;
+	# last: its spear stands 5 s and turns the next string's L L into the vault).
+	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far"]
+## With "far", a "spread" string's last dummy stands this far out instead: past the tentacles (void_grab.SEIZE_RANGE).
+const BOT_FAR_R := 10.0
+## A "spread" string's dummies stand on an arc BOT_SPREAD_R m ahead of him, BOT_SPREAD_ARC radians either side of his aim.
+const BOT_SPREAD_R := 4.6
+const BOT_SPREAD_ARC := 0.8
 ## A "line" string's column starts BOT_LINE_FROM m in front of him, BOT_LINE_GAP m apart: the dash and Dash Stab's
 ## lunge carry him ~5 m, straight through a column that starts at BOT_SPOT (Harpoon then fired at nobody).
 const BOT_LINE_FROM := 5.0
@@ -271,7 +286,7 @@ func _drive_bot() -> void:
 	to.y = 0.0
 	var string: Array = BOT_STRINGS[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
-	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not "line" in string else Vector3.ZERO
+	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not "line" in string and not "spread" in string else Vector3.ZERO
 	if _bot_face and _bot_step > 0 and to.length() > 0.3:
 		player.bot_move = to.normalized()  # (aims every press at the nearest foe; he jogs at it between them)
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
@@ -305,7 +320,7 @@ func _drive_bot() -> void:
 		_reset_spots()
 		_reset_done = true
 		return  # (the next frame starts the string from there)
-	if _bot_step == 0 and (not idle or (nd > 3.0 and not "line" in string)):
+	if _bot_step == 0 and (not idle or (nd > 3.0 and not "line" in string and not "spread" in string)):
 		return  # walk up first (not to a "line": the dash takes him there)
 	if _bot_step == 0:
 		_bot_rhythm.clear()
@@ -361,6 +376,8 @@ func _reset_spots() -> void:
 		if is_instance_valid(d):
 			d.global_position = d.home
 			d.velocity = Vector3.ZERO
+			if d.has_meta("x_charged"):
+				d.remove_meta("x_charged")  # (nearly every string charges them: each starts clean, or it pays the last's)
 	var target: Vector3 = main._dummies[0].home
 	var back := _start_pos - target
 	back.y = 0.0
@@ -377,5 +394,18 @@ func _reset_spots() -> void:
 			if is_instance_valid(d):
 				_homes[d] = d.home
 				d.home = player.global_position + fwd.normalized() * (BOT_LINE_FROM + i * BOT_LINE_GAP)
+				d.home.y = target.y
+				d.global_position = d.home
+	if "spread" in BOT_STRINGS[_bot_string]:  # apart on a wide arc ahead (homes too)
+		var fwd := target - player.global_position
+		fwd.y = 0.0
+		var n: int = main._dummies.size()
+		for i in n:
+			var d: Node = main._dummies[i]
+			if is_instance_valid(d):
+				_homes[d] = d.home
+				var a: float = lerpf(-BOT_SPREAD_ARC, BOT_SPREAD_ARC, float(i) / maxf(n - 1, 1))
+				var r: float = BOT_FAR_R if "far" in BOT_STRINGS[_bot_string] and i == n - 1 else BOT_SPREAD_R
+				d.home = player.global_position + fwd.normalized().rotated(Vector3.UP, a) * r
 				d.home.y = target.y
 				d.global_position = d.home

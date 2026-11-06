@@ -77,6 +77,14 @@ func _initialize() -> void:
 	_check(p.HERO_MOVES.combo_options(p).size() == 1 and p.HERO_MOVES.combo_options(p)[0].hold, "charging shows the hold row")
 	p._set_state(p.State.MOVE)
 	_mixing(main, p)
+	# Feel audit 3 item 2: the rows go away from the pile; only an edge may override that (the old right-edge slack
+	# sent every left choice back to the right whenever he wasn't near the right edge).
+	var cg: GDScript = load("res://scripts/combo_guide.gd")
+	_check(cg.guide_side(-1.0, 1.0, 800.0, 1600.0) == -1.0, "pile on the right, mid-screen: rows on his left")
+	_check(cg.guide_side(1.0, -1.0, 800.0, 1600.0) == 1.0, "pile on the left, mid-screen: rows on his right")
+	_check(cg.guide_side(-1.0, -1.0, 200.0, 1600.0) == 1.0, "near the left edge: rows on his right")
+	_check(cg.guide_side(1.0, 1.0, 1450.0, 1600.0) == -1.0, "near the right edge: rows on his left")
+	_check(cg.guide_side(-1.0, 1.0, cg.EDGE + 40.0, 1600.0) == 1.0, "an edge flip holds through its slack")
 
 	if DisplayServer.get_name() != "headless":
 		await _sheet(main, p, guide)

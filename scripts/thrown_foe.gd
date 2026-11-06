@@ -9,6 +9,7 @@ const FOES := preload("res://scripts/foes.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the faceted ice block
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -154,6 +155,8 @@ static func comic_ice(ice: MeshInstance3D, r: float, high: float) -> void:
 ## the last opaque-looking ice), with a white glint across the top on its own surface. Corner normals point out
 ## of the corner, so the ink hull (pushed out along them) closes round the box instead of splitting at its edges.
 static func comic_cube(r: float, high := CUBE_HIGH) -> ArrayMesh:
+	if DESIGNED.on():  # round 46: a hexagonal block of drawn facets (designed_elements.ice_block)
+		return DESIGNED_EL.ice_block(r, high)
 	var key := Vector2i(roundi(r * 100.0), roundi(high * 100.0))
 	if _cube_meshes.has(key):
 		return _cube_meshes[key]
@@ -274,6 +277,7 @@ func _zap(at: Vector3) -> void:
 	_next_zap = _time + ZAP_STEP
 	VOID_ELEMENT.COMIC_ARC.jump(hero.get_parent(), at + Vector3.UP, best.global_position + Vector3.UP)
 	best.take_hit(VOID_ELEMENT.WIRE_DAMAGE * float(hero.get("_dmg_mult")), Vector3.ZERO, 0.0, false)
+	VOID_ELEMENT.mark(best, "charged")
 	Game.register_hit("cast")
 
 
@@ -310,6 +314,8 @@ func _burst(other: Node3D) -> void:
 		foe.set_meta(WALL_META, Time.get_ticks_msec())
 		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
 			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
+	if DESIGNED.on() and el == "wind":  # fx-air: Storm Pitch lands in a burst of wind (designed_fx.wind_burst)
+		DESIGNED.wind_burst(parent, spot, _dir)
 	if DESIGNED.on() and el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
 		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
 	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)

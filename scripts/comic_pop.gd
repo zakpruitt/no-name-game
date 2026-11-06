@@ -8,6 +8,7 @@ extends Node3D
 
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const INK_FX := preload("res://scripts/designed_ink.gd")
 const STEPS_PER_S := 12.0  # on twos, at 24 fps
 const INK := Color(0.012, 0.01, 0.02)
 const HOT := Color(1.0, 0.45, 0.05)  # the impact star, whatever the element
@@ -82,6 +83,15 @@ static var _pool := []  # (untyped: a pooled pop someone freed must not error on
 
 
 static func spawn(parent: Node, at: Vector3, opts: Dictionary) -> Node3D:
+	if float(opts.get("ring", 0.0)) > 0.0 and INK_FX.DESIGNED.on():
+		# Round 44 (fx-cohesion): the flat floor hoop is a designed ground stamp now (a broken inked brush shock
+		# line, designed_ink.shock); the pop keeps whatever else it was asked for.
+		var w := clampf(float(opts.get("ring_w", DEFAULTS.ring_w)) * 2.1, INK_FX.SHOCK_THIN_W, INK_FX.SHOCK_W)
+		INK_FX.shock(parent, at, opts.get("ring_color", HOT), opts.ring, int(opts.get("steps", 4)) / STEPS_PER_S + 0.1, w)
+		opts = opts.duplicate()
+		opts.ring = 0.0
+		if float(opts.get("star", 0.0)) <= 0.0 and int(opts.get("strokes", 0)) <= 0 and int(opts.get("chips", 0)) <= 0 and int(opts.get("chip_ink", 0)) <= 0:
+			return null
 	var pop: Node3D = null
 	while pop == null and not _pool.is_empty():
 		var p: Variant = _pool.pop_back()

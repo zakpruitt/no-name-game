@@ -11,6 +11,8 @@ extends Node3D
 
 const PAL := preload("res://scripts/fx_palette.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 
 const AFTER_BREAKER_S := 0.4  # real s after a breaker landing before the flourish shows
 const WAIT_MAX_S := 1.6  # it never waits longer than this (a breaker that never lands)
@@ -91,6 +93,10 @@ func _show() -> void:
 		return
 	var at: Vector3 = hero.global_position if hero != null else _at  # where he is now, not where he pressed
 	global_position = Vector3(at.x, 0.0, at.z)
+	if DESIGNED.on():  # round 46: the authored event (designed_finish.awaken: lines pulled in, a crown of gold flame)
+		DESIGNED_FINISH.awaken(get_parent(), hero, global_position)
+		queue_free()
+		return
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = RADIUS * 1.3
 	cyl.bottom_radius = RADIUS

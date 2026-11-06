@@ -8,6 +8,8 @@ extends Node3D
 const SELF := preload("res://scripts/comic_gale.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const TWISTER := preload("res://scripts/designed_twister.gd")
 const STEPS_PER_S := 12.0  # on twos
 const INK := Color(0.012, 0.01, 0.02)
 const STORM := Color(0.18, 0.86, 0.46)  # fx_palette "wind"
@@ -34,6 +36,8 @@ var _rng := RandomNumberGenerator.new()
 
 
 static func spawn(parent: Node, spot: Vector3, h: float, r: float, time: float) -> Node3D:
+	if DESIGNED.on():  # fx-air: the designed twister (ribbon bands, floor swirl, wisps, debris) in the air palette
+		return TWISTER.spawn(parent, spot, h, r, time)
 	var g: Node3D = SELF.new()
 	g.height = h
 	g.radius = r

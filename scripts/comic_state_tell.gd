@@ -7,12 +7,13 @@ extends "res://scripts/comic_flat.gd"
 ##     and one ember rising off it now and then.
 ##   buried: an inked crack ring on the floor round its feet (ink round the earth's deep tone, four short cracks).
 ##   skewered: an ice stake stuck through its chest, poking out both sides (ink line, light to body, a glint).
+##   charged (round 44): two small storm crackles crawling on its outline, new ones every step (on twos).
 ## The foe calls sync(self) every physics frame (enemy.gd); with no state metas it costs three has_meta calls.
 ##   const STATE_TELL := preload("res://scripts/comic_state_tell.gd")
 ##   STATE_TELL.sync(self)
 
 const SELF := preload("res://scripts/comic_state_tell.gd")
-const STATES := ["buried", "molten", "skewered"]
+const STATES := ["buried", "molten", "skewered", "charged"]
 const META := "x_tell"
 const FADE_S := 0.4  # s: fades over its last
 const IN_S := 0.12  # s: comes in over
@@ -29,6 +30,10 @@ const RING_W := 0.09
 const STAKE := Vector2(-0.6, 0.75)  # m along the stake: its back end and its tip, from the chest
 const STAKE_W := 0.15
 const CHEST := 0.85
+## charged
+const SPARK_R := 0.42  # m from the chest: where the crackles crawl (just outside a dummy's outline)
+const SPARK_LEN := 0.32  # m each
+const SPARK_W := 0.06
 
 var foe: Variant
 var _born := {}  # state -> real s it showed
@@ -39,7 +44,7 @@ var _stake_a := 0.0
 
 ## Spawns a tell on `e` if it carries a live state and has none yet.
 static func sync(e: Node3D) -> void:
-	if not (e.has_meta("x_buried") or e.has_meta("x_molten") or e.has_meta("x_skewered")) or e.has_meta(META):
+	if not (e.has_meta("x_buried") or e.has_meta("x_molten") or e.has_meta("x_skewered") or e.has_meta("x_charged")) or e.has_meta(META):
 		return
 	if not _any(e):
 		return
@@ -116,6 +121,9 @@ func _draw(s: int) -> void:
 	a = _alpha("skewered")
 	if a > 0.0:
 		_skewered(a)
+	a = _alpha("charged")
+	if a > 0.0:
+		_charged(a)
 
 
 func _molten(a: float, s: int) -> void:
@@ -182,6 +190,18 @@ func _skewered(a: float) -> void:
 	_fan(c, rim, PAL.fade(INK, a))
 	_fan(c + d * 0.05, _shifted(ring, -d * 0.05), PAL.fade(p.light, 0.95 * a), PAL.fade(p.body, 0.95 * a))
 	_strip(PackedVector3Array([c + d * (STAKE.x * 0.5) + side * 0.03, c + d * (STAKE.y * 0.7) + side * 0.03]), 0.04, 0.0, PAL.fade(p.hot, a))
+
+
+func _charged(a: float) -> void:
+	var p := PAL.of("wind")
+	for i in 2:
+		var ang := _rng.randf() * TAU
+		var c := _up * CHEST + _screen(ang) * SPARK_R * Vector3(1.0, 1.5, 1.0)
+		var along := _screen(ang + PI * 0.5 * (1.0 if _rng.randf() < 0.5 else -1.0))
+		var side := _screen(ang) * 0.06
+		var pts := PackedVector3Array([c, c + along * SPARK_LEN * 0.35 + side, c + along * SPARK_LEN * 0.65 - side, c + along * SPARK_LEN])
+		_strip(pts, SPARK_W + PAL.LINE * 2.0, PAL.LINE * 2.0, PAL.fade(INK, 0.9 * a))
+		_strip(pts, SPARK_W, 0.0, PAL.fade(p.light, a), PAL.fade(p.body, a))
 
 
 func _shifted(pts: PackedVector3Array, by: Vector3) -> PackedVector3Array:

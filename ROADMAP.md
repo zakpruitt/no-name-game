@@ -674,3 +674,163 @@ designs, still stylistic." See `docs/features/designed-fx.md`.
 - [ ] Zak's call on the look, then the conversion list in the doc, most seen first (element_hit chips, the axe ribbon,
   comic_dust, the breaker and crossover effects, the dark element's ink tendrils)
 - [ ] The wall splat lands at the top edge of the frame (round 42 e's camera follow-up): mostly off screen in the film
+
+## Round 44 (fx-cohesion)
+Zak: "really focus on a refinement of the art style and effects. They look weird to me." See
+`docs/features/designed-fx.md` "Round 44".
+- [x] The tentacle: a smooth tapered Catmull-Rom ribbon with an authored skin (back, belly, suckers, wrinkles), ink
+  drawn in metres with the hero's paper rim, a claw tip, a tangent-entry coil (1.35 turns) and a lash smear;
+  `points()` / `tip()` / `electrify()` for other lanes (`void_tendril.gd`, `shaders/tentacle*.gdshader`)
+- [x] Every flat floor hoop is a designed ground stamp (3-5 broken brush arcs racing out on twos) or gone: comic_pop
+  rings, dark hoop runs, the rank-up, hop-landing and crater hoops; the breaker cue is a brush ring and dashes with
+  the same colours and timing (`designed_ink.gd`, `shaders/designed_stamp.gdshader`)
+- [x] One designed pop a hit in the element's shape (storm, magma, ice, dark), element chips gone, crowd caps (two
+  full pops a frame, one streak set, one chain spark)
+- [x] Weapon trail plays the designed slash strip (`shaders/weapon_trail_designed.gdshader`)
+- [ ] Still drawn as polygons: dark pools / Singularity vortex, the Reap crescent, comic_axe_aura, chain halos, daze
+  stars, comic_dust, the dash streak, combo pop strokes, kills, the Awakening, the spirit echo ghost
+- [ ] Zak's call on the look (clips `awaken-combo-clips/21 Cohesion ...`)
+
+## Round 44 (hero model v2)
+Zak: "please take a look at the heretic model, it sucks and is super buggy in game lol. I'm fine going a different
+route than the original with hood and such". See `docs/features/heretic-hero.md` "Hero model v2".
+- [x] A hand-scripted chibi body on the same rig (`tools/hero_build/hero_v2.py`, headless Blender, no Meshy): bone-white
+  hood with devil horns and a back point, a real recessed void face with a crimson rim, blue-black tunic and skirt, big
+  boots and left glove, crimson scarf, a beaded violet claw arm with a palm, three big claws and a thumb. 20.4k tris,
+  flat swatch palette. Picked from three variants (hook / horns / twin)
+- [x] Put into the committed GLB by a byte-level repack (`tools/hero_build/glb_swap.py`): every bone, the skin and all
+  62 clips unchanged, so contact frames, `HERO_MOVES` and every check hold
+- [x] The face is geometry: eyes and grin lie on the face plate, depth-tested; `FACE_PULL`, `FaceShade`, `EYES`,
+  `HEAD_GROW`, `FACE_TIP` and the claw cover test (`_covered`) deleted from `heretic_rig.gd`
+- [x] Chunky inked weapons formed by the claw, built in each weapon bone's frame: crescent axe with a green edge,
+  broad cyan leaf spear with barbs, a lava-banded hammer block with spikes (3.7k tris)
+- [x] Before / after and the variant sheet: `awaken-combo-clips/18 Hero model v2 *.png`
+- [ ] Zak plays it: seen in stills and films from the game camera only
+- [x] Second pass, judged on the play camera's film: void-dark horns with crimson tips (violet merged into the
+  claw), a crimson stripe over the crown and a longer back point, a wider and longer scarf, a crimson skirt hem;
+  Awakened keeps his colours (tight gold fresnel edge instead of a gold wash); the clips' hood squash damped to
+  45%; the axe 0.8x (it hid the dummies); the axe edge in the storm lime; `chibi_keys.py` puts the v2 body back
+  after every export. Clip: `awaken-combo-clips/18 Hero model v2 before-after.mp4`
+- [ ] Zak: horn tips crimson or violet, the Awakened edge strength, whether to re-key the hood squash for v2
+## Round 44 (fx-air)
+Zak: "Air needs to be clearly air but stylistic, and make lightning combos more a part of everything." The storm
+element had one green for wind and lightning alike; its whirlwind read as a green spring. See
+`docs/features/designed-fx.md` (Air twister, Air gust, Lightning palette; shape language Air vs Lightning).
+- [x] Air palette row (`fx_palette.AIR`, designed row `air`): pale white-mint, one cool shadow tone, slate ink
+- [x] The designed twister for every `comic_gale` (Updraft Lash, Fault Line): floor swirl, three hooked wind ribbons
+  on depth-tested helix bands (far half a band darker), wisps flung off the top, leaves / paper / pebbles spiralling
+  up; four look rounds from the film (`scripts/designed_twister.gd`, `tools/vfx_gen/air_sheets.py`)
+- [x] Lightning in electric lime round a white-hot core (picked over yellow-white, which sat on the hit star's
+  yellow): storm row, `elements.LOOK.wind`, the axe form burst; bolt_strip / storm_burst redrawn
+- [x] Storm blows' directional half is a pale air gust (two a beat), storm swings in the air row; Hailstorm,
+  Backdraft, Gale Lift, Firestorm, Torn Loose in air; Storm Pitch lands in wind (`DESIGNED.wind_burst`)
+- [x] For the combo-lightning lane: `DESIGNED.bolt_path()` (a bolt along a polyline), `DESIGNED.zap()` (a pop on a foe)
+- [ ] Still the old look: `comic_axe_aura` storm sparks and the axe's own glow material (`P_GlowWind`, still green),
+  `comic_arc`'s speed strokes, the dash streak in storm
+- [ ] Zak's call on the look (clips `awaken-combo-clips/19 Air ...`)
+
+## Round 44 (combo-lightning)
+Zak: "make lightning combos more a part of everything. I specifically want one where the tentacle conducts lightning
+and zaps everybody". See `docs/features/void-element.md` ("The tentacle conducts") and `element-matrix.md` (charged).
+- [x] Live Wire's hang is conducted (`scripts/live_current.gd`): the charge gathers at the claw, each `WIRE_STEP` jolt
+  runs out along every tentacle's drawn curve as a lime knot with the bolt strip lit behind it, the tentacle washed
+  storm-light on twos (`void_tendril.electrify`), each foe zapped as its pulse arrives (quiet `zap_hit`, two forks),
+  then arcs on to those no tentacle holds
+- [x] Galvanize (H L L, `XC`): a tentacle out to each foe Reap marked, wherever it stands, and one pulse down them all;
+  7 a zap x (1 + 0.3 per other link), arcs on (6). Best on a spread-out crowd; bot string `spread H L L`
+- [x] The charged state: set by Live Wire's jolts, Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm; a crackle
+  tell on the foe; cells Overload (storm), Superconduct (ice), Arc Flash (magma), Conduct (dark) with tells and
+  words; bot string `spread H L L wait L H` (Overload)
+- [x] Clips: `awaken-combo-clips/20 Lightning *`
+- [x] Grounded's LMB ending (Short Circuit, combo-breakers.md round 43 table): round 44 b
+- [x] Feel pass: no pitch control, so a hit stop a step longer and a fatter bolt each link instead (round 44 b)
+- [ ] Zak plays Galvanize and the four cells by hand
+
+## Round 45 (fx-cohesion2)
+Orchestrator review of round 44: the floor still read as circles, and the cue turned lime and loud. See
+`docs/features/designed-fx.md` "Round 45".
+- [x] One ring-like floor mark at a time: open hair-thin shock arcs (~45% of the circle) living 0.15-0.25 s, a second
+  within 5 m dropped, none while a breaker cue is closing (Live Wire max marks 4 -> 3, shocks during the cue 4 -> the
+  press snap only)
+- [x] Quieter breaker cue: thin target line, broken cream closing dashes with every third tile in the ending's colour
+- [x] Dark: authored pool and Singularity vortex decals (boiling on twos, light rim), the Reap crescent as the designed
+  slash; the hole's inward hoops gone
+- [x] Kills, dash streaks and locomotion dust drawn (`dust_puff`, impact streaks, a held hit star)
+- [x] Clips: `awaken-combo-clips/21 Cohesion Live Wire tentacle and rings before-after.mp4`, `21 Cohesion Singularity
+  rings and vortex before-after.mp4`
+- [ ] Still polygons: `comic_axe_aura`, chain halos, daze stars, combo pop strokes, the Awakening, the spirit echo ghost
+- [ ] Zak's call on the cue (cream with an accent vs the ending's colour all round)
+
+## Round 44 b (fx-air, round 2)
+Orchestrator's round 2 for the air / lightning split. See `docs/features/designed-fx.md` (Sky strike, Crawling arcs,
+Tentacle lightning; tuning).
+- [x] Old storm greens: the axe glow rows `P_Wind` / `P_StormGreen` in the storm lime (`comic_look.EMITS`); the axe
+  aura and its sparks already read `ELEMENTS.LOOK` (lime); the dash streak is spirit teal / Awakened gold (no green)
+- [x] The sky strike as an authored moment (`designed_strike.gd`): leader, white-hot main bolt held through the hit,
+  forked afterimage, scorched star on the floor, arcs crawling on the struck foes; Grounded, Cataclysm, Fault Line;
+  three look rounds (an isolated shot twice, then the film)
+- [x] Wind presence: the twister's anticipation holds 0.12 s with debris dragging in along the floor; Fault Line's
+  gales at full twister size; Storm Pitch's burst gusts over the pile's heads; Backdraft's haul trails gusts
+- [x] The tentacle's conducted bolt fatter and crackling white-hot on twos; arcs crawl on every zapped foe
+- [ ] Left green on purpose: `comic_bolt` / `comic_gale` STORM consts (`--fx=classic` only), `fx.gd`'s classic
+  `element_hit` (fx-cohesion's), `P_GlowWind` (foe eye glow), `void_tendril.electrify`'s default tint (fx-cohesion's)
+- [ ] Galvanize's tentacles not filmed (no bot string in the film range); it shares Live Wire's code
+- [ ] Zak's call on the look (clips `awaken-combo-clips/19 Air f..` onward)
+
+## Round 44 b (combo-lightning, second pass)
+Orchestrator: make Galvanize the showpiece, thin Live Wire's late hang, Short Circuit, real-move proof for the cells.
+- [x] Galvanize as an event: tentacles whip out to everyone within 8 m (Reap's marked from 11 m, x1.25), one by one;
+  a held charge beat in half-speed slow motion, the tentacles lighting out from his claw; one fat pulse lands on all
+  of them on the same frame (a real hit and stagger each), the hit stop and BZZRAKK! sized by how many are linked;
+  the arcs on, a longer hit stop each link; the tentacles snap back
+- [x] Live Wire: one small fork per arrival; the charged mark and its crackle only once the hang ends; the per-jolt
+  numbers already merge into one counting number per foe (`comic_number` `MERGE_S`)
+- [x] Short Circuit (Grounded's LMB): the held take half and are spent, the charge arcs out one after another to up
+  to 8 foes not held within 12 m; best when the room is full past the tentacles. Bot string `spread far alt L H H`
+- [x] Charged lasts 3 s; every charged cell has a real-move bot string (Overload, Conduct, Arc Flash, Superconduct)
+- [x] Clips: `awaken-combo-clips/20 Lightning r2 *`
+- [ ] Short Circuit's far arcs land off the game camera at 10 m: read from the test and the [improv] line, not seen
+- [ ] fx-air2 to polish the bolt look (`live_current._trail_strip`, `_head`, `_claw`, `_pop`)
+- [ ] Zak plays Galvanize and Short Circuit by hand
+
+## Round 46 (feel-audit3: the whole game on film after rounds 44-45)
+Orchestrator: film every string, audit combat feel as a whole, fix the worst. `docs/feel-audit-2026-11-06.md`.
+- [x] Audit: 30 strings + free play filmed, ranked top 10 with frame evidence; audit 2's list re-scored
+- [x] Item 1: Live Wire's later pulses take a 0.012 s hair stop, not a 0.035 s freeze each (the hang stuttered)
+- [x] Item 2: the combo guide keeps the side away from the pile (an edge-slack bug sent it back onto the foes)
+- [x] Item 3: an ender's name goes to the top band in the hang, off his chest
+- [x] Item 4: the lava well's ticks are quiet burns (words and stars with nothing doing them)
+- [x] Item 5: Short Circuit cues its targets for the camera (`FRAME_CUE`), so the far arc lands in frame
+- [ ] Item 6: Meteor Fall's wall splat in the top-left corner (camera / combo lane: frame the splatted foe in the hang, or a shorter carry)
+- [ ] Item 7: L3 -> Molten Palm 538 ms (re-key Ab_AF's coil, then `EM_SPEED`; heretic anim + combo-rhythm)
+- [x] Item 8: the frost spear's 5 m halftone floor (fx-elements: the drawn `ice_frost` floor)
+- [ ] Item 9: the spirit echo's brown halftone fan on L2 / L3 (fx-finish)
+- [x] Item 10: Maw's landing total at the top edge: `comic_number` keeps every number inside `PAGE_MARGIN`
+- [ ] The spear vault (IJ) is the only contact without a stop
+- [ ] Zak plays Live Wire / Short Circuit / Galvanize by hand after these
+
+## Round 46 (fx-elements: ice and magma base moves designed)
+Zak: "the effects are not really effects, they're just polygons you're putting together." The ice and magma right
+clicks as authored sheets and faceted meshes. See `docs/features/designed-fx.md` "Round 46".
+- [x] Molten Palm: the drawn molten fist (wind-up, flight boiling on twos, squashed impact held, cooling into globs),
+  the fissure as a lava seam with spurts every other step
+- [x] Lava spurts, geysers (Worldbreaker's rim geysers) and Undertow's lava pool drawn; Meteor Fall's fireball in
+  flight drawn (was cones and spheres) and turned to the dive
+- [x] Ice: faceted crystal spikes (nova, the fissure in water, Worldbreaker), the frost spear's floor and Deep Freeze's
+  cracks drawn; the ice block / frozen foe's ice and the frost spear as faceted meshes (`shaders/ice_facet.gdshader`)
+- [x] Clips: `awaken-combo-clips/22 Elements *` (before left, after right)
+- [x] The ice dive (Avalanche) drawn as a crystal trail (`ice_trail` on `comic_comet`)
+- [ ] Still polygons: the breaker dive trail in the other elements (`comic_comet.gd`), the tentacle's lava / ice skins
+- [ ] Zak's call: the fireball stands behind him (he reads in front) rather than wrapping him; the ice block is see-through
+
+## Round 46 (fx-finish: the most-seen polygon effects as authored sheets)
+Orchestrator: "effects look weird, just polygons": make the Awakening, the every-hit flourishes, the echo, the weapon
+change and the crossover breakers drawn. `tools/vfx_gen/gen_finish.py`, `scripts/designed_finish.gd`,
+`docs/features/designed-fx.md` "Round 46".
+- [x] The Awakening: gather lines, a gold flame crown behind him, a floor sunburst (`awaken_flourish`)
+- [x] Chain halos, daze stars, combo burst strokes
+- [x] Spirit echo: a drawn axe head on the arc's edge, no 3 m halftone axe (feel-audit3 item 9)
+- [x] Weapon change burst as the element pop; axe aura tongues / motes off on the designed path
+- [x] Rockslide boulder, Steam Burst cloud, Eruption and Anvil landings
+- [ ] `hero_fx.rank_up`, `callout_cap`, `comic_fault` ground, freeze-over, melt, impale, rip, improv tells
+- [ ] Zak: is the Awakening crown big enough (5.4 m), and should the echo axe stay or go entirely?

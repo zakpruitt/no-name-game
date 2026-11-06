@@ -7,6 +7,8 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicSteam.spawn(parent, spot)
 
 const SELF := preload("res://scripts/comic_steam.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 const PUFFS := 9
 const CROWN := 3  # of them over its head
 const HIGH := 0.9  # m: the cloud's middle over the floor at the start
@@ -25,6 +27,8 @@ var _hot: Dictionary
 
 
 static func spawn(parent: Node, spot: Vector3) -> Node3D:
+	if DESIGNED.on():  # round 46: the drawn cloud (designed_finish.steam)
+		return DESIGNED_FINISH.steam(parent, spot)
 	var s: Node3D = SELF.new()
 	s.life = 0.55
 	s.begin(parent, Vector3(spot.x, HIGH, spot.z))

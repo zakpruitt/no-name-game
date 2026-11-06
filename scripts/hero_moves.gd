@@ -126,6 +126,9 @@ const MOVES := {
 	# Steam Burst (Dash L H H L): Molten Palm's clip and pace into the ice. Its breaker is Flash Freeze.
 	"XS": {"anim": "Ab_AF", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + 0.17, "end": EM_END,
 		"speed": EM_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
+	# Galvanize (H L L, round 44): the tentacle clip; the current runs on after the hit (live_current.gd).
+	"XC": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.5, "end": VOID_ELEMENT.GR_HIT + 0.68,
+		"speed": 1.1, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.03, "shake": 0.15},
 	# Storm Pitch (Dash H L): the crescent swing, with the axe on the tentacle.
 	"XT": {"anim": "Ab_H", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.H_HIT], "cancel": VOID_ELEMENT.H_HIT + 0.22, "end": VOID_ELEMENT.H_HIT + 0.46,
 		"speed": 1.2, "lunge": 3.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.35, "big": true},
@@ -180,6 +183,7 @@ const COMBOS := {
 	"XF": {"name": "Fault Line", "input": "L H L L H", "tier": 2},
 	"XS": {"name": "Steam Burst", "input": "Dash L H H L", "tier": 2},
 	"XT": {"name": "Storm Pitch", "input": "Dash H L", "tier": 2},
+	"XC": {"name": "Galvanize", "input": "H L L", "tier": 2},
 	# Three elements in one string (second pass): ice, storm, magma in the air; dark, ice, storm into the hammer.
 	"XG": {"name": "Hailstorm", "input": "Dash L H H H", "tier": 2},
 	"XM": {"name": "Meltdown", "input": "Dash L H H H L", "tier": 2},
@@ -315,7 +319,8 @@ static func land_slam(hero: CharacterBody3D, peak: float) -> void:
 	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
 	var parent := hero.get_parent()
 	Fx.dust(parent, hero.global_position, int(6 * k), 0.5 * k)
-	if not VOID_ELEMENT.is_element_move(hero._move_id):  # (his tentacle moves land on him: it hid them)
+	# (his tentacle moves land on him: it hid them; round 44, designed: the landing's dust puff carries it)
+	if not VOID_ELEMENT.is_element_move(hero._move_id) and not Fx.DESIGNED.on():
 		Fx.ring(parent, hero.global_position + hero._facing() * 0.8, Color(hero._fx_color(), 0.8), 2.2 * k, 0.22)
 	Game.shake(0.12 * k)
 

@@ -21,9 +21,9 @@ const POSES := [
 ]
 ## Clip -> the move whose claw grip (heretic_rig.GRIP_MOVES) the pose shows.
 const POSE_MOVES := {"Ab_GR": "GR", "Ab_VS": "VS"}
-## Pass 3 (round 40): the face must read from the game camera. Headless, the facing (rig.face_dot); windowed,
-## the Idle game shot's pixels: at least FACE_PX of the dark face colour round FaceShade and EYE_PX of
-## cyan glow round each eye.
+## The face must read from the game camera. Headless, the facing (rig.face_dot) and that eyes and grin lie on
+## the face (depth-tested, not camera-facing: hero v2, round 44); windowed, the Idle game shot's pixels: at
+## least FACE_PX of near-black face between the eyes and the grin and EYE_PX of cyan glow round each eye.
 const FACE_DOT_MIN := 0.7
 const FACE_PX := 250
 const EYE_PX := 25
@@ -180,18 +180,18 @@ const CLIP_SET := [
 ]
 
 
-## The Idle game shot: count the face shade's colour within its oval's reach of FaceShade and the eyes'
-## glow within an eye's reach of each eye, on screen.
+## The Idle game shot: count the face plate's near-black within a face's reach of the middle of the eyes and
+## the grin, and the eyes' glow within an eye's reach of each eye, on screen.
 func _face_pixels(img: Image, rig: Node) -> void:
-	var shade: Node3D = rig.grin.get_child(1)
-	var px_per_m := img.get_height() / (2.0 * _cam.global_position.distance_to(shade.global_position) * tan(deg_to_rad(_cam.fov) * 0.5))
-	var want: Color = rig.FACE_SHADE_COLOR
-	var face := _count(img, _cam.unproject_position(shade.global_position), rig.FACE_SHADE_SIZE.x * rig._face_k * px_per_m,
-		func(c: Color) -> bool: return absi(c.r8 - roundi(want.r * 255)) <= 2 and absi(c.g8 - roundi(want.g * 255)) <= 2 and absi(c.b8 - roundi(want.b * 255)) <= 2)
+	var mouth: Node3D = rig.grin.get_child(0)
+	var mid: Vector3 = (rig.eyes.get_child(0).global_position + rig.eyes.get_child(1).global_position + mouth.global_position) / 3.0
+	var px_per_m := img.get_height() / (2.0 * _cam.global_position.distance_to(mid) * tan(deg_to_rad(_cam.fov) * 0.5))
+	var face := _count(img, _cam.unproject_position(mid), 0.2 * px_per_m,
+		func(c: Color) -> bool: return maxf(c.r, maxf(c.g, c.b)) < 0.09)
 	_check(face >= FACE_PX, "the dark face reads from the game camera in Idle (%d px)" % face)
 	for i in 2:
 		var eye: Node3D = rig.eyes.get_child(i)
-		var n := _count(img, _cam.unproject_position(eye.global_position), rig.EYE_SIZE.x * rig._face_k * px_per_m,
+		var n := _count(img, _cam.unproject_position(eye.global_position), rig.EYE_SIZE.x * px_per_m,
 			func(c: Color) -> bool: return c.g > 0.7 and c.b > 0.7 and c.g - c.r > 0.12)
 		_check(n >= EYE_PX, "eye %d glows from the game camera in Idle (%d px)" % [i, n])
 
@@ -220,6 +220,9 @@ func _initialize() -> void:
 	_game = get_root().get_node("Game")
 	if _game.hero_model != "heretic":
 		DIR += "_" + _game.hero_model
+	for a: String in OS.get_cmdline_user_args():
+		if a.begins_with("--dir="):  # a folder of your own: user:// is shared between worktrees
+			DIR = "user://" + a.trim_prefix("--dir=")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_game.save_hints = false
 	_game.combo_guide = false  # the shots set his state with no move behind it
@@ -339,15 +342,21 @@ func _initialize() -> void:
 		"the keyed model's Idle keys the claws")
 	if _game.hero_model == "chibi":
 		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the chibi has glowing eyes")
-		var cam := game_view
-		var eye := Vector3(0.0, 1.25, 0.13)
-		_check(rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05)]), 0.07), "an eye goes behind the claw in front of it")
-		_check(not rig._covered(cam, eye, PackedVector3Array([eye.lerp(cam, 0.05) + Vector3(0.4, 0.0, 0.0)]), 0.07)
-			and not rig._covered(cam, eye, PackedVector3Array([eye + Vector3(0.0, -0.3, -0.3)]), 0.07),
-			"but not behind a claw beside it or behind him")
-		_check(rig.grin != null and rig.grin.get_child_count() == 2 and rig.grin.get_child(1).name == "FaceShade", "the chibi grins under them, on a dark face oval")
-		# pass 3: the face is tipped up to the game camera, so in Idle facing it the face points within
-		# FACE_DOT_MIN of the camera (cos 0.7 = 46 degrees; untipped it was 0.47, 62 degrees)
+		_check(rig.grin != null and rig.grin.get_child_count() == 1, "the chibi grins under them")
+		# hero v2: eyes and grin are drawn on the face plate, so the hood and the claw cover them by depth and
+		# nothing turns to the camera off the head (the floating face of round 40)
+		var flat := true
+		for mi: MeshInstance3D in [rig.eyes.get_child(0), rig.eyes.get_child(1), rig.grin.get_child(0)]:
+			var m: StandardMaterial3D = mi.material_override
+			flat = flat and not m.no_depth_test and m.billboard_mode == BaseMaterial3D.BILLBOARD_DISABLED
+		_check(flat, "eyes and grin lie on the face, depth-tested, not turned to the camera")
+		var head_at: Vector3 = skel.get_bone_global_rest(skel.find_bone("head")).origin
+		var near := true
+		for spot: Array in rig.FACE.chibi.eyes + [rig.FACE.chibi.grin]:
+			near = near and (spot[0] as Vector3).distance_to(head_at) < 0.75
+		_check(near and rig.eyes.get_child(0).position.length() < 0.75, "the face spots sit on his head (%.2f m from the neck)" % rig.eyes.get_child(0).position.length())
+		# the face opening is tilted up to the game camera, so in Idle facing it the face points within
+		# FACE_DOT_MIN of the camera
 		var yaw: float = p.model.rotation.y
 		p.model.rotation.y = 0.0  # facing the camera
 		anim.play("Idle")

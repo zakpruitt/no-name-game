@@ -19,6 +19,8 @@ const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
 const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
 const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 const COMIC_ARC := preload("res://scripts/comic_arc.gd")
+const LIVE_CURRENT := preload("res://scripts/live_current.gd")
+const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
 const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
 const COMIC_MELT := preload("res://scripts/comic_melt.gd")
 const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
@@ -58,15 +60,15 @@ const CHARGED := "OW"  # holding right click
 const DASH_MOVE := "TW"  # right click off a dash or a swing
 ## L off these moves goes somewhere else than on down the string. The X* moves are the crossovers (round 34):
 ## a string that changes element on the way, with a payoff only the two together give.
-const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT",
+const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT", "VR": "XC",
 	"XG": "XM", "XK": "XW"}
 const CHAIN := {"EF": 2}
 const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "EA": "water", "IP": "water", "IJ": "water", "IS": "water", "EM": "earth", "EV": "earth",
 	"VS": "void", "VR": "void", "VD": "void", "OW": "void", "TW": "void",
-	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind",
+	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind", "XC": "wind",
 	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
 ## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
-const FORM_OF := {"XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
+const FORM_OF := {"XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
@@ -83,7 +85,9 @@ const BREAKER_TO_CLOSE := 0.32  # s from open to close
 ## Copies of _WINDOW in effect (entry()).
 const BREAKERS := {
 	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 8.0, "awaken_perfect": 16.0,
-		"names": {"spirit": "Grounded"}},
+		"names": {"spirit": "Grounded"},
+		# L in the window (round 44 b): the charge the hang put in them goes out to everyone the tentacles didn't hold.
+		"alt": {"short_circuit": true, "damage": 22.0, "names": {"spirit": "Short Circuit"}}},
 	"EW": {"erupt": "earth", "wire": true, "damage": 36.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "height": 2.6, "awaken": 12.0, "awaken_perfect": 22.0,
 		"names": {"spirit": "Worldbreaker"},
 		"alt": {"erupt": "water", "cubes": true, "damage": 40.0, "names": {"spirit": "Cold Front"}}},
@@ -127,7 +131,7 @@ const CUTTER_PILLAR_R := 1.3
 const CUTTER_DAMAGE := 10.0
 const CUTTER_PULL := 7.0
 const CUTTER_LAUNCH := 9.5
-const WIRE_DAMAGE := 3.5  # each jolt, each foe
+const WIRE_DAMAGE := 4.5  # each jolt, each foe (round 44: 3.5 at a 0.09 s step; the pulses come every 0.1 s and later)
 const HARPOON_LENGTH := 10.0
 const HARPOON_HALF_WIDTH := 1.3
 const HARPOON_STEPS := 8
@@ -222,6 +226,22 @@ const GEYSER_RADIUS := 0.9
 const GEYSER_HIGH := 3.2  # m: taller hid the hero and blew out at the game's camera
 const BREAK_AREA := 4.5  # m round the landing, beyond whoever was seized
 const BREAK_LAUNCH := 7.0
+## Short Circuit (Grounded's L ending, round 44 b): he lands and the charge in the held goes out. They take only
+## SC_HELD_MULT and stay down (no launch); arcs jump, chained from the nearest held, to everyone NOT held within
+## SC_REACH (nearest first, SC_ARCS at most), each a real hit for SC_ARC_MULT of the damage x (1 + SC_PER_HELD per
+## other held foe: the more it held, the more charge it spends), a stagger, and the charge moves into them. Grounded
+## bursts the held group; Short Circuit is for a room full beyond the tentacles' reach.
+const SC_HELD_MULT := 0.5
+const SC_REACH := 12.0
+const SC_ARCS := 8
+const SC_ARC_MULT := 0.75
+const SC_PER_HELD := 0.15
+const SC_STUN := 0.5
+const SC_DELAY := 0.12  # s (game) after the landing before the first arc: past the impact frame, which hid them
+const SC_STEP := 0.06  # s between the arcs, each link's hit stop a step longer (SC_STOP + SC_STOP_PER per link)
+const SC_STOP := 0.02
+const SC_STOP_PER := 0.008
+const SC_CUE_MS := 900  # real ms the arcs' targets count for the camera's framing before they're struck (camera_rig.FRAME_CUE)
 const CRYSTAL_SIZE := 1.5
 const CUBE_STAGGER := 0.05  # s between the cubes leaving
 const CUBE_SEEK := 14.0  # m: how far a cube looks for someone to hit
@@ -250,9 +270,38 @@ const PITCH_LENGTH := 9.0  # m they fly
 const PITCH_SPREAD := 0.35  # radians between them
 const PITCH_DAMAGE := 16.0
 const PITCH_SPEED := 26.0
+## Galvanize (H L L, round 44): Reap marked them where they stand; a tentacle goes out to each and the storm runs
+## down them (live_current.gd), then arcs on. Its place: a spread-out crowd, which Updraft Lash and Molten Palm
+## need bunched. More linked, harder each zap; Black Tide (H L H) is the other answer off Reap, gathering them.
+## Round 44 b: an event in three beats (live_current stagger / hold / together). Reach out: a tentacle whips out to
+## every foe in GALV_REACH round him, nearest first, GALV_STAGGER apart; Reap's mark only reaches further
+## (GALV_MARK_REACH) and hits harder (GALV_MARK_MULT), and the marked are taken first past GALV_LINKS. Charge:
+## GALV_HOLD s held in slow motion, the claw crackling and the tentacles lighting out from it. Discharge: one fat
+## pulse lands on all of them on the same frame (GALV_TOGETHER), a real hit each (star, flash, stagger), a hit stop
+## and the word on that frame, both bigger the more are linked; the arcs chain on; the tentacles snap back.
+const GALV_REACH := 8.0  # m round him: a tentacle goes to everyone this near...
+const GALV_MARK_REACH := 11.0  # ...and to the Reap marked this near
+const GALV_LINKS := 6  # tentacles at most
+const GALV_DAMAGE := 7.0  # each linked foe's zap with one linked...
+const GALV_LINK_BONUS := 0.3  # ...and this much more per other foe linked (5 linked: x2.2, 15.4 each, 77 in all)
+const GALV_MARK_MULT := 1.25  # a Reap-marked foe's zap
+const GALV_STAGGER := 0.035  # s between the tentacles leaving his claw
+const GALV_HOLD := 0.07  # s (game; x2 in the slow) the charge holds
+const GALV_TOGETHER := 0.07  # s the pulse takes down every tentacle
+const GALV_FAT := 1.8  # the pulse's width (Live Wire's is 1)
+const GALV_STUN := 0.45  # s each linked foe staggers (the jolt)
+const GALV_STOP := 0.045  # s hit stop on the burst...
+const GALV_STOP_PER := 0.015  # ...and this much more per other foe linked (max GALV_STOP_MAX)
+const GALV_STOP_MAX := 0.13
+const GALV_WORD := 0.4  # the word's size (ComicFx WORD_SCALE units) with one linked...
+const GALV_WORD_PER := 0.05  # ...and this much bigger per other
+const GALV_JUMP := 3.5  # m an arc jumps from a zapped foe to one no tentacle holds (and on from that one)
+const GALV_JUMP_DAMAGE := 6.0
+const GALV_JUMPS := 4  # arcs at most
 const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
 const CATACLYSM_DOWN := 6.0  # m/s
 # Round 34, second pass: three elements in one string, and states that outlive it so a dash can improvise.
+const CHARGED_HOLD := 3.0  # s the charged state lasts (Galvanize's event, a wait and L L L H fit in it; 2 s didn't)
 const ELEMENT_HOLD := 2.0  # s a crossover's state (frozen, buried, molten, skewered) lasts: a dash and the next move
 const HAIL_REACH := 7.0  # m: Hailstorm lifts every frozen foe this close
 const HAIL_DAMAGE := 8.0  # (x FREEZE_BREAK: the ice gives as the gale takes it)
@@ -410,6 +459,8 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 		"XT":
 			_cash_buried(hero, at + fwd * PITCH_AHEAD, PITCH_GRAB, PITCH_DAMAGE * power, 0.0)  # (buried into storm)
 			return _pitch(hero, at, fwd, power)
+		"XC":
+			return _galvanize(hero, at, fwd, power)
 		"XG":
 			return _hailstorm(hero, at, power)
 		"XM":
@@ -423,22 +474,28 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 
 # --- The moves ----------------------------------------------------------------
 
-## One jolt through everyone the tentacles have: from his hand along each one, and on between them.
-static func zap(hero: CharacterBody3D, foes: Array, hand: Vector3) -> void:
-	var parent: Node = hero.get_parent()
-	var color: Color = ELEMENTS.LOOK.wind.color
-	var damage: float = WIRE_DAMAGE * hero._dmg_mult * hero._cast_power()
-	var last := hand
-	for e: Node3D in foes:
-		if not is_instance_valid(e) or not e.is_alive():
-			continue
-		var to := e.global_position + Vector3.UP
-		ELEMENTS.arc(parent, last, to, color)
-		Fx.burst(parent, to, ELEMENTS.LOOK.wind.glow, 6, 7.0, 0.07, 0.16, Vector3.UP, 180.0, 0.0, 0.3, "spark", true)
-		e.take_hit(damage, Vector3.ZERO, 0.0, false)
-		Game.register_hit("cast")
-		last = to
+## One of Live Wire's jolts reaching a foe: a pulse down its tentacle, or an arc on to one no tentacle holds
+## (void_grab.seize's live_current calls it as the pulse arrives).
+static func jolt(hero: CharacterBody3D, e: Node3D, charge := true) -> void:
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	zap_hit(e, WIRE_DAMAGE * hero._dmg_mult * hero._cast_power())
+	if charge:  # (round 44: the lightning stays in them, the element matrix's charged state; Live Wire marks after the hang)
+		mark(e, "charged")
+	Game.register_hit("cast")
 	Game.sfx("hit_big", -8.0, 0.15)
+
+
+## A hit carried by a current (Live Wire, Galvanize, the charged cells): the number and a flash, without the hit
+## star and speed strokes a blow draws (live_current's pop is the zap's look; per jolt on five foes the stars and
+## strokes were a green thicket over the tentacles).
+static func zap_hit(e: Node3D, damage: float, launch := 0.0) -> void:
+	if e.has_method("burn_hit") and launch <= 0.0:
+		e.burn_hit(damage, false)
+		if is_instance_valid(e.get("model")):
+			Fx.flash(e.model)
+	else:
+		e.take_hit(damage, Vector3.ZERO, launch, false)
 
 
 ## The spear goes in the ground ahead of him. All the frost does is slow them (frost_spear.gd).
@@ -536,7 +593,7 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	var length: float = minf(PALM_LENGTH * grow, hero._clear_ahead(fwd, PALM_LENGTH * grow) + 0.5)
 	hero._void.fist = _fist(parent, at, fwd, length)
 	ELEMENTS.fissure(parent, at, fwd, length, HARPOON_STEPS, "earth", 1.0)
-	Fx.scorch(parent, at + fwd * length * 0.5, ELEMENTS.LOOK.earth.color, length * 0.5, 1.4)
+	if not DESIGNED.on(): Fx.scorch(parent, at + fwd * length * 0.5, ELEMENTS.LOOK.earth.color, length * 0.5, 1.4)  # (designed: the fissure's seam is the mark)
 	var foes := _ahead(hero, at, fwd, length, PALM_HALF_WIDTH)
 	hero._void.shoved = foes
 	for e: Node3D in foes:
@@ -604,6 +661,7 @@ static func _undertow(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 
 ## What he comes down inside on Meteor Fall: a ball of fire with flames streaming back up the way he came.
 static func meteor_shell(parent: Node, travel: Vector3) -> Node3D:
+	if DESIGNED.on(): return ELEMENTS.DESIGNED_EL.meteor_shell(parent, travel)  # (designed: the drawn fireball)
 	var root := Node3D.new()
 	parent.add_child(root)
 	root.look_at_from_position(Vector3.ZERO, travel.normalized(), Vector3.RIGHT if absf(travel.normalized().y) > 0.95 else Vector3.UP)
@@ -809,6 +867,7 @@ static func _fault_line(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 	for e: Node3D in foes:
 		var buried: bool = e in hero._void.buried
 		e.take_hit(FAULT_DAMAGE * power * (FAULT_BURIED_MULT if buried else 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else FAULT_LAUNCH, true)
+		mark(e, "charged")  # (the storm came up out of the crack with it)
 		Game.register_hit("cast")
 	hero._void.buried = []
 	return foes.size()
@@ -880,12 +939,86 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 			Game.register_hit("cast")
 			continue
 		THROWN.cut(e)  # (still on Tow Line's tether: the axe takes it from there)
+		mark(e, "charged")
 		var side := (float(i) - (foes.size() - 1) * 0.5) * PITCH_SPREAD
 		var dir := fwd.rotated(Vector3.UP, side)
 		var flight: Node = THROWN.launch(hero, e, _flat(e.global_position) + dir * PITCH_LENGTH, PITCH_DAMAGE * power,
 			{"el": "wind", "solid": true, "speed": PITCH_SPEED, "zap": true})
 		COMIC_ARC.ride(parent, e, flight)  # (the storm rides it for the flight)
 	return foes.size()
+
+
+## H L L: dark into storm (round 44). A tentacle goes out to each foe Reap marked, wherever it stands (the nearest
+## GALV_LINKS within GALV_REACH; nobody marked: those in front within GALV_NEAR), the charge gathers at his claw and
+## runs down every tentacle (live_current.gd): each linked foe is zapped as it arrives, GALV_DAMAGE x (1 +
+## GALV_LINK_BONUS per other link), then arcs jump on to the foes near them no tentacle reached (GALV_JUMP, chained).
+static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var tree := hero.get_tree()
+	var linked: Array = FOES.near(tree, at, GALV_MARK_REACH).filter(func(e: Node3D) -> bool:
+		return not THROWN.flying(e) and (DARK.marked(e) or _flat(e.global_position - at).length() <= GALV_REACH))
+	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (the marked first past the cap)
+		var ma: bool = DARK.marked(a)
+		if ma != DARK.marked(b):
+			return ma
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	linked = linked.slice(0, GALV_LINKS)
+	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (nearest first: they latch in that order)
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	var marked := {}
+	for e: Node3D in linked:
+		if DARK.marked(e):
+			marked[e] = true
+	if linked.is_empty():  # nobody to latch onto: it crackles out ahead
+		var from := at + Vector3.UP * 1.3 + fwd * 0.6
+		for k: float in [3.0, 6.0]:
+			ELEMENTS.arc(hero.get_parent(), from, at + fwd * k + Vector3.UP, ELEMENTS.LOOK.wind.color)
+		return 0
+	var each: float = GALV_DAMAGE * power * (1.0 + GALV_LINK_BONUS * (linked.size() - 1))
+	var c: Node3D = LIVE_CURRENT.start(hero, linked.map(func(e: Node3D) -> Dictionary: return {"foe": e}), true)
+	c.stagger = GALV_STAGGER
+	c.hold = GALV_HOLD
+	c.together = GALV_TOGETHER
+	c.fat = GALV_FAT
+	c.on_zap = func(e: Node3D, _p: int) -> void:  # a real hit: star, flash, number, and the jolt (a stagger)
+		var out := _flat(e.global_position - hero.global_position)
+		e.take_hit(each * (GALV_MARK_MULT if marked.has(e) else 1.0), (out.normalized() if out.length() > 0.01 else fwd) * 2.0, 0.0, true)
+		if not hero._void.is_heavy(e) and e.has_method("stagger"):
+			e.stagger(GALV_STUN)
+		mark(e, "charged")
+		Game.register_hit("cast")
+	c.on_burst = func(foes: Array) -> void:  # all at once: the hit stop and the word, bigger the more linked
+		var n := linked.size()
+		Game.hitstop(minf(GALV_STOP + GALV_STOP_PER * (n - 1), GALV_STOP_MAX))
+		Game.shake(0.25 + 0.06 * n)
+		var mid := Vector3.ZERO
+		for e: Variant in foes:
+			if is_instance_valid(e):
+				mid += (e as Node3D).global_position
+		ComicFx.say(ComicFx.MOVE_WORDS["XC"], mid / maxf(foes.size(), 1), GALV_WORD + GALV_WORD_PER * (n - 1))
+	c.on_jump = func(e: Node3D, _from: Variant) -> void:
+		zap_hit(e, GALV_JUMP_DAMAGE * power)
+		mark(e, "charged")
+		Game.register_hit("cast")
+	c.find_jumps = func() -> Array: return _jumps(tree, linked, GALV_JUMP, GALV_JUMPS)
+	c.pulse()
+	return linked.size()
+
+
+## Who an arc reaches from `from`: foes within `reach` of one of them, then of those, and so on (nearest first),
+## none of `from` itself, at most `most`.
+static func _jumps(tree: SceneTree, from: Array, reach: float, most: int) -> Array:
+	var out := []
+	var front: Array = from.filter(func(e: Variant) -> bool: return is_instance_valid(e))
+	while not front.is_empty() and out.size() < most:
+		var nxt := []
+		for f: Node3D in front:
+			for o: Node3D in FOES.near(tree, f.global_position, reach):
+				if not o in from and not o in out and not o in nxt and not THROWN.flying(o):
+					nxt.append(o)
+		for o: Node3D in nxt.slice(0, most - out.size()):
+			out.append(o)
+		front = nxt
+	return out
 
 
 ## Black Ice's press (hero_leap._start_dive): the pool freezes, with everyone in it.
@@ -910,6 +1043,50 @@ static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> voi
 	Game.shake(0.6)
 
 
+## Short Circuit lands (SC_*): the held take a little and are spent; the charge arcs out to everyone else in reach.
+static func _short_circuit(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var held: Array = seized.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	for e: Node3D in held:
+		e.take_hit(damage * SC_HELD_MULT, Vector3.ZERO, 0.0, true)
+		unmark(e, "charged")  # (spent)
+		Game.register_hit("breaker")
+	var out: Array = FOES.near(hero.get_tree(), at, SC_REACH).filter(func(e: Node3D) -> bool:
+		return not e in held and not THROWN.flying(e))
+	out.sort_custom(func(a: Node3D, c: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
+	out = out.slice(0, SC_ARCS)
+	for e: Node3D in out:  # (feel audit 3: the camera takes them in before the arcs land, not after)
+		e.set_meta(&"frame_cue_ms", Time.get_ticks_msec() + SC_CUE_MS)
+	var each := damage * SC_ARC_MULT * (1.0 + SC_PER_HELD * maxi(held.size() - 1, 0))
+	var from: Array = held.duplicate() if not held.is_empty() else [hero]
+	for i in out.size():  # one after another, out from the pile: a link further each, a beat harder each
+		hero.get_tree().create_timer(SC_DELAY + SC_STEP * i).timeout.connect(_sc_arc.bind(hero, out[i], from, each, i))
+	under(parent, at, "wind")
+	_pop(parent, at, "axe")
+
+
+## One of Short Circuit's arcs: from the nearest of `from` (the held and the arcs before) to `e`, the `i`th link.
+static func _sc_arc(hero: Variant, e: Variant, from: Array, each: float, i: int) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var src: Variant = null
+	for f: Variant in from:
+		if is_instance_valid(f) and (src == null or f.global_position.distance_to(e.global_position) < src.global_position.distance_to(e.global_position)):
+			src = f
+	var a: Vector3 = (src.global_position if src != null else hero.global_position) + Vector3.UP * 0.9
+	COMIC_BOLT.spawn(hero.get_parent(), a, e.global_position + Vector3.UP * 0.9, 0.26 + 0.02 * i, 0.5 + 0.06 * i, 2)
+	var away := _flat(e.global_position - a)
+	e.take_hit(each, (away.normalized() if away.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, true)
+	if not hero._void.is_heavy(e) and e.has_method("stagger"):
+		e.stagger(SC_STUN)
+	mark(e, "charged")
+	Game.register_hit("breaker")
+	Game.hitstop(SC_STOP + SC_STOP_PER * i)
+	from.append(e)
+
+
 ## Cataclysm lands: everyone held comes down into the floor (a crater each), with lightning out of the sky and
 ## the earth up under each one. Anyone else near takes some and is thrown clear.
 static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
@@ -921,6 +1098,7 @@ static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized
 			continue
 		spots.append(_flat(e.global_position))
 		e.take_hit(damage, Vector3.DOWN * CATACLYSM_DOWN, 0.0, true)
+		mark(e, "charged")  # (the strike out of the sky stays in them)
 		Game.register_hit("breaker")
 	COMIC_FAULT.spawn(parent, at, spots, true)  # (a crack to each, a strike where it arrives: was a strike + geyser + spikes each)
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
@@ -944,7 +1122,8 @@ static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized
 ## A crossover's state on a foe ("buried", "molten", "skewered"), good for ELEMENT_HOLD s of real time.
 static func mark(e: Variant, state: String) -> void:
 	if is_instance_valid(e):
-		e.set_meta("x_" + state, Time.get_ticks_msec() + int(ELEMENT_HOLD * 1000.0))
+		var hold := CHARGED_HOLD if state == "charged" else ELEMENT_HOLD  # (round 44 b: the charge outlasts a magma string's three swings)
+		e.set_meta("x_" + state, Time.get_ticks_msec() + int(hold * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
 
 
 static func marked(e: Variant, state: String) -> bool:
@@ -1184,14 +1363,14 @@ static func meteor_target(at: Vector3, spots: Array, fresh: Array, reach := METE
 static func wall_fresh(e: Object) -> bool:
 	if not is_instance_valid(e) or not e.has_meta(THROWN.WALL_META):  # (get_meta's null default still errors)
 		return false
-	return Time.get_ticks_msec() - int(e.get_meta(THROWN.WALL_META)) <= METEOR_SPLAT_FRESH_MS
+	return Time.get_ticks_msec() - int(e.get_meta(THROWN.WALL_META)) <= METEOR_SPLAT_FRESH_MS / Game.slow
 
 
 ## Did Molten Palm hit `e` within METEOR_PALM_FRESH_MS?
 static func palm_fresh(e: Object) -> bool:
 	if not is_instance_valid(e) or not e.has_meta(PALM_META):
 		return false
-	return Time.get_ticks_msec() - int(e.get_meta(PALM_META)) <= METEOR_PALM_FRESH_MS
+	return Time.get_ticks_msec() - int(e.get_meta(PALM_META)) <= METEOR_PALM_FRESH_MS / Game.slow
 
 
 ## meteor_target over the living foes round the hero that this string's Molten Palm hit (the ones it pressed into a
@@ -1252,6 +1431,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 	if b.has("cataclysm"):
 		_cataclysm(hero, b, at, seized, mult)
 		return
+	if b.has("short_circuit"):
+		_short_circuit(hero, b, at, seized, mult)
+		return
 	if b.has("black_ice"):
 		_black_ice(hero, b, mult)
 		return
@@ -1279,6 +1461,8 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		struck[e] = true
 		var spot := _flat(e.global_position)
 		e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH, true)
+		if b.erupt == "wind":
+			mark(e, "charged")  # (Grounded: the storm it lands in stays in them)
 		Game.register_hit("breaker")
 		under(parent, spot, b.erupt)
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
@@ -1496,9 +1680,12 @@ const IMPROV := {
 	"bound": {"wind": "loose", "water": "encase"},
 	"frozen": {"wind": "lift", "void": "shatter"},
 	"airborne": {"water": "freeze", "earth": "spike"},
+	"charged": {"void": "conduct", "water": "superconduct", "earth": "flash", "wind": "overload"},
 }
 ## A foe in several states pays the first with a cell for the element, in this order (the skewered are frozen too).
-const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne"]
+## Charged is last: the lightning goes into nearly everyone (every Live Wire jolt), so it's what pays when nothing
+## rarer is there.
+const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne", "charged"]
 const IMPROV_REACH := 5.0  # m round him: a move with no hit shape of its own (improv_reach()) reaches this far
 const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
 const IMPROV_MULT := 1.5  # the harder payoffs (crater, swallow, smother, spike, tear, loose)
@@ -1509,6 +1696,21 @@ const IMPROV_CHAIN_DAMAGE := 5.0
 const IMPROV_PULL := 6.0  # m/s towards him: tear (yanked off the spear)
 const IMPROV_STEAM_MULT := 1.6  # quench: water on the molten goes off in steam, like the ice under magma
 const IMPROV_HOLD := 0.6  # s swallow keeps them stuck in the floor
+## The charged state (round 44): lightning that went into a foe stays in it (mark(e, "charged"): Live Wire's jolts,
+## Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm), and every other element does something with it.
+const CONDUCT_R := 3.0  # m: Conduct (dark) carries the charge on to every uncharged foe this near the payer...
+const CONDUCT_MOST := 4  # ...this many at most...
+const CONDUCT_DAMAGE := 5.0  # ...each zapped for this, and charged; the payer stays charged
+const SUPER_R := 7.0  # m: Superconduct (ice) freezes the payer, and the charge runs through every frozen foe this near
+const SUPER_DAMAGE := 6.0  # each (x FREEZE_BREAK: it's on the ice), and they're charged
+const FLASH_R := 2.8  # m: Arc Flash (magma) blows the foes this near the payer away from it...
+const FLASH_THROW := 4.5  # ...this far (thrown_foe: on to a wall short of that, and splatted there)...
+const FLASH_DAMAGE := 5.0  # ...for this as it goes off...
+const FLASH_SPLAT := 6.0  # ...and this where they land (x PALM_WALL_MULT on a wall)
+const FLASH_SPEED := 20.0  # m/s
+const OVERLOAD_R := 8.0  # m: Overload (storm) discharges every charged foe this near the move at once...
+const OVERLOAD_PER := 0.35  # ...each zap this much harder for every other charged foe in it
+static var _overload_n := 1  # (how many were charged as the move fired: read before the first payer discharges them)
 static var improv_paid := {}  # "state x element" -> payoffs so far (the autotest's [improv] line)
 
 
@@ -1543,7 +1745,11 @@ static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: flo
 		var state := "" if THROWN.flying(e) else improv_state(e, el)
 		if state != "":
 			due.append([e, state])
+	if el == "wind":
+		_overload_n = maxi(1, FOES.near(hero.get_tree(), at, OVERLOAD_R).filter(func(o: Node3D) -> bool: return marked(o, "charged")).size())
 	for d: Array in due:
+		if d[1] == "charged" and not marked(d[0], "charged"):
+			continue  # (Overload already discharged it, off another payer)
 		if is_instance_valid(d[0]) and d[0].is_alive():
 			var cell: String = "%s_x_%s" % [d[1], el]
 			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power, cell)
@@ -1643,8 +1849,8 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 	var heavy: bool = hero._void.is_heavy(e)
 	var damage := IMPROV_DAMAGE * power
 	var down := Vector3.DOWN * IMPROV_DOWN
-	if state in ["buried", "molten", "skewered"]:
-		unmark(e, state)  # (spent: once)
+	if state in ["buried", "molten", "skewered", "charged"]:
+		unmark(e, state)  # (spent: once; Conduct charges it again)
 	var next: Variant = null  # the neighbour a chain reached (its tell draws the jump)
 	match kind:
 		"lift":  # frozen x wind: the gale takes the cube up, still in its ice
@@ -1682,9 +1888,104 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 		"loose":  # bound x wind: the gale tears it out of the bind and up
 			BIND.let_go_of(hero.get_tree(), e)
 			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
+		"conduct":  # charged x dark: the dark carries the charge on, to everyone near not charged yet
+			e.take_hit(damage, Vector3.ZERO, 0.0, true)
+			mark(e, "charged")
+			next = _conduct(hero, e, CONDUCT_DAMAGE * power)
+		"superconduct":  # charged x ice: frozen, and the charge runs through all the ice near it
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0, false)
+			encase(e)
+			next = _superconduct(hero, e, SUPER_DAMAGE * power)
+		"flash":  # charged x magma: the charge goes off in the heat, and blows the ones beside it away
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0, true)
+			next = _arc_flash(hero, e, power)
+		"overload":  # charged x storm: every charged foe near goes off at once, harder the more there are
+			var k := 1.0 + OVERLOAD_PER * (_overload_n - 1)
+			e.take_hit(damage * k, Vector3.ZERO, 0.0, true)
+			next = _overload(hero, e, at, IMPROV_CHAIN_DAMAGE * power * k)
 	if Game.comic_style:
 		COMIC_IMPROV.spawn(parent, cell, e, at, next)
 	Game.register_hit("cast")
+
+
+## Conduct: an arc from `from` to each uncharged foe within CONDUCT_R (nearest first, CONDUCT_MOST), `damage`
+## each, and charged. Returns where the first went (world), or null.
+static func _conduct(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
+	var near: Array = FOES.near(hero.get_tree(), from.global_position, CONDUCT_R).filter(func(o: Node3D) -> bool:
+		return o != from and not THROWN.flying(o) and not marked(o, "charged"))
+	near.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return a.global_position.distance_to(from.global_position) < b.global_position.distance_to(from.global_position))
+	near = near.slice(0, CONDUCT_MOST)
+	for o: Node3D in near:
+		COMIC_BOLT.spawn(hero.get_parent(), from.global_position + Vector3.UP * 0.9, o.global_position + Vector3.UP * 0.9, 0.18, 0.3)
+		zap_hit(o, damage)
+		mark(o, "charged")
+		Game.register_hit("cast")
+	return null if near.is_empty() else near[0].global_position
+
+
+## Superconduct: an arc from `from` through every frozen foe within SUPER_R, `damage` each, and charged.
+static func _superconduct(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
+	var ice: Array = FOES.near(hero.get_tree(), from.global_position, SUPER_R).filter(func(o: Node3D) -> bool:
+		return o != from and is_frozen(o) and not THROWN.flying(o))
+	ice.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return a.global_position.distance_to(from.global_position) < b.global_position.distance_to(from.global_position))
+	var last := from.global_position + Vector3.UP * 0.9
+	for o: Node3D in ice:
+		var to: Vector3 = o.global_position + Vector3.UP * 0.9
+		COMIC_BOLT.spawn(hero.get_parent(), last, to, 0.2, 0.34)
+		last = to
+		o.take_hit(damage, Vector3.ZERO, 0.0, false)  # (frozen: x FREEZE_BREAK)
+		mark(o, "charged")
+		Game.register_hit("cast")
+	return null if ice.is_empty() else ice[0].global_position
+
+
+## Arc Flash: everyone within FLASH_R of `from` takes FLASH_DAMAGE and is thrown FLASH_THROW away from it, on to a
+## wall short of that (thrown_foe: splatted there, PALM_WALL_MULT). Big ones only take the hit.
+static func _arc_flash(hero: CharacterBody3D, from: Node3D, power: float) -> Variant:
+	var first: Variant = null
+	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, FLASH_R):
+		if o == from or THROWN.flying(o):
+			continue
+		var out := _flat(o.global_position - from.global_position)
+		if out.length() < 0.05:
+			out = _flat(o.global_position - hero.global_position)
+		out = out.normalized() if out.length() > 0.01 else hero._facing()
+		o.take_hit(FLASH_DAMAGE * power, Vector3.ZERO, 0.0, false)
+		Game.register_hit("cast")
+		if first == null:
+			first = o.global_position
+		if hero._void.is_heavy(o):
+			continue
+		var reach: float = THROWN.clear_from(hero, o, o.global_position, out, FLASH_THROW)
+		THROWN.launch(hero, o, _flat(o.global_position) + out * reach, FLASH_SPLAT * power,
+			{"quiet": true, "solid": false, "el": "earth", "speed": FLASH_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
+	Game.shake(0.35)
+	return first
+
+
+## Overload: an arc from `from` on through every other charged foe within OVERLOAD_R of `at` (nearest first, each
+## from the last), `damage` each; they're discharged. Returns where the first went, or null.
+static func _overload(hero: CharacterBody3D, from: Node3D, at: Vector3, damage: float) -> Variant:
+	var live: Array = FOES.near(hero.get_tree(), at, OVERLOAD_R).filter(func(o: Node3D) -> bool:
+		return o != from and marked(o, "charged"))
+	var last: Node3D = from
+	var first: Variant = null
+	var k := 0  # (each link out a fatter bolt and a bigger star)
+	while not live.is_empty():
+		live.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+			return a.global_position.distance_to(last.global_position) < b.global_position.distance_to(last.global_position))
+		var o: Node3D = live.pop_front()
+		COMIC_BOLT.spawn(hero.get_parent(), last.global_position + Vector3.UP * 0.9, o.global_position + Vector3.UP * 0.9, 0.24 + 0.03 * mini(k, 5), 0.4 + 0.06 * mini(k, 5))
+		k += 1
+		unmark(o, "charged")
+		zap_hit(o, damage)
+		Game.register_hit("cast")
+		if first == null:
+			first = o.global_position
+		last = o
+	return first
 
 
 ## The chain to the neighbour: the nearest other foe within IMPROV_CHAIN_R takes `damage` and, for "molten" /

@@ -13,6 +13,7 @@ instance uniform float head = 1.0;
 instance uniform float span = 1.0;
 instance uniform float tiles = 0.0;  // 0: the strip covers [head - span, head]; > 0: repeat it this many times
 instance uniform float scroll = 0.0;
+instance uniform float heat = 0.0;  // added to the tone: > 0 burns the strip white-hot (a strike held on the hit), < 0 dims it (afterimages)
 
 void fragment() {
 	float u;
@@ -24,7 +25,9 @@ void fragment() {
 	float inside = step(0.0, u) * step(u, 1.0);
 	float f = floor(frame + 0.5);
 	vec2 uv = vec2(clamp(u, 0.002, 0.998), (f + clamp(1.0 - UV.y, 0.01, 0.99)) / rows);
-	vec4 d = designed(texture(sheet, uv), erode, pal_row);
+	vec4 tx = texture(sheet, uv);
+	tx.r = tx.r < 0.13 ? tx.r : clamp(tx.r + heat, 0.25, 1.0);  // (the ink stays ink, colour never drops to it)
+	vec4 d = designed(tx, erode, pal_row);
 	ALBEDO = d.rgb;
 	ALPHA = d.a * alpha * inside;
 }

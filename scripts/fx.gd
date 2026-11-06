@@ -35,7 +35,9 @@ const COMIC_NUMBER := preload("res://scripts/comic_number.gd")
 const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
-const DESIGNED := preload("res://scripts/designed_fx.gd")  # round 43: authored flipbook effects (--fx=classic: off)
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # round 44: ground stamps, element hit pops  # round 43: authored flipbook effects (--fx=classic: off)
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")  # round 46: the Awakening, halos, daze stars, combo burst
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -197,7 +199,7 @@ static func _flush_crowd_stars() -> void:
 	crowd_merged += batch.size() - 1
 	var pal: Dictionary = batch[0][3]
 	if DESIGNED.on():
-		DESIGNED.hit(parent, mid / float(batch.size()), str(batch[0][4]), big)
+		DESIGNED_INK.pop(parent, mid / float(batch.size()), str(batch[0][4]), big)
 		return
 	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 
@@ -238,8 +240,8 @@ static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6),
 				_flush_crowd_stars.call_deferred()
 			_crowd_stars.append([parent, at, size, pal, _blow_element(parent)])
 			return
-		if DESIGNED.on():  # the authored impact star (designed_fx.hit)
-			DESIGNED.hit(parent, at, _blow_element(parent), size)
+		if DESIGNED.on():  # the authored impact pop in the blow's element (designed_ink.pop; capped in a crowd)
+			DESIGNED_INK.pop(parent, at, _blow_element(parent), size)
 			return
 		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
 		return
@@ -267,6 +269,11 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
 		if not _once_in_breaker(parent, "chain"):
 			return
+		if DESIGNED.on() and not DESIGNED_INK.once_a_frame("chain"):  # (round 44: one halo a frame in a crowd)
+			return
+		if DESIGNED.on():  # round 46: a drawn sparkle halo per tier (designed_finish.halo)
+			DESIGNED_FINISH.halo(parent, at, color, tier)
+			return
 		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
 			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
 			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
@@ -285,6 +292,8 @@ static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector
 	var at := pos + Vector3.UP * 1.0
 	var k := 1.5 if big else 1.0
 	if Game.comic_style:  # chunky chips of the element, flung along the blow
+		if DESIGNED.on():  # (round 44: the hit's designed pop is drawn in the element's shape; chips were clutter)
+			return
 		var el := _blow_element(parent)
 		var chip: Color = PAL.of(element if el == "hit" else el).body
 		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": chip,
@@ -312,6 +321,9 @@ static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> vo
 		var hero: Node = parent.get_tree().get_first_node_in_group("player") if parent.is_inside_tree() else null
 		if hero != null and "_move_id" in hero and not CALLOUT_CAP.names_move(hero._move_id):
 			return  # feel audit 2, item 3: a light mid keeps its word only (callout_cap.names_move)
+		if DESIGNED.on():  # round 46: drawn burst lines round him (designed_finish.burst)
+			DESIGNED_FINISH.burst(parent, at, vivid, tier)
+			return
 		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
 			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
 			"hold": 2 if tier >= 3 else 1, "steps": 3})
@@ -465,6 +477,15 @@ static func shard_mat() -> StandardMaterial3D:
 static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 		color := Color(0.93, 0.89, 0.78)) -> void:
 	var at := pos + Vector3.UP * 0.9
+	if Game.comic_style and DESIGNED.on():  # round 45: the drawn kill: a big held star, a burst of strokes thrown
+		# along the blow, a dust puff where he drops (the bone chips were loose polygons)
+		var star := DESIGNED.spawn(parent, "hit_spark", at, DESIGNED.HIT_SIZE * (1.6 if big else 1.3), "hit", DESIGNED_INK.KILL_TIMES, Vector2(0.55, 1.0))
+		star.real_until = 1
+		star.pop = 0.15
+		star.vary(PI, true)
+		DESIGNED.streaks(parent, at, dir, "hit", true)
+		DESIGNED.dust(parent, pos, 1.1 if big else 0.85)
+		return
 	if Game.comic_style:  # a held kill star, strokes all round, bone chips; no smoke, no soft ring
 		COMIC_POP.spawn(parent, at, {"star": 1.15 if big else 0.9, "spikes": 11, "hold": 2, "steps": 3,
 			"strokes": 8, "radial": true, "gap": 0.7, "stroke_len": 0.6, "stroke_w": 0.18,
@@ -482,6 +503,11 @@ static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
 ## narrowing and fading over `time`.
 static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float, color: Color,
 		time := 0.3, width := 2.2) -> void:
+	if Game.comic_style and DESIGNED.on():  # round 45: drawn speed strokes thrown back off his kick-off, in his colour
+		var d0 := Vector3(dir.x, 0.0, dir.z).normalized()
+		if DESIGNED_INK.once_a_frame("dash"):
+			DESIGNED.streaks(parent, from + Vector3.UP * 0.5 - d0 * 0.2, -d0, DESIGNED.PAL.nearest(color))
+		return
 	# The dot stretched along the dash: a soft speed smear.
 	var mat := unshaded_mat(Color(color, color.a * (0.5 if Game.reduce_flashing else 1.0)), "dot")
 	var plane := PlaneMesh.new()
@@ -575,8 +601,9 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
 		if not _once_in_breaker(parent, "impact"):
 			return
-		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks)
-			DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
+		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks), once a frame
+			if DESIGNED_INK.streaks_ok():
+				DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
 			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
@@ -657,7 +684,8 @@ static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> vo
 		COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
 		# Round 33, sleek 5: one thin dust hoop just past the dent (a 2.4 m 0.1 m band round every cube Deep Freeze
 		# drove down was four cream rings over the crowd).
-		COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
+		if not DESIGNED.on():  # (round 44: designed, the dent and the dust puff carry it; no hoop per cube)
+			COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
 		return
 	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
 	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)
@@ -707,6 +735,9 @@ const DAZE_SPIN := 7.0  # rad/s
 const DAZE_COLOR := Color(1.0, 0.86, 0.2)
 static var _star_mesh: ArrayMesh
 static func daze(node: Node3D, height: float, time := 0.9) -> void:
+	if DESIGNED.on():  # round 46: two drawn cartoon stars (designed_finish.daze)
+		DESIGNED_FINISH.daze(node, height, time, DAZE_RING, DAZE_SPIN)
+		return
 	if _star_mesh == null:
 		_star_mesh = _star(DAZE_SIZE, DAZE_INNER)
 	var pivot := Node3D.new()

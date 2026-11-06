@@ -30,6 +30,8 @@ const SKID_Y := 0.07  # m: over the floor tiles' tops (0.03 hid under them)
 const INK_W := 0.05  # m of ink round the cloud (PAL.LINE vanished on a puff this small)
 const AIR := 0.2  # m: a dodge with his body higher than this is an air dash (no dust)
 const CLIPS := {"Run_Stop": "stop", "Dodge_Forward": "dodge", "Run_Start": "start"}
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_PUFF := 0.1  # round 45: the drawn dust_puff's size per 0.01 m of the kind's blob radius
 
 static var _pool: Array = []  # Node3D (untyped: freed ones are dropped on the next spawn)
 static var _last_clip := ""
@@ -48,6 +50,7 @@ var _skid: MeshInstance3D
 var _puff_mesh := ArrayMesh.new()
 var _skid_mesh := ArrayMesh.new()
 var _rng := RandomNumberGenerator.new()
+var _designed := false
 
 
 ## Watches the hero's clip: a new Run_Stop / Dodge_Forward / Run_Start (or the same clip restarted) puffs.
@@ -140,6 +143,10 @@ func start(at: Vector3, d: Vector3, k: String) -> void:
 		_blobs.append([off, r * _rng.randf_range(0.85, 1.15), drift])
 	busy = true
 	visible = true
+	_designed = DESIGNED.on()
+	if _designed:  # round 45: one drawn puff (designed_fx's dust_puff) where the cloud of circles was; skids stay
+		var at2 := global_position + dir * ahead
+		DESIGNED.dust(get_parent(), at2, r * 100.0 * DESIGNED_PUFF / DESIGNED.DUST_SIZE * 0.5)
 	_born_us = Time.get_ticks_usec()
 	_step = -1
 	set_process(true)
@@ -174,7 +181,7 @@ func tick() -> void:
 ## The puff: every blob's ink first, then every fill over it, so only the cloud's outer edge is inked.
 func _draw_puff(s: int) -> void:
 	_puff_mesh.clear_surfaces()
-	if s < 0:
+	if s < 0 or _designed:
 		return
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var right := cam.global_basis.x if cam else Vector3.RIGHT

@@ -56,6 +56,16 @@ fast-forward, so no agent edits another's files or index.
 
 ## Lessons
 
+- **Bot strings share the room.** Frost Spear stands 5 s: a string after one that plants it gets the vault on its
+  L L instead of the swings. Put spear strings last, or read the autotest `[rhythm]` line for the moves it really did.
+- **Effects on a breaker's landing frame are hidden by the impact frame** (two inked flash frames). Delay what
+  must be seen (Short Circuit's arcs: `create_timer` 0.12 s) past it.
+- **Import after a rebase that brings new assets, before `land`.** A dev commit with new designed PNGs made every
+  check in `land` fail on `Could not preload resource file`; `godot --headless --import --path .` in the worktree,
+  then land. If the full checks pass and only the fast-forward loses the race, rebase, import and `land --quick`
+  straight away (the autotest still runs).
+- **`tests/improv_shots.gd` plays the real move**, and Reap's aim can pick another dummy than the one put in the
+  state: the dark cells then show nothing. Use `--alone` for them (and `--dir=` for your own folder).
 - **Design reviews from film: contact sheets first.** For a judgement pass over many strings, a 30-line PIL script that tiles each `combo_clips/<string>/` (or `string_film`) folder's HIT frames plus every third frame at 400x225, labelled from INDEX.txt, gives one image per string; reading 6-8 sheets covers the kit in minutes instead of hundreds of PNG reads. Look for what repeats across sheets (identical breaker landings, the same star colour, a counter that never drops): that is where the design, not one move, is weak.
 - **`vendor_src/.gdignore` first.** Copying sources into a new worktree's `vendor_src/` without it makes `godot --import` scan the FBX and `.blend` files, fail on the blend importer, and silently skip re-importing your changed assets: the game keeps the old GLB and a shot looks unchanged. Check `.godot/imported/<name>.glb-*.md5` timestamps if a change doesn't show.
 - **Extracted textures are never overwritten.** Godot keeps an existing `<name>_<material>.png` beside a GLB. Copy the new texture over it yourself.
@@ -402,6 +412,51 @@ fast-forward, so no agent edits another's files or index.
 - **Filming a scripted move sequence:** `tests/prince_film.gd` holds half-size RGB8 images in memory (30 a second, about
   280 for 9 s, ~430 MB) and writes the PNGs after; ffmpeg `-framerate 30 -i %03d.png -c:v libx264 -pix_fmt yuv420p` makes
   the mp4. Copy `user://<dir>` to the scratchpad first.
+- **Designed fx, round 44 (fx-cohesion):** a strip texture laid along a mesh is drawn at ~280 px/m but seen at ~48 px/m,
+  so its ink must be ~13 px in the sheet (`gen_cohesion.INK_PX`) or it vanishes; draw ink that must hold at any width
+  in the shader, in metres (the tentacle's edge). A hoop of many dashes still reads as a gizmo: 3-5 broken brush arcs
+  (`designed_ink.shock`) read as a drawn stamp. A smear built from the last pose draws a slab when the pose jumps
+  (coil to lash): guard on tip speed, a still root and a same-direction middle (`void_tendril._lashing`). Register a
+  new lane's sheets through `DESIGNED.extra_sheets` instead of editing another lane's `SHEETS`. Per-frame caps
+  (one streak set, two full pops a frame) key on `Engine.get_process_frames()`.
+- **Scratch files block `agent.sh land`** (it needs a clean tree, untracked included): list them in the common git
+  dir's `info/exclude` (`git rev-parse --git-common-dir`), not `.gitignore`. Backslash line continuations inside a
+  heredoc'd Python patch get eaten; keep patched lines on one line or use an editor tool.
+- **Round 45 (fx-cohesion2):** count what you are judging. A scratch copy of `string_film.gd` that appends a count of
+  live effect nodes to each INDEX line (`rings=N`) turned "the floor still reads as circles" into a number per frame
+  for before / after. A land after another lane adds assets fails every check with "Could not preload" until
+  `godot --headless --path . --import` runs in your worktree; dev moving mid-land (about 15 min of checks) costs a
+  rerun, so land several small commits together when other lanes are busy.
+
+- **Round 46 (fx-elements):** a gameplay check that counts the old drawer's nodes by group or reads its property
+  (fx_sleek_check's rim geysers: group `comic_geyser`, `.width`) fails the land once the designed look replaces it;
+  put the designed node in the group and give it the value as a meta, and let the check read
+  `get_meta("width", get("width"))`, so the check still guards the size. Batch the sheets for a lane in one generator
+  (`gen_elements.py`) and land two or three effects at a time: each land is ~15 min of checks. After a land rebases you
+  onto other lanes' new sheets, run `godot --headless --import --path .` in your worktree before filming: an
+  unimported sheet draws as a solid cream square (the shader's white default texture), with no error in the log.
+
+- **Designed fx, round 44 b (fx-air):** an effect's anticipation shorter than ~0.09 s never lands on a 12 fps film
+  frame, so it is never seen: hold it longer or show it with motion that lasts (debris dragging in). A "white-hot"
+  shift that lifts every tone burns the shape flat white; lift one band and a bit (`heat` 0.35) so a saturated rim
+  stays. Route a new look by shape (a bolt falling > 3 m is a sky strike) inside your own function, not by editing
+  every caller. Floor stamps under a foe hide behind it from the high camera: test them by a foe, not on open floor.
+
+- **Feel audit 3 (2026-11-06):** read the film's `scale=` column down a hang before judging its effects: Live Wire's
+  per-pulse freezes showed as x0.03 / x1.0 alternating frame to frame, which no single frame shows. Words with no
+  attack on screen mean a standing source is hitting with `take_hit`: count `hits=` / the HUD hits while he stands
+  (the lava well ticked full hits for 4 s after its look had gone). A `--from=N` film starts with string N, so a
+  carry-over from string N-1 needs `--from=N-1`. A layout rule that "never works" can be a later override: the guide's
+  right-edge slack branch reset the pile side every frame. For an off-screen payoff, a headless probe printing the
+  rig's `_frame` / `_frame_to` and the worst foe's NDC every few frames (root at 1920x1080) gave the before / after
+  number (1.47 -> 1.06) in two 20 s runs.
+- **Godot run in the integration checkout leaves noise** (2026-11-06, fx-finish): filming a "before" in `awaken/`
+  rewrote a uid in `assets/comic/heretic_chibi_hero_palette.png.import`. `git checkout --` that one file there (it is
+  only your own run's noise), or film befores with `--fx=classic` in your own worktree instead.
+- **MSYS rewrites `/c/...` arguments, not strings inside `python -c`:** paths in a Python one-liner need `C:/...`. A bash
+  heredoc of Python with many quotes fails as "unexpected EOF": write the script with the Write tool and run it.
+- **A background `land` prints other lanes' landings too** (it fast-forwards dev over whatever landed meanwhile): read
+  `git log dev` for your own subjects before re-landing.
 
 ## The harness (`tools/agent.sh`)
 
@@ -448,3 +503,18 @@ the worktree, and deletes the branch once it has been merged.
   the moment you film, and step what you film on game time, or the frames skip.
 - **A reimport touches every `.import` file's line endings** (`git status` shows dozens modified): restore the ones you
   didn't mean to change (`git checkout -- <path>`) before committing.
+
+- **Landing new assets**: `.godot/` is ignored, so assets imported in a worktree are not imported in the dev checkout; the game there then fails to preload them. `agent.sh land` now runs `godot --headless --path . --import` in the dev checkout when a land adds files under `assets/` (2026-11-06, the designed fx sheets broke the owner's boot).
+- **Land after another lane added assets: rebase, `--import`, revert the noise, then land** (2026-11-06, model-hero2). `agent.sh land` rebases and runs the checks in the worktree, whose `.godot/` never imported the other lane's new PNGs; every check then fails on "Could not preload resource file". Three lands in a row failed this way while dev kept moving. `git rebase dev && godot --headless --import --path .`, revert the `.import` line-ending noise (a uid-only diff on a KayKit texture shows up too), and land again straight after.
+- **Never set uncommitted work aside with a background copy-and-restore while landing.** A restore that ran while my copy was still being written put the committed files back over the WIP. Commit the WIP to a scratch branch, or keep it under the scratchpad and copy it in only once the land has finished.
+
+- **`agent.sh land` races on a busy dev (round 44 fx-air):** the full checks take ~8 min and three lanes landed in that
+  window three times running. Rebase onto dev, run `godot --headless --import --path .` (another lane's new textures
+  are otherwise missing: void_arm_check failed on "Could not preload tentacle_skin.png"), then land; once the full
+  checks have passed on your commits, a `land --quick` after a rebase over other lanes' already-checked commits closes
+  the window.
+- **A regenerated sheet is not in the game until it is imported:** a `string_film` run does not reimport, so a film
+  straight after `gen_designed.py` plays the old texture. Import before filming.
+- **`git checkout <file>` to undo a test sed also undid my uncommitted palette edit in that file** (the lesson above,
+  again). For an A/B of a constant, commit or copy the file aside first.
+- **Judge a hero's look in the play camera's film, not close-ups** (2026-11-06, model-hero2 round 2): close shots of v2 read well while the string film showed a pale blob, because the camera mostly sees the top and back of the hood. Contrast on the top surface (dark horns, a crimson stripe, a wide scarf) fixed it; an additive fresnel overlay tuned for a pale body turned every dark region gold.

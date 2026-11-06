@@ -229,9 +229,12 @@ func _draw(step: int) -> void:
 
 ## How far to step a number at `at` (world) aside, in the screen plane, so its rect clears `blocks`:
 ## each try pushes it out of the block it overlaps most along the shorter way. Zero with no camera.
+const PAGE_MARGIN := Vector2(0.02, 0.04)  # of the screen a number keeps inside (dodge)
+
+
 func dodge(at: Vector3, size: float, chars: int, blocks: Array[Rect2]) -> Vector3:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if cam == null or blocks.is_empty() or cam.is_position_behind(at):
+	if cam == null or cam.is_position_behind(at):
 		return Vector3.ZERO
 	var h_m := FONT_SIZE * PIXEL * size
 	var half_m := Vector2((0.25 * chars + 0.2) * h_m, 0.5 * h_m)
@@ -256,5 +259,13 @@ func dodge(at: Vector3, size: float, chars: int, blocks: Array[Rect2]) -> Vector
 		if best == Vector2.ZERO:
 			break
 		moved += best
+	# Feel audit 3 item 10: a landing total on a pile dragged up-screen (Maw) sat half off the top edge. Keep the
+	# number inside PAGE_MARGIN of the screen (after the dodge, which may push it out).
+	var page := get_viewport().get_visible_rect().size
+	var lo := page * PAGE_MARGIN + half
+	var hi := page * (Vector2.ONE - PAGE_MARGIN) - half
+	var p := c + moved
+	if page.y >= 200.0:  # (not the 64 px headless root)
+		moved += Vector2(clampf(p.x, lo.x, maxf(lo.x, hi.x)), clampf(p.y, lo.y, maxf(lo.y, hi.y))) - p
 	# Screen +y is down; the camera's up is world.
 	return (cam.global_basis.x * moved.x - cam.global_basis.y * moved.y) / px_per_m

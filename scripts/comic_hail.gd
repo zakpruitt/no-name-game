@@ -36,7 +36,7 @@ static func ride(parent: Node, e: Variant) -> Node3D:
 
 
 func _build() -> void:
-	_w = PAL.of("wind")
+	_w = PAL.of("air")  # fx-air: wind looks like air; lightning keeps the storm row
 	_ice = PAL.of("water")
 	for i in BANDS + CHIPS:
 		_turns.append(_rng.randf() * TAU)

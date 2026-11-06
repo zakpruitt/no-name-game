@@ -15,6 +15,9 @@ const RIBBON_W := 0.16
 const RIBBON_MAX := 2.6  # m of it out of the foe: a far foe's whole ribbon bowed into a loop across the frame
 const BOW := 0.12  # of the length the ribbon bows sideways
 const CHIPS := 4
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const HAUL_GUST := 1.2  # designed gusts behind a hauled foe (fx-air round 2)
+const HAUL_GUST_UP := 0.7  # m over the chest
 
 var mode := "blast"
 var foe: Variant
@@ -48,7 +51,7 @@ static func haul(parent: Node, e: Variant, to: Vector3, was_skewered: bool) -> N
 
 
 func _build() -> void:
-	_p = PAL.of("wind")
+	_p = PAL.of("air")  # fx-air: wind looks like air; lightning keeps the storm row
 	_ice = PAL.of("water")
 	for i in STROKES + CHIPS:
 		_turns.append(_rng.randf() * TAU)
@@ -93,6 +96,8 @@ func _draw(s: int) -> void:
 		for i in 3:  # speed strokes on it, pointing his way
 			var off := side * (i - 1) * 0.35 - d * 0.6
 			_wedge(off - d * 0.5, d, 1.0, 0.16, PAL.fade(_p.light, 1.0 - fade))
+		if s <= 2 and DESIGNED.on():  # fx-air: designed gusts trailing the foe, over the pile (the ribbon hid in it)
+			DESIGNED.gust(get_parent(), global_position - d * 0.5 + Vector3.UP * HAUL_GUST_UP, d, HAUL_GUST, true)
 	if skewered and s <= 2:  # the ice going off it
 		for i in CHIPS:
 			var a := _turns[STROKES + i]

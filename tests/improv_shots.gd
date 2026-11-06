@@ -4,7 +4,7 @@ extends SceneTree
 ## bound) and he plays the element's base move on it, so the payoff, its word and the move's own hit all show.
 ## Six frames 83 ms apart from the move's first hit:
 ##   godot --path . -s tests/improv_shots.gd [-- --only=frozen_x_void,bound_x_wind] [--alone]
-##     user://improv_shots/<cell>/N.png (a 640x480 crop round the foe that pays)
+##     user://improv_shots/<cell>/N.png (a 640x480 crop round the foe that pays; `--dir=<name>`: user://<name> instead)
 ## `--alone`: no move, only void_element.improvise() (the tell and its word on their own).
 ## Windowed only (headless draws nothing). `user://` is shared: copy it out at once.
 
@@ -40,7 +40,7 @@ func _initialize() -> void:
 			var cell := "%s_x_%s" % [state, element]
 			if only.is_empty() or cell in only:
 				await _film(el, state, element, cell)
-	print("[improv_shots] done ", ProjectSettings.globalize_path(DIR))
+	print("[improv_shots] done ", ProjectSettings.globalize_path(_dir()))
 	quit()
 
 
@@ -78,7 +78,7 @@ func _film(el: GDScript, state: String, element: String, cell: String) -> void:
 		while _p._hits_done == 0 and t < 2.0:
 			await process_frame
 			t += get_root().get_process_delta_time()
-	var dir := "%s/%s" % [DIR, cell]
+	var dir := "%s/%s" % [_dir(), cell]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
 	for i in FRAMES:
 		await process_frame
@@ -96,12 +96,19 @@ func _film(el: GDScript, state: String, element: String, cell: String) -> void:
 	get_root().get_node("Game").end_slowmo()
 
 
+func _dir() -> String:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--dir="):
+			return "user://" + arg.get_slice("=", 1)
+	return DIR
+
+
 func _gather() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	for e: Node in get_nodes_in_group("enemies"):  # (nothing of the last cell carries into this one)
 		load("res://scripts/floor_bind.gd").let_go_of(self, e)
 		el.THROWN.remove_cube(e)
-		for s: String in ["buried", "molten", "skewered"]:
+		for s: String in ["buried", "molten", "skewered", "charged"]:
 			el.unmark(e, s)
 		if e.get("frozen_t") != null:
 			e.frozen_t = 0.0

@@ -68,6 +68,7 @@ func _initialize() -> void:
 	await _elements()
 	await _breakers()
 	await _cold_front()
+	await _short_circuit()
 	await _breaker_choice()
 	await _thrown_at_wall()
 	await _ice()
@@ -449,7 +450,7 @@ func _breakers() -> void:
 	foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
 	hero._start_attack("EE")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
-	_check(hero.breaker_window().alt_name == "", "Grounded has one")
+	_check(hero.breaker_window().alt_name == "Short Circuit", "Grounded's window offers Short Circuit too (%s)" % hero.breaker_window().alt_name)
 	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
 	await _settle()
 	foe.queue_free()
@@ -534,27 +535,51 @@ func _breaker_choice() -> void:
 		if is_instance_valid(hero._brk_cue):
 			_check(hero._brk_cue.alt_color.a == 0.0, "the floor cue drops the other ending's colour once he picks")
 		await _settle()
-	# One ending: the same layout with one option, and L in the window doesn't take it.
+	# Round 44 b: Grounded's window has two endings too: LMB Short Circuit, RMB Grounded, both in the storm.
 	foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
 	hero._start_attack("EE")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
-	var one: Array = hero.breaker_window().get("options", [])
-	_check(one.size() == 1 and one[0].button == "heavy" and one[0].name == "Grounded", "Grounded offers one ending, on RMB (%s)" % str(one))
+	var two: Array = hero.breaker_window().get("options", [])
+	_check(two.size() == 2 and two[0].button == "light" and two[0].name == "Short Circuit" and two[1].button == "heavy" and two[1].name == "Grounded",
+		"Grounded's window: LMB Short Circuit, RMB Grounded (%s)" % str(two))
 	await _until(func() -> bool: return hero._state_t >= hero._brk.open + 0.02, 2.0)
 	Input.action_press("attack_light")
 	await physics_frame
 	Input.action_release("attack_light")
-	for i in 3:
-		await physics_frame
-	_check(hero._brk_phase == 0, "L does nothing in a one-ending window")
-	Input.action_press("attack_heavy")
-	await physics_frame
-	Input.action_release("attack_heavy")
 	await _until(func() -> bool: return hero._brk_phase == 1, 0.5)
-	_check(hero._brk_phase == 1 and hero.HERO_LEAP.breaker_name(hero) == "Grounded", "H takes Grounded")
+	_check(hero._brk_phase == 1 and hero.HERO_LEAP.breaker_name(hero) == "Short Circuit", "L takes Short Circuit (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	await _settle()
 	foe.queue_free()
 	await physics_frame
+
+## Short Circuit (round 44 b): the held take a little and stay down; the charge arcs out to the one the tentacles
+## didn't hold (a heavy here), harder than Grounded's spill would, and charges it.
+func _short_circuit() -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var near := _foe(Vector3(0, 0, 2.5))
+	var out := _foe(Vector3(-6.0, 0, 6.0))  # (far past the landing's spill)
+	out.elite = true  # (can't be held)
+	hero.bot_enabled = true
+	hero.bot_alt = true
+	hero._start_attack("EE")
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+	await _until(func() -> bool: return hero._brk_phase == 1, 3.0)
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Short Circuit", "L is Short Circuit (%s)" % hero.HERO_LEAP.breaker_name(hero))
+	var near_hp := near.hp
+	var out_hp := out.hp
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 3.0)
+	await _until(func() -> bool: return out.hp < out_hp, 1.5)
+	_check(near.hp < near_hp, "the held take some (%.0f)" % (near_hp - near.hp))
+	_check(out_hp - out.hp >= el.BREAKERS.EE.alt.damage * el.SC_ARC_MULT * 0.99, "the charge arcs out to the one it didn't hold (%.0f)" % (out_hp - out.hp))
+	_check(el.marked(out, "charged") and not el.marked(near, "charged"), "and the charge moves into it")
+	hero.bot_enabled = false
+	hero.bot_alt = false
+	near.free()
+	out.free()
+	await _settle()
+
 
 ## A throw stops at a wall instead of going through it, and still breaks.
 func _thrown_at_wall() -> void:
@@ -930,6 +955,34 @@ func _crossovers() -> void:
 	pitched.free()
 	passed.free()
 	await _settle()
+	# Galvanize (H L L, round 44 b): a tentacle to everyone within GALV_REACH, and to the Reap marked further out; one
+	# pulse lands on all of them on the same frame, harder the more are linked, the marked harder still.
+	_check(r.call("light", "VR", true, 0, false) == "XC", "H L L: Galvanize")
+	var DARK: GDScript = load("res://scripts/dark_fx.gd")
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var spread := [_foe(Vector3(-4.0, 0, 3.0)), _foe(Vector3(0, 0, 5.0)), _foe(Vector3(4.5, 0, 2.0))]
+	var beside := _foe(Vector3(6.5, 0, 3.0))  # (not marked, inside GALV_REACH)
+	var far_marked := _foe(Vector3(0, 0, -10.0))  # (behind him, past GALV_REACH, marked)
+	var far := _foe(Vector3(-10.0, 0, -2.0))  # (past GALV_REACH, not marked, out of the arcs' reach)
+	for e: Foe in spread:
+		DARK.mark(e)
+	DARK.mark(far_marked)
+	var all := spread + [beside, far_marked]
+	hero._start_attack("XC")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	_check(all.all(func(e: Foe) -> bool: return e.hits == 0), "the current hasn't arrived on the hit frame")
+	await _until(func() -> bool: return all.any(func(e: Foe) -> bool: return e.hits > 0), 1.5)
+	_check(all.all(func(e: Foe) -> bool: return e.hits == 1), "one pulse lands on all five on the same frame (%s)" % str(all.map(func(e: Foe) -> int: return e.hits)))
+	var five: float = el.GALV_DAMAGE * (1.0 + el.GALV_LINK_BONUS * 4.0)
+	_check(absf(500.0 - beside.hp - five) < 0.1, "five linked: %.1f each (%.1f)" % [five, 500.0 - beside.hp])
+	_check(spread.all(func(e: Foe) -> bool: return absf(500.0 - e.hp - five * el.GALV_MARK_MULT) < 0.1), "the marked x%.2f" % el.GALV_MARK_MULT)
+	_check(far.hits == 0, "nobody unmarked past GALV_REACH")
+	_check(el.marked(beside, "charged"), "Galvanize leaves them charged")
+	await _settle()
+	for e: Foe in all + [far]:
+		e.free()
+	await _settle()
 	# Black Ice: the pool freezes them, the landing shatters them down into the floor.
 	var pooled := _foe(Vector3(0, 0, 4))
 	hero._void.dark_spot = Vector3(0, 0, 4)
@@ -989,18 +1042,54 @@ func _element_matrix() -> void:
 						shows = el.in_cube(o) and el.marked(o, "skewered")
 					"tear":
 						shows = e.last_kb.z < 0.0
+					"conduct":
+						shows = o.hits > 0 and el.marked(o, "charged") and el.marked(e, "charged")
+					"superconduct":
+						shows = el.in_cube(e)
+					"flash":
+						shows = o.hits > 0 and o.has_meta("thrown_foe_flying")
+					"overload":
+						shows = e.hits >= 1
 				_check(paid == 1 and e.hits >= 1 and shows, "%s: %s (paid %d, hits %d, kb %s, launch %.1f)" % [cell, kind, paid, e.hits, e.last_kb, e.last_launch])
 				if kind == "fan":
 					_check(el.marked(o, "molten") and o.hits > 0, "fan: the flames catch the one beside it")
 				if kind == "loose":
 					_check(not BIND.holds(e), "loose: out of the bind")
-				if state in ["buried", "molten", "skewered"]:
+				if state in ["buried", "molten", "skewered"] or (state == "charged" and kind != "conduct"):
 					_check(not el.marked(e, state), "%s: spent once" % cell)
 			if is_instance_valid(bind):
 				bind.free()
 			e.free()
 			o.free()
-	_check(cells >= 15, "the matrix has its cells (%d)" % cells)
+	_check(cells >= 19, "the matrix has its cells (%d)" % cells)
+	# Round 44: a jolt leaves them charged; Overload is harder the more are charged, and discharges them all, the
+	# ones out of the move's reach too.
+	var one := _foe(Vector3(0, 0, 2.0))
+	el.jolt(hero, one)
+	_check(el.marked(one, "charged"), "a jolt leaves it charged")
+	var before := one.hp
+	el.improvise(hero, "EC", Vector3.ZERO, 1.0)
+	var alone: float = before - one.hp
+	one.free()
+	var trio := [_foe(Vector3(0, 0, 2.0)), _foe(Vector3(4.0, 0, 3.0)), _foe(Vector3(-4.0, 0, 3.0))]
+	for e: Foe in trio:
+		el.mark(e, "charged")
+	el.improvise(hero, "EC", Vector3.ZERO, 1.0)
+	_check(500.0 - trio[0].hp > alone * 1.5 and trio[1].hits > 0 and trio[2].hits > 0
+		and not trio.any(func(e: Foe) -> bool: return el.marked(e, "charged")),
+		"Overload: harder with three charged (%.1f vs %.1f alone), all three discharged" % [500.0 - trio[0].hp, alone])
+	for e: Foe in trio:
+		e.free()
+	# Superconduct: the charge runs on through a cube standing 5 m off.
+	var payer := _foe(Vector3(0, 0, 2.0))
+	var cube := _foe(Vector3(5.0, 0, 3.0))
+	el.mark(payer, "charged")
+	el.encase(cube)
+	el.improvise(hero, "EF", Vector3.ZERO, 1.0)
+	_check(el.in_cube(payer) and cube.hits > 0 and el.marked(cube, "charged"), "Superconduct runs through the ice to the cube 5 m off")
+	payer.free()
+	cube.free()
+	await _settle()
 	# Round 4: the payoff follows the move's own hit shape. A foe behind him, well inside the old 5 m reach round
 	# him, is outside every one of these moves (the gale's circle ahead, the harpoon's line, the palm's line, the
 	# crescent) and doesn't pay; nor does one off to the side of the harpoon's line.

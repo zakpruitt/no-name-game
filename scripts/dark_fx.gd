@@ -9,6 +9,7 @@ const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const INK_SHADER := preload("res://shaders/dark_ink.gdshader")
 const STANDING := preload("res://scripts/standing_fx.gd")
 
+const INK_FX := preload("res://scripts/designed_ink.gd")
 const INK := Color(0.03, 0.01, 0.06)
 const VIOLET := Color(0.62, 0.3, 1.0)
 const HOT := Color(1.0, 0.4, 0.95)
@@ -18,6 +19,7 @@ const MARK_R := 0.75  # m round the foe's feet
 ## Round 33 (sleek; feel audit item 7): a pool's ink stays on the floor at most this long, whatever its
 ## gameplay time (the binds still hold the foes): at 1.8-2.2 s it sat under the next string.
 const POOL_SHOW := 1.1
+const POOL_DRAWN := 1.25  # round 45: the designed pool's quad is this many radii across each way (the arm tips reach ~r)
 
 
 static func flat_mat(color: Color, ink := false) -> StandardMaterial3D:
@@ -107,6 +109,9 @@ static func floor_ink() -> PlaneMesh:
 
 ## A hard-edged ring on the floor that runs from one size to another and goes.
 static func hoop_run(parent: Node, spot: Vector3, from: float, to: float, time: float, color := VIOLET, thin := 0.08) -> void:
+	if INK_FX.DESIGNED.on():  # round 44: a designed ground stamp (inked brush shock line), not a flat torus
+		INK_FX.shock(parent, spot, color, to, time + 0.08, clampf(thin * to * 1.6, INK_FX.SHOCK_THIN_W, 0.36))
+		return
 	var mat := flat_mat(color)
 	var root := Node3D.new()
 	parent.add_child(root)
@@ -126,8 +131,14 @@ static func burst(parent: Node, at: Vector3, size := 1.0) -> void:
 	Fx.shards(parent, at + Vector3.UP * 0.5, INK, int(10 * size), Vector3.UP, 7.0 * size, 0.16, 0.5)
 
 
+const REAP_DRAWN := 0.6
+
 ## A crescent of darkness flying out in front of him.
 static func reap(parent: Node, at: Vector3, fwd: Vector3, reach: float, half_angle: float) -> void:
+	if INK_FX.DESIGNED.on():  # round 45: the authored brush crescent in the dark palette, not three flat arcs
+		# (drawn at REAP_DRAWN of the reach: the full 6.5 m arc's band was a 2 m slab)
+		INK_FX.DESIGNED.slash(parent, Vector3(at.x, 0.0, at.z), fwd, reach * REAP_DRAWN, rad_to_deg(half_angle) * 2.0, "void", false, 0.24, 0.8)
+		return
 	var root := Node3D.new()
 	parent.add_child(root)
 	root.global_position = Vector3(at.x, 0.8, at.z)
@@ -221,8 +232,16 @@ class Pool extends Node3D:
 	var _t := 0.0
 	var _ink: ShaderMaterial
 
+	var _loop: Node3D
+
 	func _ready() -> void:
 		add_to_group("dark_pool")
+		if INK_FX.DESIGNED.on():  # round 45: an authored ink pool (curling arms, holes, a light rim), boiling on twos
+			_loop = INK_FX.floor_loop(self, "dark_pool", 2.0 * SELF.POOL_DRAWN)
+			scale = Vector3(r * 0.3, 1.0, r * 0.3)
+			create_tween().tween_property(self, "scale", Vector3(r, 1.0, r), 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+			STANDING.add(self)
+			return
 		_ink = SELF.ink_mat()
 		SELF.part(self, SELF.floor_ink(), _ink)
 		scale = Vector3(r, 1.0, r)
@@ -239,6 +258,10 @@ class Pool extends Node3D:
 		_t += delta
 		if _t >= time or _t >= SELF.POOL_SHOW:
 			set_process(false)
+			if _loop:
+				_loop.erode_out(0.25)
+				get_tree().create_timer(0.27, true, false, true).timeout.connect(queue_free)
+				return
 			var tw := create_tween().set_ignore_time_scale(true)  # (a landing's hitstop held the erode 5 s)
 			tw.tween_method(SELF.set_param.bind(_ink, "erode"), 0.0, 1.0, 0.25)
 			tw.tween_callback(queue_free)
@@ -276,14 +299,27 @@ class Hole extends Node3D:
 	var _next_ring := 0.0
 	var _gone := false
 	var _spin: Node3D
+	var _designed := false
 
 	func _ready() -> void:
 		add_to_group("dark_hole")
+		_spin = Node3D.new()
+		add_child(_spin)
+		if INK_FX.DESIGNED.on():  # round 45: an authored vortex decal (curling arms into an ink hole), spun; no hoops
+			_designed = true
+			INK_FX.floor_loop(_spin, "dark_vortex", VIEW_R * 2.3)
+		else:
+			_classic_look()
+		scale = Vector3(0.05, 1.0, 0.05)
+		create_tween().tween_property(self, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		SELF.splat(get_parent(), global_position + Vector3.UP * 0.9, 1.6, true)
+		Fx.shards(get_parent(), global_position + Vector3.UP * 0.5, INK, 8, Vector3.UP, 7.0, 0.16, 0.5)
+		Game.shake(0.3)
+
+	func _classic_look() -> void:
 		# Churning ink as wide as the pile it pulls in: a 1.3 m disc was hidden under the foes on it.
 		var ink := SELF.ink_mat(HOLE_SPIN, HOLE_FLOW)
 		SELF.part(self, SELF.floor_ink(), ink).scale = Vector3(VIEW_R, 1.0, VIEW_R)
-		_spin = Node3D.new()
-		add_child(_spin)
 		var hot := SELF.flat_mat(HOT)
 		var rim := SELF.flat_mat(VIOLET)
 		for i in 3:
@@ -292,11 +328,6 @@ class Hole extends Node3D:
 			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, ARC_HOT_W), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
 		var edge := SELF.part(self, SELF.hoop(0.05), hot, Vector3.UP * 0.06)
 		edge.scale = Vector3(VIEW_R, 0.05, VIEW_R)
-		scale = Vector3(0.05, 1.0, 0.05)
-		create_tween().tween_property(self, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-		SELF.splat(get_parent(), global_position + Vector3.UP * 0.9, 1.6, true)
-		Fx.shards(get_parent(), global_position + Vector3.UP * 0.5, INK, 8, Vector3.UP, 7.0, 0.16, 0.5)
-		Game.shake(0.3)
 
 	func _physics_process(delta: float) -> void:
 		if _gone:
@@ -305,7 +336,8 @@ class Hole extends Node3D:
 		_spin.rotate_y(-7.0 * delta)
 		if _t >= _next_ring:
 			_next_ring += RING_EVERY
-			SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, RING_THIN)
+			if not _designed:
+				SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, RING_THIN)
 		var tick := _t >= _next_tick
 		if tick:
 			_next_tick += TICK

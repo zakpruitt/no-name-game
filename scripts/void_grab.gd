@@ -10,6 +10,7 @@ const TENDRIL := preload("res://scripts/void_tendril.gd")
 const QUAKE := preload("res://scripts/breaker_quake.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
+const LIVE_CURRENT := preload("res://scripts/live_current.gd")
 
 const FOE_RANGE := 9.0  # m
 const ANCHOR_RANGE := 8.0  # m
@@ -64,8 +65,10 @@ const SEIZE_LIFT := 2.8  # m up they're held
 const SEIZE_LIFT_RATE := 12.0  # how quickly they're hauled there
 const SEIZE_IN := 0.45  # how far they land towards him, of where they stood
 const RESTAGGER := 0.25  # s: kept staggered this often, inside the 0.4 s a hit's stagger lasts
-const WIRE_START := 0.08  # s into the hang: the first jolt
-const WIRE_STEP := 0.09  # s between jolts
+## Round 44: each jolt is a pulse out of his claw along every tentacle (live_current.gd), zapping each foe as it
+## arrives, then arcing on to those no tentacle holds. The first waits for the tentacles to land and the claw to charge.
+const WIRE_START := 0.12  # s into the hang: the first pulse leaves the claw (was 0.08, before the tentacles had landed)
+const WIRE_STEP := 0.1  # s between pulses (was 0.09; WIRE_DAMAGE 3.5 -> 4.5 keeps the hang's total)
 
 var hero: CharacterBody3D
 var arm: Node  # void_arm.gd
@@ -83,6 +86,8 @@ var undertow: Node  # Undertow's floor_bind: Meteor Fall's landing lets it go
 var _seized := []  # {foe, from, tendril}: held through a breaker
 var _spare := []  # tendrils from earlier breakers
 var _zaps := 0  # jolts so far this hang
+var _current: Node3D  # Live Wire's current along the tentacles (live_current.gd)
+var _jolted := []  # who it zapped: charged once the hang ends (round 44 b: the crackle tell over the held pile was noise)
 var _spear_at := Vector3.ZERO  # Harpoon: where the spear tip's going
 var _carry: Node3D  # the foe he snatched off a swing
 var _carry_rope: Node3D
@@ -441,6 +446,12 @@ func seize(b := {}) -> void:
 			one.fan = fan[e]
 		_seized.append(one)
 		e.stagger(HOLD)
+	if b.has("wire"):  # the current runs along these tentacles, and arcs on to whoever they couldn't hold
+		_current = LIVE_CURRENT.start(hero, _seized.map(func(s: Dictionary) -> Dictionary: return {"foe": s.foe, "tendril": s.tendril}))
+		_jolted = []
+		_current.on_zap = func(e: Node3D, _p: int) -> void: _jolt(e)
+		_current.on_jump = func(e: Node3D, _from: Variant) -> void: _jolt(e)
+		_current.find_jumps = reachable
 
 
 ## phase 0: the tentacles arrive and haul them up. phase 1: the dive brings them down with him.
@@ -450,7 +461,12 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 	var delta := hero.get_physics_process_delta_time()
 	if phase == 0 and b.has("wire") and t >= WIRE_START + _zaps * WIRE_STEP and t <= b.close:
 		_zaps += 1
-		VOID_ELEMENT.zap(hero, reachable(), hand)  # (big ones can't be held, but it still finds them)
+		if is_instance_valid(_current):  # (big ones can't be held, but the arcs still find them)
+			_current.pulse()
+	if phase != 0 and is_instance_valid(_current):  # the dive: the slam takes over (a late pulse mustn't hit what he throws)
+		_current.finish()
+		_current = null
+		_charge_jolted()
 	for s: Dictionary in _seized:
 		var e: Node3D = s.foe
 		if not is_instance_valid(e) or not e.is_alive():
@@ -542,6 +558,10 @@ func held_foes() -> Array:
 
 ## Lets go of everyone (a miss drops them where they hang). The tentacles are kept for next time.
 func release_seized() -> void:
+	if is_instance_valid(_current):
+		_current.finish()
+	_current = null
+	_charge_jolted()
 	for s: Dictionary in _seized:
 		s.tendril.visible = false
 		s.tendril.line = false
@@ -798,3 +818,17 @@ func _release(fling: bool) -> void:
 		hero._post_dash_t = FLING_TIME  # so a press off the fling is the dash's lunge
 		hero._face(_tangent())
 	hero._set_state(hero.State.MOVE)
+
+
+## One Live Wire jolt on `e` (charged later, _charge_jolted).
+func _jolt(e: Node3D) -> void:
+	VOID_ELEMENT.jolt(hero, e, false)
+	if not e in _jolted:
+		_jolted.append(e)
+
+
+## The hang is over: everyone it zapped carries the charge (the element matrix's charged state).
+func _charge_jolted() -> void:
+	for e: Variant in _jolted:
+		VOID_ELEMENT.mark(e, "charged")
+	_jolted = []

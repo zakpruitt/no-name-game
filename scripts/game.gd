@@ -79,6 +79,12 @@ var impact: CanvasLayer = null
 ## frame leans its vignette that way.
 var last_hit_dir := Vector3.ZERO
 var last_hit_ms := -100000
+## Training's slow motion (T, or the pause menu): the whole game runs at `slow` so a string's inputs and windows
+## can be read. Hitstop and breaker slow motion multiply on top of it; windows kept in real ms stretch by 1 / slow
+## (VOID_ELEMENT.mark, wall_fresh, palm_fresh). Kept across Restart training.
+signal slow_changed(slow: float)
+const SLOW_STEPS := [1.0, 0.5, 0.25]
+var slow := 1.0
 const HIT_DIR_FRESH_MS := 250  # older than this, the impact frame is centred
 var _void_element: GDScript
 var combo_count := 0
@@ -152,6 +158,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if Input.is_action_just_pressed("slowmo") and not get_tree().paused:
+		cycle_slow()
 	_update_hitstop()
 	if combo_count > 0:
 		_combo_timer -= delta
@@ -196,7 +204,7 @@ func reset() -> void:
 	_recent_moves.clear()
 	_stops.clear()
 	hit_weight = 0.0
-	Engine.time_scale = 1.0
+	Engine.time_scale = slow
 	combo_changed.emit(0, rank())
 	awakening_changed.emit(awakening)
 
@@ -256,7 +264,7 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 	var end_ms := now + int(duration * 1000.0)
 	_hitstop_end_ms = maxi(_hitstop_end_ms, end_ms)
 	_stops.append([end_ms, int(duration * ramp * 1000.0), time_scale])
-	Engine.time_scale = minf(Engine.time_scale, time_scale)
+	Engine.time_scale = minf(Engine.time_scale, time_scale * slow)
 
 
 ## Each frame: the slowest live stop sets the time scale; a stop in its ramp
@@ -276,6 +284,7 @@ func _update_hitstop() -> void:
 				at = lerpf(s[2], 1.0, ease(1.0 - float(left) / float(s[1]), HITSTOP_EASE_CURVE))
 			scale = minf(scale, at)
 		i -= 1
+	scale *= slow
 	if Engine.time_scale != scale:
 		Engine.time_scale = scale
 	if hit_weight > 0.0:
@@ -288,7 +297,22 @@ func _update_hitstop() -> void:
 func end_slowmo() -> void:
 	_hitstop_end_ms = Time.get_ticks_msec()
 	_stops.clear()
-	Engine.time_scale = 1.0
+	Engine.time_scale = slow
+
+
+## Training's slow motion, one step on: full speed, half, quarter, and round again.
+func cycle_slow() -> void:
+	set_slow(SLOW_STEPS[(SLOW_STEPS.find(slow) + 1) % SLOW_STEPS.size()])
+
+
+func set_slow(value: float) -> void:
+	slow = clampf(value, 0.05, 1.0)
+	_update_hitstop()
+	slow_changed.emit(slow)
+
+
+func slow_text() -> String:
+	return "off" if slow >= 1.0 else "%d%% speed" % roundi(slow * 100.0)
 
 
 ## Fire-and-forget sound from assets/sfx/<sound_name>.wav, slightly pitch-varied.
@@ -545,6 +569,7 @@ func _setup_input() -> void:
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
 	_bind("traverse", [KEY_R], [], [JOY_BUTTON_LEFT_SHOULDER])
 	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
+	_bind("slowmo", [KEY_T], [], [JOY_BUTTON_BACK])
 
 
 func _bind(action: String, keys: Array, mouse: Array, joy: Array, axes: Array = []) -> void:

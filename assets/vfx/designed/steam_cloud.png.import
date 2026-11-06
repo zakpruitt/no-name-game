@@ -2,19 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://qaxuy7k3g4f2"
-path="res://.godot/imported/heretic_chibi_Material_0_baseColor.jpg-81f66d69c20023d89cb7c5170f633ef5.ctex"
+uid="uid://ullaqqahd4gy"
+path="res://.godot/imported/steam_cloud.png-bcaa3180e670ca74d705f2391bfab690.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "fb8fb69988a4a0cd8c56479ae61f36ee"
 }
 
 [deps]
 
-source_file="res://assets/comic/heretic_chibi_Material_0_baseColor.jpg"
-dest_files=["res://.godot/imported/heretic_chibi_Material_0_baseColor.jpg-81f66d69c20023d89cb7c5170f633ef5.ctex"]
+source_file="res://assets/vfx/designed/steam_cloud.png"
+dest_files=["res://.godot/imported/steam_cloud.png-bcaa3180e670ca74d705f2391bfab690.ctex"]
 
 [params]
 
@@ -40,4 +37,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

@@ -32,6 +32,8 @@ const EDGE_PX := 1.7  # px at 1080p: a crisp light-tone line inside the ink, so 
 const GHOST_TONES := {"earth": {"body": "body", "dot": "light", "fill": 0.42, "base": 0.04},
 	"water": {"body": "body", "dot": "light", "fill": 0.4, "base": 0.12}}
 const HAFT_FADE := Vector2(0.1, 0.6)
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 
 var axe_mesh: Mesh
 var color := Color(0.3, 0.95, 0.85)
@@ -49,6 +51,7 @@ var _pivot: Node3D
 var _axe: MeshInstance3D
 var _hit: Array[Node] = []
 var _scale := 1.0
+var _drawn: Node3D  # round 46 (designed): the drawn axe head instead of the halftone axe mesh
 
 
 func _ready() -> void:
@@ -65,13 +68,20 @@ func _ready() -> void:
 	var basis := Basis(Vector3(-side, 0, 0), Vector3(0, 0, 1), Vector3(0, side, 0))
 	_scale = maxf(radius * VISUAL_REACH - 0.4, 0.5) / 0.95  # blade tip at VISUAL_REACH of the arc's edge
 	axe.transform = Transform3D(basis.scaled(Vector3.ONE * _scale), Vector3(0, 0, 0.4))
-	_pivot.add_child(axe)
+	if DESIGNED.on():  # round 46: no 3 m ghost mesh over his swing; a drawn axe head flies the arc (_start)
+		axe.free()
+		_axe = null
+	else:
+		_pivot.add_child(axe)
 	pose(0.0)
 	var tw := create_tween()
 	tw.tween_interval(delay)
 	tw.tween_callback(_start)
 	tw.tween_method(pose, 0.0, 1.0, time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_method(set_alpha.bind(_axe), 1.0, 0.0, FADE_OUT)
+	if _axe != null:
+		tw.tween_method(set_alpha.bind(_axe), 1.0, 0.0, FADE_OUT)
+	else:
+		tw.tween_interval(FADE_OUT)
 	tw.tween_callback(queue_free)
 
 
@@ -149,6 +159,11 @@ func pose(t: float) -> void:
 	var side := -1.0 if flip else 1.0
 	_pivot.rotation.y = lerpf(-half, half, t) * side
 	_pivot.scale = Vector3.ONE * lerpf(0.75, 1.0, minf(t * 3.0, 1.0))  # swells as it comes through
+	if _drawn != null and is_inside_tree():
+		var r := radius * DESIGNED_FINISH.ECHO_REACH * _pivot.scale.x
+		var at := _pivot.global_transform * (Vector3(0, 0, r) / _pivot.scale.x)
+		var ahead := global_transform * (Vector3(0, HEIGHT, 0) + Basis(Vector3.UP, _pivot.rotation.y + 0.2 * side) * Vector3(0, 0, r))
+		DESIGNED_FINISH.echo_pose(_drawn, at, ahead)
 	if _axe != null and t > 0.0:
 		set_alpha(minf(t / (FADE_IN / time), 1.0), _axe)
 	if t > 0.0 and is_inside_tree():
@@ -156,6 +171,9 @@ func pose(t: float) -> void:
 
 
 func _start() -> void:
+	if DESIGNED.on():
+		_drawn = DESIGNED_FINISH.echo_axe(get_parent(), global_position + Vector3.UP * HEIGHT, color, time)
+		pose(0.0)
 	# Lines only at the real reach: the ghost blade is the body, and a 3.9 m teal crescent under it was the fan.
 	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT, true)
 

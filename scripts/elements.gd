@@ -35,7 +35,7 @@ const CASTS := {
 ## color: main glow; glow: hot core; rock: solid pieces (earth).
 const LOOK := {
 	"spirit": {"color": Color(0.3, 0.95, 0.85), "glow": Color(1.0, 0.88, 0.5), "sfx": "cast_spirit"},
-	"wind": {"color": Color(0.5, 1.0, 0.55), "glow": Color(0.92, 1.0, 0.9), "sfx": "cast_wind"},
+	"wind": {"color": Color(0.72, 1.0, 0.14), "glow": Color(0.96, 1.0, 0.75), "sfx": "cast_wind"},  # fx-air: the lightning lime (fx_palette "wind"); the wind's own look is fx_palette.AIR
 	"earth": {"color": Color(1.0, 0.38, 0.08), "glow": Color(1.0, 0.78, 0.3), "rock": Color(0.2, 0.16, 0.15), "sfx": "cast_earth"},
 	"water": {"color": Color(0.4, 0.78, 1.0), "glow": Color(0.88, 0.97, 1.0), "sfx": "cast_water"},
 	"void": {"color": Color(0.62, 0.3, 1.0), "glow": Color(1.0, 0.4, 0.95), "sfx": "cast_spirit"},  # the void arm's dark moves only
@@ -43,6 +43,7 @@ const LOOK := {
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
 const COMIC_GEYSER := preload("res://scripts/comic_geyser.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: designed ice and magma
 const GEYSER_SQUASH := 0.7  # of the asked height: at 0.85 five of them walled off the whole landing
 const GEYSER_WIDTH := 0.75  # of the radius: the column's width at the top (1.5 hid every foe)
 const ARC_WIDTH := 0.26  # m: the colour band of a bolt between two points (the ink is twice as wide)
@@ -124,6 +125,9 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	Fx.beam(root, at, Color.WHITE, 1.0, 0.3, 0.15)
 	load("res://scripts/dark_fx.gd").prewarm_pieces(root)
 	load("res://scripts/designed_fx.gd").prewarm(root)  # round 43: one material per designed sheet
+	load("res://scripts/designed_ink.gd").prewarm(root)  # round 44: the tentacle's skin, ground stamps, hit pops
+	DESIGNED_EL.prewarm(root)  # round 46: the ice and magma sheets
+	load("res://scripts/designed_finish.gd").prewarm(root)  # round 46: the Awakening, halos
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
@@ -496,6 +500,9 @@ static func pillar(parent: Node, pos: Vector3, el: String, height := 4.0, radius
 
 ## A cluster of spikes bursting up at `pos`: stone (earth) or ice (water); others make a small pillar.
 static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count := 3, life := 0.7) -> void:
+	if el in ["earth", "water"] and Game.comic_style and DESIGNED_EL.DESIGNED.on():  # drawn lava spurts / ice crystals
+		DESIGNED_EL.spikes(parent, pos, el, size, count, life)
+		return
 	if el not in ["earth", "water"]:
 		pillar(parent, pos, el, 2.2 * size, 0.7 * size, life * 0.7)
 		return
@@ -539,6 +546,9 @@ static func spikes(parent: Node, pos: Vector3, el: String, size := 1.0, count :=
 
 ## Spikes or small pillars marching from `from` along `dir`.
 static func fissure(parent: Node, from: Vector3, dir: Vector3, length: float, steps: int, el: String, size := 1.0, step_time := 0.035) -> void:
+	if el in ["earth", "water"] and Game.comic_style and DESIGNED_EL.DESIGNED.on():  # a drawn lava seam / crystal line
+		DESIGNED_EL.fissure(parent, from, dir, length, steps, el, size, step_time)
+		return
 	for i in steps:
 		var at := from + dir * (1.0 + i * (length - 1.0) / maxf(steps - 1, 1))
 		var tw := parent.create_tween()
@@ -893,6 +903,10 @@ static func _breaker_arc(parent: Node, a: Vector3, b: Vector3) -> void:
 ## `h`: how tall. `hot_core` is kept for the callers: the core is always the hot yellow band now.
 static func geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot_core := true) -> void:
 	var at := _flat(pos)
+	if Game.comic_style and DESIGNED_EL.DESIGNED.on():  # (designed: the drawn column falls back into a crusted mound)
+		DESIGNED_EL.geyser(parent, at, h * GEYSER_SQUASH)
+		spikes(parent, at, "earth", 1.0, 3, 0.8)
+		return
 	COMIC_GEYSER.spawn(parent, at, h * GEYSER_SQUASH, radius * GEYSER_WIDTH)
 	spikes(parent, at, "earth", 1.2, 4, 0.8)
 	Fx.scorch(parent, at, LAVA, radius * 1.4, 1.6)
@@ -908,6 +922,9 @@ static func rim_geyser(parent: Node, pos: Vector3, radius: float, h := 5.5, _hot
 		geyser(parent, pos, radius, h, _hot_core)
 		return
 	if not _batch_take(_rim_batch, pos, RIM_GEYSER_MAX, RIM_GEYSER_SPACING):
+		return
+	if DESIGNED_EL.DESIGNED.on():
+		DESIGNED_EL.geyser(parent, _flat(pos), h * RIM_GEYSER_SQUASH)
 		return
 	COMIC_GEYSER.spawn(parent, _flat(pos), h * RIM_GEYSER_SQUASH, radius * RIM_GEYSER_WIDTH)
 
@@ -991,7 +1008,8 @@ class Well extends Node3D:
 			return
 		_core.scale = Vector3.ONE * (1.0 + 0.12 * sin(_age * 9.0))
 		_bubble -= delta
-		if _bubble <= 0.0 and (_age < E.WELL_COMIC_SHOW or not Game.comic_style):
+		var drawn: bool = Game.comic_style and E.DESIGNED_EL.DESIGNED.on()  # (designed: the pool draws its own bubbles)
+		if _bubble <= 0.0 and (_age < E.WELL_COMIC_SHOW or not Game.comic_style) and not drawn:
 			_bubble = randf_range(0.12, 0.25)
 			var off := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * radius * 0.6
 			Fx.burst(get_parent(), global_position + off + Vector3.UP * 0.1, E.LAVA_HOT, 3, 3.0, 0.1, 0.45, Vector3.UP, 20.0, -6.0, 0.0, "dot", true)
@@ -999,11 +1017,20 @@ class Well extends Node3D:
 		if _tick <= 0.0:
 			_tick = E.WELL_TICK
 			for e in E.FOES.near(get_tree(), global_position, radius):
-				e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
+				# Feel audit 3 (2026-11-06): a burn, not a blow. As a full hit every tick put a hit star, a word and a
+				# number on each foe every 0.5 s for 4 s after Undertow's look had gone (WELL_COMIC_SHOW 0.9 s): words
+				# cycling over the dummies with nothing on screen doing it, into the next string's walk-up.
+				if e.has_method("burn_hit"):
+					e.burn_hit(E.WELL_DAMAGE)
+				else:
+					e.take_hit(E.WELL_DAMAGE, Vector3.ZERO, 0.0, false)
 				Game.register_hit("lava")
 
 	func _comic_mark() -> void:
 		if is_inside_tree():
+			if E.DESIGNED_EL.DESIGNED.on():
+				E.DESIGNED_EL.pool(get_parent(), global_position, radius)
+				return
 			Fx.scorch(get_parent(), global_position, E.LAVA, radius * E.WELL_COMIC_CRACK, E.WELL_COMIC_SHOW)
 
 	## Cools and sinks away.

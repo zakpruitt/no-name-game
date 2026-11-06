@@ -4,7 +4,9 @@ extends Node3D
 ## camera and is redrawn on twos, like comic_axe_aura.gd, because glow and soft dots read as a
 ## different game next to the inked hero.
 
-const SELF := preload("res://scripts/heretic_form_fx.gd")  # (held: a load() at fire time recompiled it once freed)
+const SELF := preload("res://scripts/heretic_form_fx.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")  # (held: a load() at fire time recompiled it once freed)
 const STEPS_PER_S := 12.0  # on twos, at the clips' 24 fps
 const STEPS := 5  # then it's gone
 const INK := Color(0.012, 0.01, 0.02)
@@ -24,7 +26,8 @@ const INK_CHIP_SPEED := 4.5
 
 ## low, high: the two flat tones. star: m. chip: [count, size, length over width, sides, speed].
 const LOOKS := {
-	"axe": {"low": Color(0.16, 0.85, 0.38), "high": Color(0.86, 1.0, 0.72), "star": 0.42, "chip": [6, 0.1, 2.6, 4, 5.0]},
+	"axe": {"low": Color(0.55, 0.9, 0.08), "high": Color(0.94, 1.0, 0.6),  # fx-air: the storm lime (fx_palette "wind"), not the old shared green
+		"star": 0.42, "chip": [6, 0.1, 2.6, 4, 5.0]},
 	"spear": {"low": Color(0.26, 0.62, 0.96), "high": Color(0.98, 1.0, 1.0), "star": 0.36, "chip": [6, 0.07, 3.6, 4, 6.0]},
 	"hammer": {"low": Color(1.0, 0.28, 0.02), "high": Color(1.0, 0.86, 0.2), "star": 0.5, "chip": [7, 0.13, 1.1, 5, 4.0]},
 	"hand": {"low": Color(0.44, 0.07, 0.4), "high": Color(0.68, 0.15, 0.58), "star": 0.26, "chip": [5, 0.09, 1.4, 6, 3.5]},
@@ -63,6 +66,8 @@ static func material() -> StandardMaterial3D:
 
 ## `dir` is the haft's direction in the world; zero for a change back to the bare limb.
 static func spawn(parent: Node, at: Vector3, form: String, dir: Vector3, length: float) -> Node3D:
+	if DESIGNED.on():  # round 46: the weapon's drawn element pop (designed_finish.form_burst)
+		return DESIGNED_FINISH.form_burst(parent, at, form, dir)
 	var fx: Node3D = SELF.new()
 	parent.add_child(fx)
 	fx.global_position = at

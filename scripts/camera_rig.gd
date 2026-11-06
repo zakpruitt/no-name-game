@@ -45,6 +45,7 @@ var _lift := 0.0  # metres the follow point has risen with his leap
 var _leap_state := -2  # the target's State.LEAP (-1: it has none; -2: not read yet)
 var _frame := 1.0  # fight framing: offset multiplier (>= 1) that fits the hero and the foes he's hitting
 var _frame_to := 1.0
+var _cued := false  # a foe in the framing is cued (FRAME_CUE), not hit yet: ease out fast
 var _lean := Vector3.ZERO  # metres the follow point leans towards the fight's middle, chases _lean_to
 var _lean_to := Vector3.ZERO
 var _last_us := 0  # Time.get_ticks_usec() at the last _process (the real delta)
@@ -98,6 +99,12 @@ const FRAME_RANGE := 11.0  # metres from the hero; further foes are left to the 
 const FRAME_SAFE := Vector2(0.8, 0.72)  # of the half-screen (x, y; y less for the HUD at the top)
 const FRAME_HEAD := 1.6  # metres above a foe's feet that must fit too (a thrown foe's body)
 const FRAME_OUT := 2.5  # per real second, easing out to fit
+## Feel audit 3 item 5: a move that is about to strike foes outside the view cues them (meta FRAME_CUE on the foe:
+## the real ms until which it counts as the fight, Short Circuit's targets at its landing). A cued foe counts before
+## it is hit, and the view eases out at FRAME_CUE_OUT: at FRAME_OUT the far arcs landed off screen (worst foe at
+## ndc 1.47 on its arc) and it came in ~0.3 s later.
+const FRAME_CUE := &"frame_cue_ms"
+const FRAME_CUE_OUT := 7.0  # per real second
 const FRAME_BACK := 0.6  # per real second, the slow return
 const FRAME_LEAN := 0.6  # of the way from him to the middle of the fight's box (heads included)
 const FRAME_LEAN_MAX := 1.5  # metres (was 2.5: he sat visibly off-centre)
@@ -220,14 +227,14 @@ func _process(delta: float) -> void:
 		_lift = lerpf(_lift, lift, 1.0 - exp(-(HANG_IN if lift > _lift else HANG_OUT) * real_delta))
 		goal.y = _lift + AIM_HEIGHT
 		_frame_fight(goal, hanging)
-		var lean_rate := FRAME_OUT if _lean_to.length() > _lean.length() else FRAME_BACK
+		var lean_rate := (FRAME_CUE_OUT if _cued else FRAME_OUT) if _lean_to.length() > _lean.length() else FRAME_BACK
 		if hanging:
 			lean_rate = HANG_SETTLE
 		_lean = _lean.lerp(_lean_to, 1.0 - exp(-lean_rate * real_delta))
 		goal += _lean
 		var speed := follow_speed * (3.0 if _zoom_to != 1.0 else 1.0)  # keep up while zoomed
 		global_position = global_position.lerp(goal, 1.0 - exp(-speed * delta))
-	var frame_rate := FRAME_OUT if _frame_to > _frame else FRAME_BACK
+	var frame_rate := (FRAME_CUE_OUT if _cued else FRAME_OUT) if _frame_to > _frame else FRAME_BACK
 	if hanging:
 		frame_rate = HANG_SETTLE
 	_frame = lerpf(_frame, _frame_to, 1.0 - exp(-frame_rate * real_delta))
@@ -264,6 +271,7 @@ func _squeeze() -> float:
 func _frame_fight(goal: Vector3, hanging: bool) -> void:
 	_frame_to = 1.0
 	_lean_to = Vector3.ZERO
+	_cued = false
 	if frame_max <= 1.0 or hanging:
 		return  # (a hang: the rise, the window and the dive keep him centred in its push-in)
 	var now := Time.get_ticks_msec()
@@ -275,12 +283,14 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 		if not foe is Node3D or not is_instance_valid(foe) or foe == target:
 			continue
 		var hit_ms: Variant = foe.get("last_hit_ms")
-		if not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS:
+		var cued: bool = int(foe.get_meta(FRAME_CUE, 0)) > now
+		if not cued and (not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS):
 			continue
 		var at: Vector3 = foe.global_position
 		if at.distance_to(hero) > FRAME_RANGE:
 			continue
 		pts.append(at)
+		_cued = _cued or cued
 		lo = lo.min(Vector2(at.x, at.z - (at.y + FRAME_HEAD) * VIEW_DIR.z / VIEW_DIR.y))  # (a head reads as
 		hi = hi.max(Vector2(at.x, at.z))  # floor that far up-screen)
 	if pts.is_empty():

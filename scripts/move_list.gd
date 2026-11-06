@@ -22,8 +22,9 @@ const SECTIONS := [
 	]},
 	{"title": "STORM", "rows": [
 		{"input": "L H", "kind": "move", "id": "EC", "note": "The tentacle sweeps under them and the wind throws them up."},
-		{"input": "L H H", "kind": "move", "id": "EE", "note": "A tentacle on each of them, with lightning running through."},
-		{"input": "L H H, H in the window", "kind": "text", "name": "Grounded", "tier": 3, "note": "Everyone slammed down, with lightning under each."},
+		{"input": "L H H", "kind": "move", "id": "EE", "note": "A tentacle on each of them, with lightning running through. The window has two endings."},
+		{"input": "L H H, H in the window", "kind": "text", "name": "Grounded", "tier": 3, "note": "Everyone slammed down, with lightning under each. Best when the tentacles hold the crowd."},
+		{"input": "L H H, L in the window", "kind": "text", "name": "Short Circuit", "or": true, "tier": 3, "note": "The charge in the held arcs out to everyone they didn't hold, and charges them. Best when the room is full past the tentacles' reach."},
 		{"input": "L H L", "kind": "move", "id": "AL1", "note": "Up after them with the axe."},
 		{"input": "L H L H", "kind": "move", "id": "EW", "note": "Live Wire from the air. The window has two endings."},
 		{"input": "L H L H, H in the window", "kind": "text", "name": "Worldbreaker", "tier": 3, "note": "Slammed into the floor, with magma erupting under each."},
@@ -63,6 +64,7 @@ const SECTIONS := [
 		{"input": "Dash L H H L", "kind": "move", "id": "XS", "note": "Ice into magma: the molten fist goes into the ice and every frozen foe goes off in steam, scalding the rest."},
 		{"input": "Dash L H H L, H in the window", "kind": "text", "name": "Flash Freeze", "tier": 3, "note": "The steam freezes on them as he dives, and the landing shatters it again."},
 		{"input": "Dash H L", "kind": "move", "id": "XT", "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass."},
+		{"input": "H L L", "kind": "move", "id": "XC", "note": "Dark into storm: a tentacle whips out to everyone near (Reap's marked from further, and harder), the charge holds, then one bolt down them all zaps every one at once. Best on a spread-out crowd (Black Tide pulls them together instead); the more it links, the harder each zap."},
 		{"input": "Dash L H H H", "kind": "move", "id": "XG", "note": "Ice into storm: a whirlwind carries every frozen foe up, still in its ice, and he climbs after them."},
 		{"input": "Dash L H H H L", "kind": "move", "id": "XM", "note": "Storm into magma, in the air: the molten hammer bursts the ice off them and brings them down burning."},
 		{"input": "Dash L H H H L, H in the window", "kind": "text", "name": "Eruption", "tier": 3, "note": "The floor goes up under each of them, the burning hardest."},
@@ -100,6 +102,10 @@ const SECTIONS := [
 		{"input": "held by tendrils, then ice", "kind": "text", "state": "bound", "el": "water", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
 		{"input": "held by tendrils, then magma", "kind": "text", "state": "bound", "el": "earth", "own": true, "name": "Meteor Fall", "tier": 1, "note": "Undertow's window: he dives on the biggest group it holds."},
 		{"input": "held by tendrils, then dark", "kind": "text", "state": "bound", "el": "void", "own": true, "name": "Abyss", "tier": 1, "note": "Overwhelm's window: they sink through the floor and are thrown back up."},
+		{"input": "charged, then storm", "kind": "text", "state": "charged", "el": "wind", "name": "Overload", "tier": 1, "note": "Every charged foe near goes off at once, each zap harder the more are charged. Best after Galvanize or Grounded charged a crowd."},
+		{"input": "charged, then ice", "kind": "text", "state": "charged", "el": "water", "name": "Superconduct", "tier": 1, "note": "Frozen, and the charge runs through every frozen foe near it. Best with cubes standing about."},
+		{"input": "charged, then magma", "kind": "text", "state": "charged", "el": "earth", "name": "Arc Flash", "tier": 1, "note": "The charge goes off and blows the ones beside it away, splatting them on a wall. Best in a corner."},
+		{"input": "charged, then dark", "kind": "text", "state": "charged", "el": "void", "name": "Conduct", "tier": 1, "note": "The dark carries the charge on to everyone near it not charged yet. Best on a pack, to set up Overload."},
 	]},
 ]
 

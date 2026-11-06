@@ -31,6 +31,7 @@ const PAY_TEXT := "+ "
 const SIDE_GAP := 76.0  # px from the hero's centre to the rows
 const CHEST := 1.1  # metres above the feet the rows centre on
 const EDGE := 330.0  # flip to the hero's left this close to the right edge (and right near the left)
+const EDGE_SLACK := 80.0  # px past EDGE before an edge flip lets go
 const PILE_RADIUS := 6.0  # m: foes this near him count for which side the pile is on
 const PILE_SLACK := 30.0  # px the pile's middle must be off his to move the rows
 const PLAIN_COLOR := Color(0.84, 0.86, 0.92)
@@ -53,6 +54,7 @@ var _swap_t := 99.0
 var _ready_t := 99.0  # since the rows became ready (pop)
 var _was_ready := false
 var _side := 1.0
+var _pile_side := 1.0  # the side away from the pile (before the edges have their say)
 var _flashes: Array = []  # [offset from anchor, colour, age]
 var _press := {}  # kind -> age of the last press
 var _anchor := Vector2.ZERO
@@ -136,18 +138,15 @@ func _draw() -> void:
 	var at := cam.unproject_position(chest)
 	# Feel audit 2026-11-04 item 3: the rows sat over the pile. They go on the side away from the foes
 	# near him (screen x, with PILE_SLACK px of hysteresis), then flip in from the edges.
+	# Feel audit 3 (2026-11-06) item 2: the right-edge flip's "slack" branch sent every left choice back to the right
+	# (it ran whenever he was not near the right edge), so the pile choice never held and the rows sat on the foes in
+	# every string that faced right. The pile picks `_pile_side`; the edges override it, each with its own slack.
 	var pile := _pile_dx(cam, player.global_position, at)
 	if pile > PILE_SLACK:
-		_side = -1.0
+		_pile_side = -1.0
 	elif pile < -PILE_SLACK:
-		_side = 1.0
-	if _side < 0.0 and at.x < EDGE:
-		_side = 1.0
-	# Flip to the left near the right edge (with some slack so it doesn't flicker).
-	if _side > 0.0 and at.x > screen.x - EDGE:
-		_side = -1.0
-	elif _side < 0.0 and at.x < screen.x - EDGE - 80.0:
-		_side = 1.0
+		_pile_side = 1.0
+	_side = guide_side(_pile_side, _side, at.x, screen.x)
 	_anchor = at + Vector2(_side * SIDE_GAP, 0.0)
 	var win: Dictionary = player.HERO_INPUT.combo_window(player)
 	var ready: bool = win.ready
@@ -165,6 +164,16 @@ func _draw() -> void:
 	for f: Array in _flashes:
 		var a: float = f[2] / FLASH_TIME
 		draw_arc(_anchor + f[0], GLYPH_H * (0.6 + a * 0.9), 0.0, TAU, 40, Color(f[1], 1.0 - a), 2.0 * (1.0 - a) + 1.0, true)
+
+
+## Which side of him the rows go (1 right, -1 left): `want` (away from the pile) unless that side would run off an
+## edge (EDGE px), with EDGE_SLACK px before an edge flip lets go so it doesn't flicker. `side` is the last answer.
+static func guide_side(want: float, side: float, x: float, width: float) -> float:
+	if want < 0.0 and (x < EDGE or (side > 0.0 and x < EDGE + EDGE_SLACK)):
+		return 1.0
+	if want > 0.0 and (x > width - EDGE or (side < 0.0 and x > width - EDGE - EDGE_SLACK)):
+		return -1.0
+	return want
 
 
 ## Left (right when flipped) middle of row `i`, relative to the anchor.

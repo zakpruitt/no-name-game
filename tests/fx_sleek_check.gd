@@ -161,6 +161,20 @@ func _initialize() -> void:
 	await create_timer(cap.BREAKER_HOLD_S + cap.FADE_S + 0.15, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the breaker name is gone after its short hold")
+	# Feel audit 3 item 3: in a breaker's hang (his model lifted) an ender's name goes to the top band too, off him.
+	var hang0: int = cap.hang_placed
+	p._callout_done = false
+	p.HERO_FX.combo_callout(p, "EE")
+	p.model.position.y = 2.0
+	cap.watch(p)
+	await process_frame
+	cap.watch(p)
+	var hang_y: float = cam.unproject_position(p._callout.global_position).y
+	_ok(cap.hang_placed == hang0 + 1 and absf(hang_y - vh * cap.BREAKER_Y) < vh * 0.03,
+		"an ender's name in the hang sits in the top band (%.0f px of %.0f)" % [hang_y, vh])
+	p.model.position.y = 0.0
+	p._callout.hide()
+	cap.watch(p)
 	# Round 33, sleek 6: in a breaker the frame's hits draw one star, Live Wire's bolts are capped and a batch of rim
 	# geysers stops at three.
 	var els6: GDScript = load("res://scripts/elements.gd")
@@ -219,7 +233,8 @@ func _initialize() -> void:
 	main.add_child(rim_root)
 	els.rim_geyser(rim_root, Vector3(0, 0, -6), 0.9, 3.2, false)
 	var rim: Array = rim_root.get_children()
-	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser") and rim[0].width < 0.9 * els.GEYSER_WIDTH,
+	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser")
+		and rim[0].get_meta("width", rim[0].get("width")) < 0.9 * els.GEYSER_WIDTH,  # (designed: a meta)
 		"a rim geyser is one thin column (%d nodes)" % rim.size())
 	await _sleek5(main, p)
 	await _audit2(main, p)
@@ -252,12 +267,22 @@ func _audit2(main: Node, p: CharacterBody3D) -> void:
 	fl.note(p)
 	await create_timer(fl.AFTER_BREAKER_S * 0.5, true, false, true).timeout
 	_ok(is_instance_valid(f[0]) and f[0].get_child_count() == 0, "it waits %.1f s past the landing" % fl.AFTER_BREAKER_S)
+	var fin: GDScript = load("res://scripts/designed_finish.gd")
+	var fin0: int = fin.drawn
 	await create_timer(fl.AFTER_BREAKER_S * 0.5 + 0.08, true, false, true).timeout
-	var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
-	_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
-		"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
-	await create_timer(0.5, true, false, true).timeout
-	_ok(mine.call().is_empty(), "the column is gone in half a second")
+	if load("res://scripts/designed_fx.gd").on():  # round 46: the designed event (designed_finish.awaken)
+		var dfx: GDScript = load("res://scripts/designed_fx.gd")
+		var live := func() -> Array: return main.get_children().filter(func(c: Node) -> bool:
+			return c.get_script() == fin or (c.get_script() == dfx and str(c.sheet).begins_with("awaken_")))
+		_ok(fin.drawn == fin0 + 1 and not live.call().is_empty(), "then the designed Awakening (%d nodes)" % live.call().size())
+		await create_timer(1.3, true, false, true).timeout
+		_ok(live.call().is_empty() and mine.call().is_empty(), "the Awakening is gone in about a second")
+	else:
+		var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
+		_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
+			"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
+		await create_timer(0.5, true, false, true).timeout
+		_ok(mine.call().is_empty(), "the column is gone in half a second")
 	var drawn0: int = fl.drawn
 	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
 	_ok(fl.drawn == drawn0 + 1, "away from a breaker it shows at once")

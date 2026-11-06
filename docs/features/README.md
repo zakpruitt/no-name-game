@@ -46,3 +46,5 @@ to the index above. Use these sections, and skip any that don't apply:
 
 Name functions and constants rather than citing line numbers, because line
 numbers go stale. Update the doc in the same commit as the code it describes.
+
+- **Slow motion (training)**: `T` or the pause menu row cycles the game through full, 50% and 25% speed (`Game.slow`, `cycle_slow()`); hitstop and breaker slow motion multiply on top, and the real-ms windows (element states, Meteor Fall's palm and wall marks) stretch by `1 / Game.slow`. Effects that animate on real time still play at full speed.

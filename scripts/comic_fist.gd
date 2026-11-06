@@ -8,6 +8,7 @@ extends Node3D
 const SELF := preload("res://scripts/comic_fist.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the drawn magma fist
 const INK := Color(0.012, 0.01, 0.02)
 const LOW := Color(0.5, 0.08, 0.45)  # the limb's magenta (heretic_form_fx "hand", a touch brighter)
 const HIGH := Color(0.78, 0.24, 0.66)
@@ -29,6 +30,7 @@ var _rng := RandomNumberGenerator.new()
 var _mesh := ArrayMesh.new()
 var _verts := PackedVector3Array()
 var _colors := PackedColorArray()
+var _sprite: MeshInstance3D  # designed: the magma_fist sheet in place of the polygon fist
 
 
 ## The same flight as void_element._fist: from 1 m ahead of `at` out `length` m along `fwd` in `time` s.
@@ -51,6 +53,9 @@ func setup(at: Vector3, fwd: Vector3, length: float, time: float) -> void:
 	var d := _right * fwd.dot(_right) + _up * fwd.dot(_up)
 	_d = d.normalized() if d.length() > 0.05 else _right
 	_s = _d.cross(_right.cross(_up)).normalized()
+	if DESIGNED_EL.DESIGNED.on():
+		_sprite = DESIGNED_EL.fist_mesh(self)
+		DESIGNED_EL.aim_sprite(_sprite, atan2(_d.dot(_up), _d.dot(_right)))
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -69,6 +74,12 @@ func _process(delta: float) -> void:
 ## Public so a test can step it exactly.
 func tick(delta: float) -> void:
 	_t += delta
+	if _sprite != null:
+		if _t >= _time + HOLD_AFTER + DESIGNED_EL.FIST_DISSOLVE:
+			queue_free()
+			return
+		DESIGNED_EL.fist_step(_sprite, _t, _time, HOLD_AFTER)
+		return
 	if _t >= _time + HOLD_AFTER + SHRINK:
 		queue_free()
 		return

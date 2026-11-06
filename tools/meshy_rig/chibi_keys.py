@@ -1,6 +1,11 @@
 # Hand-keyed signature clips for the chibi heretic, written over the clips heretic_bake.py copied
 # from the shaman, then the GLB exported again (same bones, weapons and clip names).
-#   blender -b <heretic_chibi_baked.blend> -P chibi_keys.py -- <out.glb> [sheet_dir]
+#   blender -b <heretic_chibi_baked.blend> -P chibi_keys.py -- <out.glb> [sheet_dir] [--meshy-body]
+# The baked blend still holds the round-40 Meshy body. Since round 44 the game's body and weapons are the
+# hand-built ones (tools/hero_build/hero_v2.py), so after the export this script runs glb_swap.py over
+# <out.glb> with the build in HERO_BUILD (default vendor_src/hero_v2/out): the clips are the new ones,
+# the meshes v2's. With no build there it stops with an error rather than ship the old body;
+# --meshy-body exports the Meshy body on purpose.
 # The baked blend is the one heretic_bake.py saves beside its GLB (<out>_baked.blend).
 #
 # How a clip is written: KEYS lists its extremes (frame, pose, ease to the next). Drawings fall every
@@ -19,7 +24,11 @@ import bpy, sys, os, json, struct, math
 from mathutils import Vector, Matrix, Quaternion
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+MESHY_BODY = "--meshy-body" in args
+args = [a for a in args if a != "--meshy-body"]
 OUT = args[0] if args else ""
+_REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+HERO_BUILD = os.environ.get("HERO_BUILD", os.path.join(_REPO, "vendor_src", "hero_v2", "out"))
 STEP_ATTACK = 4  # frames per drawing at 30 fps for clips played at 1.7: 12.75 drawings a second
 STEP_STANCE = 3  # at 1.1: 11 a second
 # From the game camera (54 degrees down) up-and-down barely reads, so a squash also widens the hood
@@ -1422,3 +1431,14 @@ if OUT:
     print("GLB", len(d) // 1024, "KB (%d KB before sharing); anims" % (before // 1024), len(j["animations"]),
           "joints", len(j["skins"][0]["joints"]))
     print("KEYED", OUT, "bad contacts" if bad else "contacts ok")
+    if not MESHY_BODY:
+        import subprocess
+        if not os.path.exists(os.path.join(HERO_BUILD, "body.npz")):
+            print("ERROR no hero v2 build in %s: run tools/hero_build/hero_v2.py first (or pass --meshy-body)" % HERO_BUILD)
+            sys.exit(1)
+        swap = os.path.join(_REPO, "tools", "hero_build", "glb_swap.py")
+        r = subprocess.run(["python", swap, OUT, HERO_BUILD, OUT])
+        if r.returncode != 0:
+            print("ERROR glb_swap.py failed: %s still has the Meshy body" % OUT)
+            sys.exit(1)
+        print("SWAPPED", OUT, "body and weapons from", HERO_BUILD)

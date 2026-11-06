@@ -68,7 +68,7 @@ Each render frame (`combo_guide._process`):
 
 In `_draw()`:
 
-1. The hero's chest (`CHEST` m above the feet) is projected to the screen with `camera.unproject_position`. The rows are centred vertically on that point and offset `SIDE_GAP` px to the side. They flip to the left side within `EDGE` px of the right edge, with an 80 px gap before flipping back so they don't flicker. They are also clamped to stay below the top HUD band.
+1. The hero's chest (`CHEST` m above the feet) is projected to the screen with `camera.unproject_position`. The rows are centred vertically on that point and offset `SIDE_GAP` px to the side. They go on the side away from the foes near him (`_pile_side`, `PILE_SLACK` hysteresis), unless that side is within `EDGE` px of the screen edge; an edge flip holds for `EDGE_SLACK` 80 px so it doesn't flicker (`guide_side()`, checked in `guide_check`). Until feel audit 3 the right edge's slack branch sent every left choice back to the right, so the rows sat on the pile. They are also clamped to stay below the top HUD band.
 2. `hero_input.combo_window()` is read once. When `ready` turns true, `_ready_t` starts the key pop.
 3. Each row is measured left to right into `parts`, then drawn mirrored if the guide has flipped. The main key's centre is stored in `_glyph_at[i]`, so a press flash can find it.
 
