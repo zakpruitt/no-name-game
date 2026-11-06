@@ -129,6 +129,8 @@ static func cube_on(e: Node3D) -> void:
 	cube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	e.add_child(cube)
 	cube.position.y = CUBE_HIGH * 0.5
+	if Game.comic_style and DESIGNED.on():  # fx-ice2: sized to and centred on the model inside (designed_elements)
+		DESIGNED_EL.fit_block(e, cube)
 
 
 ## One shared material for the cube's glint: unshaded vertex colour (the block itself is spirit_echo.ghost_mat).
