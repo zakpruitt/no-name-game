@@ -21,6 +21,7 @@ const SHEETS := {
 	"chain_halo": {"grid": Vector2(4, 3), "frames": 12, "kind": "sprite"},
 	"daze_star": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite_depth"},
 	"combo_burst": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
+	"echo_axe": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite"},
 }
 
 const GATHER_SIZE := 5.2  # m: the focus lines' square (the hole in it is 0.27 of the half: ~1.4 m across)
@@ -44,6 +45,11 @@ const DAZE_SIZE := 0.56  # m: a star's quad (the old polygon star was 0.32 m acr
 const BURST_SIZE := 3.0  # m at tier 1, + BURST_GROW a tier
 const BURST_GROW := 0.5
 const BURST_TIMES := [0.033, 0.05, 0.05, 0.05, 0.06, 0.07]
+
+## The spirit echo's ghost axe (spirit_echo.gd, designed): a drawn axe head flying the swing's outer arc with two
+## edge echoes behind it, instead of the 3 m halftone axe mesh that covered his swing.
+const ECHO_SIZE := 2.3  # m: the axe head's quad (the head is ~0.9 m tall in it; 1.25 read as a speck at the arc's edge)
+const ECHO_REACH := 0.82  # of the echo's radius: on the arc's outer edge, past his own blade
 
 static var _registered := false
 static var drawn := 0  # Awakenings drawn (checks)
@@ -200,3 +206,26 @@ static func daze(node: Node3D, height: float, time: float, ring: float, spin: fl
 		, 0.0, time, time)
 	tw.chain().tween_callback(pivot.queue_free)
 	return pivot
+
+
+## spirit_echo (designed): the drawn axe head for one sweep of `time` game s. Frame 0 the leading edge, 1-2 the head
+## with its echoes over the sweep, 3 the edge left behind; spirit_echo.pose() moves and turns it (echo_pose()).
+static func echo_axe(parent: Node, at: Vector3, color: Color, time: float) -> Node3D:
+	_register()
+	var times := [0.033, time * 0.5, time * 0.5, 0.09]
+	var fx := DESIGNED.spawn(parent, "echo_axe", at, ECHO_SIZE, DESIGNED.PAL.nearest(color), times, Vector2(0.7, 1.0))
+	fx.real_until = 1
+	return fx
+
+
+## Put the drawn axe at `at`, turned on screen so it flies towards `ahead` (a point a little further along the arc).
+static func echo_pose(fx: Node3D, at: Vector3, ahead: Vector3) -> void:
+	if fx == null or not is_instance_valid(fx) or not fx.is_inside_tree():
+		return
+	fx.global_position = at
+	var cam := fx.get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var d := cam.unproject_position(ahead) - cam.unproject_position(at)
+	if d.length() > 0.001:
+		fx.set_spin(atan2(-d.y, d.x), 1.0)

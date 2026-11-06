@@ -351,6 +351,68 @@ def combo_burst(i, n, size):
     return f.finish()
 
 
+# --- echo_axe: the spirit echo's ghost axe as a drawn afterimage (spirit_echo.gd, designed) -------------------
+# The ancestor's axe head flying the swing's outer arc: a fat crescent blade with a lit edge band and a hot glint,
+# a stub of haft, and behind it (the -x side: the game turns the sprite so +x is the way it flies) two echo copies of
+# its edge, each a band dimmer and thinner (the classic multiple-image smear). Frame 0 the faint leading outline,
+# 1-2 the solid head with the echoes (boil), 3 just the edge echoes thinning. Never a slab: the haft is a stub.
+
+def _axe_head(f, cx, cy, s, rot=0.0):
+    """Polygon of a bearded axe head, its eye at (cx - 0.85 s, cy), the edge towards +x, s = half its height:
+    a fat convex edge whose horns hook back, concave top and bottom running in to a narrow back at the eye."""
+    def q(p0, p1, ctrl, m=10):
+        return [((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * ctrl[0] + t * t * p1[0],
+                 (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * ctrl[1] + t * t * p1[1]) for t in np.linspace(0, 1, m)]
+    loc = []
+    loc += [(-0.55 + math.cos(a) * 1.0, math.sin(a) * 1.0) for a in np.linspace(-0.98, 0.98, 18)]  # the edge
+    loc += q((-0.08, 0.86), (-0.2, 1.02), (-0.06, 1.0), 4)  # bottom horn hooks back
+    loc += q((-0.2, 1.02), (-0.78, 0.26), (-0.36, 0.42))  # concave beard
+    loc += [(-1.0, 0.24), (-1.0, -0.24)]  # the back at the eye
+    loc += q((-0.78, -0.26), (-0.2, -1.0), (-0.38, -0.4))  # concave top
+    loc += q((-0.2, -1.0), (-0.08, -0.86), (-0.06, -0.98), 4)
+    c_, s_ = math.cos(rot), math.sin(rot)
+    return [(cx + (x * c_ - y * s_) * s, cy + (x * s_ + y * c_) * s) for x, y in loc]
+
+
+def _edge_band(f, cx, cy, s, w, a0=-1.1, a1=1.1):
+    path = [(cx + (-0.55 + math.cos(a)) * s, cy + math.sin(a) * s) for a in np.linspace(a0, a1, 18)]
+    return stroke(path, lambda u: w * math.sin(u * math.pi) ** 0.5, cap=False)
+
+
+def echo_axe(i, n, size):
+    f = Frame(size)
+    c = f.c
+    s = f.u(0.4)
+    cx = c + f.u(0.32)
+    # echoes behind (drawn first): edge bands only, a band dimmer each
+    if i >= 1:
+        for k, (dx, tone, wk) in enumerate([(-0.42, LIGHT, 0.6), (-0.8, BODY, 0.42)]):
+            if i == 3 and k == 0:
+                dx -= 0.12
+            m = poly_mask([_edge_band(f, cx + f.u(dx), c, s * (0.95 - 0.08 * k), f.u(0.1) * wk * (0.7 if i == 3 else 1.0))], f.S)
+            f.fill(m, tone, ink=2.0)
+    if i in (1, 2):
+        # haft stub out of the eye, back towards the hand (-x, a little down)
+        haft = stroke([(cx - s * 0.8, c), (cx - s * 1.7, c + s * 0.3)], [f.u(0.07), f.u(0.05)], cap=True)
+        f.fill(poly_mask([haft], f.S), DEEP, ink=2.6)
+        head = _axe_head(f, cx, c, s * (1.0 if i == 1 else 0.97), rot=0.04 * (i - 1))
+        m = poly_mask([head], f.S)
+        f.fill(m, BODY, ink=3.0)
+        # the lit edge band and a hot glint on it
+        f.fill(poly_mask([_edge_band(f, cx, c, s * 0.97, f.u(0.12))], f.S) * m, LIGHT)
+        gx, gy = cx + (-0.55 + math.cos(-0.5) * 0.9) * s, c + math.sin(-0.5) * s * 0.9
+        f.poly([(gx, gy - f.u(0.07)), (gx + f.u(0.03), gy), (gx, gy + f.u(0.07)), (gx - f.u(0.03), gy)], HOT)
+        # the eye: a negative-space hole
+        f.cut(ellipse_mask(cx - s * 0.82, c, s * 0.09, s * 0.14, f.S))
+    elif i == 0:  # the faint leading outline: just the edge, thin
+        m = poly_mask([_edge_band(f, cx, c, s * 0.9, f.u(0.06))], f.S)
+        f.fill(m, LIGHT, ink=2.0)
+    else:  # 3: the head is gone, a thin edge left where it was
+        m = poly_mask([_edge_band(f, cx + f.u(0.05), c, s, f.u(0.05))], f.S)
+        f.fill(m, LIGHT, ink=1.6)
+    return f.finish()
+
+
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "awaken_gather": (awaken_gather, 320, 3, 6, "gold", "edge", 0.5),
@@ -359,6 +421,7 @@ SHEETS = {
     "chain_halo": (chain_halo, 192, 4, 12, "void", "center", 0.45),
     "daze_star": (daze_star, 96, 4, 4, "gold", "edge", 0.4),
     "combo_burst": (combo_burst, 256, 3, 6, "void", "edge", 0.45),
+    "echo_axe": (echo_axe, 192, 4, 4, "void", "edge", 0.4),
 }
 
 
