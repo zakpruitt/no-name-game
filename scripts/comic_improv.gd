@@ -28,12 +28,12 @@ const GRAVITY := 9.0  # m/s/s on flung chips (screen down)
 ## cell ("state_x_element", void_element.improvise's improv_paid keys) -> its look: life (real s), whether it rides
 ## the foe, and the two palettes (fx_palette) it joins.
 const LOOKS := {
-	"frozen_x_wind": {"name": "Gale Lift", "life": 0.42, "ride": true, "a": "wind", "b": "water"},
+	"frozen_x_wind": {"name": "Gale Lift", "life": 0.42, "ride": true, "a": "air", "b": "water"},
 	"frozen_x_void": {"name": "Shatter", "life": 0.42, "ride": false, "a": "void", "b": "water"},
 	"buried_x_water": {"name": "Frozen In", "life": 0.45, "ride": false, "a": "water", "b": "earth"},
 	"buried_x_earth": {"name": "Aftershock", "life": 0.42, "ride": false, "a": "earth", "b": "earth"},
 	"buried_x_void": {"name": "Swallowed", "life": 0.45, "ride": false, "a": "void", "b": "earth"},
-	"molten_x_wind": {"name": "Firestorm", "life": 0.42, "ride": true, "a": "wind", "b": "earth"},
+	"molten_x_wind": {"name": "Firestorm", "life": 0.42, "ride": true, "a": "air", "b": "earth"},
 	"molten_x_water": {"name": "Quench", "life": 0.45, "ride": true, "a": "water", "b": "earth"},
 	"molten_x_earth": {"name": "Flare-up", "life": 0.4, "ride": true, "a": "earth", "b": "earth"},
 	"molten_x_void": {"name": "Smother", "life": 0.42, "ride": false, "a": "void", "b": "earth"},
@@ -41,7 +41,7 @@ const LOOKS := {
 	"skewered_x_void": {"name": "Torn Off", "life": 0.35, "ride": false, "a": "void", "b": "water"},
 	"airborne_x_water": {"name": "Freeze Aloft", "life": 0.38, "ride": true, "a": "water", "b": "water"},
 	"airborne_x_earth": {"name": "Meteor Spike", "life": 0.42, "ride": true, "a": "earth", "b": "earth"},
-	"bound_x_wind": {"name": "Torn Loose", "life": 0.4, "ride": true, "a": "wind", "b": "void"},
+	"bound_x_wind": {"name": "Torn Loose", "life": 0.4, "ride": true, "a": "air", "b": "void"},
 	"bound_x_water": {"name": "Frozen in the Dark", "life": 0.45, "ride": false, "a": "water", "b": "void"},
 }
 const BAND_R := 0.62  # m: a band round a foe (a dummy is ~0.5 m across; the ice cube 0.9)

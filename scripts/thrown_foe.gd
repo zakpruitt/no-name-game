@@ -310,6 +310,8 @@ func _burst(other: Node3D) -> void:
 		foe.set_meta(WALL_META, Time.get_ticks_msec())
 		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
 			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
+	if DESIGNED.on() and el == "wind":  # fx-air: Storm Pitch lands in a burst of wind (designed_fx.wind_burst)
+		DESIGNED.wind_burst(parent, spot, _dir)
 	if DESIGNED.on() and el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
 		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
 	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)

@@ -48,7 +48,7 @@ static func haul(parent: Node, e: Variant, to: Vector3, was_skewered: bool) -> N
 
 
 func _build() -> void:
-	_p = PAL.of("wind")
+	_p = PAL.of("air")  # fx-air: wind looks like air; lightning keeps the storm row
 	_ice = PAL.of("water")
 	for i in STROKES + CHIPS:
 		_turns.append(_rng.randf() * TAU)

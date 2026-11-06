@@ -483,6 +483,42 @@ static func gust(parent: Node, at: Vector3, dir: Vector3, size := 1.0, always :=
 	return fx.set_spin(a, 1.0) if randf() < 0.5 else fx.set_spin(a + PI, -1.0)  # (the second: mirrored top to bottom)
 
 
+## A burst of wind where something lands (Storm Pitch's thrown foes): a small floor swirl and three gusts thrown
+## out round it, the first along `dir` (the throw carries on as wind).
+static func wind_burst(parent: Node, spot: Vector3, dir := Vector3.ZERO) -> void:
+	var foot := Vector3(spot.x, 0.0, spot.z)
+	var swirl := spawn(parent, "air_swirl", foot + Vector3.UP * GROUND_LIFT, BURST_SWIRL, "air", BURST_SWIRL_TIMES,
+			Vector2(0.5, 1.0))
+	swirl.real_until = 1
+	swirl.rotation.y = randf() * TAU
+	var a0 := atan2(dir.x, dir.z) if dir.length() > 0.01 else randf() * TAU
+	for k in 3:
+		var a := a0 + TAU * k / 3.0
+		var out := Vector3(sin(a), 0.0, cos(a))
+		gust(parent, foot + out * 0.5 + Vector3.UP * 0.7, out, 0.9, true)
+
+
+const BURST_SWIRL := 2.4  # m: the floor swirl's square
+const BURST_SWIRL_TIMES := [0.04, 0.07, 0.06, 0.06, 0.06, 0.06, 0.08, 0.1]
+
+
+## Lightning along a polyline (fx-air, for the combo-lightning lane: a bolt running down the tentacle, or through a
+## line of foes): one designed bolt per leg, so each keeps the strip's drawn proportions. Returns the bolt nodes.
+static func bolt_path(parent: Node, points: PackedVector3Array, width := 0.24) -> Array:
+	var out := []
+	for i in points.size() - 1:
+		out.append(bolt(parent, points[i], points[i + 1], width))
+	return out
+
+
+## A small electric pop on a foe (fx-air, for the combo-lightning lane): the storm burst's star and crawling arcs,
+## at `size` of a strike's, standing on the floor under `at`.
+static func zap(parent: Node, at: Vector3, size := 0.6) -> Node3D:
+	var fx := spawn(parent, "storm_burst", Vector3(at.x, 0.0, at.z), STRIKE_BURST * size, "wind", STORM_TIMES, Vector2(0.45, 1.0))
+	fx.real_until = 1
+	return fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+
+
 ## Draw every material once at real size under `root` (elements.prewarm), so no effect compiles on first use.
 static func prewarm(root: Node3D) -> void:
 	for name_: String in SHEETS:
