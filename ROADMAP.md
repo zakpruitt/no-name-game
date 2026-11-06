@@ -848,3 +848,20 @@ dummies part of them clip out." See `docs/features/designed-fx.md` "fx-ice2".
 - [x] Clips: `awaken-combo-clips/25 Ice *` (before / after)
 - [ ] Weapons held out past 1.2 m still poke out of a spar foe's block (by design); the skewered stake tell stays
 - [ ] Zak: is a dummy's block (2.2 m across) too big now it holds the arms?
+
+## Round 47 b (combo-harpoon2: Harpoon's tentacles gather, two breaker endings)
+Zak: "harpoon grabs any enemies near by in a clean tentacle animation and places them in a line or group in front of
+the heretic", then a molten fist punches the cubes into a wall or thunder breaks them where they stand.
+`scripts/harpoon_gather.gd`, `scripts/slapshot_fx.gd`, `docs/features/void-element.md`.
+- [x] Harpoon (Dash L H): a tentacle to every foe within 8 m (x the chain's reach growth, 5 at most, nearest first):
+  reach, latch (10), a curved carry round him, set down in one rank across his aim short of walls, then the cube.
+  Big ones freeze where they stand. H during it is still Ice Cube (Dash L H H)
+- [x] A pause after it leaps into a two-ending window: LMB Slapshot (Molten Palm's fist slides the cubes along the
+  floor with a frost streak; a wall shatters them, 63 base each, KRAKOOM; no wall 14) and RMB Shatterstorm (a sky
+  strike on each cube where it stands, 30 base). Bot strings `ring D L H` and `wall alt D L H`; void_arm_check asserts
+  the gather and the ordering (three cubes: wall 386 > thunder 184 > open 86)
+- [x] Camera: a cued foe lets the framing lean up to 3.5 m (`FRAME_CUE_LEAN_MAX`) so the slide and the wall hit stay
+  in view; `string_film --fps=N --tail=MS`
+- [x] Clips: `awaken-combo-clips/26 Harpoon *` (grab, Shatterstorm, Slapshot into a wall)
+- [ ] Zak's call: the endings sit behind a pause (Ice Cube keeps its line), not on Harpoon outright; hand-play the
+  gather's speed and whether a wall past ~10 m (the slide's reach) should still count
