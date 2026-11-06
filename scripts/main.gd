@@ -65,7 +65,7 @@ func _ready() -> void:
 	for spec: Dictionary in ENEMY_TYPES.values() + [BOSS_SPEC]:
 		_model(spec.model)
 
-	player = PLAYER.new()
+	player = (load("res://scripts/prince/prince.gd") if Game.hero == "prince" else PLAYER).new()  # --hero=prince
 	add_child(player)
 	player.died.connect(_on_player_died)
 	player.ELEMENTS.prewarm(self, player.global_position)

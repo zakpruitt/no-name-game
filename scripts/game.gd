@@ -107,6 +107,9 @@ const HERO_DEFAULT := "chibi"
 var hero_model := HERO_DEFAULT
 var hero_setting := HERO_DEFAULT
 const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic"}
+## Which hero plays: "heretic" (player.gd, the default) or "prince" (scripts/prince/prince.gd, the dragon prince
+## slice: docs/characters/dragon-prince.md), from --hero=prince for this process only. main.gd reads it.
+var hero := "heretic"
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
@@ -139,6 +142,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args() + OS.get_cmdline_args():
 		if a.begins_with("--hero=") and HERO_MODELS.has(a.trim_prefix("--hero=")):
 			hero_model = a.trim_prefix("--hero=")
+		elif a == "--hero=prince":
+			hero = "prince"
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)

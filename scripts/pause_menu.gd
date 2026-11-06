@@ -96,7 +96,8 @@ func _build_moves() -> void:
 	list.add_theme_constant_override("separation", 3)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	for section: Dictionary in MOVE_LIST.SECTIONS:
+	var sections: Array = player.move_sections() if player.has_method("move_sections") else MOVE_LIST.SECTIONS  # (the prince)
+	for section: Dictionary in sections:
 		_move_header(list, section)
 		for row: Dictionary in section.rows:
 			_move_row(list, row, player)
