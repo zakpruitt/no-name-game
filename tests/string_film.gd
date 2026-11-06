@@ -1,7 +1,7 @@
 extends SceneTree
 ## Films every autotest bot string (training_bot.BOT_STRINGS: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
-##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name] [--fps=N] [--tail=MS: film on after the string]
+##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at BOT_STRINGS[N]] [--to=N: stop after it] [--dir=name] [--fps=N] [--tail=MS: film on after the string] [--no-awaken]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ##   `--layout=wall|stray` (with --from=11 --to=11, L L L H H + Meteor Fall): the dummies' homes near the back wall
@@ -29,6 +29,7 @@ var _frames: Array = []  # [Image, index line]
 var _t0 := 0  # ms the current film started
 var _fps := FPS  # `-- --fps=N`: film denser (clips for Zak; frames still land on the display's 60 Hz)
 var _tail := 0.0  # `-- --tail=MS`: keep filming a string this long after the bot moves on (a slide or a fall that outlasts it)
+var _calm := false  # `-- --no-awaken`: the meter is held empty, so the bot never Awakens mid-film (its burst breaks ice)
 var _n := 0  # frames due so far in this film (a fixed 1/FPS schedule from _t0)
 var _brk_seen := 0  # breakers landed at the last slam frame grabbed
 var _hit_seen := ""  # move id + hits done at the last contact frame grabbed
@@ -60,6 +61,8 @@ func _initialize() -> void:
 			_dir = "user://" + arg.get_slice("=", 1)
 		if arg.begins_with("--fps="):
 			_fps = float(arg.get_slice("=", 1))
+		if arg == "--no-awaken":
+			_calm = true
 		if arg.begins_with("--tail="):
 			_tail = float(arg.get_slice("=", 1))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_dir))
@@ -100,7 +103,7 @@ func _initialize() -> void:
 				break
 			_t0 = Time.get_ticks_msec()
 			_n = 0
-			if gather:
+			if gather and not _bot._reset_done:  # (a tail ran on to the bot's own reset: its layout stands, a "wall" one too)
 				_gather()
 		_grab()
 		if Time.get_ticks_msec() - _t0 > 20000:
@@ -164,6 +167,8 @@ func _name(string: Array) -> String:
 ## One frame every 1/FPS s of real time (the display's 60 Hz quantises that to 83 or 100 ms), plus an extra frame
 ## marked HIT the first drawn frame after each new hit lands (the contact pose and hitstop rarely fall on the beat).
 func _grab() -> void:
+	if _calm:
+		get_root().get_node("Game").awakening = 0.0
 	var now := Time.get_ticks_msec()
 	var key := "%s%d" % [_p._move_id, _p._hits_done]
 	var hit: bool = _p.state == _p.State.ATTACK and _p._hits_done > 0 and key != _hit_seen

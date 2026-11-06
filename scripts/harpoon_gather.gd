@@ -116,6 +116,21 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 
 
+## Everyone not set down yet is, now, in their slot (latched first if the tentacle hadn't arrived): the breaker's
+## hang takes the row from here (void_grab.seize, `hold_cubes`), so nobody may still be in the air or uncubed.
+func finish_now() -> void:
+	for g: Dictionary in grabs:
+		if g.set or not _alive(g.foe):
+			continue
+		if not g.latched:
+			g.latched = true
+			_latch(g)
+		if not g.set:
+			g.set = true
+			g.set_t = _t - g.t0
+			_set_down(g)
+
+
 func _latch(g: Dictionary) -> void:
 	var e: Node3D = g.foe
 	g.from = e.global_position

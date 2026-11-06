@@ -24,7 +24,7 @@ const TRAIL_FADE := 0.45  # s it fades over once the cube has stopped
 const WALL_SHATTER := 1.9  # the designed ice shatter's size on a wall hit (a plain burst: 1.0)
 const WALL_STAMP := 1.8  # m: the ground stamp at the wall's foot
 const WALL_STOP := 0.07  # s hit stop per wall hit (one each, so a row is a drum roll)
-const WALL_WORD := "KRAKOOM!"
+const WALL_WORD := "KER-SMASH!"  # (its own: the breaker words say KRSSSH-BOOM! / THWAKK!)
 const WALL_WORD_SIZE := 0.75
 const CORD_HOLD := 0.1  # s the cord stays after the fist lands
 

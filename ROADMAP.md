@@ -863,5 +863,9 @@ the heretic", then a molten fist punches the cubes into a wall or thunder breaks
 - [x] Camera: a cued foe lets the framing lean up to 3.5 m (`FRAME_CUE_LEAN_MAX`) so the slide and the wall hit stay
   in view; `string_film --fps=N --tail=MS`
 - [x] Clips: `awaken-combo-clips/26 Harpoon *` (grab, Shatterstorm, Slapshot into a wall)
+- [x] Fitted ice (after fx-ice2): the row is spaced by each foe's fitted block (`ice_radius()`, `HARPOON_GAP` 0.15,
+  `ICE_CORNER`), the hang finishes any carry and keeps the row iced, Slapshot stops a cube when its ice's face meets
+  the wall (`wall_gap`), the wall hit says KER-SMASH! (breaker words KRSSSH-BOOM! / THWAKK!); ice_block_check holds
+  every dummy's vertices inside its block after the gather, in the hang and mid-slide; `string_film --no-awaken`
 - [ ] Zak's call: the endings sit behind a pause (Ice Cube keeps its line), not on Harpoon outright; hand-play the
   gather's speed and whether a wall past ~10 m (the slide's reach) should still count

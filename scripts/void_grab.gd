@@ -88,6 +88,7 @@ var _spare := []  # tendrils from earlier breakers
 var _zaps := 0  # jolts so far this hang
 var _current: Node3D  # Live Wire's current along the tentacles (live_current.gd)
 var _jolted := []  # who it zapped: charged once the hang ends (round 44 b: the crackle tell over the held pile was noise)
+var gather: Node3D  # Harpoon's gather while it runs (harpoon_gather.gd): the hang sets down anyone still carried
 var harpooned := []  # who Harpoon's tentacles took last (round 47): its breaker holds these cubes (`hold_cubes`)
 var _carry: Node3D  # the foe he snatched off a swing
 var _carry_rope: Node3D
@@ -388,14 +389,16 @@ func seize(b := {}) -> void:
 	if b.has("no_hold"):
 		return
 	if b.has("hold_cubes"):  # Harpoon's row (round 47): a tentacle on each cube it set down, holding it where it stands
+		if is_instance_valid(gather):
+			gather.finish_now()  # (a carry the hit stops held past the leap lands now, in its slot and its cube)
 		for e: Variant in harpooned:
-			if is_instance_valid(e) and e.is_alive() and VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
-				VOID_ELEMENT.encase(e)  # (frozen for the whole window)
+			if is_instance_valid(e) and e.is_alive() and not VOID_ELEMENT.THROWN.flying(e):
+				VOID_ELEMENT.encase(e)  # (frozen for the whole window; a cube a stray hit broke since the set-down too)
 				var held: Node3D = _spare.pop_back() if not _spare.is_empty() else null
 				if held == null:
 					held = TENDRIL.new()
 					hero.add_child(held)
-				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true})
+				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true, "harpoon": true})
 		return
 	if b.has("press"):
 		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
@@ -466,6 +469,8 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 			s.tendril.visible = false
 			continue
 		var e: Node3D = s.foe  # (checked first: a typed assign of a freed foe is an error)
+		if s.has("harpoon") and phase == 0 and not VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
+			VOID_ELEMENT.encase(e)  # (Harpoon's row stays in its ice through the hang: a lash or the Awakening's burst broke it)
 		if s.has("anchored"):  # held where it stands (Avalanche's cubes)
 			if _time >= s.stagger_at and not is_heavy(e):
 				s.stagger_at = _time + RESTAGGER

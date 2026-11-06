@@ -36,6 +36,7 @@ func _initialize() -> void:
 		dummy = d
 		break
 	var home: Vector3 = _main.player.global_position
+	await _harpoon(home)
 	for kind: String in KINDS:
 		for old in get_nodes_in_group("enemies"):
 			if old != dummy:
@@ -132,6 +133,106 @@ func _freeze_and_measure(kind: String, e: Node3D) -> void:
 	if e.frozen_t > 0.0 or is_equal_approx(e.anim.speed_scale, 0.0):
 		_fails.append("%s: still frozen after the shatter (frozen_t %.2f speed %.2f)" % [kind, e.frozen_t, e.anim.speed_scale])
 	await create_timer(0.6).timeout
+
+
+## Round 47 b: Harpoon's gather sets the room's dummies down in a row and Slapshot slides them off: each one's block
+## must hold its whole model right after the set-down and again mid-slide, and the row is spaced for the fitted
+## blocks (neighbours' ice no more than OVERLAP into each other).
+const OVERLAP := 0.25  # m two neighbouring blocks may cross (corner into corner as they turn)
+
+
+func _harpoon(home: Vector3) -> void:
+	var p: CharacterBody3D = _main.player
+	var dummies: Array = get_nodes_in_group("enemies").slice(0, 4)
+	var ring := [Vector3(0.0, 0.0, 4.5), Vector3(-3.4, 0.0, 2.4), Vector3(3.0, 0.0, 0.4), Vector3(0.8, 0.0, -1.8)]
+	var homes: Array = dummies.map(func(d: Node3D) -> Vector3: return d.home if "home" in d else d.global_position)
+	p.global_position = home
+	p._face(Vector3(0.0, 0.0, 1.0))
+	for i in dummies.size():
+		var d: Node3D = dummies[i]
+		d.global_position = home + ring[i]
+		if "home" in d:
+			d.home = d.global_position
+	await create_timer(0.6).timeout
+	p._start_attack("EF")
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 2000:
+		await physics_frame
+		if p._hits_done > 0 and dummies.all(func(d: Node3D) -> bool: return d.get_node_or_null("ThrownCube") != null and not d.has_meta("thrown_foe_flying")):
+			break
+	for d: Node3D in dummies:
+		_inside(d, "harpoon: set down")
+	var row := dummies.duplicate()
+	var side: Vector3 = p._facing().cross(Vector3.UP).normalized()
+	row.sort_custom(func(a: Node3D, b: Node3D) -> bool: return (a.global_position - home).dot(side) < (b.global_position - home).dot(side))
+	for i in range(1, row.size()):
+		var gap: float = (row[i].global_position - row[i - 1].global_position).length()
+		var need: float = _void.ice_radius(row[i]) + _void.ice_radius(row[i - 1])
+		print("[ice_block] harpoon row %d-%d: %.2f m apart, ice reaches %.2f m" % [i - 1, i, gap, need])
+		if gap < need - OVERLAP:
+			_fails.append("harpoon: neighbours' ice crosses %.2f m (%.2f apart, ice %.2f)" % [need - gap, gap, need])
+	# the hang, LMB in the window: Slapshot
+	t0 = Time.get_ticks_msec()
+	while p.state != p.State.LEAP and Time.get_ticks_msec() - t0 < 2000:
+		await physics_frame
+	for d: Node3D in dummies:
+		_inside(d, "harpoon: the hang")
+	t0 = Time.get_ticks_msec()
+	while p.state == p.State.LEAP and p._state_t < p._brk.open + 0.02 and Time.get_ticks_msec() - t0 < 2000:
+		await physics_frame
+	Input.action_press("attack_light")
+	await physics_frame
+	Input.action_release("attack_light")
+	t0 = Time.get_ticks_msec()
+	while not dummies.any(func(d: Node3D) -> bool: return d.has_meta("thrown_foe_flying")) and Time.get_ticks_msec() - t0 < 3000:
+		await physics_frame
+	for i in 4:
+		await physics_frame
+	var sliding := dummies.filter(func(d: Node3D) -> bool: return d.has_meta("thrown_foe_flying"))
+	if sliding.is_empty():
+		_fails.append("harpoon: Slapshot slid nobody")
+	for d: Node3D in sliding:
+		_inside(d, "harpoon: mid-slide")
+	t0 = Time.get_ticks_msec()
+	while dummies.any(func(d: Node3D) -> bool: return d.has_meta("thrown_foe_flying")) and Time.get_ticks_msec() - t0 < 3000:
+		await physics_frame
+	await create_timer(1.0).timeout
+	for i in dummies.size():  # (back home and settled: the kinds below fit the first one's block from rest)
+		var d: Node3D = dummies[i]
+		if "home" in d:
+			d.home = homes[i]
+		d.global_position = homes[i]
+	p.global_position = home
+	await create_timer(3.0).timeout
+
+
+## Every body vertex of `e`'s model inside its ThrownCube now (as _freeze_and_measure checks it).
+func _inside(e: Node3D, when: String) -> void:
+	var cube: MeshInstance3D = e.get_node_or_null("ThrownCube")
+	if cube == null:
+		_fails.append("%s: %s has no block" % [when, e.name])
+		return
+	var r: float = _block_r(cube)
+	var h: float = _block_h(cube)
+	var inv: Transform3D = cube.global_transform.affine_inverse()
+	var out := 0
+	var worst := 0.0
+	var pts := _posed(e.model)
+	for p in pts:
+		if p.y < 0.0:
+			continue
+		var q := inv * p
+		var t := clampf((q.y + h * 0.5) / h, 0.0, 1.0)
+		var over := maxf(Vector2(q.x, q.z).length() - r * lerpf(1.0, _el.BLOCK_TAPER, t), maxf(absf(q.y) - h * 0.5, 0.0))
+		if over <= TOLERANCE:
+			continue
+		var from_foe := e.global_transform.affine_inverse() * p
+		if Vector2(from_foe.x, from_foe.z).length() <= _el.FIT_R_MAX:
+			out += 1
+			worst = maxf(worst, over)
+	print("[ice_block] %-22s r=%.2f high=%.2f verts=%d body_out=%d (worst %.3f m)" % [when, r, h, pts.size(), out, worst])
+	if out > 0:
+		_fails.append("%s: %d vertices of the body outside its block (worst %.2f m)" % [when, out, worst])
 
 
 ## The block's flat radius and height from its mesh (a hex prism centred on the node).

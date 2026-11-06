@@ -59,6 +59,7 @@ var slide := false
 var splash := true
 var spin := CUBE_SPIN
 var on_burst := Callable()
+var wall_gap := 0.0  # m more it stops short of a wall (Slapshot: its fitted ice's reach past WALL_MARGIN)
 const SLIDE_END := 0.3
 var _zaps := 0
 var _next_zap := 0.0
@@ -219,7 +220,10 @@ func _aim(to: Vector3) -> void:
 
 ## How far it can fly before a wall.
 func _clear(length: float) -> float:
-	return clear_from(hero, foe, _from, _dir, length)
+	if wall_gap <= 0.0:
+		return clear_from(hero, foe, _from, _dir, length)
+	var c := clear_from(hero, foe, _from, _dir, length + wall_gap)
+	return length if c >= length + wall_gap else maxf(c - wall_gap, 0.0)
 
 
 ## How far `e` can fly from `from` along `dir` before a wall (`length` if none that close). Molten Palm asks it

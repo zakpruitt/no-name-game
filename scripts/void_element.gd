@@ -150,8 +150,10 @@ const HARPOON_MAX := 5
 const HARPOON_DAMAGE := 10.0
 const HARPOON_SET := 2.6  # m ahead of him, the rank
 const HARPOON_SET_MIN := 1.5  # m: never closer (a wall right ahead squeezes it to this)
-const HARPOON_GAP := 0.3  # m between neighbouring cubes' ice
+const HARPOON_GAP := 0.15  # m between neighbouring cubes' ice (their fitted width: ice_radius())
 const HARPOON_WALL := 0.7  # m a slot keeps off a wall
+const ICE_CORNER := 0.93  # of a hex block's corner radius a neighbour is spaced by: between its flat (0.87) and its
+# corner (1.0), since each block turns at random (fit_block): two corners may just touch, two flats leave a gap
 const LEAP_AFTER_HARPOON := 0.36  # Shatterstorm / Slapshot: the leap, after EF's cancel (LLH_HIT + 0.16) so a press is Ice Cube
 ## Shatterstorm (RMB): a sky strike on each held cube in turn, SHATTER_STEP apart after SHATTER_DELAY (past the
 ## landing's impact frame), SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged).
@@ -588,6 +590,7 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: fl
 	for e: Node3D in foes:  # (nearest first: they latch in that order)
 		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
 	var g: Node3D = HARPOON_GATHER.start(hero, grabs)
+	hero._void.gather = g
 	g.on_latch = func(e: Node3D) -> void:
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
@@ -618,14 +621,15 @@ static func harpoon_slots(hero: CharacterBody3D, at: Vector3, fwd: Vector3, foes
 	var order := foes.duplicate()
 	order.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		return (a.global_position - at).dot(side) < (b.global_position - at).dot(side))
-	var widths := order.map(func(e: Node3D) -> float: return (float(e.radius) + 0.1) * 2.0)
+	var radii := order.map(func(e: Node3D) -> float: return ice_radius(e))
+	var widths := radii.map(func(r: float) -> float: return r * 2.0)
 	var total := 0.0
 	for w: float in widths:
 		total += w
 	total += HARPOON_GAP * (order.size() - 1)
 	var r_max := 0.0
-	for e: Node3D in order:
-		r_max = maxf(r_max, float(e.radius) + 0.1)
+	for r: float in radii:
+		r_max = maxf(r_max, r)
 	var ahead: float = clampf(hero._clear_ahead(fwd, HARPOON_SET + r_max + HARPOON_WALL) - r_max - HARPOON_WALL, HARPOON_SET_MIN, HARPOON_SET)
 	var x := -total * 0.5
 	for i in order.size():
@@ -641,6 +645,21 @@ static func harpoon_slots(hero: CharacterBody3D, at: Vector3, fwd: Vector3, foes
 				spot = at + line / reach * maxf(clear, HARPOON_SET_MIN * 0.6)
 		out[e] = _flat(spot)
 	return out
+
+
+## How far round `e` its ice reaches on the floor, from its feet: the cube it's in (fx-ice2 fits it to the model,
+## a dummy's ~1.05 m flat, its corners ~15% more as it turns) or, before it has one, the block that would fit it
+## now. The plain cube (r + 0.1) without designed ice. Harpoon spaces its row by it and Slapshot stops it off a wall.
+static func ice_radius(e: Node3D) -> float:
+	var cube: Node = e.get_node_or_null(THROWN.CUBE_NAME)
+	if cube is MeshInstance3D and cube.mesh != null:
+		var box: AABB = cube.mesh.get_aabb()
+		var flat := Vector2(cube.position.x, cube.position.z).length()
+		return maxf(box.size.x, box.size.z) * 0.5 * ICE_CORNER + flat
+	if Game.comic_style and DESIGNED.on() and e.get("model") is Node3D:
+		var fit: Dictionary = ELEMENTS.DESIGNED_EL.block_fit(ELEMENTS.DESIGNED_EL.model_points(e), -0.08 - e.global_position.y)
+		return float(fit.r) / cos(PI / 6.0) * ICE_CORNER + Vector2(fit.centre.x, fit.centre.z).length()
+	return float(e.get("radius")) + 0.1
 
 
 ## Freezes the nearest foe, the frozen first, and bowls it along his aim. Everyone it passes freezes.
@@ -1637,7 +1656,8 @@ static func _punch_row(hero: Variant, held: Array, fwd: Vector3, damage: float) 
 		foe.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SLIDE_CUE_MS)
 		var t: Node = THROWN.launch(hero, foe, foe.global_position + fwd * SLIDE_REACH, damage,
 			{"solid": false, "el": "water", "speed": SLIDE_SPEED, "land_y": 0.0, "wall_mult": SLIDE_WALL_MULT,
-			"slide": true, "splash": false, "spin": SLIDE_SPIN, "on_burst": _slid.bind(parent)})
+			"slide": true, "splash": false, "spin": SLIDE_SPIN, "on_burst": _slid.bind(parent),
+			"wall_gap": maxf(ice_radius(foe) - THROWN.WALL_MARGIN, 0.0)})  # (the ice's face meets the wall, not its middle)
 		if t != null:
 			SLAPSHOT_FX.trail(parent, foe)
 		Game.register_hit("breaker")
