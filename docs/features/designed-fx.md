@@ -206,6 +206,11 @@ since they all draw through `comic_bolt.spawn`), the `Fx.dust` puff. fx-air lane
 whirlwind, Fault Line's gales) as the designed twister, storm blows' streaks as air gusts, storm swings in the air
 row, Storm Pitch's landing in wind.
 
+Converted in round 46 (fx-elements): Molten Palm's fist and fissure, the lava spurts and geysers (`rim_geyser` too),
+Undertow's lava pool, Meteor Fall's fireball in flight, the ice spikes (so nova and Worldbreaker's ice), the frost
+spear's floor and Deep Freeze's burst, the ice block and frozen foe's ice and the frost spear as faceted meshes. See
+"Round 46" below.
+
 Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash), every floor hoop (`Fx.ring`,
 `thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
 hit in the element's shape, crowd caps), the axe ribbon.
@@ -218,13 +223,9 @@ hit in the element's shape, crowd caps), the axe ribbon.
    comic afterimage, the perfect-dodge flare.
 4. Every named combo: `Fx.combo_pop` strokes, the weapon-change burst (`heretic_form_fx.gd`), `callout_cap.gd`.
 5. Element moves (every right click): storm's Updraft Lash pillar / gale (`comic_gale.gd`, `elements.pillar`),
-   Molten Palm's fist and fissure (`comic_fist.gd`, `elements.fissure`), lava geysers (`comic_geyser.gd`,
-   `rim_geyser`), ice spikes and nova (`elements.spikes` / `nova`), Harpoon, the frost spear and its floor
-   (`frost_spear.gd`), the ice cube block itself (`thrown_foe.comic_cube`) and the frozen foe's ice
-   (`enemy.freeze` -> `thrown_foe.comic_ice`), the dark element (`dark_fx.gd`: tendrils, pools, splats; ink
-   tendrils and smears), the floor bind (`floor_bind.gd`).
-6. Breakers: the dive trail (`comic_comet.gd`), Meteor Fall's fireball shell (`void_element.meteor_shell`, cones and
-   spheres), floor cracks (`comic_crack.gd`, also `Fx.scorch` in comic style), the war cry and crater
+   the dark element's splats and ink tendrils (`dark_fx.gd`), the floor bind (`floor_bind.gd`). (Ice and magma are
+   done: round 46.)
+6. Breakers: the dive trail (`comic_comet.gd`, every element), floor cracks (`comic_crack.gd`, also `Fx.scorch` in comic style), the war cry and crater
    (`breaker_quake.gd`), `comic_hail`, `comic_rip`, `comic_anvil`, `comic_impale`,
    `comic_erupt`.
 7. Crossovers: `comic_boulder`, `comic_fault` (its strikes are already designed bolts), `comic_steam`,
@@ -368,3 +369,55 @@ burst of strokes along the blow and a dust puff where he drops (the loose bone c
 Still polygons: `comic_axe_aura`'s blade tongues (not converted this round; it has no void look of its own, so the
 "purple crescent" named in round 44's list still needs pinning down in a film), chain halos and daze stars, combo pop
 strokes, the Awakening, the spirit echo ghost.
+
+## Round 46: ice and magma base moves (fx-elements lane)
+
+Zak: "the effects are not really effects, they're just polygons you're putting together." The ice and magma right
+clicks were the last runtime polygon assemblies in the element moves. Sheets: `python tools/vfx_gen/gen_elements.py
+[names] [--preview=<dir>]` (imports vfxlib; about 70 s for all eight). Runtime: `scripts/designed_elements.gd`,
+registered into `DESIGNED.extra_sheets` the first time anything spawns (`register()`), prewarmed from
+`elements.prewarm`. Every swap is behind `DESIGNED.on()`; `--fx=classic` plays the old polygons.
+
+| Sheet | Size, frames | Kind | Plays as |
+|---|---|---|---|
+| `magma_fist` | 256, 8 | sprite (over the pile) | Molten Palm's fist (`comic_fist.gd` keeps its node, flight and timing): wind-up white-hot, flight boiling on twos with tongues trailing, squashed impact with a splash crown held while the fist holds, cooling into crust and breaking into globs (`FIST_DISSOLVE` 0.22 s) |
+| `magma_crack` | 256, 4 | ground | the fissure's seam, one tile a step turned along the line, crust plates on its banks |
+| `magma_spurt` | 256, 7 | sprite_depth | lava spikes (`elements.spikes("earth")`): one drawn cluster of fat tongues, thrown up, slumping and crusting; a spurt every other fissure step |
+| `magma_geyser` | 384, 8 | sprite_depth | `elements.geyser` / `rim_geyser` (Worldbreaker's pile): the floor splits hot, a lumpy column punches up with a splash crown spilling over, drops fall, the column slumps into a crusted mound |
+| `magma_pool` | 384, 6 | ground | Undertow's lava well (`Well._comic_mark`, was an `Fx.scorch`): a hot crack opens into a round pool with crust rafts and popping domes, crusting over in `WELL_COMIC_SHOW` |
+| `magma_meteor` | 384, 5 | sprite_depth | Meteor Fall's fireball in flight (`void_element.meteor_shell`, was cones and spheres): a crusted molten ball with a white-hot bow and fat tongues streaming back, ignite frame then boiling on twos in real time, turned to the dive on screen and stood `METEOR_BACK` behind him from the camera so he reads in front |
+| `ice_spike` | 256, 6 | sprite_depth | ice spikes (`elements.spikes("water")`, so nova, the fissure in water, Worldbreaker's ice): faceted crystals on a hex plate with lit / shadow facets and one specular stripe, floor cracks and a glint first, cracking, then chips |
+| `ice_frost` | 512, 4 | ground | the frost spear's floor (frames 1-3 boil slowly: the glints move) and Deep Freeze's burst (frame 0 only, the cracks racing out) |
+
+Not flipbooks: the ice block round a frozen or cubed foe (`thrown_foe.comic_cube`, so `comic_ice` too) and the frost
+spear are faceted meshes (`ice_block()`, `spear()`): a hex prism with crown crystals, the spear a violet faceted shaft
+with an ice crystal head. `shaders/ice_facet.gdshader` paints each face one flat cel tone by how it faces the camera
+(lit / body / shadow), a light rim band, one hot specular stripe on lit faces and a straight ink crack on some; the
+`ghost_ink` hull inks the silhouette. See-through in the middle so the foe inside shows.
+
+**Tuning.** `FIST_SIZE` 2.5 m, `SPURT_SIZE` 2.2, `ICE_SPIKE_SIZE` 2.5, `SPIKE_TOWARD_CAM` 0.35 m (stood towards the
+camera so the floor doesn't clip the plate), `CRACK_SIZE` 2.1, `METEOR_SIZE` 4.6 / `METEOR_BACK` 0.9 /
+`METEOR_IGNITE` 0.06 s, `GEYSER_QUAD` 1.5 (quad side per metre of column), `POOL_QUAD` 2.25 (per metre of the well's
+radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOCK_CROWN` 3, ice_facet `fill_alpha`
+0.42.
+
+**Gotchas.**
+- Small sprites need fat ink in the sheet: a 256 sheet seen at 0.3-0.45 of its size needs 5-6 px of ink, a 384 floor
+  pool 7 px; 3.5 px vanished at the game camera.
+- A shape cut on the ground line draws a straight edge (the geyser's first foot was a half dome): draw the whole round
+  puddle and let the anchor stand it on the floor.
+- Ice erosion has to break along straight lines: `facet_order()` gives each Voronoi cell one random erode order, so
+  the dissolve drops whole facets instead of eating a blob.
+- `sprite` / `sprite_depth`: flip mirrors x before the spin, so a sheet drawn pointing +x flying left is `spin = a +
+  PI, flip = -1` (`aim_sprite`), or its lit top ends up underneath. `anchor` is the pivot, so a sheet whose subject is
+  off-centre (the meteor's ball sits right of the middle, its tongues streaming left) turns round the subject.
+- Facet meshes: Godot's front faces wind clockwise, and the ice_facet contract is COLOR.rgb = the flat face normal
+  (* 0.5 + 0.5), COLOR.a = a per-face seed, NORMAL = corner normals (only the ink hull uses them), UV 0..1 per face.
+  Its instance uniforms must be ghost_ink's (alpha, fade_height, local_fade) in that order or the hull pass breaks.
+- `DESIGNED.spawn`'s `pop` only acts on frame changes and only above 0; to grow a single-frame decal (Deep Freeze's
+  cracks) tween its scale on twos with an ignore-time-scale tween.
+- Bubbles drawn as a light ring round a dark middle read as eyes on the pool; draw them as lit domes.
+
+Still polygons in this lane: the breaker dive trail (`comic_comet.gd`, shared by every element's breaker, so it was
+left for a cross-element pass), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own
+lava / ice skins.

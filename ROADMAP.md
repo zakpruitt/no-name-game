@@ -803,8 +803,21 @@ Orchestrator: film every string, audit combat feel as a whole, fix the worst. `d
 - [x] Item 5: Short Circuit cues its targets for the camera (`FRAME_CUE`), so the far arc lands in frame
 - [ ] Item 6: Meteor Fall's wall splat in the top-left corner (camera / combo lane: frame the splatted foe in the hang, or a shorter carry)
 - [ ] Item 7: L3 -> Molten Palm 538 ms (re-key Ab_AF's coil, then `EM_SPEED`; heretic anim + combo-rhythm)
-- [ ] Item 8: the frost spear's 5 m halftone floor (fx-elements, `frost_spear`)
+- [x] Item 8: the frost spear's 5 m halftone floor (fx-elements: the drawn `ice_frost` floor)
 - [ ] Item 9: the spirit echo's brown halftone fan on L2 / L3 (fx-finish)
 - [ ] Item 10: Maw's landing total at the top edge (`comic_number` keeps totals inside the page margin)
 - [ ] The spear vault (IJ) is the only contact without a stop
 - [ ] Zak plays Live Wire / Short Circuit / Galvanize by hand after these
+
+## Round 46 (fx-elements: ice and magma base moves designed)
+Zak: "the effects are not really effects, they're just polygons you're putting together." The ice and magma right
+clicks as authored sheets and faceted meshes. See `docs/features/designed-fx.md` "Round 46".
+- [x] Molten Palm: the drawn molten fist (wind-up, flight boiling on twos, squashed impact held, cooling into globs),
+  the fissure as a lava seam with spurts every other step
+- [x] Lava spurts, geysers (Worldbreaker's rim geysers) and Undertow's lava pool drawn; Meteor Fall's fireball in
+  flight drawn (was cones and spheres) and turned to the dive
+- [x] Ice: faceted crystal spikes (nova, the fissure in water, Worldbreaker), the frost spear's floor and Deep Freeze's
+  cracks drawn; the ice block / frozen foe's ice and the frost spear as faceted meshes (`shaders/ice_facet.gdshader`)
+- [x] Clips: `awaken-combo-clips/22 Elements *` (before left, after right)
+- [ ] Still polygons: the breaker dive trail (`comic_comet.gd`, every element), the tentacle's lava / ice skins
+- [ ] Zak's call: the fireball stands behind him (he reads in front) rather than wrapping him; the ice block is see-through
