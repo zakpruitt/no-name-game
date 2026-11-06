@@ -12,7 +12,8 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 100.0  # (was 60, then 80: 24 strings with round 4's two hand-feel cells)
+const AUTOTEST_MAX := 125.0  # (was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
+# Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100)
 
 var main: Node  # the training room
 var player: CharacterBody3D
@@ -57,11 +58,22 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	["spread", "H", "L", "L", "wait", "L", "H"],
 	# Round 44 b: Short Circuit, Grounded's L ending ("spread": some stand past the tentacles, where the arcs go).
 	["spread", "far", "alt", "L", "H", "H"],
+	# Round 47: Harpoon's tentacles take everyone round him ("ring": one ahead, one each side, one behind, none on his
+	# aim line) and the pause leaps into the window: Shatterstorm (RMB), then Slapshot (LMB) with the back wall ahead
+	# ("wall": the ring BOT_WALL_GAP m from the wall, facing it), the cubes punched into it.
+	["ring", "D", "L", "H"], ["wall", "alt", "D", "L", "H"],
 	# The other charged cells off Galvanize, in real moves: Reap (Conduct), Molten Palm (Arc Flash), Frost Spear (Superconduct;
 	# last: its spear stands 5 s and turns the next string's L L into the vault).
 	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall"]
+## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall"]
+## A "ring" string's dummies, from where he starts (x across his aim, z along it): one ahead for Dash Stab, the others
+## off his line round where the dash leaves him (~1.7 m on), one behind. A "wall" string starts BOT_WALL_GAP m from the
+## back wall (up the screen), facing it, with the same ring.
+const BOT_RING := [Vector3(0.0, 0.0, 4.5), Vector3(-3.4, 0.0, 2.4), Vector3(3.0, 0.0, 0.4), Vector3(0.8, 0.0, -1.8)]
+const BOT_WALL_GAP := 10.5
 ## With "far", a "spread" string's last dummy stands this far out instead: past the tentacles (void_grab.SEIZE_RANGE).
 const BOT_FAR_R := 10.0
 ## A "spread" string's dummies stand on an arc BOT_SPREAD_R m ahead of him, BOT_SPREAD_ARC radians either side of his aim.
@@ -286,7 +298,7 @@ func _drive_bot() -> void:
 	to.y = 0.0
 	var string: Array = BOT_STRINGS[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
-	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not "line" in string and not "spread" in string else Vector3.ZERO
+	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not _placed(string) else Vector3.ZERO
 	if _bot_face and _bot_step > 0 and to.length() > 0.3:
 		player.bot_move = to.normalized()  # (aims every press at the nearest foe; he jogs at it between them)
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
@@ -320,7 +332,7 @@ func _drive_bot() -> void:
 		_reset_spots()
 		_reset_done = true
 		return  # (the next frame starts the string from there)
-	if _bot_step == 0 and (not idle or (nd > 3.0 and not "line" in string and not "spread" in string)):
+	if _bot_step == 0 and (not idle or (nd > 3.0 and not _placed(string))):
 		return  # walk up first (not to a "line": the dash takes him there)
 	if _bot_step == 0:
 		_bot_rhythm.clear()
@@ -356,6 +368,10 @@ func _drive_bot() -> void:
 	_bot_pending_t = 0.0
 	_bot_starts_at = _bot_starts
 	_bot_step += 1
+
+
+static func _placed(string: Array) -> bool:
+	return BOT_LAYOUTS.any(func(t: String) -> bool: return t in string)
 
 
 ## The dummies are on their feet: none flying, reeling, frozen or held (BOT_SETTLE_MAX).
@@ -394,6 +410,22 @@ func _reset_spots() -> void:
 			if is_instance_valid(d):
 				_homes[d] = d.home
 				d.home = player.global_position + fwd.normalized() * (BOT_LINE_FROM + i * BOT_LINE_GAP)
+				d.home.y = target.y
+				d.global_position = d.home
+	var ring: bool = "ring" in BOT_STRINGS[_bot_string] or "wall" in BOT_STRINGS[_bot_string]
+	if "wall" in BOT_STRINGS[_bot_string]:  # BOT_WALL_GAP from the back wall, facing it
+		player.global_position = Vector3(0.0, player.global_position.y, -main.ARENA_HALF + BOT_WALL_GAP)
+		player._face(Vector3(0.0, 0.0, -1.0))
+		player.model.rotation.y = player._facing_yaw
+	if ring:  # round him, off his aim line (homes too)
+		var fwd: Vector3 = player._facing()
+		var side := fwd.cross(Vector3.UP).normalized()
+		for i in main._dummies.size():
+			var d: Node = main._dummies[i]
+			if is_instance_valid(d):
+				_homes[d] = d.home
+				var o: Vector3 = BOT_RING[i % BOT_RING.size()]
+				d.home = player.global_position + side * o.x + fwd * o.z
 				d.home.y = target.y
 				d.global_position = d.home
 	if "spread" in BOT_STRINGS[_bot_string]:  # apart on a wide arc ahead (homes too)

@@ -89,7 +89,7 @@ static func cancel_point(hero: CharacterBody3D) -> float:
 	var last: float = move.hits[-1]
 	var early := maxf(lerpf(c, last, move.get("confirm", CANCEL_ON_HIT)), last + HIT_CONFIRM_MIN * hero.anim_speed * hero._anim_mult / hero._move_len)
 	var brk: Dictionary = HERO_LEAP.entry_for(hero._move_id)
-	if not brk.is_empty():
+	if not brk.is_empty() and move.get("leap", brk.leap) <= c:  # (a leap after the cancel, Harpoon's: the press wins it)
 		early = maxf(early, move.get("leap", brk.leap))
 	return minf(c, early)
 

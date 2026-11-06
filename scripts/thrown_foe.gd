@@ -51,6 +51,15 @@ var wall_mult := 1.0
 var speed := SPEED
 var land_y := LAND_Y
 var zap := false  # Storm Pitch: lightning jumps from it to anyone it passes (ZAP_*)
+## Slapshot (round 47): `slide` keeps it on the floor and, short of a wall, slows to SLIDE_END of its speed before it
+## stops (a wall takes it at full speed); `splash` false keeps the burst off its neighbours (a row of cubes each
+## bursting into the next re-froze the ones already shattered); `spin` its turn rate; `on_burst` (foe, walled, dir)
+## is told as it bursts, for the wall hit's look.
+var slide := false
+var splash := true
+var spin := CUBE_SPIN
+var on_burst := Callable()
+const SLIDE_END := 0.3
 var _zaps := 0
 var _next_zap := 0.0
 var _from := Vector3.ZERO
@@ -232,7 +241,10 @@ func _physics_process(delta: float) -> void:
 		_finish()
 		return
 	_time += delta
-	_gone = minf(_gone + speed * delta, _length)
+	var v := speed
+	if slide and not _walled:
+		v = speed * lerpf(1.0, SLIDE_END, _gone / maxf(_length, 0.01))
+	_gone = minf(_gone + v * delta, _length)
 	var k := _gone / maxf(_length, 0.01)
 	var at := _from + _dir * _gone
 	at.y = lerpf(_from.y, land_y, k * k)
@@ -240,7 +252,7 @@ func _physics_process(delta: float) -> void:
 	foe.velocity = Vector3.ZERO
 	var cube := foe.get_node_or_null(CUBE_NAME)
 	if cube != null:
-		cube.rotate_y(CUBE_SPIN * delta)
+		cube.rotate_y(spin * delta)
 	if _rope != null and hero._void != null:
 		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.get("radius")) + 0.05, _time)
 	if zap and _zaps < ZAP_MAX and _time >= _next_zap:
@@ -320,11 +332,13 @@ func _burst(other: Node3D) -> void:
 		DESIGNED.wind_burst(parent, spot, _dir)
 	if DESIGNED.on() and el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
 		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
+	if on_burst.is_valid():
+		on_burst.call(foe, _walled and other == null, _dir)
 	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)
 	_count(foe)
 	if other != null:
 		_hit_other(other)
-	for e: Node3D in FOES.near(hero.get_tree(), spot, SPLASH):
+	for e: Node3D in FOES.near(hero.get_tree(), spot, SPLASH) if splash else []:
 		if e == foe or e == other or _struck.has(e):
 			continue
 		e.take_hit(damage * SPLASH_MULT, Vector3.ZERO, WIND_LAUNCH if el == "wind" else 0.0, false)

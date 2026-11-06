@@ -88,7 +88,7 @@ var _spare := []  # tendrils from earlier breakers
 var _zaps := 0  # jolts so far this hang
 var _current: Node3D  # Live Wire's current along the tentacles (live_current.gd)
 var _jolted := []  # who it zapped: charged once the hang ends (round 44 b: the crackle tell over the held pile was noise)
-var _spear_at := Vector3.ZERO  # Harpoon: where the spear tip's going
+var harpooned := []  # who Harpoon's tentacles took last (round 47): its breaker holds these cubes (`hold_cubes`)
 var _carry: Node3D  # the foe he snatched off a swing
 var _carry_rope: Node3D
 var _skel: Skeleton3D
@@ -224,20 +224,6 @@ func _flat_to(at: Vector3) -> Vector3:
 	return to.normalized() if to.length() > 0.01 else hero._facing()
 
 
-## Harpoon: out along the line up to the hit. After that the foes' own tethers draw it (thrown_foe).
-func _tick_spear(t: float) -> void:
-	var hit: float = hero._move.hits[0]
-	var fwd: Vector3 = hero._facing()
-	var to := _spear_at if _spear_at != Vector3.ZERO else hero.global_position + fwd * VOID_ELEMENT.HARPOON_LENGTH + Vector3.UP * 0.9
-	if t < hit:
-		to = hero.global_position + fwd * VOID_ELEMENT.HARPOON_LENGTH + Vector3.UP * 0.9
-	tendril.draw(_hand_pos(), to, smoothstep(0.05, hit, t) * (1.0 - smoothstep(hit + 0.05, hit + 0.2, t)), 0.03, 0.0, _time)
-
-
-func spear_to(at: Vector3) -> void:
-	_spear_at = at
-
-
 ## Molten Palm: the tentacle follows its fist out.
 func _tick_palm() -> void:
 	if is_instance_valid(fist):
@@ -256,8 +242,6 @@ func attack_tick(t: float, delta: float) -> void:
 		_tick_slam(t)
 	elif hero._move_id in ["EC", "XF", "XG"]:
 		_tick_sweep(t)
-	elif hero._move_id == "EF":
-		_tick_spear(t)
 	elif hero._move_id == "EM" or hero._move_id == "XS":
 		_tick_palm()
 
@@ -402,6 +386,16 @@ func seize(b := {}) -> void:
 	_zaps = 0
 	arm.shape("hand")
 	if b.has("no_hold"):
+		return
+	if b.has("hold_cubes"):  # Harpoon's row (round 47): a tentacle on each cube it set down, holding it where it stands
+		for e: Variant in harpooned:
+			if is_instance_valid(e) and e.is_alive() and VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
+				VOID_ELEMENT.encase(e)  # (frozen for the whole window)
+				var held: Node3D = _spare.pop_back() if not _spare.is_empty() else null
+				if held == null:
+					held = TENDRIL.new()
+					hero.add_child(held)
+				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true})
 		return
 	if b.has("press"):
 		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):

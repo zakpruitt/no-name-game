@@ -276,7 +276,7 @@ static func _impact(hero: CharacterBody3D) -> void:
 		hero._brk_meteor.queue_free()
 	VOID_ELEMENT.breaker_impact(hero, b, at, void_grab.held_foes() if b.has("cubes") else void_grab.slam_seized(), mult)
 	# Barbaric landing: the floor breaks (the element erupts under each foe already).
-	if not b.has("press") and not b.has("at_spot"):  # (its ice buried the cubes as they left; the dark ones have their own)
+	if not b.has("press") and not b.has("at_spot") and not b.has("hold_cubes"):  # (Harpoon's row: the cubes are the show; its ice buried the cubes as they left; the dark ones have their own)
 		BREAKER_QUAKE.crater(hero.get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
 	Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
 	if b.radius > 0.0:

@@ -49,7 +49,7 @@ element: Overload (storm), Superconduct (ice), Arc Flash (magma), Conduct (dark)
 | Dash L H H | `EA` | Ice Cube | Freezes the nearest foe and bowls it (`pierce`): whatever it passes takes the hit and freezes |
 | L L H L | `IJ` | Vault | Up over the spear (`run_to_spear`) |
 | L L H L H | `IS` | Deep Freeze | Comes down on the spear and it goes off: everyone on the frost takes a hit and freezes into a cube (`_deep_freeze`). The window opens |
-| Dash L H | `EF` | Harpoon | A spear tip (`_tick_spear`) runs through a line of foes and reels them in, frozen together in cubes. H off it is Ice Cube |
+| Dash L H | `EF` | Harpoon | Round 47: a tentacle to every foe within `HARPOON_REACH` 8 m of him, all round (nearest first, `HARPOON_MAX` 5; Galvanize's reach), each reaching, latching (`HARPOON_DAMAGE` 10), carried in a quick curve round him and set down frozen in a cube in one rank across his aim (`harpoon_slots()`: `HARPOON_SET` 2.6 m ahead, `HARPOON_GAP` 0.3 m between the ice, short of walls by `HARPOON_WALL`), `harpoon_gather.gd`. Big ones freeze where they stand. H off it is Ice Cube; a pause opens the window (Shatterstorm / Slapshot) |
 
 ### Magma
 
@@ -202,6 +202,9 @@ the rules are [element-matrix.md](element-matrix.md). The "bound" state is `floo
 | hold H, H in window | `OW` | Abyss | They sink through the floor (`ABYSS_SINK`) as he comes down, then black spikes throw them back up |
 | L L L H H, H in window | `EV` | Meteor Fall | He goes up (`height` 3.6) holding nobody (`no_hold`); Undertow keeps them pinned in the lava. The floor cue sits on the group he will hit, and the press dive-bombs it as the meteor (`_dive`, `meteor_shell`): `meteor_spot()` / pure `meteor_target()` groups the living foes this string's Molten Palm hit (meta `last_palm_ms`, fresh for `METEOR_PALM_FRESH_MS` 4 s; nobody else draws the dive, however many they are) within `METEOR_REACH` (12 m) by `METEOR_PILE_R` (3 m) round each, scores a group one a foe and `METEOR_WALL_WEIGHT` (1.5) a foe splatted on a wall in the last `METEOR_SPLAT_FRESH_MS` (3 s, `thrown_foe` meta `last_wall_ms`), picks the best (the nearer on a tie) and lands on its middle; nobody in reach: `zone` ahead of him. The dive takes 0.3 s, longer for a far group (`METEOR_DIVE_SPEED` 30 m/s flat: 12 m in 0.4 s). The landing (`_meteor_landing`) lets Undertow go and craters everyone in `METEOR_PILE_R` (`METEOR_DOWN`): x`METEOR_HEAVY_MULT` 1.5 on big ones, x`METEOR_SPLAT_MULT` 1.3 on those fresh off a wall splat, shields off, rim geysers round him. The play: Molten Palm punches a group into a wall (x2.5), Meteor Fall drops on that group, not on a stray |
 
+| Dash L H, a pause, H in window | `EF` | Shatterstorm | Round 47. Harpoon's breaker comes on a pause: its `leap` (`LEAP_AFTER_HARPOON` 0.36) is after the move's cancel (0.16), so H in between is still Ice Cube and only no press leaps (`hero_input.cancel_point` lets a leap after the cancel wait). A tentacle holds each cube of the row through the hang (`hold_cubes`, `void_grab.harpooned`) and he lands just behind it (`zone` 0.6). Thunder (`elements.storm_strike`, the sky strike) crashes on each cube in turn from the middle out (`SHATTER_DELAY` 0.12 past the impact frame, `SHATTER_STEP` 0.06), `SHATTER_DAMAGE` 30 each (x `FREEZE_BREAK` on the ice), and charges them. Good anywhere |
+| Dash L H, a pause, L in window | `EF`, its `alt` | Slapshot | Molten Palm's fist (`_fist`, a tentacle behind it: `slapshot_fx.cord`) goes out to the row and punches every cube along his aim, steam where magma meets ice (`slapshot_fx.punch`, three clouds at most). Each slides (`thrown_foe` `slide`, `SLIDE_SPEED` 20 m/s, `SLIDE_SPIN` 2 rad/s, no splash) with a frost streak behind it (`slapshot_fx.trail`). A wall within `SLIDE_REACH` 10 m: it shatters there at full speed for `SLIDE_DAMAGE` 14 x `SLIDE_WALL_MULT` 4.5 = 63 (`slapshot_fx.wall`: big ice shatter, ground stamp, KRAKOOM!, a hit stop each); no wall: it slows to `SLIDE_END` 0.3 of its speed and bursts for 14. The best situation: the row aimed at a wall (63 vs Shatterstorm's 30 vs 14 in the open). The sliding cubes are cued for the camera (`FRAME_CUE`, `SLIDE_CUE_MS`) |
+
 `alt` is merged over the breaker when the press was L (`_brk_alt`, `_start_dive`). The prompt shows both buttons and both names when a breaker has one (`breaker_window().alt_name`).
 
 ### Thrown foes (`scripts/thrown_foe.gd`)
@@ -216,6 +219,10 @@ the rules are [element-matrix.md](element-matrix.md). The "bound" state is `floo
 | `solid` false | Ignores other foes |
 | `tether` | Draws a tentacle to it |
 | `wall_mult` | A wall splat's damage (a splat also sets the foe's `last_wall_ms` meta, `WALL_META`: Meteor Fall goes for those) |
+| `slide` | On the floor; short of a wall it slows to `SLIDE_END` of its speed before it stops and bursts (Slapshot) |
+| `splash` false | Its burst leaves the neighbours alone (a row of cubes each bursting into the next re-froze the shattered) |
+| `spin` | Its cube's turn rate (`CUBE_SPIN` by default) |
+| `on_burst` | Told (foe, walled, dir) as it bursts: the wall hit's look |
 
 `VOID_ELEMENT.cube_target()` picks the spot for Cold Front: the nearest foe it wasn't holding, then another it was, then straight out. `cube_on()` is the look: a box for his throws, leaving the plain ice cylinder for other freezes (in the comic style both are `thrown_foe.comic_cube()`: flat two-tone ice, a pale 42% top and 15% blue sides with a white glint and the ink edge, so the foe shows inside; `enemy.freeze()` calls `thrown_foe.comic_ice()` for its cylinder). `encase()` freezes a foe and puts it in the box.
 

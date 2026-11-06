@@ -265,6 +265,7 @@ H L H, H in the window      Maw
 | Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |
 | Backdraft (L L H, Dash H H L) | XW | Anvil | RMB |
+| Harpoon, then a pause (Dash L H) | EF | Shatterstorm / Slapshot (round 47) | RMB / LMB |
 
 Two of eleven have a second ending. No ending, number or damage changed in this round.
 

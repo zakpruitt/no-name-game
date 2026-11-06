@@ -367,7 +367,7 @@ func _elements() -> void:
 		await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 		await create_timer(0.2).timeout
 		_check(foe.hp < hp, "%s hurts the foe in front (%.0f)" % [id, hp - foe.hp])
-		_check(hero.HERO_LEAP.entry_for(id).is_empty(), "%s opens no window" % id)
+		_check(hero.HERO_LEAP.entry_for(id).is_empty() == (id != "EF"), "%s opens no window (Harpoon's opens after a pause, round 47)" % id)
 	await _settle()
 	hero._start_attack("L1")
 	hero._start_attack("EC")
@@ -607,23 +607,86 @@ func _thrown_at_wall() -> void:
 
 
 func _ice() -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	hero.bot_enabled = false
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
+	# Round 47: the tentacles take everyone near him, not a line: one on his aim, one well off to the side, one behind.
 	var a := _foe(Vector3(0, 0, 4))
-	var b := _foe(Vector3(0.5, 0, 7))
-	var big := _foe(Vector3(-0.5, 0, 9))
+	var b := _foe(Vector3(5.0, 0, 0.5))
+	var c := _foe(Vector3(-1.5, 0, -3.5))
+	var big := _foe(Vector3(-3.0, 0, 5))
 	big.elite = true
-	var off := _foe(Vector3(6, 0, 4))
+	var off := _foe(Vector3(11.5, 0, -1.0))  # (past HARPOON_REACH, grown by the chain: _cast_grow)
+	var start_ms := 0
 	hero._start_attack("EF")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
-	_check(a.frozen and b.frozen and big.frozen, "Harpoon freezes the whole line")
-	_check(not off.frozen, "and only the line")
-	await _until(func() -> bool: return not a.has_meta("thrown_foe_flying") and not b.has_meta("thrown_foe_flying"), 2.0)
-	_check(a.global_position.z < 3.0 and b.global_position.z < 4.0, "and reels them in (%.1f, %.1f m)" % [a.global_position.z, b.global_position.z])
-	_check(b.global_position.z > a.global_position.z + 0.5, "one behind the other")
-	_check(absf(big.global_position.z - 9.0) < 0.5, "a big one stays put")
-	_check(a.get_node_or_null("ThrownCube") != null, "still in their cubes")
+	start_ms = Time.get_ticks_msec()
+	var light := [a, b, c]
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
+	var set_at_leap: bool = light.all(func(f: Foe) -> bool: return f.frozen and not f.has_meta("thrown_foe_flying"))
+	await _until(func() -> bool: return light.all(func(f: Foe) -> bool: return f.frozen and not f.has_meta("thrown_foe_flying")), 2.0)
+	var took := Time.get_ticks_msec() - start_ms
+	_check(a.frozen and b.frozen and c.frozen and big.frozen, "Harpoon freezes everyone near, off his aim line and behind him too")
+	_check(b.hits > 0 and c.hits > 0, "and the tentacles hit the ones off his line (%d, %d)" % [b.hits, c.hits])
+	_check(not off.frozen and off.hits == 0, "but no one past its reach (frozen %s, hits %d)" % [off.frozen, off.hits])
+	for f: Foe in light:
+		_check(f.global_position.z > 1.4 and f.global_position.z < 3.0 and absf(f.global_position.x) < 3.0,
+			"set down in front of him (%.1f, %.1f)" % [f.global_position.x, f.global_position.z])
+		_check(el.in_cube(f), "in a cube")
+	for i in light.size():
+		for j in range(i + 1, light.size()):
+			var gap: float = (light[i].global_position - light[j].global_position).length()
+			_check(gap >= 1.2, "cubes don't overlap (%.2f m apart)" % gap)
+	_check(absf(light[0].global_position.z - light[1].global_position.z) < 0.3 and absf(light[1].global_position.z - light[2].global_position.z) < 0.3,
+		"in one rank across his aim")
+	_check(absf(big.global_position.z - 5.0) < 0.3, "a big one freezes where it stands")
+	_check(set_at_leap, "all set down by the time he leaps (%d ms real after the hit)" % took)
 	await _settle()
+	# A wall 3 m ahead: the rank stands short of it.
+	for f: Foe in light:
+		f.free()
+	big.free()
+	off.free()
+	var wall := _wall(Vector3(0, 1, 3.2))
+	await physics_frame
+	await physics_frame
+	var w1 := _foe(Vector3(-1.0, 0, 1.2))
+	var w2 := _foe(Vector3(2.5, 0, -1.0))
+	hero._start_attack("EF")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return w1.frozen and w2.frozen and not w1.has_meta("thrown_foe_flying") and not w2.has_meta("thrown_foe_flying"), 2.0)
+	_check(w1.global_position.z + w1.radius < 3.0 - 0.2 and w2.global_position.z + w2.radius < 3.0 - 0.2,
+		"set down short of a wall (%.2f, %.2f; wall face 2.95)" % [w1.global_position.z, w2.global_position.z])
+	await _settle()
+	w1.free()
+	w2.free()
+	wall.free()
+	await physics_frame
+	# A press before the cancel is still Ice Cube (Dash L H H), not the leap.
+	var p := _foe(Vector3(0.5, 0, 3.0))
+	hero._start_attack("EF")
+	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	Input.action_press("attack_heavy")
+	await physics_frame
+	Input.action_release("attack_heavy")
+	await _until(func() -> bool: return hero._move_id == "EA" or hero.state == hero.State.LEAP, 2.0)
+	_check(hero._move_id == "EA" and hero.state != hero.State.LEAP, "H during Harpoon is Ice Cube, not the window (%s)" % hero._move_id)
+	await _settle()
+	p.free()
+	await physics_frame
+	await _harpoon_endings()
+	var a2 := _foe(Vector3(0, 0, 4))
+	var b2 := _foe(Vector3(0.5, 0, 7))
+	var big2 := _foe(Vector3(-0.5, 0, 9))
+	big2.elite = true
+	var off2 := _foe(Vector3(6, 0, 4))
+	a = a2
+	b = b2
+	big = big2
+	off = off2
+	hero.global_position = Vector3.ZERO
+	await physics_frame
 	# Ice Cube bowls the frozen one through the next.
 	a.global_position = Vector3(0, 0, 2)
 	b.global_position = Vector3(0, 0, 6)
@@ -649,6 +712,57 @@ func _ice() -> void:
 	await _spear_by_hand("attack_light")
 	await _spear_by_hand("attack_heavy")
 	await _one_cube()
+
+
+## Round 47: Harpoon's two endings. A pause after it leaps over the row; the window offers LMB Slapshot (magma) and
+## RMB Shatterstorm (storm). Slapshot into a wall out-damages Shatterstorm, which out-damages Slapshot in the open.
+func _harpoon_endings() -> void:
+	hero.bot_enabled = true
+	var dealt := {}
+	for case: String in ["thunder", "fist_open", "fist_wall"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		hero.bot_alt = case != "thunder"
+		var wall: StaticBody3D = _wall(Vector3(0, 1, 8.0)) if case == "fist_wall" else null
+		await physics_frame
+		await physics_frame
+		var row := [_foe(Vector3(-1.5, 0, 3.5)), _foe(Vector3(3.5, 0, 1.0)), _foe(Vector3(0.5, 0, -2.5))]
+		hero._start_attack("EF")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		_check(hero.state == hero.State.LEAP, "%s: the pause after Harpoon leaps into the window" % case)
+		var opts: Array = hero.breaker_window().get("options", [])
+		_check(opts.size() == 2 and opts[0].button == "light" and opts[0].name == "Slapshot" and opts[0].element == "earth"
+			and opts[1].button == "heavy" and opts[1].name == "Shatterstorm" and opts[1].element == "wind",
+			"%s: the window offers LMB Slapshot (magma), RMB Shatterstorm (storm) (%s)" % [case, str(opts)])
+		await _until(func() -> bool: return hero._void.held_foes().size() == 3, 0.5)
+		_check(hero._void.held_foes().size() == 3, "%s: a tentacle holds each cube through the hang (%d)" % [case, hero._void.held_foes().size()])
+		var before: Array = row.map(func(f: Foe) -> float: return f.hp)
+		await _until(func() -> bool: return hero.state == hero.State.MOVE, 3.0)
+		_check(hero.HERO_LEAP.breaker_name(hero) == ("Shatterstorm" if case == "thunder" else "Slapshot"), "%s: picks %s" % [case, hero.HERO_LEAP.breaker_name(hero)])
+		if case != "thunder":  # (the fist lands, then they slide)
+			await _until(func() -> bool: return row.any(func(f: Foe) -> bool: return f.has_meta("thrown_foe_flying")), 1.0)
+		await _until(func() -> bool: return row.all(func(f: Foe) -> bool: return not f.has_meta("thrown_foe_flying")), 3.0)
+		for i in 60:
+			await physics_frame
+		var sum := 0.0
+		for i in row.size():
+			sum += before[i] - row[i].hp
+		dealt[case] = sum
+		if case == "fist_wall":
+			_check(row.all(func(f: Foe) -> bool: return f.global_position.z < 8.0 - 0.25 and f.global_position.z > 5.5),
+				"the cubes slid to the wall (%s)" % str(row.map(func(f: Foe) -> float: return snappedf(f.global_position.z, 0.1))))
+		elif case == "fist_open":
+			_check(row.all(func(f: Foe) -> bool: return f.global_position.z > 6.0), "the cubes slid on along his aim (%s)" % str(row.map(func(f: Foe) -> float: return snappedf(f.global_position.z, 0.1))))
+		for f: Foe in row:
+			f.free()
+		if wall != null:
+			wall.free()
+		await _settle()
+	print("  harpoon endings: thunder %.0f, fist into a wall %.0f, fist in the open %.0f (three cubes)" % [dealt.thunder, dealt.fist_wall, dealt.fist_open])
+	_check(dealt.fist_wall > dealt.thunder, "Slapshot into a wall out-damages Shatterstorm (%.0f vs %.0f)" % [dealt.fist_wall, dealt.thunder])
+	_check(dealt.thunder > dealt.fist_open, "Shatterstorm out-damages Slapshot with no wall (%.0f vs %.0f)" % [dealt.thunder, dealt.fist_open])
+	hero.bot_alt = false
+	hero.bot_enabled = false
 
 
 ## L L H, L, H, H in the window: frost slows, the slam makes cubes, the tentacles send them flying.
@@ -1096,7 +1210,8 @@ func _element_matrix() -> void:
 	root.get_node("Game").combo_count = 0  # (a long chain grows the shapes: Updraft Lash's gale then reaches behind him)
 	var paying := {"wind": "frozen", "water": "buried", "earth": "molten", "void": "frozen"}
 	for element: String in base:
-		for spot: Vector3 in [Vector3(0, 0, -2.5), Vector3(3.5, 0, 1.0)] if element == "water" else [Vector3(0, 0, -2.5)]:
+		# (round 47: Harpoon takes everyone in 8 m round him, so its miss is past that, behind and to the side)
+		for spot: Vector3 in [Vector3(0, 0, -9.0), Vector3(9.0, 0, 1.0)] if element == "water" else [Vector3(0, 0, -2.5)]:
 			var e := _foe(spot)
 			if paying[element] == "frozen":
 				el.encase(e)
@@ -1106,9 +1221,9 @@ func _element_matrix() -> void:
 			_check(paid == 0 and e.hits == 0, "%s (%s) misses a %s foe at %s, %.1f m off: outside its shape (paid %d)" % [base[element], element,
 				paying[element], spot, spot.length(), paid])
 			e.free()
-	var ahead := _foe(Vector3(0, 0, 4.5))  # (and the harpoon's line still finds one 4.5 m out)
+	var ahead := _foe(Vector3(-3.0, 0, -3.5))  # (round 47: and the tentacles find one behind him, off his aim)
 	el.mark(ahead, "buried")
-	_check(el.improvise(hero, "EF", Vector3.ZERO, 1.0) == 1, "Harpoon's line pays the buried 4.5 m ahead")
+	_check(el.improvise(hero, "EF", Vector3.ZERO, 1.0) == 1, "Harpoon's reach pays the buried behind him")
 	ahead.free()
 	# A whole move cashes one in: Harpoon on someone Rockslide buried freezes them in the floor.
 	var buried := _foe(Vector3(0, 0, 3.0))

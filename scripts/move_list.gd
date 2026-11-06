@@ -35,7 +35,9 @@ const SECTIONS := [
 		{"input": "L L H L", "kind": "move", "id": "IJ", "note": "Vaults up over the spear, any time while it stands. Right click does too."},
 		{"input": "L L H L H", "kind": "move", "id": "IS", "note": "Slams down onto the spear: it explodes and everyone on the frost freezes into a cube."},
 		{"input": "L L H L H, H in the window", "kind": "text", "name": "Avalanche", "tier": 3, "note": "The tentacles pick up every cube and slam them all together in the middle."},
-		{"input": "Dash L H", "kind": "move", "id": "EF", "note": "A spear tip through a whole line: they freeze and are reeled in, one behind the other."},
+		{"input": "Dash L H", "kind": "move", "id": "EF", "note": "A tentacle grabs everyone near him, all round, and sets them down frozen in a row in front of him. Pause, and he leaps over the row: the window has two endings."},
+		{"input": "Dash L H (pause), H in the window", "kind": "text", "name": "Shatterstorm", "tier": 3, "note": "Thunder crashes down on every cube where it stands and shatters it. Good damage anywhere."},
+		{"input": "Dash L H (pause), L in the window", "kind": "text", "name": "Slapshot", "or": true, "tier": 3, "note": "A molten fist punches the row: the cubes slide along the floor. One that hits a wall shatters on it for the most damage in the kit; one that doesn't slides to a stop for a little. Aim the row at a wall."},
 		{"input": "Dash L H H", "kind": "move", "id": "EA", "note": "Freezes the nearest and bowls it. Everyone it passes freezes too."},
 	]},
 	{"title": "MAGMA", "rows": [

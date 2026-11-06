@@ -29,6 +29,8 @@ const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
 const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
 const COMIC_RIP := preload("res://scripts/comic_rip.gd")
 const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element matrix's tells (round 37, third pass)
+const HARPOON_GATHER := preload("res://scripts/harpoon_gather.gd")  # Harpoon's tentacles (round 47)
+const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -68,7 +70,7 @@ const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "E
 	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind", "XC": "wind",
 	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
 ## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
-const FORM_OF := {"XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
+const FORM_OF := {"EF": "hand", "XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
@@ -122,6 +124,13 @@ const BREAKERS := {
 	# Anvil ends Backdraft: the gale brought the kebab back up to him, and the hammer drives it into the floor.
 	"XW": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "damage": 44.0, "leap": H_HIT + LEAP_AFTER_SWING, "height": 2.2,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"}},
+	# Round 47: Harpoon's row of cubes. A pause after Dash L H (no press by its cancel: a press there is still Ice Cube,
+	# Dash L H H) and he leaps with a tentacle on each cube (`hold_cubes`), landing just behind the row (`zone`).
+	# RMB Shatterstorm: thunder on every cube where it stands, reliable anywhere. LMB Slapshot: a molten fist punches the
+	# row along his aim; a cube that reaches a wall shatters on it for the most, one that doesn't slides to a stop.
+	"EF": {"erupt": "wind", "hold_cubes": true, "thunder": true, "damage": SHATTER_DAMAGE, "leap": LLH_HIT + LEAP_AFTER_HARPOON,
+		"zone": 0.6, "awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Shatterstorm"},
+		"alt": {"erupt": "earth", "slapshot": true, "damage": SLIDE_DAMAGE * SLIDE_WALL_MULT, "names": {"spirit": "Slapshot"}}},
 }
 
 const CUTTER_AHEAD := 3.5  # m: where the gale throws them up from
@@ -132,13 +141,34 @@ const CUTTER_DAMAGE := 10.0
 const CUTTER_PULL := 7.0
 const CUTTER_LAUNCH := 9.5
 const WIRE_DAMAGE := 4.5  # each jolt, each foe (round 44: 3.5 at a 0.09 s step; the pulses come every 0.1 s and later)
-const HARPOON_LENGTH := 10.0
-const HARPOON_HALF_WIDTH := 1.3
-const HARPOON_STEPS := 8
+const HARPOON_STEPS := 8  # (Molten Palm's lava seam steps)
+## Harpoon (round 47, harpoon_gather.gd): a tentacle to every foe this near him, all round (Galvanize's GALV_REACH),
+## nearest first and HARPOON_MAX at most, set down frozen in a rank across his aim HARPOON_SET m ahead, each
+## HARPOON_GAP clear of the next, short of walls (harpoon_slots). Big ones freeze where they stand.
+const HARPOON_REACH := 8.0
+const HARPOON_MAX := 5
 const HARPOON_DAMAGE := 10.0
-const HARPOON_SPEED := 24.0
-const KEBAB_FROM := 1.7  # m ahead of him, the first one reeled in
-const KEBAB_GAP := 0.9  # m to the next
+const HARPOON_SET := 2.6  # m ahead of him, the rank
+const HARPOON_SET_MIN := 1.5  # m: never closer (a wall right ahead squeezes it to this)
+const HARPOON_GAP := 0.3  # m between neighbouring cubes' ice
+const HARPOON_WALL := 0.7  # m a slot keeps off a wall
+const LEAP_AFTER_HARPOON := 0.36  # Shatterstorm / Slapshot: the leap, after EF's cancel (LLH_HIT + 0.16) so a press is Ice Cube
+## Shatterstorm (RMB): a sky strike on each held cube in turn, SHATTER_STEP apart after SHATTER_DELAY (past the
+## landing's impact frame), SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged).
+const SHATTER_DAMAGE := 30.0
+const SHATTER_DELAY := 0.12  # s (game)
+const SHATTER_STEP := 0.06  # s (game)
+## Slapshot (LMB): the molten fist goes out to the row and punches every cube along his aim at SLIDE_SPEED. One
+## that reaches a wall within SLIDE_REACH shatters on it for SLIDE_DAMAGE x SLIDE_WALL_MULT; one that doesn't
+## slides to a stop and bursts for SLIDE_DAMAGE. So: wall 63 > thunder 30 > no wall 14 (x FREEZE_BREAK on all three).
+const SLIDE_REACH := 10.0  # m
+const SLIDE_SPEED := 20.0  # m/s off the fist (slowing to thrown_foe.SLIDE_END of it short of a wall)
+const SLIDE_DAMAGE := 14.0
+const SLIDE_WALL_MULT := 4.5
+const SLIDE_SPIN := 2.0  # radians/s: a slide, not a throw
+const SLIDE_FIST_PAST := 0.4  # m the fist reaches past the row's near face
+const SLIDE_CUE_MS := 1400  # real ms the sliding cubes count for the camera's framing (camera_rig.FRAME_CUE)
+const CAMERA_CUE := &"frame_cue_ms"  # (camera_rig.FRAME_CUE)
 const CUBE_DAMAGE := 22.0
 const BOWL_REACH := 7.0  # m: how far it'll take a foe from
 const BOWL_LENGTH := 12.0  # m it flies
@@ -419,7 +449,7 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 					ELEMENTS.arc(parent, from, at + fwd * k + Vector3.UP, ELEMENTS.LOOK.wind.color)
 			return n
 		"EF":
-			return _harpoon(hero, at, fwd, HARPOON_LENGTH * grow, HARPOON_DAMAGE * power)
+			return _harpoon(hero, at, fwd, HARPOON_REACH * grow, HARPOON_DAMAGE * power)
 		"IP":
 			return _plant(hero, at, fwd)
 		"IS":
@@ -544,27 +574,73 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 	return foes.size()
 
 
-## A spear tip through everyone in a line. They freeze where it finds them and are reeled in, one
-## behind the other. Big ones freeze where they stand.
-static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: float, damage: float) -> int:
-	var parent: Node = hero.get_parent()
-	length = minf(length, hero._clear_ahead(fwd, length) + 0.5)
-	hero._void.spear_to(at + fwd * length + Vector3.UP * 0.9)
-	ELEMENTS.fissure(parent, at, fwd, length, HARPOON_STEPS, "water", 0.8)
-	var foes := _ahead(hero, at, fwd, length, HARPOON_HALF_WIDTH)
-	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
-	var slot := 0
-	for e: Node3D in foes:
+## Round 47: a tentacle goes out to everyone near him, all round, latches on, and carries each in a quick curve to a
+## slot in a rank in front of him, where it freezes in a cube (harpoon_gather.gd). Big ones freeze where they stand.
+## The row is what the pause after it leaps on (BREAKERS.EF: Shatterstorm / Slapshot) and what Ice Cube bowls.
+static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: float, damage: float) -> int:
+	var foes := harpoon_targets(hero, at, reach)
+	hero._void.harpooned = foes.duplicate()
+	if foes.is_empty():
+		return 0
+	var light: Array = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e))
+	var slots := harpoon_slots(hero, at, fwd, light)
+	var grabs := []
+	for e: Node3D in foes:  # (nearest first: they latch in that order)
+		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
+	var g: Node3D = HARPOON_GATHER.start(hero, grabs)
+	g.on_latch = func(e: Node3D) -> void:
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
+		if e.has_method("stagger") and not hero._void.is_heavy(e):
+			e.stagger(1.0)
+	g.on_set = func(e: Node3D) -> void:
 		encase(e)
-		if hero._void.is_heavy(e):
-			continue
-		var to: Vector3 = at + fwd * (KEBAB_FROM + slot * KEBAB_GAP)
-		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "speed": HARPOON_SPEED, "land_y": 0.0})
-		slot += 1
+		Fx.shards(hero.get_parent(), e.global_position + Vector3.UP * 0.4, Color(0.88, 0.97, 1.0), 6, Vector3.UP, 4.0, 0.12, 0.4)
 	return foes.size()
+
+
+## Who Harpoon takes: every living foe within `reach` of him, nearest first, HARPOON_MAX at most.
+static func harpoon_targets(hero: CharacterBody3D, at: Vector3, reach: float) -> Array:
+	var foes: Array = FOES.near(hero.get_tree(), at, reach).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	return foes.slice(0, HARPOON_MAX)
+
+
+## Each foe's slot in the rank: across his aim HARPOON_SET m ahead (closer when a wall is nearer), side by side in
+## the order they stand across his aim (so no two tentacles cross), each one's ice HARPOON_GAP clear of the next.
+## A slot a wall would cut is drawn in towards him along its line.
+static func harpoon_slots(hero: CharacterBody3D, at: Vector3, fwd: Vector3, foes: Array) -> Dictionary:
+	var out := {}
+	if foes.is_empty():
+		return out
+	var side := fwd.cross(Vector3.UP).normalized()
+	var order := foes.duplicate()
+	order.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return (a.global_position - at).dot(side) < (b.global_position - at).dot(side))
+	var widths := order.map(func(e: Node3D) -> float: return (float(e.radius) + 0.1) * 2.0)
+	var total := 0.0
+	for w: float in widths:
+		total += w
+	total += HARPOON_GAP * (order.size() - 1)
+	var r_max := 0.0
+	for e: Node3D in order:
+		r_max = maxf(r_max, float(e.radius) + 0.1)
+	var ahead: float = clampf(hero._clear_ahead(fwd, HARPOON_SET + r_max + HARPOON_WALL) - r_max - HARPOON_WALL, HARPOON_SET_MIN, HARPOON_SET)
+	var x := -total * 0.5
+	for i in order.size():
+		var e: Node3D = order[i]
+		var half: float = widths[i] * 0.5
+		var spot: Vector3 = at + fwd * ahead + side * (x + half)
+		x += widths[i] + HARPOON_GAP
+		var line := _flat(spot - at)
+		var reach: float = line.length()
+		if reach > 0.01:  # (a wall across a slot's line pulls it in)
+			var clear: float = hero._clear_ahead(line / reach, reach + half + HARPOON_WALL) - half - HARPOON_WALL
+			if clear < reach:
+				spot = at + line / reach * maxf(clear, HARPOON_SET_MIN * 0.6)
+		out[e] = _flat(spot)
+	return out
 
 
 ## Freezes the nearest foe, the frozen first, and bowls it along his aim. Everyone it passes freezes.
@@ -1419,6 +1495,12 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	if b.has("slapshot"):
+		_slapshot(hero, b, at, seized, mult)
+		return
+	if b.has("thunder"):
+		_shatterstorm(hero, b, at, seized, mult)
+		return
 	if b.has("cubes"):
 		_cold_front(hero, b, at, seized, mult)
 		return
@@ -1473,6 +1555,97 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		Game.register_hit("breaker")
 	under(parent, at, b.erupt)
 	_pop(parent, at, {"wind": "axe", "water": "spear", "earth": "hammer"}[b.erupt])
+
+
+## Shatterstorm (Harpoon's RMB ending): thunder crashes on each cube of the row in turn, where it stands, and shatters
+## it: SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged). The first waits out the
+## landing's impact frame (SHATTER_DELAY), which hid Short Circuit's arcs.
+static func _shatterstorm(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var row: Array = held.duplicate()
+	var mid := Vector3.ZERO
+	for e: Node3D in row:
+		mid += _flat(e.global_position)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SC_CUE_MS)
+	if row.is_empty():
+		ELEMENTS.storm_strike(parent, at + hero._facing() * 2.0, "wind")
+		return
+	mid /= float(row.size())
+	row.sort_custom(func(a: Node3D, c: Node3D) -> bool:  # (from the middle out: the crash spreads)
+		return _flat(a.global_position).distance_to(mid) < _flat(c.global_position).distance_to(mid))
+	for i in row.size():
+		var tw := parent.create_tween()
+		tw.tween_interval(SHATTER_DELAY + i * SHATTER_STEP)
+		tw.tween_callback(_thunder_on.bind(hero, row[i], damage, i == 0))
+
+
+static func _thunder_on(hero: Variant, e: Variant, damage: float, first: bool) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var parent: Node = hero.get_parent()
+	var spot := _flat((e as Node3D).global_position)
+	ELEMENTS.storm_strike(parent, spot, "wind")
+	if DESIGNED.on():
+		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9, 1.2)
+	THROWN.remove_cube(e)
+	e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH * 0.6, true)
+	mark(e, "charged")
+	Game.register_hit("breaker")
+	Game.hitstop(0.05 if first else 0.025)
+	Game.shake(0.45 if first else 0.25)
+	Game.sfx("hit_big", -3.0, 0.15)
+
+
+## Slapshot (Harpoon's LMB ending): the molten fist goes out to the row (Molten Palm's fist and the tentacle behind
+## it) and, as it lands, punches every cube along his aim, steam going up where the magma meets the ice. Each slides
+## (thrown_foe `slide`, a frost streak behind it): into a wall within SLIDE_REACH it shatters there for x
+## SLIDE_WALL_MULT, otherwise it slows, stops and bursts for SLIDE_DAMAGE.
+static func _slapshot(hero: CharacterBody3D, _b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var fwd: Vector3 = hero._brk_dir
+	var base: float = SLIDE_DAMAGE * hero._dmg_mult * mult
+	var near := INF
+	for e: Node3D in held:
+		near = minf(near, _flat(e.global_position - at).dot(fwd) - float(e.radius))
+	if held.is_empty():
+		near = 1.5
+	var length: float = maxf(near + SLIDE_FIST_PAST, 1.2)
+	var fist := _fist(parent, at, fwd, length)
+	SLAPSHOT_FX.cord(hero, fist, FIST_TIME)
+	var tw := parent.create_tween()
+	tw.tween_interval(FIST_TIME * 0.75)  # (the fist eases out: it is at the row by then)
+	tw.tween_callback(_punch_row.bind(hero, held, fwd, base))
+
+
+static func _punch_row(hero: Variant, held: Array, fwd: Vector3, damage: float) -> void:
+	if not is_instance_valid(hero):
+		return
+	var parent: Node = hero.get_parent()
+	Game.hitstop(0.06)
+	Game.shake(0.5)
+	Game.sfx("hit_big", -1.0, 0.1)
+	var steamed := 0
+	for e: Variant in held:
+		if not is_instance_valid(e) or not e.is_alive():
+			continue
+		var foe: Node3D = e
+		encase(foe)  # (fresh ice for the slide: the hang ran the freeze down)
+		if steamed < 3:  # (three clouds read; five over a row was one white wall)
+			SLAPSHOT_FX.punch(parent, foe.global_position - fwd * 0.4)
+			steamed += 1
+		foe.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SLIDE_CUE_MS)
+		var t: Node = THROWN.launch(hero, foe, foe.global_position + fwd * SLIDE_REACH, damage,
+			{"solid": false, "el": "water", "speed": SLIDE_SPEED, "land_y": 0.0, "wall_mult": SLIDE_WALL_MULT,
+			"slide": true, "splash": false, "spin": SLIDE_SPIN, "on_burst": _slid.bind(parent)})
+		if t != null:
+			SLAPSHOT_FX.trail(parent, foe)
+		Game.register_hit("breaker")
+
+
+static func _slid(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
+	if walled and is_instance_valid(parent):
+		SLAPSHOT_FX.wall(parent, f.global_position, dir)
 
 
 ## Each frozen foe is hurled at someone: anyone it wasn't holding first, then the others it was.
@@ -1783,9 +1956,8 @@ static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Ve
 			var from := _flat(bowl[0].global_position)
 			var path := _ahead(hero, from, fwd, BOWL_LENGTH, IMPROV_ROLL_HALF_WIDTH)
 			return path if bowl[0] in path else [bowl[0]] + path
-		"EF":  # the spear tip's line
-			var length: float = minf(HARPOON_LENGTH * grow, hero._clear_ahead(fwd, HARPOON_LENGTH * grow) + 0.5)
-			return _ahead(hero, at, fwd, length, HARPOON_HALF_WIDTH)
+		"EF":  # the tentacles' reach round him (round 47: everyone near, not a line)
+			return harpoon_targets(hero, at, HARPOON_REACH * grow)
 		"IP":  # the frost round where the spear goes in
 			var spot: Vector3 = at + fwd * minf(SPEAR_AHEAD, hero._clear_ahead(fwd, SPEAR_AHEAD))
 			return FOES.near(tree, spot, SPEAR.RADIUS)
