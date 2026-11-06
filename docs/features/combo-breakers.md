@@ -11,7 +11,7 @@ more Awakening). Too early locks it out; no press floats him down; a dash in the
 it off.
 
 Which enders have breakers, and what each slam does, is the heretic's kit:
-`VOID_ELEMENT.BREAKERS`, described in [void-element.md](void-element.md) (Grounded, Worldbreaker /
+`VOID_ELEMENT.BREAKERS`, described in [void-element.md](void-element.md) (Grounded / Short Circuit, Worldbreaker /
 Cold Front, Avalanche, Meteor Fall, Collapse, Maw, Abyss, and round 34's Cataclysm, Flash Freeze, Black Ice,
 Eruption and Anvil). This doc is the shared machinery.
 
@@ -122,7 +122,7 @@ so the autotest lands it.
 - `godot --headless --path . -s tests/prompt_follow_check.gd`: the prompt stays on the hero, shows both endings of a
   two-ending window (LMB first, the chips running left, off him), one for a single ending, and keeps the chosen one.
 - `void_arm_check` `_breaker_choice()`: real L / H presses in Live Wire's window pick Cold Front / Worldbreaker, and L
-  does nothing in Grounded's; `move_list_check` `_check_endings()`: every ending listed, the second marked `or`.
+  in Grounded's picks Short Circuit (round 44 b; `_short_circuit()` checks its arcs); `move_list_check` `_check_endings()`: every ending listed, the second marked `or`.
 - `godot --headless --path . -- --autotest`: prints `[autotest] combo_breaker #N <id> perfect=` per breaker and
   `breakers=N/N perfect_breakers=` on the done line (round 34: N is distinct `BREAKERS` ids landed, so an `alt` ending
   doesn't count twice; `endings=` names every ending landed, Black Ice included). The bot resets the dummies to their homes and the hero to
@@ -280,7 +280,7 @@ Collapse's throw into walls, and any proposal below that uses a wall or pillar k
 
 | Breaker (now, RMB) | Its role now | Proposed LMB ending | Role | Notes |
 |---|---|---|---|---|
-| Grounded | payoff (slam, lightning under each) | **Short Circuit**: no slam; everyone held stays shocked and stunned ~1.5 s where they land | setup | The review's "stun payoff"; splits it from Worldbreaker, its near-duplicate |
+| Grounded | payoff (slam, lightning under each) | **Short Circuit** (built round 44 b, a different shape): he lands, the held take `SC_HELD_MULT` 0.5 and stay down, and the charge arcs out one after another (`SC_STEP` 0.06 s, a longer hit stop each link) to up to `SC_ARCS` 8 foes NOT held within `SC_REACH` 12 m, 0.75 of the damage x (1 + 0.15 per other held), a stagger, and charged | reach | Best when the room is full past the tentacles' reach (`SEIZE_RANGE` 8 m, `SEIZE_MAX` 5); Grounded bursts the held group. Bot string `spread far alt L H H` |
 | Worldbreaker / Cold Front | already two | (Cold Front could become the setup: the cubes stay frozen where they land) | setup | Today both are payoffs |
 | Avalanche | payoff | none proposed | | Not to be touched |
 | Meteor Fall | payoff, environmental (the wall pile) | **Slag Pin**: he lands short and a ring of lava pins the pile against the wall, burning (molten + bound) | setup | Keeps the wall: the pile stays on it for a second string |

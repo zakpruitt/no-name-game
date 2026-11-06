@@ -51,7 +51,7 @@ const MOVE_WORDS := {
 	"XG": "WHIRRRL!", "XM": "SIZZ-BLAM!", "XK": "KSHUNK!", "XW": "FWHOOOM!",  # three-element strings (round 37, second pass)
 }
 const BREAKER_WORDS := {
-	"Grounded": "KRA-KOOM!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
+	"Grounded": "KRA-KOOM!", "Short Circuit": "KZZZT-KRAK!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
 	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
 	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",

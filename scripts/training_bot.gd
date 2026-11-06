@@ -54,9 +54,13 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	# apart in a wide arc ahead, the crowd it is for).
 	["spread", "H", "L", "L"],
 	# Galvanize charges the spread crowd, and Updraft Lash discharges them all at once (charged x storm: Overload).
-	["spread", "H", "L", "L", "wait", "L", "H"]]
+	["spread", "H", "L", "L", "wait", "L", "H"],
+	# Round 44 b: Short Circuit, Grounded's L ending ("spread": some stand past the tentacles, where the arcs go).
+	["spread", "far", "alt", "L", "H", "H"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far"]
+## With "far", a "spread" string's last dummy stands this far out instead: past the tentacles (void_grab.SEIZE_RANGE).
+const BOT_FAR_R := 10.0
 ## A "spread" string's dummies stand on an arc BOT_SPREAD_R m ahead of him, BOT_SPREAD_ARC radians either side of his aim.
 const BOT_SPREAD_R := 4.6
 const BOT_SPREAD_ARC := 0.8
@@ -398,6 +402,7 @@ func _reset_spots() -> void:
 			if is_instance_valid(d):
 				_homes[d] = d.home
 				var a: float = lerpf(-BOT_SPREAD_ARC, BOT_SPREAD_ARC, float(i) / maxf(n - 1, 1))
-				d.home = player.global_position + fwd.normalized().rotated(Vector3.UP, a) * BOT_SPREAD_R
+				var r: float = BOT_FAR_R if "far" in BOT_STRINGS[_bot_string] and i == n - 1 else BOT_SPREAD_R
+				d.home = player.global_position + fwd.normalized().rotated(Vector3.UP, a) * r
 				d.home.y = target.y
 				d.global_position = d.home

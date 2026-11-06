@@ -68,6 +68,7 @@ func _initialize() -> void:
 	await _elements()
 	await _breakers()
 	await _cold_front()
+	await _short_circuit()
 	await _breaker_choice()
 	await _thrown_at_wall()
 	await _ice()
@@ -449,7 +450,7 @@ func _breakers() -> void:
 	foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
 	hero._start_attack("EE")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
-	_check(hero.breaker_window().alt_name == "", "Grounded has one")
+	_check(hero.breaker_window().alt_name == "Short Circuit", "Grounded's window offers Short Circuit too (%s)" % hero.breaker_window().alt_name)
 	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
 	await _settle()
 	foe.queue_free()
@@ -534,27 +535,51 @@ func _breaker_choice() -> void:
 		if is_instance_valid(hero._brk_cue):
 			_check(hero._brk_cue.alt_color.a == 0.0, "the floor cue drops the other ending's colour once he picks")
 		await _settle()
-	# One ending: the same layout with one option, and L in the window doesn't take it.
+	# Round 44 b: Grounded's window has two endings too: LMB Short Circuit, RMB Grounded, both in the storm.
 	foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
 	hero._start_attack("EE")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
-	var one: Array = hero.breaker_window().get("options", [])
-	_check(one.size() == 1 and one[0].button == "heavy" and one[0].name == "Grounded", "Grounded offers one ending, on RMB (%s)" % str(one))
+	var two: Array = hero.breaker_window().get("options", [])
+	_check(two.size() == 2 and two[0].button == "light" and two[0].name == "Short Circuit" and two[1].button == "heavy" and two[1].name == "Grounded",
+		"Grounded's window: LMB Short Circuit, RMB Grounded (%s)" % str(two))
 	await _until(func() -> bool: return hero._state_t >= hero._brk.open + 0.02, 2.0)
 	Input.action_press("attack_light")
 	await physics_frame
 	Input.action_release("attack_light")
-	for i in 3:
-		await physics_frame
-	_check(hero._brk_phase == 0, "L does nothing in a one-ending window")
-	Input.action_press("attack_heavy")
-	await physics_frame
-	Input.action_release("attack_heavy")
 	await _until(func() -> bool: return hero._brk_phase == 1, 0.5)
-	_check(hero._brk_phase == 1 and hero.HERO_LEAP.breaker_name(hero) == "Grounded", "H takes Grounded")
+	_check(hero._brk_phase == 1 and hero.HERO_LEAP.breaker_name(hero) == "Short Circuit", "L takes Short Circuit (%s)" % hero.HERO_LEAP.breaker_name(hero))
 	await _settle()
 	foe.queue_free()
 	await physics_frame
+
+## Short Circuit (round 44 b): the held take a little and stay down; the charge arcs out to the one the tentacles
+## didn't hold (a heavy here), harder than Grounded's spill would, and charges it.
+func _short_circuit() -> void:
+	var el: GDScript = load("res://scripts/void_element.gd")
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var near := _foe(Vector3(0, 0, 2.5))
+	var out := _foe(Vector3(-6.0, 0, 6.0))  # (far past the landing's spill)
+	out.elite = true  # (can't be held)
+	hero.bot_enabled = true
+	hero.bot_alt = true
+	hero._start_attack("EE")
+	await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+	await _until(func() -> bool: return hero._brk_phase == 1, 3.0)
+	_check(hero.HERO_LEAP.breaker_name(hero) == "Short Circuit", "L is Short Circuit (%s)" % hero.HERO_LEAP.breaker_name(hero))
+	var near_hp := near.hp
+	var out_hp := out.hp
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 3.0)
+	await _until(func() -> bool: return out.hp < out_hp, 1.5)
+	_check(near.hp < near_hp, "the held take some (%.0f)" % (near_hp - near.hp))
+	_check(out_hp - out.hp >= el.BREAKERS.EE.alt.damage * el.SC_ARC_MULT * 0.99, "the charge arcs out to the one it didn't hold (%.0f)" % (out_hp - out.hp))
+	_check(el.marked(out, "charged") and not el.marked(near, "charged"), "and the charge moves into it")
+	hero.bot_enabled = false
+	hero.bot_alt = false
+	near.free()
+	out.free()
+	await _settle()
+
 
 ## A throw stops at a wall instead of going through it, and still breaks.
 func _thrown_at_wall() -> void:

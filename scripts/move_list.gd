@@ -22,8 +22,9 @@ const SECTIONS := [
 	]},
 	{"title": "STORM", "rows": [
 		{"input": "L H", "kind": "move", "id": "EC", "note": "The tentacle sweeps under them and the wind throws them up."},
-		{"input": "L H H", "kind": "move", "id": "EE", "note": "A tentacle on each of them, with lightning running through."},
-		{"input": "L H H, H in the window", "kind": "text", "name": "Grounded", "tier": 3, "note": "Everyone slammed down, with lightning under each."},
+		{"input": "L H H", "kind": "move", "id": "EE", "note": "A tentacle on each of them, with lightning running through. The window has two endings."},
+		{"input": "L H H, H in the window", "kind": "text", "name": "Grounded", "tier": 3, "note": "Everyone slammed down, with lightning under each. Best when the tentacles hold the crowd."},
+		{"input": "L H H, L in the window", "kind": "text", "name": "Short Circuit", "or": true, "tier": 3, "note": "The charge in the held arcs out to everyone they didn't hold, and charges them. Best when the room is full past the tentacles' reach."},
 		{"input": "L H L", "kind": "move", "id": "AL1", "note": "Up after them with the axe."},
 		{"input": "L H L H", "kind": "move", "id": "EW", "note": "Live Wire from the air. The window has two endings."},
 		{"input": "L H L H, H in the window", "kind": "text", "name": "Worldbreaker", "tier": 3, "note": "Slammed into the floor, with magma erupting under each."},

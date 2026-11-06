@@ -85,7 +85,9 @@ const BREAKER_TO_CLOSE := 0.32  # s from open to close
 ## Copies of _WINDOW in effect (entry()).
 const BREAKERS := {
 	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 8.0, "awaken_perfect": 16.0,
-		"names": {"spirit": "Grounded"}},
+		"names": {"spirit": "Grounded"},
+		# L in the window (round 44 b): the charge the hang put in them goes out to everyone the tentacles didn't hold.
+		"alt": {"short_circuit": true, "damage": 22.0, "names": {"spirit": "Short Circuit"}}},
 	"EW": {"erupt": "earth", "wire": true, "damage": 36.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "height": 2.6, "awaken": 12.0, "awaken_perfect": 22.0,
 		"names": {"spirit": "Worldbreaker"},
 		"alt": {"erupt": "water", "cubes": true, "damage": 40.0, "names": {"spirit": "Cold Front"}}},
@@ -224,6 +226,21 @@ const GEYSER_RADIUS := 0.9
 const GEYSER_HIGH := 3.2  # m: taller hid the hero and blew out at the game's camera
 const BREAK_AREA := 4.5  # m round the landing, beyond whoever was seized
 const BREAK_LAUNCH := 7.0
+## Short Circuit (Grounded's L ending, round 44 b): he lands and the charge in the held goes out. They take only
+## SC_HELD_MULT and stay down (no launch); arcs jump, chained from the nearest held, to everyone NOT held within
+## SC_REACH (nearest first, SC_ARCS at most), each a real hit for SC_ARC_MULT of the damage x (1 + SC_PER_HELD per
+## other held foe: the more it held, the more charge it spends), a stagger, and the charge moves into them. Grounded
+## bursts the held group; Short Circuit is for a room full beyond the tentacles' reach.
+const SC_HELD_MULT := 0.5
+const SC_REACH := 12.0
+const SC_ARCS := 8
+const SC_ARC_MULT := 0.75
+const SC_PER_HELD := 0.15
+const SC_STUN := 0.5
+const SC_DELAY := 0.12  # s (game) after the landing before the first arc: past the impact frame, which hid them
+const SC_STEP := 0.06  # s between the arcs, each link's hit stop a step longer (SC_STOP + SC_STOP_PER per link)
+const SC_STOP := 0.02
+const SC_STOP_PER := 0.008
 const CRYSTAL_SIZE := 1.5
 const CUBE_STAGGER := 0.05  # s between the cubes leaving
 const CUBE_SEEK := 14.0  # m: how far a cube looks for someone to hit
@@ -1023,6 +1040,48 @@ static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> voi
 	Game.shake(0.6)
 
 
+## Short Circuit lands (SC_*): the held take a little and are spent; the charge arcs out to everyone else in reach.
+static func _short_circuit(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var held: Array = seized.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	for e: Node3D in held:
+		e.take_hit(damage * SC_HELD_MULT, Vector3.ZERO, 0.0, true)
+		unmark(e, "charged")  # (spent)
+		Game.register_hit("breaker")
+	var out: Array = FOES.near(hero.get_tree(), at, SC_REACH).filter(func(e: Node3D) -> bool:
+		return not e in held and not THROWN.flying(e))
+	out.sort_custom(func(a: Node3D, c: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
+	out = out.slice(0, SC_ARCS)
+	var each := damage * SC_ARC_MULT * (1.0 + SC_PER_HELD * maxi(held.size() - 1, 0))
+	var from: Array = held.duplicate() if not held.is_empty() else [hero]
+	for i in out.size():  # one after another, out from the pile: a link further each, a beat harder each
+		hero.get_tree().create_timer(SC_DELAY + SC_STEP * i).timeout.connect(_sc_arc.bind(hero, out[i], from, each, i))
+	under(parent, at, "wind")
+	_pop(parent, at, "axe")
+
+
+## One of Short Circuit's arcs: from the nearest of `from` (the held and the arcs before) to `e`, the `i`th link.
+static func _sc_arc(hero: Variant, e: Variant, from: Array, each: float, i: int) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var src: Variant = null
+	for f: Variant in from:
+		if is_instance_valid(f) and (src == null or f.global_position.distance_to(e.global_position) < src.global_position.distance_to(e.global_position)):
+			src = f
+	var a: Vector3 = (src.global_position if src != null else hero.global_position) + Vector3.UP * 0.9
+	COMIC_BOLT.spawn(hero.get_parent(), a, e.global_position + Vector3.UP * 0.9, 0.26 + 0.02 * i, 0.5 + 0.06 * i, 2)
+	var away := _flat(e.global_position - a)
+	e.take_hit(each, (away.normalized() if away.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, true)
+	if not hero._void.is_heavy(e) and e.has_method("stagger"):
+		e.stagger(SC_STUN)
+	mark(e, "charged")
+	Game.register_hit("breaker")
+	Game.hitstop(SC_STOP + SC_STOP_PER * i)
+	from.append(e)
+
+
 ## Cataclysm lands: everyone held comes down into the floor (a crater each), with lightning out of the sky and
 ## the earth up under each one. Anyone else near takes some and is thrown clear.
 static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
@@ -1365,6 +1424,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		return
 	if b.has("cataclysm"):
 		_cataclysm(hero, b, at, seized, mult)
+		return
+	if b.has("short_circuit"):
+		_short_circuit(hero, b, at, seized, mult)
 		return
 	if b.has("black_ice"):
 		_black_ice(hero, b, mult)
