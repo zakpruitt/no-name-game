@@ -848,6 +848,10 @@ dummies part of them clip out." See `docs/features/designed-fx.md` "fx-ice2".
 - [x] Clips: `awaken-combo-clips/25 Ice *` (before / after)
 - [ ] Weapons held out past 1.2 m still poke out of a spar foe's block (by design); the skewered stake tell stays
 - [ ] Zak: is a dummy's block (2.2 m across) too big now it holds the arms?
+- [x] fx-ice3: the last crystals on film are gone: Dash Stab's cyan blades (its weapon ribbon and swing arcs: off on a
+  `thrust` in designed mode), the latch's upright ice-blue streaks (no water streaks on a vertical blow), `ice_shatter`'s
+  shards (now a ring, glint and cold mist), Harpoon's set chips (a `frost_mark`), `pop_ice`'s corner rays. Clips
+  `awaken-combo-clips/25 Ice fx-ice3 *`
 
 ## Round 47 b (combo-harpoon2: Harpoon's tentacles gather, two breaker endings)
 Zak: "harpoon grabs any enemies near by in a clean tentacle animation and places them in a line or group in front of

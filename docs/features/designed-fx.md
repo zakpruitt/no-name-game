@@ -444,7 +444,7 @@ dummies part of them clip out."
 | the every-hit ice pop (`pop_ice`, a cluster of faceted shards) | redrawn shard-free (`gen_cohesion.py pop_ice`): a glint, a thin hex ring opening with short straight rays off its corners, a glint in its middle |
 | the improv tells' ice tips (Frozen In, Ice Spreads, Freeze Aloft's ring of spikes in the air; `comic_improv._tip`) | none drawn; Ice Spreads with nobody to spread to makes a `frost_mark`, Freeze Aloft a water hit star (its block is the read) |
 
-The `ice_spike` and `ice_trail` sheets and their generators are deleted; `ice_mark` is new. Kept on purpose: `ice_shatter` (the block
+The `ice_spike` and `ice_trail` sheets and their generators are deleted; `ice_mark` is new. Kept on purpose (fx-ice3 later made it shard-free, see below): `ice_shatter` (the block
 breaking into shards is debris from a break, not crystals growing), the skewered state's stake (`comic_state_tell`,
 the only tell for Backdraft), Black Ice's floor plates and the axe aura's shards (already off in designed mode).
 
@@ -469,6 +469,24 @@ Measured (`tests/ice_block_check.gd`, every kind hit and encased, its CPU-skinne
 for a second): the dummy's block is 1.05 m round and 2.2 m tall (it was 0.75 x 1.5, and the bag's arms, head and
 squash poked out); the spar kinds come out at 1.2-1.3 m with weapon tips 0.2-0.7 m out (warrior, rogue, archer,
 shield, necromancer). Every body vertex is in.
+
+
+**fx-ice3 (follow-up, the crystals film still showed).** Clip 26 (Harpoon Slapshot) still had two crystal shapes:
+- Dash Stab's hit fanned big cyan faceted blades round him: the weapon ribbon (`weapon_trail.gd`, the slash_strip
+  brush in water's palette) dragged along the 16 m/s lunge, plus the two swing arcs (`hero_fx.swoosh`). A thrust has
+  no arc: `"thrust": true` on DL (`hero_moves.gd`) turns off its weapon ribbon (`player.gd`) and its swing arcs in
+  designed mode. The claw lash, the hit pop and the streaks carry it.
+- Each latched foe stood a fan of ice-blue spikes: the latch's hit has no knockback, so `Fx.impact`'s
+  `impact_streaks` were thrown straight up in water's palette. `designed_fx.streaks` now draws no water streaks on a
+  blow under half horizontal (the pop carries the latch).
+- `ice_shatter` is shard-free: a frozen foe thawed by a hit, a cube bursting and Slapshot's wall smash were all faceted
+  shards. Now it's the ice pop's ring opening round a glint (`ICE_BREAK_POP` 0.75 of `ICE_SIZE`) in a puff of cold
+  mist (`dust_puff` in water, `ICE_BREAK_MIST` 0.7). The `ice_shatter` sheet is still registered but nothing draws it.
+- Harpoon's set (`void_element._harpoon` `on_set`) leaves a `frost_mark` under each block, not ice chips
+  (`Fx.shards`).
+- `pop_ice` lost the short rays off its hex ring's corners (they read as a snowflake).
+
+Clips: `awaken-combo-clips/25 Ice fx-ice3 *` (strings 6, 7, 27, 28 before / after, and full-size crops).
 
 
 ## Round 46: the finish (fx-finish lane)
