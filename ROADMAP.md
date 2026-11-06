@@ -805,7 +805,7 @@ Orchestrator: film every string, audit combat feel as a whole, fix the worst. `d
 - [ ] Item 7: L3 -> Molten Palm 538 ms (re-key Ab_AF's coil, then `EM_SPEED`; heretic anim + combo-rhythm)
 - [x] Item 8: the frost spear's 5 m halftone floor (fx-elements: the drawn `ice_frost` floor)
 - [ ] Item 9: the spirit echo's brown halftone fan on L2 / L3 (fx-finish)
-- [ ] Item 10: Maw's landing total at the top edge (`comic_number` keeps totals inside the page margin)
+- [x] Item 10: Maw's landing total at the top edge: `comic_number` keeps every number inside `PAGE_MARGIN`
 - [ ] The spear vault (IJ) is the only contact without a stop
 - [ ] Zak plays Live Wire / Short Circuit / Galvanize by hand after these
 

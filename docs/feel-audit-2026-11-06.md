@@ -106,3 +106,5 @@ Before / after sheets and clips: `C:\Users\pruit\Desktop\awaken-combo-clips\24 F
 4. The lava well ticks with `burn_hit`: the walk-up into spread_H_L_L has numbers only, no stars or words.
 5. `camera_rig.FRAME_CUE`: Short Circuit cues its targets at the landing (`SC_CUE_MS` 900) and the view eases out at
    `FRAME_CUE_OUT` 7 /s; the far foe is in frame as the arc lands (headless probe: worst foe NDC at the far arc 1.47 -> 1.06).
+10. `comic_number.dodge` keeps a number inside `PAGE_MARGIN` (2% / 4%) of the screen: Maw's total sits whole below the
+   top edge (H_L_H after 034-040; windowed only, the 64 px headless root is skipped).
