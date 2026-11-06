@@ -18,6 +18,9 @@ const SHEETS := {
 	"awaken_gather": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"awaken_crown": {"grid": Vector2(4, 2), "frames": 8, "kind": "sprite_depth", "anchor": Vector2(0.0, -0.35)},
 	"awaken_floor": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
+	"chain_halo": {"grid": Vector2(4, 3), "frames": 12, "kind": "sprite"},
+	"daze_star": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite_depth"},
+	"combo_burst": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 }
 
 const GATHER_SIZE := 5.2  # m: the focus lines' square (the hole in it is 0.27 of the half: ~1.4 m across)
@@ -30,6 +33,17 @@ const CROWN_ERODE := Vector2(0.5, 1.0)
 const FLOOR_SIZE := 6.4  # m: the sunburst's square (the rays reach ~3 m: AWAKEN_BURST_RADIUS blows foes out of it)
 const FLOOR_TIMES := [0.04, 0.07, 0.07, 0.08, 0.09, 0.1]
 const FLOOR_ERODE := Vector2(0.45, 1.0)
+
+## Chain halos (Fx.chain_spark, tiers 1-3 past Fx.CHAIN_TIERS): a sparkle behind the hit, strokes from tier 2, arcs at 3.
+const HALO_SIZE := [1.2, 1.5, 1.85]  # m per tier
+const HALO_TIMES := [0.033, 0.075, 0.06, 0.06]
+## Daze stars (Fx.daze): two drawn cartoon stars circling the head, boiling on twos, depth tested (the head hides
+## the one behind it).
+const DAZE_SIZE := 0.56  # m: a star's quad (the old polygon star was 0.32 m across; 0.46 read as specks)
+## Combo burst (Fx.combo_pop): burst lines thrown out all round him from a clear hole, tier-scaled.
+const BURST_SIZE := 3.0  # m at tier 1, + BURST_GROW a tier
+const BURST_GROW := 0.5
+const BURST_TIMES := [0.033, 0.05, 0.05, 0.05, 0.06, 0.07]
 
 static var _registered := false
 static var drawn := 0  # Awakenings drawn (checks)
@@ -126,3 +140,63 @@ func _peak() -> void:
 	var floor_ := DESIGNED.spawn(parent, "awaken_floor", foot + Vector3.UP * DESIGNED.GROUND_LIFT, FLOOR_SIZE, "gold", FLOOR_TIMES, FLOOR_ERODE)
 	floor_.real_time = true
 	floor_.rotation.y = randf() * TAU
+
+
+## Fx.chain_spark (designed): one drawn halo behind the hit, in the colour's nearest element.
+static func halo(parent: Node, at: Vector3, color: Color, tier: int) -> Node3D:
+	_register()
+	var k := clampi(tier, 1, 3) - 1
+	var fx := DESIGNED.spawn(parent, "chain_halo", at, HALO_SIZE[k], DESIGNED.PAL.nearest(color), HALO_TIMES, Vector2(0.5, 1.0))
+	fx.first = k * 4
+	fx.real_until = 1
+	return fx.vary(0.5, true)
+
+
+## Fx.combo_pop (designed): burst lines all round him, never over him.
+static func burst(parent: Node, at: Vector3, color: Color, tier: int) -> Node3D:
+	_register()
+	var t := clampi(tier, 1, 3)
+	var times: Array = BURST_TIMES.duplicate()
+	if t >= 3:
+		times[1] = 0.1  # the big ones hold their peak
+	var fx := DESIGNED.spawn(parent, "combo_burst", at, BURST_SIZE + BURST_GROW * (t - 1), DESIGNED.PAL.nearest(color), times, Vector2(0.45, 1.0))
+	fx.real_until = 1
+	return fx.vary(PI, true)
+
+
+## Fx.daze (designed): two drawn stars on a spinning pivot over the head. Named "DazeStars" like the old one.
+static func daze(node: Node3D, height: float, time: float, ring: float, spin: float) -> Node3D:
+	_register()
+	var pivot := Node3D.new()
+	pivot.name = "DazeStars"
+	node.add_child(pivot)
+	pivot.position.y = height
+	var stars: Array = []
+	for i in 2:
+		var a := TAU * i / 2.0
+		var mi := MeshInstance3D.new()
+		mi.mesh = QuadMesh.new()
+		mi.material_override = DESIGNED.material("daze_star")
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.set_meta("no_ghost", true)
+		mi.position = Vector3(cos(a), 0.0, sin(a)) * ring
+		mi.scale = Vector3.ONE * DAZE_SIZE
+		mi.set_instance_shader_parameter("pal_row", DESIGNED.row("gold"))
+		mi.set_instance_shader_parameter("frame", float(i * 2))
+		mi.set_instance_shader_parameter("erode", 0.0)
+		mi.set_instance_shader_parameter("alpha", 1.0)
+		pivot.add_child(mi)
+		stars.append(mi)
+	pivot.scale = Vector3.ONE * 0.2
+	var tw := pivot.create_tween().set_parallel()
+	tw.tween_property(pivot, "rotation:y", spin * time, time)
+	tw.tween_property(pivot, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(v: float) -> void:  # boil on twos, erode out over the last share
+		for k in stars.size():
+			var mi: MeshInstance3D = stars[k]
+			if is_instance_valid(mi):
+				mi.set_instance_shader_parameter("frame", float((int(v * 12.0) + k * 2) % 4))
+				mi.set_instance_shader_parameter("erode", clampf((v / time - 0.72) / 0.28, 0.0, 1.0) * 0.98)
+		, 0.0, time, time)
+	tw.chain().tween_callback(pivot.queue_free)
+	return pivot

@@ -37,6 +37,7 @@ const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # round 44: ground stamps, element hit pops  # round 43: authored flipbook effects (--fx=classic: off)
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")  # round 46: the Awakening, halos, daze stars, combo burst
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
@@ -270,6 +271,9 @@ static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir
 			return
 		if DESIGNED.on() and not DESIGNED_INK.once_a_frame("chain"):  # (round 44: one halo a frame in a crowd)
 			return
+		if DESIGNED.on():  # round 46: a drawn sparkle halo per tier (designed_finish.halo)
+			DESIGNED_FINISH.halo(parent, at, color, tier)
+			return
 		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
 			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
 			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
@@ -317,6 +321,9 @@ static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> vo
 		var hero: Node = parent.get_tree().get_first_node_in_group("player") if parent.is_inside_tree() else null
 		if hero != null and "_move_id" in hero and not CALLOUT_CAP.names_move(hero._move_id):
 			return  # feel audit 2, item 3: a light mid keeps its word only (callout_cap.names_move)
+		if DESIGNED.on():  # round 46: drawn burst lines round him (designed_finish.burst)
+			DESIGNED_FINISH.burst(parent, at, vivid, tier)
+			return
 		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
 			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
 			"hold": 2 if tier >= 3 else 1, "steps": 3})
@@ -728,6 +735,9 @@ const DAZE_SPIN := 7.0  # rad/s
 const DAZE_COLOR := Color(1.0, 0.86, 0.2)
 static var _star_mesh: ArrayMesh
 static func daze(node: Node3D, height: float, time := 0.9) -> void:
+	if DESIGNED.on():  # round 46: two drawn cartoon stars (designed_finish.daze)
+		DESIGNED_FINISH.daze(node, height, time, DAZE_RING, DAZE_SPIN)
+		return
 	if _star_mesh == null:
 		_star_mesh = _star(DAZE_SIZE, DAZE_INNER)
 	var pivot := Node3D.new()

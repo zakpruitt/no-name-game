@@ -244,11 +244,121 @@ def awaken_floor(i, n, size):
     return f.finish()
 
 
+# --- chain_halo: the combo-climb flourish behind a hit (Fx.chain_spark), three tiers in one sheet -------------------
+# Frames 4k..4k+3 are tier k+1. A four-point sparkle (long concave cross, the "it is climbing" glint) with diamond
+# glints; tier 2 adds a ring of short strokes thrown out round it; tier 3 adds more strokes and two broken brush arcs.
+# Frame 0 pinched, 1 the peak with a hot core, 2 turned and thinner, 3 broken to its tips.
+
+def _sparkle(f, c, r, rot, thin, tone_in=LIGHT):
+    tips = [r, r * 0.55, r, r * 0.55]
+    m = poly_mask([star(c, c, tips, r * thin, rot=rot, bow=0.42)], f.S)
+    f.fill(m, BODY, ink=2.4)
+    f.fill(poly_mask([star(c, c, [t * 0.6 for t in tips], r * thin * 0.6, rot=rot, bow=0.42)], f.S) * m, tone_in)
+    return m
+
+
+def chain_halo(i, n, size):
+    f = Frame(size)
+    c = f.c
+    tier, k = divmod(i, 4)
+    g = rng(611 + tier * 17)
+    rot = 0.25
+    r = f.u([0.42, 0.5, 0.58][tier])
+    rr = [0.45, 1.0, 0.95, 0.85][k]
+    thin = [0.16, 0.22, 0.17, 0.1][k]
+    n_str = [0, 7, 11][tier]
+    # strokes thrown out round it (behind the sparkle)
+    for j in range(n_str):
+        a = math.tau * j / n_str + g.uniform(-0.15, 0.15)
+        back = f.u(lerp(0.36, 0.62, k / 3)) * (1.0 + tier * 0.12)
+        ln = f.u(g.uniform(0.16, 0.28)) * (1 - k * 0.22)
+        if k == 0:
+            continue
+        w = f.u(0.05) * (1 - k * 0.2)
+        m = poly_mask([wedge(a, back, back + ln, w, 0.0, c)], f.S)
+        f.fill(m, BODY, ink=2.0)
+    if tier == 2 and 1 <= k <= 2:  # two broken brush arcs
+        for j in range(2):
+            a0 = g.uniform(0, math.tau) + j * math.pi
+            rad = f.u(0.74 + 0.06 * k)
+            pts = [polar(c, rad, a0 + t * 1.3) for t in np.linspace(0, 1, 18)]
+            f.fill(poly_mask([stroke(pts, lambda u: f.u(0.05) * math.sin(u * math.pi) ** 0.6, cap=False)], f.S), LIGHT, ink=2.0)
+    if k < 3:
+        m = _sparkle(f, c, r * rr, rot + k * 0.12, thin)
+        if k == 1:
+            f.fill(ellipse_mask(c, c, f.u(0.07), f.u(0.07), f.S) * m, HOT)
+    else:  # broken: its four tips flung apart
+        for j in range(4):
+            a = rot + j * math.pi / 2
+            ln = r * (1.0 if j % 2 == 0 else 0.6)
+            p0 = polar(c, ln * 0.55, a)
+            p1 = polar(c, ln * 1.05, a)
+            f.fill(poly_mask([stroke([p0, p1], [f.u(0.035), 0.0], cap=True)], f.S), LIGHT, ink=1.8)
+    # diamond glints
+    for j in range(2 + tier):
+        if k == 0:
+            break
+        a = g.uniform(0, math.tau)
+        d = f.u(g.uniform(0.5, 0.8))
+        x, y = polar(c, d, a)
+        q = f.u(0.05) * (1.2 - k * 0.25)
+        f.poly([(x, y - q * 1.6), (x + q, y), (x, y + q * 1.6), (x - q, y)], HOT, ink=1.6)
+    return f.finish()
+
+
+# --- daze_star: a fat cartoon star circling a dazed head (Fx.daze), four boil frames ---------------------------
+
+def daze_star(i, n, size):
+    f = Frame(size)
+    c = f.c
+    rot = -math.pi / 2 + [0.0, 0.12, 0.05, -0.1][i]
+    r = f.u(0.82)
+    tips = [r * t for t in [1.0, 0.95, 1.0, 0.97, 0.98]]
+    pts = star(c, c, tips, r * 0.5, rot=rot, bow=0.12)
+    sq = [1.0, 0.92, 1.0, 1.06][i]
+    pts = [(c + (x - c) * sq, c + (y - c) / sq) for x, y in pts]
+    m = poly_mask([pts], f.S)
+    f.fill(m, BODY, ink=3.2)
+    hl = star(c - f.u(0.12), c - f.u(0.14), [t * 0.5 for t in tips], r * 0.26, rot=rot, bow=0.15)
+    f.fill(poly_mask([hl], f.S) * m, LIGHT)
+    f.fill(ellipse_mask(c - f.u(0.25), c - f.u(0.3), f.u(0.1), f.u(0.13), f.S) * m, HOT)
+    return f.finish()
+
+
+# --- combo_burst: a named combo landing (Fx.combo_pop): strokes bursting out all round him -----------------------
+# Manga burst lines thrown outward from a clear hole round him (never over him): frame 0 short and fat at the hole's
+# edge, then they race out and stretch, then snap thin and break to dashes.
+
+def combo_burst(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(907)
+    k_l = 14
+    t = i / (n - 1)
+    for j in range(k_l):
+        a = math.tau * j / k_l + g.uniform(-0.12, 0.12)
+        ln = g.uniform(0.65, 1.3)
+        back = lerp(0.46, 0.74, ease_out(t)) + g.uniform(0.0, 0.04)
+        front = min(0.99, back + lerp(0.42, 0.22, t) * ln)
+        w = f.u(lerp(0.085, 0.04, t)) * g.uniform(0.8, 1.2)
+        path = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0, 1, 14)]
+        # fat at the inner end (round cap), drawn out to a needle at the outside: thrown out from him
+        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.9 + 0.5, cap=True)], f.S)
+        f.fill(m, BODY, ink=2.2)
+        if t < 0.6:
+            core = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0.04, 0.55, 8)]
+            f.fill(poly_mask([stroke(core, [w * 0.4, w * 0.25, 0.0], cap=False)], f.S) * m, HOT if i <= 1 else LIGHT)
+    return f.finish()
+
+
 SHEETS = {
     # name: (fn, frame px, cols, frames, preview palette, erode mode, noise weight)
     "awaken_gather": (awaken_gather, 320, 3, 6, "gold", "edge", 0.5),
     "awaken_crown": (awaken_crown, 384, 4, 8, "gold", "edge", 0.5),
     "awaken_floor": (awaken_floor, 320, 3, 6, "gold", "edge", 0.5),
+    "chain_halo": (chain_halo, 192, 4, 12, "void", "center", 0.45),
+    "daze_star": (daze_star, 96, 4, 4, "gold", "edge", 0.4),
+    "combo_burst": (combo_burst, 256, 3, 6, "void", "edge", 0.45),
 }
 
 
