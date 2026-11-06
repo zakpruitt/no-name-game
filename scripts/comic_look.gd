@@ -77,7 +77,7 @@ const EMITS := {
 	"P_Fire": [Color(0.95, 0.1, 0.02), Color(1, 0.9, 0.2)],
 	"P_Lava": [Color(1, 0.28, 0.02), Color(1, 0.86, 0.2)],
 	"P_Bolt": [Color(0.2, 0.55, 1), Color(0.98, 1, 0.92)],
-	"P_Wind": [Color(0.2, 0.85, 0.5), Color(0.9, 1, 0.8)],
+	"P_Wind": [Color(0.55, 0.9, 0.08), Color(0.94, 1, 0.6)],  # fx-air: the storm lime (fx_palette "wind")
 	"P_Spirit": [Color(0.05, 0.75, 0.72), Color(0.86, 1, 0.86)],
 	# the hero's own: the darkness in him is violet, and his elements fall to it in their lowest tone
 	"P_Fracture": [Color(0.34, 0.1, 0.62), Color(0.82, 0.55, 1)],
