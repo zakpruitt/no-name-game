@@ -29,6 +29,13 @@ const BREAKER_POP := 1.25
 const BREAKER_POP_S := 0.12  # real s
 static var _is_breaker := false
 static var breakers_placed := 0  # breaker callouts moved to the top band (fx_sleek_check)
+## Feel audit 3 item 3: an ender's or crossover's name (LIVE WIRE, MELTDOWN, DEEP FREEZE...) goes up 2.9 m over his
+## feet, but the breaker hang lifts his model, not his body, so for the whole hang the name sat on his chest inside
+## the prompt circle. While he hangs (State.LEAP) a named callout goes to the breaker's top band too, where the
+## breaker's own name replaces it on the landing.
+const HANG_LIFT := 0.6  # m
+static var _lifted := false
+static var hang_placed := 0  # named callouts moved to the top band in a hang (fx_sleek_check)
 static var _names := {}
 
 ## Feel audit 2, item 3: a name popped over him on every named move (DASH STAB, HARPOON, ICE CUBE...), so every
@@ -79,6 +86,12 @@ static func _place(hero: Node, label: Label3D, now: int) -> void:
 	label.scale = Vector3.ONE * BREAKER_SCALE * lerpf(BREAKER_POP, 1.0, k)
 
 
+## Is he up in a breaker's hang? (Read off what the problem is: his model lifted off his body, HANG_LIFT m or more.)
+static func hanging(hero: Node) -> bool:
+	var body: Variant = hero.get("model")
+	return body is Node3D and is_instance_valid(body) and (body as Node3D).position.y >= HANG_LIFT
+
+
 static func watch(hero: Node) -> void:
 	var label: Variant = hero.get("_callout")
 	if not label is Label3D or not label.visible:
@@ -92,6 +105,7 @@ static func watch(hero: Node) -> void:
 		_shown_ms = now
 		_fade_from_ms = -1
 		_is_breaker = is_breaker_text(label.text)
+		_lifted = false
 		if not _is_breaker and not is_named_text(hero, label.text):
 			muted += 1
 			if tw is Tween and tw.is_valid():
@@ -102,7 +116,13 @@ static func watch(hero: Node) -> void:
 			breakers_placed += 1
 			if tw is Tween and tw.is_valid():
 				tw.kill()  # (it tweens position and scale over his head)
-	if _is_breaker:
+	if not _is_breaker and not _lifted and hanging(hero):
+		_lifted = true
+		hang_placed += 1
+		_shown_ms = now  # (the pop starts here; the hold too, so the name lasts the hang's first beat)
+		if tw is Tween and tw.is_valid():
+			tw.kill()  # (it tweens position and scale over his head)
+	if _is_breaker or _lifted:
 		_place(hero, label, now)
 	if _fade_from_ms < 0:
 		var next_string: bool = STANDING._start_ms > _shown_ms  # the next string has started since it went up

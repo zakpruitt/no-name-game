@@ -161,6 +161,20 @@ func _initialize() -> void:
 	await create_timer(cap.BREAKER_HOLD_S + cap.FADE_S + 0.15, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the breaker name is gone after its short hold")
+	# Feel audit 3 item 3: in a breaker's hang (his model lifted) an ender's name goes to the top band too, off him.
+	var hang0: int = cap.hang_placed
+	p._callout_done = false
+	p.HERO_FX.combo_callout(p, "EE")
+	p.model.position.y = 2.0
+	cap.watch(p)
+	await process_frame
+	cap.watch(p)
+	var hang_y: float = cam.unproject_position(p._callout.global_position).y
+	_ok(cap.hang_placed == hang0 + 1 and absf(hang_y - vh * cap.BREAKER_Y) < vh * 0.03,
+		"an ender's name in the hang sits in the top band (%.0f px of %.0f)" % [hang_y, vh])
+	p.model.position.y = 0.0
+	p._callout.hide()
+	cap.watch(p)
 	# Round 33, sleek 6: in a breaker the frame's hits draw one star, Live Wire's bolts are capped and a batch of rim
 	# geysers stops at three.
 	var els6: GDScript = load("res://scripts/elements.gd")
