@@ -48,10 +48,14 @@ const STAMP_LIFT := 0.07  # m over the floor (the stones reach 0.05)
 const SHOCK_W := 0.42  # m: the band a shock line is drawn in (its fattest part fills ~75% of it)
 const SHOCK_THIN_W := 0.3  # m: thin_hoop's
 const SHOCK_FROM := 0.45  # of the radius: where it starts racing out from
-const SHOCK_LIFE_MAX := 0.6  # s real: slow motion never holds one longer than this
+const SHOCK_LIFE_MAX := 0.35  # s real: slow motion never holds one longer than this
+const SHOCK_LIFE := Vector2(0.15, 0.25)  # s: a shock line is an accent, not a lingering ring (round 45)
+const SHOCK_APART := 5.0  # m: a second shock this close to a live one is dropped (one floor mark an event)
 const STEP := 1.0 / 12.0
 
 static var _stamp_mats := {}
+static var _last_shock: WeakRef
+static var _cues: Array[WeakRef] = []
 
 
 static func stamp_material(sheet: String) -> ShaderMaterial:
@@ -69,11 +73,37 @@ static func stamp_material(sheet: String) -> ShaderMaterial:
 
 
 ## A floor shock: a broken inked brush line racing out to `radius` in `color`, eroding as it goes.
+## Round 45: none while a breaker cue is closing (its ring is the only ring on screen then) and at most one alive
+## near the spot (a crowd hit or a ring pair calls this several times in one beat).
 static func shock(parent: Node, at: Vector3, color: Color, radius: float, time := 0.35, width := SHOCK_W) -> Node3D:
+	if cue_live():
+		return null
+	var last: Node3D = _last_shock.get_ref() if _last_shock else null
+	if last and is_instance_valid(last) and last.is_inside_tree() 			and Vector2(last.global_position.x - at.x, last.global_position.z - at.z).length() < SHOCK_APART:
+		return null
 	var s: Node3D = Shock.new()
+	_last_shock = weakref(s)
 	parent.add_child(s)
 	s.setup(Vector3(at.x, STAMP_LIFT, at.z), color, radius, time, width)
 	return s
+
+
+## The breaker cue says it is on screen (breaker_cue._ready); `cue_live()` is true while one is still closing.
+static func cue_on(cue: Node) -> void:
+	_cues.append(weakref(cue))
+	var last: Node = _last_shock.get_ref() if _last_shock else null
+	if last and is_instance_valid(last):  # a shock still racing out from the string's last hit goes now
+		last.queue_free()
+
+
+static func cue_live() -> bool:
+	for i in range(_cues.size() - 1, -1, -1):
+		var c: Node = _cues[i].get_ref()
+		if c == null or not is_instance_valid(c) or c.is_queued_for_deletion():
+			_cues.remove_at(i)
+		elif c.is_inside_tree() and c.closing():
+			return true
+	return false
 
 
 ## A flat annulus of `segs` pieces with the strip's UVs (x round, y across). For the stamps and the cue.
@@ -129,7 +159,7 @@ class Shock extends Node3D:
 		global_position = at
 		_radius = radius
 		_width = width
-		_life = maxf(time, 0.2)
+		_life = clampf(time, SHOCK_LIFE.x, SHOCK_LIFE.y)
 		_real_ms = Time.get_ticks_msec()
 		_spin = randf()
 		_mi = MeshInstance3D.new()
@@ -155,13 +185,13 @@ class Shock extends Node3D:
 			return
 		_step = step
 		var k := clampf(float(step) * STEP / _life, 0.0, 1.0)
-		var e := 1.0 - pow(1.0 - minf(1.0, k * 1.6), 3.0)  # races out, then eases
+		var e := 1.0 - pow(1.0 - minf(1.0, k * 1.4), 3.0)  # races out, then eases
 		var r := lerpf(_radius * SHOCK_FROM, _radius, e)
 		var w := _width * (1.0 - 0.35 * k)
 		SELF.annulus(_mesh, r, w, clampi(int(r * 16.0), 24, 96), SELF.stamp_material("shock"))
 		_mi.set_instance_shader_parameter("tiles", SELF.shock_tiles(_radius, _width))
 		_mi.set_instance_shader_parameter("frame", float(step % 4))
-		_mi.set_instance_shader_parameter("erode", smoothstep(0.25, 1.0, k) * 0.95)
+		_mi.set_instance_shader_parameter("erode", smoothstep(0.1, 1.0, k) * 0.95)
 
 
 # --- Hit pops (round 44): one designed pop a hit, in the element's own shape -------------------------------------

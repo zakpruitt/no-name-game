@@ -170,38 +170,42 @@ def stamp_shock(i, n, size):
     def P(u, v):
         return (u * S, y0 + v * h)
 
-    # one long arc piece a tile (a ring is 3-5 tiles: a few big broken arcs, not a dashed hoop), fat at its
-    # front, dragged thin behind; sometimes a short chip in the gap
-    u0 = g.uniform(0.02, 0.1)
-    ln = g.uniform(0.55, 0.7)
-    thick = g.uniform(0.62, 0.78)
-    lean = g.uniform(0.22, 0.34)
-    bow = g.uniform(-0.05, 0.05)
+    # round 45: one arc a tile over less than half of it (a ring is 3-5 tiles, so ~45% of the circle is drawn), a
+    # fat belly near its front and hair-thin ends; the ink is its own tapered stroke (a uniform grow made the thin
+    # ends into ink blobs), so the line thins to nothing instead of ending in a dot
+    from vfxlib import SS
+    u0 = g.uniform(0.04, 0.14)
+    ln = g.uniform(0.4, 0.5)
+    thick = g.uniform(0.72, 0.86)
+    lean = g.uniform(0.2, 0.28)
+    bow = g.uniform(-0.06, 0.06)
 
     def yv(q):
-        return 0.52 + bow * math.sin(q * math.pi) + 0.05 * math.sin(q * 7 + i)
-    path = [P(u0 + q * ln, yv(q)) for q in np.linspace(0, 1, 32)]
+        return 0.52 + bow * math.sin(q * math.pi) + 0.04 * math.sin(q * 6 + i)
+    path = [P(u0 + q * ln, yv(q)) for q in np.linspace(0, 1, 40)]
+
+    def shape(q):
+        if q < lean:  # the front swells fast, the tail drags out concave to a hair
+            return max(0.0, q / lean) ** 0.55
+        return max(0.0, (1 - q) / (1 - lean)) ** 1.6
 
     def wfn(q):
-        k = q / lean if q < lean else (1 - q) / (1 - lean)
-        return h * thick * (k ** 0.5) + 0.5
+        return h * thick * shape(q) + 0.3
+
+    def inkw(q):
+        return wfn(q) + INK_PX * SS * 2.0 * min(1.0, shape(q) * 3.0)
+    f.fill(poly_mask([stroke(path, inkw, cap=False)], S), INK)
     m = poly_mask([stroke(path, wfn, cap=False)], S)
-    # a dry-brush split in the tail
-    split = [P(u0 + q * ln * 0.55, yv(q) + 0.02) for q in np.linspace(0, 1, 12)]
-    m = m * (1 - poly_mask([stroke(split, lambda q: h * 0.07 * (1 - q) + 0.3, cap=False)], S))
-    f.fill(m, LIGHT, ink=INK_PX)
-    core = [P(u0 + q * ln, yv(q) - 0.06) for q in np.linspace(0.45, 0.85, 16)]
-    f.fill(poly_mask([stroke(core, lambda q: h * thick * 0.28 * math.sin(q * math.pi) + 0.3, cap=False)], S), HOT)
-    if g.random() < 0.6:  # a chip in the gap
-        cu = u0 + ln + g.uniform(0.08, 0.14)
-        cl = g.uniform(0.08, 0.14)
-        chip = [P(cu + q * cl, 0.5 + 0.04 * q) for q in np.linspace(0, 1, 10)]
-        f.fill(poly_mask([stroke(chip, lambda q: h * 0.42 * math.sin(q * math.pi) ** 0.6 + 0.5, cap=False)], S), LIGHT, ink=INK_PX)
-    for k in range(2):  # splatter flung off the outer edge
-        uu = u0 + ln * g.uniform(0.3, 0.9)
-        r = h * g.uniform(0.07, 0.11)
-        cx, cy = P(uu, g.uniform(0.1, 0.18))
-        f.fill(ellipse_mask(cx, cy, r * 1.3, r, S), LIGHT, ink=INK_PX * 0.8)
+    split = [P(u0 + q * ln * 0.5, yv(q) + 0.02) for q in np.linspace(0, 1, 12)]  # a dry-brush split in the tail
+    m = m * (1 - poly_mask([stroke(split, lambda q: h * 0.06 * (1 - q) + 0.3, cap=False)], S))
+    f.fill(m, LIGHT)
+    core = [P(u0 + q * ln, yv(q) - 0.05) for q in np.linspace(0.3, 0.7, 16)]
+    f.fill(poly_mask([stroke(core, lambda q: h * thick * 0.3 * math.sin(q * math.pi) + 0.3, cap=False)], S), HOT)
+    for k in range(g.integers(1, 3)):  # a flick or two of splatter off the outer edge, near the belly
+        uu = u0 + ln * g.uniform(0.2, 0.6)
+        r = h * g.uniform(0.06, 0.1)
+        cx, cy = P(uu, g.uniform(0.02, 0.08))
+        f.fill(ellipse_mask(cx, cy, r * 1.3, r, S), LIGHT, ink=INK_PX * 0.6)
     return _crop_strip(f, size, aspect)
 
 

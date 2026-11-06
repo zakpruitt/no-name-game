@@ -13,7 +13,7 @@ const INK_FX := preload("res://scripts/designed_ink.gd")
 ## Round 44 (fx-cohesion): designed, the rings are hand-drawn brush strips (gen_cohesion.py stamp_cue) round the
 ## same radii in the same colours: the target a ring of inked brush dashes, the closing ring one fat brush line.
 const DESIGNED_TARGET_W := 0.26  # m: the band the dashes are drawn in
-const DESIGNED_CLOSING_W := 0.4
+const DESIGNED_CLOSING_W := 0.3  # (round 45: 0.4 read as a second thick hoop)
 const INK := Color(0.012, 0.01, 0.02)
 const PAPER := Color(1.0, 0.96, 0.85)
 const LOCKED := Color(0.42, 0.42, 0.46)
@@ -61,6 +61,7 @@ func _ready() -> void:
 		add_child(_flat)
 		_designed = INK_FX.DESIGNED.on()
 		if _designed:
+			INK_FX.cue_on(self)
 			_closing_mi = MeshInstance3D.new()
 			_closing_mi.mesh = _closing_mesh
 			_closing_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -190,6 +191,12 @@ static func _band(verts: PackedVector3Array, cols: PackedColorArray, r0: float, 
 			cols.append(ci)
 
 
+## True until he presses (or it locks): designed ground stamps hold off meanwhile, so the closing ring is the only
+## ring on the floor.
+func closing() -> bool:
+	return not _over
+
+
 ## Pressed too early: no breaker this time.
 func lock() -> void:
 	if _over:
@@ -210,6 +217,8 @@ func hit(perfect: bool) -> void:
 	if _over:
 		return
 	_over = true
+	if _designed:  # (round 45: the closing ring goes at once, so the snap is the one ring the press leaves)
+		_closing_mi.visible = false
 	if crisp:  # the target ring snaps out as an inked hoop
 		Fx.COMIC_POP.spawn(get_parent(), global_position, {"ring": TARGET * 1.5, "ring_color": GOLD if perfect else color, "steps": 3})
 	else:
