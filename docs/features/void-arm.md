@@ -54,7 +54,7 @@ Each form brings its element onto the arm: `void_surge` (green storm) with the a
 
 ## The tentacle
 
-A reach this long can't be baked, so `void_tendril.gd` rebuilds a tube each frame from the hand to the target, in world space: `reach` runs it out, `wave` whips it, `coil` wraps its end round what it holds. It uses `P_Tendril` and the hero's ink (`Fx.ink_material()`). It's marked `no_ghost` and isn't under the model, so afterimages skip it.
+A reach this long can't be baked, so `void_tendril.gd` rebuilds a tube each frame from the hand to the target, in world space: `reach` runs it out, `wave` whips it, `coil` wraps its end round what it holds. It uses `P_Tendril` and the hero's ink (`Fx.ink_material()`). It's marked `no_ghost` and isn't under the model, so afterimages skip it. Since round 44 it is drawn as a designed ribbon (smooth tapered spine, authored skin with suckers, a claw tip, a tangent coil, a smear on a fast lash; `docs/features/designed-fx.md` "Round 44"); `points()` returns its world polyline for effects that ride it.
 
 ## Clips
 

@@ -92,7 +92,8 @@ resident from the first frame.
 | Ice (water) | Hexagonal block, faceted shards (lit facet, shadow facet, one specular stripe), four-point glints, straight cracks | Curves, drips, soft edges |
 | Storm (wind) | Jagged branching zigzags with uneven segments and forks, spiky stars with straight sides, crawling arcs | Smooth curves, round blobs |
 | Dust | Round lumps, a curl line, flat bottom | Spikes |
-| Dark (void, not converted yet) | Ink tendrils and smears: tapered curling strokes, splatter dots, negative-space holes | Hard geometry |
+| Dark (void) | Ink tendrils and smears: tapered curling strokes, splatter dots, negative-space holes (`pop_dark`); the tentacle: a smooth tapered spine, a fat base, suckers, a claw tip, a paper rim like the hero's | Hard geometry, corners, uniform widths |
+| Ground stamps | A few broken brush arcs a ring, fat at the front and dragged thin behind, a hot streak, splatter flung outward; erodes from the outline | Thin even hoops, dashed circles of many equal pieces, rings nested on one spot |
 
 ## Authoring a new effect
 
@@ -150,10 +151,13 @@ Converted in the pilot: hit star, impact strokes, swing swoosh, Meteor Fall land
 shatter / cube burst, every lightning bolt and arc (Grounded, Live Wire, Storm Pitch's zaps, Cataclysm's strikes,
 since they all draw through `comic_bolt.spawn`), the `Fx.dust` puff.
 
-1. Every hit: `Fx.element_hit` chips (`comic_pop` chips), `Fx.chain_spark` halos past 10 / 20 / 35 hits, the foe's
-   `daze` stars.
-2. Every swing: the axe ribbon (`weapon_trail.gd` + `shaders/weapon_trail.gdshader`: a strip texture like the
-   slash), the axe's element aura (`comic_axe_aura.gd`), the floor drag line (`comic_drag_mark.gd`), the spirit
+Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash), every floor hoop (`Fx.ring`,
+`thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
+hit in the element's shape, crowd caps), the axe ribbon.
+
+1. Every hit: `Fx.chain_spark` halos past 10 / 20 / 35 hits (capped to one a frame, still polygons), the foe's
+   `daze` stars. (The element chips are done.)
+2. Every swing: (the axe ribbon is done) the axe's element aura (`comic_axe_aura.gd`), the floor drag line (`comic_drag_mark.gd`), the spirit
    echo's ghost axes (`spirit_echo.gd`), Dash Stab's claw lash (`claw_lash.gd`).
 3. Every dash and step: `comic_dust.gd` (run start, skid, dodge puffs: reuse `dust_puff`), `Fx.dash_streak`, the
    comic afterimage, the perfect-dodge flare.
@@ -166,10 +170,100 @@ since they all draw through `comic_bolt.spawn`), the `Fx.dust` puff.
    tendrils and smears), the floor bind (`floor_bind.gd`).
 6. Breakers: the dive trail (`comic_comet.gd`), Meteor Fall's fireball shell (`void_element.meteor_shell`, cones and
    spheres), floor cracks (`comic_crack.gd`, also `Fx.scorch` in comic style), the war cry and crater
-   (`breaker_quake.gd`), `Fx.ring` / `thin_hoop`, `comic_hail`, `comic_rip`, `comic_anvil`, `comic_impale`,
+   (`breaker_quake.gd`), `comic_hail`, `comic_rip`, `comic_anvil`, `comic_impale`,
    `comic_erupt`.
 7. Crossovers: `comic_boulder`, `comic_fault` (its strikes are already designed bolts), `comic_steam`,
    `comic_freeze_over`, `comic_melt`, `comic_backdraft`, `comic_arc` (its jumps are already designed bolts).
 8. Element-matrix payoffs (`comic_improv.gd`) and the state tells on foes (`comic_state_tell.gd`).
 9. Kills: `Fx.death` (flash, shock ring, shards), `Fx.soul`, `hero_fx.last_kill` rings.
 10. Awakening: `Fx.awaken_burst` (beam, shockwaves, motes), `awaken_flourish.gd`, `hero_fx.rank_up`.
+
+## Round 44: cohesion (fx-cohesion lane)
+
+Zak, round 44: "really focus on a refinement of the art style and effects. They look weird to me." The pilot left
+the screen in two styles: authored flipbooks next to runtime polygon assemblies. This round converts the most-seen
+polygon effects, judged by "does a paused frame look drawn?" and "does the whole frame look like one artist drew
+it?". Sheets: `tools/vfx_gen/gen_cohesion.py` (its own module, so the storm lane and this one add sheets side by
+side); runtime: `scripts/designed_ink.gd` (registers its sprite sheets in `DESIGNED.extra_sheets`).
+
+### The tentacle (`void_tendril.gd`)
+
+The hero's signature weapon, so the best-drawn thing on screen. It was three flat vertex-colour ribbons (ink,
+violet, hot line) with a uniform taper and a polygon coil that started at the foe's centre, so the reach met the
+coil in a corner and two stacked turns read as pipes from above.
+
+- **Spine:** Catmull-Rom through the wave and the coil (`spine_designed`, `SMOOTH` samples a segment). The reach
+  aims at the point where its line touches the coil's circle on a tangent, so the coil carries on from it with no
+  corner; the coil spirals down and in (`WRAP_TURNS` 1.35, `COIL_OUT` past the foe's radius so its front shows over
+  the body) and ends in the claw, flicked out past it (`CLAW_HOOK`).
+- **Width:** a fat base out of the hand (`ROOT_W`, a `BASE_BULB` swell), tapering to the claw's point; a living
+  swell runs along it on twos (`SWELL`, `SWELL_WAVE`).
+- **Skin:** `shaders/tentacle.gdshader` lays `tentacle_skin` (back shadow with wrinkle ticks, a light belly with a
+  row of suckers, a hot highlight dash; three boils) along the ribbon, advancing by arc length over the local width
+  so the pattern keeps its proportions and gets denser to the tip. The ink line is the shader's, a fixed 0.06 m
+  (brushed by a slow wobble), with the hero's own paper rim outside it, so the tentacle and the hero read as one
+  drawing. The last `claw_m` before the end is the light claw tip with an ink seam.
+- **Smear:** a fast lash (`_lashing`: the tip moved more than `SMEAR_MIN` but less than `SMEAR_MAX` in a frame, the
+  root stayed put, the middle went the same way, the length held) draws `tentacle_smear` between the last pose and
+  this one for `SMEAR_HOLD`: a solid front band and three echo strokes behind it (the classic multiple-image smear).
+  A jump to a new pose (from a coil to a lash) never smears: that drew a blocky sheet across the room.
+- **For other lanes:** `points()` (the last drawn world polyline, root to tip), `tip()`, `electrify(amount, color)`
+  (washes the body, not the ink). Pinning cords (`line`) stay one thin inked line.
+
+### Ground stamps (the floor hoops)
+
+Thin flat circles on the floor (`Fx.ring`, `thin_hoop`, `dark_fx.hoop_run`, every `comic_pop` ring, the breaker
+cue) read as debug gizmos, often three or four overlapping. Decided per use:
+
+| Use | Now |
+|---|---|
+| Rank-up hoop round the hero (`hero_fx.rank_up`, the blue / green ring on most strings) | Deleted: the HUD's rank and the burst carry it |
+| Hop landing ring (`hero_moves.land_slam`) | Deleted: the designed dust puff carries it |
+| Crater dust hoop (`Fx.crater`, one per foe driven down) | Deleted: the dent and the puff carry it |
+| Every other ring (`comic_pop` "ring", so `Fx.ring`, `thin_hoop`, war cry, landings, last kill, perfect dodge, nova, `hoop_run`) | A designed **shock stamp** (`designed_ink.shock`) |
+| Breaker cue (`breaker_cue.gd`) | Same radii, timing and colours, drawn as brush strips |
+
+- **Shock stamp:** `stamp_shock` laid round an annulus (`designed_ink.annulus`), 3-5 tiles a ring
+  (`shock_tiles`), so a ring is a few big broken brush arcs (fat at the front, dragged thin behind, a hot streak, a
+  split in the tail, a chip in the gap, splatter off the outside), turned at random, racing out from
+  `SHOCK_FROM` on twos and eroding from the outline. A dashed hoop of many tiles still read as a gizmo. Real-time
+  cap `SHOCK_LIFE_MAX` so slow motion never holds one.
+- **Breaker cue:** the target ring is a ring of brush dashes (`stamp_cue` rows 0-1, boiling on twos), the closing
+  ring one fat brush line (rows 2-3; with two endings it alternates the two colours in `DASHES` pieces). The colours
+  still mean what they meant (paper, gold in the window, grey locked, the ending's colour) through the stamp
+  shader's `tint` / `tint2`.
+- `shaders/designed_stamp.gdshader`: the strip round the circle (`tiles`, `scroll`), palette row or a tint ramp
+  (ink, 0.55, 0.8, the colour, whitened), erosion with an ink burn line, no depth test (like the old hoops).
+
+### Hit pops (every element hit)
+
+Every hit threw the hit star plus a cluster of element chips (`Fx.element_hit`) on each foe, then numbers and a
+word; with four foes it was noise. Now one designed pop a hit in the element's shape (`designed_ink.pop`):
+`pop_storm` (jagged straight-sided star with uneven spikes, forked sparks off the long tips, breaking into zigzag
+shards), `pop_magma` (blobby splash with round-tipped tongues and teardrop globs, a hole opening in it), `pop_ice`
+(faceted shards with a lit facet and a specular stripe, a four-point glint), `pop_dark` (an ink blot with curling
+tapered strokes, a negative-space hole, splatter dots). The plain hit, spirit and gold keep the pilot's hit star.
+`Fx.element_hit` draws nothing more when designed. Crowd caps (one clear focal effect a beat): `POP_FULL` (2) full
+pops and `POP_SMALL` (2) at `POP_SMALL_K` a frame, the rest none; impact streaks `STREAKS_A_FRAME` (1); the chain
+halo once a frame (`once_a_frame`).
+
+### The weapon trail (`weapon_trail.gd`)
+
+The axe ribbon was a soft see-through gradient crescent next to the designed slash. Designed, it lays the same
+`slash_strip` along the ribbon (`shaders/weapon_trail_designed.gdshader`: the stroke's head at the blade, its tail
+the oldest sample, eroding first; boils on twos; palette row from the trail colour's nearest element).
+
+### Files (round 44)
+
+| File | Role |
+|---|---|
+| `tools/vfx_gen/gen_cohesion.py` | `tentacle_skin`, `tentacle_smear`, `stamp_shock`, `stamp_cue`, `pop_storm`, `pop_magma`, `pop_ice`, `pop_dark` |
+| `scripts/designed_ink.gd` | `prewarm`, the shock stamp (`shock`, `Shock`, `annulus`, `tiles_for`, `shock_tiles`, `stamp_material`), the hit pops (`pop`, `pop_share`, `streaks_ok`, `once_a_frame`) |
+| `shaders/tentacle.gdshader`, `tentacle_smear.gdshader` | The tentacle's skin and smear |
+| `shaders/designed_stamp.gdshader` | A strip round an annulus on the floor, palette or tint |
+| `shaders/weapon_trail_designed.gdshader` | The slash stroke along the swing ribbon |
+| Call sites | `void_tendril.gd`, `comic_pop.spawn` (every ring), `dark_fx.hoop_run`, `breaker_cue._draw_designed`, `Fx.hit_spark` / `_flush_crowd_stars` / `impact` / `element_hit` / `chain_spark` / `crater`, `hero_fx.rank_up`, `hero_moves.land_slam`, `weapon_trail._init`, `elements.prewarm` |
+
+Strip sheets are drawn at about 280 px a metre but seen at about 48: an ink line that reads as 2 px on screen is
+about 10 px in the strip (`INK_PX`). The tentacle draws its ink in the shader in metres instead, so the thin tip
+keeps its line.

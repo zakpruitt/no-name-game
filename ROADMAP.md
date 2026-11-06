@@ -674,3 +674,19 @@ designs, still stylistic." See `docs/features/designed-fx.md`.
 - [ ] Zak's call on the look, then the conversion list in the doc, most seen first (element_hit chips, the axe ribbon,
   comic_dust, the breaker and crossover effects, the dark element's ink tendrils)
 - [ ] The wall splat lands at the top edge of the frame (round 42 e's camera follow-up): mostly off screen in the film
+
+## Round 44 (fx-cohesion)
+Zak: "really focus on a refinement of the art style and effects. They look weird to me." See
+`docs/features/designed-fx.md` "Round 44".
+- [x] The tentacle: a smooth tapered Catmull-Rom ribbon with an authored skin (back, belly, suckers, wrinkles), ink
+  drawn in metres with the hero's paper rim, a claw tip, a tangent-entry coil (1.35 turns) and a lash smear;
+  `points()` / `tip()` / `electrify()` for other lanes (`void_tendril.gd`, `shaders/tentacle*.gdshader`)
+- [x] Every flat floor hoop is a designed ground stamp (3-5 broken brush arcs racing out on twos) or gone: comic_pop
+  rings, dark hoop runs, the rank-up, hop-landing and crater hoops; the breaker cue is a brush ring and dashes with
+  the same colours and timing (`designed_ink.gd`, `shaders/designed_stamp.gdshader`)
+- [x] One designed pop a hit in the element's shape (storm, magma, ice, dark), element chips gone, crowd caps (two
+  full pops a frame, one streak set, one chain spark)
+- [x] Weapon trail plays the designed slash strip (`shaders/weapon_trail_designed.gdshader`)
+- [ ] Still drawn as polygons: dark pools / Singularity vortex, the Reap crescent, comic_axe_aura, chain halos, daze
+  stars, comic_dust, the dash streak, combo pop strokes, kills, the Awakening, the spirit echo ghost
+- [ ] Zak's call on the look (clips `awaken-combo-clips/21 Cohesion ...`)

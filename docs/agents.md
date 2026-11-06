@@ -402,6 +402,16 @@ fast-forward, so no agent edits another's files or index.
 - **Filming a scripted move sequence:** `tests/prince_film.gd` holds half-size RGB8 images in memory (30 a second, about
   280 for 9 s, ~430 MB) and writes the PNGs after; ffmpeg `-framerate 30 -i %03d.png -c:v libx264 -pix_fmt yuv420p` makes
   the mp4. Copy `user://<dir>` to the scratchpad first.
+- **Designed fx, round 44 (fx-cohesion):** a strip texture laid along a mesh is drawn at ~280 px/m but seen at ~48 px/m,
+  so its ink must be ~13 px in the sheet (`gen_cohesion.INK_PX`) or it vanishes; draw ink that must hold at any width
+  in the shader, in metres (the tentacle's edge). A hoop of many dashes still reads as a gizmo: 3-5 broken brush arcs
+  (`designed_ink.shock`) read as a drawn stamp. A smear built from the last pose draws a slab when the pose jumps
+  (coil to lash): guard on tip speed, a still root and a same-direction middle (`void_tendril._lashing`). Register a
+  new lane's sheets through `DESIGNED.extra_sheets` instead of editing another lane's `SHEETS`. Per-frame caps
+  (one streak set, two full pops a frame) key on `Engine.get_process_frames()`.
+- **Scratch files block `agent.sh land`** (it needs a clean tree, untracked included): list them in the common git
+  dir's `info/exclude` (`git rev-parse --git-common-dir`), not `.gitignore`. Backslash line continuations inside a
+  heredoc'd Python patch get eaten; keep patched lines on one line or use an editor tool.
 
 ## The harness (`tools/agent.sh`)
 
