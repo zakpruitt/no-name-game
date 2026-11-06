@@ -432,7 +432,9 @@ fast-forward, so no agent edits another's files or index.
   (fx_sleek_check's rim geysers: group `comic_geyser`, `.width`) fails the land once the designed look replaces it;
   put the designed node in the group and give it the value as a meta, and let the check read
   `get_meta("width", get("width"))`, so the check still guards the size. Batch the sheets for a lane in one generator
-  (`gen_elements.py`) and land two or three effects at a time: each land is ~15 min of checks.
+  (`gen_elements.py`) and land two or three effects at a time: each land is ~15 min of checks. After a land rebases you
+  onto other lanes' new sheets, run `godot --headless --import --path .` in your worktree before filming: an
+  unimported sheet draws as a solid cream square (the shader's white default texture), with no error in the log.
 
 - **Designed fx, round 44 b (fx-air):** an effect's anticipation shorter than ~0.09 s never lands on a 12 fps film
   frame, so it is never seen: hold it longer or show it with motion that lasts (debris dragging in). A "white-hot"
