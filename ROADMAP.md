@@ -690,3 +690,20 @@ Zak: "really focus on a refinement of the art style and effects. They look weird
 - [ ] Still drawn as polygons: dark pools / Singularity vortex, the Reap crescent, comic_axe_aura, chain halos, daze
   stars, comic_dust, the dash streak, combo pop strokes, kills, the Awakening, the spirit echo ghost
 - [ ] Zak's call on the look (clips `awaken-combo-clips/21 Cohesion ...`)
+
+## Round 44 (hero model v2)
+Zak: "please take a look at the heretic model, it sucks and is super buggy in game lol. I'm fine going a different
+route than the original with hood and such". See `docs/features/heretic-hero.md` "Hero model v2".
+- [x] A hand-scripted chibi body on the same rig (`tools/hero_build/hero_v2.py`, headless Blender, no Meshy): bone-white
+  hood with devil horns and a back point, a real recessed void face with a crimson rim, blue-black tunic and skirt, big
+  boots and left glove, crimson scarf, a beaded violet claw arm with a palm, three big claws and a thumb. 20.4k tris,
+  flat swatch palette. Picked from three variants (hook / horns / twin)
+- [x] Put into the committed GLB by a byte-level repack (`tools/hero_build/glb_swap.py`): every bone, the skin and all
+  62 clips unchanged, so contact frames, `HERO_MOVES` and every check hold
+- [x] The face is geometry: eyes and grin lie on the face plate, depth-tested; `FACE_PULL`, `FaceShade`, `EYES`,
+  `HEAD_GROW`, `FACE_TIP` and the claw cover test (`_covered`) deleted from `heretic_rig.gd`
+- [x] Chunky inked weapons formed by the claw, built in each weapon bone's frame: crescent axe with a green edge,
+  broad cyan leaf spear with barbs, a lava-banded hammer block with spikes (3.7k tris)
+- [x] Before / after and the variant sheet: `awaken-combo-clips/18 Hero model v2 *.png`
+- [ ] Zak plays it: seen in stills and films from the game camera only
+- [ ] Re-keying with `chibi_keys.py` exports the old Meshy body: run `glb_swap.py` over the export afterwards

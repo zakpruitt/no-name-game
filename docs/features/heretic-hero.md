@@ -31,6 +31,9 @@ How to make more models like this: [meshy-pipeline.md](meshy-pipeline.md).
 | `scripts/heretic_form_fx.gd` | The burst on a change: flat camera-facing shapes redrawn on twos. `LOOKS` holds each form's tones, star size and chips |
 | `scripts/comic_look.gd` | `HERETIC`, `hero_kind()`, `PAINTED`, `painted()`, his `KIND_TONES` (weapons and the reach tube in the limb's magenta) |
 | `shaders/comic_toon.gdshader` | `paint`: optional texture, white when unset, so other models don't change |
+| `tools/hero_build/hero_v2.py` | Round 44: the hand-built body and weapons (headless Blender, closed primitives, remesh, palette, weights) |
+| `tools/hero_build/glb_swap.py` | Round 44: puts those meshes and the palette into the committed GLB, rig and clips untouched |
+| `assets/comic/heretic_chibi_hero_palette.png` | Round 44: the flat swatch palette (nearest, no mipmaps) |
 | `tests/heretic_shots.gd` | Check and pictures |
 
 ## Rebuilding
@@ -277,6 +280,25 @@ then `comic_glb.py`, the JPEG bytes, `--import` and `contact_frames.gd` as above
 - **Scale**: `heretic_rig.MODEL_SCALE` {"chibi": 1.06, then 1.15 with the claw up, below} scales the GLB's Armature node under `player.model` at setup (`_scale_model`; `player.model`'s own scale belongs to Awakening's 1.18 tween). Collision, hit ranges and every hit area are unchanged. `chibi_keys.py` reads the constant out of `heretic_rig.gd` (`GAME_K`, printed as `[keys] game model scale`) into `WORLD_K`, so the run strides shorten by it, and `hero_stride_check` scales the model by it: 1.00 on all four runs (0.94 before the re-key). Contact frames print the same. Game camera, Idle on his spot, one at a time (1600x900, shadows off, `foe_shots`' camera framing differs from round 2's, so the warrior reads 226 px here where it read 209): pass 2 196 px / 20.1k px, pass 3 243 px / 24.1k px, warrior 226 px / 32.8k px, dummy 179 px (1.075x the warrior's height; his area is still 74% of the warrior's, whose shield and horns are wide).
 - **Claw up** (`chibi_keys.py` `IDLE_RH` (68, 30, 0.52) / `IDLE_W` (58, 52), `READY_RH` (52, 34, 0.55) / `READY_W` (35, 58)): in Idle and Idle_Ready the claw is held out beside the hood, pointing out and up so its spread opens to the camera, not hanging behind the hip; the run stops settle into it (`IDLE0`, `READY0`). Lifting it took 47 px off his Idle height (the low claw had been the bottom of his silhouette), so `MODEL_SCALE` went 1.06 -> 1.15: Idle 214 px tall vs the warrior's 226 (0.95), 29.3k px vs 32.9k of silhouette, face 6.7%.
 
+## Hero model v2 (round 44): a hand-built body on the same rig
+
+Zak: "the heretic model sucks and is super buggy in game ... fine going a different route than the original with hood and such". The Meshy chibi was one fused, decimated shell with a painted face, a floating face oval drawn 0.22 m nearer the camera (`FACE_PULL`), eyes with no depth test and a cover test (`_covered`) to hide them behind the claw, and weapons that were the old hero's flat polygons resized. v2 replaces every mesh with a scripted one and keeps the rig, so no clip, contact frame or check changes.
+
+- **Same rig, new meshes.** `tools/hero_build/hero_v2.py` (headless Blender) imports the committed GLB's armature at rest, builds the body from closed primitives (superellipsoid blobs, Catmull-Rom tubes, torus rings) per part, unions each part by voxel remesh, smooths, decimates to a per-part budget, colours each face from region rules into a 128 px swatch palette (8x8 flat swatches, nearest filtering, no mipmaps) and weights each part to its allowed bones (inverse distance to the bone segments, top 4, smoothed; hard parts rigid). `tools/hero_build/glb_swap.py` then writes a new GLB from the base: every node, the skin's joints and inverse bind matrices and all 62 clips are copied byte for byte, only the `heretic` mesh, the eleven weapon meshes and the palette image change. That works because the GLB's bind pose is its rest pose (joint world x IBM = identity), so rest-pose world coordinates are bind coordinates.
+- **Design** (variant "horns", picked from three: hook, horns, twin; sheet `awaken-combo-clips/18 Hero model v2 variants.png`): a bone-white hood with two forward-curling devil horns and a back point, a recessed black void face (a real cavity cut into the hood after the remesh, EXACT boolean, with a crimson rim), a blue-black tunic, belt and short skirt over big boots, a crimson scarf with a tail, a big left glove, and the violet void claw: a beaded arm of five swelling segments, a palm and three big claws plus a thumb with pale-pink tips on the existing `tent.up`, `tent.main`, `tent.low` and `tent.mid` chains. Head about 42% of his 1.95 m. Body 20.4k tris, weapons 3.7k.
+- **Face is geometry.** Eyes and grin are small flat vertex-coloured meshes on a `BoneAttachment3D(head)`, laid on the face plate's surface (`heretic_rig.FACE`: each spot's position and plate normal in rest space, printed by the build into `face.txt`), depth-tested, not billboards. The hood itself hides them when he turns away, the claw when it passes in front: `EYES`, `HEAD_GROW`, `FACE_TIP`, `FACE_PULL`, `FaceShade` and `_covered` are gone. Blink, squint and grin still scale the nodes.
+- **Weapons formed by the claw.** Built in each `weapon.<form>` bone's own frame (y up the haft, blade facing -x, flat in the bone's x-y plane, as `chibi_keys.py` keyed the facings), skinned 100% to that bone, with white `COLOR_0` so `KIND_TONES` tones them as before. The farthest vertex from the hand is a spike at the top of the haft, because `_read_form` reads the stretch axis from it. Axe: a crescent of radial wedges with a green ridged edge and a back hook; spear: a broad cyan leaf head with two barbs; hammer: a dark block with orange lava bands and three spikes.
+
+Rebuild (from the repo root; the base GLB is the round-40 committed one, kept at `vendor_src/hero_v2/base_r40.glb`):
+
+```
+blender -b --factory-startup -P tools/hero_build/hero_v2.py -- <abs base_r40.glb> <abs vendor_src/hero_v2/out> horns 1
+python tools/hero_build/glb_swap.py vendor_src/hero_v2/base_r40.glb vendor_src/hero_v2/out assets/comic/heretic_chibi.glb
+godot --headless --import --path .
+```
+
+`render` (the 1) writes workbench front / side / back / game-angle renders per pose (`r_<pose>_<view>.png`); `hook` / `twin` build the other variants. Keep the base GLB: re-keying with `chibi_keys.py` still exports the old Meshy body, so after a re-key run `glb_swap.py` over the new export to put v2's meshes back.
+
 ## The rig
 
 - Bone names match the current hero, so `MOVES`, `HERO_MOVES` and `hand.r` lookups work unchanged. Extras: `neck`, `shoulder.*`, left `finger.*`, `tent.*`, `skirt.*`.
@@ -344,8 +366,8 @@ Rebuild as above (`chibi_keys.py` over the baked blend, `comic_glb.py`, `--impor
 - The round-28 heretic's clips are still the old hero's, with nothing keyed for the tentacles. The chibi's played clips are keyed (Animation, above) except the fidgets and 2H_Melee_Idle, still the shaman's with keyed claws. None of the keyed clips has been played by hand, only filmed.
 - The change has no sound of its own.
 - The orbiting motes are still the old soft cyan dots (`elements.Orbit`).
-- Weapons are the old hero's size: axe 2.75 m and spear 2.68 m on a 2.2 m hero.
-- Still a realistic body with a grown head: the chibi direction needs a new base (art-direction.md).
+- v2 (round 44) has only been seen in stills and filmed strings, not played by hand.
+- The slam clip (VS) squashes the hood flat: the clip scales the head bone, keyed for the Meshy hood.
 - The main tentacle's last bone assumes `Vector3.UP` as its direction, because nothing follows it to measure from.
 - `mid` and `low` bulge when coiled hard, where they're fused to the limb.
 - High knees can stretch the skirt where it meets the thigh.
