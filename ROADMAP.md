@@ -742,8 +742,8 @@ and zaps everybody". See `docs/features/void-element.md` ("The tentacle conducts
   tell on the foe; cells Overload (storm), Superconduct (ice), Arc Flash (magma), Conduct (dark) with tells and
   words; bot string `spread H L L wait L H` (Overload)
 - [x] Clips: `awaken-combo-clips/20 Lightning *`
-- [ ] Grounded's LMB ending (Short Circuit, combo-breakers.md round 43 table): not done
-- [ ] Feel pass (a rising pitch per chain link): `Game.sfx` has no pitch control; not done
+- [x] Grounded's LMB ending (Short Circuit, combo-breakers.md round 43 table): round 44 b
+- [x] Feel pass: no pitch control, so a hit stop a step longer and a fatter bolt each link instead (round 44 b)
 - [ ] Zak plays Galvanize and the four cells by hand
 
 ## Round 45 (fx-cohesion2)
