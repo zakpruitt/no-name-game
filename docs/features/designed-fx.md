@@ -209,7 +209,11 @@ row, Storm Pitch's landing in wind.
 Converted in round 46 (fx-elements): Molten Palm's fist and fissure, the lava spurts and geysers (`rim_geyser` too),
 Undertow's lava pool, Meteor Fall's fireball in flight, the ice spikes (so nova and Worldbreaker's ice), the frost
 spear's floor and Deep Freeze's burst, the ice block and frozen foe's ice and the frost spear as faceted meshes. See
-"Round 46" below.
+"Round 46: ice and magma" below.
+
+Converted in round 46 (fx-finish): the Awakening (`awaken_flourish`, which `Fx.awaken_burst` calls in comic style),
+chain halos, daze stars, `Fx.combo_pop` strokes, the spirit echo's ghost axe, the weapon-change burst, the axe aura
+(off), `comic_boulder`, `comic_steam`, `comic_erupt`, `comic_anvil`. See "Round 46: the finish" below.
 
 Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash), every floor hoop (`Fx.ring`,
 `thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
