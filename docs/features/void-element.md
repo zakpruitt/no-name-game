@@ -27,10 +27,10 @@ These are the hero's only heavies and breakers: the KayKit hero's `route()`, `BR
 Live Wire is the hang itself: `void_grab.seized_tick` jolts every `WIRE_STEP`, so the lightning does its damage whether or not the press comes. Big foes can't be held, but the lightning still finds them (`reachable()`).
 
 **The tentacle conducts (round 44, `scripts/live_current.gd`).** Each jolt is a pulse that leaves his claw and runs
-out along every tentacle's own drawn curve (`void_tendril.points`) at `LIVE_CURRENT.SPEED` (34 m/s, game time, so
+out along every tentacle's own drawn curve (`void_tendril.points()`, the designed spine) at `LIVE_CURRENT.SPEED` (34 m/s, game time, so
 the window's slow motion and each zap's hit stop hold it): a hot yellow knot at its head, the authored bolt strip
 (`designed_fx` "bolt_strip", tiled along the curve) lit behind it, the tentacle's own body flickering storm-light
-on twos while it carries the charge (`void_tendril.charge`). A held foe is zapped on the frame its pulse arrives
+on twos while it carries the charge (`void_tendril.electrify()`). A held foe is zapped on the frame its pulse arrives
 (`void_element.jolt()` through `zap_hit()`: the number and a flash, no hit star or speed strokes; two short forks
 crackle off its chest instead), nearer foes first. When every tentacle has delivered, arcs (`comic_bolt`) jump on,
 nearest first, `JUMP_STEP` apart, to everyone in reach no tentacle holds (heavies, past `SEIZE_MAX`). The first pulse
