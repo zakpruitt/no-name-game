@@ -973,8 +973,8 @@ Zak approved the kit grammar ("implement it"); dark x magma was its one empty cr
 - [x] Lava Leash (L L L H L, `XL`, Molten Palm's free L): a tentacle to everyone the palm hit, wherever it went (the
   wall too), dragged back along the floor through a lava seam into a pile at his feet, paid by the metre (x1.6 off a
   wall); the seam erupts under the pile (SHLURK-FWOOM!): molten, bound
-- [x] Its best situation differs from Galvanize's and Black Tide's (`void_arm_check` `_lava_leash()`, all three in each):
-  palm's foes at mixed ranges by a wall 136 / 42 / 72; a spread crowd 7 m round him, unmarked 35 / 130 / 0; marked foes
+- [x] Its best situation differs from Galvanize's and Black Tide's (`tests/lava_leash_check.gd`, all three in each; in `agent.sh check`):
+  palm's foes at mixed ranges by a wall 103 / 42 / 72; a spread crowd 7 m round him, unmarked 36 / 130 / 0; marked foes
   8-10 m off, no palm 0 / 67 / 96 (Lava Leash / Galvanize / Black Tide)
 - [x] One ending, Hellseam (KRAKA-FWOOOM!): he dives on the pile, a crater harder the further each was dragged, then the
   eruption runs back out along every seam and catches whoever stands on one; the breaker spectacle's magma family

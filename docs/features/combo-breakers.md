@@ -341,7 +341,7 @@ landing, `lava_leash.let_go()`), `at_spot` (he dives on `dark_spot`, the pile), 
 leap at `GR_HIT + LEAP_AFTER_LEASH` (before the move's cancel, so no press steals it; after the pile's burst, which hid
 under his leap at 0.56). The landing craters the pile, harder the further each was dragged (x1 + 0.04 a metre), then
 the eruption runs back out along each seam to where its foe was taken, a geyser every 1.5 m, and catches whoever
-stands on one for half. `void_arm_check` asserts the crater (a foe dragged 10 m takes over 1.25x one dragged 1 m),
+stands on one for half. `tests/lava_leash_check.gd` asserts the crater (a foe dragged 10 m takes over 1.25x one dragged 1 m),
 that the seam is not up on the landing frame, that it catches the one on it 0.6 s later and nobody off it. Bot
 string: `wall spread L L L H L` (`spread` with `wall` now lays the arc toward the wall); the autotest's
 `endings_n=` counts it (20/20).
