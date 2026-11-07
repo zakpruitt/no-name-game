@@ -28,7 +28,7 @@ const XF_SPEED := 1.5  # Fault Line (was 1.2): Rockslide's hit to Fault Line's w
 # Round 34, third pass (flow audit off the bot's [rhythm] beats, first hit to first hit; shape 196 / 235 / 362 ms):
 const EM_CANCEL := 0.17 * VOID_ELEMENT.AF_K  # Molten Palm / Steam Burst: the whiff cancel after the palm (118 ms)
 const EM_END := VOID_ELEMENT.AF_HIT + 0.43 * VOID_ELEMENT.AF_K  # (was + 0.34) keeps ~300 ms of recovery after the palm at the new pace
-const LLH_SPEED := 1.75  # round 51 batch 2 (was 1.6: Dash Stab -> Harpoon beat 353 ms); Harpoon and Frost Spear (was 1.2): the spear drove in 327 ms in, the slowest mid wind-up (DL ->
+const LLH_SPEED := 1.6  # (round 51 tried 1.75 for 8 ms off Dash Stab -> Harpoon: Harpoon then set the row down without ice blocks, ice_block_check) Harpoon and Frost Spear (was 1.2): the spear drove in 327 ms in, the slowest mid wind-up (DL ->
 # EF beats 418-514 ms); now 245 ms in
 const MELT_SPEED := 1.65  # Meltdown (was 1.2, then 1.5): XG -> XM beat 467, then 434 ms; the slam lands 202 ms in
 const ICE_CUBE_CONFIRM := 0.8  # round 51 batch 2: Ice Cube hands over to Hailstorm / Deep Freeze this far back to its hit (EA -> XG beat 367)
