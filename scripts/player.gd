@@ -25,6 +25,7 @@ const HERO_INPUT := preload("res://scripts/hero_input.gd")
 const HERO_LEAP := preload("res://scripts/hero_leap.gd")
 const HERO_AWAKEN := preload("res://scripts/hero_awaken.gd")
 const HERO_FX := preload("res://scripts/hero_fx.gd")
+const COUNTER := preload("res://scripts/counter.gd")  # the dash counter, Backlash (docs/features/counter.md)
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const VOID_GRAB := preload("res://scripts/void_grab.gd")
 const VOID_ARM := preload("res://scripts/void_arm.gd")
@@ -129,6 +130,9 @@ var _air_dashes := 0  # air dashes since he last touched the floor (AIR_DASHES)
 var _ghost_t := 0.0
 var _since_dash := 99.0
 var _perfect_this_dash := false
+var _counter := {}  # this dash turned into Backlash, the dash counter (counter.gd), while set
+var counters := 0  # counters landed (autotest `[counter]`, counter_check)
+var counter_perfects := 0
 var _swing_cd := 0.0  # s until R swings again
 var _fling_t := 0.0  # s left flying off a swing
 var _charged := false
@@ -473,6 +477,9 @@ func _state_attack(delta: float) -> void:
 
 
 func _state_dash(delta: float) -> void:
+	if not _counter.is_empty():
+		COUNTER.tick(self, delta)
+		return
 	_ghost_t -= delta
 	if _ghost_t <= 0.0:
 		_ghost_t = afterimage_interval
@@ -496,6 +503,8 @@ func _state_hurt(delta: float) -> void:
 
 
 func _set_state(s: State) -> void:
+	if s != State.DASH and not _counter.is_empty():
+		COUNTER.cut(self)
 	state = s
 	_state_t = 0.0
 	if _void != null:
@@ -552,6 +561,9 @@ func _try_swing() -> bool:
 
 
 func _start_dash() -> void:
+	var aim := HERO_INPUT.input_dir(self)
+	if COUNTER.try_start(self, aim.normalized() if aim.length() > 0.1 else _facing()):
+		return  # a strike was coming at him: the dash is the counter (counter.gd)
 	_dash_from = global_position
 	_dash_out = state == State.ATTACK
 	_air_dash = HERO_MOVES.can_air_dash(self)

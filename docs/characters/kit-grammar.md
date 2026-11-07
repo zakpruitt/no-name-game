@@ -79,6 +79,9 @@ states that is a cross product that grows with every character. The fixed versio
 
 ## 4. Dash counters
 
+**Status (round 49): built for the heretic.** Backlash and its window's ending Ricochet, `WINDOW` 0.25 s, `PERFECT`
+0.1 s, 60 deg; the swinging training dummy; see [../features/counter.md](../features/counter.md).
+
 Smash's counter is a special that, hit during its window, cancels the hit and answers it harder. Here it lives
 on the dash, since every character has one and it is already the "get out" button:
 
@@ -111,7 +114,7 @@ What it keeps, by slot. Everything listed exists today.
 | 6 Dash moves | Dash Stab (Dash L), Tow Line (Dash H) | Lunge, snare. |
 | 7 Dash enders | Harpoon (Dash L H: Shatterstorm / Slapshot), Impale (Dash H H) | Harpoon is the gather; Impale the skewer. Ice Cube (Dash L H H) is a route step into Hailstorm. |
 | 8 Crossovers (≤ 6, one per colour pair) | storm x magma: **Fault Line** (L H L L H: Cataclysm / Tempest). ice x magma: **Steam Burst** (Dash L H H L: Flash Freeze). dark x storm: **Galvanize** (H L L, charged state). ice x storm: **Hailstorm -> Meltdown** (Dash L H H H, then L: Eruption) counted as one route. dark x ice: **Backdraft** (L L H, Dash H H L: Anvil / Pinwheel). dark x magma: **empty slot** | Five of six pairs filled; dark x magma is the open design slot (a tentacle-and-lava move, e.g. the tentacle drags the marked into the lava well). |
-| 9 Counter | none yet | Backlash, section 4. |
+| 9 Counter | Backlash (round 49; perfect: Ricochet) | Section 4; [counter.md](../features/counter.md). |
 | 10 Awakening | as now | |
 
 **Demote** (keep in the game as upgrade or unlock content, out of the base kit, so a new character is not

@@ -548,6 +548,24 @@ func _state_windup(delta: float) -> void:
 		_set_state(State.RECOVER)
 
 
+## Strike telemetry for the dash counter (counter.gd, docs/features/counter.md): game seconds until this foe's
+## melee strike lands (the windup's end, longer under a chill), or -1 when none is coming. Shots, raises and the
+## bomber's fuse are not strikes.
+func strike_in() -> float:
+	if state != State.WINDUP or attack_kind != "melee":
+		return -1.0
+	var slow := chill_mult if chill_t > 0.0 else 1.0
+	return maxf(attack_windup - _state_t, 0.0) / maxf(slow, 0.05)
+
+
+## How far the strike reaches (_strike: its range plus a step).
+func strike_reach() -> float:
+	return attack_range + STRIKE_PAD
+
+
+const STRIKE_PAD := 0.6
+
+
 func _strike() -> void:
 	if not is_instance_valid(_player):
 		return

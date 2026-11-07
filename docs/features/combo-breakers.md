@@ -266,6 +266,7 @@ H L H, H in the window      Maw
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |
 | Backdraft (L L H, Dash H H L) | XW | Anvil / Pinwheel (breaker pairs) | RMB / LMB |
 | Harpoon, then a pause (Dash L H) | EF | Shatterstorm / Slapshot (round 47) | RMB / LMB |
+| Perfect dash counter (Dash into a strike, last 0.1 s) | CB | Ricochet (round 49, [counter.md](counter.md)) | RMB |
 
 Two of eleven have a second ending. No ending, number or damage changed in this round.
 

@@ -414,6 +414,8 @@ func seize(b := {}) -> void:
 		return
 	var at: Vector3 = hero.global_position
 	var foes: Array = reachable().filter(func(e: Node3D) -> bool: return not is_heavy(e) and not VOID_ELEMENT.THROWN.flying(e))
+	if b.has("only"):  # the dash counter's window (counter.gd): the attacker alone, big or not
+		foes = [b.only] if is_instance_valid(b.only) and b.only.is_alive() else []
 	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		if a.is_airborne() != b.is_airborne():
 			return a.is_airborne()

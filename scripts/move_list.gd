@@ -59,6 +59,9 @@ const SECTIONS := [
 		{"input": "Dash H", "kind": "move", "id": "TW", "note": "Latches onto whoever he just passed and yanks them into each other."},
 		{"input": "R", "kind": "text", "name": "Swing", "note": "Swings him the way he's aiming, round a pillar if there's one there. Hold R to go further; letting go flings him."},
 		{"input": "R, then H", "kind": "text", "name": "Snatch", "note": "Grabs a foe on the way past, carries it, and it flies on when he lets go."},
+		# The dash counter (kit slot 9, counter.gd): Space as a strike is about to land, aimed at the attacker.
+		{"input": "Dash into a strike", "kind": "text", "name": "Backlash", "tier": 2, "note": "Dash at a foe in the last moment of its swing (its ring nearly full): the tentacle catches the weapon, marks it, swings it up and slams it down. A shot is batted back."},
+		{"input": "Dash into a strike (last instant), H in the window", "kind": "text", "name": "Ricochet", "tier": 3, "note": "A perfect counter leaps with the tentacle on the attacker: it is hurled into the nearest foe or wall, splats and is held there. Best by a wall or a crowd."},
 	]},
 	{"title": "CROSSOVERS", "hint": "Strings that change element: the second cashes in what the first set up.", "rows": [
 		{"input": "L H L L", "kind": "move", "id": "XR", "note": "Storm into earth: the hammer comes down off the air slash and drives everyone into the floor together. Double on those the gale had up."},

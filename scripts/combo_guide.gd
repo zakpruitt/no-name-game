@@ -41,6 +41,7 @@ const BACK_COLOR := Color(0.04, 0.03, 0.07, 0.5)  # (round 33, part 3: 0.74 unde
 const ROW_DOTS := 0.28  # alpha of the backing's dots
 const ROW_LINE := 0.55  # alpha of its line
 const HUD_INK := preload("res://scripts/hud_ink.gd")
+const COUNTER_HINT := preload("res://scripts/counter.gd")
 ## Button text: mouse and keyboard, the one control set shown in the game.
 const LABELS := {"light": "LMB", "heavy": "RMB", "dash": "SPACE"}
 const ACTIONS := {"attack_light": "light", "attack_heavy": "heavy", "dash": "dash"}
@@ -104,6 +105,8 @@ func _process(_delta: float) -> void:
 	_last_us = now
 	var rows: Array = [] if not Game.combo_guide or not is_instance_valid(player) else (player.guide_rows()
 		if player.has_method("guide_rows") else player.HERO_MOVES.combo_options(player))  # (guide_rows: the prince)
+	if Game.combo_guide and is_instance_valid(player) and "_counter" in player:
+		rows = COUNTER_HINT.hint(player, rows)  # a strike is coming: SPACE Backlash on top (counter.gd)
 	if not rows.is_empty():
 		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s:%s" % [r.kind, r.id, r.next.get("id", ""), r.get("pay", "")]))
 		if sig != _sig:

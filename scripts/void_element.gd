@@ -141,6 +141,10 @@ const BREAKERS := {
 	"EF": {"erupt": "wind", "hold_cubes": true, "pause": true, "thunder": true, "damage": SHATTER_DAMAGE, "leap": LLH_HIT + LEAP_AFTER_HARPOON,
 		"zone": 0.6, "awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Shatterstorm"},
 		"alt": {"erupt": "earth", "slapshot": true, "damage": SLIDE_DAMAGE * SLIDE_WALL_MULT, "names": {"spirit": "Slapshot"}}},
+	# The dash counter's window (kit slot 9, counter.gd): a perfect Backlash leaps with the tentacle on the attacker
+	# alone (`only`, set by counter.gd) and the press hurls it into the nearest foe or wall, bound where it lands.
+	"CB": {"erupt": "void", "counter": true, "damage": 30.0, "height": 1.6, "awaken": 10.0, "awaken_perfect": 20.0,
+		"names": {"spirit": "Ricochet"}},
 }
 
 const CUTTER_AHEAD := 3.5  # m: where the gale throws them up from
@@ -1598,6 +1602,9 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	if b.has("counter"):  # Ricochet, the dash counter's ending (load: counter.gd preloads this file)
+		load("res://scripts/counter.gd").ricochet(hero, b, at, seized, mult)
+		return
 	if b.has("shower"):
 		_meteor_shower(hero, b, at, mult)
 		return

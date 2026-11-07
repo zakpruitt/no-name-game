@@ -56,6 +56,7 @@ const BREAKER_WORDS := {
 	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
 	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
 	"Shatterstorm": "KRSSSH-BOOM!", "Slapshot": "THWAKK!",  # round 47 b (Slapshot's wall hits say slapshot_fx.WALL_WORD)
+	"Ricochet": "KA-SPLATT!",  # the dash counter's ending (counter.gd)
 	"Meteor Shower": "BLAM-BLAM-BLAMM!", "Pinwheel": "WHIRRR-KRAK!", "Tempest": "VWOOOM-KZZAK!",  # breaker-pairs (Pinwheel's wall hits say breaker_alt_fx.WALL_WORD)
 }
 const BREAKER_SCALE := 0.78
