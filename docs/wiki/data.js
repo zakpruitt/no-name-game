@@ -157,7 +157,7 @@ window.WIKI = {
    "damage": 42.0,
    "erupt": "earth",
    "name": "Eruption",
-   "word": "BLOOORRM!"
+   "word": "KA-BLOOOSH!"
   },
   "XS": {
    "awaken": 12.0,
@@ -165,7 +165,7 @@ window.WIKI = {
    "damage": 30.0,
    "erupt": "water",
    "name": "Flash Freeze",
-   "word": "FSSHINK!"
+   "word": "FSSSH-KRAK!"
   },
   "XW": {
    "alt": {

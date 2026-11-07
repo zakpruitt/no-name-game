@@ -105,6 +105,8 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# indicator marks; Deep Freeze takes the spear down, so the next string's L L is the swings again).
 	{"slot": "big_2", "tokens": ["wall", "L", "L", "H", "L", "H"]},
 	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]},
+	# Round 52 cool pass (combo-cool2): Eruption by the wall, its best (the geysers hurl the burning pile into it).
+	{"slot": "cross_ice_storm", "tokens": ["wall", "D", "L", "H", "H", "H", "L"]},
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
 	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Powder Keg: Molten Palm carries the dummies over the spikes into
 	# the barrel (it catches) and the crate; Undertow pins them, and Meteor Fall dives on the splatted pile as it bursts.

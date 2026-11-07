@@ -537,3 +537,37 @@ When Uproot has a pillar in reach the window's bracket marks the pillar, not the
 makes sense"): the structure indicator's bracket now also goes on a foe (docs/features/environment.md "Foe picks").
 The charged hold shows who Overwhelm will pin, and the cursor switches it; Abyss's hang shows who comes up first.
 With Collapse (structure, round 50) and Avalanche (structure, new), four control moves pick with the cursor.
+
+## Round 52 cool pass (combo-cool2 lane)
+
+Round two against the same bar (three beats, the element or tentacle visibly in control, a best situation on screen, a
+landing of its own). Films: `string_film -- --dir=cool2_before --no-awaken --fps=24` (41 strings) before, one
+string at a time after. Numbers are `tests/cool_pass_check.gd` `_cool2` (bot presses at the sweet spot: perfect
+multiplier in). Each keeps its slot, input and window (kit_check unchanged); no hang is longer (the beats run after the
+landing, in game time, so the hit stop holds them).
+
+**Eruption** (Dash L H H H L, H in Meltdown's window, `XM`; `scripts/eruption_hurl.gd`). Word "KA-BLOOOSH!". Beats:
+(1) fuse: from `START` 0.12 s after the landing (past the shared burst) a crusted lava crack (`erupt_chain` strip,
+`designed_drag.gdshader`) races along the floor to each foe, nearest first `STEP` 0.07 s apart; (2) heave: it reaches
+the foe (`FUSE` 0.1 s) and a geyser (`designed_elements.geyser`, 2.2 m) throws it up to `TOP` 2.1 m (`HEAVE` 0.13 s),
+`ERUPT_HEAVE_MULT` 0.35; (3) hurl: from the top of its column it is thrown at the structure the indicator marks
+(env_target `eruption`, the cursor may choose, within `ERUPT_REACH` 9 m: `ERUPT_HURL_MULT` 0.8 x `ERUPT_WALL_MULT`
+1.6 on the wall, the word "SPLURCH!" and `breaker_alt_fx.cool_wall`), sticks `SPLAT_Y` 1.8 m up it and slides down it
+burning in the `erupt_drip` sheet (`SLIDE` 0.34 s, `ERUPT_SLIDE_MULT` 0.45, lit `molten` again, a pool at the foot). With
+no structure in reach it drops back into a crater (`ERUPT_DROP_MULT` 0.45). Each beat is x1.4 on the ones Meltdown lit
+(`ERUPT_MOLTEN_MULT`) and x0.7 on the rest (`ERUPT_COLD_MULT`). Best: a crowd by a wall (three: 749 vs Flash Freeze's
+321). Worst: the open (four foes: 282 vs Flash Freeze's 378; three in the open 212). Bot string: `wall D L H H H L`.
+
+**Flash Freeze** (Dash L H H L, H in Steam Burst's window, `XS`; `scripts/frost_shell.gd`). Word "FSSSH-KRAK!".
+Beats: (1) roll: on the dive the steam Steam Burst blew off (`steam_shell` sheet, stood 0.4 m toward the camera so it
+rolls over the block) rolls out from where he will land over everyone within `FF_CLOUD_R` 5.5 m, not only the held,
+nearest first `SET_STEP` 0.035 s apart; (2) set: it sets into a shell, the fitted ice block (`encase`),
+`FF_SET_MULT` 0.3; (3) break: the landing breaks the picked shell (env_target `flash_freeze`: the bracket on a foe when
+two or more are in the cloud, the cursor may choose, auto the nearest the landing) and a frost line (`designed_elements.fissure`
+"water": floor cracks, no crystals) races to the nearest unbroken shell every `LINK` 0.09 s, breaking each a link
+harder (`FF_LINK_PER` +60% a link, frozen x `FREEZE_BREAK`), "KRAK!" over each. Best: a crowd in the open (four: 378
+vs Eruption's 282). Worst: by a wall (321 vs 749): the wall does nothing for it. Picking where the chain starts
+decides who takes the last, hardest link.
+
+The pair now splits on where they stand: same branch off Dash L H H (H for Hailstorm / Meltdown / Eruption, L for
+Steam Burst / Flash Freeze), Eruption if the crowd is by a wall, Flash Freeze if it is out in the open.

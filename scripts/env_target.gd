@@ -50,6 +50,9 @@ const CTX := {
 	# round 51 cool pass: foe picks (the same bracket on a foe: kind "foe" in foe_structs(); picked_foe() reads it)
 	"overwhelm": {"el": "void", "choose": true, "far": false},  # the charged hold: who Overwhelm pins
 	"abyss": {"el": "void", "choose": true, "far": false},  # Abyss's window: who the deep gives back first, whole
+	# round 52 cool pass (combo-cool2): Eruption's structure, Flash Freeze's first shell
+	"eruption": {"el": "earth", "choose": true, "far": false},  # Meltdown's window: the wall or pillar the geysers hurl at
+	"flash_freeze": {"el": "water", "choose": true, "far": false},  # Steam Burst's window: a foe, the shell that breaks first
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
 const FOE_BRACKET_Y := 1.0  # m over its feet (its chest)
@@ -460,6 +463,16 @@ func context(h: CharacterBody3D) -> Dictionary:
 			if held.size() >= 2:
 				return {"ctx": "abyss", "from": me, "reach": ve.ABYSS_RADIUS * 3.0, "mode": "foe", "foes": held,
 					"auto": ve.abyss_first(h, held), "key": key}
+		if b.has("eruption"):  # round 52: the structure the geysers hurl the burning pile at
+			return {"ctx": "eruption", "from": _flat(h._brk_zone), "reach": ve.ERUPT_REACH, "mode": "near", "key": key}
+		if b.has("refreeze"):  # round 52: with two or more in the steam's reach, who breaks first
+			var steamed: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+				return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(_flat(h._brk_zone)) <= ve.FF_CLOUD_R)
+			if steamed.size() >= 2:
+				var zone := _flat(h._brk_zone)
+				steamed.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(zone) < _flat(c.global_position).distance_to(zone))
+				return {"ctx": "flash_freeze", "from": zone, "reach": ve.FF_CLOUD_R, "mode": "foe", "foes": steamed, "auto": steamed[0], "key": key}
+			return {}
 		if b.has("collapse"):
 			return {"ctx": "collapse", "from": _flat(h._void.dark_spot), "reach": COLLAPSE_REACH, "mode": "near", "key": key}
 		if alt.has("uproot") and load("res://scripts/env_piece.gd").usable("pillar", "uproot"):  # round 51

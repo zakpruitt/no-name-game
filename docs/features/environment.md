@@ -36,6 +36,8 @@ environmental combos!"
 | `avalanche` | Deep Freeze's window (Avalanche, round 51) | water | yes | the cubes' tower | `AVALANCHE_REACH` 9 m |
 | `overwhelm` | the charged hold (Overwhelm, round 51): a **foe** | void | yes (foes in `OVERWHELM_REACH`) | him | auto: the nearest in his aim |
 | `abyss` | Overwhelm's window (Abyss, round 51): a **foe**, 2+ pinned | void | yes (the pinned) | him | auto: the biggest pinned |
+| `eruption` | Meltdown's window (Eruption, round 52) | earth | yes | the landing (`_brk_zone`) | `ERUPT_REACH` 9 m |
+| `flash_freeze` | Steam Burst's window (Flash Freeze, round 52): a **foe**, 2+ in the cloud | water | yes (foes in `FF_CLOUD_R`) | the landing | auto: the nearest the landing |
 
 **Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select
 combos where control makes sense." The same bracket goes on a foe where who matters: `context()` returns
@@ -50,6 +52,9 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   the attack starting (`_end`, key `charge:`).
 - Abyss: with two or more pinned, the bracket in the hang is on who the deep gives back first and whole (the others
   share, `ABYSS_SHARE`); the default is the biggest (`void_element.abyss_first`).
+- Flash Freeze (round 52): with two or more in the steam cloud, the bracket in the hang is on the shell his landing
+  breaks first; the chain runs from it to the nearest unbroken shell each link, harder each, so the pick decides who
+  takes the last link (`frost_shell.shatter(first)`). Eruption's pick is a structure (the wall or pillar it hurls into).
 
 ## Files
 

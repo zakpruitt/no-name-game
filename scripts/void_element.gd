@@ -38,6 +38,9 @@ const ENV_PIECE := preload("res://scripts/env_piece.gd")  # the room's pieces (r
 const COLLAPSE_SPIT := preload("res://scripts/collapse_spit.gd")  # round 51 cool pass: Collapse's swallow and spit
 const AVALANCHE_TOPPLE := preload("res://scripts/avalanche_topple.gd")  # round 51 cool pass: Avalanche's tower
 const ABYSS_RISE := preload("res://scripts/abyss_rise.gd")  # round 51 cool pass: Abyss's column up and slam down
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
+const ERUPTION_HURL := preload("res://scripts/eruption_hurl.gd")  # round 52 cool pass: Eruption's fuse, heave and hurl
+const FROST_SHELL := preload("res://scripts/frost_shell.gd")  # round 52 cool pass: Flash Freeze's steam, shells and break
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -544,6 +547,28 @@ const MELT_DOWN := 6.0  # m/s into the floor (enemy._is_spike): they come down b
 const ERUPT_MOLTEN_MULT := 1.4  # Eruption on those Meltdown set alight
 const ERUPT_RING := 3.5  # m round the landing the floor goes up
 const ERUPT_LAUNCH := 9.0
+## Round 52 cool pass (eruption_hurl.gd): a fuse to each, a geyser heaves it up (ERUPT_HEAVE_MULT), then it is hurled
+## into the structure the indicator marks (env_target "eruption", within ERUPT_REACH of the landing: x ERUPT_HURL_MULT,
+## its wall splat x ERUPT_WALL_MULT) and slides down it burning (ERUPT_SLIDE_MULT), or in the open dropped back into
+## the floor (ERUPT_DROP_MULT). Every beat x ERUPT_MOLTEN_MULT on those Meltdown lit, x ERUPT_COLD_MULT on the rest.
+const ERUPT_REACH := 9.0
+const ERUPT_COLD_MULT := 0.7
+const ERUPT_HEAVE_MULT := 0.35
+const ERUPT_HURL_MULT := 0.8
+const ERUPT_WALL_MULT := 1.6
+const ERUPT_WALL_SPEED := 20.0
+const ERUPT_SLIDE_MULT := 0.45
+const ERUPT_DROP_MULT := 0.45
+const ERUPT_WALL_WORD := "SPLURCH!"
+const ERUPT_CUE_MS := 1300
+## Round 52 cool pass, Flash Freeze (frost_shell.gd): on the dive the steam rolls over everyone within FF_CLOUD_R of the
+## landing and sets into a shell on each (FF_SET_MULT as it sets); the landing breaks the picked one (env_target
+## "flash_freeze") and the break runs shell to shell, each link FF_LINK_PER more than the last. A crowd: Flash Freeze.
+const FF_CLOUD_R := 5.5
+const FF_SET_MULT := 0.3
+const FF_LINK_PER := 0.6
+const FF_DOWN := 3.0
+const FF_META := &"frost_shell"
 const IMPALE_GRAB := 4.0  # m round where Tow Line bunched them
 const IMPALE_DAMAGE := 12.0
 const IMPALE_SPEAR_MULT := 1.5  # dark into ice: onto a spear that was already standing, frost and all
@@ -1746,27 +1771,106 @@ static func _backdraft(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	return foes.size()
 
 
-## Eruption lands: everyone near comes up out of the floor on the lava under each, Meltdown's `molten` hardest
-## (ERUPT_MOLTEN_MULT).
+## Eruption lands (round 52 cool pass, eruption_hurl.gd): a lava fuse races out to everyone near, a geyser heaves each
+## up, and hurls it into the wall or pillar the indicator marks to slide down it burning; in the open the column gives
+## and they drop back into the floor. Meltdown's `molten` take every beat hardest (ERUPT_MOLTEN_MULT).
 static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
 	var damage: float = b.damage * hero._dmg_mult * mult
-	var struck := {}
-	var spots := []
-	var hots := []
+	var foes: Array = []
 	for e: Variant in seized + FOES.near(hero.get_tree(), at, ERUPT_RING):
-		if struck.has(e) or not is_instance_valid(e) or not e.is_alive():
-			continue
-		struck[e] = true
-		var hot := marked(e, "molten")
+		if not foes.has(e) and is_instance_valid(e) and e.is_alive() and not THROWN.flying(e):
+			foes.append(e)
+	var hot := {}
+	for e: Node3D in foes:
+		hot[e] = ERUPT_MOLTEN_MULT if marked(e, "molten") else ERUPT_COLD_MULT
 		unmark(e, "molten")
-		e.take_hit(damage * (ERUPT_MOLTEN_MULT if hot else 0.7), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else ERUPT_LAUNCH, true)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + ERUPT_CUE_MS)
+	var wall := pinwheel_target(hero, at, "eruption", ERUPT_REACH)  # (the indicator's pick; a raycast in a bare room)
+	var g: Node3D = ERUPTION_HURL.start(hero, at, foes, wall.get("found", false), hero._void.is_heavy)
+	g.on_heave = func(e: Node3D, _i: int) -> void:
+		e.take_hit(damage * ERUPT_HEAVE_MULT * float(hot.get(e, 1.0)), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else ERUPT_LAUNCH, true)
 		Game.register_hit("breaker")
-		spots.append(_flat(e.global_position))
-		hots.append(hot)
-	COMIC_ERUPT.spawn(parent, at, spots, hots)  # (the floor up under each, nearest first: was a geyser + spikes each and a scorch)
+		Game.sfx("hit_big", -4.0, 0.1)
+	g.on_hurl = _eruption_hurl.bind(hero, wall, damage, hot, g)
+	g.on_drop = func(e: Node3D, _i: int) -> void:
+		e.take_hit(damage * ERUPT_DROP_MULT * float(hot.get(e, 1.0)), Vector3.DOWN * MELT_DOWN, 0.0, true)
+		Game.register_hit("breaker")
+		under(parent, _flat(e.global_position), "earth")
+	g.on_slide = func(e: Node3D, _i: int) -> void:
+		e.take_hit(damage * ERUPT_SLIDE_MULT * float(hot.get(e, 1.0)), Vector3.ZERO, 0.0, true)
+		mark(e, "molten")  # (it slid down burning: still alight)
+		Game.register_hit("breaker")
+		if DESIGNED.on():
+			DESIGNED_EL.pool(parent, e.global_position, 0.9)
+	if not DESIGNED.on():
+		COMIC_ERUPT.spawn(parent, at, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)), foes.map(func(e: Node3D) -> bool: return hot[e] > 1.0))
 	_pop(parent, at, "hammer")
 	Game.shake(0.7)
+
+
+## One of Eruption's hurls (eruption_hurl.on_hurl): the geyser throws `e` from the top of its column at the structure;
+## the splat sticks it up the wall (eruption_hurl.slide) to slide down burning.
+static func _eruption_hurl(e: Node3D, _i: int, hero: Variant, wall: Dictionary, damage: float, hot: Dictionary, g: Variant) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
+	var aim: Vector3 = face - _flat(e.global_position)
+	var parent: Node = hero.get_parent()
+	THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage * ERUPT_HURL_MULT * float(hot.get(e, 1.0)),
+		{"solid": false, "el": "earth", "speed": ERUPT_WALL_SPEED, "land_y": ERUPTION_HURL.SPLAT_Y, "wall_mult": ERUPT_WALL_MULT,
+		"splash": false, "on_burst": _eruption_splat.bind(parent, g)})
+
+
+## An Eruption hurl stops (thrown_foe's on_burst): on the structure it splats and slides down it; short of one it lands.
+static func _eruption_splat(f: Node3D, walled: bool, dir: Vector3, parent: Node, g: Variant) -> void:
+	if walled and is_instance_valid(parent):
+		ALT_FX.cool_wall(parent, f.global_position, dir, "earth", ERUPT_WALL_WORD)
+	if is_instance_valid(g) and walled:
+		g.slide(f, -dir)
+
+
+## Flash Freeze's dive (hero_leap._start_dive, round 52): the steam rolls out from where he will land over everyone
+## within FF_CLOUD_R, setting into a shell on each, nearest first (frost_shell.gd). Returns the node (the landing breaks it).
+static func flash_freeze_dive(hero: CharacterBody3D) -> Node3D:
+	var zone: Vector3 = _flat(hero._brk_zone)
+	var foes: Array = []
+	for e: Variant in hero._void.held_foes() + FOES.near(hero.get_tree(), zone, FF_CLOUD_R):
+		if not foes.has(e) and is_instance_valid(e) and e.is_alive():
+			foes.append(e)
+	var damage: float = BREAKERS.XS.damage * hero._dmg_mult
+	var g: Node3D = FROST_SHELL.start(hero, zone, foes)
+	g.on_set = func(e: Node3D, _i: int) -> void:
+		e.take_hit(damage * FF_SET_MULT, Vector3.ZERO, 0.0, false)
+		Game.register_hit("breaker")
+		encase(e)
+	hero.set_meta(FF_META, g)
+	return g
+
+
+## Flash Freeze lands (round 52): the shells the steam set break one after another from the picked one (env_target
+## "flash_freeze": the cursor's foe, or the one nearest the landing), a beat harder each link (FF_LINK_PER).
+static func _flash_freeze(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var g: Variant = hero.get_meta(FF_META) if hero.has_meta(FF_META) else null
+	hero.remove_meta(FF_META)
+	if not is_instance_valid(g):
+		g = flash_freeze_dive(hero)
+		hero.remove_meta(FF_META)
+	g.on_link = func(e: Node3D, k: int) -> void:
+		e.take_hit(damage * (1.0 + FF_LINK_PER * k), Vector3.DOWN * FF_DOWN, 0.0, true)  # (frozen: x FREEZE_BREAK)
+		THROWN.remove_cube(e)
+		Game.register_hit("breaker")
+		Game.hitstop(0.03)
+		Game.sfx("hit_big", -3.0, 0.1)
+		if DESIGNED.on() and is_instance_valid(parent):
+			DESIGNED.ice_shatter(parent, e.global_position + Vector3.UP * 0.9, 1.1 + 0.1 * k)
+	for e: Node3D in g.shelled():
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 900)
+	g.shatter(ENV.picked_foe(hero, "flash_freeze"))
+	_pop(parent, at, "spear")
+	Game.shake(0.6)
 
 
 ## Anvil lands: the hammer drives what the gale brought back (everyone held) into the floor, a crater each, at
@@ -1920,6 +2024,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		return
 	if b.has("cubes"):
 		_cold_front(hero, b, at, seized, mult)
+		return
+	if b.has("refreeze"):  # Flash Freeze (round 52): the shells the dive set break in a chain
+		_flash_freeze(hero, b, at, mult)
 		return
 	if b.has("press"):
 		_avalanche(hero, b, seized, mult)
