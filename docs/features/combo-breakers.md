@@ -168,6 +168,24 @@ combo count). Now:
 Tow Line off a dash still waits out the whole dash (EF -> TW 457-526, IP -> TW 479-482): handing it over at
 `DASH_STAB_CANCEL` too made it 371-411 ms but shortened its line, and the bot's frozen x dark cell went 3 -> 0.
 
+Round 51 (fluidity lane, `docs/feel-audit-2026-11-07.md`): Tow Line off a dash now hands over at
+`hero_input.TOW_LINE_CANCEL` 0.7 of the dash, and a pause window holds an early press of its button.
+
+| Hand-over (bot beats, first hit to first hit, worst run) | Was | Now |
+|---|---|---|
+| L3 -> Molten Palm (coil re-keyed, f32 of 81) | 535 ms | 373 ms |
+| L2 -> L3 | 436 ms | 380 ms |
+| Vault -> Deep Freeze | 453 ms | 370 ms |
+| Rockslide -> dash -> Dash Stab | 435 ms | 385 ms |
+| Hailstorm -> Meltdown | 434 ms | 343 ms |
+| Harpoon -> dash -> Tow Line | 386 ms | 345 ms |
+| Dash Stab -> Harpoon | 353 ms | 345 ms |
+| Ice Cube -> Hailstorm | 367 ms | 319 ms |
+| grab -> Reap | 337 ms | 317 ms |
+
+An early press in a pause window (H on Impale before the leap, L on Harpoon) is held and dives on that button's
+ending (Backdraft / Ice Cube) as the window opens, where it used to route on (a grab / Triple Chop's L3).
+
 ## Round 34, third pass: air timing and the hold's `reel`
 
 - A breaker entry with `reel` (Anvil) has `void_grab.seize()` lift each foe at a spot `reel` of the way from where it

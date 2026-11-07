@@ -395,3 +395,12 @@ Rebuild as above (`chibi_keys.py` over the baked blend, `comic_glb.py`, `--impor
 `godot --headless --path . -s tests/heretic_shots.gd` (PASS/FAIL). Windowed, it also saves `user://heretic_shots/`, including `strip_<close|game>_<form>_<i>.png`: the change in 20 ms steps from a close camera and the game's, with the weights printed as `[strip]`. Playing: `godot --path .`.
 
 Anything testing the change steps the skeleton by hand: set `MODIFIER_CALLBACK_MODE_PROCESS_MANUAL`, call `advance(delta)`, then await `skeleton_updated`, since `advance` only queues the time. Timers don't work, even at a low `Engine.time_scale`: one slow frame covers the whole change.
+
+## Round 51: Molten Palm's coil re-keyed without the blend
+
+`python tools/meshy_rig/clip_warp.py <in.glb> <out.glb> <clip> <old:new,...> [--drop=...] [--linear]` retimes one clip
+inside an exported GLB (drawing starts remapped, dropped drawings removed, hold keys to the frame before the next
+kept start; `--linear` for the round-28 heretic's per-frame bakes). Ab_AF: drawings 19, 35, 39 dropped,
+`1:1,7:6,13:11,25:16,31:21,43:25,47:29,50:32`, so the palm lands on f32 of 81 (was f50 of 99), on both
+heretic_chibi.glb and heretic.glb. `chibi_keys.py` carries the same keys, so a full re-key from the blend matches.
+Every MOVES fraction tied to the old length goes through `void_element.AF_HIT` / `AF_K`.

@@ -1029,3 +1029,18 @@ can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/fea
   rebuild after 6 s, `tests/env_piece_check.gd`, `[env] ... pieces=N/N`
 - [x] Uproot: Overwhelm's LMB ending (`OW.alt`): the tentacle tears the nearest pillar out and clubs the pinned foe
   (297 vs Abyss 196 by a pillar; 78 vs 196 in the open), the pillar left as rubble; both training rooms rebuild
+
+## Round 51 fluidity (every hand-over snappy, no dead contact, no eaten press)
+
+Zak: "work in a loop increasing combat fluidity, ensure everything is snappy and very fun." See
+`docs/feel-audit-2026-11-07.md`.
+- [x] Measured all 39 strings (autotest beats, film sheets) and ranked hand-overs, x1.00 contacts, eaten presses
+- [x] Molten Palm's coil re-keyed (`tools/meshy_rig/clip_warp.py`): L3 -> palm 535 -> 373 ms; eight more hand-overs
+  under 380 (Vault -> Deep Freeze 453 -> 370, Hailstorm -> Meltdown 434 -> 343, Ice Cube -> Hailstorm 367 -> 319)
+- [x] Ice Cube sets Harpoon's row down before bowling; a whiffed blade's echo cast gets its own small stop
+- [x] Hit weight climbs opener -> mid -> ender (`hero_moves.hit_stop` / `cam_tier`)
+- [x] No press eaten: early presses in pause windows held to the window, dive presses kept to the landing
+- [x] `tests/input_snap_check.gd` (in `agent.sh check`)
+- [x] Clips: `awaken-combo-clips/35 Fluidity *`
+- [ ] Zak's call: the dash hand-overs (Rockslide -> Dash Stab 385 ms) are over the 330 mid target because of the dash
+  itself; a shorter dash would change movement everywhere
