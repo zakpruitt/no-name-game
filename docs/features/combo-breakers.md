@@ -799,7 +799,7 @@ camera only through `camera_rig.punch()`.
   then has them together. Heavy foes are not hauled (they slow as before).
 - **Black Tide** (`VD`, 4/4 with spread marks). The tentacles do the drag: each marked one is tethered out of the pool
   (`thrown_foe` `rope_from`, the reaped first) and arrives staggered (`TIDE_FIRST` 0.55 + `TIDE_STEP` 0.15 a foe of
-  `TIDE_ARRIVE`); each arrival knocks the pile (`_tide_knock`: `TIDE_KNOCK` 4 x (1 + `TIDE_KNOCK_PER` 0.5 per one
+  `TIDE_ARRIVE`); each arrival knocks the pile (`_tide_knock`: `TIDE_KNOCK` 1.2 x (1 + `TIDE_KNOCK_PER` 0.5 per one
   already there)); the last gets a `TIDE_GULP_STOP` 0.06 stop, a burst, the word and a ring. The bot's dummies stand
   close, so its drag is short (3/4 there).
 - **Dash Stab** (`DL`, 3/4 with a straggler). The claw's lash aims (`claw_lash._aim_catch`: the furthest light foe
