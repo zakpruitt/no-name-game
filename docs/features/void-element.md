@@ -46,7 +46,7 @@ element: the hit arcs on through every other charged foe near it. Overload (stor
 
 | Input | Id | Name | Effect |
 |---|---|---|---|
-| L L H | `IP` | Frost Spear | Plants the spear ahead of him (`frost_spear.gd`). Frost spreads out from it and only slows. One at a time; it melts after `LIFE` |
+| L L H | `IP` | Frost Spear | Plants the spear in the nearest group (round 55, `spear_auto`; ahead of him with none) (`frost_spear.gd`). Frost spreads out from it and only slows. One at a time; it melts after `LIFE` |
 | Dash L H H | `EA` | Ice Cube | Freezes the nearest foe and bowls it (`pierce`): whatever it passes takes the hit and freezes |
 | L L H L | `IJ` | Vault | Up over the spear (`run_to_spear`) |
 | L L H L H | `IS` | Deep Freeze | Comes down on the spear and it goes off: everyone on the frost takes a hit and freezes into a cube (`_deep_freeze`). The window opens |
@@ -374,3 +374,28 @@ Gameplay is in each move's section of `void_element.gd`; the looks are `scripts/
   `LOOP_*`), Shatterstorm's thunder chains cube to cube (`_chain_link`, `CHAIN_*`). Cold Front bowls the cubes into the
   `cold_front` structure (`COLD_*`); Maw's heap gets jaws and a punch (`MAW_HEAP_JAW_R`, `MAW_HEAP_STOP`, `MAW_HOIST_Y` 2.1).
 - Check: `tests/cool3_check.gd`.
+
+## Round 55 cool pass 4 (combo-cool4 lane)
+
+The six mids left at 2/4 rebuilt (combo-breakers.md "Round 55 cool pass 4" has the ranking and numbers). Slots,
+inputs, windows and hand-overs unchanged. Each says its one word on its beat (`ComicFx.LATE_WORDS`, `MID_WORD_SIZE`).
+
+- **Frost Spear** (L L H, `IP`): the plant goes to the nearest group by default (`spear_auto`, `SPEAR_GROUP_R` 3 m),
+  not along his facing; the cursor overrides; with no two standing together it goes in ahead as before.
+- **Deep Freeze** (L L H L H, `IS`): the blocks pop as a wave from the picked one (`deep_freeze` pick,
+  `deep_freeze_order`, `_df_pop`: `DF_STEP` 0.07 s apart, the first x`DF_FIRST_MULT` 1.5, a frost fissure block to
+  block); past the frost's edge only foes within `DF_LINK` 3.2 m of the first join. `deep_freeze_flush()` pops the rest
+  when Avalanche's hold opens (`void_grab.seize`).
+- **Rockslide** (L H L L, `XR`): the gale drags the airborne in round the `rockslide` pick, a boulder falls there
+  (`MID_BEATS.boulder_drop`) and `_rockslide_land` buries them `ROCKSLIDE_FALL` 0.18 s later.
+- **Meltdown** (Dash L H H H L, `XM`): the hammer hits the `meltdown` pick (x`MELT_HEART_MULT` 1.6), globs fly from it to
+  the rest (`MID_BEATS.glob`, `MELT_STEP` 0.06 s); only those within `MELT_SPLASH_R` 3.2 m of it are `molten`.
+- **Overwhelm** (hold H, `OW`): `_overwhelm_pin` drags the other light foes in the pool onto the pinned one
+  (`OW_PILE_RING`), a tentacle hauls it up `OW_LIFT` 2 m and slams it (`OW_SLAM_DAMAGE` 10).
+- **Black Tide** (H L H, `VD`): each marked one is tethered in out of the pool (`thrown_foe` `rope_from` / `on_end`),
+  staggered (`TIDE_FIRST` / `TIDE_STEP`), and knocks the pile as it lands (`_tide_knock`, `TIDE_KNOCK`).
+- **Dash Stab** (Dash > L, `DL`): `claw_lash.gd` aims at the furthest light foe in `AIM_CONE` and its barb catches the
+  furthest it cut past `CATCH_MIN` 3.2 m and reels it in to `CATCH_TO` 1.7 m.
+- **Maw**: no heap jaws; the knock happens at the top (`tentacle_haul.on_top`, `MAW_KNOCK_HOLD`), then the slam
+  (`MAW_SLAM_MULT`).
+- Check: `tests/cool4_check.gd`. Film the picks: windowed `tests/pick_film.gd -- --case=<name>`.

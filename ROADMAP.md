@@ -1154,3 +1154,19 @@ One framing rule for every breaker hang, and the clutter round it; `docs/feature
 - [x] Banner slide-fade tried (`--banner=slide`); the cut stays
 - [x] Clips: `awaken-combo-clips/43 Camera *`
 - [ ] Zak's call: the banner move (cut kept); Cold Front's cube needs x1.7; the gallows Ricochet payoff (1.2-1.4)
+
+## Round 55 cool pass 4 (combo-cool4: the last 2/4 mids, the picks on film)
+
+Zak: "keep iterating, sticking to the scheme; make them amazing; the structure / foe pick is amazing, use it where
+control makes sense". See `docs/features/combo-breakers.md` "Round 55 cool pass 4".
+- [x] Frost Spear plants in the nearest group by default (`spear_auto`); the cursor still overrides
+- [x] Rebuilt with a beat each: Deep Freeze's wave from the picked block, Rockslide's gale and falling boulder on the
+  picked spot, Meltdown's hammer on the picked block and its globs, Overwhelm drags the rest onto the pinned one and
+  slams it, Black Tide's tentacles haul each in and each knocks the pile, Dash Stab's lash reels in the one behind
+- [x] Foe picks `rockslide`, `deep_freeze`, `meltdown`; Frost Spear's `spear` pick has an auto
+- [x] Maw: no heap jaws, the knock is its own beat at the top (KONK, stop, punch), then the slam
+- [x] `tests/cool4_check.gd`; windowed `tests/pick_film.gd` films a foe pick with a drawn pointer
+- [x] Clips: `awaken-combo-clips/45 Cool4 *` (before / after, and one per pick: Singularity, Frost Spear, Reap, Tow
+  Line, Rockslide, Deep Freeze, Dash Stab, Short Circuit)
+- [ ] Open: Overwhelm's pool reads busy behind the slam; Rockslide's boulder small at the camera's distance; Dash
+  Stab's catch and Black Tide's drag need foes spread out (the bot's dummies stand close)

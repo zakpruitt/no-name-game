@@ -45,7 +45,10 @@ environmental combos!"
 | `flash_freeze` | Steam Burst's window (Flash Freeze, round 52): a **foe**, 2+ in the cloud | water | yes (foes in `FF_CLOUD_R`) | the landing | auto: the nearest the landing |
 | `reap` | Reap (VR) before its hit, 2+ in the hook's cone (`reap_candidates`; round 54): a **foe** | void | yes (`REAP_HOOK_REACH` 10 m, `REAP_HOOK_CONE`) | him | auto: the furthest outside the crescent (`reap_auto`) |
 | `singularity` | Singularity (VS) before its hit, a foe held (round 54): a **foe** | void | yes (`SING_PICK_REACH` 8 m) | him | none: the hole opens where it always did unless the cursor chooses |
-| `spear` | Frost Spear (IP) before its hit, 2+ in reach (round 54): a **foe** | water | yes (`SPEAR_PICK_REACH` 7.5 m) | him | none: planted ahead unless the cursor chooses |
+| `spear` | Frost Spear (IP) before its hit, 2+ in reach (round 54): a **foe** | water | yes (`SPEAR_PICK_REACH` 7.5 m) | him | auto (round 55): the nearest group (`spear_auto`); ahead with no two together |
+| `rockslide` | Rockslide (XR) before its hit, off the air slash, 2+ in reach (round 55): a **foe** | earth | yes (`ROCKSLIDE_PICK_REACH` 7 m) | him | auto: the most round it, the airborne double (`rockslide_auto`) |
+| `deep_freeze` | Deep Freeze (IS) before its hit, off the vault, 2+ in the frost (round 55): a **foe** | water | yes (`DEEP_FREEZE_RADIUS` round the spear) | the spear | auto: the nearest the spear (`deep_freeze_auto`) |
+| `meltdown` | Meltdown (XM) before its hit, off Hailstorm, 2+ up or frozen (round 55): a **foe** | earth | yes (`MELT_REACH` 6 m) | him | auto: the most within `MELT_SPLASH_R` (`meltdown_auto`) |
 | `cold_front` | Live Wire's air window (Cold Front, LMB, round 54) | water | yes | the landing | `COLD_REACH` 9 m |
 
 **Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select
@@ -84,6 +87,13 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
     it; the frost spreads from there.
 - Cold Front (round 54, a structure pick, `cold_front` from Live Wire's air window): the wall or pillar the cubes are
   bowled into; none in `COLD_REACH`, they are thrown at their neighbours as before.
+- Round 55 cool pass 4 (`_mid_ctx`, combo-cool4): Frost Spear's bracket is on its default plant from the start-up
+  (`spear_auto`, the nearest group; no longer cursor only). Three more mids pick a foe (each opened once its press is
+  buffered in the move before): Rockslide (where the boulder lands; the gale drags the airborne to it), Deep Freeze
+  (the block that pops first; the wave runs out from it, and past the frost only round it), Meltdown (the block the
+  hammer hits; only those round it are set molten). Overwhelm's pick now pays (the rest are dragged onto the pinned
+  one and it is slammed). Film any foe pick with windowed `tests/pick_film.gd -- --case=<name>` (a drawn pointer at
+  `test_cursor`).
 
 ## Files
 

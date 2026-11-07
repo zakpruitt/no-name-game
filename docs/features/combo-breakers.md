@@ -740,3 +740,93 @@ Feel audit 6 item 10. The camera side is in [camera.md](camera.md) ("Hang framin
   time. A room that keeps pieces gone (`rebuild: false`) also gets a low flat rubble decal along the fall line
   (`RUBBLE_DECAL` floor_tile_large_rocks at `RUBBLE_DECAL_H` 0.25 height). The decal joins `env_leftovers`, so a
   rebuild clears it. `rebuild()` stops an erosion in progress. `env_piece.eroded` counts them.
+
+## Round 55 cool pass 4 (combo-cool4 lane)
+
+Round four on the six mids still at 2/4, Frost Spear's default plant, Maw's heap and the picks never filmed. Zak:
+"keep iterating, sticking to the scheme; make them amazing; the structure / foe pick is amazing, use it where control
+makes sense" (no ice crystals; tentacle control, wind and lightning). Films: `string_film -- --dir=cool4_before
+--no-awaken --fps=24` before, `--dir=cool4_a1` after (43 strings), `--from=4 --to=16` again after tuning, `--from=N
+--to=N --tail=1600` for Short Circuit and Maw; the picks with the new windowed `tests/pick_film.gd -- --case=<name>`
+(a drawn pointer where `env_target.test_cursor` stands in for the mouse). Clips: `awaken-combo-clips/45 Cool4 *`.
+Numbers: `tests/cool4_check.gd`. Slots, inputs and windows unchanged (kit_check 23/23, 15/15); hand-overs unchanged (no `MOVES`
+timing touched; rhythm_check PASS).
+fx_coverage max 0.312 (budget 0.40). A word at most per mid, said on its beat (`ComicFx.LATE_WORDS` + `XR`, `IS`,
+`XM`, `OW`, `VD`; `MID_WORD_SIZE` 0.5); no new sheets (the boulder is `rock_boulder`, the globs `meteor_shell`); the
+camera only through `camera_rig.punch()`.
+
+### The mids ranked (before)
+
+| Score | Move | What it lacked |
+|---|---|---|
+| 2/4 | Frost Spear (L L H) | planted along his facing: after a turning L2 the frost had nobody to reach |
+| 2/4 | Rockslide (L H L L) | the hammer comes down and everyone craters; nothing falls, nothing chosen |
+| 2/4 | Deep Freeze (L L H L H) | every block pops on the same frame |
+| 2/4 | Overwhelm (hold H) | the pool and tendrils hold, nobody is moved; the pick is there but pays nothing |
+| 2/4 | Meltdown (Dash L H H H L) | one sweep for all; molten on everyone it reached |
+| 2/4 | Dash Stab (Dash > L) | a lunge with a lash along his facing that cuts and snaps back empty |
+| 3/4 | Black Tide (H L H) | the marked fly in on their own; no tentacle seen doing it, no beat on arrival |
+| 4/4 ending | Maw | the heap's second set of jaws read as one more heap, not as a knock |
+
+### Rebuilt
+
+- **Frost Spear** (`IP`, 3/4). The plant's default is now the env_target `spear` pick's auto (`spear_auto`): the foe
+  within `SPEAR_PICK_REACH` 7.5 m with the most others within `SPEAR_GROUP_R` 3 m (nearest on a tie); the spear goes in
+  at its feet and the bracket shows it from the start-up. The cursor still overrides. With no two standing together,
+  ahead as before. Bot film: the spear lands in the crowd and the frost reaches all three.
+- **Deep Freeze** (`IS`, 4/4). The pop is a wave: the `deep_freeze` foe pick (opened off the vault once H is buffered;
+  default `deep_freeze_auto`, the block nearest the spear) pops first, x`DF_FIRST_MULT` 1.5, then each block in order of
+  distance from it `DF_STEP` 0.07 s apart (`deep_freeze_order`, `DF_MOST` 8), a frost fissure from the one before and
+  a `DF_POP_STOP` 0.035 stop on each after the first, the word on the last. Past the frost's edge only foes within
+  `DF_LINK` 3.2 m of the first block join, so the pick decides which side the wave carries out to (cool4_check: the
+  straggler at 7.4 m is reached from its side, not from the other). Avalanche's hold pops any block still to come as
+  its window opens (`deep_freeze_flush`, called from `void_grab.seize`), so its tentacles take every cube.
+- **Rockslide** (`XR`, 3/4). Three beats: the gale drags everyone airborne within `ROCKSLIDE_GALE_R` 6 m in to
+  `ROCKSLIDE_RING` 0.9 m round the `rockslide` pick (default `rockslide_auto`: the most others round it, the airborne
+  counting double; `ROCKSLIDE_PICK_REACH` 7 m), gusts drawn; a boulder (`MID_BEATS.boulder_drop`, `rock_boulder` frame 0,
+  `DROP_SIZE` 1.6) falls from `ROCKSLIDE_DROP_Y` 3.2 m over `ROCKSLIDE_FALL` 0.18 s; the landing (`_rockslide_land`):
+  the hit, x`ROCKSLIDE_AIR_MULT` 2 on those the gale brought, buried, `ROCKSLIDE_STOP` 0.06, dust, a ring and the word.
+  Best: a pair the air slash lifted and one standing where you want the pile.
+- **Meltdown** (`XM`, 3/4). The molten hammer picks its block (`meltdown` pick, default `meltdown_auto`: the most others
+  within `MELT_SPLASH_R` 3.2 m): that one takes x`MELT_HEART_MULT` 1.6, a `MELT_HEART_STOP` 0.07 stop, the burst
+  (`DESIGNED_FINISH.erupt`) and the word; burning globs (`MID_BEATS.glob`, `GLOB_SIZE` 0.7) fly from it to the rest
+  `MELT_STEP` 0.06 s apart. Only those within `MELT_SPLASH_R` of the first are `molten`, so the pick decides who
+  Eruption burns (cool4_check: the bunch lit, the loner 6.5 m off not).
+- **Overwhelm** (`OW`, 3/4). The pick now pays: after the bind the pool's tentacles drag every other light foe in it
+  to `OW_PILE_RING` 1 m round the pinned one (`OW_DRAG` 0.22 s, tethered from the pool), then a tentacle hauls the
+  pinned one up `OW_LIFT` 2 m (`OW_UP` 0.12, `OW_HOLD` 0.09, `OW_DOWN` 0.06; `tentacle_haul`) and slams it into the pile:
+  `OW_SLAM_DAMAGE` 10, `OW_SLAM_STOP` 0.07, `camera_rig.punch(0.92, 0.12)`, a burst, a ring and the word. Abyss's window
+  then has them together. Heavy foes are not hauled (they slow as before).
+- **Black Tide** (`VD`, 4/4 with spread marks). The tentacles do the drag: each marked one is tethered out of the pool
+  (`thrown_foe` `rope_from`, the reaped first) and arrives staggered (`TIDE_FIRST` 0.55 + `TIDE_STEP` 0.15 a foe of
+  `TIDE_ARRIVE`); each arrival knocks the pile (`_tide_knock`: `TIDE_KNOCK` 4 x (1 + `TIDE_KNOCK_PER` 0.5 per one
+  already there)); the last gets a `TIDE_GULP_STOP` 0.06 stop, a burst, the word and a ring. The bot's dummies stand
+  close, so its drag is short (3/4 there).
+- **Dash Stab** (`DL`, 3/4 with a straggler). The claw's lash aims (`claw_lash._aim_catch`: the furthest light foe
+  within `AIM_CONE` 50 degrees of the aim-lock line, `AIM_RANGE` 8 m) and catches: at the turn its barb takes the
+  furthest light foe it cut `CATCH_MIN` 3.2 m or more out and the back leg reels it in to `CATCH_TO` 1.7 m in front of
+  him, a snap hit with a `CATCH_STOP` 0.05 stop as it arrives; it lets go once he leaves Dash Stab. Best: one behind
+  the foe he lunged at (pick film `dash_stab`). With the bot's close dummies there is nobody to catch: 2/4 there.
+- **Maw** (4/4). The heap's jaws are gone (they are the bite's alone). The hoisted meet head to head over the middle
+  (`top` above `MAW_HEAP` toward him at `MAW_HOIST_Y` 2.1 m, held `MAW_KNOCK_HOLD` 0.09 s): KONK at that height
+  (`tentacle_haul.on_top`), `MAW_HEAP_STOP` 0.08, `punch(0.88, 0.15)`, a burst and a designed hit; then the heap is
+  slammed into the pool together for x`MAW_SLAM_MULT` 0.2, dust, a splat and a ring as wide as the pool.
+
+### Picks on film (pick_film)
+
+`singularity` (the held one thrown onto the far pair), `spear` (the bracket on the near pair, the pointer moves to the
+far pair, the spear goes in there), `reap` (the hook's bracket switched to the right), `tow` (the anchor switched),
+`rockslide` (the boulder on the pair the pointer chose), `deep_freeze` (the wave from the picked block), `dash_stab`
+(no cursor: the lash reels in the one behind). Short Circuit's loop with a foe outside the held: `string_film
+--from=25 --to=25 --tail=1600`.
+
+### After
+
+| Score | Move |
+|---|---|
+| 2/4 | none in the mids (Dash Stab with nobody behind) |
+| 3/4 | Frost Spear, Rockslide, Meltdown, Overwhelm, Dash Stab, Reap, Singularity, Steam Burst, Hailstorm, Updraft Lash, Fault Line, Backdraft, Impale, Tow Line, Undertow |
+| 4/4 | Deep Freeze, Black Tide (spread marks), Live Wire, Galvanize, Molten Palm, Harpoon, Backlash |
+
+Endings unchanged at 4/4; Maw's knock now reads as its own beat. Next: Overwhelm's pool reads busy behind the slam;
+Rockslide's boulder is small at the camera's distance; the 3/4 mids want a best situation the bot film shows.

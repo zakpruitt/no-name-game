@@ -684,3 +684,13 @@ Frost Spear's spread is `designed_elements.fissure(..., "water")` and `frost_mar
 fissure into `steam_shell`; Hailstorm's gale `designed_twister`; Cold Front's bowl, Ricochet's throw and Reap's yank
 the dark comet trail (`comic_comet.beat`, `mid_beats.trail`); the endings' second beats `comic_bolt`, `comic_fault`,
 `storm_strike` and `designed_elements.geyser`.
+
+## Round 55 cool pass 4 (combo-cool4 lane)
+
+No new sheets: the rebuilt mids reuse what exists (`scripts/mid_beats.gd`). Rockslide's falling boulder is
+`rock_boulder` frame 0 held while it drops (`boulder_drop`, `DROP_SIZE` 1.6 x `designed_finish.BOULDER_SIZE`, then
+`DESIGNED.dust` and an earth `designed_ink.shock` ring as it lands); Meltdown's globs are `meteor_shell` tweened to each
+block (`glob`, `GLOB_SIZE` 0.7) and its first block `designed_finish.erupt`; Deep Freeze's wave is
+`designed_elements.fissure(..., "water")` block to block plus `frost_mark`; Overwhelm's slam and Black Tide's tethers are
+the tentacle (`tentacle_haul`, `thrown_foe` tether from the pool), `DARK.burst` and `designed_ink.shock`; Maw's knock
+`DESIGNED.hit` at the height they meet. No crystals. fx_coverage max 0.312 per HIT frame (budget 0.40).
