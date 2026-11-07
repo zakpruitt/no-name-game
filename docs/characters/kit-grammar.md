@@ -119,8 +119,8 @@ on the dash, since every character has one and it is already the "get out" butto
 (`Dash H L` is Tow Line, then Slice, without it). Rockslide's buried payoff is behind `Kit.has("rockslide_payoff")`:
 the step stays, but without the upgrade there is no double on the airborne and no buried state. `--kit=full` turns
 both on. Reap fills the mark slot at H L (his H alone is the grab, a route step). Backdraft (Dash H H L) fills dark
-x ice. Impale fills the Dash H H slot but has no window yet. The charged cells are not gated yet (matrix-collapse
-lane). `tests/kit_check.gd` checks the card.
+x ice. Impale fills the Dash H H slot but has no window yet. The counter fills slot 9 by its window (`CB`, Ricochet). The
+matrix cells are gated by the matrix collapse (section 3). `tests/kit_check.gd` checks the card.
 
 What it keeps, by slot. Everything listed exists today.
 

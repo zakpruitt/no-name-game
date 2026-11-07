@@ -965,4 +965,5 @@ Zak approved the kit grammar ("implement it"). The heretic's kit is now data a s
   crossovers on distinct pairs, every MOVES id on the card, every slot with a bot string, demoted moves reachable
   only with their gate
 - [ ] Zak: Reap fills the mark slot at H L (the grammar says H; his H alone is the grab). Impale (Dash H H) has no
-  window. The four "buried, then ..." cells go with Rockslide's payoff. The charged cells are not gated yet
+  window. With Rockslide's payoff off nothing is buried, so the buried rule (Crater) never plays in the base kit;
+  maybe the payoff belongs back in the base kit, or the buried state needs a second source

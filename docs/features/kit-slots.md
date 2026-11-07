@@ -56,8 +56,8 @@ That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 e
 - **Upgrades** (`HERETIC.upgrades`):
   - `storm_pitch` gates the **route**: `Dash H L` is Tow Line then Slice until it is on.
   - `rockslide_payoff` gates the **payoff**: Rockslide still routes and still hits as the step into Fault Line.
-    Without the upgrade it does not double on the airborne and does not leave them buried, so the four
-    "buried, then ..." cells (Dug Up, Frozen In, Aftershock, Swallowed) are upgrade rows too. Fault Line still
+    Without the upgrade it does not double on the airborne and does not leave them buried, so nothing in the
+    base kit is buried: the buried rule (Crater) and its cells never come up without it. Fault Line still
     throws the ones Rockslide drove down hardest, because that is Fault Line's own payoff.
 
 ## Files
