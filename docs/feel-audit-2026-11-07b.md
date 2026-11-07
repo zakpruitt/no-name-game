@@ -144,5 +144,5 @@ From `fx_coverage --per-string`, on HIT frames:
 - The Tow Line dash pick is proved by `env_target_check` only. There is no film of it, because the bot presses H after the dash.
 - Black Ice's skid still plays at the top-left edge (alt_H_L_H after 032-041). The cue moved the banner but barely moved the camera. Hang framing in general (item 10) is the next item.
 - Cold Front's hoisted blocks still rise under the top banner (alt_L_H_L_H after 030-032). Cold Front has no cue.
-- Still open from item 10: damage numbers stacking, Collapse's spits off the edge, pillar rubble, Eruption's banner without a total.
+- Item 10, round 54 (camera-hang lane): the hang framing, Black Ice's skid, Cold Front's hoist, stacked damage numbers, Collapse's spits, the pillar rubble and Eruption's banner total are done (see camera.md "Hang framing" and combo-breakers.md round 54). Still open: Cold Front's cube can't fit at x1.55, and its top still rises under the banner for ~0.3 s.
 - The first-L1 33 ms CPU frame.

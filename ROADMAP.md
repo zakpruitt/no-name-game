@@ -1141,3 +1141,16 @@ Zak: "keep iterating on the combos sticking to the scheme; make the others amazi
 - [ ] Zak's call: Frost Spear plants ahead of his facing, so after a turning L2 it can land away from the crowd (the
   bot film); plant toward the nearest group by default?
 - [ ] Open: Rockslide, Deep Freeze, Overwhelm, Meltdown still 2/4; Short Circuit's loop needs foes past the held
+
+## Round 54 camera-hang (feel audit 6 item 10: hang framing and clutter)
+One framing rule for every breaker hang, and the clutter round it; `docs/features/camera.md` "Hang framing".
+- [x] Hang framing: every foe the ending acts on and its cued or picked structure; zoom out first (x1.4, x1.55 last
+  tier), lean the least that fits; worst actor at the landing / payoff inside 0.9 for every ending in
+  `camera_feel_check` (Cold Front 1.0); Cold Front 3.3 -> 0.95, Uproot 1.29 -> 0.62, Maw 0.91 -> 0.34
+- [x] Damage numbers over a pile stand in a column, the biggest nearest, a fourth folds into it
+- [x] The banner counts up through the beats (Eruption, Shatterstorm, Slapshot, Tempest, Flash Freeze, Collapse)
+- [x] Collapse's spits go to the picked structure (now framed after the landing) or to the side with room on screen
+- [x] Uproot's pillar and heaps erode (dust, sink, ~4 s); a no-rebuild room keeps a flat rubble decal
+- [x] Banner slide-fade tried (`--banner=slide`); the cut stays
+- [x] Clips: `awaken-combo-clips/43 Camera *`
+- [ ] Zak's call: the banner move (cut kept); Cold Front's cube needs x1.7; the gallows Ricochet payoff (1.2-1.4)

@@ -712,3 +712,31 @@ and a jolt along the blow (`JOLT` 0.16 / 0.26 at 16 Hz). Backlash 3/4 -> 4/4.
 
 Endings: Cold Front, Maw, Grounded, Worldbreaker, Cataclysm, Shatterstorm, Ricochet 4/4; Short Circuit 4/4 with a
 spread crowd. Next: Rockslide, Deep Freeze (pop the blocks in a wave), Overwhelm, Meltdown, Frost Spear's default plant.
+
+## Round 54: hang framing, counting banner, Collapse's spits, Uproot's rubble (camera-hang lane)
+
+Feel audit 6 item 10. The camera side is in [camera.md](camera.md) ("Hang framing"), and the numbers are in
+[impact-feedback.md](impact-feedback.md).
+
+- **Every ending is framed.** The breaker scene takes every foe the ending acts on and its cued structure. It zooms
+  out first, to x1.4, and leans only for what the zoom can't hold. Endings with no cue of their own (Cold Front,
+  Black Ice, Maw, Worldbreaker, Meteor Fall, Shatterstorm, Slapshot, Tempest, Collapse) get it as well.
+  `camera_feel_check` plays one string per ending and holds the worst actor inside 0.9 of the half-screen at the
+  landing and over the payoff. Cold Front's bar is 1.0.
+- **The banner counts up** as the beats land, as Live Wire does: Eruption, Shatterstorm, Slapshot, Tempest, Flash
+  Freeze's chain and Collapse's spits.
+- **The banner move.** It still cuts down with a pop (`Screen.CALL_MOVE` "cut"). `--banner=slide` plays the
+  alternative: two frames on twos (`CALL_SLIDE_STEPS`: 20% of the way at alpha 0.4, then 80% at 0.65), then whole at
+  the bottom with the pop. It never rests on the middle. Zak's call, see camera.md. `Screen.dodged` counts the dodges.
+- **Collapse's spits stay on screen** (`collapse_spit.spit_way`). A structure the indicator picked still takes the
+  throw: `void_element._collapse_spit` aims it at the face. In the open, the spit leaves on the side with the most
+  room on screen. It tries `SPIT_DIRS` 16 ways round the hole, scores where each would land `SPIT_REACH` 5 m out, and
+  keeps the landing inside `SPIT_EDGE` 0.8. Each spit after the first fans `SPIT_FAN` 0.55 rad off the last, unless
+  that runs off. The foe is set down `SPIT_SET` 0.6 m out on that side, so the throw from the hole's middle goes that
+  way. With no camera it falls back to the old ring.
+- **Uproot's rubble erodes** (`env_piece._erode`). `RUBBLE_HOLD_S` 1.2 s after the topple (the club has landed by
+  then), the pillar lying there and its heaps get a designed dust puff each. They then sink `RUBBLE_SINK` 1.3 m into
+  the floor over `RUBBLE_ERODE_S` 2.8 s, eased in, with a second puff halfway, and hide: about 4 s in all, on real
+  time. A room that keeps pieces gone (`rebuild: false`) also gets a low flat rubble decal along the fall line
+  (`RUBBLE_DECAL` floor_tile_large_rocks at `RUBBLE_DECAL_H` 0.25 height). The decal joins `env_leftovers`, so a
+  rebuild clears it. `rebuild()` stops an erosion in progress. `env_piece.eroded` counts them.
