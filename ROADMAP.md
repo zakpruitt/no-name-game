@@ -966,3 +966,23 @@ Zak approved the kit grammar ("implement it"). The heretic's kit is now data a s
   only with their gate
 - [ ] Zak: Reap fills the mark slot at H L (the grammar says H; his H alone is the grab). Impale (Dash H H) has no
   window
+
+## Round 49 dark-magma (kit grammar slot 8: the sixth crossover, Lava Leash / Hellseam)
+Zak approved the kit grammar ("implement it"); dark x magma was its one empty crossover. See
+`docs/features/void-element.md` "Crossovers" and `docs/features/combo-breakers.md` "Hellseam".
+- [x] Lava Leash (L L L H L, `XL`, Molten Palm's free L): a tentacle to everyone the palm hit, wherever it went (the
+  wall too), dragged back along the floor through a lava seam into a pile at his feet, paid by the metre (x1.6 off a
+  wall); the seam erupts under the pile (SHLURK-FWOOM!): molten, bound
+- [x] Its best situation differs from Galvanize's and Black Tide's (`void_arm_check` `_lava_leash()`, all three in each):
+  palm's foes at mixed ranges by a wall 136 / 42 / 72; a spread crowd 7 m round him, unmarked 35 / 130 / 0; marked foes
+  8-10 m off, no palm 0 / 67 / 96 (Lava Leash / Galvanize / Black Tide)
+- [x] One ending, Hellseam (KRAKA-FWOOOM!): he dives on the pile, a crater harder the further each was dragged, then the
+  eruption runs back out along every seam and catches whoever stands on one; the breaker spectacle's magma family
+- [x] Designed sheets only (`tools/vfx_gen/gen_leash.py`: `lava_seam` ribbon, `leash_burst`), tentacles `void_tendril`,
+  lava `designed_elements`; no polygons, no crystals. Bot string `wall spread L L L H L` (`spread` + `wall` lays the
+  arc toward the wall); `endings_n=` counts Hellseam; element_shots `--only=leash`
+- [x] Clips: `awaken-combo-clips/33 Dark-magma *`
+- [ ] Zak's call: the tentacles glow pink-orange in the lava (purple washed with `electrify`); the move's clip plays at
+  0.95 (was 1.1 in the first cut) so the pile's burst shows before his leap; Hellseam's far seam ends sit under the
+  ending banner when the palm sent them to the back wall
+- [x] `kit_slots.gd`: the heretic's `cross_dark_magma` slot filled with `XL` (the card is full: 23 slots)

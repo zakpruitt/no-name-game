@@ -148,9 +148,9 @@ plus **Arc Flash kept as a crossover-grade payoff** if dark x magma needs a home
 the rest of the growth today was breaker endings and effects, which the grammar does not cap beyond two per
 window.
 
-Counts after this: 1 + 3 + 3 + 1 + 4 + 2 + 2 + 6 + 1 counter = 23 moves, 13 of them with a window,
-20 endings today (Lava Leash's Hellseam is the 20th) (room for Impale, Avalanche, Flash Freeze, Collapse, Abyss and the counter to gain a second one
-only when one is compelling).
+Counts after this: 1 + 3 + 3 + 1 + 4 + 2 + 2 + 6 + 1 counter = 23 moves, 14 of them with a window,
+21 endings today, the counter's Ricochet and Lava Leash's Hellseam the newest (room for Impale, Avalanche, Flash
+Freeze, Collapse, Abyss, Hellseam and the counter to gain a second one only when one is compelling).
 
 ## 6. The character card (fill this in for every new character)
 
