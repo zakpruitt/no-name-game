@@ -130,6 +130,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	load("res://scripts/designed_finish.gd").prewarm(root)  # round 46: the Awakening, halos
 	load("res://scripts/counter_fx.gd").prewarm(root)  # the dash counter's parry flash and slam
 	load("res://scripts/designed_polish.gd").prewarm(root)  # round 48 (fx-polygons): chips, comet trails, tells, tear
+	load("res://scripts/lava_leash.gd").prewarm(root)  # dark-magma lane: Lava Leash's seam and eruption
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))

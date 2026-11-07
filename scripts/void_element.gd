@@ -32,6 +32,7 @@ const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element ma
 const HARPOON_GATHER := preload("res://scripts/harpoon_gather.gd")  # Harpoon's tentacles (round 47)
 const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
 const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs' second endings (breaker-pairs lane)
+const LAVA_LEASH := preload("res://scripts/lava_leash.gd")  # Lava Leash's tentacles and seams (dark-magma lane)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -64,14 +65,14 @@ const DASH_MOVE := "TW"  # right click off a dash or a swing
 ## L off these moves goes somewhere else than on down the string. The X* moves are the crossovers (round 34):
 ## a string that changes element on the way, with a payoff only the two together give.
 const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT", "VR": "XC",
-	"XG": "XM", "XK": "XW"}
+	"XG": "XM", "XK": "XW", "EM": "XL"}  # (EM: Lava Leash, dark-magma lane)
 const CHAIN := {"EF": 2}
 const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "EA": "water", "IP": "water", "IJ": "water", "IS": "water", "EM": "earth", "EV": "earth",
 	"VS": "void", "VR": "void", "VD": "void", "OW": "void", "TW": "void",
 	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind", "XC": "wind",
-	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
+	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind", "XL": "void"}
 ## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
-const FORM_OF := {"EF": "hand", "XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
+const FORM_OF := {"EF": "hand", "XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe", "XL": "hand"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
@@ -145,6 +146,10 @@ const BREAKERS := {
 	# alone (`only`, set by counter.gd) and the press hurls it into the nearest foe or wall, bound where it lands.
 	"CB": {"erupt": "void", "counter": true, "damage": 30.0, "height": 1.6, "awaken": 10.0, "awaken_perfect": 20.0,
 		"names": {"spirit": "Ricochet"}},
+	# Lava Leash (dark-magma lane): the leash piled them at his feet, bound in the erupted seam; no tentacle hold (the
+	# leash's own keep them through the hang), he dives on the pile (`at_spot`, dark_spot) and the seams go up (HELLSEAM_*).
+	"XL": {"erupt": "earth", "hellseam": true, "no_hold": true, "at_spot": true, "short": 1.3, "damage": HELLSEAM_DAMAGE,
+		"leap": GR_HIT + LEAP_AFTER_LEASH, "height": 2.4, "awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Hellseam"}},
 }
 
 const CUTTER_AHEAD := 3.5  # m: where the gale throws them up from
@@ -404,6 +409,51 @@ const GALV_WORD_PER := 0.05  # ...and this much bigger per other
 const GALV_JUMP := 3.5  # m an arc jumps from a zapped foe to one no tentacle holds (and on from that one)
 const GALV_JUMP_DAMAGE := 6.0
 const GALV_JUMPS := 4  # arcs at most
+## Lava Leash (L L L H L, dark-magma lane): magma into dark, the sixth crossover. Molten Palm shoved them along its
+## lava line; a tentacle goes out to every foe that palm hit (palm_fresh, within LEASH_REACH: the wall it carried them
+## to too), latches (LEASH_DAMAGE) and drags it back along the floor through the lava (lava_leash.gd) into a pile at his
+## feet, LEASH_PILE m ahead: each pays LEASH_PER_M a metre dragged (to LEASH_DRAG_CAP), x LEASH_WALL_MULT on that part
+## when it is torn off a wall (wall_fresh). When the last one lands the seam erupts under the pile: LEASH_ERUPT each x
+## (1 + LEASH_PILE_PER per other in it), molten and bound (floor_bind, no ropes: the leash's own tentacles hold them).
+## Best situation: the palm's foes at mixed ranges, one splatted on a wall (the far ones pay most); Galvanize wants a
+## spread crowd round him (it hits where they stand), Black Tide marked foes anywhere (it drags flat damage to a pool).
+## Nobody the palm hit: those in its strip ahead (PALM_LENGTH x PALM_HALF_WIDTH). Big ones are latched where they stand.
+const LEASH_REACH := 17.0  # m round him (METEOR_SPLAT_REACH: the palm's line + PALM_WALL_REACH)
+const LEASH_MAX := 6
+const LEASH_DAMAGE := 6.0  # the latch
+const LEASH_PER_M := 1.6  # a metre dragged...
+const LEASH_DRAG_CAP := 12.0  # ...counted to this far
+const LEASH_WALL_MULT := 1.6  # on the drag, torn off a wall it was splatted on
+const LEASH_ERUPT := 8.0  # the seam erupting under the pile, each...
+const LEASH_PILE_PER := 0.2  # ...and this much more per other foe in the pile
+const LEASH_PILE := 1.7  # m ahead of him the pile is
+const LEASH_RING := 0.62  # m round the pile's middle they land
+const LEASH_BIND_TIME := 1.6  # s the pile is held (bound) in the erupted seam: through the window
+const LEASH_TICK := 1.5  # its burn a tick (floor_bind step 0.25)
+const LEASH_SINK := 0.3  # m they go down in it
+const LEASH_STOP := 0.05  # s hit stop on the eruption...
+const LEASH_STOP_PER := 0.012  # ...and this much more per other foe in the pile
+const LEASH_WORD := 0.42  # the word's size with one in the pile, LEASH_WORD_PER bigger per other
+const LEASH_WORD_PER := 0.05
+const LEASH_CUE_MS := 1600  # real ms the leashed count for the camera's framing (camera_rig.FRAME_CUE): the far one stays in
+const LEASH_META := "leash_m"  # meta: the metres the leash dragged it (Hellseam reads it)
+const LEAP_AFTER_LEASH := 0.56  # (clip fraction) Hellseam's leap: after the last drag lands (lava_leash.DRAG_MAX + its reach)
+## Hellseam (Lava Leash's breaker, H): he dives onto the pile and the seam goes up its whole length. The held pile is
+## driven into the floor (a crater) for the breaker's damage x (1 + HELLSEAM_PER_M a metre each was dragged, to
+## LEASH_DRAG_CAP); then the eruption races back out along every seam a foe was dragged down, from the pile to where it
+## was taken from (HELLSEAM_STEP m between geysers, HELLSEAM_DELAY past the impact frame, HELLSEAM_RUN s a metre), and
+## anyone standing on a seam takes HELLSEAM_SEAM of it. So it pays the same thing the leash does: far drags.
+const HELLSEAM_DAMAGE := 40.0
+const HELLSEAM_PER_M := 0.04  # (a foe dragged 10 m: x1.4)
+const HELLSEAM_PILE_R := 2.6  # m round the landing that is the pile
+const HELLSEAM_DOWN := 6.0  # m/s into the floor (enemy._is_spike)
+const HELLSEAM_STEP := 1.5  # m between the seam's geysers
+const HELLSEAM_DELAY := 0.12  # s (game) past the landing: the impact frame hides anything sooner
+const HELLSEAM_RUN := 0.025  # s (game) a metre: the eruption runs out along the seam
+const HELLSEAM_SEAM := 0.5  # of the damage, to anyone else on a seam
+const HELLSEAM_SEAM_R := 1.1  # m either side of a geyser
+const HELLSEAM_GEYSER := 2.2  # m tall
+const HELLSEAM_CUE_MS := 1400
 const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
 const CATACLYSM_DOWN := 6.0  # m/s
 # Round 34, second pass: three elements in one string, and states that outlive it so a dash can improvise.
@@ -580,6 +630,8 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 			return _impale(hero, at, fwd, power)
 		"XW":
 			return _backdraft(hero, at, fwd, power)
+		"XL":
+			return _lava_leash(hero, at, fwd, power)
 	return 0
 
 
@@ -1187,6 +1239,153 @@ static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	return linked.size()
 
 
+# --- Lava Leash (L L L H L, dark-magma lane): magma into dark, the sixth crossover ------------------------------
+
+## L L L H L: magma into dark. A tentacle goes out to every foe this string's Molten Palm hit, wherever the palm sent
+## it (the wall too), latches, and drags it back along the floor through the lava into a pile LEASH_PILE m in front of
+## him (lava_leash.gd); the far ones pay most, torn off a wall more. When the last lands, the seam erupts under the
+## pile: molten and bound. Its breaker is Hellseam.
+static func _lava_leash(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var foes := leash_targets(hero, at, fwd)
+	var pile: Vector3 = at + fwd * minf(LEASH_PILE, hero._clear_ahead(fwd, LEASH_PILE))
+	hero._void.dark_spot = pile
+	if foes.is_empty():  # nobody to latch onto: the tentacle cracks the floor ahead and a little lava comes up
+		ELEMENTS.fissure(parent, at, fwd, 3.5, 3, "earth", 0.8)
+		return 0
+	var light: Array = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e))
+	var slots := leash_slots(pile, fwd, light)
+	var grabs := []
+	var now := Time.get_ticks_msec()
+	for e: Node3D in foes:  # (nearest first: they latch in that order)
+		e.set_meta(CAMERA_CUE, now + LEASH_CUE_MS)  # (the far one, at the wall, stays in the framing)
+		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
+	var g: Node3D = LAVA_LEASH.start(hero, grabs, pile)
+	var latched := [0]  # (only the first latch stops)
+	g.on_latch = func(e: Node3D) -> void:
+		THROWN.cut(e)  # (still on the palm's shove: the leash takes it from here)
+		e.take_hit(LEASH_DAMAGE * power, Vector3.ZERO, 0.0, false)
+		Game.register_hit("cast")
+		if latched[0] == 0:
+			Game.hitstop(LATCH_STOP)
+		latched[0] += 1
+		if e.has_method("stagger") and not hero._void.is_heavy(e):
+			e.stagger(1.0)
+	g.on_arrive = func(e: Node3D, metres: float) -> void:
+		e.set_meta(LEASH_META, metres)
+		var d: float = leash_drag_damage(metres, wall_fresh(e)) * power  # (torn off the wall the palm splatted it on)
+		if d > 0.0:
+			var into := _flat(pile - e.global_position)
+			e.take_hit(d, (into.normalized() if into.length() > 0.01 else fwd) * 1.5, 0.0, true)
+			Game.register_hit("cast")
+	g.on_erupt = func(piled: Array) -> void:
+		var n := piled.size()
+		var each: float = leash_erupt_damage(n) * power
+		for e: Node3D in piled:
+			e.take_hit(each, Vector3.ZERO, 0.0, true)
+			mark(e, "molten")
+			Game.register_hit("cast")
+		g.bind = BIND.bind(hero, piled, {"time": LEASH_BIND_TIME, "tick_damage": LEASH_TICK * power, "ropes": 0, "sink": LEASH_SINK,
+			"color": ELEMENTS.LOOK.earth.color})
+		Game.hitstop(LEASH_STOP + LEASH_STOP_PER * (n - 1))
+		Game.shake(0.3 + 0.05 * n)
+		ComicFx.say(ComicFx.MOVE_WORDS["XL"], pile + Vector3.UP * 0.6, LEASH_WORD + LEASH_WORD_PER * (n - 1))
+	return foes.size()
+
+
+## Who Lava Leash takes: every living foe Molten Palm hit (palm_fresh) within LEASH_REACH of him, nearest first,
+## LEASH_MAX at most (in flight on the palm's shove too: the latch cuts it). Nobody the palm hit: whoever is in the
+## palm's strip ahead of him.
+static func leash_targets(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Array:
+	var foes: Array = FOES.near(hero.get_tree(), at, LEASH_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	if foes.is_empty():
+		foes = _ahead(hero, at, fwd, PALM_LENGTH, PALM_HALF_WIDTH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	return foes.slice(0, LEASH_MAX)
+
+
+## Where each lands in the pile: round its middle LEASH_RING m out, in the order they stand across his aim, so no two
+## drags cross; one alone lands on the middle. Pure, so the check can walk it.
+static func leash_slots(pile: Vector3, fwd: Vector3, foes: Array) -> Dictionary:
+	var out := {}
+	if foes.is_empty():
+		return out
+	if foes.size() == 1:
+		out[foes[0]] = _flat(pile)
+		return out
+	var side := fwd.cross(Vector3.UP).normalized()
+	var order := foes.duplicate()
+	order.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return (a.global_position - pile).dot(side) < (b.global_position - pile).dot(side))
+	for i in order.size():  # an arc on the far side of the pile, from one side of his aim round to the other
+		var a := lerpf(-PI * 0.8, PI * 0.8, float(i) / (order.size() - 1))
+		out[order[i]] = _flat(pile + (fwd * cos(a) + side * sin(a)) * LEASH_RING)
+	return out
+
+
+## The drag's damage for `metres` dragged (to LEASH_DRAG_CAP), x LEASH_WALL_MULT torn off a wall.
+static func leash_drag_damage(metres: float, walled: bool) -> float:
+	return LEASH_PER_M * minf(metres, LEASH_DRAG_CAP) * (LEASH_WALL_MULT if walled else 1.0)
+
+
+## The seam's eruption under a pile of `n`, each.
+static func leash_erupt_damage(n: int) -> float:
+	return LEASH_ERUPT * (1.0 + LEASH_PILE_PER * maxi(n - 1, 0))
+
+
+## Hellseam (Lava Leash's breaker) lands: the pile is driven into the floor, each harder the further the leash dragged
+## it; then the eruption runs back out along every seam a foe was dragged down (lava_leash.seams()), a geyser every
+## HELLSEAM_STEP m, and anyone else standing on one takes HELLSEAM_SEAM of it.
+static func _hellseam(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var tree := hero.get_tree()
+	var spot: Vector3 = hero._void.dark_spot
+	var seams: Array = LAVA_LEASH.seams(hero)
+	LAVA_LEASH.let_go(hero)  # (the leash's tentacles and its bind: the landing takes them)
+	var struck := {}
+	for e: Node3D in FOES.near(tree, spot, HELLSEAM_PILE_R):
+		var metres := minf(float(e.get_meta(LEASH_META, 0.0)), LEASH_DRAG_CAP)
+		e.take_hit(damage * (1.0 + HELLSEAM_PER_M * metres), Vector3.DOWN * HELLSEAM_DOWN, 0.0, true)
+		mark(e, "molten")
+		Game.register_hit("breaker")
+		if e.has_meta(LEASH_META):
+			e.remove_meta(LEASH_META)
+		struck[e] = true
+	if seams.is_empty():  # (no leash to run down: one seam straight out ahead of the landing)
+		var fwd: Vector3 = hero._facing()
+		seams = [[_flat(spot + fwd * 5.0), _flat(spot)]]
+	var now := Time.get_ticks_msec()
+	for s: Array in seams:
+		var from: Vector3 = s[1]  # the pile end
+		var run := _flat(s[0] - from)  # out to where it was taken from
+		var steps := maxi(1, int(run.length() / HELLSEAM_STEP))
+		for k in range(1, steps + 1):
+			var p: Vector3 = from + run * (float(k) / steps)
+			for e: Node3D in FOES.near(tree, p, HELLSEAM_SEAM_R):
+				e.set_meta(CAMERA_CUE, now + HELLSEAM_CUE_MS)
+			var delay: float = HELLSEAM_DELAY + run.length() * float(k) / steps * HELLSEAM_RUN
+			tree.create_timer(delay, false).timeout.connect(_seam_geyser.bind(hero, p, damage * HELLSEAM_SEAM, struck))
+	Game.shake(0.6)
+
+
+static func _seam_geyser(hero: Variant, p: Vector3, damage: float, struck: Dictionary) -> void:
+	if not is_instance_valid(hero) or not hero.is_inside_tree():
+		return
+	var parent: Node = hero.get_parent()
+	if Game.comic_style and DESIGNED.on():
+		ELEMENTS.DESIGNED_EL.geyser(parent, p, HELLSEAM_GEYSER)
+	else:
+		ELEMENTS.geyser(parent, p, 0.6, HELLSEAM_GEYSER)
+	for e: Node3D in FOES.near(hero.get_tree(), p, HELLSEAM_SEAM_R):
+		if struck.has(e):
+			continue
+		struck[e] = true
+		e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH, true)
+		mark(e, "molten")
+		Game.register_hit("breaker")
+
+
 ## Who an arc reaches from `from`: foes within `reach` of one of them, then of those, and so on (nearest first),
 ## none of `from` itself, at most `most`.
 static func _jumps(tree: SceneTree, from: Array, reach: float, most: int) -> Array:
@@ -1607,6 +1806,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		return
 	if b.has("shower"):
 		_meteor_shower(hero, b, at, mult)
+		return
+	if b.has("hellseam"):
+		_hellseam(hero, b, at, mult)
 		return
 	if b.has("pinwheel"):
 		_pinwheel(hero, b, at, seized, mult)

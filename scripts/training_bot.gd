@@ -75,6 +75,9 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# Breaker pairs: Meteor Shower (Meteor Fall's LMB) on a spread crowd the palm scatters, a fireball each; Pinwheel
 	# (Anvil's LMB) by the back wall, the kebab whirled and hurled into it.
 	{"slot": "big_3", "tokens": ["spread", "alt", "L", "L", "L", "H", "H"]}, {"slot": "cross_dark_ice", "tokens": ["wall", "alt", "L", "L", "H", "D", "H", "H", "L"]},
+	# Lava Leash (dark-magma lane): by the back wall, Molten Palm carries the front of the ring into it, and the leash
+	# drags everyone it hit back into a pile at his feet (the splatted one hardest); Hellseam (RMB) runs the seams.
+	{"slot": "cross_dark_magma", "tokens": ["wall", "L", "L", "L", "H", "L"]},
 	# (Cold Front, Worldbreaker's LMB, had no string: endings_n= counts every ending a window offers.)
 	{"slot": "air_route", "tokens": ["alt", "L", "H", "L", "H"]},
 	# Tempest (Cataclysm's LMB): Rockslide, Fault Line and the twister on the four dummies.

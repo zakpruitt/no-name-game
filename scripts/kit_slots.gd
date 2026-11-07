@@ -105,7 +105,7 @@ const HERETIC := {
 		"cross_dark_storm": {"XC": "H L L"},
 		"cross_ice_storm": {"XG": "Dash L H H H", "XM": "Dash L H H H L"},  # Hailstorm -> Meltdown, one route
 		"cross_dark_ice": {"XW": "Dash H H L"},  # Backdraft, off Impale (Tow Line's dark onto the spear's ice)
-		"cross_dark_magma": {},  # pending: the dark-magma lane adds its move here
+		"cross_dark_magma": {"XL": "L L L H L"},  # Lava Leash, off Molten Palm (round 49 dark-magma)
 		"counter": {"CB": "Dash into a strike"},  # Backlash; CB is its perfect's window (Ricochet), counter.gd
 		"awakening": {},  # the meter (Q), no move id
 	},
