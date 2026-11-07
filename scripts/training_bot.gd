@@ -71,9 +71,12 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	["alt", "L", "H", "L", "L", "H"],
 	# The other charged cells off Galvanize, in real moves: Reap (Conduct), Molten Palm (Arc Flash), Frost Spear (Superconduct;
 	# last: its spear stands 5 s and turns the next string's L L into the vault).
-	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"]]
+	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"],
+	# The dash counter (kit slot 9, counter.gd): "counter" has the first dummy swing at him (training_dummy.swings) and
+	# holds his D until its strike is inside the perfect counter's last PERFECT s: Backlash, then Ricochet in the window.
+	["counter", "D"]]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
 const BOT_LAYOUTS := ["line", "spread", "ring", "wall"]
 ## A "ring" string's dummies, from where he starts (x across his aim, z along it): one ahead for Dash Stab, the others
@@ -246,6 +249,7 @@ func _autotest_finish() -> void:
 		main._last_string.x, main._last_string.y, dummy.hp if is_instance_valid(dummy) else -1.0])
 	if main._spar != null:
 		main._spar.report()
+	print("[counter] counters=%d perfect=%d ricochet=%s" % [player.counters, player.counter_perfects, player.COUNTER.last_ricochet])
 	Game.stop_all_sfx()
 	# Give the audio thread a moment to release playbacks, or they leak at exit.
 	await get_tree().create_timer(0.2, true, false, true).timeout
@@ -316,6 +320,7 @@ func _drive_bot() -> void:
 			if _bot_wait <= 0.0:
 				_print_rhythm(string)
 				_bot_strings_done[_bot_string] = true
+				_swing(false)
 				_bot_string = (_bot_string + 1) % BOT_STRINGS.size()
 				_bot_step = 0
 				_bot_wait = BOT_GAP
@@ -343,6 +348,7 @@ func _drive_bot() -> void:
 		return  # walk up first (not to a "line": the dash takes him there)
 	if _bot_step == 0:
 		_bot_rhythm.clear()
+		_swing("counter" in string)
 		player.bot_alt = "alt" in string
 		player.bot_out = "out" in string
 		_bot_face = "face" in string
@@ -357,6 +363,10 @@ func _drive_bot() -> void:
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
 		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
+	if string[_bot_step] == "D" and "counter" in string:  # (held until the swing is inside the perfect counter)
+		var c: Dictionary = player.COUNTER.find(player, player._facing())
+		if c.is_empty() or not c.perfect:
+			return
 	var out: bool = player.bot_out and string[_bot_step] == "D" and player.state == player.State.LEAP and player._brk_phase == 0
 	if (not ready or player.state == player.State.LEAP) and not out:
 		return
@@ -375,6 +385,14 @@ func _drive_bot() -> void:
 	_bot_pending_t = 0.0
 	_bot_starts_at = _bot_starts
 	_bot_step += 1
+
+
+## A "counter" string has the first dummy swing at him (training_dummy.swings); every other string, none.
+func _swing(on: bool) -> void:
+	for i in main._dummies.size():
+		var d: Node = main._dummies[i]
+		if is_instance_valid(d) and "swings" in d:
+			d.swings = on and i == 0
 
 
 static func _placed(string: Array) -> bool:
