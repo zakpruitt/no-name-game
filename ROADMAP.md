@@ -1003,3 +1003,20 @@ the roguelike layer (499138a); this one is the game as it is now. See `docs/feat
   Harpoon's row, Lava Leash, Backlash's parry flash, one landing per breaker family), 28-53 KB each
 - [x] `.github/workflows/wiki.yml` restored: a push to dev that touches `docs/wiki/` publishes it
 - [ ] Zak: Backdraft's MOVES note says "Ice into storm" and `ELEMENT_OF.XW` is wind, while its card slot is dark x ice
+
+## Round 50 environment (structure targeting, an easier Pinwheel, environmental beats)
+Zak: "absolutely love the pinwheel! i think this should maybe be a bit easier to execute though. maybe just an
+indicator to click on the structure for combos that require environment!" See `docs/features/environment.md`.
+- [x] `scripts/env_target.gd`: the room's walls (segments), pillars (points) and torches; one pick per move for
+  Pinwheel, Slapshot, Ricochet, Collapse, Meteor Fall's pile, Molten Palm's carry, Lava Leash's tear and the pillar
+  slam; an inked bracket in the ending's colour plus floor chevrons (designed sheets, `tools/vfx_gen/gen_environment.py`),
+  a dim dashed "too far" bracket when nothing is in reach
+- [x] Click to choose: the cursor ray (or right stick) picks a structure in reach; the window's L / H is the trigger
+- [x] Pinwheel easier: Impale (Dash H H) has its own window, Anvil (H) / Pinwheel (L), a pause window (15/15 windows)
+- [x] Collapse throws into the picked structure (x1.6); a pillar hit cracks it and sheds chunks; wall hits leave a
+  mark per element (capped at 14) and swing a torch nearby; hold H through H H's grab by a pillar for a pillar slam
+- [x] `tests/env_target_check.gd` (in `agent.sh check`); bot strings `pillar H hold`, `wall alt D H H`; `[env]` line
+- [x] Clips: `awaken-combo-clips/34 Environment *`
+- [ ] Zak's call: Collapse's x1.6 into a structure; the pillar slam on a held H; the palm's too-far bracket; Meteor
+  Fall's cursor only takes a structure with palm foes on it; Dash H H then a pause is now Pinwheel / Anvil, so a
+  slow Dash H H L leaps instead of Backdraft

@@ -118,7 +118,7 @@ on the dash, since every character has one and it is already the "get out" butto
 **Implemented (round 49).** `KitSlots.HERETIC` holds this table. Storm Pitch is behind `Kit.has("storm_pitch")`
 (`Dash H L` is Tow Line, then Slice, without it); `--kit=full` turns it on. It is the only demotion: Rockslide's
 buried payoff stays in the base kit, because Fault Line's buried x2 and the buried rule (Crater) need buried to exist. Reap fills the mark slot at H L (his H alone is the grab, a route step). Backdraft (Dash H H L) fills dark
-x ice. Impale fills the Dash H H slot but has no window yet. The counter fills slot 9 by its window (`CB`, Ricochet). The
+x ice. Impale fills the Dash H H slot and, since round 50, has its own window (Anvil / Pinwheel, a pause window). The counter fills slot 9 by its window (`CB`, Ricochet). The
 matrix cells are gated by the matrix collapse (section 3). `tests/kit_check.gd` checks the card.
 
 What it keeps, by slot. Everything listed exists today.
@@ -148,8 +148,8 @@ plus **Arc Flash kept as a crossover-grade payoff** if dark x magma needs a home
 the rest of the growth today was breaker endings and effects, which the grammar does not cap beyond two per
 window.
 
-Counts after this: 1 + 3 + 3 + 1 + 4 + 2 + 2 + 6 + 1 counter = 23 moves, 14 of them with a window,
-21 endings today, the counter's Ricochet and Lava Leash's Hellseam the newest (room for Impale, Avalanche, Flash
+Counts after this: 1 + 3 + 3 + 1 + 4 + 2 + 2 + 6 + 1 counter = 23 moves, 15 of them with a window (Impale's, round 50, the last the cap allows),
+21 endings today, the counter's Ricochet and Lava Leash's Hellseam the newest (room for Avalanche, Flash
 Freeze, Collapse, Abyss, Hellseam and the counter to gain a second one only when one is compelling).
 
 ## 6. The character card (fill this in for every new character)

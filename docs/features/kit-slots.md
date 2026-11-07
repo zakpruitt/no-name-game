@@ -38,7 +38,7 @@ the same input shapes. This page is how that table lives in code, and how to fil
 | 6 | `dash_l` | lunge | Dash Stab `DL` (Dash L) | |
 | 6 | `dash_h` | snare | Tow Line `TW` (Dash H) | |
 | 7 | `dash_ender_l` | crowd | Harpoon `EF` (Dash L H) | Shatterstorm / Slapshot |
-| 7 | `dash_ender_h` | skewer | Impale `XK` (Dash H H) | none yet |
+| 7 | `dash_ender_h` | skewer | Impale `XK` (Dash H H) | Anvil / Pinwheel (round 50) |
 | 8 | `cross_storm_magma` | cross | Fault Line `XF` (L H L L H) | Cataclysm / Tempest |
 | 8 | `cross_ice_magma` | cross | Steam Burst `XS` (Dash L H H L) | Flash Freeze |
 | 8 | `cross_dark_storm` | cross | Galvanize `XC` (H L L) | |
@@ -102,7 +102,8 @@ That is 23 slots filled and the meter. There are 14 windows with 21 endings in a
 - a "route" upgrade's move that can be reached with the upgrade off (by its input or by any presses from neutral),
   or one that can't be reached with it on. A "payoff" upgrade's move must route both ways.
 
-It also prints the window slots the grammar wants but that have no breaker yet (today: `dash_ender_h`, Impale).
+It also prints the window slots the grammar wants but that have no breaker yet (today: none; Impale's `dash_ender_h`
+window was the last, round 50).
 
 ## Filling the card for a new character, step by step
 

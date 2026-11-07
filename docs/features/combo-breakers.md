@@ -265,6 +265,7 @@ H L H, H in the window      Maw
 | Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |
 | Backdraft (L L H, Dash H H L) | XW | Anvil / Pinwheel (breaker pairs) | RMB / LMB |
+| Impale, then a pause (Dash H H) | XK | Anvil / Pinwheel (round 50, [environment.md](environment.md)) | RMB / LMB |
 | Harpoon, then a pause (Dash L H) | EF | Shatterstorm / Slapshot (round 47) | RMB / LMB |
 | Perfect dash counter (Dash into a strike, last 0.1 s) | CB | Ricochet (round 49, [counter.md](counter.md)) | RMB |
 | Lava Leash (L L L H L) | XL | Hellseam (round 49) | RMB |
@@ -329,6 +330,25 @@ Skipped, single on purpose (each stays one ending):
 - **Eruption**: Ash Rain (they hang burning) repeats Eruption's launch, and Meteor Shower now owns fire from above.
 
 Bot strings: `spread alt L L L H H` (Meteor Shower), `wall alt L L H D H H L` (Pinwheel), `alt L H L H` (Cold Front).
+
+### Round 50: Impale's window, structure targeting, Collapse into a structure
+
+Zak loved Pinwheel but wanted it easier, with an indicator to click on the structure. See
+[environment.md](environment.md).
+
+- **Impale (Dash H H, `XK`) has a window**: the same pair as Backdraft, H Anvil and L Pinwheel. It is a `pause`
+  window: the leap comes at `GR_HIT + LEAP_AFTER_IMPALE` (0.3), after XK's cancel (+0.18), so an L before then is
+  still Backdraft. Pinwheel was Dash H H, L, then L in Backdraft's window; it is now Dash H H, wait, then L.
+  Bot string `wall alt D H H`.
+- **Structure targeting**: Pinwheel, Slapshot, Ricochet, Collapse and Meteor Fall show an inked bracket on the
+  structure they would use, with an aim line of floor chevrons; the cursor (or right stick) picks another one in
+  reach, and the window's press is the trigger.
+- **Collapse into a structure**: with a structure picked within `COLLAPSE_REACH` 9 m of the hole, Collapse hurls
+  every non-heavy foe it throws into that structure at `COLLAPSE_WALL_SPEED` 22, a wall splat for its damage x
+  `COLLAPSE_WALL_MULT` 1.6. With none, it keeps the old radial throw.
+- **Pillar slam** (a route step of H H, not a breaker): hold H through the grab next to a pillar and the foe is
+  smashed into it (`void_grab.PILLAR_SLAM_DAMAGE` 16, a wall splat), and Singularity's hole opens at the pillar's
+  foot. Bot string `pillar H hold`.
 
 ### Hellseam (round 49, dark-magma lane): Lava Leash's one ending
 

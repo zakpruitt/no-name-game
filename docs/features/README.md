@@ -23,6 +23,7 @@ invariants and the gotchas.
 | Kit slots: the kit grammar's slot table as data, each character's card, the upgrade gate, `[kit]`, filling a card | [kit-slots.md](kit-slots.md) | `scripts/kit_slots.gd`, `scripts/kit.gd`, `tests/kit_check.gd` |
 | Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `hero_fx.cast()`, `elements.CASTS` |
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
+| Environment: structure indicator, click to choose, Impale's window, pillar slam, wall marks, pillar chunks, torch swings | [environment.md](environment.md) | `scripts/env_target.gd`, `tools/vfx_gen/gen_environment.py` |
 | The dash counter: Backlash, the perfect's window and Ricochet, swinging dummies | [counter.md](counter.md) | `scripts/counter.gd`, `scripts/counter_fx.gd`, `enemy.strike_in()` |
 | The wiki (player field guide, GitHub Pages): pages, generated data, the staleness check, screenshots. Rebuild: `python tools/wiki.py` | [wiki.md](wiki.md) | `docs/wiki/`, `tools/wiki.py`, `tools/wiki_data.gd`, `tests/wiki_check.gd` |
 | Comic art style (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
