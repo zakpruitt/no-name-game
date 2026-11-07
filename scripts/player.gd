@@ -468,7 +468,7 @@ func _state_attack(delta: float) -> void:
 		return
 	if can_cancel and _try_swing():
 		return
-	if t >= HERO_INPUT.cancel_point(self) and _buffered != "":
+	if t >= HERO_INPUT.cancel_point(self) and _buffered != "" and not HERO_INPUT.held_for_window(self):
 		_start_attack(_next_move(_buffered))
 		return
 	if t >= _move.end:

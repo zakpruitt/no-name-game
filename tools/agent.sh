@@ -39,7 +39,7 @@ RETRY="rhythm_check"
 check() {
 	local quick=${1:-}
 	local fail=0 out
-	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check kit_check lava_leash_check env_target_check env_piece_check wiki_check)
+	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check kit_check lava_leash_check env_target_check env_piece_check wiki_check input_snap_check)
 	[ "$quick" = "--quick" ] && tests=()
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue
