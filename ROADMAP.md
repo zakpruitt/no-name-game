@@ -904,3 +904,6 @@ needs a dual, but only when its truly compelling and awesome." `scripts/breaker_
 - [x] Anvil / LMB Pinwheel: the kebab whirled round him in a twister and hurled into the nearest wall or pillar (wall
   519 vs 406; open 152 vs 406)
 - [x] The autotest counts every window ending (`endings_n=`, `agent.sh check` fails short); Cold Front got its string
+- [x] Cataclysm / LMB Tempest: a twister takes the crowd up its column, bolts blast each out, harder the more it holds
+  (five 666 vs 524; two 144 vs 209). Bot string `alt L H L L H`
+- [x] Skipped on purpose (combo-breakers.md says why): Avalanche, Collapse, Abyss, Flash Freeze, Eruption

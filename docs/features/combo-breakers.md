@@ -261,7 +261,7 @@ H L H, H in the window      Maw
 | Singularity (H H) | VS | Collapse | RMB |
 | Black Tide (H L H) | VD | Maw / Black Ice | RMB / LMB |
 | Overwhelm (hold H) | OW | Abyss | RMB |
-| Fault Line (L H L L H) | XF | Cataclysm | RMB |
+| Fault Line (L H L L H) | XF | Cataclysm / Tempest (breaker pairs) | RMB / LMB |
 | Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |
 | Backdraft (L L H, Dash H H L) | XW | Anvil / Pinwheel (breaker pairs) | RMB / LMB |
@@ -312,5 +312,18 @@ best situation and loses in its worst. The autotest's done line has `endings_n=N
 |---|---|---|---|
 | Meteor Fall | **Meteor Shower**: a fireball out of the sky on every foe the palm hit, wherever it went; leaves them molten | the palm scattered them / the palm piled them on a wall | 4 scattered: shower 310 vs fall 175; 3 piled on a wall: fall 628 vs shower 336 |
 | Anvil | **Pinwheel**: the tentacles whirl the kebab round him in a twister and hurl it into the nearest wall or pillar | a wall or pillar within 10 m / the open | wall: pinwheel 519 vs anvil 406; open: anvil 406 vs pinwheel 152 |
+| Cataclysm | **Tempest**: a twister on the pile takes everyone near up its column, and bolts blast each out in turn, harder for every other one in it | a crowd (four or more) / a few | five: tempest 666 vs cataclysm 524; two: cataclysm 209 vs tempest 144 |
+
+Skipped, single on purpose (each stays one ending):
+
+- **Avalanche**: Harpoon's Shatterstorm / Slapshot already are the two things to do with a row of cubes (thunder where
+  they stand, a punch into the wall); a third cube ending would repeat one of them, and the proposal said leave it.
+- **Collapse**: Event Horizon (the hole holds them tight) is a pause, not a beat, and a gather Singularity's own hole
+  already does; Collapse's throw into the walls is the environmental payoff.
+- **Abyss**: Sinkhole (left sunk, bound) is Abyss without its spikes, and Overwhelm's job is one big foe, so there is
+  no second situation for it to win.
+- **Flash Freeze**: Scald (the steam goes off for damage) is the same landing on the same held foes with a bigger
+  number; nothing about where they are or what they are picks it.
+- **Eruption**: Ash Rain (they hang burning) repeats Eruption's launch, and Meteor Shower now owns fire from above.
 
 Bot strings: `spread alt L L L H H` (Meteor Shower), `wall alt L L H D H H L` (Pinwheel), `alt L H L H` (Cold Front).
