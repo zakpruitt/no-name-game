@@ -187,11 +187,34 @@ func _grab() -> void:
 	var line := "%03d%s t=%5d ms move=%-3s state=%-6s hits=%d scale=%.2f brk=%d combo=%d" % [_frames.size(), " HIT" if hit else "    ", now - _t0,
 		_p._move_id if _p.state == _p.State.ATTACK else "-", _p.State.keys()[_p.state], _p._hits_done,
 		Engine.time_scale, _p._brk_phase if _p.state == _p.State.LEAP else -1, get_root().get_node("Game").combo_count]
+	var spar: Node = _main.get_node_or_null("Spar")  # `-- --spar=<kind>`: the live foe's state on every line
+	if spar != null:
+		line += _spar_cols(spar)
 	if _laid:
 		var ve: GDScript = load("res://scripts/void_element.gd")
 		for d: Node3D in _main._dummies:
 			line += " | %.1f,%.1f hp%d%s" % [d.global_position.x, d.global_position.z, int(d.hp), "*" if ve.wall_fresh(d) else ""]
 	_frames.append([img, line])
+
+
+## ` | spar <STATE> hp y strike_in [held flags] d | hero hp`: what the live foe (spar.gd) is doing this frame.
+## Flags: F flying (thrown_foe), B bound (floor_bind / a hook), Z frozen, A airborne, W telegraph up; b m s c buried,
+## molten, skewered, charged.
+func _spar_cols(spar: Node) -> String:
+	var hero := " | hero hp%d %s" % [int(_p.hp), "INV" if _p._invuln_t > 0.0 else ""]
+	var e: Node3D = spar.foe
+	if not is_instance_valid(e):
+		return " | spar - kills=%d hits=%d%s" % [spar.kills, spar.total_hits(), hero]
+	var flags := ""
+	flags += "F" if e.has_meta("thrown_foe_flying") else ""
+	flags += "B" if e.has_meta("x_bound") else ""
+	flags += "Z" if e.frozen_t > 0.0 else ""
+	flags += "A" if e.state == e.State.AIRBORNE else ""
+	flags += "W" if e._telegraph.visible else ""
+	for st: String in ["buried", "molten", "skewered", "charged"]:  # (the crossover states, lower case)
+		flags += st[0] if int(e.get_meta("x_" + st, 0)) > Time.get_ticks_msec() else ""
+	return " | spar %-8s hp%d y%.1f si%.2f %-4s d%.1f%s" % [e.State.keys()[e.state], int(e.hp), e.global_position.y,
+		e.strike_in(), flags, e.global_position.distance_to(_p.global_position), hero]
 
 
 func _flush(film: String) -> void:
