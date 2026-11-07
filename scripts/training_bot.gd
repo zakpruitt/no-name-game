@@ -109,6 +109,12 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"slot": "cross_ice_storm", "tokens": ["wall", "D", "L", "H", "H", "H", "L"]},
 	# Round 54 cool pass 3: Cold Front by the wall, its best (the tentacles bowl the cubes along the floor into it).
 	{"slot": "air_route", "tokens": ["wall", "alt", "L", "H", "L", "H"]},
+	# Round 56 (feel-audit6): the round 55 mids' best situations, which the close fan never showed. "stab": Dash Stab
+	# lunges at the one ahead and the lash's barb catches the one 4 m behind it and reels it in. "tide": the grab on the
+	# one ahead, Reap's crescent marks the two out on his flanks (~6 m) and its hook yanks the far one in; Black Tide's
+	# tentacles then haul the flanks 5-6 m across the floor into the pool, and Maw takes the pile.
+	{"slot": "dash_l", "tokens": ["stab", "D", "L"]},
+	{"slot": "sig_drag", "tokens": ["tide", "H", "L", "H"]},
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
 	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Powder Keg: Molten Palm carries the dummies over the spikes into
 	# the barrel (it catches) and the crate; Undertow pins them, and Meteor Fall dives on the splatted pile as it bursts.
@@ -132,9 +138,9 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# over it: the seam tips it, the coals run on and Hellseam erupts from them too.
 	{"room": "pieces", "slot": "cross_dark_magma", "tokens": ["brazier", "L", "L", "L", "H", "L"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
-const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier"]
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide"]
 ## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
 ## stands, which way he faces, and the dummies' spots. "keg": east of the barrel at (-11.2, -2), three dummies in
 ## Molten Palm's line toward it and one lined up on the crate at (-11, 1). "grate": west of the grate at (6, -2), the
@@ -168,6 +174,11 @@ const BOT_PILLAR_RING := [Vector3(0.0, 0.0, 1.7), Vector3(-2.3, 0.0, 2.4), Vecto
 ## A "ring" string's dummies, from where he starts (x across his aim, z along it): one ahead for Dash Stab, the others
 ## off his line round where the dash leaves him (~1.7 m on), one behind. A "wall" string starts BOT_WALL_GAP m from the
 ## back wall (up the screen), facing it, with the same ring.
+## Round 56: the "stab" and "tide" strings' dummies, from where he starts (x across his aim, z along it), as BOT_RING.
+const BOT_SPOT_LAYOUTS := {
+	"stab": [Vector3(0.0, 0.0, 3.4), Vector3(0.4, 0.0, 7.4), Vector3(-7.0, 0.0, -2.0), Vector3(7.0, 0.0, -2.0)],
+	"tide": [Vector3(0.0, 0.0, 3.6), Vector3(-5.2, 0.0, 3.0), Vector3(5.4, 0.0, 2.6), Vector3(0.6, 0.0, 9.0)],
+}
 const BOT_RING := [Vector3(0.0, 0.0, 4.5), Vector3(-3.4, 0.0, 2.4), Vector3(3.0, 0.0, 0.4), Vector3(0.8, 0.0, -1.8)]
 const BOT_WALL_GAP := 10.5
 ## With "far", a "spread" string's last dummy stands this far out instead: past the tentacles (void_grab.SEIZE_RANGE).
@@ -662,6 +673,18 @@ func _reset_spots() -> void:
 				if is_instance_valid(d):
 					_homes[d] = d.home
 					d.home = lay.dummies[i % lay.dummies.size()] + Vector3(0.0, target.y, 0.0)
+					d.global_position = d.home
+	for key: String in BOT_SPOT_LAYOUTS:  # round 56: "stab", "tide"
+		if key in strings[_bot_string]:
+			var fwd: Vector3 = player._facing()
+			var side := fwd.cross(Vector3.UP).normalized()
+			for i in main._dummies.size():
+				var d: Node = main._dummies[i]
+				if is_instance_valid(d):
+					_homes[d] = d.home
+					var o: Vector3 = BOT_SPOT_LAYOUTS[key][i % BOT_SPOT_LAYOUTS[key].size()]
+					d.home = player.global_position + side * o.x + fwd * o.z
+					d.home.y = target.y
 					d.global_position = d.home
 	if "spread" in strings[_bot_string]:  # apart on a wide arc ahead (homes too; with "wall", ahead toward it)
 		var fwd: Vector3 = player._facing() if "wall" in strings[_bot_string] else target - player.global_position
