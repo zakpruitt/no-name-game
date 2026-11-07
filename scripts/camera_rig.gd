@@ -162,6 +162,15 @@ var _safe := HANG_SAFE  # the scene's safe box this frame (HANG_SAFE, or HANG_SA
 var _scene_cap := HANG_CAP  # this frame's cap (HANG_CAP_WIDE in the last tier)
 var _scene_env := Vector3.INF  # the indicator's pick as of the leap (INF: none)
 var _land_ms := -100000  # the scene's landing (ticks ms)
+## Round 56 (feel-audit6, item f): the landing punches in. After the landing the scene used to take its wide tier at
+## once, so half the endings went OUT on the slam (Cold Front x1.54 -> 1.68 at +60 ms, Slapshot, Meteor Shower, Uproot,
+## Maw, Black Ice 1.45 -> 1.55-1.62). Now the view goes to LAND_PUNCH of where it was at the landing (no wider than the
+## actors allow in the looser LAND_SAFE box), holds LAND_HOLD_MS and eases out to the scene's own need by LAND_EASE_MS.
+const LAND_PUNCH := 0.85
+const LAND_SAFE := Vector3(0.86, 0.62, 0.86)  # of the half-screen: sides, up, down (camera_feel_check's bar is 0.9)
+const LAND_HOLD_MS := 50
+const LAND_EASE_MS := 330
+var _land_from := 0.0  # the view's distance (x the rest offset) on the landing's frame
 var scene_structs := 0  # structure points the scene framed this frame (checks)
 var _scene_need := 0.0  # how far out the actors need the view (x DIST, uncapped, no floor; 0: no scene), _squeeze()
 
@@ -374,6 +383,7 @@ func _scene_tick(hanging: bool) -> bool:
 	if _scene_land >= 0 and landed > _scene_land:  # the landing
 		_add_near(Vector3(hero.x, 0.0, hero.z), HANG_ZONE_R)
 		_land_ms = now
+		_land_from = camera.position.length() / maxf(offset.length(), 0.01)
 		_scene_ms = now + HANG_AFTER_MS
 		_scene_until = now + HANG_AFTER_MAX_MS
 	elif _scene_hang and not hanging:
@@ -475,9 +485,24 @@ func _frame_scene(goal: Vector3, hanging: bool) -> void:
 	need = maxf(need, _need(all, goal + _lean, _safe, 0.0))
 	if not hanging:  # (after the landing, where the follow is too: a dive outruns it; and only then the wide tier)
 		need = maxf(need, _need(all, global_position, _safe, 0.0))
+		need = _land_punch(all, goal, need, now)
 	_scene_need = need
 	_scene_cap = HANG_CAP_WIDE if _safe == HANG_SAFE_FULL or (not hanging and need > HANG_CAP) else HANG_CAP
 	_frame_to = clampf(need, 1.0, _scene_cap)
+
+
+## The landing's punch (LAND_PUNCH above): the need eased from the punch to the scene's own over LAND_EASE_MS.
+func _land_punch(all: Array[Vector3], goal: Vector3, need: float, now: int) -> float:
+	var since := now - _land_ms
+	if since < 0 or since >= LAND_EASE_MS or _land_from <= 0.0:
+		return need
+	var loose := maxf(_need(all, goal + _lean_to, LAND_SAFE, 0.0), maxf(_need(all, goal + _lean, LAND_SAFE, 0.0),
+		_need(all, global_position, LAND_SAFE, 0.0)))
+	var punch := maxf(_land_from * LAND_PUNCH, loose)
+	if punch >= need:
+		return need
+	var k := smoothstep(0.0, 1.0, float(since - LAND_HOLD_MS) / float(LAND_EASE_MS - LAND_HOLD_MS))
+	return lerpf(punch, need, k)
 
 
 ## The lean (within HANG_LEAN_MAX) that lets `pts` fit the nearest: two rounds along x, then z, each a coarse then a
