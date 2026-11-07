@@ -20,6 +20,7 @@ invariants and the gotchas.
 | Element matrix: six states, one payoff rule each (the old cells are Kit upgrades) | [element-matrix.md](element-matrix.md) | `void_element.RULES`, `IMPROV_UPGRADE`, `improvise()`, `scripts/floor_bind.gd` (`holds()`) |
 | Combo breakers: the shared leap / window / dive, and strings that move (hops, air, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `scripts/hero_leap.gd`, `scripts/hero_moves.gd` (`hop()`), `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd`, `scripts/breaker_quake.gd` |
 | Combo guide (next-input hints beside the hero) and the pause MOVES list | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `scripts/move_list.gd`, `hero_moves.combo_options()`, `hero_input.combo_window()` |
+| Kit slots: the kit grammar's slot table as data, each character's card, the upgrade gate, `[kit]`, filling a card | [kit-slots.md](kit-slots.md) | `scripts/kit_slots.gd`, `scripts/kit.gd`, `tests/kit_check.gd` |
 | Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `hero_fx.cast()`, `elements.CASTS` |
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
 | The dash counter: Backlash, the perfect's window and Ricochet, swinging dummies | [counter.md](counter.md) | `scripts/counter.gd`, `scripts/counter_fx.gd`, `enemy.strike_in()` |

@@ -6,7 +6,9 @@ differs per character. The game around it is a roguelike: runs upgrade particula
 element's or a state's damage, so the combos must be stable targets. Also wanted: dash counters "like counters in
 Smash". Not wanted: pruning to Smash's four specials; plenty of flashy breakers stay.
 
-This page is a proposal. Nothing in the game follows it yet. Section 5 says what the heretic keeps, demotes and
+Zak approved it ("implement it", 2026-11-07). Section 5 is implemented (round 49): the slot table and the heretic's
+card are data in `scripts/kit_slots.gd`, the demotions are behind `Kit.has()`; see `docs/features/kit-slots.md`.
+Section 5 says what the heretic keeps, demotes and
 drops; section 6 is the empty card a new character fills in.
 
 ## 1. The shape of a character
@@ -112,6 +114,13 @@ on the dash, since every character has one and it is already the "get out" butto
 - Heretic counter name: **Backlash**. Word: KRRAK-SNAP! The tentacle catches the weapon, the flash is violet.
 
 ## 5. The heretic against the grammar
+
+**Implemented (round 49).** `KitSlots.HERETIC` holds this table. Storm Pitch is behind `Kit.has("storm_pitch")`
+(`Dash H L` is Tow Line, then Slice, without it). Rockslide's buried payoff is behind `Kit.has("rockslide_payoff")`:
+the step stays, but without the upgrade there is no double on the airborne and no buried state. `--kit=full` turns
+both on. Reap fills the mark slot at H L (his H alone is the grab, a route step). Backdraft (Dash H H L) fills dark
+x ice. Impale fills the Dash H H slot but has no window yet. The charged cells are not gated yet (matrix-collapse
+lane). `tests/kit_check.gd` checks the card.
 
 What it keeps, by slot. Everything listed exists today.
 

@@ -948,3 +948,21 @@ Zak approved the kit grammar ("implement it"); slot 9 is a Smash-style counter o
   element's hit; the 18 old cells are Kit upgrades (`--kit=full`); one look per rule tinted by the hitter; MIX ELEMENTS
   lists the rules and the upgrades; `[improv]` per rule, `agent.sh check` runs a second autotest with `--kit=full`.
   Sheets `awaken-combo-clips/32 Matrix *`. `docs/features/element-matrix.md`
+
+## Round 49 (kit-slots: the kit grammar's slot table in code)
+Zak approved the kit grammar ("implement it"). The heretic's kit is now data a second character can fill in. See
+`docs/features/kit-slots.md` and `docs/characters/kit-grammar.md` section 5.
+- [x] `scripts/kit_slots.gd`: 10 groups, 24 slots (input shape, role, one-word tag, window). The heretic's card fills
+  21 slots; the counter and the dark x magma crossover are pending, and the meter has no move id. It also lists his
+  route steps and the two demoted upgrades. `KitSlots.of(Game.hero)`; the prince's card is a TODO with his obvious moves
+- [x] The gate: Storm Pitch (`Dash H L`) and Rockslide's buried payoff are off unless `--kit=full` / their id. Rockslide
+  stays as the step into Fault Line. The routing, the combo guide, the MOVES panel and `move_list_check` agree
+- [x] The MOVES panel is laid out by slot group (role line, per-row tag, dim "upgrade" rows, pending slots), then ROUTE
+  STEPS, UPGRADES and MIX ELEMENTS. The combo guide tags each row with its slot
+- [x] Bot strings name their slot. The autotest prints `[kit] slots=21/21 windows=12/12 upgrades=0/0`
+  (`--kit=full`: 36 strings, `upgrades=2/2`). `agent.sh check` runs both and asserts the line
+- [x] `tests/kit_check.gd`: every slot filled with a routable move, shapes, ≤ 2 endings a window, ≤ 15 windows, ≤ 6
+  crossovers on distinct pairs, every MOVES id on the card, every slot with a bot string, demoted moves reachable
+  only with their gate
+- [ ] Zak: Reap fills the mark slot at H L (the grammar says H; his H alone is the grab). Impale (Dash H H) has no
+  window. The four "buried, then ..." cells go with Rockslide's payoff. The charged cells are not gated yet
