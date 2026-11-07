@@ -314,7 +314,7 @@ func _state_chase(delta: float) -> void:
 func _swing_at(to: Vector3, delta: float) -> bool:
 	var fwd := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
 	var front := to.length() <= SWING_RANGE and to.length() > 0.1 and rad_to_deg(fwd.angle_to(to.normalized())) <= SWING_ARC
-	if not swinging() or not front or _player.is_dead():
+	if not swinging() or not front or _player.is_dead() or held():  # (held by a move: no swing, enemy.held)
 		_front_t = 0.0
 		return false
 	_front_t += delta
