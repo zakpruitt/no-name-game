@@ -123,6 +123,20 @@ window.WIKI = {
    "name": "Cataclysm",
    "word": "KRAKA-DOOM!"
   },
+  "XK": {
+   "alt": {
+    "damage": 20.0,
+    "erupt": "wind",
+    "name": "Pinwheel",
+    "word": "WHIRRR-KRAK!"
+   },
+   "awaken": 12.0,
+   "awaken_perfect": 22.0,
+   "damage": 44.0,
+   "erupt": "earth",
+   "name": "Anvil",
+   "word": "KLANNNG!"
+  },
   "XL": {
    "awaken": 12.0,
    "awaken_perfect": 22.0,
@@ -741,6 +755,21 @@ window.WIKI = {
      "name": "Impale",
      "note": "Dark into ice: the tentacles throw Tow Line's bunch onto the spear and they freeze round it. Without the spear first it plants one.",
      "tag": "skewer"
+    },
+    {
+     "input": "Dash H H (pause), H in the window",
+     "kind": "text",
+     "name": "Anvil",
+     "note": "The hammer drives the kebab into the floor, a crater each.",
+     "tier": 3
+    },
+    {
+     "input": "Dash H H (pause), L in the window",
+     "kind": "text",
+     "name": "Pinwheel",
+     "note": "The quick way to Pinwheel: the bracket marks the wall or pillar it hurls them into; put the cursor on another to pick it.",
+     "or": true,
+     "tier": 3
     }
    ],
    "title": "7  DASH ENDERS"
