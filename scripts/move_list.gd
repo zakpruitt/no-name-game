@@ -64,6 +64,7 @@ const SECTIONS := [
 		{"input": "L H L L", "kind": "move", "id": "XR", "note": "Storm into earth: the hammer comes down off the air slash and drives everyone into the floor together. Double on those the gale had up."},
 		{"input": "L H L L H", "kind": "move", "id": "XF", "note": "Earth into storm: cracks run to each of them and the gale comes up out of them, throwing the buried hardest."},
 		{"input": "L H L L H, H in the window", "kind": "text", "name": "Cataclysm", "tier": 3, "note": "Lightning through them in the hang, then down into the floor, a strike and the earth under each."},
+		{"input": "L H L L H, L in the window", "kind": "text", "name": "Tempest", "or": true, "tier": 3, "note": "A twister goes up where they land and takes everyone near up it; lightning blasts each one out, harder the more it holds. Four or more: Tempest; a few: Cataclysm."},
 		{"input": "Dash L H H L", "kind": "move", "id": "XS", "note": "Ice into magma: the molten fist goes into the ice and every frozen foe goes off in steam, scalding the rest."},
 		{"input": "Dash L H H L, H in the window", "kind": "text", "name": "Flash Freeze", "tier": 3, "note": "The steam freezes on them as he dives, and the landing shatters it again."},
 		{"input": "Dash H L", "kind": "move", "id": "XT", "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass."},

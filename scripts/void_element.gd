@@ -117,7 +117,10 @@ const BREAKERS := {
 	# `wire` (Live Wire's bolts and binds on every foe in the hang made it the busiest breaker; damage 40 -> 46 for the
 	# jolts it lost) (`cataclysm`: a crater on each, a strike and earth under each).
 	"XF": {"erupt": "earth", "cataclysm": true, "damage": 46.0, "leap": LH_HIT + LEAP_AFTER_RAKE, "height": 2.4,
-		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Cataclysm"}},
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Cataclysm"},
+		# LMB Tempest (breaker-pairs): a twister goes up where they land and takes everyone near up its column; lightning
+		# blasts each out of it in turn, harder the more it holds (TEMPEST_*). A crowd: Tempest; a few: Cataclysm.
+		"alt": {"erupt": "wind", "tempest": true, "damage": TEMPEST_DAMAGE, "names": {"spirit": "Tempest"}}},
 	# Flash Freeze: Steam Burst's steam freezes on them as he dives (`refreeze`), and the landing shatters it again.
 	"XS": {"erupt": "water", "refreeze": true, "damage": 30.0, "leap": AF_HIT + LEAP_AFTER_PALM,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Flash Freeze"}},
@@ -209,6 +212,28 @@ const PINWHEEL_SPEED := 24.0  # m/s
 const PINWHEEL_OPEN := 7.0  # m
 const PINWHEEL_SWEEP := 0.5
 const PINWHEEL_CUE_MS := 1400  # real ms the thrown count for the camera's framing
+## Tempest (Cataclysm's LMB, breaker-pairs): where they land (the held pile's middle) a twister takes everyone not big
+## within TEMPEST_REACH up its column (TEMPEST_MAX at most), spiralling in to TEMPEST_R and up; from TEMPEST_FIRST s
+## a bolt out of the sky blasts each out of it in turn (TEMPEST_STEP apart), TEMPEST_DAMAGE x (1 + TEMPEST_PER per other
+## foe in the column), charged and thrown clear. Big ones stay on the floor and take TEMPEST_BIG of one blast.
+## So: one foe 20 vs Cataclysm's 46; two 2 x 30 vs 92; four 4 x 50 = 200 vs 184; five 5 x 60 vs 230.
+const TEMPEST_DAMAGE := 20.0
+const TEMPEST_PER := 0.5
+const TEMPEST_REACH := 7.0  # m round the pile
+const TEMPEST_MAX := 8
+const TEMPEST_R := 1.1  # m round the column's middle they ride
+const TEMPEST_HIGH := 2.4  # m up they ride (TEMPEST_HIGH_STEP more for every other one, so they stack)
+const TEMPEST_HIGH_STEP := 0.55
+const TEMPEST_SPIN := 9.0  # rad/s round the column
+const TEMPEST_FIRST := 0.42  # s (game) from the landing to the first bolt: they are up by then
+const TEMPEST_STEP := 0.09  # s (game) between bolts
+const TEMPEST_FREEZE := 0.35  # real s the landing's stop holds the game before the ride plays (the twister runs on real time)
+const TEMPEST_THROW := 7.0  # m/s out of the column
+const TEMPEST_LAUNCH := 6.0
+const TEMPEST_BIG := 0.6
+const TEMPEST_COLUMN := 5.5  # m: the twister's height
+const TEMPEST_OUT := 1.4  # m past the held pile's middle, along his aim, the column stands
+const TEMPEST_CUE_MS := 1600
 ## Feel audit 3 item 6: a foe Molten Palm carries to a wall is cued for the framing this long (real ms), through
 ## Undertow and Meteor Fall's hang (camera_rig frames cued foes in a hang), so the splat and the dive stay on screen.
 const PALM_CUE_MS := 2600
@@ -1579,6 +1604,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 	if b.has("pinwheel"):
 		_pinwheel(hero, b, at, seized, mult)
 		return
+	if b.has("tempest"):
+		_tempest(hero, b, at, seized, mult)
+		return
 	if b.has("slapshot"):
 		_slapshot(hero, b, at, seized, mult)
 		return
@@ -1757,6 +1785,95 @@ static func _pinwheel(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: A
 static func _pinwheel_hit(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
 	if walled and is_instance_valid(parent):
 		ALT_FX.pinwheel_wall(parent, f.global_position, dir)
+
+
+## Who Tempest's column takes from round `mid`: everyone not big within TEMPEST_REACH, not in flight, nearest first,
+## TEMPEST_MAX at most; and the big ones it leaves standing. {"ride": [...], "big": [...]}
+static func tempest_riders(hero: CharacterBody3D, mid: Vector3) -> Dictionary:
+	var ride := []
+	var big := []
+	for e: Node3D in FOES.near(hero.get_tree(), mid, TEMPEST_REACH):
+		if THROWN.flying(e):
+			continue
+		(big if hero._void.is_heavy(e) else ride).append(e)
+	ride.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position - mid).length() < _flat(c.global_position - mid).length())
+	return {"ride": ride.slice(0, TEMPEST_MAX), "big": big}
+
+
+## Tempest (Cataclysm's LMB ending) lands: the twister goes up on the pile (ALT_FX.twister) and takes the riders up it
+## (a game-time tween drives each, `thrown_foe`'s FLYING meta keeping everything else off them); then a bolt blasts
+## each out in turn (_tempest_bolt), each harder for every other one in the column.
+static func _tempest(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var mid: Vector3 = at + hero._brk_dir * 1.2
+	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	if not live.is_empty():
+		mid = Vector3.ZERO
+		for e: Node3D in live:
+			mid += _flat(e.global_position)
+		mid /= float(live.size())
+		mid += hero._brk_dir * TEMPEST_OUT  # (off him: the column stood on him and a rider hid him)
+	var who := tempest_riders(hero, mid)
+	var riders: Array = who.ride
+	var each: float = b.damage * hero._dmg_mult * mult * (1.0 + TEMPEST_PER * maxi(riders.size() - 1, 0))
+	var life: float = TEMPEST_FIRST + TEMPEST_STEP * riders.size() + 0.25
+	ALT_FX.twister(parent, mid, TEMPEST_COLUMN, TEMPEST_R + 0.5, life + TEMPEST_FREEZE)
+	_pop(parent, mid, "axe")
+	Game.shake(0.6)
+	for e: Node3D in who.big:
+		e.take_hit(each * TEMPEST_BIG, Vector3.ZERO, 0.0, true)
+		Game.register_hit("breaker")
+	for i in riders.size():
+		var e: Node3D = riders[i]
+		THROWN.cut(e)
+		e.set_meta(THROWN.FLYING, true)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + TEMPEST_CUE_MS)
+		if e.has_method("stagger"):
+			e.stagger(life + 0.3)
+		var off := _flat(e.global_position - mid)
+		var a0 := atan2(off.x, off.z)
+		var r0 := off.length()
+		var y0: float = e.global_position.y
+		var high: float = TEMPEST_HIGH + TEMPEST_HIGH_STEP * (i % 3)
+		var strike: float = TEMPEST_FIRST + TEMPEST_STEP * i
+		var tw := parent.create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)  # (game time: the ride plays after the landing's freeze)
+		tw.tween_method(_tempest_ride.bind(e, mid, a0, r0, y0, high, strike), 0.0, strike, strike)
+		tw.tween_callback(_tempest_bolt.bind(hero, e, mid, each, i == 0))
+
+
+## One frame of a rider going up the column (`t` s of `strike`): spiralling in to TEMPEST_R and up to `high`.
+static func _tempest_ride(t: float, e: Variant, mid: Vector3, a0: float, r0: float, y0: float, high: float, strike: float) -> void:
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	var k := clampf(t / maxf(minf(strike, 0.5), 0.01), 0.0, 1.0)
+	var ease_k := 1.0 - (1.0 - k) * (1.0 - k)
+	var a := a0 + TEMPEST_SPIN * t
+	var r := lerpf(r0, TEMPEST_R, ease_k)
+	var node: Node3D = e
+	node.global_position = Vector3(mid.x + sin(a) * r, lerpf(y0, high, ease_k) + sin(t * 7.0) * 0.08, mid.z + cos(a) * r)
+	if node is CharacterBody3D:
+		(node as CharacterBody3D).velocity = Vector3.ZERO
+
+
+## A bolt out of the sky into a rider, blasting it out of the column: the hit, charged, thrown clear.
+static func _tempest_bolt(hero: Variant, e: Variant, mid: Vector3, damage: float, first: bool) -> void:
+	if not is_instance_valid(e):
+		return
+	if e.has_meta(THROWN.FLYING):
+		e.remove_meta(THROWN.FLYING)
+	if not is_instance_valid(hero) or not e.is_alive():
+		return
+	var parent: Node = hero.get_parent()
+	var at: Vector3 = (e as Node3D).global_position + Vector3.UP * 0.9
+	COMIC_BOLT.spawn(parent, at + Vector3(0.6, 9.0, -0.4), at, 0.3, 0.9 if first else 0.6, 2)
+	var out := _flat((e as Node3D).global_position - mid)
+	out = out.normalized() if out.length() > 0.05 else Vector3.FORWARD
+	e.take_hit(damage, out * TEMPEST_THROW, TEMPEST_LAUNCH, true)
+	mark(e, "charged")
+	Game.register_hit("breaker")
+	Game.hitstop(0.05 if first else 0.03)
+	Game.shake(0.45 if first else 0.3)
+	Game.sfx("hit_big", -3.0, 0.15)
 
 
 ## Shatterstorm (Harpoon's RMB ending): thunder crashes on each cube of the row in turn, where it stands, and shatters

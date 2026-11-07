@@ -56,7 +56,7 @@ const BREAKER_WORDS := {
 	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
 	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
 	"Shatterstorm": "KRSSSH-BOOM!", "Slapshot": "THWAKK!",  # round 47 b (Slapshot's wall hits say slapshot_fx.WALL_WORD)
-	"Meteor Shower": "BLAM-BLAM-BLAMM!", "Pinwheel": "WHIRRR-KRAK!",  # breaker-pairs (Pinwheel's wall hits say breaker_alt_fx.WALL_WORD)
+	"Meteor Shower": "BLAM-BLAM-BLAMM!", "Pinwheel": "WHIRRR-KRAK!", "Tempest": "VWOOOM-KZZAK!",  # breaker-pairs (Pinwheel's wall hits say breaker_alt_fx.WALL_WORD)
 }
 const BREAKER_SCALE := 0.78
 ## The element matrix's payoffs (void_element.IMPROV; comic_improv.gd draws each cell's tell), by cell: said over the
