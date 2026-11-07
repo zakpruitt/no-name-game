@@ -146,7 +146,7 @@ static func set_alpha(a: float, mi: GeometryInstance3D) -> void:
 ## far ahead) takes a small stop of its own, so no contact plays at x1.00; inside or just after the blade's stop it
 ## adds nothing (overlapping stops only extend), so the string's beats don't move.
 const CAST_STOP := 0.03  # s, at the freeze scale
-const CAST_STOP_GAP_MS := 150  # ms since the last stop ended
+const CAST_STOP_GAP_MS := 90  # ms since the last stop ended (150 skipped L2's cast after L1's on the wall_alt film, 118 ms apart)
 
 
 ## One foe struck by a spirit cast: the hit, the combo counter, element debris
