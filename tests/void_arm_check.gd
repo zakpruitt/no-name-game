@@ -513,6 +513,8 @@ func _breaker_choice() -> void:
 	hero._face(Vector3(0, 0, 1))
 	var foe := _foe(Vector3(0, 0, 2.5))
 	for press: String in ["attack_light", "attack_heavy"]:
+		# (Cold Front's cube may still be in flight under load: nothing seizes a flying foe, so no leap)
+		await _until(func() -> bool: return not foe.has_meta("thrown_foe_flying"), 3.0)
 		foe.global_position = Vector3(hero.global_position.x, 0, hero.global_position.z) + hero._facing() * 2.5
 		hero._start_attack("EW")
 		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
