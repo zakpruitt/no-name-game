@@ -270,11 +270,12 @@ func _build_arena() -> void:
 	var room: String = Game.room
 	ENV_PIECE.begin(self, room == "pieces")
 	var covered: Array = ROOMS.floor_spots(room)
+	var plain := room == "plain"
 	# Floor visuals: big tiles with the odd grate for variety (the plain room; with pieces the grates are placed by data).
 	for x in range(-HALF_TILES, HALF_TILES):
 		for z in range(-HALF_TILES, HALF_TILES):
 			var at_tile := Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE)
-			var piece := "floor_tile_big_grate" if randf() < 0.08 and room == "plain" else "floor_tile_large"
+			var piece := "floor_tile_big_grate" if randf() < 0.08 and plain else "floor_tile_large"
 			if at_tile in covered:
 				continue  # (a floor piece lies here: rooms.gd)
 			var tile := _place(piece, at_tile)

@@ -458,6 +458,18 @@ func _pieces_in_sources() -> Array:
 			for m in quoted.search_all(line):
 				if m.get_string(1) not in found:
 					found.append(m.get_string(1))
+	# Round 51: the room's pieces are data (env_piece.gd PIECES models, rooms.gd's model overrides).
+	for path in ["res://scripts/env_piece.gd", "res://scripts/rooms.gd"]:
+		for line in FileAccess.get_file_as_string(path).split("
+"):
+			var at := line.find("\"models\": [")
+			var part := line.substr(at, line.find("]", at) - at) if at >= 0 else ""
+			if at < 0 and "\"model\": \"" in line:
+				part = line.substr(line.find("\"model\": \"") + 9)
+				part = part.substr(0, part.find("\"", 1) + 1)
+			for m in quoted.search_all(part):
+				if m.get_string(1) not in found and m.get_string(1) not in ["models", "model"]:
+					found.append(m.get_string(1))
 	return found
 
 
