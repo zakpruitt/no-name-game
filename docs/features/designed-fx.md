@@ -635,3 +635,22 @@ lit band, `_curl_path`, rounded ice `_block`s). Each sheet is registered by the 
 | `abyss_column` | sprite_depth (4x2, 7 frames) | `abyss_rise.gd` | the floor tearing, three braided tentacles rising to a grabbing hand, holding, whipping down, the knot and splash, the hole closing; the foe is carried at the hand (`APEX`) |
 
 No polygons, no crystals (the ice is rounded blocks in snow).
+
+## Round 52 cool pass (combo-cool2 lane)
+
+`python tools/vfx_gen/gen_cool2.py [names] [--preview=<dir>]` (gen_elements' `tear` / `tongue`, and gen_cool's
+`erupt_chain` drawing, which round 51 left unused). Each sheet is registered by the script that plays it (`register()`
+into `designed_fx.extra_sheets`) and drawn once at load from `elements.prewarm`. No polygons, no crystals: the frost is
+rounded rime lumps, steam is lumpy puffs, magma is tongues and globs, the dark is ink.
+
+| Sheet | Kind | Played by | What |
+|---|---|---|---|
+| `erupt_chain` | ribbon strip (1x4) | `eruption_hurl.gd` | Eruption's fuse: the crusted lava crack that races along the floor from the landing to each burning foe; one ImmediateMesh strip on `shaders/designed_drag.gdshader` (COLOR.r = age, UV.x = metres / `FUSE_TILE`), cooling from its old end |
+| `erupt_drip` | sprite_depth (4x2, 7 frames) | `eruption_hurl.gd` | a burning foe splatted up the wall: the splat, three streams running down (the foe slides down the middle one), the pool at the foot with licks, crusting; stood `DRIP_OUT` out of the wall face, `DRIP_SIZE` 3.6 m |
+| `steam_shell` | sprite_depth (3x2, 6 frames) | `frost_shell.gd` | Flash Freeze's steam rolling over a foe: puffs at its feet, billowing round it, curling over, drawn in tight with a rime of rounded frost lumps, thinning to a cold floor mist; stood 0.4 m toward the camera so it rolls over the ice block |
+| `spit_burst` | sprite (3x2, 6 frames) | `collapse_spit.gd` | Collapse's spit as a beat of its own: three fat ink tongues splaying up out of the mouth, a ring of teardrop globs flung and falling, the puddle; `BURST_SIZE` 3.4 m over the hole, a pop on frame 0 |
+
+Flash Freeze's shell is the fitted ice block (`void_element.encase`, fx-ice2's `fit_block`), its break `designed_fx.ice_shatter`
+and the frost line between shells `designed_elements.fissure(..., "water")` (floor cracks and mist). Eruption's geyser is
+`designed_elements.geyser`, the pool under a foe that slid down `designed_elements.pool`, the wall beat
+`breaker_alt_fx.cool_wall`. Collapse's spit trail is the dark breaker dive's ink comet (`comic_comet.gd`) fed on the foe.

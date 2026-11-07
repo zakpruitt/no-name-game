@@ -306,7 +306,7 @@ SHEETS = {
     "void_spit": (void_spit, 384, 4, 7, "void", "edge", 0.5),
     "avalanche_spill": (avalanche_spill, 384, 3, 6, "water", "edge", 0.55),
     "abyss_column": (abyss_column, 384, 4, 7, "void", "edge", 0.5),
-    # "erupt_chain": (erupt_chain, 256, 1, 4, "earth", "none", 0.9),  # (drawn for a later Eruption pass; unused yet)
+    # "erupt_chain": (erupt_chain, 256, 1, 4, "earth", "none", 0.9),  # (round 52 plays it: gen_cool2.py imports it)
 }
 
 
