@@ -545,3 +545,13 @@ Lessons:
 Still polygons: `hero_fx.rank_up`, `callout_cap`, `comic_fault`'s ground, `comic_freeze_over`, `comic_melt`,
 `comic_impale`, `comic_rip`, the `comic_improv` tells, kills' `Fx.soul` and `last_kill` rings, `comic_drag_mark`,
 Dash Stab's claw lash.
+
+## Feel audit 4 (feel-polish, 2026-11-06)
+
+- Frost spear: no `ice_frost` floor in designed mode (its disc of cracks grew to ~5 m under the dummies). The plant is
+  a ground stamp, `designed_ink.shock` 1.25 m (`frost_spear.STAMP_R`) and `frost_mark` at `STAMP_MARK` 1.5 (~2.5 m).
+  `designed_elements.frost_floor` / `frost_step` have no caller now. Deep Freeze's `frost_burst` is unchanged.
+- Spirit echo: drawn at `designed_finish.ECHO_DRAW` 0.62 of the cast's reach (the hit reach is unchanged), the axe
+  head `ECHO_SIZE` 1.4 m, the line `echo_line()` a thin void-ink `slash` (`ECHO_LINE_INNER` 0.94 of its radius in),
+  both on real time for `ECHO_REAL` 0.2 s (`designed_fx.slash(..., real)`), so neither hangs through the hitstop into
+  the next move. See `docs/feel-audit-2026-11-06b.md`.

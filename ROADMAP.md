@@ -801,12 +801,12 @@ Orchestrator: film every string, audit combat feel as a whole, fix the worst. `d
 - [x] Item 3: an ender's name goes to the top band in the hang, off his chest
 - [x] Item 4: the lava well's ticks are quiet burns (words and stars with nothing doing them)
 - [x] Item 5: Short Circuit cues its targets for the camera (`FRAME_CUE`), so the far arc lands in frame
-- [ ] Item 6: Meteor Fall's wall splat in the top-left corner (camera / combo lane: frame the splatted foe in the hang, or a shorter carry)
+- [x] Item 6: Meteor Fall's wall splat in the top-left corner (feel-polish: Molten Palm cues the splatted foe, the hang frames cued foes)
 - [ ] Item 7: L3 -> Molten Palm 538 ms (re-key Ab_AF's coil, then `EM_SPEED`; heretic anim + combo-rhythm)
 - [x] Item 8: the frost spear's 5 m halftone floor (fx-elements: the drawn `ice_frost` floor)
-- [ ] Item 9: the spirit echo's brown halftone fan on L2 / L3 (fx-finish)
+- [x] Item 9: the spirit echo's brown halftone fan on L2 / L3 (feel-polish: drawn at 0.62 of the reach, thin ink line, real time)
 - [x] Item 10: Maw's landing total at the top edge: `comic_number` keeps every number inside `PAGE_MARGIN`
-- [ ] The spear vault (IJ) is the only contact without a stop
+- [x] The spear vault (IJ) is the only contact without a stop (feel-polish: `VAULT_STOP` 0.06)
 - [ ] Zak plays Live Wire / Short Circuit / Galvanize by hand after these
 
 ## Round 46 (fx-elements: ice and magma base moves designed)
@@ -873,3 +873,14 @@ the heretic", then a molten fist punches the cubes into a wall or thunder breaks
   every dummy's vertices inside its block after the gather, in the hang and mid-slide; `string_film --no-awaken`
 - [ ] Zak's call: the endings sit behind a pause (Ice Cube keeps its line), not on Harpoon outright; hand-play the
   gather's speed and whether a wall past ~10 m (the slide's reach) should still count
+
+## Round 47 c (feel-polish: audit 3's open items, then the whole game on film again)
+Zak: "keep improving on whatever you see fit". `docs/feel-audit-2026-11-06b.md`; clips `awaken-combo-clips/28 Feel *`.
+- [x] Meteor Fall: Molten Palm cues a foe it carries to a wall (`PALM_CUE_MS`), and a hang frames cued foes only
+  (`camera_rig.FRAME_CUE_RANGE`): the splat stays whole in frame through the hang and the dive
+- [x] Frost spear (designed): a ground stamp (brush ring 1.25 m + `frost_mark` cracks ~2.5 m), no 5 m frost floor
+- [x] Spirit echo: 0.62 of the reach, a 1.4 m axe head and a thin ink line, on real time (gone by the next hit)
+- [x] Hit stops: the vault's push-off (`VAULT_STOP` 0.06) and Harpoon's first latch (`LATCH_STOP` 0.035)
+- [x] 32 strings re-filmed (`feel4_a/b/c`), coverage PASS (max 0.163); rhythm_check PASS
+- [ ] Live Wire's hang with a far foe: the current runs off frame (cue Short Circuit's targets in the hang? Zak's call)
+- [ ] Ice Cube pressed during Harpoon's gather finds nobody (the tentacles still carry them): combo-harpoon lane
