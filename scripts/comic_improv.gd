@@ -28,6 +28,7 @@ extends "res://scripts/comic_flat.gd"
 const SELF := preload("res://scripts/comic_improv.gd")
 const RIP := preload("res://scripts/comic_rip.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
 const CHEST := 0.9  # m up the foe: the screen layer's middle
 const GRAVITY := 9.0  # m/s/s on flung chips (screen down)
 ## cell ("state_x_element", void_element.improvise's improv_paid keys) -> its look: life (real s), whether it rides
@@ -78,6 +79,12 @@ var _shape := PackedFloat32Array()
 ## The tell for `cell` on `e`. `toward` is the hero's spot; `next` the neighbour a chain jumped to (Vector3) or null.
 static func spawn(parent: Node, which: String, e: Variant, toward: Vector3, next: Variant = null) -> Node3D:
 	if not LOOKS.has(which) or not is_instance_valid(e):
+		return null
+	if DESIGNED_EL.DESIGNED.on():  # fx-polygons: each cell from the shared designed pieces (designed_polish.improv)
+		POLISH.improv(parent, which, e, toward, next)
+		if which == "skewered_x_void":
+			RIP.spawn(parent, e, toward)
+		ComicFx.improv(which, e.global_position)
 		return null
 	var f: Node3D = SELF.new()
 	f.cell = which

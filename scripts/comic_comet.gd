@@ -8,6 +8,13 @@ extends Node3D
 const SELF := preload("res://scripts/comic_comet.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
+## fx-polygons (designed): the trail is a drawn strip on a camera-facing ribbon (designed_polish.trail_sheet: a brush
+## comet, the dark's ink smear, storm's lime bolt), its rows boiling on twos; the landing is the element's pop.
+const D_WIDTH := 0.9  # m: the ribbon (the comet's head fills ~0.85 of it)
+const D_BOLT_WIDTH := 1.1
+const D_BOLT_TILE := 2.6  # the bolt strip's length on the ribbon, in widths
 const INK := Color(0.012, 0.01, 0.02)
 const HOT_CORE := Color(1.0, 0.88, 0.25)
 const STEPS_PER_S := 12.0  # the wobble changes on twos; the head follows him every frame
@@ -33,6 +40,10 @@ var _view := Vector3.BACK
 var _mesh := ArrayMesh.new()
 var _verts := PackedVector3Array()
 var _colors := PackedColorArray()
+var _designed := false
+var _el := "spirit"
+var _sheet := ""
+var _dmi: MeshInstance3D
 
 
 ## The comet on `model`, made on the first beat and fed by the rest.
@@ -60,6 +71,18 @@ func setup(model: Node3D) -> void:
 		_view = cam.global_basis.z
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh
+	_designed = POLISH.DESIGNED.on()
+	if _designed:
+		POLISH.register()
+		_el = PAL.nearest(color)
+		_sheet = POLISH.trail_sheet(_el)
+		mi.material_override = POLISH.DESIGNED.material(_sheet)
+		mi.set_instance_shader_parameter("pal_row", POLISH.DESIGNED.row(_el))
+		mi.set_instance_shader_parameter("head", 1.0)
+		mi.set_instance_shader_parameter("span", 1.0)
+		mi.set_instance_shader_parameter("erode", 0.0)
+		mi.set_instance_shader_parameter("heat", 0.15 if _sheet == "bolt_strip" else 0.0)
+		_dmi = mi
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_ghost", true)
 	mi.extra_cull_margin = 16.0
@@ -101,7 +124,10 @@ func _land() -> void:
 		var dir := Vector3.DOWN
 		if _pts.size() > 1:
 			dir = (at - _pts[0]).normalized()
-		COMIC_POP.spawn(get_parent(), down, {"star": STAR, "spikes": 8, "hold": STAR_HOLD, "steps": 3,
+		if _designed:
+			POLISH.dive_land(get_parent(), down, color, _el)
+		else:
+			COMIC_POP.spawn(get_parent(), down, {"star": STAR, "spikes": 8, "hold": STAR_HOLD, "steps": 3,
 			"strokes": 7, "radial": true, "gap": STAR * 0.85, "stroke_len": 0.7, "stroke_w": 0.22,
 			"stroke_color": color.lightened(0.3), "chips": 6, "chip": color, "chip_size": 0.15,
 			"chip_speed": 6.0, "chip_ink": 4, "dir": -dir})
@@ -132,6 +158,18 @@ func _draw() -> void:
 	var pts := _path()
 	_mesh.clear_surfaces()
 	if pts.size() < 2:
+		return
+	if _designed:
+		var bolt := _sheet == "bolt_strip"
+		var w := D_BOLT_WIDTH if bolt else D_WIDTH
+		POLISH.trail_mesh(_mesh, pts, w, _view, _right)
+		_dmi.set_instance_shader_parameter("frame", float(_step % 4))
+		if bolt:
+			var run := pts[0].distance_to(pts[pts.size() - 1])
+			_dmi.set_instance_shader_parameter("tiles", maxf(1.0, run / (w * D_BOLT_TILE)))
+			_dmi.set_instance_shader_parameter("scroll", _step * 0.21)
+		else:
+			_dmi.set_instance_shader_parameter("tiles", 0.0)
 		return
 	_ribbon(pts, WIDTH + 0.07, INK)
 	_ribbon(pts, WIDTH, Color(color, 0.88))
