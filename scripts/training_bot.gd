@@ -134,9 +134,9 @@ const BOT_PIECE_LAYOUTS := {
 	"grate": {"at": Vector3(1.6, 0, -2.0), "face": Vector3(1, 0, 0),
 		"dummies": [Vector3(4.6, 0, -2.0), Vector3(5.6, 0, -2.9), Vector3(5.6, 0, -1.1), Vector3(6.6, 0, -2.0)]},
 	# round 52: "torch": facing the back wall under its middle torch (-2, 2.4, -15.5), three dummies within its
-	# CONDUCT_REACH and the fourth 8 m along under the torch at (6, 2.4, -15.5), out of the tentacles' reach
-	"torch": {"at": Vector3(-2.0, 0, -9.2), "face": Vector3(0, 0, -1),
-		"dummies": [Vector3(-2.0, 0, -12.2), Vector3(-3.0, 0, -12.7), Vector3(-1.0, 0, -12.7), Vector3(6.0, 0, -12.7)]},
+	# CONDUCT_REACH and the fourth under the torch at (-10, 2.4, -15.5), ~10 m off, past the tentacles' SEIZE_RANGE
+	"torch": {"at": Vector3(-2.0, 0, -10.6), "face": Vector3(0, 0, -1),
+		"dummies": [Vector3(-2.0, 0, -13.0), Vector3(-3.0, 0, -13.4), Vector3(-1.0, 0, -13.4), Vector3(-11.8, 0, -13.3)]},
 }
 ## A "pillar" string: he stands BOT_PILLAR_GAP m out from main.PILLARS[0] facing it, the dummies round the pillar's
 ## near side (x across his aim, z along it, from him): one between him and it for the grab, the rest by its face.
