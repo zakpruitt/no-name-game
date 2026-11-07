@@ -31,6 +31,7 @@ const COMIC_RIP := preload("res://scripts/comic_rip.gd")
 const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element matrix's tells (round 37, third pass)
 const HARPOON_GATHER := preload("res://scripts/harpoon_gather.gd")  # Harpoon's tentacles (round 47)
 const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
+const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs' second endings (breaker-pairs lane)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -99,7 +100,10 @@ const BREAKERS := {
 	# (meteor_target: the ones Molten Palm just splatted on a wall count more) and the landing takes everyone in
 	# METEOR_PILE_R (_meteor_landing). Undertow keeps them pinned in the lava until he lands.
 	"EV": {"erupt": "earth", "meteor": true, "no_hold": true, "damage": 60.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 10.0, "awaken_perfect": 20.0,
-		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"}},
+		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"},
+		# LMB Meteor Shower (breaker-pairs): he stays over his own spot and calls a fireball down on every foe the palm
+		# hit, wherever it is (SHOWER_*). Best when the palm scattered them; Meteor Fall wins on a pile at the wall.
+		"alt": {"shower": true, "damage": SHOWER_DAMAGE, "dive": 0.2, "names": {"spirit": "Meteor Shower"}}},
 	# Dark: he comes down at dark_spot, where the string gathered them (`at_spot`, `short` m this side of it).
 	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Collapse"}},
@@ -123,7 +127,10 @@ const BREAKERS := {
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Eruption"}},
 	# Anvil ends Backdraft: the gale brought the kebab back up to him, and the hammer drives it into the floor.
 	"XW": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "damage": 44.0, "leap": H_HIT + LEAP_AFTER_SWING, "height": 2.2,
-		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"}},
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"},
+		# LMB Pinwheel (breaker-pairs): the tentacles whirl the kebab round him in a twister and hurl it into the
+		# nearest wall or pillar within PINWHEEL_REACH (PINWHEEL_*). Best by a wall or pillar; Anvil wins in the open.
+		"alt": {"erupt": "wind", "pinwheel": true, "damage": PINWHEEL_DAMAGE, "dive": PINWHEEL_DIVE, "names": {"spirit": "Pinwheel"}}},
 	# Round 47: Harpoon's row of cubes. A pause after Dash L H (no press by its cancel: a press there is still Ice Cube,
 	# Dash L H H) and he leaps with a tentacle on each cube (`hold_cubes`), landing just behind the row (`zone`).
 	# RMB Shatterstorm: thunder on every cube where it stands, reliable anywhere. LMB Slapshot: a molten fist punches the
@@ -175,6 +182,33 @@ const SLIDE_SPIN := 2.0  # radians/s: a slide, not a throw
 const SLIDE_FIST_PAST := 0.4  # m the fist reaches past the row's near face
 const SLIDE_CUE_MS := 1400  # real ms the sliding cubes count for the camera's framing (camera_rig.FRAME_CUE)
 const CAMERA_CUE := &"frame_cue_ms"  # (camera_rig.FRAME_CUE)
+## Meteor Shower (Meteor Fall's LMB, breaker-pairs): he comes down where he hangs and a fireball falls out of the sky
+## onto each foe Molten Palm hit (palm_fresh, within METEOR_SPLAT_REACH, nearest first, SHOWER_MAX), SHOWER_STEP apart
+## after SHOWER_DELAY, each SHOWER_DAMAGE into the floor on its foe alone, which it leaves molten. So: four scattered
+## foes 4 x 30 = 120 vs Meteor Fall's 60 on the one it dives on; three piled at a wall 3 x 30 vs 3 x 60 x 1.3.
+const SHOWER_DAMAGE := 30.0
+const SHOWER_MAX := 6
+const SHOWER_DELAY := 0.12  # real s past the landing (the impact frame), real time so its freeze doesn't hold them
+const SHOWER_STEP := 0.08  # real s
+const SHOWER_FALL := 0.24  # real s each fireball takes from the sky
+const SHOWER_CUE_MS := 1500  # real ms its targets count for the camera's framing (camera_rig.FRAME_CUE)
+## Pinwheel (Anvil's LMB, breaker-pairs): the dive is a whirl in place (PINWHEEL_DIVE s, PINWHEEL_TURNS round him at
+## PINWHEEL_R, a twister round them), then each held foe is hurled at the nearest wall or pillar within PINWHEEL_REACH
+## of him (PINWHEEL_RAYS rays) at PINWHEEL_SPEED: PINWHEEL_DAMAGE x PINWHEEL_WALL_MULT on it. No wall in reach: they
+## fly PINWHEEL_OPEN m out and land for PINWHEEL_DAMAGE. Anyone else in the whirl takes PINWHEEL_SWEEP of it.
+## So: 80 a foe at a wall vs Anvil's 44 x 1.4 = 62; 20 in the open.
+const PINWHEEL_DAMAGE := 20.0
+const PINWHEEL_WALL_MULT := 4.0
+const PINWHEEL_REACH := 10.0  # m round him (the room's pillars stand ~11 m from its middle: there it is the open)
+const PINWHEEL_RAYS := 32
+const PINWHEEL_R := 2.3  # m round him they whirl
+const PINWHEEL_TURNS := 1.25
+const PINWHEEL_Y := 1.3  # m up they whirl (his chest as he lands: a hammer throw)
+const PINWHEEL_DIVE := 0.42  # s
+const PINWHEEL_SPEED := 24.0  # m/s
+const PINWHEEL_OPEN := 7.0  # m
+const PINWHEEL_SWEEP := 0.5
+const PINWHEEL_CUE_MS := 1400  # real ms the thrown count for the camera's framing
 ## Feel audit 3 item 6: a foe Molten Palm carries to a wall is cued for the framing this long (real ms), through
 ## Undertow and Meteor Fall's hang (camera_rig frames cued foes in a hang), so the splat and the dive stay on screen.
 const PALM_CUE_MS := 2600
@@ -1539,6 +1573,12 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	if b.has("shower"):
+		_meteor_shower(hero, b, at, mult)
+		return
+	if b.has("pinwheel"):
+		_pinwheel(hero, b, at, seized, mult)
+		return
 	if b.has("slapshot"):
 		_slapshot(hero, b, at, seized, mult)
 		return
@@ -1599,6 +1639,124 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		Game.register_hit("breaker")
 	under(parent, at, b.erupt)
 	_pop(parent, at, {"wind": "axe", "water": "spear", "earth": "hammer"}[b.erupt])
+
+
+## The foes Meteor Shower calls a fireball down on: every living one Molten Palm hit (palm_fresh) within
+## METEOR_SPLAT_REACH of him, nearest first, at most SHOWER_MAX.
+static func shower_targets(hero: CharacterBody3D) -> Array:
+	var at := _flat(hero.global_position)
+	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	foes.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
+	return foes.slice(0, SHOWER_MAX)
+
+
+## Meteor Shower (Meteor Fall's LMB ending) has landed: a fireball out of the sky onto each target in turn (ALT_FX.meteor_drop),
+## each a crater on its foe alone; the last lets Undertow go. Nobody the palm hit: one onto the floor ahead of him.
+static func _meteor_shower(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var foes := shower_targets(hero)
+	for e: Node3D in foes:
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SHOWER_CUE_MS)
+	if foes.is_empty():
+		var tw0 := parent.create_tween().set_ignore_time_scale(true)
+		tw0.tween_interval(SHOWER_DELAY)
+		tw0.tween_callback(func() -> void:
+			if is_instance_valid(parent) and DESIGNED.on():
+				DESIGNED.meteor(parent, at + hero._brk_dir * 3.0, ALT_FX.DROP_SPLASH))
+		if is_instance_valid(hero._void.undertow):
+			hero._void.undertow._let_go()
+		return
+	for i in foes.size():
+		var tw := parent.create_tween().set_ignore_time_scale(true)  # (real time: the landing's freeze would hold them a second)
+		tw.tween_interval(SHOWER_DELAY + i * SHOWER_STEP)
+		tw.tween_callback(_shower_call.bind(hero, foes[i], damage, i == foes.size() - 1))
+
+
+static func _shower_call(hero: Variant, e: Variant, damage: float, last: bool) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var from: Vector3 = (hero as Node3D).global_position
+	ALT_FX.meteor_drop(hero.get_parent(), from, e, SHOWER_FALL, _shower_land.bind(hero, e, damage, last))
+
+
+static func _shower_land(_at: Vector3, hero: Variant, e: Variant, damage: float, last: bool) -> void:
+	if not is_instance_valid(hero):
+		return
+	if last and is_instance_valid(hero._void.undertow):
+		hero._void.undertow._let_go()  # (up out of the lava for the last crater)
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	THROWN.cut(e)
+	var body: Variant = e.get("model")
+	if body != null:
+		body.position.y = 0.0
+	e.take_hit(damage, Vector3.DOWN * METEOR_DOWN, 0.0, true)
+	mark(e, "molten")  # (it burns on: the matrix's molten row)
+	Game.register_hit("breaker")
+	Game.hitstop(ALT_FX.DROP_STOP * (1.6 if last else 1.0))
+	Game.shake(0.55 if last else 0.35)
+	Game.sfx("hit_big", -2.0, 0.12)
+
+
+## Where Pinwheel throws: the nearest wall or pillar within PINWHEEL_REACH of `at` (PINWHEEL_RAYS flat rays at chest
+## height, past the foes), as {"found", "at" (the hit point), "dir", "dist"}.
+static func pinwheel_target(hero: CharacterBody3D, at: Vector3) -> Dictionary:
+	var start := Vector3(at.x, 0.9, at.z)
+	var space := hero.get_world_3d().direct_space_state
+	var skip: Array[RID] = [hero.get_rid()]
+	for o: Node in hero.get_tree().get_nodes_in_group("enemies"):
+		if o is CollisionObject3D:
+			skip.append((o as CollisionObject3D).get_rid())
+	var best := {"found": false, "dist": INF}
+	for i in PINWHEEL_RAYS:
+		var a := TAU * i / PINWHEEL_RAYS
+		var d := Vector3(sin(a), 0.0, cos(a))
+		var q := PhysicsRayQueryParameters3D.create(start, start + d * PINWHEEL_REACH, hero.collision_mask)
+		q.exclude = skip
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var dist: float = start.distance_to(hit.position)
+		if dist < best.dist:
+			best = {"found": true, "at": _flat(hit.position), "dir": d, "dist": dist}
+	return best
+
+
+## Pinwheel (Anvil's LMB ending) lands: the whirl (void_grab.seized_tick, `pinwheel`) lets go, and each held foe is
+## hurled at the nearest wall or pillar in reach, wall-splatting there (x PINWHEEL_WALL_MULT); with none it flies out
+## along its swing and lands. Anyone else the whirl passed takes PINWHEEL_SWEEP and is blown clear.
+static func _pinwheel(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var target := pinwheel_target(hero, at)
+	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	for e: Node3D in FOES.near(hero.get_tree(), at, PINWHEEL_R + 1.2):
+		if e in live:
+			continue
+		var from := _flat(e.global_position - at)
+		e.take_hit(damage * PINWHEEL_SWEEP, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 6.0, BREAK_LAUNCH, true)
+		Game.register_hit("breaker")
+	_pop(parent, at, "axe")
+	Game.shake(0.5)
+	for i in live.size():
+		var e: Node3D = live[i]
+		THROWN.remove_cube(e)
+		var out := _flat(e.global_position - at)
+		out = out.normalized() if out.length() > 0.05 else hero._facing()
+		var to: Vector3 = _flat(e.global_position) + out * PINWHEEL_OPEN
+		if target.found:
+			var aim: Vector3 = target.at - _flat(e.global_position)
+			to = _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + PINWHEEL_CUE_MS)
+		THROWN.launch(hero, e, to, damage, {"solid": false, "el": "wind", "speed": PINWHEEL_SPEED, "land_y": 0.0,
+			"wall_mult": PINWHEEL_WALL_MULT, "splash": false, "on_burst": _pinwheel_hit.bind(parent)})
+		Game.register_hit("breaker")
+
+
+static func _pinwheel_hit(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
+	if walled and is_instance_valid(parent):
+		ALT_FX.pinwheel_wall(parent, f.global_position, dir)
 
 
 ## Shatterstorm (Harpoon's RMB ending): thunder crashes on each cube of the row in turn, where it stands, and shatters

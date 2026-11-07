@@ -492,6 +492,16 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 				var up: Vector3 = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
 				e.global_position = e.global_position.lerp(up, 1.0 - exp(-SEIZE_LIFT_RATE * delta))
 			s.tendril.draw(hand, e.global_position + CHEST, shoot, 0.06, float(e.radius) + 0.05, _time)
+		elif b.has("pinwheel"):  # Pinwheel (Anvil's LMB): whirled round him, out to PINWHEEL_R, until he lets go
+			if not s.has("whirl"):
+				var off: Vector3 = e.global_position - hero.global_position
+				s["whirl"] = [atan2(off.x, off.z), Vector2(off.x, off.z).length(), e.global_position.y]
+			var k := clampf(t / float(b.dive), 0.0, 1.0)
+			var a: float = s.whirl[0] + TAU * VOID_ELEMENT.PINWHEEL_TURNS * k * k
+			var r: float = lerpf(s.whirl[1], VOID_ELEMENT.PINWHEEL_R, smoothstep(0.0, 0.4, k))
+			var y: float = lerpf(s.whirl[2], VOID_ELEMENT.PINWHEEL_Y, smoothstep(0.0, 0.5, k))
+			e.global_position = Vector3(hero.global_position.x + sin(a) * r, y, hero.global_position.z + cos(a) * r)
+			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.04, float(e.radius) + 0.05, _time)
 		elif b.has("cubes"):  # frozen where they hang, until he throws them
 			e.global_position = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
 			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.02, float(e.radius) + 0.05, _time)

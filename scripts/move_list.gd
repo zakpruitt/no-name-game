@@ -44,6 +44,7 @@ const SECTIONS := [
 		{"input": "L L L H", "kind": "move", "id": "EM", "note": "The arm swells into a fist and shoves them along a line of lava. Punch a group into a wall: the wall hits hard (x2.5), and sets up Meteor Fall."},
 		{"input": "L L L H H", "kind": "move", "id": "EV", "note": "Tendrils drag them waist-deep into lava, stuck and burning, however far the palm sent them."},
 		{"input": "L L L H H, H in the window", "kind": "text", "name": "Meteor Fall", "tier": 3, "note": "He dive-bombs the biggest group in reach as a meteor, and everyone in the blast takes it. The group Molten Palm just splatted on a wall counts more, and takes x1.3. Big ones take it worst; shields come off for good."},
+		{"input": "L L L H H, L in the window", "kind": "text", "name": "Meteor Shower", "or": true, "tier": 3, "note": "He stays where he is and calls a fireball down out of the sky on every foe the palm hit, wherever it went, and leaves them burning. Best when the palm scattered them; Meteor Fall is for the pile at the wall."},
 	]},
 	{"title": "DARK", "rows": [
 		{"input": "H", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
@@ -73,6 +74,7 @@ const SECTIONS := [
 		{"input": "L L H, Dash H H", "kind": "move", "id": "XK", "note": "Dark into ice: the tentacles throw Tow Line's bunch onto the spear and they freeze round it. Without the spear first it plants one."},
 		{"input": "L L H, Dash H H L", "kind": "move", "id": "XW", "note": "Ice into storm: the gale blows the spear apart and hauls the frozen kebab back up to him."},
 		{"input": "L L H, Dash H H L, H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the lot into the floor, a crater each."},
+		{"input": "L L H, Dash H H L, L in the window", "kind": "text", "name": "Pinwheel", "or": true, "tier": 3, "note": "The tentacles whirl the kebab round him in a twister and hurl it into the nearest wall or pillar: a hard splat each. In the open they just fly; Anvil is better there."},
 	]},
 	# The element matrix (round 34, third pass; void_element.IMPROV, docs/features/element-matrix.md): what any move of
 	# an element does to a foe another string left in a state, every cell in plain words (round 4: the "Mix elements"

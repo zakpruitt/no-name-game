@@ -74,6 +74,11 @@ static func _aim(hero: CharacterBody3D) -> void:
 	var b: Dictionary = hero._brk
 	var void_grab: Node = hero._void
 	var spot: Vector3
+	if b.has("shower") or b.has("pinwheel"):  # (the second endings that come down where he hangs: breaker-pairs)
+		hero._brk_zone = Vector3(hero.global_position.x, 0.0, hero.global_position.z)
+		if is_instance_valid(hero._brk_cue):
+			hero._brk_cue.global_position = hero._brk_zone
+		return
 	if b.has("at_spot"):
 		spot = void_grab.dark_spot
 	elif b.has("meteor"):
@@ -181,12 +186,14 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 		hero._ghost_t -= delta
 		if hero._ghost_t <= 0.0:
 			hero._ghost_t = 0.02
-			if b.has("meteor"):  # (the tail on the shell does the work: this is what comes off it)
+			if b.has("meteor") and not b.has("shower"):  # (the tail on the shell does the work: this is what comes off it)
 				Fx.burst(hero.get_parent(), model.global_position + Vector3.UP, VOID_ELEMENT.METEOR_HOT, 5, 3.0, 0.14, 0.3, Vector3.UP, 60.0)
 			else:  # the dive comes down like a comet in his element
 				_comet(hero, color(hero))
 		if is_instance_valid(hero._brk_meteor):
 			hero._brk_meteor.global_position = model.global_position + Vector3.UP
+		if b.has("pinwheel"):  # he spins with the whirl (void_grab.seized_tick swings the kebab round him)
+			hero._face(hero._brk_dir.rotated(Vector3.UP, -TAU * VOID_ELEMENT.PINWHEEL_TURNS * k * k))
 		if k >= 1.0:
 			_impact(hero)
 	else:
@@ -230,6 +237,8 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	if b.has("press"):
 		void_grab.aim_crush()
 	_aim(hero)
+	if b.has("pinwheel"):  # Pinwheel: the twister he whirls the kebab round in
+		VOID_ELEMENT.ALT_FX.pinwheel_ring(hero.get_parent(), hero._brk_zone, VOID_ELEMENT.PINWHEEL_R, b.dive + 0.25)
 	var perfect: bool = absf(hero._brk_press - b.sweet) <= b.perfect
 	hero._brk_ended = "perfect" if perfect else "hit"
 	if is_instance_valid(hero._brk_cue):
@@ -248,7 +257,7 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 static func _dive(hero: CharacterBody3D) -> void:
 	var b: Dictionary = hero._brk
 	var model: Node3D = hero.model
-	if b.has("meteor"):
+	if b.has("meteor") and not b.has("shower"):
 		var run: Vector3 = hero._brk_zone - Vector3(hero.global_position.x, 0.0, hero.global_position.z)
 		b.dive = maxf(b.dive, run.length() / VOID_ELEMENT.METEOR_DIVE_SPEED)  # (a far group: a longer dive, not a blur)
 		hero._brk_meteor = VOID_ELEMENT.meteor_shell(hero.get_parent(), Vector3(run.x, -b.height, run.z))
@@ -274,9 +283,9 @@ static func _impact(hero: CharacterBody3D) -> void:
 	var mult: float = (b.perfect_mult if perfect else 1.0) * hero._cast_power()
 	if is_instance_valid(hero._brk_meteor):
 		hero._brk_meteor.queue_free()
-	VOID_ELEMENT.breaker_impact(hero, b, at, void_grab.held_foes() if b.has("cubes") else void_grab.slam_seized(), mult)
+	VOID_ELEMENT.breaker_impact(hero, b, at, void_grab.held_foes() if b.has("cubes") or b.has("pinwheel") else void_grab.slam_seized(), mult)
 	# Barbaric landing: the floor breaks (the element erupts under each foe already).
-	if not b.has("press") and not b.has("at_spot") and not b.has("hold_cubes"):  # (Harpoon's row: the cubes are the show; its ice buried the cubes as they left; the dark ones have their own)
+	if not b.has("press") and not b.has("at_spot") and not b.has("hold_cubes") and not b.has("shower") and not b.has("pinwheel"):  # (Harpoon's row: the cubes are the show; its ice buried the cubes as they left; the dark ones have their own)
 		BREAKER_QUAKE.crater(hero.get_parent(), at, el, maxf(b.radius, 2.4), true, perfect)
 	Game.sfx("quake", -2.0 if perfect else -5.0, 0.05)
 	if b.radius > 0.0:
