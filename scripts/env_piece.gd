@@ -42,7 +42,7 @@ const PIECES := {
 		"rule": "A wall for splats, the R swing's anchor, the pillar slam; shakes on landings. Toppled: rubble for the room."},
 	"torch": {"models": ["torch_mounted"], "collider": "none", "wall": false, "breaks": false, "states": ["lit", "out"], "built": true,
 		"rule": "Light; swings when a foe splats on the wall under it."},
-	"brazier": {"models": ["column"], "stub": true, "collider": "cyl", "size": Vector2(0.4, 1.4), "wall": false, "breaks": true,
+	"brazier": {"models": ["brazier", "brazier_spilled"], "stub": false, "collider": "cyl", "size": Vector2(0.55, 1.3), "wall": false, "breaks": true,
 		"states": ["lit", "out", "spilled"], "built": false,
 		"rule": "Floor fire bowl. A thrown foe knocks it over: a 2 m fire patch for 3 s that leaves molten on foes in it."},
 	"barrel": {"models": ["barrel_large", "barrel_small"], "collider": "cyl", "size": Vector2(0.8, 2.0), "wall": false, "breaks": true,
@@ -66,13 +66,13 @@ const PIECES := {
 	"rubble": {"models": ["floor_tile_large_rocks", "rubble_half"], "collider": "none", "floor": true, "size": Vector3(4.0, 0.0, 4.0),
 		"wall": false, "breaks": false, "states": [], "built": true,
 		"rule": "Low; a breaker landing on it throws chunks for a small splash."},
-	"pool": {"models": ["floor_tile_large_rocks"], "stub": true, "collider": "none", "floor": true, "size": Vector3(4.0, 0.0, 4.0),
+	"pool": {"models": ["pool"], "stub": false, "collider": "none", "floor": true, "size": Vector3(4.0, 0.0, 4.0),
 		"wall": false, "breaks": false, "states": ["water", "frozen", "live", "steam"], "built": false,
 		"rule": "Water: foes in it move at 0.8, and molten on them ends (quenched)."},
-	"hook": {"models": ["wall_broken"], "stub": true, "collider": "none", "wall": true, "breaks": false, "states": ["empty", "hung"],
+	"hook": {"models": ["hook_chain"], "stub": false, "collider": "none", "wall": true, "breaks": false, "states": ["empty", "hung"],
 		"built": false, "rule": "Chains and hooks on a wall segment: a wall for everyone."},
-	"ledge": {"models": ["wall_arched"], "stub": true, "collider": "none", "wall": true, "breaks": false, "states": [], "built": false,
-		"rule": "A walkway along a wall 2.5 m up; its face is a wall."},
+	"ledge": {"models": ["ledge"], "stub": false, "collider": "box", "size": Vector3(8.0, 1.2, 2.0), "wall": true, "breaks": false, "states": [], "built": false,
+		"rule": "A raised ledge along a wall, 1.2 m up with a step at its front; its face is a wall."},
 }
 
 ## Exclusive verbs by element (the proposal's open question 1 picked element): element -> piece -> verb ids. The

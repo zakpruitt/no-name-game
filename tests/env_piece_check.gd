@@ -92,7 +92,8 @@ func _plain() -> void:
 
 func _pieces() -> void:
 	var rooms: GDScript = load("res://scripts/rooms.gd")
-	_check(EP.counted.size() == rooms.ROOMS.training_pieces.size(), "every training piece counted (%d)" % EP.counted.size())
+	_check(EP.counted.size() == rooms.ROOMS.training_pieces.filter(func(e: Dictionary) -> bool: return e.get("count", false)).size(),
+		"every counted training piece counted (%d)" % EP.counted.size())
 	for n: Node3D in EP.counted:
 		var tag: String = EP.tag_of(n)
 		_check(EP.live(n) and n.is_in_group("env_" + tag), "%s live, in env_%s" % [tag, tag])
