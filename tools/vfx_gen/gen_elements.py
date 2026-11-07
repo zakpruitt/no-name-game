@@ -18,7 +18,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, Frame, catmull, ellipse_mask, erode_field, fbm, pack,  # noqa: E402
+from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, Frame, catmull, ellipse_mask, erode_field, fbm, jag_path, pack,  # noqa: E402
                     poly_mask, preview, rng, save, star, stroke, wobble_ring, shrink, grow, SS)
 
 OUT = os.environ.get("VFX_OUT") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
@@ -348,35 +348,58 @@ def ice_frost(i, n, size):
 
 
 
-# --- 5 b. Frost mark (floor, seen from above; fx-ice2): where an ice crystal cluster used to burst up out of the floor
-# (every water `elements.spikes`, Harpoon's line, the spear going in). A patch of frost: a see-through hexagon of
-# rime, fat straight cracks racing out of the middle past its edge, glints. Frame 0 the cracks
-# half out (anticipation), 1 out with a hot core, 2-3 settling (the glints move). Fat ink: it is seen ~1.5 m across.
+# --- 5 b. Frost mark (floor, seen from above; fx-ice2, redrawn round 53): where an ice crystal cluster used to burst up
+# out of the floor (every water `elements.spikes`, Harpoon's line, the spear going in, Cold Front's and Flash Freeze's
+# frost lines). A patch of rime frozen on the floor: an uneven straight-edged sheet, see-through, with a lit rim, and a
+# few straight cracks running across it, chord to chord, forked once. Nothing radiates from one point (feel audit 5:
+# the old hexagon with seven spokes out of its middle read as a snowflake / crystal star at the game camera) and no
+# four-point glints; round frost beads instead. Frame 0 the sheet half out with its cracks short (anticipation), 1 out
+# with a hot core in the cracks, 2-3 settling (the beads move). Fat ink: it is seen ~1.5 m across.
 
 def ice_mark(i, n, size):
     f = Frame(size)
-    c = f.c
+    S, c = f.S, f.c
+    reach = [0.6, 1.04, 1.0, 1.0][i]
     g = rng(431)
-    reach = [0.55, 1.05, 1.0, 1.0][i]
-    turn = 0.3
-    hexa = [polar(c, c, f.u(0.6 * reach * (1.0 if q % 2 == 0 else 0.9)), turn + math.tau * q / 6) for q in range(6)]
-    f.fill(poly_mask([hexa], f.S), BODY, ink=0.0, alpha=0.4)
-    g2 = rng(433)
-    for k in range(7):
-        a = math.tau * (k + g2.uniform(-0.25, 0.25)) / 7
-        rr = f.u(g2.uniform(0.62, 0.9) * reach)
-        pts = [(c, c)]
-        for q in (0.4, 1.0):
-            pts.append(polar(c, c, rr * q, a + g2.uniform(-0.18, 0.18)))
-        w = f.u(0.075)
-        f.poly(stroke(pts, [w, w * 0.6, 2.0], cap=False), LIGHT, ink=5.0)
-        if i <= 1:
-            f.poly(stroke(pts[:2], [w * 0.4, w * 0.2], cap=False), HOT)
-    if i >= 1:
+    turn = g.uniform(0, math.tau)
+    sides = 17
+    rim = []
+    for q in range(sides):  # an uneven fringe of rime, wider one way than the other (no rotational symmetry)
+        a = turn + math.tau * (q + g.uniform(-0.3, 0.3)) / sides
+        rr = f.u(reach * g.uniform(0.5, 0.72) * (1.0 + 0.2 * math.cos(a - turn)) * (0.86 if q % 2 else 1.0))
+        rim.append(polar(c, c, rr, a))
+    sheet = poly_mask([rim], S)
+    f.fill(sheet, BODY, ink=0.0, alpha=0.3)
+    # the frosted edge, broken: short lit stretches on some of the rim, bare gaps between (not a closed outline)
+    for q in range(sides):
+        if q % 3 == 2 or q % 5 == 0:
+            continue
+        a, b = rim[q], rim[(q + 1) % sides]
+        f.poly(stroke([a, b], [f.u(0.03), f.u(0.018)], cap=False), LIGHT, ink=1.6)
+    # cracks: chords across the sheet between rim corners, off its middle, kinked, one fork each
+    picks = [(0, 8), (4, 12), (10, 15)]
+    for k, (qa, qb) in enumerate(picks):
+        a, b = np.asarray(rim[qa], float), np.asarray(rim[qb], float)
+        a, b = c + (a - c) * 0.85, c + (b - c) * 0.85
+        if i == 0:  # half out: from its first end
+            b = a + (b - a) * 0.5
+        pts = jag_path(a, b, f.u(0.14), 0.4, 437 + k)
+        w = f.u(0.045)
+        f.poly(stroke(pts, [w * 0.4, w, w * 0.8, w * 0.3], cap=False), LIGHT, ink=3.0)
+        if i == 1:
+            f.poly(stroke(pts, [1.0, w * 0.35, w * 0.3, 1.0], cap=False), HOT)
+        if i > 0:
+            m = pts[len(pts) // 2]
+            d = b - a
+            side = np.array([-d[1], d[0]]) / max(1e-6, np.linalg.norm(d))
+            tip = m + side * f.u(0.12) * (1 if k % 2 else -1) + d * 0.08
+            f.poly(stroke([tuple(m), tuple(tip)], [w * 0.4, 1.0], cap=False), LIGHT, ink=1.6)
+    if i >= 1:  # frost beads, not sparkles
         g3 = rng(440 + i)
-        for k in range(2):
-            x, y = polar(c, c, f.u(g3.uniform(0.25, 0.5)), g3.uniform(0, math.tau))
-            glint(f, x, y, f.u(0.09))
+        for k in range(3):
+            x, y = polar(c, c, f.u(g3.uniform(0.18, 0.45)), g3.uniform(0, math.tau))
+            r = f.u(g3.uniform(0.02, 0.032))
+            f.fill(ellipse_mask(x, y, r, r, S), HOT if i == 1 else LIGHT, ink=1.2)
     facet_order(f, 437, cells=24)
     return f.finish()
 
