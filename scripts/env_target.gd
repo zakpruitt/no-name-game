@@ -63,6 +63,12 @@ const CTX := {
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
 const FOE_BRACKET_Y := 1.0  # m over its feet (its chest)
+## Round 53 (feel audit 5): in a breaker window a picked foe standing in the prompt's circle (where he lands: Abyss's
+## pinned foe, Flash Freeze's nearest shell) had its bracket drawn over the circle and the ending chips under it. It
+## goes up over the foe's head, smaller, so the circle and chips read.
+const FOE_IN_PROMPT := 1.8  # m from where he lands
+const FOE_LIFT_Y := 2.5  # m over its feet
+const FOE_LIFT_SIZE := 0.7  # of the bracket
 const CURSOR_SNAP := 2.2  # m from the cursor's ray to a structure that it counts as on it
 const FOE_SNAP := 1.2  # m from the cursor to a foe's edge (foes stand closer together than structures)
 const CURSOR_HEIGHTS := [0.3, 1.4, 2.8]  # m: the ray is sampled at these heights (a wall face, a pillar's body)
@@ -828,8 +834,13 @@ func _draw_foe(s: Dictionary, frame: int) -> void:
 		current.at = s.at
 	var grow := clampf(float(s.r) / 0.5, 1.0, 2.2)
 	_bracket.visible = true
-	_bracket.global_position = Vector3(s.at.x, FOE_BRACKET_Y * grow, s.at.z)
-	_bracket.scale = Vector3.ONE * FOE_BRACKET_SIZE * grow
+	var lift := 1.0
+	var y := FOE_BRACKET_Y * grow
+	if current.key_base.begins_with("leap:") and is_instance_valid(hero) and hero.state == hero.State.LEAP 			and _flat(hero._brk_zone).distance_to(s.at) <= FOE_IN_PROMPT:
+		lift = FOE_LIFT_SIZE
+		y = FOE_LIFT_Y * grow
+	_bracket.global_position = Vector3(s.at.x, y, s.at.z)
+	_bracket.scale = Vector3.ONE * FOE_BRACKET_SIZE * grow * lift
 	_tone(_bracket, frame, current.el, 1.0)
 	_ring.visible = frame <= 3
 	if _ring.visible:

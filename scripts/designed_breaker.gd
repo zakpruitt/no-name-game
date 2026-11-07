@@ -357,7 +357,6 @@ class Screen extends CanvasLayer:
 	const CALL_DODGE_MS := 1500  # a wall splat this fresh counts
 	const CALL_DODGE_PAD := 0.06  # of the screen height round the banner
 	const PIECE_SAMPLES := [-2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0]  # m along a cued piece's up axis (round 53)
-	const CALL_SLIDE := 14.0  # per real s
 	const CALL_W := 0.5  # of the screen width: the widest banner (WORLDBREAKER and its total)
 	const CALL_MAX_W := 900.0
 	const CALL_ASPECT := 0.22  # the banner's height over its widest width (the sheet's band is squashed to it)
@@ -535,8 +534,9 @@ class Screen extends CanvasLayer:
 		banner.size = Vector2(w, h)
 		if not _call_low and _foe_under(Rect2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y - h * 0.5, w, h).grow(vp.y * CALL_DODGE_PAD)):
 			_call_low = true  # (once a callout: it never flips back)
-		var want_y := CALL_Y_LOW if _call_low else CALL_Y
-		_call_y = lerpf(_call_y, want_y, 1.0 - exp(-CALL_SLIDE * dt))
+			_pop = 1.0  # round 53 (feel audit 5): it cuts to the bottom with a pop; the slide crossed the middle of the
+			# screen, over the pile, for ~0.2 s (Flash Freeze, Abyss, Shatterstorm, Avalanche, Uproot films)
+		_call_y = CALL_Y_LOW if _call_low else CALL_Y
 		banner.position = Vector2(vp.x * 0.5 - w * 0.5, vp.y * _call_y - h * 0.5)
 		banner.visible = true
 		var fr := 0.0 if _call_t < CALL_IN_S else 1.0 + float(int(_call_t * 12.0) % 3)

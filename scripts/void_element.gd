@@ -588,6 +588,9 @@ const MAW_HEAP := 0.45  # m off the middle they meet
 const MAW_KNOCK_MULT := 0.4
 const MAW_KNOCK_PER := 0.1
 const MAW_KNOCK_MOST := 4
+## Round 53 (feel audit 5): real ms the hoisted count as cued (camera_rig.FRAME_CUE), so the ending's banner drops off
+## the heap (designed_breaker _foe_under): it was knocked together and slammed under MAW, KONK! on its PERFECT! tag.
+const MAW_CUE_MS := 1000
 const MAW_KNOCK_WORD := "KONK!"
 ## Black Ice: the landing cracks the frozen pool and the blocks skid out across it away from him, each bursting where it
 ## stops, harder on a wall (BLACK_ICE_WALL_MULT): Black Ice by a wall, Maw in the open.
@@ -599,6 +602,9 @@ const BLACK_ICE_SPEED := 15.0  # m/s
 const BLACK_ICE_WALL_MULT := 2.4
 const BLACK_ICE_STAGGER := 0.04  # s
 const BLACK_ICE_WORD := "KLISSH!"
+## Round 53 (feel audit 5): real ms the skidders count for the camera's framing (camera_rig.FRAME_CUE) when they skid
+## into a structure: the wall beat played on the frame's edge, half under the banner (the bracket's wall 8 m off).
+const BLACK_ICE_CUE_MS := 1100
 ## Cold Front: a tentacle from him tethers each cube and hoists it COLD_HOIST m before the throw (after the impact
 ## frame, so the throw is seen), the tether stays on it in flight, and each burst is a cold snap (frost and a word).
 const COLD_HOIST := 0.7  # m
@@ -1612,6 +1618,7 @@ static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> voi
 		Game.register_hit("breaker")
 		var to: Vector3
 		if wall.get("found", false):
+			e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + BLACK_ICE_CUE_MS)
 			var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
 			var aim: Vector3 = face - _flat(e.global_position)
 			to = _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
@@ -2685,6 +2692,7 @@ static func maw_knock(hero: CharacterBody3D, spot: Vector3, bitten: Array, damag
 	var items: Array = []
 	for i in live.size():
 		var e: Node3D = live[i]
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + MAW_CUE_MS)
 		var off := _flat(e.global_position) - mid
 		var dir := off.normalized() if off.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
 		items.append({"foe": e, "root": mid, "t0": MAW_HOIST_AT, "top": mid + off * (1.0 - MAW_HOIST_IN) + Vector3.UP * MAW_HOIST_Y,
