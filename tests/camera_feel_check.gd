@@ -105,6 +105,9 @@ func _initialize() -> void:
 	await _distance(rig)
 	await _framing(rig, world)
 	await _hang_dive(world)
+	world.queue_free()
+	await process_frame
+	await _endings()
 	print("[camera] ", "PASS" if fails == 0 else "FAIL (%d)" % fails)
 	quit()
 
@@ -275,6 +278,145 @@ var last_hit_ms := -100000
 	foe.queue_free()
 	rig.queue_free()
 	hero.queue_free()
+
+
+## Round 54 (camera-hang lane): the hang framing in the real game. The bot plays one string per breaker ending (its
+## best situation where it has one) in the training room at 1920x1080, and for each the worst actor's NDC (feet and
+## FRAME_HEAD up of every foe held in the hang, by the landing zone, by the landing or cued, and the cued structure)
+## must be inside ENDING_NDC at the landing (its first LAND_MS) and over the payoff (to PAYOFF_MS after it).
+const ENDING_STRINGS := {
+	"Grounded": "L H H", "Collapse": "H H", "Maw": "H L H", "Worldbreaker": "L H L H", "Shatterstorm": "D L H",
+	"Avalanche": "L L H L H", "Abyss": "hold", "Meteor Fall": "L L L H H", "Cataclysm": "L H L L H",
+	"Flash Freeze": "D L H H L", "Black Ice": "alt H L H", "Anvil": "L L H D H H L", "Short Circuit": "spread far alt L H H",
+	"Slapshot": "wall alt D L H", "Meteor Shower": "spread alt L L L H H", "Pinwheel": "wall alt L L H D H H L",
+	"Hellseam": "wall spread L L L H L", "Cold Front": "alt L H L H", "Tempest": "alt L H L L H", "Ricochet": "counter D",
+	"Uproot": "pillar alt hold", "Eruption": "wall D L H H H L"}
+const ENDING_NDC := 0.9
+## Cold Front: the hoisted cube sits ~8 m down-screen of where his dive lands and 2.8 m up; the scene wants x1.7, past
+## camera_rig.HANG_CAP_WIDE (1.55), so its cube lands at 0.89-0.96 for the landing's first frames. On screen is the bar.
+const ENDING_NDC_OVER := {"Cold Front": 1.0}
+const LAND_MS := 150
+const PAYOFF_MS := 1400
+const NEAR_R := 5.0  # m round the landing: the pile
+var _hp: CharacterBody3D
+var _rows := {}  # ending -> [landing, payoff, worst]
+
+
+func _endings() -> void:
+	get_root().size = Vector2i(1920, 1080)
+	game._hints_seen = game.HINTS.keys()
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	get_root().add_child(main)
+	_hp = main.player
+	var waited := 0.0
+	while get_nodes_in_group("enemies").is_empty() and waited < 6.0:
+		await create_timer(0.1).timeout
+		waited += 0.1
+	await create_timer(1.0).timeout
+	var bot: Node = load("res://scripts/training_bot.gd").new()
+	bot.main = main
+	main.add_child(bot)
+	for flag in ["_hit_shot_taken", "_dash_shot_taken", "_guide_shot_taken", "_cast_shot_taken"]:
+		bot.set(flag, true)
+	bot._shots_taken = 99
+	var plan: Array = []  # [index, ending]
+	for ending: String in ENDING_STRINGS:
+		var at := -1
+		for i in bot.strings.size():
+			if " ".join(bot.strings[i]) == ENDING_STRINGS[ending]:
+				at = i
+				break
+		_check(at >= 0, "the bot has %s's string (%s)" % [ending, ENDING_STRINGS[ending]])
+		if at >= 0:
+			plan.append([at, ending])
+	plan.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for step: Array in plan:
+		bot._bot_string = step[0]
+		bot._bot_step = 0
+		bot._reset_done = false
+		bot._bot_wait = 0.3
+		await _one_ending(bot, step[1])
+	main.queue_free()
+	for ending: String in ENDING_STRINGS:
+		if not _rows.has(ending):
+			continue
+		var r: Array = _rows[ending]
+		var bar: float = ENDING_NDC_OVER.get(ending, ENDING_NDC)
+		_check(r[0] <= bar and r[1] <= bar, "%s: the worst actor is inside %.1f at the landing (%.2f) and the payoff (%.2f)%s" % [
+			ending, bar, r[0], r[1], "" if r[0] <= bar and r[1] <= bar else " (worst: %s; %s)" % [r[2], r[3]]])
+
+
+## Plays the bot's current string until its breaker has landed and PAYOFF_MS gone by (or it gives up), measuring.
+func _one_ending(bot: Node, ending: String) -> void:
+	var t0 := Time.get_ticks_msec()
+	var landed: int = _hp.breakers_landed
+	var actors := {}
+	var land_ms := -1
+	var worst := [0.0, 0.0, "", ""]
+	var was_leap := false
+	var frames := []  # [ms, camera transform, fov, {id: pos}, structs]
+	while Time.get_ticks_msec() - t0 < 25000:
+		bot._autotest_t = 0.0
+		game.awakening = 0.0
+		await process_frame
+		var now := Time.get_ticks_msec()
+		var leap: bool = _hp.state == _hp.State.LEAP
+		if leap and not was_leap:
+			actors.clear()
+			frames.clear()
+		was_leap = leap
+		if leap:
+			for e in _hp._void.held_foes():
+				actors[e.get_instance_id()] = true
+		if land_ms < 0 and _hp.breakers_landed > landed:
+			land_ms = now
+			for e: Node3D in get_nodes_in_group("enemies"):
+				var d := e.global_position - _hp.global_position
+				if Vector2(d.x, d.z).length() < NEAR_R or absi(int(e.get("last_hit_ms")) - now) <= 60:
+					actors[e.get_instance_id()] = true
+		if land_ms < 0 and not leap:
+			continue
+		var cam: Camera3D = get_root().get_camera_3d()
+		var rig: Node = game.camera_rig
+		var f := [now, cam.global_transform, cam.fov, {}, [], rig._actors.keys(), "frame %.2f need %.2f lean %s hero %s" % [rig._frame, rig._scene_need, rig._lean.snapped(Vector3.ONE * 0.1), _hp.global_position.snapped(Vector3.ONE * 0.1)]]
+		for e: Node3D in get_nodes_in_group("enemies"):
+			f[3][e.get_instance_id()] = e.global_position
+			if int(e.get_meta(&"frame_cue_ms", 0)) > now:
+				actors[e.get_instance_id()] = true
+		for n: Node in get_nodes_in_group("env"):
+			if n is Node3D and int(n.get_meta(&"frame_cue_ms", 0)) > now:
+				f[4].append((n as Node3D).global_position + Vector3.UP)
+		frames.append(f)
+		if land_ms > 0 and (now - land_ms > PAYOFF_MS or bot._bot_step == 0 and not bot._reset_done):
+			break
+	if land_ms < 0:
+		_check(false, "%s lands (%s)" % [ending, ENDING_STRINGS[ending]])
+		return
+	var first := true
+	for f: Array in frames:
+		if f[0] <= land_ms:  # (from the frame after: the landing's own frame has the camera from before it)
+			continue
+		var k := 0 if f[0] - land_ms < LAND_MS or first else 1  # (a long first frame still counts as the landing)
+		first = false
+		var pts := []
+		for id: int in actors:
+			if f[3].has(id):
+				pts.append(f[3][id])
+		pts.append_array(f[4])
+		var ids := actors.keys().filter(func(id: int) -> bool: return f[3].has(id))
+		for j in pts.size():
+			var p: Vector3 = pts[j]
+			var framed: bool = j >= ids.size() or f[5].has(ids[j])
+			for h: float in [0.0, 1.6]:
+				var d: Vector3 = (f[1] as Transform3D).affine_inverse() * (p + Vector3.UP * h)
+				var ty := tan(deg_to_rad(float(f[2]) * 0.5))
+				var z := maxf(-d.z, 0.01)
+				var m := maxf(absf(d.x / (z * ty * 16.0 / 9.0)), absf(d.y / (z * ty)))
+				if m > worst[k]:
+					worst[k] = m
+					worst[2 + k] = "%s at %s, %d ms, %s, %s" % ["landing" if k == 0 else "payoff", p.snapped(Vector3.ONE * 0.1), f[0] - land_ms, "framed" if framed else "NOT an actor", f[6]]
+	_rows[ending] = worst
+	print("[camera] %-14s landing %.2f payoff %.2f" % [ending, worst[0], worst[1]])
 
 
 ## `sec` of real time with `foe` still being hit.
