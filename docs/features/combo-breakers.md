@@ -517,12 +517,13 @@ Worst: the open (209). Bot string: `wall L L H L H`.
 **Abyss** (hold H, `OW`; `scripts/abyss_rise.gd`; Uproot, its L ending, is the env-pieces lane's). Word
 "SHLUUUK-WHAM!". Beats: (1) up: the pinned foes sank under the floor on the dive (floor_bind `sink`); when he lands a
 column of tentacles (`abyss_column` sheet) tears up out of the floor under each, the picked one first (`STEP` 0.12 s
-apart), and carries it up to `APEX` 1.9 m (`RISE` 0.15 s), `ABYSS_RISE_MULT` 0.4 as it leaves the floor; (2) hang: the
+apart), and carries it up to `APEX` 1.9 m (`RISE` 0.15 s), `ABYSS_RISE_MULT` 0.3 as it leaves the floor; (2) hang: the
 column holds it up (`HANG` 0.1 s) with a tentacle coiled round it from the hole; (3) slam: the column folds and drives
-it straight down (`SLAM` 0.06 s): `ABYSS_SLAM_MULT` 1.2, x `ABYSS_BIG_MULT` on a big one, a crater (`MAW_DOWN`
+it straight down (`SLAM` 0.06 s): `ABYSS_SLAM_MULT` 1.0, x `ABYSS_BIG_MULT` 1.6 on a big one, a crater (`MAW_DOWN`
 knockback), a floor stamp and the word. The first one (the bracket's pick, env_target `abyss`: the cursor's, or the
-biggest) takes it whole; the rest share (`ABYSS_SHARE` 0.7). Best: one big foe (137 vs Collapse's 95).
-Worst: a crowd (four: Collapse 470 vs Abyss 381).
+biggest) takes it whole; the rest share (`ABYSS_SHARE` 0.3). Best: one big foe (127 vs Collapse's 95).
+Worst: a crowd (four: Collapse 470 vs Abyss 214), and a big foe by a pillar is Uproot's (244 vs 170).
+When Uproot has a pillar in reach the window's bracket marks the pillar, not the foe (one pick per window).
 
 **Foe picks** (Zak: "that environment select is AMAZING! maybe can incorporate that in select combos where control
 makes sense"): the structure indicator's bracket now also goes on a foe (docs/features/environment.md "Foe picks").
