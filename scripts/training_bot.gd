@@ -12,8 +12,9 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 125.0  # (was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
-# Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100)
+const AUTOTEST_MAX := 140.0  # (was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
+# Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100; 125 until round 49's 38th
+# string, Lava Leash, pushed the counter string, the last, past it)
 
 var main: Node  # the training room
 var player: CharacterBody3D
