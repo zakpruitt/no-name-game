@@ -188,6 +188,7 @@ func _usable() -> void:
 func _items() -> void:
 	await _keg()
 	await _frost_wall()
+	await _live_floor()
 
 
 ## Frost Wall: a Frost Spear planted by the grate raises the ice wall on its far edge, on the walls' layer and known to
@@ -215,6 +216,27 @@ func _frost_wall() -> void:
 	await create_timer(FW.LIFE + 0.6, true, false, true).timeout
 	_check(FW.current(self) == null and EP.state(g) == "cold", "it melts after LIFE, the grate cold again (%s)" % EP.state(g))
 	_check(main.env.structures.filter(func(s: Dictionary) -> bool: return s.get("id", "") == FW.ID).is_empty(), "and leaves env_target")
+
+
+## Live Floor: storm on a foe standing on the grate makes it live; another foe on it is charged by the grate; Short
+## Circuit's sources include them; it goes cold LIVE_S later.
+func _live_floor() -> void:
+	var VE: GDScript = load("res://scripts/void_element.gd")
+	var g: Node3D = get_nodes_in_group("env_grate")[0]
+	var at := g.global_position
+	hero.global_position = at + Vector3(-6.0, 0, 4.0)
+	var a: Node3D = _dummy(0, at + Vector3(-0.6, 0, 0))
+	var c: Node3D = _dummy(1, at + Vector3(0.9, 0, 0.8))
+	await _frames(3)
+	_check(a in EP.on_tile(g) and c in EP.on_tile(g), "both stand on the grate (%d on it)" % EP.on_tile(g).size())
+	VE.mark(a, "charged")
+	_check(EP.state(g) == "live", "storm on a foe on the grate makes it live (%s)" % EP.state(g))
+	await create_timer(0.2, true, false, true).timeout
+	_check(VE.marked(c, "charged"), "the live grate charges the other foe on it")
+	_check(EP.live_grates(self).size() == 1, "it is a live grate for Short Circuit")
+	_check(int(EP.verbs.get("live_floor", 0)) >= 1, "the Live Floor is counted")
+	await create_timer(EP.LIVE_S + 0.8, true, false, true).timeout
+	_check(EP.state(g) == "cold", "cold again after LIVE_S (%s)" % EP.state(g))
 
 
 ## Powder Keg: magma on a foe by the barrel sets it burning; KEG_FUSE later it bursts, KEG_DAMAGE to everyone in KEG_R

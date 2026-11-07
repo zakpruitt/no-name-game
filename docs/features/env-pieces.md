@@ -106,6 +106,21 @@ not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H 
 | Slapshot into the Frost Wall | 153 |
 | Slapshot in the open | 63 |
 
+### Live Floor (storm on a grate)
+
+A storm hit that charges a foe standing on a grate (Live Wire's jolts, Grounded, Galvanize: `void_element.mark(e,
+"charged")` calls `env_piece.marked`) makes the grate live for `LIVE_S` 4 s (more storm on it refreshes it). Live, it
+charges everyone on it every `LIVE_TICK` 0.5 s, four designed `arc_crawl` loops run over the tile with "BZZZT!", and
+Short Circuit treats it as a source: its reach is measured from the grate too (foes within `SC_REACH` 12 m of a live
+grate are in the arcs), and an arc may start from the grate itself. Then it goes cold. Bot string: `grate alt L H H`
+(slot `big_1`, the room with pieces): Live Wire's jolts on the dummy on the grate make it live, and Short Circuit
+lands.
+
+| Case (env_breaker_check: Short Circuit, a foe 20 m off, a grate 14 m out) | Damage to the far foe |
+|---|---|
+| the grate live | 25 |
+| the grate cold | 0 |
+
 ## Files
 
 - `scripts/env_piece.gd`: `PIECES`, `EXCLUSIVE`, `BUILT`, `HERO_ELEMENTS`, `RULES_BY_ELEMENT`; `place()`, `hit()`,
@@ -126,6 +141,8 @@ not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H 
 - `scripts/env_piece.gd` Powder Keg: `KEG_*`, `_keg()`, `_keg_burst()`, `marked()`, `molten_near()`;
   `void_element.mark` calls `marked()`; `thrown_foe._burst` hits the piece with magma when the foe is molten;
   `env_target` context `keg` (Molten Palm's wind-up, toward a barrel).
+- `scripts/env_piece.gd` Live Floor: `LIVE_*`, `_live()`, `_live_tick()`, `on_tile()`, `live_grates()`;
+  `void_element._short_circuit` adds the foes near live grates to its arcs and the grates to its sources.
 - `scripts/frost_wall.gd`: `raise()`, `current()`, `splat()`, `shatter()`, `melt()`, `struck()`;
   `scripts/frost_spear.gd` `plant()` calls `frost_wall()`; `thrown_foe._burst` shatters it on a splat.
 - `scripts/breaker_alt_fx.gd` (the Uproot region): `uproot_tear`, `uproot_club`, `uproot_open`.
@@ -153,6 +170,12 @@ not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H 
 - `tests/env_piece_check.gd` `_frost_wall`: a spear by the grate raises it on the far edge, the grate frosted, a wall in
   env_target, on the walls' layer (a ray stops on it), none with no grate near, melted and gone after `LIFE`.
 - `tests/env_breaker_check.gd` (in `agent.sh check`): Slapshot into the Frost Wall pays more than in the open (x1.3 at least).
+- `tests/env_piece_check.gd` `_live_floor`: storm on a foe on the grate makes it live, the other foe on it is charged
+  by the grate, it is a live grate for Short Circuit, cold after `LIVE_S`.
+- `tests/env_breaker_check.gd` `_live_floor_short_circuit`: Short Circuit reaches a foe 20 m off from a live grate, not
+  from a cold one.
+- `godot --headless --path . -- --autotest --room=pieces`: `pieces=5/5 uproot=1 keg=1 frost_wall=1 live_floor=4`,
+  strings 44/44.
 - `tests/cool_pass_check.gd` `_uproot_pair` (moved there from void_arm_check by the cool pass): Uproot beats Abyss by a pillar (x1.3 at least), Abyss beats Uproot in
   the open (x1.5 at least); the pillar is toppled, out of the swing anchors, and the foes buried.
 - `godot --headless --path . -- --autotest --room=pieces`: the `[env]` line's `pieces=N/N`.

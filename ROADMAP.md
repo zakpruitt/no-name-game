@@ -1033,6 +1033,10 @@ can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/fea
   to everyone within 3 m; the indicator marks it in the palm's wind-up; `AUTOTEST_MAX` 170 for the room with pieces
 - [x] Frost Wall: Frost Spear on a grate raises a 4 m ice wall on its far edge for 6 s, on the walls' layer and in
   env_target (`scripts/frost_wall.gd`); Slapshot into it 153 vs 63 in the open (`tests/env_breaker_check.gd`); one splat shatters it
+- [x] Live Floor: storm on a foe on a grate makes it live for 4 s (charges everyone on it, arc_crawl over it); Short
+  Circuit reaches from it (a foe 20 m off: 25 by a live grate, 0 by a cold one); the room with pieces plays
+  `pieces=5/5` with every verb
+- [x] Lore: `docs/design/environment-lore.md` (the church-prison, items that change rooms)
 
 ## Round 51 fluidity (every hand-over snappy, no dead contact, no eaten press)
 

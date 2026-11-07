@@ -1522,11 +1522,16 @@ static func _short_circuit(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		return not e in held and not THROWN.flying(e))
 	out.sort_custom(func(a: Node3D, c: Node3D) -> bool:
 		return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
+	for g: Node3D in ENV_PIECE.live_grates(hero.get_tree()):  # round 51 (Live Floor): the grate carries it too
+		for e: Node3D in FOES.near(hero.get_tree(), _flat(g.global_position), SC_REACH):
+			if not e in held and not e in out and not THROWN.flying(e):
+				out.append(e)
 	out = out.slice(0, SC_ARCS)
 	for e: Node3D in out:  # (feel audit 3: the camera takes them in before the arcs land, not after)
 		e.set_meta(&"frame_cue_ms", Time.get_ticks_msec() + SC_CUE_MS)
 	var each := damage * SC_ARC_MULT * (1.0 + SC_PER_HELD * maxi(held.size() - 1, 0))
 	var from: Array = held.duplicate() if not held.is_empty() else [hero]
+	from.append_array(ENV_PIECE.live_grates(hero.get_tree()))  # round 51 (Live Floor): an arc may start from a live grate
 	for i in out.size():  # one after another, out from the pile: a link further each, a beat harder each
 		hero.get_tree().create_timer(SC_DELAY + SC_STEP * i).timeout.connect(_sc_arc.bind(hero, out[i], from, each, i))
 	under(parent, at, "wind")

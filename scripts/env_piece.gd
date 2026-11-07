@@ -116,6 +116,17 @@ const KEG_CATCH := 1.2  # m: magma on a foe this near a barrel reaches it
 const KEG_WORD := "KA-BLOOOM!"
 const KEG_TELL := 2.2  # m: the tell_molten licks on the burning barrel
 
+## Live Floor (round 51, storm on a grate): a storm hit that charges a foe standing on a grate (Live Wire's jolts,
+## Grounded, Galvanize: void_element.mark(e, "charged")) makes the grate live for LIVE_S: everyone on it is charged
+## every LIVE_TICK s, the designed arc_crawl runs over it, and Short Circuit's arcs may start from the grate, its
+## reach measured from the grate too (void_element._short_circuit, live_sources()).
+const LIVE_S := 4.0  # s (game)
+const LIVE_TICK := 0.5
+const LIVE_CRAWLS := 4  # arc_crawl loops over the tile
+const LIVE_CRAWL_SIZE := 1.7
+
+static var _live_ticking := false  # (the grate's own charge doesn't make it live again)
+
 ## Run counters (the autotest's [env] line): the pieces placed with `count` and the ones a hit has touched.
 static var counted: Array = []
 static var touched := {}  # instance id -> verb or rule it played last
@@ -306,7 +317,61 @@ static func _verb(n: Node3D, verb_id: String, _el: String, by: Node, _how: Strin
 	match verb_id:
 		"keg":
 			return _keg(n, by)
+		"live_floor":
+			return _live(n)
 	return ""
+
+
+## Live Floor: the grate goes live (or stays live LIVE_S longer).
+static func _live(n: Node3D) -> String:
+	n.set_meta(&"live_until", Time.get_ticks_msec() + int(LIVE_S * 1000.0 / maxf(Game.slow, 0.01)))
+	if state(n) == "live":
+		return "live"
+	n.set_meta(STATE_META, "live")
+	played("live_floor")
+	var crawls := []
+	if DESIGNED.on():
+		var POLISH: GDScript = load("res://scripts/designed_polish.gd")
+		var h: float = float(PIECES.grate.size.x) * 0.25
+		for i in LIVE_CRAWLS:
+			var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_CRAWL_SIZE, "wind", 6)
+			c.position = Vector3((float(i % 2) - 0.5) * 2.0 * h, 0.35, (float(i >> 1) - 0.5) * 2.0 * h)
+			crawls.append(c)
+	n.set_meta(&"env_tell", crawls)
+	ComicFx.say("BZZZT!", n.global_position + Vector3.UP * 1.2, 0.5)
+	Game.sfx("cast_wind", -6.0, 0.1)
+	_live_tick(n)
+	return "live"
+
+
+static func _live_tick(n: Variant) -> void:
+	if not is_instance_valid(n) or state(n) != "live":
+		return
+	var p := n as Node3D
+	if Time.get_ticks_msec() >= int(p.get_meta(&"live_until", 0)):
+		p.set_meta(STATE_META, "cold")
+		for c: Variant in p.get_meta(&"env_tell", []):
+			if is_instance_valid(c):
+				c.erode_out(0.3)
+		p.remove_meta(&"env_tell")
+		return
+	var VE: GDScript = load("res://scripts/void_element.gd")
+	_live_ticking = true
+	for e: Node3D in on_tile(p):
+		VE.mark(e, "charged")
+	_live_ticking = false
+	p.get_tree().create_timer(LIVE_TICK, false).timeout.connect(_live_tick.bind(p))
+
+
+## The living foes standing on floor piece `n` (its square).
+static func on_tile(n: Node3D) -> Array:
+	return n.get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+		return e.is_alive() and gap(n, (e as Node3D).global_position) <= 0.0)
+
+
+## The live grates in the room.
+static func live_grates(tree: SceneTree) -> Array:
+	return tree.get_nodes_in_group("env_grate").filter(func(g: Node) -> bool: return state(g) == "live")
 
 
 ## Powder Keg: the barrel catches (KEG_FUSE), then bursts.
@@ -370,6 +435,10 @@ static func marked(e: Variant, st: String) -> void:
 		return
 	if st == "molten":
 		molten_near(e)
+	elif st == "charged" and not _live_ticking:  # Live Floor: storm on a foe standing on a grate
+		var g := under((e as Node).get_tree(), "grate", (e as Node3D).global_position)
+		if g != null:
+			hit(g, "wind", e, "element")
 
 
 ## Magma reached foe `e` (void_element.mark(e, "molten")): a barrel within KEG_CATCH of it catches.

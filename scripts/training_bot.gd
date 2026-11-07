@@ -111,7 +111,10 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"room": "pieces", "slot": "big_3", "tokens": ["keg", "L", "L", "L", "H", "H"]},
 	# "grate": Frost Wall: Frost Spear planted on the grate raises the ice wall on its far edge, and Harpoon's row is
 	# punched into it (Slapshot, a wall in the open).
-	{"room": "pieces", "slot": ["ender_2", "dash_ender_l"], "tokens": ["grate", "alt", "L", "L", "H", "D", "L", "H"]}]
+	{"room": "pieces", "slot": ["ender_2", "dash_ender_l"], "tokens": ["grate", "alt", "L", "L", "H", "D", "L", "H"]},
+	# "grate": Live Floor: Live Wire's jolts on the dummy standing on the grate make it live, and Short Circuit's arcs
+	# run from it.
+	{"room": "pieces", "slot": "big_1", "tokens": ["grate", "alt", "L", "H", "H"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
 const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).

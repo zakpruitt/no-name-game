@@ -384,6 +384,14 @@ that the seam is not up on the landing frame, that it catches the one on it 0.6 
 string: `wall spread L L L H L` (`spread` with `wall` now lays the arc toward the wall); the autotest's
 `endings_n=` counts it (20/20).
 
+### Round 51 env-pieces: endings that use the room's pieces
+
+See [env-pieces.md](env-pieces.md). **Uproot** is Overwhelm's LMB ending (a pillar near the pinned foe: the tentacle
+tears it out and clubs the foe; Abyss is the open-floor ending). The others change what an existing ending finds:
+Slapshot aims at a **Frost Wall** (Frost Spear on a grate: a 4 m ice wall for 6 s, 153 vs 63 in the open), Short
+Circuit's arcs reach from a **Live Floor** grate, and Meteor Fall dives on the pile a **Powder Keg** burst leaves
+molten.
+
 ## Round 48: breaker spectacle (breaker-spectacle lane)
 
 Zak: "start refining the breakers to be really flashy and awesome", with the wind and lightning effects as the bar.

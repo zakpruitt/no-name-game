@@ -1,7 +1,7 @@
 extends SceneTree
 ## Round 51 env-pieces (docs/features/env-pieces.md), headless: the heretic's environmental verbs that need the real
 ## comic hero playing a breaker against stand-in foes (cool_pass_check's harness): Slapshot into a Frost Wall against
-## the open. Prints PASS/FAIL.  Run: godot --headless --path . -s tests/env_breaker_check.gd
+## the open; Short Circuit's arcs reaching from a live grate (Live Floor) to a foe past its own reach. Prints PASS/FAIL.  Run: godot --headless --path . -s tests/env_breaker_check.gd
 
 var fails := 0
 var world: Node3D
@@ -51,6 +51,7 @@ func _initialize() -> void:
 	await process_frame
 	await _settle()
 	await _frost_wall_slapshot()
+	await _live_floor_short_circuit()
 	print("env_breaker_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 	quit(1 if fails > 0 else 0)
 
@@ -102,6 +103,44 @@ func _frost_wall_slapshot() -> void:
 	_check(dealt.ice > dealt.open * 1.3, "Slapshot into the Frost Wall pays the wall's damage (%.0f vs %.0f open)" % [dealt.ice, dealt.open])
 	hero.bot_alt = false
 	hero.bot_enabled = false
+
+
+## Live Floor: Short Circuit lands by him; a foe 20 m off is past SC_REACH from the landing but within it of a live grate
+## (14 m out): the arcs reach it from the grate. With the grate cold, they don't.
+func _live_floor_short_circuit() -> void:
+	var EP: GDScript = load("res://scripts/env_piece.gd")
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var dealt := {}
+	for case: String in ["cold", "live"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		var grate := Node3D.new()
+		world.add_child(grate)
+		grate.global_position = Vector3(0, 0, 14.0)
+		grate.add_to_group("env_grate")
+		grate.set_meta(EP.TAG_META, "grate")
+		grate.set_meta(EP.STATE_META, case)
+		var near := _foe(Vector3(0, 0, 2.5))
+		var far := _foe(Vector3(0, 0, 20.0))
+		far.elite = true
+		hero.bot_enabled = true
+		hero.bot_alt = true
+		hero._start_attack("EE")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		var hp := far.hp
+		await _until(func() -> bool: return hero.state == hero.State.MOVE, 3.0)
+		await _until(func() -> bool: return far.hp < hp, 1.5)
+		dealt[case] = hp - far.hp
+		if case == "live":
+			_check(ve.marked(far, "charged"), "the foe by the live grate is charged")
+		hero.bot_enabled = false
+		hero.bot_alt = false
+		near.free()
+		far.free()
+		grate.free()
+		await _settle()
+	print("  live floor: Short Circuit on a foe 20 m off, by a live grate %.0f, by a cold one %.0f" % [dealt.live, dealt.cold])
+	_check(dealt.live > 0.0 and dealt.cold == 0.0, "Short Circuit reaches from a live grate, not a cold one (%.0f / %.0f)" % [dealt.live, dealt.cold])
 
 
 func game_end_slowmo() -> void:
