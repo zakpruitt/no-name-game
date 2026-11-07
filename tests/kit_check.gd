@@ -9,7 +9,7 @@ extends SceneTree
 ## godot --headless --path . -s tests/kit_check.gd
 
 ## Slots allowed empty for now: their lanes (counter, dark-magma) fill them.
-const PENDING_OK := ["cross_dark_magma"]
+const PENDING_OK := []  # (cross_dark_magma: Lava Leash, round 49)
 const MAX_WINDOWS := 15
 const MAX_ENDINGS := 2
 const MAX_CROSS := 6

@@ -44,11 +44,11 @@ the same input shapes. This page is how that table lives in code, and how to fil
 | 8 | `cross_dark_storm` | cross | Galvanize `XC` (H L L) | |
 | 8 | `cross_ice_storm` | cross | Hailstorm `XG` (Dash L H H H), then Meltdown `XM` (+ L) | Eruption |
 | 8 | `cross_dark_ice` | cross | Backdraft `XW` (Dash H H L) | Anvil / Pinwheel |
-| 8 | `cross_dark_magma` | cross | pending (the dark-magma lane) | |
+| 8 | `cross_dark_magma` | cross | Lava Leash `XL` (L L L H L, off Molten Palm) | Hellseam |
 | 9 | `counter` | counter | Backlash (Dash into a strike; `counter.gd`, not a routed move: the fill is its window `CB`, `routed: false`) | Ricochet |
 | 10 | `awakening` | awaken | the meter (Q), no move id | |
 
-That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 endings in all.
+That is 23 slots filled and the meter. There are 14 windows with 21 endings in all.
 
 - **Route steps** (not slots, never an upgrade target): the grab `GR` (H), Air Slash `AL1` (L H L), the vault
   `IJ` (L L H L), Rockslide `XR` (L H L L), Ice Cube `EA` (Dash L H H). R and R-then-H (the swing and Snatch) are
@@ -88,7 +88,7 @@ That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 e
 
 `kit_check` fails on any of these:
 
-- a slot that is empty and is neither the meter nor in `PENDING_OK` (`cross_dark_magma`);
+- a slot that is empty and is neither the meter nor in `PENDING_OK` (empty since Lava Leash filled `cross_dark_magma`);
 - a `routed: false` slot (the counter) whose fill isn't a BREAKERS key;
 - a fill whose input does not start its move through `void_route()`;
 - an input outside the slot's `shape`. Shapes are exact, except:
@@ -147,5 +147,5 @@ The worked example is the dragon prince (`KitSlots.PRINCE`, paused, `docs/charac
 ## Testing
 
 - `godot --headless --path . -s tests/kit_check.gd` prints `[kit] PASS/FAIL`, the window count and the pending slots.
-- `godot --headless --path . -- --autotest` prints `[kit] slots=22/22 windows=13/13 upgrades=0/0 missing=none`.
-- With `-- --autotest --kit=full`: 37 strings (36 plain: Storm Pitch's joins), `upgrades=1/1`.
+- `godot --headless --path . -- --autotest` prints `[kit] slots=23/23 windows=14/14 upgrades=0/0 missing=none`.
+- With `-- --autotest --kit=full`: 38 strings (37 plain: Storm Pitch's joins), `upgrades=1/1`.
