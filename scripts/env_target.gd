@@ -52,7 +52,8 @@ const CTX := {
 	"abyss": {"el": "void", "choose": true, "far": false},  # Abyss's window: who the deep gives back first, whole
 	# round 52 cool pass (combo-cool2): Eruption's structure, Flash Freeze's first shell
 	"eruption": {"el": "earth", "choose": true, "far": false},  # Meltdown's window: the wall or pillar the geysers hurl at
-	"flash_freeze": {"el": "water", "choose": true, "far": false},  # Steam Burst's window: a foe, the shell that breaks first
+	"flash_freeze": {"el": "water", "choose": true, "far": false},
+	"tow": {"el": "void", "choose": true, "far": false},  # Tow Line (Dash H) before its hit: a foe, the one they're yanked into  # Steam Burst's window: a foe, the shell that breaks first
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
 const FOE_BRACKET_Y := 1.0  # m over its feet (its chest)
@@ -411,6 +412,11 @@ static func picked_foe(by: Node3D, ctx: String) -> Node3D:
 	return null
 
 
+## The foe the player chose for `ctx` with the cursor or stick (not the auto pick), or null (round 52: Tow Line).
+static func foe_chosen(by: Node3D, ctx: String) -> Node3D:
+	return picked_foe(by, ctx) if _lock(by, ctx).get("chosen", false) else null
+
+
 ## The structure the player chose for `ctx` (cursor / stick) in its last window, or {}.
 static func chosen(by: Node3D, ctx: String) -> Dictionary:
 	var lock := _lock(by, ctx)
@@ -480,8 +486,13 @@ func context(h: CharacterBody3D) -> Dictionary:
 		if b.has("press"):  # Avalanche (round 51): the cubes' pile, where the tower stands
 			return {"ctx": "avalanche", "from": _flat(h._void.dark_spot), "reach": ve.AVALANCHE_REACH, "mode": "near", "key": key}
 		if b.has("meteor"):
-			var spot: Dictionary = ve.meteor_spot(h)
+			var spot: Dictionary = ve.meteor_spot(h, false)
 			if spot.found:
+				var palm: Array = ve.meteor_candidates(h)
+				if ve.meteor_piles(palm) >= 2:  # round 52: two piles or more, the bracket on the pile he dives on
+					var mid := _flat(spot.at)
+					palm.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(mid) < _flat(c.global_position).distance_to(mid))
+					return {"ctx": "meteor", "from": me, "reach": ve.METEOR_SPLAT_REACH, "mode": "foe", "foes": palm, "auto": palm[0], "key": key}
 				return {"ctx": "meteor", "from": _flat(spot.at), "reach": METEOR_NEAR, "mode": "near", "key": key}
 		return {}
 	if h.state == h.State.CHARGE and h._charged:  # round 51: the charged hold aims Overwhelm
@@ -500,6 +511,11 @@ func context(h: CharacterBody3D) -> Dictionary:
 		if load("res://scripts/env_piece.gd").usable("barrel", "keg") and along(structures, me, h._facing(), keg_reach, ["barrel"]).get("in_reach", false):
 			return {"ctx": "keg", "from": me, "reach": keg_reach, "mode": "along", "dir": h._facing(), "key": mkey}  # (round 51: Powder Keg)
 		return {"ctx": "palm", "from": me, "reach": ve.PALM_LENGTH * 0.6 + ve.PALM_WALL_REACH, "mode": "along", "dir": h._facing(), "key": mkey}
+	if h._move_id == ve.DASH_MOVE and h._hits_done == 0:  # round 52: Tow Line's snare, who the line is yanked into
+		var snare: Array = ve.tow_candidates(h, me)
+		if snare.size() >= 2:
+			return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare), "key": mkey}
+		return {}
 	if h._move_id == "XL" and h._hits_done == 0:
 		for e: Node in get_tree().get_nodes_in_group("enemies"):
 			if ve.palm_fresh(e) and ve.wall_fresh(e):

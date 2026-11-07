@@ -370,6 +370,62 @@ func _cool2_picks() -> void:
 	_check(g.chain.size() >= 2 and g.chain[0] == b, "the break starts on the picked shell (%d in the chain)" % g.chain.size())
 	g.queue_free()
 	env.test_cursor = Vector3.INF
+	# Meteor Fall (round 52): two piles of palm foes, the bracket on the pile he dives on; the cursor on the other pile
+	var c: Node3D = main._dummies[2]
+	var d: Node3D = main._dummies[3]
+	for f: Node3D in [a, b, c, d]:
+		f.set_meta(VE.PALM_META, Time.get_ticks_msec())
+	a.global_position = Vector3(-5, 0, -4)
+	b.global_position = Vector3(-4.5, 0, -4.6)
+	c.global_position = Vector3(5, 0, -4)
+	d.global_position = Vector3(5.5, 0, -3.4)
+	for f: Node3D in [a, b, c, d]:
+		f.home = f.global_position
+	hero.global_position = Vector3(0, 0, 0)
+	hero._brk_id = "EV"
+	hero._brk = VE.entry("EV")
+	await physics_frame
+	await physics_frame
+	var auto_m: Variant = env.current.get("s", {}).get("node")
+	_check(env.current.get("ctx", "") == "meteor" and (auto_m == a or auto_m == b or auto_m == c or auto_m == d),
+		"Meteor Fall with two piles: the bracket on a foe of the pile (%s)" % str(env.current.get("ctx")))
+	var other_pile: Node3D = c if auto_m == a or auto_m == b else a
+	env.test_cursor = other_pile.global_position
+	await physics_frame
+	await physics_frame
+	var ms: Dictionary = VE.meteor_spot(hero)
+	_check(ENV.picked_foe(hero, "meteor") == other_pile and ms.found and Vector2(ms.at.x - other_pile.global_position.x, ms.at.z - other_pile.global_position.z).length() < VE.METEOR_PILE_R,
+		"the cursor on the other pile: he dives on it (%s)" % str(ms.get("at")))
+	env.test_cursor = Vector3.INF
+	for f: Node3D in [a, b, c, d]:
+		f.remove_meta(VE.PALM_META)
+	# Tow Line (round 52): the bracket on who the line is yanked into; the cursor makes another the anchor
+	hero._brk = {}
+	hero.state = hero.State.ATTACK
+	hero._move_id = VE.DASH_MOVE
+	hero._hits_done = 0
+	hero.global_position = Vector3(0, 0, 0)
+	hero._dash_from = Vector3(0, 0, 0)
+	hero._face(Vector3(0, 0, -1))
+	a.global_position = Vector3(0.5, 0, -2.0)
+	b.global_position = Vector3(-3.0, 0, 1.5)
+	c.global_position = Vector3(20, 0, 0)
+	d.global_position = Vector3(-20, 0, 0)
+	for f: Node3D in [a, b, c, d]:
+		f.home = f.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "tow" and env.current.s.get("node") == a and not env.current.chosen,
+		"Tow Line: the bracket on the foe nearest where they're yanked (%s)" % str(env.current.get("ctx")))
+	env.test_cursor = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(ENV.foe_chosen(hero, "tow") == b, "the cursor makes the other the anchor")
+	var hp_b: float = b.hp
+	var n: int = VE._tow(hero, Vector3.ZERO, Vector3(0, 0, -1), 10.0)
+	_check(n >= 2 and b.hp < hp_b and not b.has_meta("thrown_foe_flying"), "the anchor is snared where it stands, the rest yanked into it (%d)" % n)
+	env.test_cursor = Vector3.INF
+	await create_timer(0.6).timeout
 	hero.state = hero.State.MOVE
 	hero._brk = {}
 	await physics_frame

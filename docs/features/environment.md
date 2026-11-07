@@ -30,6 +30,7 @@ environmental combos!"
 | `ricochet` | the counter's window | void | yes | the countered foe | `RICOCHET_REACH` |
 | `collapse` | Singularity's window | void | yes | the hole | `COLLAPSE_REACH` 9 m |
 | `meteor` | Undertow's window (Meteor Fall) | earth | yes (only a structure with palm foes on it) | the meteor's pile | `METEOR_NEAR` 4 m |
+| `meteor` (foe mode, round 52) | Undertow's window with the palm foes in 2+ piles (`meteor_piles`): a **foe** | earth | yes (the palm foes) | him | auto: the foe nearest the default `meteor_spot` |
 | `palm` | Molten Palm (EM) before its hit | earth | no | him, along his facing | the palm's carry |
 | `leash` | Lava Leash (XL) before its hit | earth | no | the wall-splatted palm foes | `LEASH_NEAR` 2.5 m |
 | `pillar_slam` | H H's grab with a foe held | void | yes (pillars only) | him | `PILLAR_SLAM_REACH` 4.5 m |
@@ -37,6 +38,7 @@ environmental combos!"
 | `overwhelm` | the charged hold (Overwhelm, round 51): a **foe** | void | yes (foes in `OVERWHELM_REACH`) | him | auto: the nearest in his aim |
 | `abyss` | Overwhelm's window (Abyss, round 51): a **foe**, 2+ pinned | void | yes (the pinned) | him | auto: the biggest pinned |
 | `eruption` | Meltdown's window (Eruption, round 52) | earth | yes | the landing (`_brk_zone`) | `ERUPT_REACH` 9 m |
+| `tow` | Tow Line (Dash H) before its hit, 2+ snare candidates (`tow_candidates`): a **foe** | void | yes (`TOW_PICK_REACH` 7 m) | him | auto: the one nearest where they're yanked (`tow_auto`) |
 | `flash_freeze` | Steam Burst's window (Flash Freeze, round 52): a **foe**, 2+ in the cloud | water | yes (foes in `FF_CLOUD_R`) | the landing | auto: the nearest the landing |
 
 **Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select
@@ -55,6 +57,11 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
 - Flash Freeze (round 52): with two or more in the steam cloud, the bracket in the hang is on the shell his landing
   breaks first; the chain runs from it to the nearest unbroken shell each link, harder each, so the pick decides who
   takes the last link (`frost_shell.shatter(first)`). Eruption's pick is a structure (the wall or pillar it hurls into).
+- Meteor Fall (round 52): with the palm foes in two piles or more, the bracket is on a foe of the pile he dives on;
+  the cursor on a foe of another pile moves the dive there (`meteor_spot` keeps the picked foe's `METEOR_PILE_R`).
+- Tow Line (round 52): the bracket is on who the line is yanked toward; only a cursor / stick choice changes the throw
+  (`foe_chosen(by, ctx)`: the lock's foe when chosen, else null): the chosen foe is the anchor, snared where it stands
+  (`TOW_ANCHOR_MULT`), and the rest are yanked into it.
 
 ## Files
 
