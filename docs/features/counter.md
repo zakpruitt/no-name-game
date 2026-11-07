@@ -24,6 +24,10 @@ as a strike is about to land, cancels it and answers harder.
   tendrils). Neither in reach: it flies 7 m along his aim and lands. The landing is a breaker landing like the
   others: `breakers_landed` goes up, so `impact_frame` fires the breaker spectacle (dark family) and a wall splat in
   the next second gets its drawn wall star.
+- **Every spar foe's windup is counterable** (spar audit 2026-11-07, `tests/spar_check.gd`): the telegraph shows
+  before the window opens for minion 0.35 s, rogue 0.25 s (its windup 0.45 to 0.5 s for this), shield 0.45 s, warrior
+  0.55 s; `WINDOW` stays one 0.25 s for all of them. `--spar=archer|mage` shoot bolts to parry. A foe a hold has (a
+  carry, a bind, a cube, a hook) never strikes (`enemy.held()`), so nothing needs countering mid-hold.
 - **Bolts** (`projectile.gd`) count too: a bolt inside the window and in his way, the dash aimed at it, is parried
   back at its shooter (x1.6 speed, x2 damage, hits foes only). No Backlash or window: the shooter is far off.
 

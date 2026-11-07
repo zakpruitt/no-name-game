@@ -1170,3 +1170,21 @@ control makes sense". See `docs/features/combo-breakers.md` "Round 55 cool pass 
   Line, Rockslide, Deep Freeze, Dash Stab, Short Circuit)
 - [ ] Open: Overwhelm's pool reads busy behind the slam; Rockslide's boulder small at the camera's distance; Dash
   Stab's catch and Black Tide's drag need foes spread out (the bot's dummies stand close)
+
+## Round 56 spar-feel (combat against live foes: every string filmed on each spar foe)
+
+Zak's loop: "increasing combat fluidity, ensure everything is snappy and very fun"; nothing had been filmed against a
+foe that fights back since the kit grammar. Audit: `docs/spar-audit-2026-11-07.md`.
+- [x] Every string filmed on the warrior, rogue, shield and minion (`string_film -- --spar=<kind>`, the INDEX lines
+  carry the live foe's state); ranked top 10
+- [x] A foe held by a control move never strikes (`enemy.held()`: carried, thrown, bound, frozen; Collapse, Abyss and
+  Avalanche held foes that kept their windup)
+- [x] Poise breaks on a big hit or the third of a windup (`_poise_holds`, `POISE_HITS`)
+- [x] Rogue windup 0.45 to 0.5 s: 0.25 s of telegraph before the counter window on the shortest foe
+- [x] Spar respawns inside the room (it fell out by the back wall), 0.8 s, 6 m; `--spar=archer|mage`; `[spar]` adds
+  `hurts= blocks= cuts= strays=`
+- [x] `tests/spar_check.gd` (in `agent.sh check`, ~50 s); windowed `tests/spar_film.gd` for one scripted beat
+- [x] Clips: `awaken-combo-clips/47 Spar *` (Collapse, Poise, Respawn, Rogue counter before / after; the counter on
+  every foe; his hurt)
+- [ ] Open (Zak): his hurt's dash-out at 0.12 s; a bot token to counter a live foe; the shield letting control moves
+  through; the live foe in the string films' gather; a kill hidden under a breaker's impact frame
