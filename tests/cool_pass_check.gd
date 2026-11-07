@@ -175,6 +175,7 @@ func _cool_pass() -> void:
 	# (Abyss against Uproot, its LMB, the env-pieces lane's pair: here since void_arm_check is at the 180 s cap)
 	await _uproot_pair(ve)
 	await _cool2(ve)
+	await _maw_pair(ve)
 	hero.bot_enabled = false
 
 
@@ -239,6 +240,49 @@ func _cool2(ve: GDScript) -> void:
 	_check(dealt.erupt_wall > dealt.ff_wall * 1.3, "by a wall: Eruption beats Flash Freeze (%.0f vs %.0f)" % [dealt.erupt_wall, dealt.ff_wall])
 	_check(dealt.ff_open > dealt.erupt_open * 1.2, "a crowd in the open: Flash Freeze beats Eruption (%.0f vs %.0f)" % [dealt.ff_open, dealt.erupt_open])
 	_check(dealt.erupt_wall > dealt.erupt_open3 * 1.6, "Eruption by a wall out-damages it in the open (%.0f vs %.0f)" % [dealt.erupt_wall, dealt.erupt_open3])
+
+
+## Maw / Black Ice (VD, round 52): three in the pool, by a wall or in the open. Maw's tentacles knock the bitten
+## together and slam the heap (a crowd, anywhere); Black Ice's blocks skid out across the ice into the wall.
+func _maw_pair(ve: GDScript) -> void:
+	var dealt := {}
+	var pool := Vector3(0, 0, 4.5)
+	var three := [Vector3(0, 0, 4.5), Vector3(1.3, 0, 4.9), Vector3(-1.2, 0, 5.1)]
+	for case: String in ["maw_wall", "ice_wall", "maw_open", "ice_open"]:
+		hero.global_position = Vector3(0, 0, 2.0)
+		hero._face(Vector3(0, 0, 1))
+		hero.model.position.y = 0.0
+		var wall: StaticBody3D = _wall(Vector3(0, 1, 8.5)) if case.ends_with("wall") else null
+		var foes: Array = []
+		for p: Vector3 in three:
+			foes.append(_foe(p))
+		await _settle()
+		hero.global_position = Vector3(0, 0, 2.0)
+		hero._void.dark_spot = pool
+		var b: Dictionary = ve.entry("VD").duplicate(true)
+		if case.begins_with("ice"):
+			ve.freeze_pool(hero)
+			b.merge(b.alt, true)
+		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
+		ve.breaker_impact(hero, b, Vector3(0, 0, 2.0), [], 1.0)
+		await create_timer(1.4).timeout
+		var sum := 0.0
+		for i in foes.size():
+			sum += before[i] - foes[i].hp
+		dealt[case] = sum
+		if case == "ice_wall":
+			_check(foes.any(func(f: Foe) -> bool: return ve.wall_fresh(f)), "Black Ice skids the blocks into the wall (%s)" % str(foes.map(func(f: Foe) -> float: return snappedf(f.global_position.z, 0.1))))
+		_check(foes.all(func(f: Foe) -> bool: return absf(f.global_position.y) < 0.3 and not f.has_meta("thrown_foe_flying")), "%s: all back on the floor" % case)
+		for f: Foe in foes:
+			f.free()
+		if wall != null:
+			wall.free()
+		for n: Node in get_nodes_in_group("dark_maw"):
+			n.queue_free()
+		await _settle()
+	print("  maw vs black ice: by a wall %.0f / %.0f, in the open %.0f / %.0f" % [dealt.maw_wall, dealt.ice_wall, dealt.maw_open, dealt.ice_open])
+	_check(dealt.ice_wall > dealt.maw_wall, "by a wall: Black Ice beats Maw (%.0f vs %.0f)" % [dealt.ice_wall, dealt.maw_wall])
+	_check(dealt.maw_open > dealt.ice_open, "in the open: Maw beats Black Ice (%.0f vs %.0f)" % [dealt.maw_open, dealt.ice_open])
 
 
 ## Abyss / Uproot (OW, round 51 env-pieces): a big foe 4 m from a pillar with one more on the line the pillar falls

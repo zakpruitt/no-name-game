@@ -1121,8 +1121,11 @@ func _crossovers() -> void:
 	_check(el.in_cube(pooled), "Black Ice freezes the pool with it in")
 	var b: Dictionary = el.entry("VD")
 	b.merge(b.alt, true)
+	var pool_at: Vector3 = pooled.global_position
 	el.breaker_impact(hero, b, Vector3(0, 0, 2), [], 1.0)
-	_check(pooled.hp < 500.0 and pooled.last_kb.y < 0.0, "and the landing shatters it into the floor")
+	await create_timer(0.8).timeout  # (round 52: the block skids out across the black ice and bursts where it stops)
+	var skid: float = Vector2(pooled.global_position.x - pool_at.x, pooled.global_position.z - pool_at.z).length()
+	_check(pooled.hp < 500.0 and skid > 2.0 and not el.in_cube(pooled), "and the landing skids its block out across the ice to burst (%.1f m, %.0f)" % [skid, 500.0 - pooled.hp])
 	pooled.free()
 	await _settle()
 
