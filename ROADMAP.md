@@ -1084,3 +1084,23 @@ Zak: "the lava leash and tempest and pinwheel are amazing" (round 51 cool pass, 
 - [x] Collapse's spits: an ink crown (`spit_burst`), a word and the foe's own trail each
 - [x] Clips: `awaken-combo-clips/38 Cool2 *`
 - [ ] Zak's call: Tow Line's pick window is the move's start-up (~0.15 s): hover the foe before the press
+
+## Round 53 env-flourish (the heretic's flourishes: gallows, ice rink, brazier spill)
+Zak: the environment "a big part of what you can do". Build order items 6-8 of the proposal, as `Kit.has()` upgrades
+that also play in the training room with pieces (`rooms.gd` rule `flourishes`); `scripts/env_flourish.gd`, see
+`docs/features/env-pieces.md`.
+- [x] Gallows: a perfect counter's Ricochet hangs the attacker on a hook in 10 m, bound 2.5 s, the hook swinging,
+  x1.3 on the wall's splat (146 vs 112), every hit a Snap; the counter window brackets the hook, the cursor may choose
+  a wall; a second hook on the pillar at (8, -8); bot string `hook counter D`
+- [x] Ice Rink: ice by the pool freezes it 6 s (facet panes, frost spread, glints); cubes over it slide 6 m further at
+  full speed (Slapshot, a wall 14 m off: 153 vs 63 in the open); a foe knocked onto it slides on, frozen; bot string
+  `pool alt D L H`
+- [x] Brazier Spill: Lava Leash's seam tips a lit brazier (the spilled model to the seam, 2 m of coals, a 4 s molten
+  patch); Hellseam erupts from it x1.25 (pile 58 vs 46; the coals' end 25 vs 0); magma lights an out brazier; the
+  leash brackets it; bot string `brazier L L L H L`
+- [x] The breaker banner drops off a cued piece (Uproot's pillar, a hung hook, a spilled brazier) as off a cued foe
+- [x] The land check's `[env]` line needs `gallows ice_rink brazier_spill` above 0 (`pieces=9/9 ... gallows=2
+  ice_rink=7 brazier_spill=1`)
+- [x] Clips: `awaken-combo-clips/41 Flourish *`
+- [ ] Zak's call: which flourishes go in the base kit (recommendation: gallows); the extra x1.25 on Hellseam's pile;
+  a spilled brazier rebuilds lit

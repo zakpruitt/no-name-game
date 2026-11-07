@@ -33,6 +33,8 @@ environmental combos!"
 | `meteor` (foe mode, round 52) | Undertow's window with the palm foes in 2+ piles (`meteor_piles`): a **foe** | earth | yes (the palm foes) | him | auto: the foe nearest the default `meteor_spot` |
 | `palm` | Molten Palm (EM) before its hit | earth | no | him, along his facing | the palm's carry |
 | `leash` | Lava Leash (XL) before its hit | earth | no | the wall-splatted palm foes | `LEASH_NEAR` 2.5 m |
+| `brazier` | Lava Leash (XL) through its reach beat, a lit brazier by a seam (brazier_spill, round 53) | earth | no | the brazier (`env_flourish.leash_brazier`) | 1 m |
+| `gallows` | the counter's window with an empty hook in `GALLOWS_REACH` 10 m of the foe (gallows, round 53; mode `hook`) | void | yes (hook, wall, pillar) | the countered foe | `GALLOWS_REACH` |
 | `pillar_slam` | H H's grab with a foe held | void | yes (pillars only) | him | `PILLAR_SLAM_REACH` 4.5 m |
 | `avalanche` | Deep Freeze's window (Avalanche, round 51) | water | yes | the cubes' tower | `AVALANCHE_REACH` 9 m |
 | `overwhelm` | the charged hold (Overwhelm, round 51): a **foe** | void | yes (foes in `OVERWHELM_REACH`) | him | auto: the nearest in his aim |
@@ -140,6 +142,11 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   conducting torches (`env_piece.conducting_torches()`), mode `torch` in `resolve()` takes the nearest, and `_draw()`
   puts the bracket on the torch's flame (`TORCH_BRACKET_SIZE` 1.8, `TORCH_BRACKET_UP` 0.55, no floor ring). Torches
   are still not in `structures`, so no other pick sees them. A room's rebuild rule is `rooms.gd` `ROOM_RULES`.
+- Round 53 (env-flourish): hooks and braziers register through `add_prop` (kinds `hook`, `brazier`). CTX `gallows`
+  takes the counter window over `ricochet` when the flourish is on and an empty hook is in reach; mode `hook` in
+  `resolve()` picks the nearest hook's point, and the cursor may choose a wall or pillar over it
+  (`counter.ricochet_target` reads `chosen(hero, "gallows")`). CTX `brazier` comes before `leash` during Lava Leash.
+  See [env-pieces.md](env-pieces.md) "The heretic's flourishes".
 
 ## Testing
 

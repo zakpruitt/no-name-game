@@ -30,6 +30,13 @@ as a strike is about to land, cancels it and answers harder.
 Best situation (kit-grammar "every combo needs a best situation"): Ricochet wants a wall or a crowd near the
 attacker; in the open it only lands for its base.
 
+**Gallows** (round 53, `env_flourish.gd`; the `gallows` Kit upgrade, on in the training room with pieces): with an
+empty hook whose point is within `GALLOWS_REACH` 10 m of the attacker, Ricochet takes it there over any foe or wall
+(the counter window brackets the hook, env_target CTX `gallows`; a wall or pillar the cursor chose wins). It flies
+over the other foes, splats on the hook's wall at x2.5 x `GALLOWS_MULT` 1.3 (146 against the wall's 112), then
+hangs under the hook bound for 2.5 s, the hook swinging with it ("SHNK-CLANK!"); any hit on it is a Snap and drops it.
+Details in [env-pieces.md](env-pieces.md).
+
 ## Files
 
 - `scripts/counter.gd`: static functions over the hero (the hero_*.gd pattern).
@@ -78,6 +85,10 @@ the bag snapping forward; again every `SWING_EVERY` 1.4 s while he stays. `--spa
   a plain dash with nothing coming, i-frames, the stagger and mark, the lift and slam, no window on a plain counter,
   the perfect's window holding the attacker alone with one ending, Ricochet landing and binding, a parried bolt.
 - Autotest: the last string `counter D` lands Ricochet (`breakers=` and `endings_n=` count CB).
+- `counter_check` `_gallows` (round 53): in the room with pieces, the window brackets the pillar's hook, Ricochet hangs
+  the dummy on it (bound, the hook swinging, up under its point), the splat x1.30 the same counter's with the flourish
+  off, a hit on it a Snap that lets it go, the hook empty again; a pillar the cursor chose wins over the hook. Bot
+  string `hook counter D` in the room with pieces.
 - Film: `godot --path . -s tests/string_film.gd -- --from=N --to=N --dir=counter` (N = the counter string's index).
 
 ## Tuning

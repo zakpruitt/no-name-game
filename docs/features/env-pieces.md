@@ -36,9 +36,9 @@ aspects only they can use". This builds items 0-4 of the proposal's build order
 | grate | floor to anyone without storm or ice | cold / live / frosted | with pieces | `floor_tile_big_grate` |
 | spikes | a thrown foe that comes down on it takes x1.5 | up / down | with pieces | `floor_tile_big_spikes` |
 | rubble | a breaker landing on it throws three chunks, 6 to everyone within 2 m | none | with pieces | `floor_tile_large_rocks` |
-| brazier | (data) knocked over: a 2 m fire patch, molten | lit / out / spilled | a look, with pieces | `brazier`, `brazier_spilled` |
-| pool | (data) foes move at 0.8, molten quenched | water / frozen / live / steam | a look, with pieces | `pool` |
-| hook | (data) a wall for everyone | empty / hung | a look, with pieces | `hook_chain` |
+| brazier | lit; magma by an out one lights it (brazier_spill, round 53) | lit / out / spilled | with pieces | `brazier`, `brazier_spilled` |
+| pool | water; ice by it freezes it (ice_rink, round 53) | water / frozen / live / steam | with pieces | `pool` |
+| hook | a wall for everyone; Ricochet hangs a foe on it (gallows, round 53) | empty / hung | with pieces (two) | `hook_chain` |
 | ledge | (data) a raised ledge 1.2 m up, its face a wall | none | a look, with pieces (box collider) | `ledge` |
 
 **Art.** Every piece uses the comic dungeon kit (`assets/comic/dungeon/`). The brazier, pool, hook and ledge (env-art
@@ -68,9 +68,10 @@ later lanes get:
 | barrel | (-11.2, -2) | the back of the spikes |
 | crate | (-11, 1) | beside the barrel |
 | grate | tile (6, -2) | under the dummy at (4.2, -3.2) |
-| pool | tile (2, -6) | under the dummy at (1.6, -4.5) (not counted: no rule yet) |
-| brazier | (-5.8, -5.2) | behind the dummy at (-4.2, -3.2) (not counted) |
-| hook | (-4, 3.4, -15.5) on the back wall | between a banner and a torch; a side wall shows it edge-on to the camera (not counted) |
+| pool | tile (2, -6) | under the dummy at (1.6, -4.5) (counted, round 53: ice_rink) |
+| brazier | (-5.8, -5.2) | behind the dummy at (-4.2, -3.2) (counted, round 53: brazier_spill) |
+| hook | (-4, 3.4, -15.5) on the back wall | between a banner and a torch; a side wall shows it edge-on to the camera (not counted: ~11 m from the dummies, past `GALLOWS_REACH`) |
+| hook | (7.47, 3.85, -7.47), yaw -45, on the face of the pillar at (8, -8) | toward the dummies, its point ~1.65 m up, the hung foe's feet ~0.85 m off the floor (counted, round 53: gallows) |
 | ledge | (14.5, -4), yaw -90, on the right wall | level with the dummies, out of the bot's lanes (not counted) |
 | torch | the back wall's middle one, (-2, 2.4, -15.5) | counted in this room only (`count_in_pieces`): torches conduct |
 
@@ -196,6 +197,91 @@ counts `conduct=3`.
 | storm on a foe under the middle torch | 8 (`CONDUCT_DAMAGE`), charged |
 | the torches out | 0 |
 
+## The heretic's flourishes (round 53, env-flourish; proposal build order items 6-8)
+
+Three verbs on the pieces that had only a look, in `scripts/env_flourish.gd` (static functions over the nodes, like
+`void_element.gd`, plus two small nodes: `Hang` and `RinkWatch`). Each is a `Kit.has()` upgrade (`kit.gd`
+`UPGRADES`: `gallows`, `ice_rink`, `brazier_spill`) and also plays in any room whose `rooms.gd` `ROOM_RULES` has
+`flourishes: true` (only the training room with pieces), so all three are there to practise. `env_flourish.on(id)`
+is the gate. The plain room is unchanged: its rule is false and it has no hook, pool or brazier.
+
+### Gallows (dark on a hook; the counter's Ricochet)
+
+A perfect counter's Ricochet (counter.gd `ricochet_target`) takes the attacker to an empty hook whose point is within
+`GALLOWS_REACH` 10 m (flat) of it, over any nearer foe or wall. The throw flies over the other foes (`solid: false`)
+and, when the hook is on a wall or pillar face, splats on it at `RICOCHET_WALL_MULT` x `GALLOWS_MULT` 1.3. Then
+`env_flourish.hang()` hoists it up under the hook's point (`hook_point()`, the bottom of `hook_swing`'s mesh): the
+foe is bound (`floor_bind` meta `x_bound`) for `GALLOWS_HANG` 2.5 s, staggered, and `hook_swing` swings (a damped
+`GALLOWS_SWING` 0.45 rad) with the foe tilting under it. Any hit on the hung foe is a Snap (void_element `_pay` "snap",
+counted in `improv_paid["bound"]`): the matrix's own Snap for an element hit, or the Hang's when the hit was dark or
+a melee swing the matrix wouldn't pay. The Snap, the time running out, another move taking it, or its death lets it
+drop; the hook swings down to rest over `GALLOWS_SETTLE` 1.4 s and is empty again. Word "SHNK-CLANK!", a void hit and
+dust on the hook. The hook and the foe are camera-cued (`frame_cue_ms`) for `GALLOWS_CUE_MS` 2.8 s.
+
+The indicator: env_target CTX `gallows` (mode `hook`) brackets the hook during the counter window. The cursor can
+choose a wall or pillar instead (kinds hook / wall / pillar): `ENV.chosen(hero, "gallows")` wins over the hook.
+A pillar Uproot tears out takes its hook with it (`topple`).
+
+| Case (counter_check `_gallows`, the room with pieces) | The attacker's splat |
+|---|---|
+| Ricochet onto the pillar's hook (gallows) | 146 (x1.30), then hung 2.5 s, every hit a Snap |
+| the same counter, the flourish off: onto the pillar | 112 (`RICOCHET_WALL_MULT` 2.5), bound 1.6 s |
+| Ricochet in the open | 45 |
+
+Bot string: `hook counter D` (slot `counter`, the room with pieces, layout `hook`): the swinging dummy between him and
+the pillar's hook, ~5 m from its point.
+
+### Ice Rink (ice by the pool)
+
+The pool's watch (`RinkWatch`, a child of the pool, polls every `RINK_POLL` 0.1 s): a foe newly frozen (in a cube or
+`frozen_t`) within `RINK_NEAR` 1 m of the tile, or a Frost Spear planted within it, freezes the pool for `RINK_S` 6 s
+(renewed by more ice). `pool_water` hides and a 4 x 4 pane mesh in `designed_elements.facet_material("water")` (the
+ice block's facets, no crystals) scales in over it, with a frost burst in the middle and four frost marks spreading to
+the corners, "KRRRIK!". While frozen, `rink_glint` (`tools/vfx_gen/gen_flourish.py`) glints come and go on it.
+
+On the frozen pool:
+- A cube's flight (thrown_foe: `slide`, an ice throw, or a foe in its cube) whose line crosses it goes `RINK_EXTRA`
+  6 m further and never slows (`_rink`), so Slapshot (10 m `SLIDE_REACH`), Avalanche's topple and Ice Cube's bowl
+  reach walls they can't in the open.
+- A foe knocked onto it (hit in the last `RINK_KNOCKED_MS` 0.7 s, moving over 1 m/s) is encased and slides on at its
+  speed (at least `RINK_SLIDE_MIN` 4 m/s) until it leaves the tile, "SKRRRT!".
+
+| Case (env_breaker_check `_ice_rink`: a wall 14 m ahead) | Three cubes | The furthest cube |
+|---|---|---|
+| Slapshot over the frozen pool | 153 (all shatter on the wall) | 13.5 m (on the wall) |
+| Slapshot in the open | 63 | 11.4 m (short) |
+
+Bot string: `pool alt D L H` (slot `dash_ender_l`, layout `pool`): Harpoon's cubes on the pool freeze it, and
+Slapshot punches the row over the ice into the back wall ~11 m off.
+
+### Brazier Spill (magma by the brazier; Lava Leash)
+
+The brazier is lit when placed (coals and flame; `out` shows its ash). Lava Leash's seam (`lava_leash._seam_add`
+calls `leash_seam`) passing within `SPILL_NEAR` 1.5 m of a lit brazier tips it in: its parts hide and
+`brazier_spilled` takes their place, its coals turned to face the seam. The coals run the seam on `SPILL_EXTEND` 2 m
+(a fissure), leave a molten patch (`SPILL_PATCH_R` 1.1 m, everyone in it molten every 0.5 s for `SPILL_PATCH_S` 4 s), and
+for `SPILL_FRESH_MS` 4.5 s Hellseam erupts along the coals too and hits x `SPILL_HELLSEAM` 1.25 (the proposal's
+number). "KLANG-FWOOM!", dust, chips, a magma pool. Any magma on a foe within `LIGHT_NEAR` 1.5 m of an out brazier
+lights it ("FWUMP!"). The spilled brazier is used up and rebuilds lit with the training room's rebuild.
+
+The indicator: env_target CTX `brazier` brackets the lit brazier the leash's seams will tip, through Lava Leash's
+reach beat (`leash_brazier()`: the grabs on their way, or before them Molten Palm's foes toward the pile).
+
+| Case (lava_leash_check `_brazier_spill`) | |
+|---|---|
+| Hellseam's pile hit with a fresh spill / none | 58 / 46 (x1.25) |
+| a foe at the spilled coals' end, Hellseam with a fresh spill / none | 25 / 0 |
+| a foe in the coals' patch | molten |
+
+Bot string: `brazier L L L H L` (slot `cross_dark_magma`, layout `brazier`): Molten Palm carries the dummies past the
+lit brazier and the leash drags them back over it.
+
+### The banner and the cued pieces
+
+`designed_breaker` `Screen._foe_under` (the breaker name banner drops to `CALL_Y_LOW` off a cued foe) also checks the
+room's pieces with a fresh `frame_cue_ms` (`_piece_under`, points up the piece's own axis, so a pillar falling too):
+Uproot's pillar (`UPROOT_CUE_MS` 2.2 s from the dive), a hook with a foe hung on it, a spilled brazier.
+
 ## Files
 
 - `scripts/env_piece.gd`: `PIECES`, `EXCLUSIVE`, `BUILT`, `HERO_ELEMENTS`, `RULES_BY_ELEMENT`; `place()`, `hit()`,
@@ -228,6 +314,11 @@ counts `conduct=3`.
 - `scripts/rooms.gd`: `ROOM_RULES`, `REAL_ROOM`, `rule()`, `rebuild()`; `count_in_pieces` on the middle torch.
 - `scripts/game.gd`: `room_setting` (saved under `training/room`), `room` (this run), `toggle_room()`,
   `room_label()`; `scripts/menu_screen.gd` Settings row.
+- `scripts/env_flourish.gd` (round 53): `on()`, gallows (`hook_point()`, `hooks()`, `gallows_hook()`, `hang()`,
+  `Hang`), ice rink (`RinkWatch`, `rink_extra()`, `rink_ice()`), brazier spill (`leash_seam()`, `spill()`, `light()`,
+  `spill_seams()`, `leash_brazier()`); `placed()` / `restore()` from `env_piece.place` / `rebuild`. `counter.gd`
+  `ricochet_target` / `_gallows_hit`, `thrown_foe._aim` (`_rink`), `lava_leash._seam_add`, `void_element._hellseam`,
+  `env_target` CTX `gallows` / `brazier` and mode `hook`, `designed_breaker` `_piece_under`.
 - `scripts/training_bot.gd`: `room` on a BOT_STRINGS entry plays it only in that room (`active()`);
   `BOT_PIECE_LAYOUTS` (`keg`, `grate`) stand him and the dummies by a piece; the `[env]` line ends
   `room=<plain|pieces> pieces=N/N uproot= keg= frost_wall= live_floor=`.
@@ -269,6 +360,10 @@ counts `conduct=3`.
   not a third run: each is about 3 min) and fails unless its `[env]` line has `pieces=N/N` and every built verb
   (`uproot keg frost_wall live_floor conduct`) above 0. Measured: `pieces=6/6 uproot=1 keg=1 frost_wall=1
   live_floor=4 conduct=3`, strings 47/47, upgrades 1/1, 190 s.
+- Round 53: `tests/counter_check.gd` `_gallows`, `tests/env_breaker_check.gd` `_ice_rink`, `tests/lava_leash_check.gd`
+  `_brazier_spill` (numbers above); the land check's `[env]` line also needs `gallows ice_rink brazier_spill` above 0.
+  Measured: `pieces=9/9 uproot=1 keg=1 frost_wall=1 live_floor=4 conduct=3 gallows=2 ice_rink=7 brazier_spill=1`,
+  strings 50/50.
 
 ### Not verified
 
@@ -277,3 +372,6 @@ counts `conduct=3`.
 - The 6 m Frost Wall against a real diagonal Harpoon row in play (the bot's row is straight); the check covers the
   facing, not a diagonal volley.
 - Real rooms (`rebuild: false`) exist only as the rule: nothing builds one yet.
+- Round 53: the hang against a real enemy (only the dummy and stand-ins); a foe knocked onto the rink by a real move
+  (the check sets the knock by hand); Avalanche's topple and Ice Cube's bowl over the rink (they take the same
+  thrown_foe path as Slapshot's cubes); the out brazier in play (no room places one out).
