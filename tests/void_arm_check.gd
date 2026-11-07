@@ -1011,6 +1011,11 @@ func _meteor_target() -> void:
 func _crossovers() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	var r: Callable = load("res://scripts/hero_moves.gd").void_route
+	# (round 49: Storm Pitch and Rockslide's buried payoff are kit upgrades, Kit.has: off, Dash H L goes on to Slice)
+	Kit.set_on("storm_pitch", false)
+	_check(Kit.has("storm_pitch") or r.call("light", "TW", true, 0, false) == "L1", "Dash H L without the upgrade: Slice")
+	Kit.set_on("storm_pitch", true)
+	Kit.set_on("rockslide_payoff", true)
 	_check(r.call("light", "AL1", true, 0, false) == "XR", "L H L L: Rockslide")
 	_check(r.call("heavy", "XR", true, 0, false) == "XF", "L H L L H: Fault Line")
 	_check(r.call("light", "EA", true, 0, false) == "XS", "Dash L H H L: Steam Burst")

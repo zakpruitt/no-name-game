@@ -560,8 +560,9 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 			return _tow(hero, at, fwd, TOW_DAMAGE * power)
 		"XR":
 			var n := _rockslide(hero, at, fwd, power * hero.HERO_MOVES.plunge_mult(hero))
-			for e: Variant in hero._void.buried:
-				mark(e, "buried")
+			if Kit.has("rockslide_payoff"):  # (kit grammar: the buried state is an upgrade; the step to Fault Line stays)
+				for e: Variant in hero._void.buried:
+					mark(e, "buried")
 			return n
 		"XF":
 			return _fault_line(hero, at, fwd, power)
@@ -1029,7 +1030,7 @@ static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 		var up: bool = e.is_airborne()
 		var to := _flat(spot - e.global_position)
 		var kb: Vector3 = (to.normalized() * ROCKSLIDE_IN if to.length() > 0.6 else Vector3.ZERO) + Vector3.DOWN * ROCKSLIDE_DOWN
-		e.take_hit(ROCKSLIDE_DAMAGE * power * (ROCKSLIDE_AIR_MULT if up else 1.0), kb, 0.0, true)
+		e.take_hit(ROCKSLIDE_DAMAGE * power * (ROCKSLIDE_AIR_MULT if up and Kit.has("rockslide_payoff") else 1.0), kb, 0.0, true)
 		Game.register_hit("cast")
 		if up:
 			hero._void.buried.append(e)

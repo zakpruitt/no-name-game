@@ -233,14 +233,17 @@ const AIR_DASH_CUT := {"damage": 3.0, "radius": 3.0, "arc": 150.0, "time": 0.16}
 ## Lights run the weapons: axe, spear, hammer. H (right click) is the tentacle:
 ## what it does off a weapon depends on that weapon's element, on its own it's the grab (void_element.gd).
 ## L off Updraft Lash goes into the air, L off the grab flails what it holds, H off a dash is Tow Line.
+## The kit grammar's upgrade gate (KitSlots.open, Kit.has): a demoted move (Storm Pitch, Dash H L) is reached only
+## with its upgrade on; without it the press goes on as if the move weren't in the table (Dash H L: Tow Line, Slice).
 static func void_route(kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
 	if kind == "light":
-		if attacking and VOID_ELEMENT.LIGHT_AFTER.has(from):
+		if attacking and VOID_ELEMENT.LIGHT_AFTER.has(from) and KitSlots.open(VOID_ELEMENT.LIGHT_AFTER[from]):
 			return VOID_ELEMENT.LIGHT_AFTER[from]
 		return "DL" if post_dash else LIGHT_CHAIN[chain % LIGHT_CHAIN.size()]
 	if post_dash and not attacking:
 		return VOID_ELEMENT.DASH_MOVE
-	return VOID_ELEMENT.heavy_after(from, attacking)
+	var id := VOID_ELEMENT.heavy_after(from, attacking)
+	return id if KitSlots.open(id) else VOID_ELEMENT.NEUTRAL
 
 
 ## void_route(), plus the vault: while his frost spear stands, either press takes him up over it.
@@ -489,6 +492,9 @@ static func option(hero: CharacterBody3D, kind: String, id: String, hold := fals
 	var pay := pays(hero, id)
 	if pay != "":
 		o.pay = pay
+	var role := KitSlots.tag_of(id)  # (the kit slot's one word: launch, payoff, cross, step...)
+	if role != "":
+		o.role = role
 	if o.tier < 3 and not hold:
 		var best := 0
 		for k: String in ["heavy", "light"]:  # heavy first: wins ties
