@@ -910,3 +910,19 @@ needs a dual, but only when its truly compelling and awesome." `scripts/breaker_
 - [x] Clips: `awaken-combo-clips/29 Breakers *` (Meteor Shower, Pinwheel, Tempest; filmed on top of breaker-spectacle)
 - [ ] Zak's call: Pinwheel's wall splat lands on the top edge of the frame under the breaker callout banner (camera lean
   cap 3.5 m); Meteor Fall and Meteor Shower share the magma colour, so the prompt's two chips are both orange
+
+## Round 48 b (breaker-spectacle: every breaker ending as a flashy comic beat)
+Zak: "start refining the breakers to be really flashy and awesome", with wind and lightning as the bar. See
+`docs/features/combo-breakers.md` "Round 48" and `docs/features/designed-fx.md` "Breaker spectacle".
+- [x] The window: the endings' colours charge round the ring; a press sweeps the chosen ending's colour round it; a PERFECT flashes white with gold rays; the chips are bigger so they read at 800x450; the hang gets focus lines and a vignette. The hang's length is unchanged.
+- [x] The landing, for every ending:
+  - the negative in the element's colours, with halftone and speed lines;
+  - a camera jolt and a crunch-then-exhale stop per family;
+  - a burst behind the pile, speed lines (not for ice), a floor-wide spread and pillars shaking dust;
+  - after-beats on the struck (arcs, smoke, mist, wisps);
+  - one banner with the ending's name and its total.
+  - Sheets: `tools/vfx_gen/gen_spectacle.py`. Check: `tests/breaker_spectacle_check.gd`.
+- [x] Clips: `awaken-combo-clips/30 Spectacle *` (before / after boards and side-by-side clips)
+- [ ] Shatterstorm and Slapshot's banner shows the name only: their damage lands later, through the blocks.
+- [ ] Wall-splat stars are not clearly verified on film: the palm's splat sits at the frame's edge.
+- [ ] Zak: Cold Front's and Flash Freeze's small blue spoked stars (existing ice hit pops, in the before film too) may read as crystals

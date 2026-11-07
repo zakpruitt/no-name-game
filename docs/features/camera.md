@@ -122,3 +122,13 @@ count out to `FRAME_CUE_RANGE` and ease at `FRAME_CUE_OUT` with the `FRAME_CUE_L
 (L L L H H, frames 036-046 of `string_film -- --from=11 --to=11`): the splatted dummy and its ring sit whole inside
 the frame through the hang and the dive; for ~0.25 s after the splat (Undertow's start) it is still at the edge while
 the view eases out.
+
+## Breaker landing jolt (round 48, breaker-spectacle lane)
+
+`camera_rig.jolt(amount, hz, decay, axis)` is a damped cosine shake along a screen axis, in metres at `REF_DIST`
+scaled by the distance, capped at `JOLT_MAX` 0.9, and added to `h_offset` / `v_offset` on real time. It is separate
+from `trauma`, so the noise shake and the jolt stack. `designed_breaker.landing()` calls it with the family's `FEEL`
+(storm 22 Hz sideways, magma 9 Hz down, ice 15 Hz short, dark 6.5 Hz slow), together with an FOV snap
+(`fov_punch`, `FOV_ENDER` x1.2-1.6) and `Game.slam_stop()`. That last one is two stacked hitstops: a crunch freeze at
+`CRUNCH_SCALE` 0.02, then a slow tail at the family's `tail_scale` (clamped 0.1-0.49 so the hitstop check reads it as
+slow-mo, not a freeze), with the total capped at `SLAM_STOP_MAX` 0.25 real s. Check: `tests/camera_feel_check.gd`, `tests/hitstop_check.gd`.

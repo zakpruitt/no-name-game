@@ -327,3 +327,59 @@ Skipped, single on purpose (each stays one ending):
 - **Eruption**: Ash Rain (they hang burning) repeats Eruption's launch, and Meteor Shower now owns fire from above.
 
 Bot strings: `spread alt L L L H H` (Meteor Shower), `wall alt L L H D H H L` (Pinwheel), `alt L H L H` (Cold Front).
+
+## Round 48: breaker spectacle (breaker-spectacle lane)
+
+Zak: "start refining the breakers to be really flashy and awesome", with the wind and lightning effects as the bar.
+The work is the presentation round every ending, from take-off to landing; the endings themselves (hero_leap,
+void_element) are the breaker-pairs lane's. The hang stays ~0.6 s real, and every beat runs on real time.
+
+### Presentation
+
+**The window** (`breaker_prompt.gd`):
+- While the window is live, short dashes in the endings' colours race round the ring (`CHARGE_DASHES`).
+- The chips are bigger and on a darker back (`NAME_SIZE` 24, `CHIP_KEY_H` 25, `CHIP_BACK` 0.72), so two endings read at 800x450.
+- A press sweeps the chosen ending's colour round the ring (`SWEEP_S` 0.1).
+- A PERFECT adds a white flash disc, `PERFECT_RAYS` inked gold rays and a fat gold ring, and holds for `PERFECT_OUT` 0.34 s.
+- The screen (`designed_breaker.Screen`) adds the `hang_focus` speed lines and a vignette. They show at a quarter strength from take-off, come to full strength when the window opens, and go on the press.
+- The floor cue stays the quieter paper one.
+
+**The landing** (`designed_breaker.landing()`, fired by `impact_frame.gd` when `breakers_landed` goes up; no gameplay file calls it):
+- **Impact frame.** `impact_frame.slam(perfect, hero)` replaces the cream negative with one in the element's colours: the paper mixed with the element body, halftone dots, and radial speed lines from the hero's spot on screen. It lasts 0.07 s held plus a 0.1 s fade.
+- **Camera.** `camera_rig.jolt()` gives a damped shake along a per-family axis and frequency, plus an FOV snap. `Game.slam_stop()` gives the landing's stop its shape: a crunch freeze, then a short slow exhale. Per-family values are in `FEEL`:
+  - storm: a sideways buzz;
+  - magma: a downward thud and rumble;
+  - ice: short and hard;
+  - dark: a slow sink.
+  - A perfect is 1.25x.
+- **Burst.** After `BEAT_S`, a burst stands behind the pile, depth-tested so the foes stay in front: `slam_star` (storm), `slam_magma`, `slam_frost` (a frost cloud, no crystals) or `slam_ink`. `slam_rays` speed lines are thrown out with it.
+- **Floor spread.** `floor_arcs`, `floor_cracks` or `floor_splat` spreads across the floor.
+- **Pillars.** Pillars within 8 m shake dust off their tops.
+- **After-beats.** After `AFTER_S`, each struck foe gets one: arcs crackling (storm), smoke curling (magma), cold mist (ice) or dark wisps (dark).
+- **Wall splats.** A foe splatting a wall in the second after a landing gets a drawn `wall_star`, a pillar shake and a small jolt.
+- **Callout.** The ending's name and its total go up as one banner (`callout_panel`) at the top centre, in the element's colours (a perfect adds a gold "PERFECT!" tag).
+  - The total is comic_number's breaker total, including the hang's chain hits. The banner takes it over and hides the 3D number.
+  - `callout_cap`'s breaker label keeps its placement but goes invisible.
+
+Endings that want an extra beat can call `DESIGNED_BREAKER.burst()`, `spread()`, `after_beat()` or `wall_star()`
+themselves. All of it sits behind `DESIGNED.on()`; `--fx=classic` plays the old landing.
+
+### Film (36 bot strings, `string_film -- --dir=spectacle_a|b|c`)
+
+The before film had these problems:
+- Every ending landed in the same cream negative.
+- Collapse, Abyss, Black Ice, Eruption, Anvil and Flash Freeze landed small: a few spikes or pops round a word.
+- The name sat in a small cap, apart from the pile's number.
+- The hang showed nothing more than the ring.
+
+After the change:
+- Every ending lands as one big element burst with floor spread and after-beats, under one name-and-total banner.
+- The weakest six read as big as Grounded and Meteor Fall. Grounded and Meteor Fall keep their own lightning and meteor.
+- Meteor Shower and Pinwheel (breaker-pairs) got all of it with no change.
+- Ice lands without speed lines: in the ice colours they read as crystal spikes.
+
+Clips: `awaken-combo-clips/30 Spectacle *`.
+
+Open items:
+- Shatterstorm and Slapshot show their name only: their damage lands later, through the blocks, after the banner's 0.4 s window.
+- The wall-splat star is not clearly seen on film: Molten Palm's splat sits at the frame's edge.

@@ -586,3 +586,23 @@ Clips: `awaken-combo-clips/27 Polygons *` (before / after contact sheets).
 Still polygons: `callout_cap` (a HUD-like word cap, not an effect drawing), `comic_axe_aura` (off in designed), the
 purple radial wedges round the hero on some breaker leaps (seen on film, source not traced), `Fx.chain_spark` halos past
 the caps. Unverified on film: the drag mark (no frame caught it clearly) and the claw lash's turn flare.
+
+## Breaker spectacle (round 48, breaker-spectacle lane)
+
+Every breaker landing is one shared comic beat in the element's shape language. Code: `scripts/designed_breaker.gd`; screen shader: `shaders/designed_canvas.gdshader` (a designed sheet on a canvas item, with the five tones as uniforms and a `band` sub-rect). Sheets: `python tools/vfx_gen/gen_spectacle.py` (`--out=` for a preview dir; slow, ~5 min). See `docs/features/combo-breakers.md` "Round 48" for the beats.
+
+| Sheet | Kind | What |
+|---|---|---|
+| `slam_star` | sprite_depth | storm: a spiky lightning star with zigzag arcs, halftone body |
+| `slam_magma` | sprite_depth | magma: a lumpy blast with ember blobs |
+| `slam_frost` | sprite_depth | ice: a wavy frost cloud with halftone dots and thin cold glints (no crystals) |
+| `slam_ink` | sprite_depth | dark: an ink splash with drips and tendrils |
+| `slam_rays` | sprite | radial speed lines with a clear middle |
+| `floor_arcs` / `floor_cracks` / `floor_splat` | ground | the floor-wide spread: arcs, cracks, an ink splat |
+| `wall_star` | sprite | the drawn impact star on a wall splat |
+| `smoke_curl` | sprite_depth | the after-beat's curl (dust / water / void rows: smoke, mist, wisps) |
+| `hang_focus` | screen | the hang's focus lines |
+| `callout_panel` | screen | the callout banner (drawn across y 0.27-0.71 of the frame) |
+
+Coverage (`tests/fx_coverage.py`, the full 32-string film): per HIT frame, mean 0.063-0.081 -> 0.070-0.088 and max 0.171 -> 0.327 over the three ranges. The landing's frames +1..+10, which the tool does not score, have a mean peak of 0.123 -> 0.187 and a max of 0.179 -> 0.327 (Meteor Shower). Budget 0.40. Maw's ink splat was 0.409 at full size, so the dark floor splat is drawn at 0.72 (`LOOK.dark.floor_size`).
+Clips: `awaken-combo-clips/30 Spectacle *`.
