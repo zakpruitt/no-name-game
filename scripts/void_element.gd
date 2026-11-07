@@ -171,6 +171,9 @@ const SLIDE_SPIN := 2.0  # radians/s: a slide, not a throw
 const SLIDE_FIST_PAST := 0.4  # m the fist reaches past the row's near face
 const SLIDE_CUE_MS := 1400  # real ms the sliding cubes count for the camera's framing (camera_rig.FRAME_CUE)
 const CAMERA_CUE := &"frame_cue_ms"  # (camera_rig.FRAME_CUE)
+## Feel audit 3 item 6: a foe Molten Palm carries to a wall is cued for the framing this long (real ms), through
+## Undertow and Meteor Fall's hang (camera_rig frames cued foes in a hang), so the splat and the dive stay on screen.
+const PALM_CUE_MS := 2600
 const CUBE_DAMAGE := 22.0
 const BOWL_REACH := 7.0  # m: how far it'll take a foe from
 const BOWL_LENGTH := 12.0  # m it flies
@@ -700,6 +703,8 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 		Game.register_hit("cast")
 		if not hero._void.is_heavy(e) and e.is_alive():
 			var walled: bool = THROWN.clear_from(hero, e, e.global_position, fwd, PALM_WALL_REACH) < PALM_WALL_REACH
+			if walled:
+				e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + PALM_CUE_MS)
 			THROWN.launch(hero, e, e.global_position + fwd * (PALM_WALL_REACH if walled else PALM_SHOVE), PALM_SPLAT * power,
 				{"quiet": true, "solid": false, "el": "earth", "speed": PALM_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
 	return foes.size()

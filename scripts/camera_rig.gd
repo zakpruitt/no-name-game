@@ -119,6 +119,10 @@ const AIM_HEIGHT := 0.8
 # hang's push-in through the rise, the window and the dive. (Round 36's HANG_FRAME_* pull-out for Meteor Fall's wall
 # throw and gather went with those beats in round 42: the meteor now dives straight onto a group.)
 const HANG_SETTLE := 3.0  # per real second
+## Feel audit 3 item 6: a cued foe still counts in a hang (only cued ones: a foe merely hit keeps him centred), so
+## Meteor Fall's hang frames the wall splat Molten Palm cued (void_element.PALM_CUE_MS) and the dive onto it; it
+## sat in the top-left corner, half off frame, for the whole hang. Cued foes count this far out (the palm's carry).
+const FRAME_CUE_RANGE := 17.0
 
 
 func _ready() -> void:
@@ -230,14 +234,14 @@ func _process(delta: float) -> void:
 		goal.y = _lift + AIM_HEIGHT
 		_frame_fight(goal, hanging)
 		var lean_rate := (FRAME_CUE_OUT if _cued else FRAME_OUT) if _lean_to.length() > _lean.length() else FRAME_BACK
-		if hanging:
+		if hanging and not _cued:
 			lean_rate = HANG_SETTLE
 		_lean = _lean.lerp(_lean_to, 1.0 - exp(-lean_rate * real_delta))
 		goal += _lean
 		var speed := follow_speed * (3.0 if _zoom_to != 1.0 else 1.0)  # keep up while zoomed
 		global_position = global_position.lerp(goal, 1.0 - exp(-speed * delta))
 	var frame_rate := (FRAME_CUE_OUT if _cued else FRAME_OUT) if _frame_to > _frame else FRAME_BACK
-	if hanging:
+	if hanging and not _cued:
 		frame_rate = HANG_SETTLE
 	_frame = lerpf(_frame, _frame_to, 1.0 - exp(-frame_rate * real_delta))
 	trauma = maxf(trauma - trauma_decay * delta, 0.0)
@@ -274,8 +278,8 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 	_frame_to = 1.0
 	_lean_to = Vector3.ZERO
 	_cued = false
-	if frame_max <= 1.0 or hanging:
-		return  # (a hang: the rise, the window and the dive keep him centred in its push-in)
+	if frame_max <= 1.0:
+		return  # (a hang: the rise, the window and the dive keep him centred in its push-in, cued foes aside)
 	var now := Time.get_ticks_msec()
 	var hero := target.global_position
 	var pts: Array[Vector3] = []
@@ -286,10 +290,10 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 			continue
 		var hit_ms: Variant = foe.get("last_hit_ms")
 		var cued: bool = int(foe.get_meta(FRAME_CUE, 0)) > now
-		if not cued and (not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS):
+		if not cued and (hanging or not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS):
 			continue
 		var at: Vector3 = foe.global_position
-		if at.distance_to(hero) > FRAME_RANGE:
+		if at.distance_to(hero) > (FRAME_CUE_RANGE if cued else FRAME_RANGE):
 			continue
 		pts.append(at)
 		_cued = _cued or cued
