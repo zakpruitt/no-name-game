@@ -1472,7 +1472,8 @@ func _three_elements() -> void:
 	hp_ice = ice.hp
 	hp_warm = warm.hp
 	el.breaker_impact(hero, be, Vector3(0, 0, 1), [], 1.0)
-	_check(hp_ice - ice.hp > (hp_warm - warm.hp) * 1.9 and ice.last_launch > 0.0, "Eruption throws them up, the molten hardest (%.0f vs %.0f)" % [hp_ice - ice.hp, hp_warm - warm.hp])
+	await create_timer(0.8).timeout  # (round 52: the fuse reaches each, the geyser heaves it, the column drops it)
+	_check(hp_ice - ice.hp > (hp_warm - warm.hp) * 1.7 and ice.last_kb.y < 0.0, "Eruption heaves them and drops them back (no wall), the molten hardest (%.0f vs %.0f)" % [hp_ice - ice.hp, hp_warm - warm.hp])  # (1.4 / 0.7 on each beat; the frozen / airborne payoffs blur it)
 	ice.free()
 	warm.free()
 	floor_ice.free()

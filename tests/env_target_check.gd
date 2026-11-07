@@ -40,6 +40,7 @@ func _initialize() -> void:
 	_beats()
 	await _pillar_slam()
 	await _foe_picks()
+	await _cool2_picks()
 	if _fails.is_empty():
 		print("[env] PASS")
 	else:
@@ -324,6 +325,60 @@ func _foe_picks() -> void:
 		main._dummies[i].home = homes[i]
 		main._dummies[i].global_position = homes[i]
 	print("  foe picks: switches %d" % env.switches)
+
+
+## Round 52 cool pass (combo-cool2): the windows that pick by hand. Eruption's (Meltdown's) marks the wall the geysers
+## hurl at; Flash Freeze's (Steam Burst's) a foe, the shell that breaks first, the cursor switching it.
+func _cool2_picks() -> void:
+	var a: Node3D = main._dummies[0]
+	var b: Node3D = main._dummies[1]
+	var homes: Array = main._dummies.map(func(d: Node3D) -> Vector3: return d.home)
+	hero.set_physics_process(false)
+	hero.state = hero.State.LEAP
+	hero._brk_phase = 0
+	hero._brk_locked = false
+	# Eruption: landing 3 m off the back wall
+	hero.global_position = Vector3(-2, 0, -11)
+	hero._brk_id = "XM"
+	hero._brk = VE.entry("XM")
+	hero._brk_zone = Vector3(-2, 0, -12)
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "eruption" and env.current.get("state", "") == "target", "Eruption's window: the bracket on the structure the geysers hurl at (%s)" % str(env.current.get("ctx")))
+	var p: Dictionary = VE.pinwheel_target(hero, hero._brk_zone, "eruption", VE.ERUPT_REACH)
+	_check(p.get("found", false) and p.s.id == env.current.s.id, "and the ending reads that pick")
+	# Flash Freeze: two in the steam's reach, the auto one the nearest the landing; the cursor on the other
+	hero._brk_id = "XS"
+	hero._brk = VE.entry("XS")
+	hero.global_position = Vector3(0, 0, 2)
+	hero._brk_zone = Vector3(0, 0, 0.5)
+	a.global_position = Vector3(0, 0, -0.5)
+	b.global_position = Vector3(2.5, 0, -1.5)
+	a.home = a.global_position
+	b.home = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "flash_freeze" and env.current.s.get("node") == a and not env.current.chosen,
+		"Flash Freeze's window: the bracket on the shell nearest the landing (%s)" % str(env.current.get("ctx")))
+	env.test_cursor = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.s.get("node") == b and env.current.chosen and ENV.picked_foe(hero, "flash_freeze") == b, "the cursor picks the other to break first")
+	var g: Node3D = VE.flash_freeze_dive(hero)
+	hero.remove_meta(VE.FF_META)
+	g.shatter(ENV.picked_foe(hero, "flash_freeze"))
+	_check(g.chain.size() >= 2 and g.chain[0] == b, "the break starts on the picked shell (%d in the chain)" % g.chain.size())
+	g.queue_free()
+	env.test_cursor = Vector3.INF
+	hero.state = hero.State.MOVE
+	hero._brk = {}
+	await physics_frame
+	await physics_frame
+	hero.set_physics_process(true)
+	for i in main._dummies.size():
+		main._dummies[i].home = homes[i]
+		main._dummies[i].global_position = homes[i]
+	await create_timer(0.6).timeout
 
 
 func _until(cond: Callable, timeout: float) -> void:

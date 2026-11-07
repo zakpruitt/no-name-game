@@ -174,7 +174,71 @@ func _cool_pass() -> void:
 	_check(dealt.coll_crowd > dealt.abyss_crowd * 1.2, "a crowd: Collapse beats Abyss (%.0f vs %.0f)" % [dealt.coll_crowd, dealt.abyss_crowd])
 	# (Abyss against Uproot, its LMB, the env-pieces lane's pair: here since void_arm_check is at the 180 s cap)
 	await _uproot_pair(ve)
+	await _cool2(ve)
 	hero.bot_enabled = false
+
+
+## Round 52 cool pass (combo-cool2): Eruption (XM, off Hailstorm -> Meltdown) against Flash Freeze (XS, off Steam
+## Burst), the two endings Dash L H H leads to. Three burning foes by a wall: Eruption hurls them into it (best), and
+## beats Flash Freeze there; a crowd of four in the open: Flash Freeze's chain of shells (best) beats Eruption, which
+## only drops them back into the floor (its worst).
+func _cool2(ve: GDScript) -> void:
+	var dealt := {}
+	var three := [Vector3(0, 0, 2.5), Vector3(1.3, 0, 2.2), Vector3(-1.2, 0, 2.8)]
+	var four := [Vector3(0, 0, 2.5), Vector3(1.4, 0, 2.2), Vector3(-1.3, 0, 2.8), Vector3(0.4, 0, 4.0)]
+	for case: String in ["erupt_wall", "ff_wall", "erupt_open", "ff_open", "erupt_open3"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		hero.model.position.y = 0.0
+		var wall: StaticBody3D = _wall(Vector3(0, 1, 8.0)) if case.ends_with("wall") else null
+		var foes: Array = []
+		for p: Vector3 in (four if case.ends_with("open") else three):
+			foes.append(_foe(p))
+		for f: Foe in foes:
+			ve.encase(f)
+		await _settle()
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		var landed: int = hero.breakers_landed
+		if case.begins_with("erupt"):
+			hero._start_attack("XG")
+			await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+			await _until(func() -> bool: return hero.HERO_MOVES.progress(hero) >= hero._move.cancel, 2.0)
+			for f: Foe in foes:
+				f.up = true
+			hero._start_attack("XM")
+		else:
+			hero._start_attack("XS")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 4.0)
+		for f: Foe in foes:
+			f.up = false
+		var name: String = hero.HERO_LEAP.breaker_name(hero)
+		_check(name == ("Eruption" if case.begins_with("erupt") else "Flash Freeze"), "%s: the window opens on its ending (%s)" % [case, name])
+		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
+		await _until(func() -> bool: return hero.breakers_landed > landed, 4.0)
+		_check(hero.breakers_landed > landed, "%s: lands" % case)
+		await create_timer(1.6).timeout
+		for i in 20:
+			await physics_frame
+		var sum := 0.0
+		for i in foes.size():
+			sum += before[i] - foes[i].hp
+		dealt[case] = sum
+		if case == "erupt_wall":
+			_check(foes.all(func(f: Foe) -> bool: return ve.wall_fresh(f) and absf(f.global_position.y) < 0.05 and ve.marked(f, "molten")),
+				"Eruption hurls every one into the wall, and they slide down it burning (%s)" % str(foes.map(func(f: Foe) -> String: return "%.1f/%.1f" % [f.global_position.z, f.global_position.y])))
+		if case == "ff_open":
+			_check(foes.all(func(f: Foe) -> bool: return f.hits >= 2 and not ve.in_cube(f)), "Flash Freeze sets a shell on all four and breaks every one (%s)" % str(foes.map(func(f: Foe) -> int: return f.hits)))
+		_check(foes.all(func(f: Foe) -> bool: return absf(f.global_position.y) < 0.05 and not f.has_meta("thrown_foe_flying")), "%s: all back on the floor" % case)
+		for f: Foe in foes:
+			f.free()
+		if wall != null:
+			wall.free()
+		await _settle()
+	print("  eruption vs flash freeze: three by a wall %.0f / %.0f, four in the open %.0f / %.0f, eruption three in the open %.0f" % [dealt.erupt_wall, dealt.ff_wall, dealt.erupt_open, dealt.ff_open, dealt.erupt_open3])
+	_check(dealt.erupt_wall > dealt.ff_wall * 1.3, "by a wall: Eruption beats Flash Freeze (%.0f vs %.0f)" % [dealt.erupt_wall, dealt.ff_wall])
+	_check(dealt.ff_open > dealt.erupt_open * 1.2, "a crowd in the open: Flash Freeze beats Eruption (%.0f vs %.0f)" % [dealt.ff_open, dealt.erupt_open])
+	_check(dealt.erupt_wall > dealt.erupt_open3 * 1.6, "Eruption by a wall out-damages it in the open (%.0f vs %.0f)" % [dealt.erupt_wall, dealt.erupt_open3])
 
 
 ## Abyss / Uproot (OW, round 51 env-pieces): a big foe 4 m from a pillar with one more on the line the pillar falls
