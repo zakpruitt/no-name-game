@@ -59,6 +59,12 @@ const CTX := {
 	# instead: mode "hook"); brazier_spill, the lit brazier Lava Leash's seam will tip
 	"gallows": {"el": "void", "choose": true, "far": false, "kinds": ["hook", "wall", "pillar"]},
 	"brazier": {"el": "earth", "choose": false, "far": false, "kinds": ["brazier"]},
+	# round 54 cool pass 3 (combo-cool3): Reap's hook (who the line yanks in), Singularity's hole (the foe the held one is
+	# slammed onto, the hole opening under it), Frost Spear's plant (the foe it is thrown at)
+	"reap": {"el": "void", "choose": true, "far": false},
+	"singularity": {"el": "void", "choose": true, "far": false},
+	"spear": {"el": "water", "choose": true, "far": false},
+	"cold_front": {"el": "water", "choose": true, "far": false},  # Live Wire air's window (LMB): where the cubes bowl
 	"tow": {"el": "void", "choose": true, "far": false},  # Tow Line (Dash H) before its hit: a foe, the one they're yanked into  # Steam Burst's window: a foe, the shell that breaks first
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
@@ -509,6 +515,8 @@ func context(h: CharacterBody3D) -> Dictionary:
 			var conducting := _conduct_ctx(h, me, key)
 			if not conducting.is_empty():
 				return conducting
+		if alt.has("cubes"):  # round 54 cool pass 3: the wall or pillar Cold Front's cubes bowl into
+			return {"ctx": "cold_front", "from": me, "reach": ve.COLD_REACH, "mode": "near", "key": key}
 		if b.has("meteor"):
 			var spot: Dictionary = ve.meteor_spot(h, false)
 			if spot.found:
@@ -543,6 +551,9 @@ func context(h: CharacterBody3D) -> Dictionary:
 			return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare),
 				"key": "tow:%d" % h.get_instance_id()}
 		return {}
+	var mid_pick := _mid_ctx(h, me)  # round 54 cool pass 3: Reap's hook, Singularity's hole, Frost Spear's plant
+	if not mid_pick.is_empty():
+		return mid_pick
 	if h._move_id in ["EE", "XC"]:  # round 52: Live Wire and Galvanize bracket a conducting torch
 		var conducting := _conduct_ctx(h, me, mkey)
 		if not conducting.is_empty():
@@ -558,6 +569,40 @@ func context(h: CharacterBody3D) -> Dictionary:
 		return {}
 	if h._void.holds_for_slam():
 		return {"ctx": "pillar_slam", "from": me, "reach": PILLAR_SLAM_REACH, "mode": "near", "key": "grab:%d" % h.get_instance_id()}
+	return {}
+
+
+## Round 54 cool pass 3 (combo-cool3): the mids' foe picks, {} when none is live. Each opens in the move's start-up
+## (before its hit) and, like Tow Line's, already in the move before it once its press is buffered or the cursor is on
+## a foe (`need_choice`): Reap off the grab (H, then L), Frost Spear off Hurl (L L, then H). Singularity's opens in its
+## own start-up only (the grab held next to a pillar is the pillar slam's). Two or more foes in reach, or nothing.
+func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
+	var ve: GDScript = h.VOID_ELEMENT
+	var id: String = h._move_id
+	if id == "GR" and h._buffered == "light":
+		id = "VR"
+	elif id == "L2" and h._buffered == "heavy":
+		id = "IP"
+	elif h._hits_done > 0:
+		return {}
+	var key := "mid:%s:%d" % [id, h.get_instance_id()]
+	match id:
+		"VR":
+			var near: Array = ve.reap_candidates(h, me)
+			if near.size() >= 2:
+				return {"ctx": "reap", "from": me, "reach": ve.REAP_HOOK_REACH, "mode": "foe", "foes": near,
+					"auto": ve.reap_auto(h, me, h._facing()), "key": key}
+		"VS":
+			if h._void.holds_for_slam() and not pick(h, "pillar_slam", me, PILLAR_SLAM_REACH).get("found", false):
+				var near: Array = ve.sing_candidates(h, me)
+				if near.size() >= 1:
+					return {"ctx": "singularity", "from": me, "reach": ve.SING_PICK_REACH, "mode": "foe", "foes": near,
+						"key": key, "need_choice": true}
+		"IP":
+			var near: Array = ve.spear_candidates(h, me)
+			if near.size() >= 2:
+				return {"ctx": "spear", "from": me, "reach": ve.SPEAR_PICK_REACH, "mode": "foe", "foes": near,
+					"key": key, "need_choice": true}
 	return {}
 
 

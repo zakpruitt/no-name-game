@@ -138,6 +138,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	load("res://scripts/abyss_rise.gd").prewarm(root)  # round 51 cool pass: Abyss's column
 	load("res://scripts/eruption_hurl.gd").prewarm(root)  # round 52 cool pass: Eruption's fuse and wall drip
 	load("res://scripts/frost_shell.gd").prewarm(root)  # round 52 cool pass: Flash Freeze's steam
+	load("res://scripts/mid_beats.gd").prewarm(root)  # round 54 cool pass 3: Reap's hook
 	root.add_child(_mi(crescent(0.16), load("res://scripts/heretic_form_fx.gd").material()))  # the flat comic effects (bolts, stars, geysers)
 	root.add_child(_mi(crescent(0.16), load("res://scripts/frost_spear.gd").frost_material()))  # the frost spear's floor
 	root.add_child(_mi(funnel(0.3, 0.1, 0.5), swirl_mat(LOOK.wind.color)))
