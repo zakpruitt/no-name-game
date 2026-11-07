@@ -440,3 +440,53 @@ Clips: `awaken-combo-clips/30 Spectacle *`.
 Open items:
 - Shatterstorm and Slapshot show their name only: their damage lands later, through the blocks, after the banner's 0.4 s window.
 - The wall-splat star is not clearly seen on film: Molten Palm's splat sits at the frame's edge.
+
+## Round 51 cool pass (combo-cool lane): ranking against Lava Leash, Tempest and Pinwheel
+
+Zak: "the lava leash and tempest and pinwheel are amazing. but there's plenty others that could be also made amazing /
+cooler! feel free to incorporate effects or make more combos/breakers environment specific." Film: every bot string
+(`string_film -- --dir=cool_before --no-awaken`, 39/39 strings, 27 breakers), contact sheets from the hang to the
+landing. Each line scores the four things the bar has: a three-beat shape (setup, control, payoff), the tentacle or
+element visibly doing the control, a best situation you can read on screen, and a landing beat of its own (not only the
+shared spectacle burst). Weakest first; the first five were rebuilt (below the list).
+
+Endings:
+
+1. **Abyss** (hold H): the pin is a puddle under one foe, the dive sinks it out of sight under the hero, and the landing
+   is the same purple spike splat every dark ending ends on. No visible "under the floor", no tentacle in the payoff, and
+   its best situation (one big foe) does not show. 0 / 4.
+2. **Collapse** (H H): the hole shuts behind the pile and the landing is the shared purple spike burst; the throw into
+   a picked structure exists (round 50) but plays after the banner, from nowhere, and in the pillar film reads as three
+   numbers by the pillar. The tentacles do nothing in the payoff. 1 / 4 (the indicator).
+3. **Avalanche** (L L H L H): the cubes crushed into a heap is a good image, then one word and blue spoked spikes
+   (crystal-adjacent); every cube takes the same hit wherever the heap is. No best situation beyond "cubes exist". 1 / 4.
+4. **Eruption** (Dash L H H H L): the hang holds them on the floor and nothing happens in it; the landing is the
+   magma family's burst with the floor up under each; the molten bonus (x1.5 on the ones Meltdown lit) is invisible.
+   1 / 4.
+5. **Flash Freeze** (Dash L H H L): the steam freezes on them only in the last frames of the dive, the landing is the
+   generic shatter, and it reads as Black Ice or Cold Front again; "nothing about where they are picks it" (the pairs
+   audit). 1 / 4.
+6. **Maw** (H L H): the drag into the pool is good control (black tentacles you see), then jaws bite and the shared dark
+   splat; the payoff looks like Collapse and Abyss. 2 / 4.
+7. **Cold Front** (Live Wire air, LMB): the hang is Live Wire's (strong), the cubes form at the last frame and are thrown
+   under the impact frame, so the throw into neighbours is not seen. 2 / 4.
+8. **Black Ice** (H L H, LMB): the pool freezes into a fitted block (Zak's ice block) and his landing shatters it; the
+   shatter is the shared one. 2 / 4.
+9. **Anvil** (XW / XK, RMB): the kebab reeled up and driven into the floor reads, the landing is the generic magma burst;
+   Pinwheel carries the window. 2 / 4.
+10. **Worldbreaker** (L H L H, RMB): Live Wire's hang conducts through every tentacle (strong), the landing is generic.
+    3 / 4.
+11. **Cataclysm** (L H L L H, RMB): the fault cracks out to each and strikes read; landing generic beside Tempest. 3 / 4.
+12. **Ricochet** (counter): the hurl reads, the landing is the shared dark splat. 3 / 4.
+13. **Grounded** (L H H, RMB): lightning down every tentacle through the hang, strikes under each: near the bar. 3 / 4.
+14. **Short Circuit** (L H H, LMB): the arcs go out one by one, a link further each: near the bar. 3 / 4.
+15. **Shatterstorm** (Dash L H, RMB): thunder on each cube in turn: near the bar. 3 / 4.
+16. **Slapshot** (Dash L H, LMB): the fist punches the row into the marked wall: near the bar. 4 / 4 by a wall.
+17. **Meteor Shower** / **Meteor Fall** (L L L H H): fireballs per foe / the dive on the walled pile, designed meteor. 4 / 4.
+18. **Hellseam**, **Tempest**, **Pinwheel**: the bar.
+
+Moves (mids, enders, big moves, crossovers), for the record: Live Wire, Galvanize, Harpoon, Lava Leash, Molten Palm,
+Black Tide and Impale meet the bar's control beat (the tentacle or element visibly moving the foes); Deep Freeze,
+Updraft Lash, Fault Line, Backdraft and Undertow read; Overwhelm (one claw on one foe, no sense of "pinned"), Reap,
+Steam Burst (the steam is small) and Tow Line are the weakest mids but are not windows, so they stay (Overwhelm's look
+grows with Abyss below).
