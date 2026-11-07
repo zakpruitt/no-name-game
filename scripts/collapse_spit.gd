@@ -30,6 +30,15 @@ const WAVE := 0.06
 const CHEST := Vector3(0.0, 0.85, 0.0)
 const FLYING := "thrown_foe_flying"
 const LET_GO := 0.12  # s the tentacles draw back into the hole after their foe is spat
+## Round 52 (combo-cool2): each spit is its own beat. A fat ink crown thrown up out of the hole (`spit_burst`, BURST_SIZE m,
+## sprite, over the foe), a word each (void_element._collapse_spit), and the foe's own ink trail as it flies (the dark
+## breaker dive's comet on its model, comic_comet.gd: a streak behind it and a blot where it lands), TRAIL_S s at most.
+const BURST_SIZE := 3.4
+const BURST_TIMES := [0.035, 0.06, 0.06, 0.07, 0.08, 0.1]
+const BURST_UP := 0.6  # m over the hole's middle (it's a camera-facing sprite: drawn over the foe it spits)
+const TRAIL_S := 0.55
+const COMET := preload("res://scripts/comic_comet.gd")
+const TRAIL_COLOR := Color(0.55, 0.22, 0.95)  # (the dark's: comic_comet picks the ink smear by the nearest palette)
 
 var hero: CharacterBody3D
 var hole := Vector3.ZERO
@@ -37,6 +46,8 @@ var grabs := []  # {foe, heavy, t0, from, to, swallowed, spat, spit_t, tendril, 
 var on_swallow := Callable()  # (foe) it goes under
 var on_spit := Callable()  # (foe, i) it comes back out
 var spat := 0  # (checks)
+var bursts := 0  # (checks) spit_burst crowns thrown
+var _trails := []  # {foe, until}: spat foes trailing ink
 var _t := 0.0
 
 
@@ -44,6 +55,9 @@ static func register() -> void:
 	if not DESIGNED.extra_sheets.has("void_spit"):
 		DESIGNED.extra_sheets["void_spit"] = {"tex": load("res://assets/vfx/designed/void_spit.png"), "grid": Vector2(4, 2),
 			"frames": 7, "kind": "sprite_depth", "anchor": Vector2(0.0, -0.31)}
+	if not DESIGNED.extra_sheets.has("spit_burst"):
+		DESIGNED.extra_sheets["spit_burst"] = {"tex": load("res://assets/vfx/designed/spit_burst.png"), "grid": Vector2(3, 2),
+			"frames": 6, "kind": "sprite", "anchor": Vector2(0.0, -0.17)}
 
 
 static func prewarm(root: Node3D) -> void:
@@ -55,6 +69,11 @@ static func prewarm(root: Node3D) -> void:
 	mi.material_override = DESIGNED.material("void_spit")
 	root.add_child(mi)
 	mi.scale = Vector3.ONE * 20.0
+	var burst := MeshInstance3D.new()
+	burst.mesh = QuadMesh.new()
+	burst.material_override = DESIGNED.material("spit_burst")
+	root.add_child(burst)
+	burst.scale = Vector3.ONE * 20.0
 
 
 static func start(by: CharacterBody3D, at: Vector3, foes: Array, heavy: Callable) -> Node3D:
@@ -84,6 +103,10 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	var done := true
+	for tr: Dictionary in _trails:  # (the spat ones' ink trails, fed while they fly)
+		if _t < float(tr.until) and _alive(tr.foe) and (tr.foe as Node).has_meta(FLYING) and (tr.foe as Node).get("model") is Node3D:
+			done = false
+			COMET.beat(get_parent(), (tr.foe as Node).get("model"), TRAIL_COLOR)
 	for one: Dictionary in grabs:
 		var e: Variant = one.foe
 		var tendril: Node3D = one.tendril
@@ -142,8 +165,15 @@ func _spit(one: Dictionary) -> void:
 		e.global_position = Vector3(one.to.x, 1.4, one.to.z)  # (up out of the hole, chest high)
 	if on_spit.is_valid():
 		on_spit.call(e, int(one.i))
+	if not one.heavy:
+		_trails.append({"foe": e, "until": _t + TRAIL_S})
 	if DESIGNED.on() and Game.comic_style and is_inside_tree():
 		register()
+		bursts += 1
+		var crown: Node3D = DESIGNED.spawn(get_parent(), "spit_burst", hole + Vector3.UP * BURST_UP, BURST_SIZE * (1.0 if one.i == 0 else 0.85), "void", BURST_TIMES, Vector2(0.55, 1.0))
+		crown.real_until = 1
+		crown.pop = 0.18
+		crown.set_spin(0.0, -1.0 if int(one.i) % 2 else 1.0)
 		var fx: Node3D = DESIGNED.spawn(get_parent(), "void_spit", hole, SPIT_SIZE * (1.0 if one.i == 0 else 0.8), "void", SPIT_TIMES, Vector2(0.55, 1.0))
 		fx.real_until = 1
 		fx.set_spin(0.0, -1.0 if int(one.i) % 2 else 1.0)

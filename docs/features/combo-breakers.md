@@ -571,3 +571,19 @@ decides who takes the last, hardest link.
 
 The pair now splits on where they stand: same branch off Dash L H H (H for Hailstorm / Meltdown / Eruption, L for
 Steam Burst / Flash Freeze), Eruption if the crowd is by a wall, Flash Freeze if it is out in the open.
+
+**Collapse readability** (round 51's rebuild, same timings: `SPIT_FIRST` 0.36 s, `SPIT_STEP` 0.11 s). Each spit is
+now its own beat: a fat ink crown thrown up out of the hole (`spit_burst` sheet, `BURST_SIZE` 3.4 m, a pop on its first
+frame), a word a spit (the first "GLLRK-PTOOO!", then `COLLAPSE_SPIT_WORDS` "PTOO!" / "PTOOIE!" / "PTAH!", stepped up
+and down so they don't stack), and the spat foe's own ink trail as it flies (`comic_comet.beat` on its model for
+`TRAIL_S` 0.55 s: the dark dive's streak and the blot where it lands). Nothing got longer.
+
+**Foe picks on Meteor Fall and Tow Line** (environment.md "Foe picks"). Same bracket, cursor / right stick, auto default:
+- Meteor Fall: when the palm foes stand in two piles or more (`meteor_piles`, each `METEOR_PILE_R` 3 m), Undertow's
+  window puts the bracket on a foe of the pile he will dive on (auto: the default `meteor_spot`, the biggest / walled);
+  the cursor on a foe of another pile makes him dive there (`meteor_spot` keeps that foe's pile). One pile: the
+  structure pick (round 50) as before.
+- Tow Line (Dash H): before its hit, with two or more within `TOW_PICK_REACH` 7 m, the bracket is on the foe nearest
+  where the line yanks them (auto: the default throw, nothing changes). The cursor on another foe makes it the anchor:
+  it is snared where it stands (`TOW_ANCHOR_MULT` 0.6) and everyone on the line is yanked into it (`env_target.foe_chosen`:
+  only a cursor / stick choice moves the throw).

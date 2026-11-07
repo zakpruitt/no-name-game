@@ -342,6 +342,7 @@ const COLLAPSE_CUE_MS := 1400
 const COLLAPSE_SWALLOW_MULT := 0.3
 const COLLAPSE_SPIT_UP := 10.0
 const COLLAPSE_WORD := "GLLRK-PTOOO!"
+const COLLAPSE_SPIT_WORDS := ["PTOO!", "PTOOIE!", "PTAH!"]  # round 52: the spits after the first
 ## Round 51 cool pass, Avalanche: the dive stacks the cubes into a tower (aim_crush's stack slots), the landing crushes
 ## it (AVALANCHE_CRUSH of the damage each) and the tentacles push it over toward the structure the indicator marks
 ## within AVALANCHE_REACH of its foot (env_target "avalanche"), else away from him: each cube slides on off the falling
@@ -398,6 +399,11 @@ const TOW_NEAR := 5.0  # m round him, if nobody's on the line
 const TOW_AHEAD := 2.2  # m: where they're yanked to
 const TOW_DAMAGE := 18.0
 const TOW_SPEED := 26.0
+## Round 52 cool pass: Tow Line's snare picks. The bracket goes on the foe nearest where they're yanked to (the auto pick,
+## the default throw); the cursor on another foe within TOW_PICK_REACH makes it the anchor: it is snared where it
+## stands (TOW_ANCHOR_MULT) and everyone on the line is yanked into it.
+const TOW_PICK_REACH := 7.0
+const TOW_ANCHOR_MULT := 0.6
 const CARRY_DAMAGE := 22.0
 const CARRY_LENGTH := 9.0  # m it flies off a swing
 const FREEZE_TIME := ELEMENT_HOLD  # s (was 1.8): long enough for a dash and a magma move after it to steam them
@@ -1145,6 +1151,14 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 	var foes: Array = _tow_line(hero, at)
 	var to := at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD))
 	var n := 0
+	var anchor: Node3D = ENV.foe_chosen(hero, "tow")  # (round 52: the cursor's foe: they're yanked into it)
+	if anchor != null and _flat(anchor.global_position - at).length() <= TOW_PICK_REACH + 0.5 and not THROWN.flying(anchor):
+		foes.erase(anchor)
+		to = _flat(anchor.global_position)
+		anchor.take_hit(damage * TOW_ANCHOR_MULT, Vector3.ZERO, 0.0, true)
+		Game.register_hit("cast")
+		anchor.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 700)
+		n += 1
 	for e: Node3D in foes:
 		if hero._void.is_heavy(e):
 			e.take_hit(damage * 0.5, Vector3.ZERO, 0.0, true)
@@ -1153,6 +1167,26 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 			THROWN.launch(hero, e, to, damage, {"el": "void", "tether": true, "speed": TOW_SPEED, "land_y": 0.0})
 		n += 1
 	return n
+
+
+## Tow Line's snare candidates (round 52): who it takes, and anyone else the cursor may make the anchor.
+static func tow_candidates(hero: CharacterBody3D, at: Vector3) -> Array:
+	var out: Array = _tow_line(hero, at)
+	for e: Node3D in FOES.near(hero.get_tree(), at, TOW_PICK_REACH):
+		if not out.has(e) and not THROWN.flying(e):
+			out.append(e)
+	return out
+
+
+## The auto pick: of `snare`, the one nearest where Tow Line yanks them to.
+static func tow_auto(hero: CharacterBody3D, at: Vector3, snare: Array) -> Node3D:
+	var fwd: Vector3 = hero._facing()
+	var to := at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD))
+	var best: Node3D = null
+	for e: Node3D in snare:
+		if best == null or _flat(e.global_position).distance_to(to) < _flat(best.global_position).distance_to(to):
+			best = e
+	return best
 
 
 ## Who Tow Line takes: whoever's on the line he just dashed along, or near him if nobody is.
@@ -1951,15 +1985,34 @@ static func palm_fresh(e: Object) -> bool:
 
 ## meteor_target over the living foes round the hero that this string's Molten Palm hit (the ones it pressed into a
 ## wall among them, and worth more). Nobody else draws the dive; with none, he lands ahead of him.
-static func meteor_spot(hero: CharacterBody3D) -> Dictionary:
+static func meteor_spot(hero: CharacterBody3D, use_pick := true) -> Dictionary:
 	var at := _flat(hero.global_position)
-	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
-	var picked := ENV.chosen(hero, "meteor")  # (round 50: the cursor on a wall or pillar: the pile by it)
+	var foes: Array = meteor_candidates(hero)
+	var picked := ENV.chosen(hero, "meteor") if use_pick else {}  # (round 50: the cursor on a wall or pillar: the pile by it)
 	if not picked.is_empty():
 		var by: Array = foes.filter(func(e: Node3D) -> bool: return ENV.gap(picked, e.global_position) <= ENV.METEOR_NEAR)
 		if not by.is_empty():
 			foes = by
+	var pf: Node3D = ENV.picked_foe(hero, "meteor") if use_pick else null  # (round 52: the cursor on a foe: the pile it is in)
+	if pf != null and foes.has(pf):
+		foes = foes.filter(func(e: Node3D) -> bool: return _flat(e.global_position).distance_to(_flat(pf.global_position)) <= METEOR_PILE_R)
 	return meteor_target(at, foes.map(func(e: Node3D) -> Vector3: return e.global_position), foes.map(func(e: Node3D) -> bool: return wall_fresh(e)))
+
+
+## Who Meteor Fall may dive on: the living foes this string's Molten Palm hit, within METEOR_SPLAT_REACH of him.
+static func meteor_candidates(hero: CharacterBody3D) -> Array:
+	return FOES.near(hero.get_tree(), _flat(hero.global_position), METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+
+
+## How many piles `foes` stand in (each foe within METEOR_PILE_R of a pile's first one is in it): two or more and the
+## window's bracket goes on a foe, the pile to dive on (round 52 cool pass), not on the wall.
+static func meteor_piles(foes: Array) -> int:
+	var seeds: Array = []
+	for e: Node3D in foes:
+		var p := _flat(e.global_position)
+		if not seeds.any(func(s: Vector3) -> bool: return s.distance_to(p) <= METEOR_PILE_R):
+			seeds.append(p)
+	return seeds.size()
 
 
 ## The meteor lands: everyone within METEOR_PILE_R takes it, a crater under every one of them, more on the big ones
@@ -2437,8 +2490,8 @@ static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 static func _collapse_spit(e: Node3D, i: int, hero: Variant, spot: Vector3, wall: Dictionary, damage: float) -> void:
 	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
 		return
-	if i == 0:
-		ComicFx.say(COLLAPSE_WORD, spot + Vector3.UP * 2.4, ALT_FX.WALL_WORD_SIZE)
+	ComicFx.say(COLLAPSE_WORD if i == 0 else COLLAPSE_SPIT_WORDS[i % COLLAPSE_SPIT_WORDS.size()], spot + Vector3.UP * (2.4 + 0.35 * (i % 2)),
+		ALT_FX.WALL_WORD_SIZE * (1.0 if i == 0 else 0.8))  # (round 52: a word a spit, each its own beat)
 	Game.sfx("hit_big", -3.0, 0.12)
 	Game.hitstop(0.03)
 	if hero._void.is_heavy(e):
