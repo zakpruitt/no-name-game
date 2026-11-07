@@ -28,19 +28,30 @@ const HUD_INK := preload("res://scripts/hud_ink.gd")
 const GOLD := Color(1.0, 0.82, 0.3)
 const GREY := Color(0.42, 0.42, 0.46)
 const OUT_TIME := 0.22  # real s the press flash / lockout fade takes
-const NAME_SIZE := 19  # (18 for the lone name before round 43) each ending's name under the circle
+const NAME_SIZE := 24  # (19 in round 43; 18 for the lone name before) each ending's name under the circle: breaker
+# spectacle, the chips read at 800x450 (half the window, the film's size)
 const NAME_GAP := 7.0
 const MOUSE_W := 24.0  # px: the mouse glyph in the middle (round 43; was a "RMB" key)
 const MOUSE_H := 33.0
 const MOUSE_BTN := 14.0  # px tall, its two buttons
-const CHIP_KEY_H := 21.0  # each ending's key pill under the circle
-const CHIP_KEY_SIZE := 13
+const CHIP_KEY_H := 25.0  # each ending's key pill under the circle (21)
+const CHIP_KEY_SIZE := 15  # (13)
 const CHIP_GAP := 5.0  # px from a chip's key to its name
 const OR_TEXT := "or"
-const OR_SIZE := 15
+const OR_SIZE := 18  # (15)
 const OR_GAP := 9.0  # px either side of "or"
-const CHIP_BACK := 0.55  # alpha of the ink capsule behind the chips (they sat on Maw's purple pool unread)
-const CHIP_PAD := 7.0  # px of it round them
+const CHIP_BACK := 0.72  # alpha of the ink capsule behind the chips (0.55; they sat on Maw's purple pool unread)
+const CHIP_PAD := 8.0  # px of it round them
+## Breaker spectacle (docs/features/combo-breakers.md "Presentation"): the window is charged and the press lands.
+## In the window CHARGE_DASHES short arcs in the endings' colours race round outside the track. The press sweeps
+## the chosen ending's colour round the ring clockwise (SWEEP_S), and a PERFECT bursts: a white flash disc, then
+## PERFECT_RAYS inked gold rays thrown out of the circle and a fat gold ring.
+const CHARGE_DASHES := 8
+const CHARGE_SPIN := 5.0  # rad / real s
+const SWEEP_S := 0.1  # real s for the chosen colour to go round
+const PERFECT_OUT := 0.34  # real s a perfect's burst takes (OUT_TIME for the rest)
+const PERFECT_RAYS := 14
+const PERFECT_FLASH_S := 0.06
 const CHIP_REACH := 10.0  # px past the circle's right edge the chips may reach: the rest goes left, off the hero
 const PAPER := Color(1.0, 0.96, 0.85)  # the fill with two endings: neither colour until he picks
 const LABELS := {"light": "LMB", "heavy": "RMB"}  # (combo_guide.LABELS)
@@ -89,7 +100,7 @@ func _process(_delta: float) -> void:
 		_follow()
 	if _out >= 0.0:
 		_out += dt
-		if _out >= OUT_TIME:
+		if _out >= (PERFECT_OUT if _out_kind == "perfect" else OUT_TIME):
 			_shown = false
 			_out = -1.0
 	queue_redraw()
@@ -122,8 +133,9 @@ func _draw() -> void:
 	var a := 1.0
 	var col: Color = _w.color if opts.size() < 2 else PAPER
 	var scale := 1.0
+	var k := 0.0
 	if _out >= 0.0:
-		var k := _out / OUT_TIME
+		k = _out / (PERFECT_OUT if _out_kind == "perfect" else OUT_TIME)
 		a = 1.0 - k
 		match _out_kind:
 			"perfect":
@@ -155,10 +167,51 @@ func _draw() -> void:
 	if in_window and fill >= 1.0 and _out < 0.0:
 		pulse = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * 30.0)
 		draw_arc(c, r + WIDTH + 2.0 + 3.0 * pulse, 0.0, TAU, 48, Color(GOLD, 0.7 * (1.0 - pulse)), 2.0, true)
+	if in_window and _out < 0.0:
+		_charge(c, r, opts)
 	if _out >= 0.0 and _out_kind in ["perfect", "hit"]:
-		draw_arc(c, r + WIDTH + 18.0 * (_out / OUT_TIME), 0.0, TAU, 48, Color(col, a), 2.0, true)
+		_press(c, r, k, opts)
 	_mouse(c, a, opts, GOLD if in_window and _out < 0.0 else Color(1, 1, 1, 0.85), pulse)
 	_chips(c + Vector2(0.0, r + WIDTH * 0.5 + NAME_GAP), a, opts)
+
+
+## The window is open: short arcs in the endings' colours racing round outside the track (both, alternating, with two).
+func _charge(c: Vector2, r: float, opts: Array) -> void:
+	var spin := Time.get_ticks_msec() / 1000.0 * CHARGE_SPIN
+	var rr := r + WIDTH + 7.0
+	for i in CHARGE_DASHES:
+		var a0 := spin + TAU * i / CHARGE_DASHES
+		var oc: Color = (opts[i % opts.size()] as Dictionary).get("color", GOLD) if not opts.is_empty() else GOLD
+		draw_arc(c, rr, a0, a0 + TAU / CHARGE_DASHES * 0.45, 8, Color(HUD_INK.INK, 0.9), 5.0, true)
+		draw_arc(c, rr, a0, a0 + TAU / CHARGE_DASHES * 0.45, 8, oc.lerp(Color.WHITE, 0.2), 2.5, true)
+
+
+## The press: the chosen ending's colour sweeps round the ring; a PERFECT flashes white and bursts gold rays.
+func _press(c: Vector2, r: float, k: float, opts: Array) -> void:
+	var chosen := _chosen_color(opts, _w.get("color", GOLD))
+	var sweep := clampf(_out / SWEEP_S, 0.0, 1.0)
+	var fade := 1.0 - k
+	draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * sweep, 48, Color(HUD_INK.INK, 0.9 * fade), WIDTH + 5.0, true)
+	draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * sweep, 48, Color(chosen.lerp(Color.WHITE, 0.15), fade), WIDTH + 2.0, true)
+	if _out_kind != "perfect":
+		draw_arc(c, r + WIDTH + 18.0 * k, 0.0, TAU, 48, Color(chosen, fade), 2.5, true)
+		return
+	if _out < PERFECT_FLASH_S:  # the flash: a white disc over the circle
+		draw_circle(c, r * 1.25, Color(1.0, 1.0, 0.95, 0.9 * (1.0 - _out / PERFECT_FLASH_S)))
+	var e := 1.0 - pow(1.0 - k, 2.0)
+	for i in PERFECT_RAYS:
+		var ang := TAU * i / PERFECT_RAYS + 0.2
+		var r0 := r * lerpf(1.15, 1.6, e)
+		var r1 := r * lerpf(1.5, 2.6 + 0.5 * float(i % 2), e)
+		var w := lerpf(9.0, 3.0, e) * (1.0 if i % 2 == 0 else 0.7)
+		var dir := Vector2(cos(ang), sin(ang))
+		var side := Vector2(-dir.y, dir.x)
+		var ray := PackedVector2Array([c + dir * r0 + side * w * 0.5, c + dir * r1, c + dir * r0 - side * w * 0.5])
+		var ink := PackedVector2Array([c + dir * (r0 - 2.0) + side * (w * 0.5 + 2.0), c + dir * (r1 + 3.0), c + dir * (r0 - 2.0) - side * (w * 0.5 + 2.0)])
+		draw_colored_polygon(ink, Color(HUD_INK.INK, 0.9 * fade))
+		draw_colored_polygon(ray, Color(GOLD.lerp(Color.WHITE, 0.25 * (1.0 - e)), fade))
+	draw_arc(c, r + WIDTH + 26.0 * e, 0.0, TAU, 48, Color(HUD_INK.INK, 0.8 * fade), 6.0, true)
+	draw_arc(c, r + WIDTH + 26.0 * e, 0.0, TAU, 48, Color(GOLD, fade), 3.5, true)
 
 
 ## The endings on offer, left button first: the window's `options` (hero_leap.options()), or, for a window with
