@@ -11,6 +11,7 @@ const QUAKE := preload("res://scripts/breaker_quake.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const THROWN := preload("res://scripts/thrown_foe.gd")
 const LIVE_CURRENT := preload("res://scripts/live_current.gd")
+const ENV := preload("res://scripts/env_target.gd")
 
 const FOE_RANGE := 9.0  # m
 const ANCHOR_RANGE := 8.0  # m
@@ -51,6 +52,12 @@ const SLAM_TOP := 3.4  # m up
 const SLAM_AT := 2.6  # m ahead of him, where it lands
 const SLAM_REACH := 6.5  # m it can take a foe from
 const SLAM_RETRACT_END := 0.66
+## Round 50 (environment): H held through the slam's haul (SLAM_SHOOT_END) with a pillar's face within
+## env_target.PILLAR_SLAM_REACH smashes the foe into the pillar instead of the floor ahead (a route step of H H, not a
+## slot): PILLAR_SLAM_DAMAGE on it, a wall splat (Meteor Fall and the camera read it), the pillar's beat, and
+## Singularity's hole opens at the pillar's foot, so Collapse throws the rest into the same pillar.
+const PILLAR_SLAM_DAMAGE := 16.0
+const PILLAR_SLAM_GAP := 0.2  # m off the pillar's face, past the foe's radius
 const SWEEP_ARC := 1.2  # radians either side
 const SWEEP_REACH := 4.0  # m
 const CARRY_REACH := 4.5  # m: who he can snatch off a swing
@@ -98,6 +105,10 @@ var _target: Node3D  # the foe the tentacle has
 var _target_heavy := false
 var _from := Vector3.ZERO  # where the held thing started
 var _aim_at := Vector3.ZERO  # where it lands, or a whiff ends
+var _pillar_at := Vector3.INF  # the slam goes into a pillar here (round 50), else INF
+var _pillar_n := Vector3.ZERO
+var _slam_decided := false
+var pillar_slams := 0  # (checks)
 var _done := false  # the move's hit has happened
 var _time := 0.0
 
@@ -203,6 +214,8 @@ func _clear_target() -> void:
 func on_move(id: String, _prev: String) -> void:
 	arm.shape(VOID_ELEMENT.FORM_OF.get(id, ComicLook.HERO_MOVE_FORMS.get(id, "axe")))
 	_done = false
+	_pillar_at = Vector3.INF
+	_slam_decided = false
 	if id == "GR":
 		hero._face(_flat_to(_aim_at))
 	elif id == "VS":
@@ -317,8 +330,13 @@ func _begin_slam() -> void:
 
 func _tick_slam(t: float) -> void:
 	var hit: float = hero._move.hits[0]
+	if not _slam_decided and t >= SLAM_SHOOT_END:
+		_slam_decided = true
+		_decide_pillar()
 	var fwd: Vector3 = hero._facing()
 	var ground: Vector3 = hero.global_position + fwd * SLAM_AT
+	if _pillar_at != Vector3.INF:
+		ground = _pillar_at
 	var carried := _target_alive() and not _target_heavy
 	if _target_alive() and _target_heavy:
 		ground = _target.global_position
@@ -344,12 +362,50 @@ func _tick_slam(t: float) -> void:
 		tendril.draw(_hand_pos(), at + CHEST * 0.3, smoothstep(0.0, SLAM_SHOOT_END, t), 0.08, 0.0, _time)
 
 
+## The grab has a foe the slam can carry: the pillar slam's indicator shows (env_target "pillar_slam") from the grab's
+## hit until the slam decides.
+func holds_for_slam() -> bool:
+	if not _target_alive() or _target_heavy:
+		return false
+	if hero._move_id == "GR":
+		return hero._hits_done > 0
+	return hero._move_id == "VS" and not _slam_decided
+
+
+func pillar_slam_on() -> bool:
+	return _pillar_at != Vector3.INF
+
+
+## The slam's haul: H still held and a pillar in reach (the cursor's pick, else the nearest) sends it into the pillar.
+func _decide_pillar() -> void:
+	if not _target_alive() or _target_heavy or not Input.is_action_pressed("attack_heavy"):
+		return
+	var p := ENV.pick(hero, "pillar_slam", hero.global_position, ENV.PILLAR_SLAM_REACH)
+	if not p.get("found", false) or p.s.kind != "pillar":
+		return
+	var n: Vector3 = p.n
+	_pillar_n = n
+	_pillar_at = Vector3(p.at.x, 0.0, p.at.z) + n * (float(_target.radius) + PILLAR_SLAM_GAP)
+	var to := _flat_to(_pillar_at)
+	hero._face(to)
+	var reach: float = Vector3(_pillar_at - hero.global_position).length()
+	hero._move.range = maxf(hero._move.range, reach + 0.6)
+
+
 ## VS comes down this frame, before player._do_hit looks for what it struck.
 func slam_lands() -> void:
 	var fwd: Vector3 = hero._facing()
 	_aim_at = _target.global_position if _target_alive() and _target_heavy else hero.global_position + fwd * SLAM_AT
+	if _pillar_at != Vector3.INF:
+		_aim_at = _pillar_at
 	if _target_alive() and not _target_heavy:
 		_target.global_position = _aim_at
+		if _pillar_at != Vector3.INF:  # into the pillar: it takes the stone, and the pillar plays its beat
+			pillar_slams += 1
+			_target.take_hit(PILLAR_SLAM_DAMAGE * hero._dmg_mult, -_pillar_n * 2.0, 0.0, true)
+			_target.set_meta(THROWN.WALL_META, Time.get_ticks_msec())
+			Game.register_hit("VS")
+			ENV.impact(hero, _aim_at, -_pillar_n, "void")
 	_done = true
 
 
@@ -414,6 +470,8 @@ func seize(b := {}) -> void:
 		return
 	var at: Vector3 = hero.global_position
 	var foes: Array = reachable().filter(func(e: Node3D) -> bool: return not is_heavy(e) and not VOID_ELEMENT.THROWN.flying(e))
+	if b.has("only"):  # the dash counter's window (counter.gd): the attacker alone, big or not
+		foes = [b.only] if is_instance_valid(b.only) and b.only.is_alive() else []
 	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		if a.is_airborne() != b.is_airborne():
 			return a.is_airborne()

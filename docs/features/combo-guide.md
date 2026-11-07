@@ -149,7 +149,7 @@ Routing rules in `void_route()`, checked in order:
 - The autotest bot presses buttons with `Input.action_press`, which generates no `InputEvent`, so bot presses never flash rows. `_on_press(kind)` can be called directly if a test needs the flash.
 - `_box` is a single `StyleBoxFlat` reused for every pill. This works because `draw_style_box` issues its draw commands immediately. Don't cache draw commands that depend on it.
 - `combo_options()` treats `State.DASH` as "dashing" so the Dash Stab row shows during the dash itself. `void_route()` only receives `post_dash`, which is set when the dash ends; any buffered light press resolves then.
-- Pause MOVES list: draws `scripts/move_list.gd` `SECTIONS`, every input grouped by weapon and element (weapons, storm, ice, magma, dark). Each named combo shows how often it was landed this run. The panel scrolls (wheel, Page Up / Down, right stick). When you add a move, add its row there: `tests/move_list_check.gd` walks every row's input through `void_route()`, and fails if a move or combo is unlisted, `void_route()` reaches a move with no row, or a listed input starts the wrong move.
+- Pause MOVES list: draws `scripts/move_list.gd` `SECTIONS`. Since round 49 these are the kit grammar's slot groups (`group`: "1  LIGHT STRING" ... "10  AWAKENING", each with its role line from `KitSlots.GROUPS`), then ROUTE STEPS, UPGRADES and MIX ELEMENTS. Each move row ends with its slot's tag. An upgrade that is off (`Kit.has`, `move_list.row_locked()`) draws dim with "upgrade". A slot with no move yet shows "<slot>: pending" (`docs/features/kit-slots.md`). Each named combo shows how often it was landed this run. The panel scrolls (wheel, Page Up / Down, right stick). When you add a move, add its row there: `tests/move_list_check.gd` walks every row's input through `void_route()`, and fails if a move or combo is unlisted, `void_route()` reaches a move with no row, or a listed input starts the wrong move.
 - Found combos: the first time a named combo lands in a run, `player.combo_found` fires and the HUD hint shows "New combo: Live Wire  (L H H)  ·  5 / 16 found" for `hud.FOUND_HOLD` (skipped while a tutorial hint is up).
 - Learned combos: once a combo has been landed `player.GUIDE_LEARNED` (6) times in the run (`combos_landed`), `_option` stops offering it as a follow-up hint. Still open in ROADMAP: a feel pass by hand on placement against the fight.
 
@@ -167,7 +167,8 @@ off Impale the light row is Backdraft with Anvil behind it. With the frost spear
 Impale, Backdraft and Storm Pitch no longer turn into the vault (`VOID_ELEMENT.NO_VAULT`), so the guide's rows
 off them stay true while the spear is up.
 
-Third pass: the element matrix's payoffs aren't routes (they read a foe's state, `void_element.IMPROV`), so the guide
+Third pass: the element matrix's payoffs aren't routes (they read a foe's state; round 49: one rule per state,
+`void_element.RULES`, the old cells upgrades; the row tag is the rule's name, "+ Shatter", or an upgrade's), so the guide
 doesn't show them; the pause MOVES panel has an IMPROVISING section, one text row per cell (`move_list.gd`), whose
 inputs name the state and the element ("frozen, then dark") and so never route.
 
@@ -192,3 +193,12 @@ Fourth pass (round 4, finding the mixes): the rows say when a press mixes elemen
 - `guide_check._mixing()`: Rockslide's row off Air Slash says "storm > magma", L1's rows carry no tag, and a buried
   foe on Harpoon's line tags Harpoon's row off Dash Stab "+ Frozen In" until he faces away. The windowed sheet's second
   shot is Air Slash (the mix tag on Rockslide; was L2).
+
+## Round 49: the slot tag
+
+Each row now ends its name with the move's kit slot, in one small dim word (`role`, from `KitSlots.tag_of()` in
+`hero_moves.option()`; `ROLE_SIZE` 12, `ROLE_COLOR`). Examples: `launch` (Updraft Lash), `plant` (Frost Spear),
+`payoff` (the big moves), `mark` / `gather` / `drag` / `pin` (the tentacle), `lunge` / `snare` (off the dash),
+`cross` (a crossover), `step` (a route step: Air Slash, Rockslide, Ice Cube, the vault). The tag shows only while
+the guide is on (`Game.combo_guide`). The rows follow the upgrade gate because `void_route()` does: with
+`storm_pitch` off, the light row off Tow Line is Slice, not Storm Pitch. See `docs/features/kit-slots.md`.

@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Awaken Field Guide</title>
+<meta name="description" content="The heretic's combat in Awaken: the kit grammar every character fills, his full card, the element states, and what changed.">
+<!-- Tables are built from data.js (generated from the game's code by tools/wiki_data.gd) and notes.js
+     (hand-written: each move's state and best situation). Rebuild with `python tools/wiki.py`;
+     tests/wiki_check.gd fails when data.js is stale. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --floor: #16122a; --slab: #211b3b; --slab-2: #2b2450; --line: #403665; --ink: #050308;
+  --paper: #f6edd1; --paper-dim: #b5abc9; --gold: #ffc74d; --hot: #ff8014;
+  --storm: #b8ff24; --ice: #6bc7ff; --magma: #ff610d; --dark: #a35cff; --spirit: #47ebd6;
+  --display: "Bangers", Impact, "Arial Black", sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--floor); color: var(--paper); font: 16px/1.6 var(--body);
+  background-image: radial-gradient(rgba(163,92,255,.09) 1.2px, transparent 1.3px); background-size: 9px 9px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+a { color: var(--gold); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 36px 80px; display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 44px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 22px; padding-block: 20px 60px; } }
+nav.rail { position: sticky; top: 20px; align-self: start; display: grid; gap: 3px; }
+nav.rail .mark { font: 44px/0.9 var(--display); color: var(--gold); letter-spacing: .03em; margin-bottom: 12px;
+  -webkit-text-stroke: 1.5px var(--ink); text-shadow: 3px 3px 0 var(--ink); transform: rotate(-3deg); }
+nav.rail a { color: var(--paper-dim); text-decoration: none; font-size: 14.5px; padding: 4px 0 4px 12px; border-left: 3px solid var(--line); }
+nav.rail a:hover, nav.rail a.on { color: var(--paper); border-left-color: var(--gold); }
+nav.rail small { display: grid; gap: 2px; padding-left: 12px; }
+nav.rail small a { font-size: 13px; border-left-width: 1px; }
+@media (max-width: 860px) {
+  nav.rail { position: static; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  nav.rail .mark { grid-column: 1 / -1; } nav.rail small { display: none; } }
+main { min-width: 0; display: grid; gap: 70px; }
+section { display: grid; gap: 18px; scroll-margin-top: 20px; min-width: 0; }
+h1, h2 { font-family: var(--display); font-weight: 400; letter-spacing: .03em; margin: 0; color: var(--gold);
+  -webkit-text-stroke: 1px var(--ink); text-shadow: 3px 3px 0 var(--ink); }
+h1 { font-size: clamp(56px, 11vw, 112px); line-height: .9; transform: rotate(-2deg); transform-origin: left; }
+h2 { font-size: clamp(34px, 5vw, 46px); line-height: 1; }
+h3 { font: 700 19px/1.3 var(--body); margin: 10px 0 0; color: var(--paper); }
+p { margin: 0; max-width: 72ch; }
+.lede { color: var(--paper-dim); }
+.big { font-size: 18.5px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 74ch; }
+kbd { font: 600 12.5px/1 var(--mono); background: var(--slab-2); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 5px; padding: 3px 6px; white-space: nowrap; color: var(--paper); }
+code { font: 13.5px/1.4 var(--mono); color: var(--gold); overflow-wrap: anywhere; }
+.panel { background: var(--slab); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); border-radius: 6px; padding: 14px 18px; }
+.note { border-left: 4px solid var(--spirit); background: var(--slab); padding: 12px 16px; border-radius: 0 6px 6px 0; max-width: 76ch; }
+.note.gold { border-left-color: var(--gold); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.card h3 { margin: 0 0 6px; font: 26px/1 var(--display); letter-spacing: .03em; color: var(--gold); }
+.card p, .card li { font-size: 15px; color: var(--paper-dim); }
+.card ul { margin: 0; padding-left: 18px; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); border: 2px solid var(--ink); border-radius: 6px; overflow: hidden; box-shadow: 4px 4px 0 var(--ink); }
+.controls div { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--line); background: var(--slab); }
+.controls span:last-child { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.tbl { overflow-x: auto; border: 2px solid var(--ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--ink); background: var(--slab); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 640px; }
+.tbl.narrow table { min-width: 0; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--paper-dim); background: var(--slab-2); position: sticky; top: 0; }
+tr.grp td { background: #1a1533; font: 22px/1.1 var(--display); letter-spacing: .04em; color: var(--gold); padding-top: 14px; }
+tr.grp td small { font: 13px/1.4 var(--body); color: var(--paper-dim); letter-spacing: 0; margin-left: 10px; }
+.inp { font: 700 13px var(--mono); color: var(--gold); white-space: nowrap; }
+.nm { font-weight: 700; }
+.t2 { color: var(--gold); } .t3 { color: var(--hot); }
+.chip { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: .05em; padding: 4px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--paper-dim); white-space: nowrap; margin: 1px 0; }
+.el-wind { color: var(--storm); border-color: rgba(184,255,36,.45); }
+.el-water { color: var(--ice); border-color: rgba(107,199,255,.45); }
+.el-earth { color: var(--magma); border-color: rgba(255,97,13,.5); }
+.el-void { color: var(--dark); border-color: rgba(163,92,255,.55); }
+.el-gold { color: var(--gold); border-color: rgba(255,199,77,.5); }
+.btn { display: inline-block; font: 700 11px/1 var(--mono); padding: 4px 6px; border-radius: 4px; background: var(--paper); color: var(--ink); margin-right: 4px; }
+.btn.l { background: var(--ice); }
+.word { font: 19px/1 var(--display); letter-spacing: .04em; color: var(--paper); -webkit-text-stroke: .5px var(--ink); white-space: nowrap; }
+.ending { display: grid; gap: 3px; padding: 6px 0; }
+.ending + .ending { border-top: 1px dashed var(--line); }
+.ending .best { font-size: 13.5px; color: var(--paper-dim); }
+.todo { color: var(--hot); font-style: italic; }
+.dim { color: var(--paper-dim); }
+.upg { color: var(--paper-dim); font-style: italic; }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; }
+figure img { width: 100%; height: auto; border-radius: 6px; border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); display: block; background: #000; }
+figcaption { font-size: 13.5px; color: var(--paper-dim); }
+figcaption b { color: var(--paper); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px 18px; }
+.split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 760px) { .split { grid-template-columns: minmax(0, 1fr); } }
+pre.cardtxt { margin: 0; background: #0c0918; border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font: 13px/1.55 var(--mono); color: var(--paper); }
+details { background: var(--slab); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); border-radius: 6px; padding: 12px 16px; }
+details summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 12px; }
+details .tbl { box-shadow: none; border-width: 1px; }
+.states { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.state { background: var(--slab); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); border-radius: 6px; padding: 10px 14px; }
+.state b { font: 24px/1 var(--display); letter-spacing: .04em; color: var(--gold); display: block; }
+.state span { font-size: 14px; color: var(--paper-dim); }
+.state span.word { color: var(--paper); font-size: 17px; }
+table.card col.c-in { width: 104px; } table.card col.c-mv { width: 150px; } table.card col.c-st { width: 92px; } table.card col.c-win { width: 27%; }
+table.card { min-width: 900px; }
+.log { display: grid; gap: 10px; }
+.log div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+.log > div > b { font: 22px/1.1 var(--display); color: var(--gold); letter-spacing: .03em; }
+@media (max-width: 520px) { .log div { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+footer { color: var(--paper-dim); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+#nodata { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Pages">
+    <div class="mark">Awaken!</div>
+    <a href="#home">Home</a>
+    <small><a href="#play">How to play</a><a href="#next">Where it's going</a></small>
+    <a href="#grammar">The kit grammar</a>
+    <a href="#heretic">The heretic</a>
+    <a href="#characters">Characters</a>
+    <a href="#elements">Elements &amp; states</a>
+    <a href="#changelog">Changelog</a>
+  </nav>
+
+  <main>
+    <!-- ============================== HOME ============================== -->
+    <section id="home">
+      <h1>Awaken</h1>
+      <p class="big">A fast 3D combo hack and slash in a comic-book style. Right now it is one character, the <b>heretic</b>, in a training room full of punching-bag dummies: every string, breaker and counter he has, with nothing between you and practising them. No run, no title screen; the game boots straight into training.</p>
+      <p class="lede">The look is <b>chibi but badass</b>: big heads and hands, short stocky bodies, oversized weapons, flat bold colour under an ink outline, menace from the silhouette (a hood, a tentacle, glowing eyes) and never from detail. Every hit says something: inked onomatopoeia, a hit star, a stop.</p>
+      <p class="note" id="nodata">data.js is missing. Run <code>python tools/wiki.py</code> from the repo.</p>
+      <div class="split">
+        <figure><img src="img/hero.jpg" alt="The heretic, a chibi hooded figure with horns, glowing cyan eyes and a violet tentacle arm, in the training room" loading="lazy" width="640" height="480">
+          <figcaption><b>The heretic.</b> A bone-white hood with dark horns, glowing eyes and a grin in the shadow, and a violet tentacle arm that turns into each weapon: axe (storm), spear (ice), hammer (magma). With no weapon formed it is the void itself.</figcaption></figure>
+        <div class="panel card">
+          <h3>The heretic in one breath</h3>
+          <ul>
+            <li><b>L</b> swings a weapon, and the count picks it: one is the axe, two the spear, three the hammer.</li>
+            <li><b>H</b> (right click) is the tentacle, and it does the weapon's element's thing: storm throws them up, ice turns them into objects, magma shoves them down and apart, dark (H with no weapon first) pulls them in and swallows them.</li>
+            <li>The big strings end in a <b>breaker window</b>: he leaps, time slows, and one press picks the finish.</li>
+            <li>Elements leave <b>states</b> on foes; a different element's hit cashes them in.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="play">How to play</h3>
+      <div class="controls" id="controls">
+        <div><span>Move</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+        <div><span>Light (L): the weapon</span><span><kbd>LMB</kbd><kbd>J</kbd></span></div>
+        <div><span>Heavy (H): the tentacle</span><span><kbd>RMB</kbd><kbd>K</kbd></span></div>
+        <div><span>Hold H: Overwhelm</span><span><kbd>hold RMB</kbd></span></div>
+        <div><span>Dash, counter</span><span><kbd>Space</kbd><kbd>Shift</kbd></span></div>
+        <div><span>Swing round a pillar</span><span><kbd>R</kbd></span></div>
+        <div><span>Awaken</span><span><kbd>Q</kbd></span></div>
+        <div><span>Pause, MOVES panel</span><span><kbd>Esc</kbd></span></div>
+        <div><span>Slow motion (practice)</span><span><kbd>T</kbd></span></div>
+        <div><span>Gamepad: X light, Y heavy, A dash, RB awaken, LB swing</span><span><kbd>pad</kbd></span></div>
+      </div>
+      <p>Mouse aims. Inputs in this wiki read like the game's combo text: <span class="inp">L L H</span> is light, light, heavy; <span class="inp">Dash L H</span> is a dash, then light, then heavy. A dash cancels out of anything. The <b>combo guide</b> beside him shows the next presses mid-string (Settings toggles it), and <kbd>Esc</kbd> opens the MOVES panel, laid out by the same slot groups as this wiki.</p>
+
+      <div class="grid3">
+        <div class="panel card">
+          <h3>Breaker windows</h3>
+          <p>When a big string connects he leaps up and back with his tentacles on what it hit, the game drops into slow motion and a ring closes round him. The chips under it show every ending: <span class="btn">RMB</span> is always there, <span class="btn l">LMB</span> only when that window has a second ending. Press as the rings meet for a <b>PERFECT</b> (x<span data-d="window.perfect_mult"></span> damage, more Awakening). Too early locks it out; no press floats him down; a dash calls it off.</p>
+        </div>
+        <div class="panel card">
+          <h3>The counter</h3>
+          <p>Dash <i>into</i> a foe's strike as it is about to land (its last <span data-d="counter.window"></span> s, aimed within <span data-d="counter.arc"></span>&deg;) and the dash becomes <b>Backlash</b>: the tentacle catches the weapon, marks the attacker and slams it. In the last <span data-d="counter.perfect"></span> s it is a perfect, and a window opens for <b>Ricochet</b>. A dash with nothing coming is just a dash, so pressing it costs nothing.</p>
+        </div>
+        <div class="panel card">
+          <h3>Awakening</h3>
+          <p>Style rank (D up to SSS: variety beats mashing) fills the meter. Full, press <kbd>Q</kbd>: a burst blows foes back, and while it drains he hits x<span data-d="awakening.damage_mult"></span>, takes x<span data-d="awakening.damage_taken"></span> and can't be staggered, runs x<span data-d="awakening.speed_mult"></span>, with a gold rim and a charged axe. Same inputs, stronger him. Esc &rarr; Fill Awakening to practise it.</p>
+        </div>
+      </div>
+      <p class="lede">The training room: four dummies that never die and walk home when knocked away, four pillars <kbd>R</kbd> swings round, and a damage readout for the current, last and best string. Each dummy shows a <b>LAST</b> tag of what its last string did. Turn on Settings &rarr; <b>Dummies swing</b> (or launch with <code>--swing</code>) and a dummy you stand in front of winds up and swings at you, so the counter has something to catch.</p>
+
+      <h3 id="next">Where it is going</h3>
+      <p>Awaken is headed for <b>roguelike runs</b>: fights, rewards, a build that changes run to run. The heretic's kit was rebuilt (round 49) so that a run has stable things to upgrade, and so a second character can be picked up and played on the first try:</p>
+      <ul class="plain">
+        <li><b>Upgrades target a slot or a window,</b> never a route step: "Deep Freeze freezes 2 m wider", "Tempest lifts big foes too". The slots are the same on every character, so the upgrades are too.</li>
+        <li><b>Passives target an element or a state:</b> "+20% frozen payoffs", "charged lasts 5 s". They carry across characters, because every character's elements map onto the same six states.</li>
+        <li><b>Unlocks come first from what was demoted:</b> Storm Pitch returns as a Tow Line upgrade, and 18 richer element-matrix cells come back one at a time (see <a href="#elements">Elements &amp; states</a>).</li>
+        <li><b>More characters on the same card:</b> each fills the same ten slot groups with the same inputs. The Dragon Prince is the first, in design (see <a href="#characters">Characters</a>).</li>
+      </ul>
+    </section>
+
+    <!-- ============================== GRAMMAR ============================== -->
+    <section id="grammar">
+      <h2>The kit grammar</h2>
+      <p class="big">Every character is <b>one signature plus three elements</b>, filling the <b>same slots with the same inputs</b>. Like Smash: pick up anyone and the pathways are familiar (L H always launches, H H always gathers, Dash into a strike always counters). <i>When</i> to use each is what makes the character.</p>
+      <p>The <b>signature</b> is the control tool that makes the character feel unique: the heretic's void tentacle grabs, marks, drags and conducts. The three <b>elements</b> are the damage colours, and each one owns a state it leaves on foes. A new element never adds a state, it maps onto one (a plant character's "rooted" would be bound; a blood character's "bleeding" would be molten).</p>
+      <div class="tbl narrow"><table>
+        <thead><tr><th>Heretic</th><th>Element</th><th>State it leaves</th><th>Pays off when another element hits it</th></tr></thead>
+        <tbody>
+          <tr><td>signature</td><td><span class="chip el-void">dark</span> the tentacle</td><td>marked / bound</td><td>pulled, held, conducted</td></tr>
+          <tr><td>element 1</td><td><span class="chip el-wind">storm</span></td><td>charged</td><td>arcs to neighbours</td></tr>
+          <tr><td>element 2</td><td><span class="chip el-water">ice</span></td><td>frozen</td><td>shatters</td></tr>
+          <tr><td>element 3</td><td><span class="chip el-earth">magma</span></td><td>molten</td><td>bursts</td></tr>
+        </tbody></table></div>
+      <p class="lede">Shared, element-free states: <b>airborne</b> and <b>buried</b>. A foe against a wall or pillar (<b>wall-splat</b>) is a position the moves read, not a state.</p>
+
+      <h3>The six states, one rule each</h3>
+      <p>Any element's hit on a foe in a state pays that state's rule. The rules are written once, for every character. States last <span data-d="rule_numbers.hold"></span> s (charged <span data-d="rule_numbers.charged_hold"></span> s): dash out of one string and hit with another element.</p>
+      <div class="states" id="states"></div>
+
+      <h3>The ten slot groups</h3>
+      <p>The count is fixed; the moves, elements and best situations are the character's. Inputs: <b>L</b> light, <b>H</b> heavy, <b>Dash</b>, and the window's L / H. A <span class="chip">window</span> slot ends in a breaker window.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Slot</th><th>Input (every character)</th><th>Tag</th><th>What it always does</th></tr></thead>
+        <tbody id="slot-table"></tbody></table></div>
+      <div class="grid2">
+        <div class="panel card">
+          <h3>Rules of thumb</h3>
+          <ul>
+            <li><span class="inp">L H</span> always launches. <span class="inp">L L H</span> always plants or slows. <span class="inp">L L L H</span> always carries or shoves.</li>
+            <li><span class="inp">H</span> always marks. <span class="inp">H H</span> always gathers. <span class="inp">hold H</span> is always the one-big-target tool.</li>
+            <li><span class="inp">Dash L H</span> always collects a crowd in front of you. <span class="inp">Dash H H</span> always pins one.</li>
+            <li>Slot 3's storm move wants a line, the ice one a stand, the magma one a wall. Which move is which is the character's.</li>
+          </ul>
+        </div>
+        <div class="panel card">
+          <h3>Breaker windows: one or two endings</h3>
+          <ul>
+            <li>Windows sit on slots 3, 4, 5 (the last three), 7, 8 (finishers) and 9: at most <b>15 per character</b>.</li>
+            <li>Each has <b>one or two endings</b>. <span class="btn">RMB</span> is the payoff you can always take; <span class="btn l">LMB</span> is the environmental or situational one.</li>
+            <li>Two endings only when both have a clear best situation ("only when it's truly compelling"). Breakers are where a character gets to be plentiful and flashy; the slots stay fixed.</li>
+          </ul>
+        </div>
+        <div class="panel card">
+          <h3>Crossovers: one per colour pair</h3>
+          <p>Four colours (signature + three elements) make six pairs, so at most <b>six crossovers</b>. Each is a fixed extension off a move already on the card, two elements in one move: the first's state cashed by the second. The hits that only walk from a mid to a crossover (the heretic's Rockslide, Ice Cube, the vault) are <b>route steps</b>, not slots, and never an upgrade target.</p>
+        </div>
+        <div class="panel card">
+          <h3>Upgrades: what is gated today</h3>
+          <ul>
+            <li><b id="up-count"></b> moves and cells live in the game behind a Kit upgrade, off in the base kit:</li>
+            <li><b>Storm Pitch</b> (<span class="inp">Dash H L</span>): a second dark x storm move beside Galvanize, so it is a Tow Line upgrade. Without it, Dash H L is Tow Line then Slice.</li>
+            <li><b>The 18 richer matrix cells</b> (Gale Lift, Overload, Arc Flash...): off, the state's one rule plays; on, the cell plays in its place.</li>
+            <li>Runs will hand these out. Today <code>--kit=full</code> turns every one on, <code>--kit=storm_pitch,overload</code> named ones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>The empty character card</h3>
+      <p>This is what a new character is: fill in every line. A slot with no move yet stays empty (the game shows it as "pending"), never invented.</p>
+<pre class="cardtxt">Name:               Signature (control tool, colour, its state = marked/bound):
+Element 1 (charged-equivalent):   Element 2 (frozen-equivalent):   Element 3 (molten-equivalent):
+
+1  Light string      L / L L / L L L          three hits, tinted 1 / 2 / 3
+2  Light enders      L H / L L H / L L L H    launch / slow or plant / carry or shove
+3  Big moves         ender + H                one per ender, window; endings (H always, L if compelling)
+4  Air route         L H L -> L H L H         climb, then the air big move; window
+5  Signature         H / H H / H L H / hold H mark / gather / drag / pin; windows on the last three
+6  Dash moves        Dash L / Dash H          lunge / snare
+7  Dash enders       Dash L H / Dash H H      gather a crowd / pin one; windows
+8  Crossovers        &lt;= 6, one per colour pair, each named by the pair; windows on finishers
+9  Counter           Dash into a strike       name, word, what the perfect's window does
+10 Awakening         Q                        what the mode changes
+Best situations:     one line per window: "L wins when ..., H wins when ..."</pre>
+    </section>
+
+    <!-- ============================== HERETIC ============================== -->
+    <section id="heretic">
+      <h2>The heretic</h2>
+      <p class="big">His card, filled in: <b id="h-count"></b>. Signature <span class="chip el-void">dark</span> (the void tentacle), elements <span class="chip el-wind">storm</span> <span class="chip el-water">ice</span> <span class="chip el-earth">magma</span>, in the light string's order.</p>
+      <p class="lede">Each row: the input, the move and its element, what it does (the game's own MOVES panel text), the state it leaves, its best situation, and its window's endings with the button, the word that goes up and the best situation for each. Damage is the ending's base, before PERFECT (x<span data-d="window.perfect_mult"></span>) and Awakening (x<span data-d="awakening.damage_mult"></span>).</p>
+      <div class="tbl"><table class="card"><colgroup><col class="c-in"><col class="c-mv"><col><col class="c-st"><col><col class="c-win"></colgroup>
+        <thead><tr><th>Input</th><th>Move</th><th>What it does</th><th>Leaves</th><th>Best situation</th><th>Window</th></tr></thead>
+        <tbody id="card-table"></tbody></table></div>
+
+      <h3>Route steps and upgrades</h3>
+      <p>Route steps walk from a mid to a big move or a crossover; they are not slots. The upgrade row plays only with its Kit upgrade on.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Input</th><th>Move</th><th>What it does</th><th>Leaves</th></tr></thead>
+        <tbody id="route-table"></tbody></table></div>
+
+      <h3>The counter and the swinging dummies</h3>
+      <div class="split">
+        <div class="grid2" style="grid-template-columns: minmax(0,1fr)">
+          <div class="panel card">
+            <h3>Backlash <span class="word">KRRAK-SNAP!</span></h3>
+            <p>Dash at a foe in the last <span data-d="counter.window"></span> s of its swing, aimed within <span data-d="counter.arc"></span>&deg; of it. He stops, turns and is untouchable through the strike; a hitstop and a violet <b>parry flash</b> (the tentacle curled round the weapon); the attacker is staggered and <b>marked</b>, swung up over him and slammed down in front for <span data-d="counter.damage"></span>. +<span data-d="counter.awaken"></span> Awakening. A bolt in the window is batted back at its shooter for double damage.</p>
+          </div>
+          <div class="panel card">
+            <h3>Ricochet <span class="word" data-d="breakers.CB.word"></span></h3>
+            <p>A <b>perfect</b> counter (the last <span data-d="counter.perfect"></span> s) gives +<span data-d="counter.awaken_perfect"></span> Awakening and opens a one-ending violet window. <span class="btn">RMB</span>: the tentacle hurls the attacker at <span data-d="counter.ricochet_speed"></span> m/s into the nearer of the nearest foe and the nearest wall or pillar within <span data-d="counter.ricochet_reach"></span> m, for <span data-d="breakers.CB.damage"></span> (x<span data-d="counter.ricochet_wall_mult"></span> on a wall), held there <span data-d="counter.bind_time"></span> s by tendrils. <b>Best:</b> a wall or a crowd near the attacker.</p>
+          </div>
+          <div class="panel card">
+            <h3>Swinging dummies</h3>
+            <p>Settings &rarr; <b>Dummies swing</b> (or <code>--swing</code>). Stand in front of a dummy (<span data-d="dummy.swing_range"></span> m, <span data-d="dummy.swing_arc"></span>&deg;) for <span data-d="dummy.swing_beat"></span> s and it winds up with the same telegraph ring the sparring foes use (<span data-d="dummy.swing_windup"></span> s), its bag rocking back, then swings for <span data-d="dummy.swing_damage"></span>; again every <span data-d="dummy.swing_every"></span> s while you stay. Dash as the ring is nearly full.</p>
+          </div>
+        </div>
+        <figure><img src="img/counter_parry.jpg" alt="The parry flash: violet tentacle round a dummy's swing" loading="lazy" width="640" height="360">
+          <figcaption><b>Backlash's parry flash</b> on a swinging dummy: the violet clash star where the tentacle catches the swing.</figcaption></figure>
+      </div>
+
+      <h3>On film</h3>
+      <div class="gallery" id="gallery"></div>
+
+      <details>
+        <summary>The full MOVES panel, as the game prints it</summary>
+        <div id="move-list"></div>
+      </details>
+    </section>
+
+    <!-- ============================== CHARACTERS ============================== -->
+    <section id="characters">
+      <h2>Characters</h2>
+      <div class="grid2">
+        <div class="panel card">
+          <h3>The heretic <span class="chip el-gold">playable</span></h3>
+          <p>A hunched, hooded thing that grabs and drags. Rhythm: <b>grab, mark, pull together, slam</b>. Signature: the void tentacle. Elements: storm, ice, magma. His card is full: <a href="#heretic">every slot</a>.</p>
+        </div>
+        <div class="panel card">
+          <h3>Prince Aurex <span class="chip">in design, paused</span></h3>
+          <p>A teenage dragon prince, a spellblade who throws his magic greatsword <b>Sunbrand</b>, flies up and smashes into it to blow it up, then conjures a new one. Between swords: dragon breath, wings, conjured claws and tail. Royalty and he knows it. Rhythm: <b>set up, cash in, re-arm</b>. A first slice plays with <code>--hero=prince</code> on a placeholder body (the heretic's, tinted, with a crown and horns).</p>
+        </div>
+      </div>
+      <p>His card, as far as it is filled. The crown is his signature and Sunbrand's fire is element 1; elements 2 and 3 are still open. The design doc's types (steel, dragonfire, radiance) and their states (branded, kindled, humbled) map onto the shared six: kindled counts as molten, humbled as bound, branded as skewered.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Slot</th><th>Input</th><th>His move</th></tr></thead>
+        <tbody id="prince-table"></tbody></table></div>
+      <p class="lede">Also open on his card: whether Talon Fury (L L L with the sword out) is his light string's second form or a route step; the smash's own window (Royal Draw, PERFECT); his breakers (Judgement, Coronation, Sundering, Meteor Crown are design names only); Majesty, the crown that falls, and his Awakening (Ascension).</p>
+    </section>
+
+    <!-- ============================== ELEMENTS ============================== -->
+    <section id="elements">
+      <h2>Elements &amp; states</h2>
+      <p class="big">Leave a foe in a state, then hit it with a different element: it pays the state's one rule. A dash out of any string into a move of another element does more than a plain hit.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>State</th><th>Rule</th><th>Word</th><th>What any hit does</th><th>Not the rule (the move's own)</th></tr></thead>
+        <tbody id="rule-table"></tbody></table></div>
+      <h3>The own-element exceptions</h3>
+      <ul class="plain">
+        <li>The element that leaves a state never pays its rule; its own move's thing plays instead: <span id="own-list"></span>.</li>
+        <li>Some moves pay a state in their own body, so it never pays twice: Molten Palm on the frozen is its own steam (that is Steam Burst), Updraft Lash digs up the buried itself, and the storm air string and Tow Line's rip already juggle the airborne.</li>
+        <li>The skewered (Impale) are frozen too: they pay Shatter.</li>
+        <li>A foe in several states pays the rarest first; charged pays last, since nearly every Live Wire leaves it.</li>
+      </ul>
+      <details>
+        <summary>The 18 upgrade cells (off in the base kit; runs will unlock them)</summary>
+        <p class="lede" style="margin-bottom:10px">Each is richer than its state's rule and plays in the rule's place when its upgrade is on (<code>--kit=full</code> plays them all today).</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Cell</th><th>Upgrade</th><th>Word</th><th>What it does</th><th>Instead of</th></tr></thead>
+          <tbody id="cell-table"></tbody></table></div>
+      </details>
+    </section>
+
+    <!-- ============================== CHANGELOG ============================== -->
+    <section id="changelog">
+      <h2>Changelog</h2>
+      <div class="log panel">
+        <div><b>Round 49</b><p><b>The kit grammar.</b> The heretic's moves were laid onto a fixed card of ten slot groups, the same for every future character; the MOVES panel and combo guide show each move's slot. New: the <b>dash counter</b> (Backlash, and Ricochet on a perfect) and dummies that swing so you can practise it. New crossover <b>Lava Leash</b> (L L L H L) with its breaker <b>Hellseam</b>, filling the last colour pair. The element matrix became <b>six states, one rule each</b>; the old cells and Storm Pitch became upgrades for later runs.</p></div>
+        <div><b>Round 48</b><p><b>Breakers got flashy.</b> Three windows gained a second ending where it's truly better somewhere: <b>Meteor Shower</b> (scattered foes), <b>Pinwheel</b> (a wall nearby), <b>Tempest</b> (a crowd). Every ending now lands as one comic beat: an element-coloured impact frame, a burst behind the pile, floor cracks, pillars shaking dust, and one name-and-total banner.</p></div>
+        <div><b>Round 47</b><p><b>Harpoon</b> (Dash L H) now gathers everyone round you into a frozen row, with two endings: <b>Shatterstorm</b> anywhere, <b>Slapshot</b> into a wall. Ice crystals gone: ice blocks fitted to each foe. Feel polish on the vault, the frost spear and Meteor Fall's wall splat.</p></div>
+        <div><b>Round 46</b><p>Ice and magma effects drawn by hand (Molten Palm's fist, lava, Undertow's pool, Meteor Fall's fireball), the Awakening's gold flame crown, and a filmed feel audit of every string with ten fixes.</p></div>
+        <div><b>Round 45</b><p>Quieter, drawn floor marks and breaker cues; the dark element's pools and black hole drawn; kills and dash streaks inked.</p></div>
+        <div><b>Round 44</b><p><b>A new heretic model</b>, hand-built chibi with a real face. Storm made clearly storm: electric lime lightning, pale designed wind. <b>Lightning runs along the tentacles</b> (Live Wire's hang), <b>Galvanize</b> (H L L) zaps a whole crowd at once, the charged state, and <b>Short Circuit</b> as Grounded's second ending.</p></div>
+        <div><b>Round 43</b><p>The breaker window shows every ending you can pick (a chip per button in its colour). Effects stopped being polygons: authored, hand-drawn flipbook sheets for hit stars, slashes and the big landings.</p></div>
+      </div>
+    </section>
+
+    <footer id="footer">Names, inputs, words and numbers on this page are generated from the game's code (<code>kit_slots.gd</code>, <code>move_list.gd</code>, <code>hero_moves.gd</code>, <code>void_element.gd</code>, <code>comic_fx.gd</code>, <code>kit.gd</code>, <code>counter.gd</code>) into <code>data.js</code> by <code>python tools/wiki.py</code>; states and best situations are hand-written in <code>notes.js</code>. Screenshots are from the game's own film tools.</footer>
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="notes.js"></script>
+<script>
+(function () {
+  "use strict";
+  var D = window.WIKI, N = window.NOTES || {moves: {}, endings: {}};
+  function $(id) { return document.getElementById(id); }
+  if (!D) { $("nodata").style.display = "block"; return; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+  function n(x) { return typeof x === "number" ? String(Math.round(x * 100) / 100) : esc(x); }
+  function get(path) { return path.split(".").reduce(function (o, k) { return o == null ? o : o[k]; }, D); }
+  document.querySelectorAll("[data-d]").forEach(function (el) { var v = get(el.getAttribute("data-d")); el.textContent = typeof v === "number" ? n(v) : (v || ""); });
+
+  var WORD = D.element_words, ELNAME = {wind: "storm", water: "ice", earth: "magma", void: "dark", gold: "gold"};
+  function chip(el) { return el ? '<span class="chip el-' + el + '">' + esc(ELNAME[el] || el) + "</span>" : ""; }
+  var groups = D.groups, slots = D.slots, card = D.cards.heretic;
+  function slotsOf(g) { return slots.filter(function (s) { return s.group === g; }); }
+  // The MOVES panel's note for a move id, and the counter's text rows by name.
+  var noteOf = {}, textRow = {};
+  D.move_list.forEach(function (s) { s.rows.forEach(function (r) { if (r.kind === "move") noteOf[r.id] = r; else textRow[r.name] = r; }); });
+
+  // States, one rule each.
+  var ruleRow = {};
+  D.move_list.forEach(function (s) { s.rows.forEach(function (r) { if (r.rule) ruleRow[r.state] = r; }); });
+  var STATE_ORDER = ["bound", "charged", "frozen", "molten", "airborne", "buried"];
+  $("states").innerHTML = STATE_ORDER.map(function (st) {
+    var r = D.rules[st];
+    return '<div class="state"><b>' + esc(st) + '</b><span><span class="word">' + esc(r.word) + "</span> " + esc(r.name) + ": " +
+      esc((ruleRow[st] || {}).note || "").split(". ")[0] + ".</span></div>";
+  }).join("");
+
+  // Slot table.
+  $("slot-table").innerHTML = groups.map(function (g) {
+    return '<tr class="grp"><td colspan="5">' + g.n + "  " + esc(g.name) + "<small>" + esc(g.role) + "</small></td></tr>" +
+      slotsOf(g.n).map(function (s) {
+        return "<tr><td>" + g.n + "</td><td>" + esc(s.name) + "</td><td>" + s.shape.map(function (x) {
+          return '<span class="inp">' + esc(x === "+" ? "+ one press off the card" : x === "*" ? "*" : x) + "</span>"; }).join(' <span class="dim">/</span> ') +
+          '</td><td><span class="chip">' + esc(s.tag) + "</span>" + (s.window ? ' <span class="chip el-gold">window</span>' : "") +
+          "</td><td>" + esc(s.role) + "</td></tr>";
+      }).join("");
+  }).join("");
+
+  // Breaker endings for a window key.
+  function endings(key, win) {
+    var b = D.breakers[key];
+    if (!b) return win ? '<span class="todo">none yet</span>' : "";
+    var out = [[b, "RMB"]].concat(b.alt ? [[b.alt, "LMB"]] : []);
+    return out.map(function (e) {
+      var x = e[0];
+      return '<div class="ending"><div><span class="btn' + (e[1] === "LMB" ? " l" : "") + '">' + e[1] + "</span><b>" + esc(x.name) + "</b> " +
+        chip(x.erupt) + " <span class=\"dim\">" + n(x.damage) + '</span></div><div class="word">' + esc(x.word) + '</div><div class="best">' +
+        esc(N.endings[x.name] || "") + "</div></div>";
+    }).join("");
+  }
+  function moveRow(id, input, extra, win, pair) {
+    var nm = D.names[id] || {name: id, tier: 0}, r = noteOf[id] || {}, nt = N.moves[id] || {};
+    var els = pair ? pair.map(chip).join('<span class="dim"> x </span>') : chip(D.elements[id]);
+    var word = D.move_words[id] ? ' <span class="word">' + esc(D.move_words[id]) + "</span>" : "";
+    return '<tr><td><span class="inp">' + esc(input) + '</span></td><td><span class="nm t' + nm.tier + '">' + esc(nm.name) + "</span> " +
+      els + word + "</td><td>" + esc(r.note || "") + "</td><td>" + esc(nt.state || "") + "</td>" +
+      (extra === false ? "" : "<td>" + esc(nt.best || "") + "</td><td>" + endings(id, win) + "</td>") + "</tr>";
+  }
+
+  // The heretic's card, slot by slot.
+  var filled = 0, windows = 0, ends = 0;
+  $("card-table").innerHTML = groups.map(function (g) {
+    var rows = slotsOf(g.n).map(function (s) {
+      var fill = card.fill[s.id] || {}, ids = Object.keys(fill);
+      if (s.meter) return '<tr><td><span class="inp">Q</span></td><td><span class="nm t2">Awaken</span> ' + chip("gold") + "</td><td>" +
+        esc(textRow.Awaken.note) + "</td><td></td><td>Style rank high and a fight to finish.</td><td></td></tr>";
+      if (!ids.length) return '<tr><td colspan="6" class="todo">' + esc(s.name) + ": pending</td></tr>";
+      filled++;
+      if (s.id === "counter") {
+        windows++; ends++;
+        return '<tr><td><span class="inp">Dash into a strike</span></td><td><span class="nm t2">Backlash</span> ' + chip("void") +
+          ' <span class="word">KRRAK-SNAP!</span></td><td>' + esc(textRow.Backlash.note) + "</td><td>marked</td><td>A foe mid-swing in front of you; the last instant for the perfect.</td><td>" + endings("CB") + "</td></tr>";
+      }
+      ids.sort(function (a, b) { return fill[a].length - fill[b].length; });
+      return ids.map(function (id) {
+        if (D.breakers[id]) { windows++; ends += D.breakers[id].alt ? 2 : 1; }
+        return moveRow(id, fill[id], true, s.window === true, s.pair);
+      }).join("");
+    }).join("");
+    return '<tr class="grp"><td colspan="6">' + g.n + "  " + esc(g.name) + "<small>" + esc(g.role) + "</small></td></tr>" + rows;
+  }).join("");
+  $("h-count").textContent = filled + " slots filled and the meter, " + windows + " breaker windows with " + ends + " endings";
+
+  // Route steps + upgrades.
+  var routeRows = Object.keys(card.route).map(function (id) {
+    if (id === "GR") return '<tr><td><span class="inp">H</span></td><td><span class="nm">Grab</span> ' + chip("void") + "</td><td>" + esc(textRow.Grab.note) + "</td><td></td></tr>";
+    return moveRow(id, card.route[id], false);
+  });
+  ["Swing", "Snatch"].forEach(function (k) { var r = textRow[k]; routeRows.push('<tr><td><span class="inp">' + esc(r.input) + '</span></td><td><span class="nm">' + k + "</span></td><td>" + esc(r.note) + "</td><td></td></tr>"); });
+  Object.keys(card.upgrades).forEach(function (u) {
+    var up = card.upgrades[u];
+    Object.keys(up.moves).forEach(function (id) {
+      routeRows.push(moveRow(id, up.moves[id], false).replace("<tr>", '<tr class="upg-row">').replace("</td><td>", ' <span class="chip el-gold">upgrade</span></td><td>'));
+    });
+  });
+  $("route-table").innerHTML = routeRows.join("");
+  var nUp = Object.keys(D.kit_upgrades).length;
+  $("up-count").textContent = nUp;
+
+  // Gallery.
+  var SHOTS = [
+    ["window_two", "The window with two chips", "Live Wire's hang: LMB Short Circuit or RMB Grounded, each chip in its ending's colour, the ring closing as the lightning runs down the tentacles."],
+    ["galvanize", "Galvanize (H L L)", "One bolt down every tentacle at once: everyone near zapped on the same frame."],
+    ["harpoon_row", "Harpoon's row (Dash L H)", "Everyone round him set down frozen in a rank ahead, ready for Shatterstorm or Slapshot."],
+    ["lava_leash", "Lava Leash (L L L H L)", "The tentacles drag everyone the palm hit back along lava seams into a pile at his feet."],
+    ["end_storm", "Storm family", "Grounded: a storm-family landing, lime lightning under every held foe and the name-and-total banner."],
+    ["end_ice", "Ice family", "Black Ice: an ice-family landing, short and hard, the frozen pool shattering."],
+    ["end_magma", "Magma family", "Hellseam: a magma-family landing, the pile cratered and the seams erupting."],
+    ["end_dark", "Dark family", "Ricochet: a dark-family landing, the counter's attacker hurled into the crowd in violet ink."]
+  ];
+  $("gallery").innerHTML = SHOTS.map(function (s) {
+    return '<figure><img src="img/' + s[0] + '.jpg" alt="' + esc(s[1]) + '" loading="lazy" width="640" height="360"><figcaption><b>' + esc(s[1]) + ".</b> " + esc(s[2]) + "</figcaption></figure>";
+  }).join("");
+
+  // The full MOVES panel.
+  $("move-list").innerHTML = D.move_list.filter(function (s) { return s.title !== "MIX ELEMENTS"; }).map(function (s) {
+    return '<p style="margin:16px 0 8px"><b>' + esc(s.title) + "</b> " + '<span class="dim">' + esc(s.hint) + "</span></p>" +
+      '<div class="tbl"><table><thead><tr><th>Input</th><th>Name</th><th>Slot</th><th>What it does</th></tr></thead><tbody>' + s.rows.map(function (r) {
+        return '<tr><td><span class="inp">' + esc(r.input) + '</span></td><td><span class="nm t' + (r.tier || (D.names[r.id] || {}).tier || 0) + '">' + esc(r.name) +
+          "</span>" + (r.or ? ' <span class="dim">(or)</span>' : "") + "</td><td>" + (r.tag ? '<span class="chip">' + esc(r.tag) + "</span>" : "") + "</td><td>" + esc(r.note) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }).join("");
+
+  // The prince's card.
+  var P = D.cards.prince;
+  $("prince-table").innerHTML = slots.map(function (s) {
+    var fill = P.fill[s.id] || {}, ids = Object.keys(fill).sort(function (x, y) { return fill[x].length - fill[y].length; });
+    var what = ids.length ? ids.map(function (id) { return '<span class="inp">' + esc(fill[id]) + "</span> <b>" + esc(D.prince_names[id] || id) + "</b>"; }).join("<br>") : '<span class="todo">TODO</span>';
+    return "<tr><td>" + s.group + "</td><td>" + esc(s.name) + '</td><td><span class="dim">' + esc(s.shape.join(" / ")) + "</span></td><td>" + what + "</td></tr>";
+  }).join("") + '<tr><td></td><td>Route steps</td><td></td><td>' + Object.keys(P.route).map(function (id) {
+    return '<span class="inp">' + esc(P.route[id]) + "</span> " + esc(D.prince_names[id] || id) + " (sword out)"; }).join("<br>") + "</td></tr>";
+
+  // Rules table, own-element list, upgrade cells.
+  var OWN_TEXT = {bound: "dark on the held is Abyss off Overwhelm", charged: "storm on the charged is Live Wire's own pulse",
+    frozen: "ice on the frozen freezes again", molten: "magma on the molten is Eruption's"};
+  $("rule-table").innerHTML = STATE_ORDER.map(function (st) {
+    var r = D.rules[st], row = ruleRow[st] || {};
+    var own = (r.own ? chip(r.own) + " " : "") + r.self.map(function (x) { return D.names[x] ? esc(D.names[x].name) : chip(x); }).join(", ");
+    return "<tr><td><b>" + esc(st) + "</b><br><span class=\"dim\">" + esc(row.input || "") + '</span></td><td><b>' + esc(r.name) + '</b></td><td><span class="word">' +
+      esc(r.word) + "</span></td><td>" + esc(row.note || "") + "</td><td>" + own + "</td></tr>";
+  }).join("");
+  $("own-list").textContent = STATE_ORDER.filter(function (s) { return OWN_TEXT[s]; }).map(function (s) { return OWN_TEXT[s]; }).join("; ");
+  var cellRow = {};
+  D.move_list.forEach(function (s) { s.rows.forEach(function (r) { if (r.upgrade && r.state) cellRow[r.upgrade] = r; }); });
+  $("cell-table").innerHTML = Object.keys(D.upgrade_cells).sort(function (a, b) {
+    return STATE_ORDER.concat(["skewered"]).indexOf(D.upgrade_cells[a].state) - STATE_ORDER.concat(["skewered"]).indexOf(D.upgrade_cells[b].state); }).map(function (k) {
+    var c = D.upgrade_cells[k], r = cellRow[c.id] || {}, inst = (c.doc.match(/\((?:rule|own element): ([^)]*)\)/) || [])[1];
+    return "<tr><td>" + esc(c.state) + " x " + chip(c.el) + "</td><td><b>" + esc(r.name || c.id) + "</b><br><code>" + esc(c.id) + '</code></td><td><span class="word">' +
+      esc(c.word) + "</span></td><td>" + esc((r.note || c.doc).replace(/^Upgrade: /, "")) + "</td><td>" + esc(inst || (c.state === "charged" ? (c.el === "wind" ? "the move's own" : "arc") : "")) + "</td></tr>";
+  }).join("");
+
+  // Highlight the nav entry for the section in view.
+  var links = document.querySelectorAll("nav.rail > a");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) links.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id); }); }); }, {rootMargin: "-30% 0px -60% 0px"});
+    document.querySelectorAll("main > section").forEach(function (s) { io.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

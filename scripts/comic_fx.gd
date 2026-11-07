@@ -49,6 +49,7 @@ const MOVE_WORDS := {
 	"VS": "VWOOM!", "VR": "SHUNK!", "VD": "SPLOOSH!", "OW": "SKRONCH!", "TW": "YOINK!",  # dark
 	"XR": "KRUNCH!", "XF": "SKRRRAK!", "XS": "PSSHHHH!", "XT": "ZZWANNG!", "XC": "BZZRAKK!",  # crossovers (round 37)
 	"XG": "WHIRRRL!", "XM": "SIZZ-BLAM!", "XK": "KSHUNK!", "XW": "FWHOOOM!",  # three-element strings (round 37, second pass)
+	"XL": "SHLURK-FWOOM!",  # Lava Leash (dark-magma lane): said on the seam's eruption (LATE_WORDS)
 }
 const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Short Circuit": "KZZZT-KRAK!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
@@ -56,7 +57,10 @@ const BREAKER_WORDS := {
 	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
 	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
 	"Shatterstorm": "KRSSSH-BOOM!", "Slapshot": "THWAKK!",  # round 47 b (Slapshot's wall hits say slapshot_fx.WALL_WORD)
+	"Ricochet": "KA-SPLATT!",  # the dash counter's ending (counter.gd)
 	"Meteor Shower": "BLAM-BLAM-BLAMM!", "Pinwheel": "WHIRRR-KRAK!", "Tempest": "VWOOOM-KZZAK!",  # breaker-pairs (Pinwheel's wall hits say breaker_alt_fx.WALL_WORD)
+	"Hellseam": "KRAKA-FWOOOM!",  # dark-magma lane
+	"Uproot": "KRR-RACK-THOOM!",  # env-pieces lane (Abyss's LMB)
 }
 const BREAKER_SCALE := 0.78
 ## The element matrix's payoffs (void_element.IMPROV; comic_improv.gd draws each cell's tell), by cell: said over the
@@ -69,10 +73,12 @@ const IMPROV_WORDS := {
 	"airborne_x_water": "FRZZK!", "airborne_x_earth": "KA-CHUNK!",
 	"bound_x_wind": "SNAPP!", "bound_x_water": "KLINNK!",
 	"charged_x_void": "BZZT-ZAP!", "charged_x_water": "KRZZZK!", "charged_x_earth": "FWA-KOOM!", "charged_x_wind": "ZZRAAAK!",
+	# The six rules (round 49, void_element.RULES; the cells above are the upgrade cells').
+	"frozen": "SHA-KRASH!", "charged": "ZZAK-ZAK!", "molten": "FWOOMPH!", "bound": "SNAP!", "airborne": "WHAP-UP!", "buried": "KA-THOOM!",
 }
 const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
 ## Moves whose word is said by the move itself, later than its first hit (say()): Galvanize's on its discharge.
-const LATE_WORDS := ["XC"]
+const LATE_WORDS := ["XC", "XL"]
 const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
 ## captions): round the contact point, in the clearest of these directions (degrees off the way from

@@ -133,6 +133,7 @@ const HANG_SETTLE := 3.0  # per real second
 ## Meteor Fall's hang frames the wall splat Molten Palm cued (void_element.PALM_CUE_MS) and the dive onto it; it
 ## sat in the top-left corner, half off frame, for the whole hang. Cued foes count this far out (the palm's carry).
 const FRAME_CUE_RANGE := 17.0
+const ENV_TARGET_Y := 1.0  # m: the structure indicator's point the hang frames (its bracket top is FRAME_HEAD above)
 
 
 func _ready() -> void:
@@ -333,6 +334,16 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 		_cued = _cued or cued
 		lo = lo.min(Vector2(at.x, at.z - (at.y + FRAME_HEAD) * VIEW_DIR.z / VIEW_DIR.y))  # (a head reads as
 		hi = hi.max(Vector2(at.x, at.z))  # floor that far up-screen)
+	# Round 50: in a hang, the wall or pillar the ending will use (env_target's structure indicator) counts as a cued
+	# foe, so its bracket is in view (Pinwheel's back wall sat on the top edge, the bracket half off it).
+	var env: Node = get_tree().get_first_node_in_group(&"env_target") if hanging else null
+	if env != null and not env.current.is_empty() and env.current.get("state", "") == "target":
+		var at: Vector3 = env.current.at + Vector3.UP * ENV_TARGET_Y
+		if at.distance_to(hero) <= FRAME_CUE_RANGE:
+			pts.append(at)
+			_cued = true
+			lo = lo.min(Vector2(at.x, at.z - (at.y + FRAME_HEAD) * VIEW_DIR.z / VIEW_DIR.y))
+			hi = hi.max(Vector2(at.x, at.z))
 	if pts.is_empty():
 		return
 	var mid := (lo + hi) * 0.5

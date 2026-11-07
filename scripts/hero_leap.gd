@@ -59,6 +59,9 @@ static func start(hero: CharacterBody3D, id: String, entry: Dictionary) -> void:
 	hero._brk_dir = dir
 	var ahead: float = minf(entry.zone, hero._clear_ahead(dir, entry.zone) + 0.3)
 	hero._brk_zone = Vector3(hero.global_position.x, 0.0, hero.global_position.z) + dir * ahead
+	if hero.HERO_INPUT.held_for_window(hero) and not hero.bot_enabled:  # (round 51: a pause window's early press)
+		hero._brk_held = true
+		hero._brk_alt = hero._buffered == "light" and entry.has("alt")
 	hero._buffered = ""
 	hero._set_state(hero.State.LEAP)
 	hero._play("Jump_Start", 0.05, true)
@@ -177,6 +180,8 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 			hero._state_t = 0.0
 			hero._play("Jump_Idle", 0.1)
 	elif hero._brk_phase == 1:
+		if hero._buffered != "":  # round 51: a press in a long dive (Pinwheel's whirl, 0.42 s) is kept for the landing
+			hero._buffer_t = maxf(hero._buffer_t, 2.0 * delta + 0.001)
 		var k: float = clampf(t / b.dive, 0.0, 1.0)
 		var to: Vector3 = hero._brk_zone - hero._brk_dive_from
 		to.y = 0.0
@@ -219,6 +224,7 @@ static func _pressed(hero: CharacterBody3D, t: float) -> bool:
 
 
 static func _start_dive(hero: CharacterBody3D) -> void:
+	hero._buffered = ""  # the press that dove him isn't a grab as well (_end)
 	var b: Dictionary = hero._brk
 	var void_grab: Node = hero._void
 	if hero._brk_alt and b.has("alt"):
@@ -237,6 +243,8 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	if b.has("press"):
 		void_grab.aim_crush()
 	_aim(hero)
+	if b.has("uproot"):  # Uproot (round 51): no sink; the tentacle tears the pillar out as he dives
+		VOID_ELEMENT.uproot_dive(hero)
 	if b.has("pinwheel"):  # Pinwheel: the twister he whirls the kebab round in
 		VOID_ELEMENT.ALT_FX.pinwheel_ring(hero.get_parent(), hero._brk_zone, VOID_ELEMENT.PINWHEEL_R, b.dive + 0.25)
 	var perfect: bool = absf(hero._brk_press - b.sweet) <= b.perfect
@@ -345,7 +353,8 @@ static func _dash_out(hero: CharacterBody3D) -> void:
 
 static func _end(hero: CharacterBody3D) -> void:
 	hero._void.release_seized()
-	hero._buffered = ""  # the press that dove him isn't a grab as well
+	# (round 51: the press that dove him is dropped as the dive starts, _start_dive, so it isn't a grab as well; one made
+	# during the dive is the next string's and fires now: clearing it here ate every press made in a dive)
 	hero.velocity = Vector3.ZERO  # (the dive speed would carry on)
 	hero.model.position.y = 0.0
 	hero._brk_cue = null

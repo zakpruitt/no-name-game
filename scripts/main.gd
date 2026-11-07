@@ -16,11 +16,15 @@ const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
 const SPAR := preload("res://scripts/spar.gd")
 const WARMUP := preload("res://scripts/warmup.gd")
+const ENV_TARGET := preload("res://scripts/env_target.gd")
+const ENV_PIECE := preload("res://scripts/env_piece.gd")  # round 51: the room's pieces as data (rooms.gd)
+const ROOMS := preload("res://scripts/rooms.gd")
 const BOT := preload("res://scripts/training_bot.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
-const PILLARS := [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)]
+const PILLARS: Array = ROOMS.PILLARS
+const PILLAR_R := 0.75  # m: the pillars' collider (and env_target's structure radius)
 const HINT_GAP := 7.0
 
 const TILE := 4.0
@@ -50,6 +54,7 @@ var _best_string := 0.0
 var _strings := 0
 
 var _bot: Node  # training_bot.gd, with --autotest
+var env: Node3D  # env_target.gd: the walls, pillars and torches the environmental endings use (round 50)
 var _collect_shaders := false  # --collect-shaders: note every material shader seen (warmup.gd)
 
 
@@ -259,11 +264,21 @@ func _build_environment() -> void:
 
 
 func _build_arena() -> void:
-	# Floor visuals: big tiles with the odd grate for variety.
+	env = ENV_TARGET.new()
+	add_child(env)
+	# Round 51: the room's pieces come from rooms.gd (Game.room: "plain", today's arena, or "pieces").
+	var room: String = Game.room
+	ENV_PIECE.begin(self, true)  # (training: every used-up piece comes back, the plain room's pillars too)
+	var covered: Array = ROOMS.floor_spots(room)
+	var plain := room == "plain"
+	# Floor visuals: big tiles with the odd grate for variety (the plain room; with pieces the grates are placed by data).
 	for x in range(-HALF_TILES, HALF_TILES):
 		for z in range(-HALF_TILES, HALF_TILES):
-			var piece := "floor_tile_big_grate" if randf() < 0.08 else "floor_tile_large"
-			var tile := _place(piece, Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE))
+			var at_tile := Vector3((x + 0.5) * TILE, 0.0, (z + 0.5) * TILE)
+			var piece := "floor_tile_big_grate" if randf() < 0.08 and plain else "floor_tile_large"
+			if at_tile in covered:
+				continue  # (a floor piece lies here: rooms.gd)
+			var tile := _place(piece, at_tile)
 			# Flat tiles only receive shadows; casting would redraw them per cascade.
 			for mi: MeshInstance3D in tile.find_children("*", "MeshInstance3D", true, false):
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -282,37 +297,30 @@ func _build_arena() -> void:
 	_box_collider(Vector3(0.0, 2.0, ARENA_HALF + t * 0.5), Vector3(ARENA_HALF * 2.0, 4.0, t))
 	_box_collider(Vector3(-ARENA_HALF - t * 0.5, 2.0, 0.0), Vector3(t, 4.0, ARENA_HALF * 2.0))
 	_box_collider(Vector3(ARENA_HALF + t * 0.5, 2.0, 0.0), Vector3(t, 4.0, ARENA_HALF * 2.0))
+	# The three drawn walls are structures (env_target.gd); the near side's collider is open floor on screen, so not.
+	env.add_wall(Vector3(-ARENA_HALF, 0.0, -ARENA_HALF), Vector3(ARENA_HALF, 0.0, -ARENA_HALF), Vector3.BACK)
+	env.add_wall(Vector3(-ARENA_HALF, 0.0, -ARENA_HALF), Vector3(-ARENA_HALF, 0.0, ARENA_HALF), Vector3.RIGHT)
+	env.add_wall(Vector3(ARENA_HALF, 0.0, -ARENA_HALF), Vector3(ARENA_HALF, 0.0, ARENA_HALF), Vector3.LEFT)
 
 	# Low rubble line marks the open near edge.
 	for i in range(-HALF_TILES, HALF_TILES):
 		_edge_rubble.append(_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0))
 
-	# Torches on the back wall, with real light.
-	for x in [-10.0, -2.0, 6.0]:
-		_place("torch_mounted", Vector3(x, 2.4, -ARENA_HALF + 0.5))
-		if Game.comic_style:
-			continue  # glow is drawn, not lit: the toon shader would only step its brightness
-		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.6, 0.3)
-		l.light_energy = 2.0
-		l.omni_range = 9.0
-		l.position = Vector3(x, 3.0, -ARENA_HALF + 1.2)
-		add_child(l)
-	for x in [-6.0, 2.0, 10.0]:
-		_place("banner_patternA_red", Vector3(x, 0.0, -ARENA_HALF + 0.4))
-
-	# Clutter in the corners (visual only, out of the main fighting space).
-	_place("barrel_large", Vector3(-14.5, 0, -14.0))
-	_place("barrel_small", Vector3(-12.8, 0, -14.6))
-	_place("crates_stacked", Vector3(14.0, 0, -13.8), 20.0)
-	_place("chest_gold", Vector3(13.6, 0, 12.0), -30.0)
-	_place("box_large", Vector3(-14.2, 0, 12.5), 15.0)
-
-	for p: Vector3 in PILLARS:
-		var pillar := _place("pillar_decorated", p)
-		pillar.add_to_group("grab_anchors")  # the void arm swings on them (void_grab.gd)
-		_cyl_collider(pillar, 0.75, 4.0)
-		_occluders.append(pillar)
+	# The room's pieces (rooms.gd): pillars, torches, banners, the corner clutter, and with pieces the training layout.
+	for e: Dictionary in ROOMS.layout(room):
+		var opts := {"live": e.get("live", true), "count": e.get("count", false)}
+		if e.has("model"):
+			opts.model = e.model
+		var n := ENV_PIECE.place(self, e.tag, e.at, e.get("yaw", 0.0), "", opts)
+		if e.get("occlude", false):
+			_occluders.append(n)
+		if e.get("light", false) and not Game.comic_style:  # (comic: glow is drawn, not lit: the toon shader would only step it)
+			var l := OmniLight3D.new()
+			l.light_color = Color(1.0, 0.6, 0.3)
+			l.light_energy = 2.0
+			l.omni_range = 9.0
+			l.position = Vector3(e.at.x, 3.0, -ARENA_HALF + 1.2)
+			add_child(l)
 
 
 func _place(piece: String, pos: Vector3, yaw_deg := 0.0) -> Node3D:
@@ -332,19 +340,6 @@ func _box_collider(pos: Vector3, size: Vector3) -> void:
 	body.add_child(shape)
 	body.position = pos
 	add_child(body)
-
-
-## Cylinder collider as a child of `owner_node`, so it moves with it.
-func _cyl_collider(owner_node: Node3D, radius: float, height: float) -> void:
-	var body := StaticBody3D.new()
-	var shape := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = radius
-	cyl.height = height
-	shape.shape = cyl
-	shape.position.y = height * 0.5
-	body.add_child(shape)
-	owner_node.add_child(body)
 
 
 ## The camera looks down from +Z, so a prop hides the hero when it's a little

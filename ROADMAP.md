@@ -927,3 +927,120 @@ Zak: "start refining the breakers to be really flashy and awesome", with wind an
 - [x] The banner drops to the bottom of the screen when a cued or wall-splatted foe is under it (Pinwheel's wall throw sat under it at the top edge)
 - [ ] Wall-splat stars are not clearly verified on film: the palm's splat sits at the frame's edge.
 - [ ] Zak: Cold Front's and Flash Freeze's small blue spoked stars (existing ice hit pops, in the before film too) may read as crystals
+
+## Round 49 counter (kit grammar slot 9: the dash counter, Backlash and Ricochet)
+Zak approved the kit grammar ("implement it"); slot 9 is a Smash-style counter on the dash. See
+`docs/features/counter.md` and `docs/characters/kit-grammar.md` section 4.
+- [x] Space into a foe's strike (its last 0.25 s before contact, aimed within 60 deg) is the counter: i-frames, a
+  hitstop, a drawn violet parry flash (`tools/vfx_gen/gen_counter.py`), the attacker staggered and marked, then
+  Backlash (KRRAK-SNAP!): the tentacle swings it up over him and slams it for 18. A dash with nothing coming is the dash
+- [x] A perfect (last 0.1 s) opens the counter breaker window, one violet ending: Ricochet (KA-SPLATT!) hurls the
+  attacker into the nearest foe or wall (30, x2.5 on a wall) and binds it; the breaker spectacle fires on its landing
+- [x] Enemy bolts in the window are batted back at their shooter (x2 damage)
+- [x] Swinging dummies: Settings "Dummies swing" / `--swing` (windup 0.7 s after he stands in front 0.5 s, 4 damage)
+- [x] Check `tests/counter_check.gd` (in `agent.sh check`); bot string `counter D` (perfect, Ricochet into the crowd)
+- [x] Clips: `awaken-combo-clips/31 Counter *`
+- [ ] Zak's call: the bot turns swinging on for its counter string only; bolts get no Backlash or window; the counter
+  window keeps the shared breaker rhythm; `--spar=` foes are counterable by design (melee windups) but not filmed
+
+## Round 49 matrix (kit grammar section 3: one payoff rule per state, `docs/characters/kit-grammar.md`)
+- [x] Matrix collapse (section 3): six states, one payoff rule each (Shatter, Arc, Burst, Snap, Juggle, Crater), any
+  element's hit; the 18 old cells are Kit upgrades (`--kit=full`); one look per rule tinted by the hitter; MIX ELEMENTS
+  lists the rules and the upgrades; `[improv]` per rule, `agent.sh check` runs a second autotest with `--kit=full`.
+  Sheets `awaken-combo-clips/32 Matrix *`. `docs/features/element-matrix.md`
+
+## Round 49 (kit-slots: the kit grammar's slot table in code)
+Zak approved the kit grammar ("implement it"). The heretic's kit is now data a second character can fill in. See
+`docs/features/kit-slots.md` and `docs/characters/kit-grammar.md` section 5.
+- [x] `scripts/kit_slots.gd`: 10 groups, 24 slots (input shape, role, one-word tag, window). The heretic's card fills
+  22 slots (the counter by its window, Ricochet); the dark x magma crossover is pending, and the meter has no move id. It also lists his
+  route steps and the demoted upgrade. `KitSlots.of(Game.hero)`; the prince's card is a TODO with his obvious moves
+- [x] The gate: Storm Pitch (`Dash H L`) is off unless `--kit=full` / `--kit=storm_pitch`. Rockslide's buried payoff
+  was gated too, then put back in the base kit (Zak): Fault Line's x2 and the Crater rule need buried. The routing, the combo guide, the MOVES panel and `move_list_check` agree
+- [x] The MOVES panel is laid out by slot group (role line, per-row tag, dim "upgrade" rows, pending slots), then ROUTE
+  STEPS, UPGRADES and MIX ELEMENTS. The combo guide tags each row with its slot
+- [x] Bot strings name their slot. The autotest prints `[kit] slots=22/22 windows=13/13 upgrades=0/0`
+  (`--kit=full`: 37 strings, `upgrades=1/1`). `agent.sh check` runs both and asserts the line
+- [x] `tests/kit_check.gd`: every slot filled with a routable move, shapes, ≤ 2 endings a window, ≤ 15 windows, ≤ 6
+  crossovers on distinct pairs, every MOVES id on the card, every slot with a bot string, demoted moves reachable
+  only with their gate
+- [ ] Zak: Reap fills the mark slot at H L (the grammar says H; his H alone is the grab). Impale (Dash H H) has no
+  window
+
+## Round 49 dark-magma (kit grammar slot 8: the sixth crossover, Lava Leash / Hellseam)
+Zak approved the kit grammar ("implement it"); dark x magma was its one empty crossover. See
+`docs/features/void-element.md` "Crossovers" and `docs/features/combo-breakers.md` "Hellseam".
+- [x] Lava Leash (L L L H L, `XL`, Molten Palm's free L): a tentacle to everyone the palm hit, wherever it went (the
+  wall too), dragged back along the floor through a lava seam into a pile at his feet, paid by the metre (x1.6 off a
+  wall); the seam erupts under the pile (SHLURK-FWOOM!): molten, bound
+- [x] Its best situation differs from Galvanize's and Black Tide's (`tests/lava_leash_check.gd`, all three in each; in `agent.sh check`):
+  palm's foes at mixed ranges by a wall 103 / 42 / 72; a spread crowd 7 m round him, unmarked 36 / 130 / 0; marked foes
+  8-10 m off, no palm 0 / 67 / 96 (Lava Leash / Galvanize / Black Tide)
+- [x] One ending, Hellseam (KRAKA-FWOOOM!): he dives on the pile, a crater harder the further each was dragged, then the
+  eruption runs back out along every seam and catches whoever stands on one; the breaker spectacle's magma family
+- [x] Designed sheets only (`tools/vfx_gen/gen_leash.py`: `lava_seam` ribbon, `leash_burst`), tentacles `void_tendril`,
+  lava `designed_elements`; no polygons, no crystals. Bot string `wall spread L L L H L` (`spread` + `wall` lays the
+  arc toward the wall); `endings_n=` counts Hellseam; element_shots `--only=leash`
+- [x] Clips: `awaken-combo-clips/33 Dark-magma *`
+- [ ] Zak's call: the tentacles glow pink-orange in the lava (purple washed with `electrify`); the move's clip plays at
+  0.95 (was 1.1 in the first cut) so the pile's burst shows before his leap; Hellseam's far seam ends sit under the
+  ending banner when the palm sent them to the back wall
+- [x] `kit_slots.gd`: the heretic's `cross_dark_magma` slot filled with `XL` (the card is full: 23 slots)
+
+## Round 49 wiki (the field guide rebuilt for the kit grammar)
+Zak: "update the wiki with this new system and how it will grow, also update the heretic's wiki." The old wiki went with
+the roguelike layer (499138a); this one is the game as it is now. See `docs/features/wiki.md`.
+- [x] `docs/wiki/index.html`, one page with a left nav: Home (what it is, controls, breaker windows, the counter,
+  Awakening, where it is going), the kit grammar (signature + three elements, six states, ten slot groups, windows,
+  crossovers, upgrades, the empty card), the heretic's full card slot by slot (input, element, MOVES text, state, best
+  situation, each ending's button, word, damage and best situation), route steps and Storm Pitch, Backlash / Ricochet
+  and the swinging dummies, the Dragon Prince's card with TODOs, the six rules and the 18 upgrade cells, a changelog of
+  rounds 43-49
+- [x] `tools/wiki_data.gd` writes `docs/wiki/data.js` from kit_slots, move_list, hero_moves, BREAKERS + BREAKER_WORDS,
+  RULES, kit.gd, counter.gd, training_dummy.gd; `python tools/wiki.py` runs it and checks `notes.js` covers every move
+  and ending; `tests/wiki_check.gd` in `agent.sh check` fails on a stale data.js
+- [x] Ten screenshots from `string_film -- --dir=wiki_film` and `heretic_shots` (the hero, the two-chip window, Galvanize,
+  Harpoon's row, Lava Leash, Backlash's parry flash, one landing per breaker family), 28-53 KB each
+- [x] `.github/workflows/wiki.yml` restored: a push to dev that touches `docs/wiki/` publishes it
+- [ ] Zak: Backdraft's MOVES note says "Ice into storm" and `ELEMENT_OF.XW` is wind, while its card slot is dark x ice
+
+## Round 50 environment (structure targeting, an easier Pinwheel, environmental beats)
+Zak: "absolutely love the pinwheel! i think this should maybe be a bit easier to execute though. maybe just an
+indicator to click on the structure for combos that require environment!" See `docs/features/environment.md`.
+- [x] `scripts/env_target.gd`: the room's walls (segments), pillars (points) and torches; one pick per move for
+  Pinwheel, Slapshot, Ricochet, Collapse, Meteor Fall's pile, Molten Palm's carry, Lava Leash's tear and the pillar
+  slam; an inked bracket in the ending's colour plus floor chevrons (designed sheets, `tools/vfx_gen/gen_environment.py`),
+  a dim dashed "too far" bracket when nothing is in reach
+- [x] Click to choose: the cursor ray (or right stick) picks a structure in reach; the window's L / H is the trigger
+- [x] Pinwheel easier: Impale (Dash H H) has its own window, Anvil (H) / Pinwheel (L), a pause window (15/15 windows)
+- [x] Collapse throws into the picked structure (x1.6); a pillar hit cracks it and sheds chunks; wall hits leave a
+  mark per element (capped at 14) and swing a torch nearby; hold H through H H's grab by a pillar for a pillar slam
+- [x] `tests/env_target_check.gd` (in `agent.sh check`); bot strings `pillar H hold`, `wall alt D H H`; `[env]` line
+- [x] Clips: `awaken-combo-clips/34 Environment *`
+- [ ] Zak's call: Collapse's x1.6 into a structure; the pillar slam on a held H; the palm's too-far bracket; Meteor
+  Fall's cursor only takes a structure with palm foes on it; Dash H H then a pause is now Pinwheel / Anvil, so a
+  slow Dash H H L leaps instead of Backdraft
+
+## Round 51 env-pieces (pieces as data, the heretic's environmental verbs)
+Zak: the environment should be "a big part of what you can do", each character with "environmental aspects only they
+can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/features/env-pieces.md`.
+- [x] Pieces as data: `scripts/env_piece.gd` (14 pieces, shared rules, `EXCLUSIVE` by element), `scripts/rooms.gd`
+  (`ROOMS.training` = today's arena, `training_pieces`), Settings "Room: plain / with pieces", `--room=pieces`,
+  rebuild after 6 s, `tests/env_piece_check.gd`, `[env] ... pieces=N/N`
+- [x] Uproot: Overwhelm's LMB ending (`OW.alt`): the tentacle tears the nearest pillar out and clubs the pinned foe
+  (297 vs Abyss 196 by a pillar; 78 vs 196 in the open), the pillar left as rubble; both training rooms rebuild
+
+## Round 51 fluidity (every hand-over snappy, no dead contact, no eaten press)
+
+Zak: "work in a loop increasing combat fluidity, ensure everything is snappy and very fun." See
+`docs/feel-audit-2026-11-07.md`.
+- [x] Measured all 39 strings (autotest beats, film sheets) and ranked hand-overs, x1.00 contacts, eaten presses
+- [x] Molten Palm's coil re-keyed (`tools/meshy_rig/clip_warp.py`): L3 -> palm 535 -> 373 ms; eight more hand-overs
+  under 380 (Vault -> Deep Freeze 453 -> 370, Hailstorm -> Meltdown 434 -> 343, Ice Cube -> Hailstorm 367 -> 319)
+- [x] Ice Cube sets Harpoon's row down before bowling; a whiffed blade's echo cast gets its own small stop
+- [x] Hit weight climbs opener -> mid -> ender (`hero_moves.hit_stop` / `cam_tier`)
+- [x] No press eaten: early presses in pause windows held to the window, dive presses kept to the landing
+- [x] `tests/input_snap_check.gd` (in `agent.sh check`)
+- [x] Clips: `awaken-combo-clips/35 Fluidity *`
+- [ ] Zak's call: the dash hand-overs (Rockslide -> Dash Stab 385 ms) are over the 330 mid target because of the dash
+  itself; a shorter dash would change movement everywhere

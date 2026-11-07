@@ -27,6 +27,7 @@ const DASH_CANCEL_WHIFF := 0.2
 ## it), so the dash doesn't carry him through the foe the stab is for (the bot's D L H from 2 m went 3.8 m, past it).
 const DASH_ARRIVE := 2.8  # m: Dash Stab's range
 const DASH_ARRIVE_ARC := 35.0  # deg either side of the dash
+const TOW_LINE_CANCEL := 0.7  # of dash_time: a dash out of a move hands over to a buffered right click (Tow Line) here
 const DASH_ARRIVE_MIN := 0.25  # of dash_time: always this much dash (1 m), so it still reads as one
 ## Mouse aim keeps the foe a move started on (hero._aim_lock) while the cursor stays within AIM_LOCK_BREAK
 ## deg of it, so the per-frame turn doesn't flick between two foes mid-string; past that the cursor wins.
@@ -94,6 +95,21 @@ static func cancel_point(hero: CharacterBody3D) -> float:
 	return minf(c, early)
 
 
+## Round 51 (fluidity): in a pause window (BREAKERS `pause`: Harpoon, Impale) a press of a button whose route would not go
+## on down the string (L off Harpoon restarted the chain at the hammer, H off Impale grabbed) is held for the window
+## instead of firing at the cancel: hero_leap.start dives on it as the window opens (like BREAKER_EARLY), with that
+## button's ending (Slapshot, Anvil). The documented early routes still fire: H off Harpoon is Ice Cube, L off Impale
+## is Backdraft. (tests/input_snap_check.gd)
+static func held_for_window(hero: CharacterBody3D) -> bool:
+	if hero._buffered == "" or not hero._connected:
+		return false
+	var b: Dictionary = HERO_LEAP.entry_for(hero._move_id)
+	if b.is_empty() or not b.get("pause", false) or HERO_MOVES.pause_ending(hero._move_id, hero._buffered) == "":
+		return false
+	var id: String = hero._next_move(hero._buffered)
+	return id == HERO_MOVES.VOID_ELEMENT.NEUTRAL or id in HERO_MOVES.LIGHT_CHAIN
+
+
 ## Whether a dash may cut the current move at progress `t`: once its first hit is out, or past
 ## DASH_CANCEL_WHIFF on a whiff. (R's swing follows the same rule.)
 static func can_dash_cancel(hero: CharacterBody3D, t: float) -> bool:
@@ -106,7 +122,9 @@ static func dash_hands_over(hero: CharacterBody3D) -> bool:
 		return false
 	var t: float = hero._state_t / maxf(hero.dash_time, 0.001)
 	if hero._buffered != "light":
-		return false  # (a right click waits out the dash: Tow Line's line is the dash, and a short one lost frozen x dark)
+		# (a right click waits out most of the dash: Tow Line's line is the dash, and at DASH_STAB_CANCEL a short one lost
+		# frozen x dark. Round 51: a dash out of a move hands over at TOW_LINE_CANCEL, EF / IP -> Tow Line 365-380 ms.)
+		return hero._buffered == "heavy" and hero._dash_out and t >= TOW_LINE_CANCEL
 	if hero._dash_out and t >= HERO_MOVES.DASH_STAB_CANCEL:
 		return true
 	if t < DASH_ARRIVE_MIN:

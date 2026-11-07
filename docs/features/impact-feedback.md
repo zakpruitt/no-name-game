@@ -180,3 +180,13 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
   dropped, and the weapon trail's swell caps at `AWAKEN_SWELL_MAX` 0.12 (`SWELL_MAX` 0.35 otherwise) at
   `AWAKEN_ALPHA` 0.6.
 
+
+## Round 51: weight climbs through the string (fluidity lane)
+
+`hero_moves.hit_stop()` / `cam_tier()` (called from `player._do_hit`): the opener keeps `HITSTOP_OPENER` 0.8; a mid
+holds at most `MID_STOP_MAX` 0.09 s (`BIG_MID_STOP_MAX` 0.1 for a `big` move) however high its tier, and its camera
+punch is tier 1 at most; an ender (`is_ender`: a BREAKERS leap, `CHAIN_ENDERS` L3, a tier-3 combo) holds at least
+`ENDER_STOP_MIN` 0.11 with its full tier punch. Before, Rockslide / Hailstorm / Molten Palm froze 0.12-0.145 s,
+longer than the breaker leaps. A spirit echo cast landing more than `CAST_STOP_GAP_MS` 90 ms after the last stop
+takes `spirit_echo.CAST_STOP` 0.03 s, so a whiffed blade's cast is not a contact at x1.00. See
+`docs/feel-audit-2026-11-07.md`.

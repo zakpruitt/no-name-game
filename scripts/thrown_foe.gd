@@ -10,6 +10,8 @@ const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the faceted ice block
+const ENV := preload("res://scripts/env_target.gd")  # round 50: the wall or pillar it hit plays its beat
+const ENV_PIECE := preload("res://scripts/env_piece.gd")  # round 51: a barrel, crate or chest it stops on, spikes it lands on
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -68,6 +70,7 @@ var _dir := Vector3.FORWARD
 var _length := 0.0
 var _gone := 0.0
 var _walled := false
+var _piece: Node3D = null  # round 51: the piece it will stop on (env_piece.gd), found when it's aimed
 var _struck := {}
 var _rope: Node3D
 var _time := 0.0
@@ -216,6 +219,8 @@ func _aim(to: Vector3) -> void:
 	var clear := _clear(flat.length())
 	_walled = clear < flat.length()
 	_length = minf(flat.length(), clear)
+	if _walled:  # (found now: the first of a crowd to arrive may break it before the rest get there)
+		_piece = ENV_PIECE.struck(foe.get_tree(), _from + _dir * _length, _dir, float(foe.get("radius")))
 
 
 ## How far it can fly before a wall.
@@ -330,6 +335,7 @@ func _burst(other: Node3D) -> void:
 	Game.shake(0.3)
 	if _walled and other == null:
 		foe.set_meta(WALL_META, Time.get_ticks_msec())
+		ENV.impact(hero, spot, _dir, el)  # (a pillar sheds chunks, a wall keeps a mark, a torch near it swings)
 		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
 			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
 	if DESIGNED.on() and el == "wind":  # fx-air: Storm Pitch lands in a burst of wind (designed_fx.wind_burst)
@@ -338,7 +344,17 @@ func _burst(other: Node3D) -> void:
 		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
 	if on_burst.is_valid():
 		on_burst.call(foe, _walled and other == null, _dir)
-	foe.take_hit(damage * (wall_mult if _walled and other == null else 1.0), _dir * 2.0, 0.0, true)
+	var mult := wall_mult if _walled and other == null else 1.0
+	if _walled and other == null:  # round 51: the piece it stopped on (a breakable splats for half), the banners there
+		if is_instance_valid(_piece):
+			mult = ENV_PIECE.splat_mult(_piece, wall_mult)
+			ENV_PIECE.hit(_piece, el, hero, "throw")
+		ENV_PIECE.wall_splat(foe.get_tree(), spot, hero)
+	var spikes: Node3D = ENV_PIECE.under(foe.get_tree(), "spikes", spot)
+	if spikes != null:  # (it comes down on the spikes: x1.5 on the landing)
+		mult *= ENV_PIECE.SPIKES_MULT
+		ENV_PIECE.hit(spikes, el, hero, "throw")
+	foe.take_hit(damage * mult, _dir * 2.0, 0.0, true)
 	_count(foe)
 	if other != null:
 		_hit_other(other)

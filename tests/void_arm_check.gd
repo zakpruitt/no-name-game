@@ -1011,6 +1011,10 @@ func _meteor_target() -> void:
 func _crossovers() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	var r: Callable = load("res://scripts/hero_moves.gd").void_route
+	# (round 49: Storm Pitch is a kit upgrade, Kit.has: off, Dash H L goes on to Slice)
+	Kit.set_on("storm_pitch", false)
+	_check(Kit.has("storm_pitch") or r.call("light", "TW", true, 0, false) == "L1", "Dash H L without the upgrade: Slice")
+	Kit.set_on("storm_pitch", true)
 	_check(r.call("light", "AL1", true, 0, false) == "XR", "L H L L: Rockslide")
 	_check(r.call("heavy", "XR", true, 0, false) == "XF", "L H L L H: Fault Line")
 	_check(r.call("light", "EA", true, 0, false) == "XS", "Dash L H H L: Steam Burst")
@@ -1115,35 +1119,86 @@ func _crossovers() -> void:
 
 ## Round 34, second pass: the three-element strings (each hand-over pays for what the last element left) and the
 ## improvised payoffs a dash route reaches (states outlive the string by ELEMENT_HOLD).
-## The element matrix (round 34, third pass): every IMPROV cell pays on a foe in that state, the cells the moves pay
-## themselves are left to them, a whole move cashes one in, and a move with no reach doesn't touch a foe on top of him.
+## The element matrix (round 49, kit grammar section 3): each of the six states' one rule pays for every element on a
+## stand-in foe (the state's own element and the moves that pay it themselves left alone), then every upgrade cell
+## plays in the rule's place with its Kit id on and the rule plays with it off; a whole move cashes one in, and a move
+## with no reach doesn't touch a foe on top of him.
 func _element_matrix() -> void:
 	var el: GDScript = load("res://scripts/void_element.gd")
 	var BIND: GDScript = load("res://scripts/floor_bind.gd")
+	var KIT: GDScript = load("res://scripts/kit.gd")
 	var base := {"wind": "EC", "water": "EF", "earth": "EM", "void": "VR"}
 	hero.global_position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
-	var cells := 0
-	for state: String in el.IMPROV_ORDER:
+	for id: String in KIT.UPGRADES:
+		KIT.set_on(id, false)
+	_check(el.RULES.size() == 6 and el.RULES.keys().all(func(s: String) -> bool: return s in el.IMPROV_ORDER),
+		"six states, one rule each (%s)" % str(el.RULES.keys()))
+	# The rules, on every element (Undertow too: Molten Palm's own steam keeps the frozen, Undertow shatters it).
+	var rules := 0
+	var cases := []
+	for state: String in el.RULES:
 		for element: String in ["wind", "water", "earth", "void"]:
-			var e := _foe(Vector3(0, 0, 2.0))
-			var o := _foe(Vector3(1.2, 0, 2.2))
-			var bind: Node = null
+			cases.append([state, element, base[element]])
+	cases.append(["frozen", "earth", "EV"])
+	for c: Array in cases:
+		var state: String = c[0]
+		var element: String = c[1]
+		var id: String = c[2]
+		var e := _foe(Vector3(0, 0, 2.0))
+		var o := _foe(Vector3(1.2, 0, 2.2))
+		var bind := _matrix_state(el, BIND, e, state)
+		if state == "charged":
+			el.mark(o, "charged")
+		var before: int = int(el.improv_paid.get(state, 0))
+		var paid: int = el.improvise(hero, id, Vector3.ZERO, 1.0)
+		var cell := "%s x %s (%s)" % [state, element, id]
+		if el.RULE_OWN.get(state, "") == element or el._pays_itself(state, element, id):
+			_check(paid == 0 and e.hits == 0, "%s is the move's own: no rule (%d)" % [cell, paid])
+		else:
+			rules += 1
+			var dealt := 500.0 - e.hp
+			var shows := false
 			match state:
 				"frozen":
-					el.encase(e)
-				"airborne":
-					e.up = true
+					shows = not el.in_cube(e) and dealt >= el.IMPROV_DAMAGE * el.RULE_SHATTER_MULT - 0.01
+				"charged":
+					shows = o.hits > 0 and not el.marked(e, "charged") and not el.marked(o, "charged")
+				"molten":
+					shows = o.hits > 0 and not el.marked(e, "molten") and dealt >= el.IMPROV_DAMAGE * el.IMPROV_MULT - 0.01
 				"bound":
-					bind = BIND.bind(hero, [e], {"time": 3.0})
-				_:
-					el.mark(e, state)
-			var paid: int = el.improvise(hero, base[element], Vector3.ZERO, 1.0)
-			var cell := "%s x %s" % [state, element]
-			if not el.IMPROV[state].has(element):
-				_check(paid == 0 and e.hits == 0, "%s is the moves' own: improvise leaves it (%d)" % [cell, paid])
+					shows = not BIND.holds(e) and e.last_kb == Vector3.ZERO and e.last_big
+				"airborne":
+					shows = e.last_launch > 0.0
+				"buried":
+					shows = e.last_kb.y < 0.0 and not el.marked(e, "buried")
+			_check((paid == 1 or (state == "charged" and paid >= 1)) and e.hits >= 1 and shows
+				and int(el.improv_paid.get(state, 0)) > before,
+				"%s: the %s rule (paid %d, hits %d, dealt %.1f, kb %s, launch %.1f)" % [cell, el.RULE_NAMES[state], paid, e.hits, dealt, e.last_kb, e.last_launch])
+		if is_instance_valid(bind):
+			bind.free()
+		e.free()
+		o.free()
+	_check(rules == 18, "the six rules pay on 18 state x element pairs (%d)" % rules)
+	# The upgrade cells: on, the cell plays in the rule's place; off, it doesn't.
+	var cells := 0
+	for key: String in el.IMPROV_UPGRADE:
+		var state: String = key.get_slice("_x_", 0)
+		var element: String = key.get_slice("_x_", 1)
+		var up: String = el.IMPROV_UPGRADE[key]
+		_check(KIT.UPGRADES.has(up), "%s's upgrade %s is in Kit.UPGRADES" % [key, up])
+		for on: bool in [false, true]:
+			KIT.set_on(up, on)
+			var e := _foe(Vector3(0, 0, 2.0))
+			var o := _foe(Vector3(1.2, 0, 2.2))
+			var bind := _matrix_state(el, BIND, e, state)
+			var want: String = el.improv_cell(e, element, base[element])
+			if not on:
+				_check(want != key, "%s off (%s): the cell doesn't play (%s)" % [key, up, want if want != "" else "nothing"])
 			else:
 				cells += 1
+				var before: int = int(el.improv_paid.get(key, 0))
+				var paid: int = el.improvise(hero, base[element], Vector3.ZERO, 1.0)
 				var kind: String = el.IMPROV[state][element]
 				var shows := false
 				match kind:
@@ -1153,7 +1208,7 @@ func _element_matrix() -> void:
 						shows = e.last_kb.y < 0.0
 					"encase", "freeze":
 						shows = el.in_cube(e)
-					"shatter":
+					"shards":
 						shows = o.hits > 0
 					"spread":
 						shows = el.in_cube(o) and el.marked(o, "skewered")
@@ -1167,27 +1222,55 @@ func _element_matrix() -> void:
 						shows = o.hits > 0 and o.has_meta("thrown_foe_flying")
 					"overload":
 						shows = e.hits >= 1
-				_check(paid == 1 and e.hits >= 1 and shows, "%s: %s (paid %d, hits %d, kb %s, launch %.1f)" % [cell, kind, paid, e.hits, e.last_kb, e.last_launch])
+				_check(want == key and paid == 1 and e.hits >= 1 and shows and int(el.improv_paid.get(key, 0)) > before,
+					"%s on (%s): %s (paid %d, hits %d, kb %s, launch %.1f)" % [key, up, kind, paid, e.hits, e.last_kb, e.last_launch])
 				if kind == "fan":
 					_check(el.marked(o, "molten") and o.hits > 0, "fan: the flames catch the one beside it")
 				if kind == "loose":
 					_check(not BIND.holds(e), "loose: out of the bind")
 				if state in ["buried", "molten", "skewered"] or (state == "charged" and kind != "conduct"):
-					_check(not el.marked(e, state), "%s: spent once" % cell)
+					_check(not el.marked(e, state), "%s: spent once" % key)
 			if is_instance_valid(bind):
 				bind.free()
 			e.free()
 			o.free()
-	_check(cells >= 19, "the matrix has its cells (%d)" % cells)
-	# Round 44: a jolt leaves them charged; Overload is harder the more are charged, and discharges them all, the
-	# ones out of the move's reach too.
+		KIT.set_on(up, false)
+	_check(cells == 18, "every old cell is an upgrade (%d)" % cells)
+	print("  element matrix: %d rule pairs, %d upgrade cells on and off" % [rules, cells])
+	# The guide's tag reads the rule's name, or the upgrade's with it on.
+	var tagged := _foe(Vector3(0, 0, 2.0))
+	el.encase(tagged)
+	_check(el.improv_name(el.improv_cell(tagged, "wind", "EC")) == "Shatter", "the tag off: + Shatter (%s)" % el.improv_name(el.improv_cell(tagged, "wind", "EC")))
+	KIT.set_on("gale_lift", true)
+	_check(el.improv_name(el.improv_cell(tagged, "wind", "EC")) == "Gale Lift", "gale_lift on: + Gale Lift")
+	KIT.set_on("gale_lift", false)
+	tagged.free()
+	# Round 44: a jolt leaves them charged. The rule: the arc goes on through every charged foe near the payer, out of
+	# the move's reach too, and discharges them all.
 	var one := _foe(Vector3(0, 0, 2.0))
 	el.jolt(hero, one)
 	_check(el.marked(one, "charged"), "a jolt leaves it charged")
-	var before := one.hp
+	var chain := [one, _foe(Vector3(4.0, 0, 5.0)), _foe(Vector3(-3.0, 0, 6.5))]
+	el.mark(chain[1], "charged")
+	el.mark(chain[2], "charged")
+	el.improvise(hero, "VR", Vector3.ZERO, 1.0)
+	_check(chain.all(func(e: Foe) -> bool: return e.hits > 0 and not el.marked(e, "charged")),
+		"the arc rule: Reap's hit arcs on through both charged foes past its crescent, all discharged (%s)" % str(chain.map(func(e: Foe) -> int: return e.hits)))
+	for e: Foe in chain:
+		e.free()
+	# Storm on charged is Live Wire's own: off, Updraft Lash leaves the charge; Overload on, harder the more are
+	# charged, and discharges them all.
+	var mine := _foe(Vector3(0, 0, 2.0))
+	el.mark(mine, "charged")
+	_check(el.improvise(hero, "EC", Vector3.ZERO, 1.0) == 0 and el.marked(mine, "charged"), "storm on charged, Overload off: the move's own, still charged")
+	mine.free()
+	KIT.set_on("overload", true)
+	var lone := _foe(Vector3(0, 0, 2.0))
+	el.mark(lone, "charged")
+	var before_one := lone.hp
 	el.improvise(hero, "EC", Vector3.ZERO, 1.0)
-	var alone: float = before - one.hp
-	one.free()
+	var alone: float = before_one - lone.hp
+	lone.free()
 	var trio := [_foe(Vector3(0, 0, 2.0)), _foe(Vector3(4.0, 0, 3.0)), _foe(Vector3(-4.0, 0, 3.0))]
 	for e: Foe in trio:
 		el.mark(e, "charged")
@@ -1197,7 +1280,9 @@ func _element_matrix() -> void:
 		"Overload: harder with three charged (%.1f vs %.1f alone), all three discharged" % [500.0 - trio[0].hp, alone])
 	for e: Foe in trio:
 		e.free()
+	KIT.set_on("overload", false)
 	# Superconduct: the charge runs on through a cube standing 5 m off.
+	KIT.set_on("superconduct", true)
 	var payer := _foe(Vector3(0, 0, 2.0))
 	var cube := _foe(Vector3(5.0, 0, 3.0))
 	el.mark(payer, "charged")
@@ -1206,12 +1291,13 @@ func _element_matrix() -> void:
 	_check(el.in_cube(payer) and cube.hits > 0 and el.marked(cube, "charged"), "Superconduct runs through the ice to the cube 5 m off")
 	payer.free()
 	cube.free()
+	KIT.set_on("superconduct", false)
 	await _settle()
 	# Round 4: the payoff follows the move's own hit shape. A foe behind him, well inside the old 5 m reach round
 	# him, is outside every one of these moves (the gale's circle ahead, the harpoon's line, the palm's line, the
 	# crescent) and doesn't pay; nor does one off to the side of the harpoon's line.
 	root.get_node("Game").combo_count = 0  # (a long chain grows the shapes: Updraft Lash's gale then reaches behind him)
-	var paying := {"wind": "frozen", "water": "buried", "earth": "molten", "void": "frozen"}
+	var paying := {"wind": "frozen", "water": "buried", "earth": "buried", "void": "frozen"}
 	for element: String in base:
 		# (round 47: Harpoon takes everyone in 8 m round him, so its miss is past that, behind and to the side)
 		for spot: Vector3 in [Vector3(0, 0, -9.0), Vector3(9.0, 0, 1.0)] if element == "water" else [Vector3(0, 0, -2.5)]:
@@ -1228,12 +1314,13 @@ func _element_matrix() -> void:
 	el.mark(ahead, "buried")
 	_check(el.improvise(hero, "EF", Vector3.ZERO, 1.0) == 1, "Harpoon's reach pays the buried behind him")
 	ahead.free()
-	# A whole move cashes one in: Harpoon on someone Rockslide buried freezes them in the floor.
+	# A whole move cashes one in: Harpoon on someone Rockslide buried craters them (the rule).
 	var buried := _foe(Vector3(0, 0, 3.0))
 	el.mark(buried, "buried")
+	var craters: int = int(el.improv_paid.get("buried", 0))
 	hero._start_attack("EF")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
-	_check(el.in_cube(buried) and not el.marked(buried, "buried"), "Harpoon on the buried: frozen in the floor")
+	_check(not el.marked(buried, "buried") and int(el.improv_paid.get("buried", 0)) == craters + 1, "Harpoon on the buried: the crater rule")
 	await _until(func() -> bool: return hero.state != hero.State.ATTACK, 3.0)
 	buried.free()
 	await _settle()
@@ -1247,6 +1334,20 @@ func _element_matrix() -> void:
 	game_end_slowmo()
 	on_him.free()
 	await _settle()
+
+
+## Puts `e` in `state` for the matrix checks (returns the bind holding it, for "bound").
+func _matrix_state(el: GDScript, BIND: GDScript, e: Foe, state: String) -> Node:
+	match state:
+		"frozen":
+			el.encase(e)
+		"airborne":
+			e.up = true
+		"bound":
+			return BIND.bind(hero, [e], {"time": 3.0})
+		_:
+			el.mark(e, state)
+	return null
 
 
 func _three_elements() -> void:
@@ -1272,6 +1373,7 @@ func _three_elements() -> void:
 	var b := _foe(Vector3(-0.8, 0, 1.6))
 	hero._start_attack("XK")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	hero._connected = false  # (Impale's own window, round 50, is env_target_check's: here XK plays out as the move)
 	_check(a.has_meta("thrown_foe_flying") and el.in_cube(a), "Impale throws them, frozen")
 	_check(el.marked(a, "skewered") and el.marked(b, "skewered"), "and they're skewered")
 	var hit_a := 500.0 - a.hp
@@ -1725,8 +1827,68 @@ func _breaker_pairs() -> void:
 	print("  cataclysm pair: crowd of five cataclysm %.0f / tempest %.0f, a pair cataclysm %.0f / tempest %.0f" % [dealt.cata_crowd, dealt.temp_crowd, dealt.cata_pair, dealt.temp_pair])
 	_check(dealt.temp_crowd > dealt.cata_crowd, "a crowd: Tempest out-damages Cataclysm (%.0f vs %.0f)" % [dealt.temp_crowd, dealt.cata_crowd])
 	_check(dealt.cata_pair > dealt.temp_pair, "a pair: Cataclysm out-damages Tempest (%.0f vs %.0f)" % [dealt.cata_pair, dealt.temp_pair])
+	await _uproot_pair(ve)
 	hero.bot_alt = false
 	hero.bot_enabled = false
+
+
+## Abyss / Uproot (OW, round 51 env-pieces): a big foe 4 m from a pillar with one more on the line the pillar falls
+## along, or the same two in the open. Uproot wins by the pillar, Abyss in the open; the pillar is out of the swing
+## anchors after, laid down along the line.
+func _uproot_pair(ve: GDScript) -> void:
+	var EP: GDScript = load("res://scripts/env_piece.gd")
+	var dealt := {}
+	for case: String in ["abyss_pillar", "uproot_pillar", "abyss_open", "uproot_open"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		hero.model.position.y = 0.0
+		hero.bot_alt = case.begins_with("uproot")
+		var pillar: Node3D = null
+		if case.ends_with("pillar"):
+			pillar = Node3D.new()
+			world.add_child(pillar)
+			pillar.global_position = Vector3(0, 0, 8)
+			pillar.set_meta(EP.TAG_META, "pillar")
+			pillar.set_meta(EP.STATE_META, "whole")
+			pillar.add_to_group("env_pillar")
+			pillar.add_to_group("grab_anchors")
+		var big := _foe(Vector3(0, 0, 4))
+		big.radius = 1.0
+		var other := _foe(Vector3(0.8, 0, 6))
+		var foes: Array = [big, other]
+		await physics_frame
+		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
+		var landed: int = hero.breakers_landed
+		hero._start_attack("OW")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		var opts: Array = hero.breaker_window().get("options", [])
+		_check(opts.size() == 2 and opts[0].button == "light" and opts[0].name == "Uproot" and opts[1].name == "Abyss",
+			"%s: the window offers LMB Uproot, RMB Abyss (%s)" % [case, str(opts)])
+		await _until(func() -> bool: return hero.breakers_landed > landed, 4.0)
+		_check(hero.breakers_landed > landed, "%s: lands" % case)
+		await create_timer(0.6, true, false, true).timeout  # (the club comes down on real time)
+		for i in 20:
+			await physics_frame
+		var sum := 0.0
+		for i in foes.size():
+			sum += before[i] - foes[i].hp
+		dealt[case] = sum
+		if case == "uproot_pillar":
+			_check(not pillar.is_in_group("grab_anchors") and EP.state(pillar) == "toppled", "Uproot leaves the pillar toppled, out of the swing anchors (%s)" % EP.state(pillar))
+			_check(pillar.global_transform.basis.y.dot(Vector3(0, 0, -1)) > 0.9, "laid down along the line to the foe (%s)" % str(pillar.global_transform.basis.y))
+			_check(ve.marked(big, "buried") and ve.marked(other, "buried"), "the foe and the one on the line are buried")
+		if pillar != null:
+			for l: Variant in pillar.get_meta(&"env_leftovers", []):
+				if is_instance_valid(l):
+					l.free()
+			pillar.free()
+		for f: Foe in foes:
+			f.free()
+		await _settle()
+	print("  abyss pair: by a pillar abyss %.0f / uproot %.0f, open abyss %.0f / uproot %.0f" % [dealt.abyss_pillar, dealt.uproot_pillar, dealt.abyss_open, dealt.uproot_open])
+	_check(dealt.uproot_pillar > dealt.abyss_pillar * 1.3, "a big foe by a pillar: Uproot out-damages Abyss (%.0f vs %.0f)" % [dealt.uproot_pillar, dealt.abyss_pillar])
+	_check(dealt.abyss_open > dealt.uproot_open * 1.5, "in the open: Abyss out-damages Uproot (%.0f vs %.0f)" % [dealt.abyss_open, dealt.uproot_open])
+	hero.bot_alt = false
 
 
 func _wall(at: Vector3) -> StaticBody3D:

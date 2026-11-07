@@ -142,12 +142,21 @@ static func set_alpha(a: float, mi: GeometryInstance3D) -> void:
 	mi.set_instance_shader_parameter("alpha", a)
 
 
+## Round 51 (fluidity): a cast that lands where nothing froze lately (the blade whiffed a spread foe, the lash cut one
+## far ahead) takes a small stop of its own, so no contact plays at x1.00; inside or just after the blade's stop it
+## adds nothing (overlapping stops only extend), so the string's beats don't move.
+const CAST_STOP := 0.03  # s, at the freeze scale
+const CAST_STOP_GAP_MS := 90  # ms since the last stop ended (150 skipped L2's cast after L1's on the wall_alt film, 118 ms apart)
+
+
 ## One foe struck by a spirit cast: the hit, the combo counter, element debris
 ## at the foe (`debris_dir`, `big`) under `fx_parent`, then the caller's hook.
 static func strike(e: Node, damage: float, knockback: Vector3, launch: float, heavy: bool,
 		fx_parent: Node, el: String, debris_dir: Vector3, big: bool, on_hit: Callable) -> void:
 	e.take_hit(damage, knockback, launch, heavy)
 	Game.register_hit("cast")
+	if Time.get_ticks_msec() - Game._hitstop_end_ms > CAST_STOP_GAP_MS:
+		Game.hitstop(CAST_STOP)
 	Fx.element_hit(fx_parent, e.global_position, el, debris_dir, big)
 	if on_hit.is_valid():
 		on_hit.call(e)

@@ -20,6 +20,7 @@ const COMBOS := [
 	["maw", ["VR", "VD"], false],
 	["abyss", ["OW"], false],
 	["tow", ["TW"], false],
+	["leash", ["L3", "EM", "XL"], false],  # Lava Leash (dark-magma lane): _l0.._l7 the yank, the pile, the eruption
 ]
 
 var _p: CharacterBody3D
@@ -75,7 +76,7 @@ func _film(combo_name: String, moves: Array, alt: bool) -> void:
 	_p.bot_enabled = true  # presses each breaker at its sweet spot
 	_p.bot_alt = alt
 	for i in moves.size():
-		if i == 0 or not combo_name in ["meteor", "maw"]:  # (the point of them is going after where the last move sent them)
+		if i == 0 or not combo_name in ["meteor", "maw", "leash"]:  # (the point of them is going after where the last move sent them)
 			_gather()
 		_p._start_attack(moves[i])
 		if i == moves.size() - 1:
@@ -83,6 +84,10 @@ func _film(combo_name: String, moves: Array, alt: bool) -> void:
 		await _until_hit()
 		await create_timer(0.03).timeout
 	await _shot("%s_0" % combo_name)  # the last move's hit
+	if combo_name == "leash":  # the tentacles out, the drag, the pile and its eruption
+		for i in 8:
+			await create_timer(0.06).timeout
+			await _shot("leash_l%d" % i)
 	await create_timer(0.14).timeout
 	await _shot("%s_1" % combo_name)  # its shots on the way
 	var t := 0.0

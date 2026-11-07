@@ -507,10 +507,15 @@ AF_HIT = pose(AF_SMEAR, hip=(-0.02, -0.18, -0.12), hipr=(-32, 24, 0), chest=(-22
 AF_OVER = pose(AF_HIT, hip=(-0.02, -0.19, -0.13), hipr=(-35, 26, 0), hsq=0.24, rh=(-12, -1, 0.6), hs=1.6)
 AF_SET = pose(AF_HIT, hip=(-0.01, -0.08, -0.09), hipr=(-15, 12, 0), chest=(-10, 10, 0), hsq=0.04, rh=(10, -5, 0.55),
               w=(5, 5), claw=0.0, hs=1.2)
-CLIPS["Ab_AF"] = (99, "hand", STEP_FAST, 50, [
-    (1, GUARD, "out"), (7, AF_DRAW, "lin"), (25, AF_CHARGE, "hold"), (31, AF_SHAKE, "hold"), (35, AF_CHARGE, "hold"),
-    (39, AF_SHAKE, "hold"), (43, AF_CHARGE, "hold"), (47, AF_SMEAR, "hold"), (50, AF_HIT, "hold"), (60, AF_OVER, "io"),
-    (70, AF_SET, "io"), (84, GUARD, "hold"), (99, GUARD, "hold")])
+# Round 51 (fluidity): the coil was f1-f50 of 99 (350 ms at EM_SPEED, four near-identical frames on the string film,
+# L3 -> Molten Palm 535 ms hit to hit). Now the palm lands on f32 of 81: one in-between on the draw, one shake, the
+# charge, the smear; everything after the palm is the same 49 frames. The committed GLB was retimed to this by
+# tools/meshy_rig/clip_warp.py (drawings 19, 35, 39 dropped; 1:1,7:6,13:11,25:16,31:21,43:25,47:29,50:32), since the
+# p2 blend this script keys over is not on the machine that did it; a full re-key from here gives the same timing.
+CLIPS["Ab_AF"] = (81, "hand", STEP_FAST, 32, [
+    (1, GUARD, "out"), (6, AF_DRAW, "lin"), (16, AF_CHARGE, "hold"), (21, AF_SHAKE, "hold"), (25, AF_CHARGE, "hold"),
+    (29, AF_SMEAR, "hold"), (32, AF_HIT, "hold"), (42, AF_OVER, "io"),
+    (52, AF_SET, "io"), (66, GUARD, "hold"), (81, GUARD, "hold")])
 
 # Hit_A: a big cartoon flinch: knocked back with the hood squashed flat and wide, claw flung open, held,
 # a stretched rebound, back to the guard.
@@ -1068,7 +1073,7 @@ PUNCH = {
     "Ab_LH": {4: "a", 9: "A", 11: "S", 14: "H", 18: "O"},
     "Ab_H": {4: "a", 11: "A", 13: "S", 15: "H", 21: "O", 27: "T"},
     "Ab_LLH": {12: "U", 14: "U", 16: "A", 18: "S", 20: "H", 26: "O", 32: "T"},
-    "Ab_AF": {25: "a", 31: "a", 35: "a", 39: "a", 43: "A", 47: "S", 50: "H", 60: "O", 70: "T"},
+    "Ab_AF": {16: "a", 21: "a", 25: "A", 29: "S", 32: "H", 42: "O", 52: "T"},
     "Jump_Start": {3: "A", 8: "S", 12: "S", 20: "T"},
 }
 PUNCH_BSQ = {"a": 0.06, "A": 0.16, "U": -0.08, "S": -0.16, "H": 0.13, "O": 0.08, "T": -0.05}

@@ -12,6 +12,7 @@ var VOID: GDScript
 const VIEW := Rect2(0, 0, 1600, 900)
 
 var _fails: Array[String] = []
+var _gate := "off"  # the upgrades' state the routing checks run under (named in their failures)
 
 
 func _initialize() -> void:
@@ -20,11 +21,17 @@ func _initialize() -> void:
 	LIST = load("res://scripts/move_list.gd")
 	PLAYER = load("res://scripts/player.gd")
 	VOID = load("res://scripts/void_element.gd")
-	_check_rows()
 	_check_endings()
-	_check_combo_inputs()
 	_check_all_listed()
-	_check_reachable()
+	# The kit's upgrade gate (round 49, KitSlots.open): the routing checks run with the demoted moves off, as the base
+	# kit plays (an upgrade row's input must not reach its move), then with every upgrade on (it must).
+	for on: bool in [false, true]:
+		for u: String in Kit.UPGRADES:
+			Kit.set_on(u, on)
+		_gate = "on" if on else "off"
+		_check_rows()
+		_check_combo_inputs()
+		_check_reachable()
 	await _check_panel()
 	print("[moves] PASS" if _fails.is_empty() else "[moves] FAIL " + "; ".join(_fails))
 	quit()
@@ -32,7 +39,7 @@ func _initialize() -> void:
 
 func _check(ok: bool, what: String) -> void:
 	if not ok:
-		_fails.append(what)
+		_fails.append(what + " (upgrades %s)" % _gate)
 
 
 ## Every breaker ending is listed (round 43): each BREAKERS name as an H-in-the-window row and each `alt` as an
@@ -63,14 +70,20 @@ func _check_rows() -> void:
 		for row: Dictionary in section.rows:
 			if row.kind == "move":
 				var got := _press(row.input)
-				_check(got == row.id, "%s starts %s, listed as %s" % [row.input, got, row.id])
+				if LIST.row_locked(row):  # (an upgrade that is off: the press goes past it)
+					_check(got != row.id, "%s reaches %s, an upgrade that is off" % [row.input, row.id])
+				else:
+					_check(got == row.id, "%s starts %s, listed as %s" % [row.input, got, row.id])
 
 
 func _check_combo_inputs() -> void:
 	for id: String in PLAYER.COMBOS:
 		var input: String = PLAYER.COMBOS[id].input
 		var got := _press(input)
-		_check(got == id, "COMBOS %s input '%s' starts %s" % [id, input, got])
+		if KitSlots.open(id):
+			_check(got == id, "COMBOS %s input '%s' starts %s" % [id, input, got])
+		else:
+			_check(got != id, "COMBOS %s input '%s' reaches an upgrade that is off" % [id, input])
 
 
 ## Every move and combo has a row (the grab, GR, is the "H" text row).
@@ -105,6 +118,10 @@ func _check_reachable() -> void:
 			todo.append({"from": id, "attacking": true, "chain": PLAYER.HERO_MOVES.chain_after(id), "post_dash": false})
 	for id: String in reached:
 		_check(id == VOID.NEUTRAL or _listed(id), "void_route() reaches %s, not on the move list" % id)
+		_check(KitSlots.open(id), "void_route() reaches %s, an upgrade that is off" % id)
+	for id: String in PLAYER.MOVES:  # (with every upgrade on, nothing in MOVES is unreachable but the grab's own)
+		if _gate == "on" and id != VOID.NEUTRAL and id != VOID.CHARGED and id != "IJ":
+			_check(reached.has(id), "void_route() never reaches %s" % id)
 
 
 func _listed(id: String) -> bool:

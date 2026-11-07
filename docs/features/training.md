@@ -6,13 +6,20 @@ The game boots straight into the training room: one room with four training dumm
 
 Under the room title, the HUD shows the current string's damage and hits, the last string's, and the best string so far. A string ends when the combo drops. Each dummy also carries a comic `LAST n` tag over its head: the damage that dummy took in the last string (feel audit 2, item 2: it pops when that dummy's string ends, small, `TAG_SIZE` 40 in a `TAG_INK_PX` 1.5 px ink line, and fades out `TAG_SHOW_S` 1.5 real s later; the next hit on it takes it down).
 
-`--spar=minion|rogue|shield|warrior` adds one live foe of that type beyond the dummies, for trying strings on something that moves, dodges or blocks. It hits at 1/3 damage and comes back 1.5 s after it dies. Off by default.
+`--spar=minion|rogue|shield|warrior` adds one live foe of that type beyond the dummies, for trying strings on something that moves, dodges or blocks. It hits at 1/3 damage and comes back 1.5 s after it dies. Off by default. Its strikes can be dash-countered ([counter.md](counter.md)).
+
+**Swinging dummies** (round 49, for the dash counter, [counter.md](counter.md)): Settings "Dummies swing" (saved), `--swing` for one run, or the bot's `counter` string. A dummy he stands in front of (2.8 m, 60 deg) for 0.5 s winds up with the spar foes' telegraph ring (0.7 s), its bag rocking back, and swings at him for 4 (a spar foe's third), every 1.4 s while he stays. Off by default: the dummy otherwise never attacks.
+
+**Room: plain / with pieces** (round 51, [env-pieces.md](env-pieces.md)): Settings "Room (on restart)" (saved), or
+`--room=plain|pieces` for one run. Plain is the room as it always was. With pieces, rubble, spikes, a barrel, a crate
+and a grate stand by the dummies, the banners tear, and a used-up piece comes back 6 s later. The autotest plays the
+plain room unless `--room=pieces` is given; bot strings tagged `room: pieces` play only there.
 
 Esc opens the pause menu:
 - **Fill Awakening:** fills the meter, for practising the Awakened strings and the burst.
 - **Settings**, **Restart training** (reloads the scene) and **Quit game**.
 
-The MOVES panel beside it lists every input (`scripts/move_list.gd`).
+The MOVES panel beside it lists every input (`scripts/move_list.gd`), by kit slot group (round 49, `docs/features/kit-slots.md`).
 
 ## Files
 
@@ -43,7 +50,7 @@ The dummies are not counted as a fight and their `died` signal is never connecte
 
 ## Invariants
 
-- The dummy never deals damage. `training_check` asserts the hero's HP stays full.
+- The dummy never deals damage unless it swings (off by default). `training_check` asserts the hero's HP stays full; `counter_check` covers the swing.
 
 ## Testing
 
@@ -55,5 +62,5 @@ The dummies are not counted as a fight and their `died` signal is never connecte
   - the dummy walks home after a launch, never attacks and refills;
   - the pause menu items and Fill Awakening.
   Windowed, it saves `user://training_room.png` and `training_pause.png`.
-- `godot --headless --path . -- --autotest`: the bot plays its strings on the dummies and prints `[training] strings= best= last=` and `[autotest] done ...`. With `--spar=shield` (say) it also prints `[spar] type=shield hits_taken=7 kills=2`.
+- `godot --headless --path . -- --autotest`: the bot plays its strings on the dummies and prints `[training] strings= best= last=`, `[autotest] done ...` and `[kit] slots=N/N windows=N/N upgrades=N/N missing=`. Each `BOT_STRINGS` entry is `{"slot": <KitSlots id, or a list>, "tokens": [...]}`, or `{"upgrade": <Kit id>, ...}` for a demoted move's string, which plays only with that upgrade on (`training_bot.active()`, `strings`). `agent.sh check` runs it twice, plain and with `--kit=full` (37 strings, `upgrades=1/1`), and fails unless `[kit]` is full both times (`docs/features/kit-slots.md`). With `--spar=shield` (say) it also prints `[spar] type=shield hits_taken=7 kills=2`.
 - `tests/enemy_feel_check.gd` covers the bag knobs, the cut shake-off, the tag and `--spar`; look: `tests/enemy_feel_preview.gd -- --bag`.

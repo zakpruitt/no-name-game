@@ -32,6 +32,9 @@ const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element ma
 const HARPOON_GATHER := preload("res://scripts/harpoon_gather.gd")  # Harpoon's tentacles (round 47)
 const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
 const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs' second endings (breaker-pairs lane)
+const LAVA_LEASH := preload("res://scripts/lava_leash.gd")  # Lava Leash's tentacles and seams (dark-magma lane)
+const ENV := preload("res://scripts/env_target.gd")  # the room's walls and pillars, and the one the player picked (round 50)
+const ENV_PIECE := preload("res://scripts/env_piece.gd")  # the room's pieces (round 51, env-pieces lane)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -41,13 +44,15 @@ const VS_HIT := 17.0 / 46.0  # Ab_VS: the slam lands on f17 (held to f23). Was 0
 const LH_HIT := 14.0 / 51.0  # Ab_LH: the rake arrives on f14. Was 0.29 (f14.8)
 const H_HIT := 15.0 / 63.0  # Ab_H: the crescent arrives on f15. Was 0.24 (f15.1)
 const LLH_HIT := 20.0 / 59.0  # Ab_LLH: the spear drives in on f20. Was 0.34 (f20.1)
-const AF_HIT := 50.0 / 99.0  # Ab_AF: the palm lands on f50. Was 0.51 (f50.5)
+const AF_HIT := 32.0 / 81.0  # Ab_AF: the palm lands on f32 of 81 (round 51 fluidity re-key: the coil was f1-f50 of 99,
+# 350 ms at EM_SPEED and four held frames on film; tools/meshy_rig/clip_warp.py). Was 50 / 99
+const AF_K := 99.0 / 81.0  # the old clip over the new: offsets after the palm (fractions of the clip) x this keep their ms
 ## A breaker's leap comes this long (clip fraction) after the ender's hit, as round 30 had it.
 const LEAP_AFTER_GRAB := 0.02  # Grounded / Worldbreaker / Meteor Fall off a grab-clip ender (was 0.26 - 0.24)
 const LEAP_AFTER_SLAM := 0.11  # Collapse / Abyss off the slam clip (0.5 - 0.39)
 const LEAP_AFTER_TIDE := 0.26  # Maw off Black Tide's grab clip (0.5 - 0.24)
 const LEAP_AFTER_RAKE := 0.05  # Cataclysm off Fault Line's rake clip: once the gale has them up
-const LEAP_AFTER_PALM := 0.05  # Flash Freeze off Steam Burst's palm clip
+const LEAP_AFTER_PALM := 0.05 * AF_K  # Flash Freeze off Steam Burst's palm clip
 const LEAP_AFTER_SWING := 0.1  # Anvil off Backdraft's crescent clip: once the gale has them coming back
 const ANVIL_REEL := 0.65  # of the way to him Anvil's tentacles haul what they seize (void_grab `reel`): the leap comes
 # before the gale's knockback has moved anyone (their hit freeze), so the kebab's pull-back is the tentacles' to show
@@ -64,14 +69,14 @@ const DASH_MOVE := "TW"  # right click off a dash or a swing
 ## L off these moves goes somewhere else than on down the string. The X* moves are the crossovers (round 34):
 ## a string that changes element on the way, with a payoff only the two together give.
 const LIGHT_AFTER := {"EC": "AL1", "GR": "VR", "IP": "IJ", "AL1": "XR", "EA": "XS", "TW": "XT", "VR": "XC",
-	"XG": "XM", "XK": "XW"}
+	"XG": "XM", "XK": "XW", "EM": "XL"}  # (EM: Lava Leash, dark-magma lane)
 const CHAIN := {"EF": 2}
 const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "EA": "water", "IP": "water", "IJ": "water", "IS": "water", "EM": "earth", "EV": "earth",
 	"VS": "void", "VR": "void", "VD": "void", "OW": "void", "TW": "void",
 	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind", "XC": "wind",
-	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
+	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind", "XL": "void"}
 ## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
-const FORM_OF := {"EF": "hand", "XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
+const FORM_OF := {"EF": "hand", "XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe", "XL": "hand"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
@@ -112,7 +117,11 @@ const BREAKERS := {
 		# L in the window (dark into ice): the pool freezes with them in it, and his landing shatters it.
 		"alt": {"erupt": "water", "black_ice": true, "short": 2.0, "damage": 46.0, "names": {"spirit": "Black Ice"}}},
 	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
-		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"}},
+		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"},
+		# LMB Uproot (round 51, env-pieces): the tentacle tears the pillar nearest the pinned foe out of the floor and
+		# clubs the foe with it along the line pillar -> foe; the pillar is rubble for the room (UPROOT_*, _uproot).
+		# Best: a big foe by a pillar; in the open there is nothing to tear and a short slam is all it does.
+		"alt": {"uproot": true, "damage": UPROOT_DAMAGE, "names": {"spirit": "Uproot"}}},
 	# Crossovers. Cataclysm: Fault Line's gale has them up again and the landing brings them down into the floor. No
 	# `wire` (Live Wire's bolts and binds on every foe in the hang made it the busiest breaker; damage 40 -> 46 for the
 	# jolts it lost) (`cataclysm`: a crater on each, a strike and earth under each).
@@ -134,6 +143,13 @@ const BREAKERS := {
 		# LMB Pinwheel (breaker-pairs): the tentacles whirl the kebab round him in a twister and hurl it into the
 		# nearest wall or pillar within PINWHEEL_REACH (PINWHEEL_*). Best by a wall or pillar; Anvil wins in the open.
 		"alt": {"erupt": "wind", "pinwheel": true, "damage": PINWHEEL_DAMAGE, "dive": PINWHEEL_DIVE, "names": {"spirit": "Pinwheel"}}},
+	# Round 50 (environment): Impale's own window, after a pause (a press by its cancel is still Backdraft, Dash H H L),
+	# so the skewer reaches Pinwheel in three presses: Dash H H, then L. The kebab is stuck frozen round the spear; the
+	# tentacles take it up (`reel` brings it back to him, Anvil's hold). RMB Anvil drives it into the floor, LMB Pinwheel
+	# whirls it into the wall or pillar the indicator marks (env_target.gd).
+	"XK": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "pause": true, "damage": 44.0, "leap": GR_HIT + LEAP_AFTER_IMPALE,
+		"height": 2.2, "awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"},
+		"alt": {"erupt": "wind", "pinwheel": true, "damage": PINWHEEL_DAMAGE, "dive": PINWHEEL_DIVE, "names": {"spirit": "Pinwheel"}}},
 	# Round 47: Harpoon's row of cubes. A pause after Dash L H (no press by its cancel: a press there is still Ice Cube,
 	# Dash L H H) and he leaps with a tentacle on each cube (`hold_cubes`), landing just behind the row (`zone`).
 	# RMB Shatterstorm: thunder on every cube where it stands, reliable anywhere. LMB Slapshot: a molten fist punches the
@@ -141,6 +157,14 @@ const BREAKERS := {
 	"EF": {"erupt": "wind", "hold_cubes": true, "pause": true, "thunder": true, "damage": SHATTER_DAMAGE, "leap": LLH_HIT + LEAP_AFTER_HARPOON,
 		"zone": 0.6, "awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Shatterstorm"},
 		"alt": {"erupt": "earth", "slapshot": true, "damage": SLIDE_DAMAGE * SLIDE_WALL_MULT, "names": {"spirit": "Slapshot"}}},
+	# The dash counter's window (kit slot 9, counter.gd): a perfect Backlash leaps with the tentacle on the attacker
+	# alone (`only`, set by counter.gd) and the press hurls it into the nearest foe or wall, bound where it lands.
+	"CB": {"erupt": "void", "counter": true, "damage": 30.0, "height": 1.6, "awaken": 10.0, "awaken_perfect": 20.0,
+		"names": {"spirit": "Ricochet"}},
+	# Lava Leash (dark-magma lane): the leash piled them at his feet, bound in the erupted seam; no tentacle hold (the
+	# leash's own keep them through the hang), he dives on the pile (`at_spot`, dark_spot) and the seams go up (HELLSEAM_*).
+	"XL": {"erupt": "earth", "hellseam": true, "no_hold": true, "at_spot": true, "short": 1.3, "damage": HELLSEAM_DAMAGE,
+		"leap": GR_HIT + LEAP_AFTER_LEASH, "height": 2.4, "awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Hellseam"}},
 }
 
 const CUTTER_AHEAD := 3.5  # m: where the gale throws them up from
@@ -168,6 +192,7 @@ const HARPOON_GAP := 0.15  # m between neighbouring cubes' ice (their fitted wid
 const HARPOON_WALL := 0.7  # m a slot keeps off a wall
 const ICE_CORNER := 0.93  # of a hex block's corner radius a neighbour is spaced by: between its flat (0.87) and its
 # corner (1.0), since each block turns at random (fit_block): two corners may just touch, two flats leave a gap
+const LEAP_AFTER_IMPALE := 0.3  # Anvil / Pinwheel off Impale (round 50): after XK's cancel (GR_HIT + 0.18), before its end (+ 0.36)
 const LEAP_AFTER_HARPOON := 0.36  # Shatterstorm / Slapshot: the leap, after EF's cancel (LLH_HIT + 0.16) so a press is Ice Cube
 ## Shatterstorm (RMB): a sky strike on each held cube in turn, SHATTER_STEP apart after SHATTER_DELAY (past the
 ## landing's impact frame), SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged).
@@ -299,12 +324,36 @@ const TIDE_TIME := 1.8  # s they're stuck
 const TIDE_POOL_R := 3.4
 const COLLAPSE_RADIUS := 6.5  # m
 const COLLAPSE_THROW := 9.0
+## Round 50: with a wall or pillar within env_target.COLLAPSE_REACH of the hole (the one the indicator marks; the
+## cursor's pick), Collapse hurls everyone it throws into it at COLLAPSE_WALL_SPEED: its damage x COLLAPSE_WALL_MULT
+## on the structure. Big ones and an open room: the throw clear, as before.
+const COLLAPSE_WALL_MULT := 1.6
+const COLLAPSE_WALL_SPEED := 22.0
+const COLLAPSE_CUE_MS := 1400
 const MAW_RADIUS := 3.4  # m
 const MAW_DOWN := 6.0  # m/s into the floor as the jaws shut: the swallowed crater (enemy._is_spike)
 const ABYSS_RADIUS := 4.2  # m
 const ABYSS_SINK := 2.6  # m they go down while he's on his way
 const ABYSS_LAUNCH := 11.0
 const OVERWHELM_RADIUS := 3.6
+## Uproot (Abyss's LMB, round 51 env-pieces): the pillar nearest the pinned foe within UPROOT_REACH (the indicator's
+## pick, env_target CTX "uproot") is torn out as he dives and comes down along the line pillar -> foe, UPROOT_LENGTH m
+## (carried closer when the foe stands further off), UPROOT_FALL real s after the landing: UPROOT_DAMAGE into the floor
+## on the foe (buried; x UPROOT_HEAVY on a big one), UPROOT_LINE of it on everyone else within UPROOT_LINE_R of the
+## fall line (buried). The pillar is rubble for the room (env_piece.topple). No pillar in reach: the tentacle slams the
+## foe from the sky for UPROOT_OPEN alone. So, a big foe 4 m from a pillar and one more on the line:
+## (70 x 1.25 + 42) x 1.5 = 194 vs Abyss's (40 + 40) x 1.5 = 120; in the open 22 x 1.5 = 33 vs Abyss's 60.
+const UPROOT_REACH := 6.0  # m from the pinned foe to the pillar
+const UPROOT_DAMAGE := 70.0
+const UPROOT_HEAVY := 1.25
+const UPROOT_LINE := 0.6
+const UPROOT_LINE_R := 1.5  # m either side of the fall line
+const UPROOT_LENGTH := 4.0  # m: the pillar's height, the fall line
+const UPROOT_REACH_IN := 0.6  # m short of the foe's middle the pillar's head comes down
+const UPROOT_FALL := 0.16  # real s from the landing to the club's hit (the swing)
+const UPROOT_DOWN := 7.0  # m/s into the floor: it craters (enemy._is_spike)
+const UPROOT_OPEN := 22.0
+const UPROOT_META := &"uproot_pillar"  # on the hero from the dive to the hit: the pillar it tore out
 const OVERWHELM_REACH := 10.0
 const OVERWHELM_AHEAD := 5.0  # m, with nobody to aim at
 const OVERWHELM_TIME := 2.2  # s
@@ -400,6 +449,51 @@ const GALV_WORD_PER := 0.05  # ...and this much bigger per other
 const GALV_JUMP := 3.5  # m an arc jumps from a zapped foe to one no tentacle holds (and on from that one)
 const GALV_JUMP_DAMAGE := 6.0
 const GALV_JUMPS := 4  # arcs at most
+## Lava Leash (L L L H L, dark-magma lane): magma into dark, the sixth crossover. Molten Palm shoved them along its
+## lava line; a tentacle goes out to every foe that palm hit (palm_fresh, within LEASH_REACH: the wall it carried them
+## to too), latches (LEASH_DAMAGE) and drags it back along the floor through the lava (lava_leash.gd) into a pile at his
+## feet, LEASH_PILE m ahead: each pays LEASH_PER_M a metre dragged (to LEASH_DRAG_CAP), x LEASH_WALL_MULT on that part
+## when it is torn off a wall (wall_fresh). When the last one lands the seam erupts under the pile: LEASH_ERUPT each x
+## (1 + LEASH_PILE_PER per other in it), molten and bound (floor_bind, no ropes: the leash's own tentacles hold them).
+## Best situation: the palm's foes at mixed ranges, one splatted on a wall (the far ones pay most); Galvanize wants a
+## spread crowd round him (it hits where they stand), Black Tide marked foes anywhere (it drags flat damage to a pool).
+## Nobody the palm hit: those in its strip ahead (PALM_LENGTH x PALM_HALF_WIDTH). Big ones are latched where they stand.
+const LEASH_REACH := 17.0  # m round him (METEOR_SPLAT_REACH: the palm's line + PALM_WALL_REACH)
+const LEASH_MAX := 6
+const LEASH_DAMAGE := 6.0  # the latch
+const LEASH_PER_M := 1.8  # a metre dragged...
+const LEASH_DRAG_CAP := 12.0  # ...counted to this far
+const LEASH_WALL_MULT := 1.6  # on the drag, torn off a wall it was splatted on
+const LEASH_ERUPT := 8.0  # the seam erupting under the pile, each...
+const LEASH_PILE_PER := 0.2  # ...and this much more per other foe in the pile
+const LEASH_PILE := 2.1  # m ahead of him the pile is (clear of his body on the game camera)
+const LEASH_RING := 0.62  # m round the pile's middle they land
+const LEASH_BIND_TIME := 1.6  # s the pile is held (bound) in the erupted seam: through the window
+const LEASH_TICK := 1.5  # its burn a tick (floor_bind step 0.25)
+const LEASH_SINK := 0.3  # m they go down in it
+const LEASH_STOP := 0.05  # s hit stop on the eruption...
+const LEASH_STOP_PER := 0.012  # ...and this much more per other foe in the pile
+const LEASH_WORD := 0.42  # the word's size with one in the pile, LEASH_WORD_PER bigger per other
+const LEASH_WORD_PER := 0.05
+const LEASH_CUE_MS := 1600  # real ms the leashed count for the camera's framing (camera_rig.FRAME_CUE): the far one stays in
+const LEASH_META := "leash_m"  # meta: the metres the leash dragged it (Hellseam reads it)
+const LEAP_AFTER_LEASH := 0.76  # (clip fraction, near its end) Hellseam's leap: after the last drag lands and the pile's burst has peaked (it hid under his leap at 0.56)
+## Hellseam (Lava Leash's breaker, H): he dives onto the pile and the seam goes up its whole length. The held pile is
+## driven into the floor (a crater) for the breaker's damage x (1 + HELLSEAM_PER_M a metre each was dragged, to
+## LEASH_DRAG_CAP); then the eruption races back out along every seam a foe was dragged down, from the pile to where it
+## was taken from (HELLSEAM_STEP m between geysers, HELLSEAM_DELAY past the impact frame, HELLSEAM_RUN s a metre), and
+## anyone standing on a seam takes HELLSEAM_SEAM of it. So it pays the same thing the leash does: far drags.
+const HELLSEAM_DAMAGE := 40.0
+const HELLSEAM_PER_M := 0.04  # (a foe dragged 10 m: x1.4)
+const HELLSEAM_PILE_R := 2.6  # m round the landing that is the pile
+const HELLSEAM_DOWN := 6.0  # m/s into the floor (enemy._is_spike)
+const HELLSEAM_STEP := 1.5  # m between the seam's geysers
+const HELLSEAM_DELAY := 0.12  # s (game) past the landing: the impact frame hides anything sooner
+const HELLSEAM_RUN := 0.025  # s (game) a metre: the eruption runs out along the seam
+const HELLSEAM_SEAM := 0.5  # of the damage, to anyone else on a seam
+const HELLSEAM_SEAM_R := 1.1  # m either side of a geyser
+const HELLSEAM_GEYSER := 3.0  # m tall
+const HELLSEAM_CUE_MS := 1400
 const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
 const CATACLYSM_DOWN := 6.0  # m/s
 # Round 34, second pass: three elements in one string, and states that outlive it so a dash can improvise.
@@ -576,6 +670,8 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 			return _impale(hero, at, fwd, power)
 		"XW":
 			return _backdraft(hero, at, fwd, power)
+		"XL":
+			return _lava_leash(hero, at, fwd, power)
 	return 0
 
 
@@ -746,6 +842,10 @@ static func ice_radius(e: Node3D) -> float:
 
 ## Freezes the nearest foe, the frozen first, and bowls it along his aim. Everyone it passes freezes.
 static func _ice_cube(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float) -> int:
+	# Round 51 (fluidity): Ice Cube pressed while Harpoon's tentacles still carried the row found nobody (all of them
+	# flying) and played at x1.00 (feel audit 4, left open); the carries land in their slots now and it bowls the row.
+	if is_instance_valid(hero._void.gather) and not hero._void.gather.done():
+		hero._void.gather.finish_now()
 	var foes: Array = hero._void.reachable().filter(func(e: Node3D) -> bool:
 		return not hero._void.is_heavy(e) and not THROWN.flying(e) and _flat(e.global_position - at).length() <= BOWL_REACH)
 	if foes.is_empty():
@@ -1183,6 +1283,153 @@ static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	return linked.size()
 
 
+# --- Lava Leash (L L L H L, dark-magma lane): magma into dark, the sixth crossover ------------------------------
+
+## L L L H L: magma into dark. A tentacle goes out to every foe this string's Molten Palm hit, wherever the palm sent
+## it (the wall too), latches, and drags it back along the floor through the lava into a pile LEASH_PILE m in front of
+## him (lava_leash.gd); the far ones pay most, torn off a wall more. When the last lands, the seam erupts under the
+## pile: molten and bound. Its breaker is Hellseam.
+static func _lava_leash(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
+	var parent: Node = hero.get_parent()
+	var foes := leash_targets(hero, at, fwd)
+	var pile: Vector3 = at + fwd * minf(LEASH_PILE, hero._clear_ahead(fwd, LEASH_PILE))
+	hero._void.dark_spot = pile
+	if foes.is_empty():  # nobody to latch onto: the tentacle cracks the floor ahead and a little lava comes up
+		ELEMENTS.fissure(parent, at, fwd, 3.5, 3, "earth", 0.8)
+		return 0
+	var light: Array = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e))
+	var slots := leash_slots(pile, fwd, light)
+	var grabs := []
+	var now := Time.get_ticks_msec()
+	for e: Node3D in foes:  # (nearest first: they latch in that order)
+		e.set_meta(CAMERA_CUE, now + LEASH_CUE_MS)  # (the far one, at the wall, stays in the framing)
+		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
+	var g: Node3D = LAVA_LEASH.start(hero, grabs, pile)
+	var latched := [0]  # (only the first latch stops)
+	g.on_latch = func(e: Node3D) -> void:
+		THROWN.cut(e)  # (still on the palm's shove: the leash takes it from here)
+		e.take_hit(LEASH_DAMAGE * power, Vector3.ZERO, 0.0, false)
+		Game.register_hit("cast")
+		if latched[0] == 0:
+			Game.hitstop(LATCH_STOP)
+		latched[0] += 1
+		if e.has_method("stagger") and not hero._void.is_heavy(e):
+			e.stagger(1.0)
+	g.on_arrive = func(e: Node3D, metres: float) -> void:
+		e.set_meta(LEASH_META, metres)
+		var d: float = leash_drag_damage(metres, wall_fresh(e)) * power  # (torn off the wall the palm splatted it on)
+		if d > 0.0:
+			var into := _flat(pile - e.global_position)
+			e.take_hit(d, (into.normalized() if into.length() > 0.01 else fwd) * 1.5, 0.0, true)
+			Game.register_hit("cast")
+	g.on_erupt = func(piled: Array) -> void:
+		var n := piled.size()
+		var each: float = leash_erupt_damage(n) * power
+		for e: Node3D in piled:
+			e.take_hit(each, Vector3.ZERO, 0.0, true)
+			mark(e, "molten")
+			Game.register_hit("cast")
+		g.bind = BIND.bind(hero, piled, {"time": LEASH_BIND_TIME, "tick_damage": LEASH_TICK * power, "ropes": 0, "sink": LEASH_SINK,
+			"color": ELEMENTS.LOOK.earth.color})
+		Game.hitstop(LEASH_STOP + LEASH_STOP_PER * (n - 1))
+		Game.shake(0.3 + 0.05 * n)
+		ComicFx.say(ComicFx.MOVE_WORDS["XL"], pile + Vector3.UP * 0.6, LEASH_WORD + LEASH_WORD_PER * (n - 1))
+	return foes.size()
+
+
+## Who Lava Leash takes: every living foe Molten Palm hit (palm_fresh) within LEASH_REACH of him, nearest first,
+## LEASH_MAX at most (in flight on the palm's shove too: the latch cuts it). Nobody the palm hit: whoever is in the
+## palm's strip ahead of him.
+static func leash_targets(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Array:
+	var foes: Array = FOES.near(hero.get_tree(), at, LEASH_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	if foes.is_empty():
+		foes = _ahead(hero, at, fwd, PALM_LENGTH, PALM_HALF_WIDTH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	return foes.slice(0, LEASH_MAX)
+
+
+## Where each lands in the pile: round its middle LEASH_RING m out, in the order they stand across his aim, so no two
+## drags cross; one alone lands on the middle. Pure, so the check can walk it.
+static func leash_slots(pile: Vector3, fwd: Vector3, foes: Array) -> Dictionary:
+	var out := {}
+	if foes.is_empty():
+		return out
+	if foes.size() == 1:
+		out[foes[0]] = _flat(pile)
+		return out
+	var side := fwd.cross(Vector3.UP).normalized()
+	var order := foes.duplicate()
+	order.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return (a.global_position - pile).dot(side) < (b.global_position - pile).dot(side))
+	for i in order.size():  # an arc on the far side of the pile, from one side of his aim round to the other
+		var a := lerpf(-PI * 0.8, PI * 0.8, float(i) / (order.size() - 1))
+		out[order[i]] = _flat(pile + (fwd * cos(a) + side * sin(a)) * LEASH_RING)
+	return out
+
+
+## The drag's damage for `metres` dragged (to LEASH_DRAG_CAP), x LEASH_WALL_MULT torn off a wall.
+static func leash_drag_damage(metres: float, walled: bool) -> float:
+	return LEASH_PER_M * minf(metres, LEASH_DRAG_CAP) * (LEASH_WALL_MULT if walled else 1.0)
+
+
+## The seam's eruption under a pile of `n`, each.
+static func leash_erupt_damage(n: int) -> float:
+	return LEASH_ERUPT * (1.0 + LEASH_PILE_PER * maxi(n - 1, 0))
+
+
+## Hellseam (Lava Leash's breaker) lands: the pile is driven into the floor, each harder the further the leash dragged
+## it; then the eruption runs back out along every seam a foe was dragged down (lava_leash.seams()), a geyser every
+## HELLSEAM_STEP m, and anyone else standing on one takes HELLSEAM_SEAM of it.
+static func _hellseam(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var tree := hero.get_tree()
+	var spot: Vector3 = hero._void.dark_spot
+	var seams: Array = LAVA_LEASH.seams(hero)
+	LAVA_LEASH.let_go(hero)  # (the leash's tentacles and its bind: the landing takes them)
+	var struck := {}
+	for e: Node3D in FOES.near(tree, spot, HELLSEAM_PILE_R):
+		var metres := minf(float(e.get_meta(LEASH_META, 0.0)), LEASH_DRAG_CAP)
+		e.take_hit(damage * (1.0 + HELLSEAM_PER_M * metres), Vector3.DOWN * HELLSEAM_DOWN, 0.0, true)
+		mark(e, "molten")
+		Game.register_hit("breaker")
+		if e.has_meta(LEASH_META):
+			e.remove_meta(LEASH_META)
+		struck[e] = true
+	if seams.is_empty():  # (no leash to run down: one seam straight out ahead of the landing)
+		var fwd: Vector3 = hero._facing()
+		seams = [[_flat(spot + fwd * 5.0), _flat(spot)]]
+	var now := Time.get_ticks_msec()
+	for s: Array in seams:
+		var from: Vector3 = s[1]  # the pile end
+		var run := _flat(s[0] - from)  # out to where it was taken from
+		var steps := maxi(1, int(run.length() / HELLSEAM_STEP))
+		for k in range(1, steps + 1):
+			var p: Vector3 = from + run * (float(k) / steps)
+			for e: Node3D in FOES.near(tree, p, HELLSEAM_SEAM_R):
+				e.set_meta(CAMERA_CUE, now + HELLSEAM_CUE_MS)
+			var delay: float = HELLSEAM_DELAY + run.length() * float(k) / steps * HELLSEAM_RUN
+			tree.create_timer(delay, false).timeout.connect(_seam_geyser.bind(hero, p, damage * HELLSEAM_SEAM, struck))
+	Game.shake(0.6)
+
+
+static func _seam_geyser(hero: Variant, p: Vector3, damage: float, struck: Dictionary) -> void:
+	if not is_instance_valid(hero) or not hero.is_inside_tree():
+		return
+	var parent: Node = hero.get_parent()
+	if Game.comic_style and DESIGNED.on():
+		ELEMENTS.DESIGNED_EL.geyser(parent, p, HELLSEAM_GEYSER)
+	else:
+		ELEMENTS.geyser(parent, p, 0.6, HELLSEAM_GEYSER)
+	for e: Node3D in FOES.near(hero.get_tree(), p, HELLSEAM_SEAM_R):
+		if struck.has(e):
+			continue
+		struck[e] = true
+		e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH, true)
+		mark(e, "molten")
+		Game.register_hit("breaker")
+
+
 ## Who an arc reaches from `from`: foes within `reach` of one of them, then of those, and so on (nearest first),
 ## none of `from` itself, at most `most`.
 static func _jumps(tree: SceneTree, from: Array, reach: float, most: int) -> Array:
@@ -1557,6 +1804,11 @@ static func palm_fresh(e: Object) -> bool:
 static func meteor_spot(hero: CharacterBody3D) -> Dictionary:
 	var at := _flat(hero.global_position)
 	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	var picked := ENV.chosen(hero, "meteor")  # (round 50: the cursor on a wall or pillar: the pile by it)
+	if not picked.is_empty():
+		var by: Array = foes.filter(func(e: Node3D) -> bool: return ENV.gap(picked, e.global_position) <= ENV.METEOR_NEAR)
+		if not by.is_empty():
+			foes = by
 	return meteor_target(at, foes.map(func(e: Node3D) -> Vector3: return e.global_position), foes.map(func(e: Node3D) -> bool: return wall_fresh(e)))
 
 
@@ -1598,8 +1850,15 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	ENV_PIECE.landing(hero, at)  # (round 51: crates near it break, rubble under it throws chunks)
+	if b.has("counter"):  # Ricochet, the dash counter's ending (load: counter.gd preloads this file)
+		load("res://scripts/counter.gd").ricochet(hero, b, at, seized, mult)
+		return
 	if b.has("shower"):
 		_meteor_shower(hero, b, at, mult)
+		return
+	if b.has("hellseam"):
+		_hellseam(hero, b, at, mult)
 		return
 	if b.has("pinwheel"):
 		_pinwheel(hero, b, at, seized, mult)
@@ -1642,6 +1901,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		return
 	if b.has("maw"):
 		_maw(hero, b, mult)
+		return
+	if b.has("uproot"):
+		_uproot(hero, b, mult)
 		return
 	if b.has("abyss"):
 		_abyss(hero, b, mult)
@@ -1729,7 +1991,10 @@ static func _shower_land(_at: Vector3, hero: Variant, e: Variant, damage: float,
 
 ## Where Pinwheel throws: the nearest wall or pillar within PINWHEEL_REACH of `at` (PINWHEEL_RAYS flat rays at chest
 ## height, past the foes), as {"found", "at" (the hit point), "dir", "dist"}.
-static func pinwheel_target(hero: CharacterBody3D, at: Vector3) -> Dictionary:
+static func pinwheel_target(hero: CharacterBody3D, at: Vector3, ctx := "pinwheel", reach := PINWHEEL_REACH) -> Dictionary:
+	var env := ENV.pick(hero, ctx, at, reach)  # (round 50: the room's structures, the one the indicator marks)
+	if not env.has("none"):
+		return env
 	var start := Vector3(at.x, 0.9, at.z)
 	var space := hero.get_world_3d().direct_space_state
 	var skip: Array[RID] = [hero.get_rid()]
@@ -1740,7 +2005,7 @@ static func pinwheel_target(hero: CharacterBody3D, at: Vector3) -> Dictionary:
 	for i in PINWHEEL_RAYS:
 		var a := TAU * i / PINWHEEL_RAYS
 		var d := Vector3(sin(a), 0.0, cos(a))
-		var q := PhysicsRayQueryParameters3D.create(start, start + d * PINWHEEL_REACH, hero.collision_mask)
+		var q := PhysicsRayQueryParameters3D.create(start, start + d * reach, hero.collision_mask)
 		q.exclude = skip
 		var hit := space.intersect_ray(q)
 		if hit.is_empty():
@@ -1923,6 +2188,13 @@ static func _thunder_on(hero: Variant, e: Variant, damage: float, first: bool) -
 static func _slapshot(hero: CharacterBody3D, _b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
 	var fwd: Vector3 = hero._brk_dir
+	var picked := ENV.chosen(hero, "slapshot")  # (round 50: the wall or pillar the cursor was on at the press)
+	if not picked.is_empty():
+		var to: Vector3 = ENV.surface(picked, at).at - at
+		if to.length() > 0.5:
+			fwd = _flat(to).normalized()
+			hero._brk_dir = fwd
+			hero._face(fwd)
 	var base: float = SLIDE_DAMAGE * hero._dmg_mult * mult
 	var near := INF
 	for e: Node3D in held:
@@ -1993,9 +2265,16 @@ static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 	else:
 		spot = at
 		DARK.burst(hero.get_parent(), spot, 2.0)
+	var wall := ENV.pick(hero, "collapse", spot, ENV.COLLAPSE_REACH)
 	for e: Node3D in FOES.near(hero.get_tree(), spot, COLLAPSE_RADIUS):
 		var from := _flat(e.global_position - spot)
-		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
+		if wall.get("found", false) and not hero._void.is_heavy(e) and not THROWN.flying(e):
+			var aim: Vector3 = ENV.surface(wall.s, e.global_position).at - _flat(e.global_position)
+			e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + COLLAPSE_CUE_MS)
+			THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage,
+				{"solid": false, "el": "void", "speed": COLLAPSE_WALL_SPEED, "land_y": 0.0, "wall_mult": COLLAPSE_WALL_MULT, "splash": false})
+		else:
+			e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
 		Game.register_hit("breaker")
 	Game.shake(0.6)
 
@@ -2030,6 +2309,106 @@ static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	if foes.is_empty():
 		DARK.spout(parent, spot)
 	Game.shake(0.6)
+
+
+# --- Uproot (round 51, env-pieces lane: Abyss's LMB) --------------------------------------------------------------
+
+## The pillar Uproot tears out for a foe pinned at `spot`: the one the indicator marks (env_target CTX "uproot", the
+## cursor's pick included) within UPROOT_REACH, else the nearest live pillar in reach (rooms without env_target: the
+## checks). null in the open.
+static func uproot_pillar(hero: CharacterBody3D, spot: Vector3) -> Node3D:
+	var env := ENV.pick(hero, "uproot", spot, UPROOT_REACH)
+	if not env.has("none"):
+		if env.found and env.s.kind == "pillar" and ENV_PIECE.live(env.s.get("node")):
+			return env.s.node
+		return null
+	var near: Array = ENV_PIECE.near(hero.get_tree(), "pillar", spot, UPROOT_REACH)
+	return near[0] if not near.is_empty() else null
+
+
+## The foe Uproot clubs: the nearest living one to Overwhelm's spot.
+static func uproot_target(hero: CharacterBody3D, spot: Vector3) -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for e: Node3D in FOES.near(hero.get_tree(), spot, OVERWHELM_RADIUS):
+		var d := _flat(e.global_position - spot).length()
+		if d < best_d:
+			best_d = d
+			best = e
+	return best
+
+
+## The dive starts (hero_leap._start_dive): no sinking through the floor (Abyss's), and the tentacle takes hold of the
+## pillar and tears it out of the floor (ALT_FX.uproot_tear) while he comes down.
+static func uproot_dive(hero: CharacterBody3D) -> void:
+	if is_instance_valid(hero._void.dark_bind):
+		hero._void.dark_bind.sink = 0.0
+	var spot: Vector3 = _flat(hero._void.dark_spot)
+	var p := uproot_pillar(hero, spot)
+	if p == null:
+		hero.remove_meta(UPROOT_META)
+		return
+	hero.set_meta(UPROOT_META, p)
+	ENV_PIECE.claim(p)  # (out of the swing anchors and the indicator now: it is coming up)
+	ALT_FX.uproot_tear(hero.get_parent(), hero, p)
+
+
+## Uproot lands: the pillar comes down on the foe along the line pillar -> foe (ALT_FX.uproot_club), the hits on the
+## club's arrival; the pillar stays down as rubble. With none torn out, a short slam on the foe alone.
+static func _uproot(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var spot: Vector3 = _flat(hero._void.dark_spot)
+	var target := uproot_target(hero, spot)
+	if is_instance_valid(hero._void.dark_bind):
+		hero._void.dark_bind._let_go()
+	var parent: Node = hero.get_parent()
+	var p: Variant = hero.get_meta(UPROOT_META) if hero.has_meta(UPROOT_META) else null
+	hero.remove_meta(UPROOT_META)
+	if not is_instance_valid(p):
+		var at: Vector3 = _flat(target.global_position) if target != null else spot
+		ALT_FX.uproot_open(parent, at)
+		if target != null:
+			target.take_hit(UPROOT_OPEN * hero._dmg_mult * mult, Vector3.DOWN * UPROOT_DOWN, 0.0, true)
+			Game.register_hit("breaker")
+		return
+	var pillar: Node3D = p
+	var base := _flat(pillar.global_position)
+	var head: Vector3 = _flat(target.global_position) if target != null else spot
+	var dir := head - base
+	dir = dir.normalized() if dir.length() > 0.05 else hero._facing()
+	var reach: float = (head - base).length() - UPROOT_REACH_IN
+	if reach > UPROOT_LENGTH:  # (far: the tentacle carries the pillar in so its head lands on the foe)
+		base += dir * (reach - UPROOT_LENGTH)
+	var line_end := base + dir * UPROOT_LENGTH
+	for e: Node3D in FOES.near(hero.get_tree(), (base + line_end) * 0.5, UPROOT_LENGTH):
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 1200)
+	ALT_FX.uproot_club(parent, hero, pillar, base, dir, UPROOT_FALL, _uproot_hit.bind(hero, target, base, line_end, damage))
+	ENV_PIECE.topple(pillar, base, dir)
+
+
+## The club arrives: the foe into the floor, everyone else on the fall line takes UPROOT_LINE of it, all buried.
+static func _uproot_hit(hero: Variant, target: Variant, base: Vector3, line_end: Vector3, damage: float) -> void:
+	if not is_instance_valid(hero):
+		return
+	var h := hero as CharacterBody3D
+	var struck := {}
+	if is_instance_valid(target) and target.is_alive():
+		struck[target] = true
+		target.take_hit(damage * (UPROOT_HEAVY if h._void.is_heavy(target) else 1.0), Vector3.DOWN * UPROOT_DOWN, 0.0, true)
+		mark(target, "buried")
+		Game.register_hit("breaker")
+	for e: Node3D in FOES.near(h.get_tree(), (base + line_end) * 0.5, UPROOT_LENGTH * 0.5 + UPROOT_LINE_R):
+		if struck.has(e):
+			continue
+		var p := _flat(e.global_position)
+		var ab := line_end - base
+		var k := clampf((p - base).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		if p.distance_to(base + ab * k) > UPROOT_LINE_R + float(e.radius):
+			continue
+		e.take_hit(damage * UPROOT_LINE, Vector3.DOWN * UPROOT_DOWN, 0.0, true)
+		mark(e, "buried")
+		Game.register_hit("breaker")
+	ENV_PIECE.played("uproot")
 
 
 ## Where a cube is on its way up and into the pile, `k` 0 to 1 through the dive: up fast and a little way in,
@@ -2157,40 +2536,69 @@ static func _flat(v: Vector3) -> Vector3:
 
 
 
-# --- The element matrix (round 34, third pass; docs/features/element-matrix.md) -----------------------------------
-# Every state a crossover leaves x every element: each cell a small payoff, so improvising across any pair does
-# something. The cells the moves already pay themselves aren't here (Molten Palm's steam on the frozen, _cash_buried,
-# Tow Line's rip, Ice Cube taking the frozen first, the crossovers and breakers that read their states); these are paid
-# by the element's base moves (not the X* crossovers, which read their own) through improvise(), at the top of fire(),
-# before the move's own hit, so a payoff never moves a foe the move is about to throw.
-# Each cell's look is a small tell in comic_improv.gd (LOOKS, keyed "<state>_x_<element>"), its word ComicFx.IMPROV_WORDS.
+# --- The element matrix (round 34, third pass; round 49: one payoff rule per state; docs/features/element-matrix.md) --
+# Kit grammar section 3 (docs/characters/kit-grammar.md): six states, and each has ONE payoff rule (RULES) that any
+# element's hit triggers, so a new character or element never adds cells. A character's own element on its own state
+# does its move's own thing (RULE_OWN: storm on charged is Live Wire's pulse), and the moves that pay a state in their
+# own body keep it (RULE_SELF: Molten Palm's steam on the ice, Updraft Lash digging up the buried, Tow Line's air rip,
+# the air string). The old per-cell payoffs (IMPROV) are upgrades now (IMPROV_UPGRADE, Kit.has(): off, the rule plays;
+# on, the richer cell plays in its place). Paid by the element's base moves (not the X* crossovers, which read their own)
+# through improvise(), at the top of fire(), before the move's own hit, so a payoff never moves a foe the move is about
+# to throw. Each rule's look is one tell tinted by the hitting element (comic_improv.gd LOOKS keyed by the state); each
+# upgrade cell keeps its own ("<state>_x_<element>"); words ComicFx.IMPROV_WORDS.
 
-## state -> element -> payoff kind (_pay()).
+## state -> its payoff rule (_pay()'s kind), the same for every element and character.
+const RULES := {"bound": "snap", "molten": "burst", "buried": "crater", "frozen": "shatter", "airborne": "juggle", "charged": "arc"}
+## The rules' names (the combo guide's "+ name" tag and the MIX ELEMENTS page; the autotest's [improv] keys by state).
+const RULE_NAMES := {"bound": "Snap", "molten": "Burst", "buried": "Crater", "frozen": "Shatter", "airborne": "Juggle", "charged": "Arc"}
+## The element that leaves the state: on it, its own move's thing plays, never the rule (Abyss off Overwhelm, Live
+## Wire's pulse, ice on ice refreezes, Eruption). airborne and buried are element-free.
+const RULE_OWN := {"bound": "void", "charged": "wind", "frozen": "water", "molten": "earth"}
+## Who pays a state in its own move body (an element, or one move id), so the rule stays out and it doesn't pay twice:
+## Molten Palm's steam on the ice (Steam Burst's), Updraft Lash digging up the buried (_cash_buried), the air string's
+## juggle (Air Slash, Live Wire), Tow Line's rip out of the air (TOW_AIR_MULT).
+const RULE_SELF := {"frozen": ["EM"], "buried": ["EC"], "airborne": ["wind", "TW"]}
+const RULE_SHATTER_MULT := 1.6  # frozen: the hit shatters the ice for this (and the ice's FREEZE_BREAK, as any hit on it)
+const RULE_ARC_R := 6.0  # m: charged: the hit arcs on from the payer to every other charged foe this near (chained)
+const RULE_BURST_R := 2.2  # m: molten: it goes off, and the burn catches everyone this near it
+const RULE_JUGGLE_LAUNCH := 7.0  # m/s: airborne: the hit keeps it up there (a juggle, not a fresh launch)
+## The old cells, now upgrades: state -> element -> payoff kind (_pay()). Each needs its Kit id on (IMPROV_UPGRADE).
+## buried x magma (Aftershock) is the crater rule itself, so it is not here.
 const IMPROV := {
 	"skewered": {"water": "spread", "void": "tear"},
 	"molten": {"wind": "fan", "water": "quench", "earth": "erupt", "void": "smother"},
-	"buried": {"water": "encase", "earth": "crater", "void": "swallow"},
+	"buried": {"water": "encase", "void": "swallow"},
 	"bound": {"wind": "loose", "water": "encase"},
-	"frozen": {"wind": "lift", "void": "shatter"},
+	"frozen": {"wind": "lift", "void": "shards"},
 	"airborne": {"water": "freeze", "earth": "spike"},
 	"charged": {"void": "conduct", "water": "superconduct", "earth": "flash", "wind": "overload"},
 }
-## A foe in several states pays the first with a cell for the element, in this order (the skewered are frozen too).
-## Charged is last: the lightning goes into nearly everyone (every Live Wire jolt), so it's what pays when nothing
-## rarer is there.
+## Each upgrade cell's Kit id (kit.gd UPGRADES has its doc line).
+const IMPROV_UPGRADE := {
+	"skewered_x_water": "ice_spreads", "skewered_x_void": "torn_off",
+	"molten_x_wind": "firestorm", "molten_x_water": "quench", "molten_x_earth": "flare_up", "molten_x_void": "smother",
+	"buried_x_water": "frozen_in", "buried_x_void": "swallowed",
+	"bound_x_wind": "torn_loose", "bound_x_water": "frozen_dark",
+	"frozen_x_wind": "gale_lift", "frozen_x_void": "shard_cut",
+	"airborne_x_water": "freeze_aloft", "airborne_x_earth": "meteor_spike",
+	"charged_x_void": "conduct", "charged_x_water": "superconduct", "charged_x_earth": "arc_flash", "charged_x_wind": "overload",
+}
+## A foe in several states pays the first with a rule or an upgrade cell for the element, in this order (the skewered
+## are frozen too: with neither of its upgrades on, a skewered foe pays the frozen rule). Charged is last: the lightning
+## goes into nearly everyone (every Live Wire jolt), so it's what pays when nothing rarer is there.
 const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne", "charged"]
 const IMPROV_REACH := 5.0  # m round him: a move with no hit shape of its own (improv_reach()) reaches this far
 const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
-const IMPROV_MULT := 1.5  # the harder payoffs (crater, swallow, smother, spike, tear, loose)
+const IMPROV_MULT := 1.5  # the harder payoffs (crater, snap, burst; the cells swallow, smother, spike, tear, loose)
 const IMPROV_LAUNCH := 8.0  # m/s up: lift, fan, loose (a fresh launch: at least enemy.RELAUNCH_MIN)
 const IMPROV_DOWN := 6.0  # m/s into the floor: crater, swallow, smother, spike (enemy._is_spike craters them)
-const IMPROV_CHAIN_R := 2.6  # m round the payer that a chain (shatter, fan, spread) jumps to its neighbour
-const IMPROV_CHAIN_DAMAGE := 5.0
+const IMPROV_CHAIN_R := 2.6  # m round the payer that a chain (shards, fan, spread) jumps to its neighbour
+const IMPROV_CHAIN_DAMAGE := 5.0  # (and each link of the arc rule, each foe the burst rule's burn catches)
 const IMPROV_PULL := 6.0  # m/s towards him: tear (yanked off the spear)
 const IMPROV_STEAM_MULT := 1.6  # quench: water on the molten goes off in steam, like the ice under magma
 const IMPROV_HOLD := 0.6  # s swallow keeps them stuck in the floor
 ## The charged state (round 44): lightning that went into a foe stays in it (mark(e, "charged"): Live Wire's jolts,
-## Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm), and every other element does something with it.
+## Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm). Its rule is the arc; these are its four upgrade cells'.
 const CONDUCT_R := 3.0  # m: Conduct (dark) carries the charge on to every uncharged foe this near the payer...
 const CONDUCT_MOST := 4  # ...this many at most...
 const CONDUCT_DAMAGE := 5.0  # ...each zapped for this, and charged; the payer stays charged
@@ -2204,15 +2612,43 @@ const FLASH_SPEED := 20.0  # m/s
 const OVERLOAD_R := 8.0  # m: Overload (storm) discharges every charged foe this near the move at once...
 const OVERLOAD_PER := 0.35  # ...each zap this much harder for every other charged foe in it
 static var _overload_n := 1  # (how many were charged as the move fired: read before the first payer discharges them)
-static var improv_paid := {}  # "state x element" -> payoffs so far (the autotest's [improv] line)
+static var improv_paid := {}  # rule state ("frozen") or upgrade cell ("frozen_x_wind") -> payoffs so far ([improv])
 
 
-## The state on `e` the element `el` pays, or "" (IMPROV, in IMPROV_ORDER).
-static func improv_state(e: Node, el: String) -> String:
+## What `e` pays when the element `el` (move `id`) hits it: an upgrade cell ("frozen_x_wind") when its Kit id is on, a
+## state's rule ("frozen"), or "" (IMPROV_ORDER; the state's own element and RULE_SELF never pay the rule).
+static func improv_cell(e: Node, el: String, id := "") -> String:
 	for state: String in IMPROV_ORDER:
-		if IMPROV[state].has(el) and in_state(e, state):
+		if not in_state(e, state):
+			continue
+		var cell := "%s_x_%s" % [state, el]
+		if IMPROV.get(state, {}).has(el) and Kit.has(IMPROV_UPGRADE[cell]):
+			return cell
+		if RULES.has(state) and RULE_OWN.get(state, "") != el and not _pays_itself(state, el, id):
 			return state
 	return ""
+
+
+static func _pays_itself(state: String, el: String, id: String) -> bool:
+	var who: Array = RULE_SELF.get(state, [])
+	return el in who or (id != "" and id in who)
+
+
+## The state a cell (improv_cell()) is about: "frozen_x_wind" and "frozen" are both "frozen".
+static func cell_state(cell: String) -> String:
+	return cell.get_slice("_x_", 0)
+
+
+## A cell's name: the rule's (RULE_NAMES) or the upgrade cell's (MIX ELEMENTS: move_list.mix_name()).
+static func improv_name(cell: String) -> String:
+	if RULE_NAMES.has(cell):
+		return RULE_NAMES[cell]
+	return load("res://scripts/move_list.gd").mix_name(cell_state(cell), cell.get_slice("_x_", 1))  # (load: move_list preloads this)
+
+
+## The state on `e` the element `el` pays, or "" (improv_cell()'s state).
+static func improv_state(e: Node, el: String, id := "") -> String:
+	return cell_state(improv_cell(e, el, id))
 
 
 static func in_state(e: Node, state: String) -> bool:
@@ -2226,8 +2662,8 @@ static func in_state(e: Node, state: String) -> bool:
 	return marked(e, state)
 
 
-## A base element move's improvised payoffs on everyone its own hit shape reaches (improv_reach()) in a state its
-## element pays. Returns how many paid.
+## A base element move's improvised payoffs on everyone its own hit shape reaches (improv_reach()) in a state: each
+## pays its state's rule, or the upgrade cell in its place. Returns how many paid.
 static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: float, fwd := Vector3.ZERO) -> int:
 	if id.begins_with("X") or not ELEMENT_OF.has(id):
 		return 0
@@ -2235,17 +2671,19 @@ static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: flo
 	var due := []  # (read every state first: a chain sets one on the neighbour, which mustn't pay in the same move)
 	var near: Array = improv_reach(hero, id, at, fwd if fwd.length_squared() > 0.001 else hero._facing())
 	for e: Node3D in near:
-		var state := "" if THROWN.flying(e) else improv_state(e, el)
-		if state != "":
-			due.append([e, state])
+		var cell := "" if THROWN.flying(e) else improv_cell(e, el, id)
+		if cell != "":
+			due.append([e, cell])
 	if el == "wind":
 		_overload_n = maxi(1, FOES.near(hero.get_tree(), at, OVERLOAD_R).filter(func(o: Node3D) -> bool: return marked(o, "charged")).size())
 	for d: Array in due:
-		if d[1] == "charged" and not marked(d[0], "charged"):
-			continue  # (Overload already discharged it, off another payer)
+		var cell: String = d[1]
+		var state := cell_state(cell)
+		if state == "charged" and not marked(d[0], "charged"):
+			continue  # (an arc or Overload already discharged it, off another payer)
 		if is_instance_valid(d[0]) and d[0].is_alive():
-			var cell: String = "%s_x_%s" % [d[1], el]
-			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power, cell)
+			var kind: String = RULES[state] if cell == state else IMPROV[state][el]
+			_pay(hero, d[0], kind, state, at, power, cell, el)
 			improv_paid[cell] = int(improv_paid.get(cell, 0)) + 1
 	return due.size()
 
@@ -2334,8 +2772,9 @@ static func _overwhelm_spot(hero: CharacterBody3D, at: Vector3, fwd: Vector3) ->
 	return spot
 
 
-## One payoff (IMPROV's kinds): one hit, and a state, a chain to the neighbour, a launch or a crater.
-static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "") -> void:
+## One payoff (a RULES kind, or an upgrade cell's from IMPROV): one hit, and a state, a chain to the neighbour, a launch
+## or a crater. `el` is the hitting element (a rule's tell is tinted by it).
+static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "", el := "") -> void:
 	var parent: Node = hero.get_parent()
 	var spot := _flat(e.global_position)
 	var heavy: bool = hero._void.is_heavy(e)
@@ -2345,17 +2784,34 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 		unmark(e, state)  # (spent: once; Conduct charges it again)
 	var next: Variant = null  # the neighbour a chain reached (its tell draws the jump)
 	match kind:
+		# The six rules (kit grammar section 3): any element's hit on the state.
+		"shatter":  # frozen: the hit shatters the ice for RULE_SHATTER_MULT, and the ice is gone
+			_break_ice(e)
+			e.take_hit(damage * RULE_SHATTER_MULT, Vector3.ZERO, 0.0, true)
+		"arc":  # charged: the hit arcs on to every other charged foe within RULE_ARC_R, discharging them
+			zap_hit(e, damage)
+			next = _arc(hero, e, IMPROV_CHAIN_DAMAGE * power)
+		"burst":  # molten: it goes off, and the burn catches everyone within RULE_BURST_R
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0, true)
+			next = _burst(hero, e, IMPROV_CHAIN_DAMAGE * power)
+		"snap":  # bound: the hold ends with a snap; no knockback, so no shield blocks it (and the held can't dodge)
+			BIND.let_go_of(hero.get_tree(), e)
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0, true)
+		"juggle":  # airborne: the hit keeps it up there
+			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else RULE_JUGGLE_LAUNCH, false)
+		# "crater" (buried: driven back in for IMPROV_MULT) is below, with the upgrade cells that crater.
+		# The upgrade cells (IMPROV_UPGRADE, Kit.has()).
 		"lift":  # frozen x wind: the gale takes the cube up, still in its ice
 			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
 			freeze_aloft(e)
-		"shatter":  # frozen x dark: the dark crushes the ice, and the shards cut the one beside it
+		"shards":  # frozen x dark (shard_cut): the dark crushes the ice, and the shards cut the one beside it
 			THROWN.remove_cube(e)
 			e.take_hit(damage, Vector3.ZERO, 0.0, true)
 			next = _chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "")
 		"encase":  # buried / bound x ice: frozen where it's stuck
 			e.take_hit(damage, Vector3.ZERO, 0.0, false)
 			encase(e)
-		"crater", "swallow", "smother", "spike":  # buried / molten / airborne x earth or dark: driven (back) into the floor
+		"crater", "swallow", "smother", "spike":  # the buried rule, and molten / airborne / buried x earth or dark: into the floor
 			e.take_hit(damage * IMPROV_MULT, down, 0.0, true)
 			if kind == "swallow" and not heavy:
 				e.stagger(IMPROV_HOLD)
@@ -2396,8 +2852,62 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 			e.take_hit(damage * k, Vector3.ZERO, 0.0, true)
 			next = _overload(hero, e, at, IMPROV_CHAIN_DAMAGE * power * k)
 	if Game.comic_style:
-		COMIC_IMPROV.spawn(parent, cell, e, at, next)
+		COMIC_IMPROV.spawn(parent, cell, e, at, next, el)
 	Game.register_hit("cast")
+
+
+## The frozen rule's ice, gone: the cube off now (renamed, so in_cube() reads it gone this frame) and the ice's time out.
+static func _break_ice(e: Node3D) -> void:
+	var cube: Node = e.get_node_or_null(THROWN.CUBE_NAME)
+	if cube != null:
+		cube.name = "ThrownCubeGone"
+		cube.queue_free()
+
+
+## The charged rule: an arc from `from` on through every other charged foe within RULE_ARC_R of it (nearest first,
+## each from the last: one lime bolt path), `damage` each; they're discharged. Returns where the first went, or null.
+static func _arc(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
+	var live: Array = FOES.near(hero.get_tree(), from.global_position, RULE_ARC_R).filter(func(o: Node3D) -> bool:
+		return o != from and marked(o, "charged") and not THROWN.flying(o))
+	var path := PackedVector3Array([from.global_position + Vector3.UP * 0.9])
+	var last: Node3D = from
+	while not live.is_empty():
+		live.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+			return a.global_position.distance_to(last.global_position) < b.global_position.distance_to(last.global_position))
+		var o: Node3D = live.pop_front()
+		path.append(o.global_position + Vector3.UP * 0.9)
+		unmark(o, "charged")
+		zap_hit(o, damage)
+		Game.register_hit("cast")
+		last = o
+	if path.size() < 2:
+		return null
+	if DESIGNED.on():
+		DESIGNED.bolt_path(hero.get_parent(), path, 0.24)
+	else:
+		for i in path.size() - 1:
+			COMIC_BOLT.spawn(hero.get_parent(), path[i], path[i + 1], 0.24, 0.4)
+	return path[1] - Vector3.UP * 0.9
+
+
+## The molten rule's burn: everyone within RULE_BURST_R of `from` takes `damage` (a quiet burn). Returns where the
+## nearest stood, or null.
+static func _burst(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
+	var first: Variant = null
+	var best := INF
+	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, RULE_BURST_R):
+		if o == from or THROWN.flying(o):
+			continue
+		if o.has_method("burn_hit"):
+			o.burn_hit(damage, false)
+		else:
+			o.take_hit(damage, Vector3.ZERO, 0.0, false)
+		Game.register_hit("cast")
+		var d: float = o.global_position.distance_to(from.global_position)
+		if d < best:
+			best = d
+			first = o.global_position
+	return first
 
 
 ## Conduct: an arc from `from` to each uncharged foe within CONDUCT_R (nearest first, CONDUCT_MOST), `damage`

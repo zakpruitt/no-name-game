@@ -17,11 +17,16 @@ invariants and the gotchas.
 | Meshy models into the game: how to generate them, rebuild the rig, bring them in | [meshy-pipeline.md](meshy-pipeline.md) | `tools/meshy_rig/` |
 | The void arm: weapon shapes, grab, R swing, slam | [void-arm.md](void-arm.md) | `scripts/void_grab.gd`, `scripts/void_arm.gd`, `scripts/void_tendril.gd`, `scripts/hero_moves.gd` (`void_route()`) |
 | Right click: the tentacle, the elements (storm, ice, magma, dark) and their breakers | [void-element.md](void-element.md) | `scripts/void_element.gd`, `scripts/hero_moves.gd` (`void_route()`) |
-| Element matrix: every crossover state x every element, the improvised payoffs | [element-matrix.md](element-matrix.md) | `void_element.IMPROV`, `improvise()`, `scripts/floor_bind.gd` (`holds()`) |
+| Element matrix: six states, one payoff rule each (the old cells are Kit upgrades) | [element-matrix.md](element-matrix.md) | `void_element.RULES`, `IMPROV_UPGRADE`, `improvise()`, `scripts/floor_bind.gd` (`holds()`) |
 | Combo breakers: the shared leap / window / dive, and strings that move (hops, air, air dash, plunge) | [combo-breakers.md](combo-breakers.md) | `scripts/hero_leap.gd`, `scripts/hero_moves.gd` (`hop()`), `scripts/breaker_cue.gd`, `scripts/breaker_prompt.gd`, `scripts/breaker_quake.gd` |
 | Combo guide (next-input hints beside the hero) and the pause MOVES list | [combo-guide.md](combo-guide.md) | `scripts/combo_guide.gd`, `scripts/move_list.gd`, `hero_moves.combo_options()`, `hero_input.combo_window()` |
+| Kit slots: the kit grammar's slot table as data, each character's card, the upgrade gate, `[kit]`, filling a card | [kit-slots.md](kit-slots.md) | `scripts/kit_slots.gd`, `scripts/kit.gd`, `tests/kit_check.gd` |
 | Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `hero_fx.cast()`, `elements.CASTS` |
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
+| Environment: structure indicator, click to choose, Impale's window, pillar slam, wall marks, pillar chunks, torch swings | [environment.md](environment.md) | `scripts/env_target.gd`, `tools/vfx_gen/gen_environment.py` |
+| Environment pieces: rooms as data, shared rules, the heretic's element verbs (Uproot, Powder Keg, Frost Wall, Live Floor), Room: plain / with pieces | [env-pieces.md](env-pieces.md) | `scripts/env_piece.gd`, `scripts/rooms.gd` |
+| The dash counter: Backlash, the perfect's window and Ricochet, swinging dummies | [counter.md](counter.md) | `scripts/counter.gd`, `scripts/counter_fx.gd`, `enemy.strike_in()` |
+| The wiki (player field guide, GitHub Pages): pages, generated data, the staleness check, screenshots. Rebuild: `python tools/wiki.py` | [wiki.md](wiki.md) | `docs/wiki/`, `tools/wiki.py`, `tools/wiki_data.gd`, `tests/wiki_check.gd` |
 | Comic art style (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |
 | Camera: distance, aim, fight framing, `--cam-*=` flags | [camera.md](camera.md) | `scripts/camera_rig.gd` |

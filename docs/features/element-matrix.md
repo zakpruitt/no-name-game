@@ -2,89 +2,121 @@
 
 ## What it does
 
-Every state a crossover leaves on a foe, against every element the hero hits it with. Each cell pays something,
-so a dash out of any string into a move of another element does more than a plain hit. States last
-`ELEMENT_HOLD` (2 s) and each payoff reads the state, not the input that set it
-([void-element.md](void-element.md), "Improvising").
+Round 49 (kit grammar section 3, [kit-grammar.md](../characters/kit-grammar.md)): **six states, one payoff rule
+each.** A foe left in a state pays that state's rule when any other element's move hits it, so a dash out of any
+string into a move of another element does more than a plain hit, and a new character or element never adds cells.
+The rules are written once (`void_element.RULES`, `_pay()`); the old per-cell payoffs are **upgrades**
+(`IMPROV_UPGRADE`, `Kit.has()`), off in the base kit and played in the rule's place with their Kit id on
+(`--kit=full`, `--kit=<id>,<id>`). States last `ELEMENT_HOLD` (2 s; charged `CHARGED_HOLD` 3 s) and each payoff reads
+the state, not the input that set it ([void-element.md](void-element.md), "Improvising").
 
 Elements by base move. Storm: Updraft Lash (L H), Live Wire (L H H, L H L H). Ice: Frost Spear (L L H), Harpoon
 (Dash L H), Ice Cube (Dash L H H), Deep Freeze. Magma: Molten Palm (L L L H), Undertow (L L L H H). Dark: Reap,
 Black Tide, Singularity, Overwhelm, Tow Line.
 
-| State (set by) | storm | ice | magma | dark |
-|---|---|---|---|---|
-| **frozen** (Harpoon, Ice Cube, Deep Freeze, Impale, Hailstorm, Black Ice) | Hailstorm lifts them in their ice; **Gale Lift**: any storm move takes the cube up, still frozen | Ice Cube bowls the frozen first; ice on ice refreezes | Molten Palm goes off as Steam Burst; Steam Burst; Meltdown bursts the ice | **Shatter**: the ice is crushed (x `FREEZE_BREAK`) and the shards cut the nearest foe |
-| **buried** (Rockslide) | Updraft Lash / Storm Pitch hit again (`_cash_buried`); Fault Line x2 | **Frozen In**: frozen where it's stuck | **Aftershock**: driven back in x1.5, a crater | **Swallowed**: x1.5, a crater, held `IMPROV_HOLD` |
-| **molten** (Meltdown) | **Firestorm**: launched, and the flames catch the nearest foe (`molten`, a chain hit) | **Quench**: a steam burst, x1.6, launched | Eruption x`ERUPT_MOLTEN_MULT`; **Flare-up**: any magma move erupts the floor under them | **Smother**: x1.5, a crater |
-| **skewered** (Impale) | Backdraft hauls them back in full | **Ice Spreads**: the nearest foe is frozen and skewered too | (still frozen) Molten Palm's steam; Anvil | **Torn Off**: x1.5, yanked off the spear towards him |
-| **airborne** (any launcher) | the air string: Air Slash re-juggles, Live Wire holds them up | **Freeze Aloft**: frozen up there, comes down a cube | Rockslide x2, Meltdown x1.5, Anvil; **Meteor Spike**: any magma move drives them down into a crater, x1.5 | Tow Line rips them out of the air (x`TOW_AIR_MULT`) |
-| **bound** (Undertow, Overwhelm tendrils) | **Torn Loose**: out of the bind and launched, x1.5 | **Frozen in the Dark**: frozen where they're held | Meteor Fall rips the biggest out of Undertow | Abyss off Overwhelm |
-| **charged** (round 44: Live Wire's jolts, Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm) | **Overload**: every charged foe within `OVERLOAD_R` 8 m of the move goes off at once, chained, each x(1 + `OVERLOAD_PER` 0.35 per other charged); best after Galvanize or Grounded charged a crowd | **Superconduct**: x1.5 and frozen, and the charge runs on through every frozen foe within `SUPER_R` 7 m (`SUPER_DAMAGE` 6 each, x `FREEZE_BREAK`, charged); best with cubes standing about | **Arc Flash**: x1.5, and everyone within `FLASH_R` 2.8 m is blown `FLASH_THROW` 4.5 m away from it (`FLASH_DAMAGE` 5, `FLASH_SPLAT` 6 where they land, x `PALM_WALL_MULT` on a wall); best in a corner | **Conduct**: the payer stays charged and the charge goes on to every uncharged foe within `CONDUCT_R` 3 m (`CONDUCT_MOST` 4, `CONDUCT_DAMAGE` 5 each, charged); best on a pack, to set up Overload |
+## The six rules
 
-Bold cells are the third pass's (`VOID_ELEMENT.IMPROV`); the rest were already paid by the moves themselves.
-Charged is last in `IMPROV_ORDER`: nearly every Live Wire leaves it, so it pays only when nothing rarer is there.
-It lasts `CHARGED_HOLD` 3 s, not `ELEMENT_HOLD` (round 44 b: Galvanize's event, a wait and L L L H did not fit in 2 s).
-Live Wire marks the foes it zapped only when the hang ends (`void_grab._charge_jolted`), so the crackle tell isn't
-drawn over the held pile; Short Circuit (Grounded's L ending) spends the held foes' charge and moves it into the
-ones it arcs to. Bot strings off Galvanize (`spread H L L wait ...`): `L H` Overload, `H L` Conduct, `L L L H` Arc
-Flash, `L L H` Superconduct (last: its spear stands 5 s and turns the next string's L L into the vault).
-The training bot clears it at the start of each string (`_reset_spots`), or each string would pay the last one's.
-Foes carry it visibly: two small storm crackles crawling on the outline (`comic_state_tell.gd` "charged").
+| State (set by) | Rule | What any hit does | Not the rule (the move's own) |
+|---|---|---|---|
+| **frozen** (Harpoon, Ice Cube, Deep Freeze, Impale, Hailstorm, Black Ice) | **Shatter** | x`RULE_SHATTER_MULT` 1.6 (and the ice's `FREEZE_BREAK`, as any hit on it), and the ice is gone (`_break_ice()`) | ice on ice (refreezes, Ice Cube bowls the frozen first); Molten Palm (its steam: Steam Burst) |
+| **charged** (Live Wire's jolts, Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm) | **Arc** | the hit, then a lime bolt path (`designed_fx.bolt_path`) on through every other charged foe within `RULE_ARC_R` 6 m of the payer, nearest from the last, `IMPROV_CHAIN_DAMAGE` 5 each; all discharged (`_arc()`) | storm: Live Wire's own pulse |
+| **molten** (Meltdown) | **Burst** | x`IMPROV_MULT` 1.5, and the burn catches everyone within `RULE_BURST_R` 2.2 m for 5 (a quiet `burn_hit`, `_burst()`); spent | magma: Eruption |
+| **bound** (Undertow, Overwhelm's tendrils: `floor_bind.holds()`) | **Snap** | x1.5 with no knockback, so no shield turns it and the held can't dodge; the hold ends (`floor_bind.let_go_of`) | dark: Abyss off Overwhelm; Meteor Fall is Undertow's own window |
+| **airborne** (any launcher) | **Juggle** | `IMPROV_DAMAGE` 8, kept up at `RULE_JUGGLE_LAUNCH` 7 m/s (not the heavy) | storm (the air string: Air Slash, Live Wire); Tow Line (its own rip, `TOW_AIR_MULT`) |
+| **buried** (Rockslide) | **Crater** | x1.5 driven back into the floor (`Vector3.DOWN * IMPROV_DOWN`); spent | Updraft Lash (`_cash_buried`: digs them up itself); Fault Line |
+
+The "own" column is `RULE_OWN` (the element that leaves the state: the hero's own element on its own state does
+the move's own thing) and `RULE_SELF` (an element or a move id that pays the state in its own body, so it never pays
+twice). `improv_cell(e, el, id)` returns what pays: the upgrade cell when its id is on, else the state's rule, else "".
+The skewered (Impale) are frozen too: with neither skewered upgrade on they pay Shatter.
+
+## Upgrades (the old grid)
+
+Off: the rule plays. On: the cell plays in the rule's place, as round 34 to round 44 built it.
+
+| Cell | Kit id | Payoff | Instead of |
+|---|---|---|---|
+| frozen x storm | `gale_lift` | **Gale Lift**: the cube goes up, still in its ice (`freeze_aloft`) | Shatter |
+| frozen x dark | `shard_cut` | **Shard Cut**: the ice crushed, the shards cut the nearest foe (`_chain`) | Shatter |
+| buried x ice | `frozen_in` | **Frozen In**: frozen where it is stuck | Crater |
+| buried x dark | `swallowed` | **Swallowed**: x1.5 crater, held `IMPROV_HOLD` | Crater |
+| molten x storm | `firestorm` | **Firestorm**: launched, the flames catch the nearest foe (molten, a chain hit) | Burst |
+| molten x ice | `quench` | **Quench**: steam, x`IMPROV_STEAM_MULT` 1.6, launched | Burst |
+| molten x magma | `flare_up` | **Flare-up**: the floor erupts under it (x`ERUPT_MOLTEN_MULT`) | nothing (own) |
+| molten x dark | `smother` | **Smother**: x1.5, a crater | Burst |
+| skewered x ice | `ice_spreads` | **Ice Spreads**: the nearest foe frozen and skewered too | nothing (own) |
+| skewered x dark | `torn_off` | **Torn Off**: x1.5, yanked off the spear towards him | Shatter |
+| airborne x ice | `freeze_aloft` | **Freeze Aloft**: frozen up there, comes down a cube | Juggle |
+| airborne x magma | `meteor_spike` | **Meteor Spike**: driven down into a crater, x1.5 | Juggle |
+| bound x storm | `torn_loose` | **Torn Loose**: out of the bind and launched, x1.5 | Snap |
+| bound x ice | `frozen_dark` | **Frozen in the Dark**: frozen where they're held | Snap |
+| charged x storm | `overload` | **Overload**: every charged foe within `OVERLOAD_R` 8 m of the move goes off at once, chained, each x(1 + `OVERLOAD_PER` 0.35 per other charged) | nothing (own: Live Wire's pulse) |
+| charged x ice | `superconduct` | **Superconduct**: x1.5 and frozen, the charge runs on through every frozen foe within `SUPER_R` 7 m (`SUPER_DAMAGE` 6 each, charged) | Arc |
+| charged x magma | `arc_flash` | **Arc Flash**: x1.5, everyone within `FLASH_R` 2.8 m blown `FLASH_THROW` 4.5 m away (`FLASH_DAMAGE` 5, `FLASH_SPLAT` 6 where they land, x `PALM_WALL_MULT` on a wall) | Arc |
+| charged x dark | `conduct` | **Conduct**: the payer stays charged, the charge goes on to every uncharged foe within `CONDUCT_R` 3 m (`CONDUCT_MOST` 4, `CONDUCT_DAMAGE` 5 each) | Arc |
+
+buried x magma (Aftershock) was a crater already: it is the Crater rule now, not an upgrade. The cells the moves
+paid themselves (Ice Cube on the frozen, Molten Palm's steam, `_cash_buried`, Backdraft hauling the skewered, the air
+string, Tow Line's rip, Meteor Fall, Abyss) were never cells and are unchanged. Every id has its doc line in
+`kit.gd` `UPGRADES`.
 
 ### Looks
 
-Each bold cell has a one-beat tell that says which two elements met, in both elements' palettes (`fx_palette`), and
-its own word over the move's (`scripts/comic_improv.gd` `LOOKS`, `ComicFx.IMPROV_WORDS`). Real time, gone by 0.35-0.45 s.
+Each rule has **one** tell keyed by the state, tinted by the element that hit (`comic_improv.gd` `LOOKS` with
+`rule`, `spawn(..., hitter)`; designed mode `designed_polish.improv(..., hitter)`), and its word
+(`ComicFx.IMPROV_WORDS` by state). Real time, gone by 0.35-0.45 s. The upgrade cells keep their own looks and words
+(the table in round 37's notes below).
 
-| Cell | Payoff | Look | Word |
+| Rule | Look (designed, the default) | Classic (`--fx=classic`) borrows | Word |
 |---|---|---|---|
-| frozen x storm | Gale Lift | two wind bands spin up round the cube, ice chips flung off them (rides it up) | FWISSH! |
-| frozen x dark | Shatter | a violet tear across the ice, five ice plates flung out, one streaking at the foe it cuts | SHA-KRAK! |
-| buried x ice | Frozen In | six ice plates close over a crack ring on the floor, three ice tips in front of it | KRRIK! |
-| buried x magma | Aftershock | two hot shock rings run out of the crater with four cracks, one drive stroke down | BA-DOOM! |
-| buried x dark | Swallowed | a dark mouth on the floor shuts its toothed jaws over the crater, a hot seam where it closed | GULP! |
-| molten x storm | Firestorm | a wind band carrying ember streaks round it, an ember line out to the foe it catches | FWAAASH! |
-| molten x ice | Quench | three small steam puffs over it, ice chips spilling, a hot star going out | HSSSSK! |
-| molten x magma | Flare-up | a hot floor splat under it, three flame tongues licking up after it | FWUMP! |
-| molten x dark | Smother | a violet lid drops onto it, embers squirting out at its feet | SMOOSH! |
-| skewered x ice | Ice Spreads | a frost line runs along the floor to the next foe, ice tips where it arrives | KRIK-KRIK! |
-| skewered x dark | Torn Off | the stake snaps into two spinning halves, Tow Line's void tear (`comic_rip`) | RRRIP! |
-| airborne x ice | Freeze Aloft | a burst of seven thin ice spikes round it in the air, a glint | FRZZK! |
-| airborne x magma | Meteor Spike | an ember line falls through it into the floor, a hot dent where it lands | KA-CHUNK! |
-| bound x storm | Torn Loose | the violet ropes snap and whip off its feet, three wind strokes up | SNAPP! |
-| bound x ice | Frozen in the Dark | the violet coils round its legs ice over from one end, small ice plates at its feet | KLINNK! |
-| charged x storm | Overload | two storm bands spin up round it, a hot core star, five crackles out every way; `comic_bolt` on through every charged foe | ZZRAAAK! |
-| charged x ice | Superconduct | an ice star with four storm crackles running out of it; `comic_bolt` on through the ice | KRZZZK! |
-| charged x magma | Arc Flash | a hot flash star swelling, a magma shock ring on the floor, six storm spokes blown out | FWA-KOOM! |
-| charged x dark | Conduct | two violet bands coil round it, storm crackles jumping off it; a `comic_bolt` to each foe it charges | BZZT-ZAP! |
+| Shatter | the ice shattering, a pop in the hitter's colour | frozen x dark's tear and plates | SHA-KRASH! |
+| Arc | a pop in the hitter's colour, the current crawling on it; the lime bolt path on through the charged | charged x storm's bands and crackles | ZZAK-ZAK! |
+| Burst | magma spurting up under it, a pop and a shock line in the hitter's colour out to the burn | molten x magma's splat and tongues | FWOOMPH! |
+| Snap | a violet pop at its feet (the hold), a hit star in the hitter's colour | bound x storm's snapping ropes | SNAP! |
+| Juggle | a hit star and speed strokes up, in the hitter's colour | airborne x ice's spikes, in the hitter's colour | WHAP-UP! |
+| Crater | the crater heaving, a shock line in the hitter's colour | buried x magma's shock rings and cracks | KA-THOOM! |
+
+Upgrade cells' looks (round 37 / 44, unchanged): Gale Lift FWISSH! (wind bands round the cube), Shard Cut SHA-KRAK!
+(violet tear, plates, one at the foe it cuts), Frozen In KRRIK!, Swallowed GULP!, Firestorm FWAAASH!, Quench HSSSSK!,
+Flare-up FWUMP!, Smother SMOOSH!, Ice Spreads KRIK-KRIK!, Torn Off RRRIP! (`comic_rip`), Freeze Aloft FRZZK!, Meteor
+Spike KA-CHUNK!, Torn Loose SNAPP!, Frozen in the Dark KLINNK!, Overload ZZRAAAK!, Superconduct KRZZZK!, Arc Flash
+FWA-KOOM!, Conduct BZZT-ZAP!.
+
+Charged is last in `IMPROV_ORDER`: nearly every Live Wire leaves it, so it pays only when nothing rarer is there.
+Live Wire marks the foes it zapped only when the hang ends (`void_grab._charge_jolted`), so the crackle tell isn't
+drawn over the held pile; Short Circuit (Grounded's L ending) spends the held foes' charge and moves it into the
+ones it arcs to. The training bot clears states at the start of each string (`_reset_spots`). Foes carry their
+states visibly (`comic_state_tell.gd`).
 
 ## Files
 
 | File | Role |
 |---|---|
-| `scripts/void_element.gd` | `IMPROV` (state -> element -> payoff kind), `IMPROV_ORDER`, the `IMPROV_*` constants, `improvise()`, `improv_state()`, `in_state()`, `_pay()`, `_chain()`; `fire()` calls `improvise()` and then `_fire()` (the move) |
-| `scripts/comic_improv.gd` | The tells: `LOOKS` (cell -> name, life, ride, palettes), one draw function per cell on `comic_flat.gd`; `spawn()` from `_pay()` (comic style only), Torn Off adds `comic_rip` |
-| `scripts/comic_fx.gd` | `IMPROV_WORDS` by cell, `improv()` (once a move), the move's own word held `IMPROV_HOLD_MS` after it |
-| `tests/improv_shots.gd` | Look (windowed): every cell played for real on the dummies, six crops 83 ms apart (`--alone`: the payoff only, `--only=<cells>`) |
-| `scripts/floor_bind.gd` | The "bound" state: `BOUND` meta while a bind holds a foe, `holds()`, `let_go_of()` (Torn Loose) |
-| `scripts/move_list.gd` | The MIX ELEMENTS section: every cell in plain words (`state` / `el` keys; `own` for the moves' cells), `mix_name()` |
-| `scripts/hero_moves.gd` | `pays()`: the payoff a guide row's move would cash in now (the combo guide's "+ name" tag) |
-| `scripts/training_bot.gd` | Five bot strings reach a cell each (tokens `face`, `out`, `wait`); the autotest prints `[improv] <state>_x_<element>=N` |
-| `tests/void_arm_check.gd` | `_element_matrix()`: every cell on a stand-in foe, the moves' own cells left alone, a whole Harpoon cashing in `buried` |
+| `scripts/void_element.gd` | `RULES`, `RULE_NAMES`, `RULE_OWN`, `RULE_SELF`, `RULE_*` numbers, `IMPROV` (the upgrade cells' kinds), `IMPROV_UPGRADE`, `IMPROV_ORDER`, `improv_cell()`, `improv_name()`, `improvise()`, `improv_reach()`, `_pay()`, `_arc()`, `_burst()`, `_break_ice()`, the cells' `_chain()` / `_conduct()` / `_superconduct()` / `_arc_flash()` / `_overload()`; `fire()` calls `improvise()` and then `_fire()` (the move) |
+| `scripts/kit.gd` | `UPGRADES`: every cell's id and doc line; `Kit.has()`, `set_on()` |
+| `scripts/comic_improv.gd` | The tells: `LOOKS` (the six rules keyed by state, each borrowing a cell's drawing, tinted; the cells), one draw function per cell on `comic_flat.gd`; `spawn()` from `_pay()` (comic style only) |
+| `scripts/designed_polish.gd` | `improv()`: the designed tells (the default), the six rules first |
+| `scripts/comic_fx.gd` | `IMPROV_WORDS` by rule state and by cell, `improv()` (once a move), the move's own word held `IMPROV_HOLD_MS` after it |
+| `tests/improv_shots.gd` | Look (windowed): each rule, then each upgrade cell with its id on, played for real on the dummies, six crops 83 ms apart (`--alone`, `--only=frozen,charged,frozen_x_void`) |
+| `scripts/floor_bind.gd` | The "bound" state: `BOUND` meta while a bind holds a foe, `holds()`, `let_go_of()` (Snap, Torn Loose) |
+| `scripts/move_list.gd` | The MIX ELEMENTS page: the six rules (`state`, `rule`), then the upgrade cells (`state` / `el` / `upgrade`); `mix_name()` |
+| `scripts/hero_moves.gd` | `pays()`: the payoff a guide row's move would cash in now (`improv_cell()` / `improv_name()`: the combo guide's "+ Shatter", "+ Overload" tag) |
+| `scripts/training_bot.gd` | Six bot strings reach a rule each (tokens `face`, `out`, `wait`, `spread`); `improv_line()` prints `[improv]` |
+| `tests/void_arm_check.gd` | `_element_matrix()`: the six rules on a stand-in foe for every element, the own pairs left alone, each upgrade cell on and off, the arc past the move's reach, Overload, Superconduct, reach shapes, a whole Harpoon cashing in `buried` |
 
 ## How it works
 
 1. `fire()` (a move's first hit) calls `improvise(hero, id, at, power, fwd)` first. Only base element moves improvise
    (`ELEMENT_OF`, not `X*`: the crossovers read their own states in their bodies).
-2. It collects the foes the move itself lands on (`improv_reach()`, round 4: was everyone `IMPROV_REACH` round
-   him), skips anyone in flight (`THROWN.flying`), and reads each one's state for this element:
-   the first in `IMPROV_ORDER` with a cell. Every state is read before any is paid, so a chain that sets a state
-   on the neighbour doesn't pay again in the same move.
-3. `_pay()` spends `buried` / `molten` / `skewered` (once) and runs the cell's kind: one hit of
-   `IMPROV_DAMAGE` and a launch (`IMPROV_LAUNCH`), a crater (`Vector3.DOWN * IMPROV_DOWN`), ice (`encase()`,
-   `freeze_aloft()`) or a chain (`_chain()`: the nearest foe within `IMPROV_CHAIN_R`).
+2. It collects the foes the move itself lands on (`improv_reach()`), skips anyone in flight (`THROWN.flying`), and asks
+   `improv_cell()` for each: the first state in `IMPROV_ORDER` the foe is in that has an upgrade cell on for this
+   element, or a rule this element and move don't own. Every foe is read before any pays, so a chain that sets a
+   state on the neighbour doesn't pay again in the same move.
+3. `_pay()` spends `buried` / `molten` / `skewered` / `charged` (once) and runs the kind: a rule (`shatter`, `arc`,
+   `burst`, `snap`, `juggle`, `crater`) or a cell's (`lift`, `shards`, `encase`, `swallow`, `fan`, `quench`, `erupt`,
+   `smother`, `spread`, `tear`, `freeze`, `spike`, `loose`, `conduct`, `superconduct`, `flash`, `overload`).
 4. Then the move itself runs (`_fire()`). A payoff never throws the foe that pays (`THROWN.launch`), so the move
-   can still throw it. Arc Flash throws the ones beside it (they are blown away from the payer, not hit by the move).
+   can still throw it. Arc Flash throws the ones beside it.
 
 **Reach = the move's own hit shape** (`improv_reach()`, read before the move fires, from the move body's own
 numbers):
@@ -107,55 +139,62 @@ numbers):
 | Tow Line (TW) | the line he just dashed along (`_tow_line()`) |
 | anything else | its MOVES `range` / `arc` / `width`, else `IMPROV_REACH` round him |
 
-Breakers don't improvise (they read their own states in `breaker_impact()`), so a breaker zone never pays a cell.
+The arc rule and the upgrade cells' chains go on past the move's shape (that is their point); only the payer must
+be in it. Breakers don't improvise (they read their own states in `breaker_impact()`).
 
 ## Invariants
 
-- The cells a move already pays itself stay out of `IMPROV`, or the state pays twice (Molten Palm's steam reads
-  the ice, `_cash_buried` the buried, Tow Line's rip the airborne). `_element_matrix()` checks improvise leaves them.
-- Knockback directions follow the foe contract: craters pass `Vector3.DOWN * IMPROV_DOWN`, launches at least
-  `enemy.RELAUNCH_MIN` (`IMPROV_LAUNCH` 8) so one in the air re-launches.
-- A payoff hits on ice x `FREEZE_BREAK` like any hit, and the hit thaws it: ice payoffs (`encase`, `freeze`,
-  `spread`) hit first and freeze after.
-- Bosses never freeze (`encase`, `freeze_aloft`) and the heavy aren't launched.
-- A payoff lands only where the move does: a foe inside 5 m of him but outside the move's shape (behind him, off
-  the harpoon's line) never pays (`_element_matrix()`).
+- Six rules, one per state; a new element or character maps onto them and adds no cell. A richer per-element payoff
+  is an upgrade (an `IMPROV_UPGRADE` id with a `Kit.UPGRADES` line), never a new base cell.
+- The state's own element (`RULE_OWN`) and a move that pays the state in its body (`RULE_SELF`) never pay the rule,
+  or the state pays twice. `_element_matrix()` checks improvise leaves them.
+- Knockback directions follow the foe contract: craters pass `Vector3.DOWN * IMPROV_DOWN`; Snap passes none.
+- A payoff hits on ice x `FREEZE_BREAK` like any hit, and the hit thaws it; ice cells (`encase`, `freeze`, `spread`)
+  hit first and freeze after.
+- Bosses never freeze (`encase`, `freeze_aloft`) and the heavy aren't launched (Juggle, the launching cells).
+- A payoff lands only where the move does: a foe inside 5 m of him but outside the move's shape never pays.
 
 ## Tuning
 
-`IMPROV_REACH` (5 m, only for a move with no shape in `improv_reach()`), `IMPROV_ROLL_HALF_WIDTH` (1 m), `IMPROV_DAMAGE` (8), `IMPROV_MULT` (1.5), `IMPROV_LAUNCH` (8 m/s), `IMPROV_DOWN` (6 m/s),
-`IMPROV_CHAIN_R` (2.6 m), `IMPROV_CHAIN_DAMAGE` (5), `IMPROV_PULL` (6 m/s), `IMPROV_STEAM_MULT` (1.6),
-`IMPROV_HOLD` (0.6 s). Quench and Flare-up reuse `STEAM_LAUNCH`, `ERUPT_MOLTEN_MULT` and `ERUPT_LAUNCH`.
-Charged: `CONDUCT_R` (3 m), `CONDUCT_MOST` (4), `CONDUCT_DAMAGE` (5), `SUPER_R` (7 m), `SUPER_DAMAGE` (6), `FLASH_R`
-(2.8 m), `FLASH_THROW` (4.5 m), `FLASH_DAMAGE` (5), `FLASH_SPLAT` (6), `FLASH_SPEED` (20 m/s), `OVERLOAD_R` (8 m),
-`OVERLOAD_PER` (0.35).
+Rules: `RULE_SHATTER_MULT` (1.6), `RULE_ARC_R` (6 m), `RULE_BURST_R` (2.2 m), `RULE_JUGGLE_LAUNCH` (7 m/s),
+`IMPROV_DAMAGE` (8), `IMPROV_MULT` (1.5: Burst, Snap, Crater), `IMPROV_CHAIN_DAMAGE` (5: each arc link and burn),
+`IMPROV_DOWN` (6 m/s). Cells: `IMPROV_REACH` (5 m), `IMPROV_ROLL_HALF_WIDTH` (1 m), `IMPROV_LAUNCH` (8 m/s),
+`IMPROV_CHAIN_R` (2.6 m), `IMPROV_PULL` (6 m/s), `IMPROV_STEAM_MULT` (1.6), `IMPROV_HOLD` (0.6 s); charged cells
+`CONDUCT_*`, `SUPER_*`, `FLASH_*`, `OVERLOAD_*` (the upgrades table).
 
 ## Extending
 
-- A new state: set it with `mark(e, "<state>")` (or a check in `in_state()`), add a row to `IMPROV` and a place in
-  `IMPROV_ORDER`, a kind in `_pay()` if none fits, a move_list row, a case in `_element_matrix()` and a line here.
-- A new base move pays its element's column for free (`ELEMENT_OF`).
+- A new state: no. Map it onto one of the six (a plant's "rooted" is bound, a blood character's "bleeding" is molten).
+- A new character's element: say which state it leaves (its `RULE_OWN`), and it pays every other state's rule for
+  free. A move that pays a state in its own body goes in `RULE_SELF`.
+- A richer cell: a kind in `_pay()`, an `IMPROV` entry, an `IMPROV_UPGRADE` id, a `Kit.UPGRADES` line, a look in
+  `comic_improv.LOOKS` / `designed_polish.improv`, a word, a MIX ELEMENTS row and a case in `_element_matrix()`.
 
 ## Testing
 
-- `godot --headless --path . -s tests/void_arm_check.gd`: `_element_matrix()` (PASS/FAIL).
-- `godot --headless --path . -- --autotest`: `[improv] frozen_x_void=3, buried_x_water=3, airborne_x_water=1,
-  molten_x_wind=3, bound_x_wind=1` from the bot's `line D L H D H`, `face L H L L D L H`, `face L H D L H`,
-  `line out face D L H H H L D wait L H` (dash out of Meltdown, Updraft Lash fans the flames) and
-  `out face L L L H H D wait L H` (dash out of Undertow's hang, Updraft Lash tears them loose).
-  `out` lets the bot dash out of a breaker's hang (`player.bot_out`, `hero_leap.tick`); `wait` holds the next
-  press until he stands again, so L is L1 and not Dash Stab.
+- `godot --headless --path . -s tests/void_arm_check.gd`: `_element_matrix()` prints `element matrix: 18 rule pairs,
+  18 upgrade cells on and off` (PASS/FAIL).
+- `godot --headless --path . -- --autotest`: `[improv] bound=1 molten=3 buried=3 frozen=3 airborne=4 charged=4`, each
+  rule from its bot string: frozen `line D L H D H` (Tow Line shatters Harpoon's ice), buried `face L H L L D L H`
+  (Harpoon craters Rockslide's buried), airborne `face L H D L H` (Harpoon juggles), molten `line out face D L H H H L
+  D wait L H` (Updraft Lash bursts Meltdown's molten), bound `out face L L L H H D wait L H` (Updraft Lash snaps
+  Undertow's hold), charged `spread H L L wait H L` / `wait L L L H` / `wait L L H` (Reap, Molten Palm, Frost Spear arc
+  Galvanize's charge; `wait L H` is storm's own).
+- `godot --headless --path . -- --autotest --kit=full` (the second run in `agent.sh check`): the rules give way to
+  the cells, `[improv] bound=0 molten=0 buried=0 frozen=0 airborne=1 charged=0 | ice_spreads=0 torn_off=0
+  firestorm=1 quench=0 flare_up=0 smother=0 frozen_in=3 swallowed=0 torn_loose=1 frozen_dark=0 gale_lift=0
+  shard_cut=3 freeze_aloft=3 meteor_spike=0 conduct=3 superconduct=4 arc_flash=2 overload=1`.
+- Contact sheets per rule: `awaken-combo-clips/32 Matrix <n> <state> rule - <name>.png` (string_film of those strings).
 
 ## Gotchas / open questions
 
-- The placeholders (wind pillars, shards, steam, rim geyser + spikes, ink bursts, scorch, `ELEMENTS.arc` on chains)
-  are gone in the comic style; `_chain()` returns where it jumped so the tell draws the jump. Coverage per crop round
-  the payer (the middle 60% of 640x480, effect-coloured pixels): 0.04-0.15 alone, at most 0.27 with the move's own hit
-  (Molten Palm's stars), under the 0.40 cap.
+- Snap's "undodgeable": a held foe can't start a dodge and a hit with no knockback never meets a shield; a foe
+  already mid-dodge (`enemy.State.DODGE`) still takes nothing, as every hit (enemy.gd is the counter lane's).
+- "marked" (Reap's mark) is not a state here: it is the signature's own setup (Black Tide, Galvanize); the bound
+  half of marked/bound is the state.
+- Gale Lift is not a slot move, so it went to the upgrades (kit-grammar section 3 suggested a crossover home).
+- `buried` stays Updraft Lash's own (`RULE_SELF`) while `_cash_buried` digs them up. Rockslide's buried payoff stays
+  in the base kit (kit-slots, round 49), so the buried state and its Crater rule play without `--kit`.
+- `Kit.set_on(id, false)` can't turn one off under `--kit=full` (it reads `_all`): the tests run without `--kit`.
 - Meteor Spike's falling line hides under Molten Palm's stars when the move plays; its word and dent carry it.
-- Five cells have a bot string; the rest are covered by the headless check. Still to try by hand: the timing of a
-  real dash out of the hang (the bot dashes on the first hang frame).
-- The reach follows each move's own shape since round 4. A long chain grows the shapes (`hero_fx.cast_grow()`): Updraft
-  Lash's 4.5 m gale circle 3.5 m ahead then reaches behind him, as its own hit does.
-- The bot's dash strings aim at the nearest foe (`face` token): the dash and Dash Stab's lunge carry him past the
-  buried, and with the 5 m circle gone a harpoon thrown the other way paid nobody (`buried_x_water` 1 -> 0).
+- Coverage per crop (round 37 numbers, cells): 0.04-0.15 alone, at most 0.27 with the move's own hit.

@@ -14,6 +14,8 @@ static var fired := 0  # running count, reported by the autotest
 
 var direction := Vector3.FORWARD
 var source: Node = null  # who fired it (stunned on a perfect dodge)
+## Parried by the dash counter (counter.gd): it flies back and hits foes, not him.
+var reflected := false
 
 var _age := 0.0
 var _player: Node3D
@@ -65,6 +67,14 @@ func _physics_process(delta: float) -> void:
 		_pop()
 		return
 	global_position = to
+	if reflected:
+		for e: Node in get_tree().get_nodes_in_group("enemies"):
+			if e.is_alive() and ((e as Node3D).global_position + Vector3.UP - global_position).length() < hit_radius + float(e.radius):
+				e.take_hit(damage, direction * 4.0, 0.0, true)
+				Game.register_hit("counter")
+				_pop()
+				return
+		return
 	if is_instance_valid(_player) and not _player.is_dead():
 		var d := _player.global_position + Vector3.UP * 1.0 - global_position
 		if d.length() < hit_radius:

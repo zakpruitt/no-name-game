@@ -22,8 +22,19 @@ extends "res://scripts/comic_flat.gd"
 ##   charged x ice    Superconduct: an ice star with storm crackles running out of it (comic_bolt on through the ice)
 ##   charged x magma  Arc Flash: a hot flash star swelling, a magma shock ring, storm spokes blown out of it
 ##   charged x storm  Overload: two storm bands spin up round it, a hot core, crackles out every way (comic_bolt on)
+## Round 49 (kit grammar section 3): the six states' shared rules each have ONE look, keyed by the state and tinted by
+## the element that hit (spawn()'s `tint`); the cells above are the upgrade cells' (void_element.IMPROV_UPGRADE) and keep
+## theirs. A rule borrows a cell's drawing (`draw`), its first palette the hitter's:
+##   frozen   Shatter: the tear and the ice plates flung out (frozen_x_void's), the tear in the hitter's colour
+##   charged  Arc: the storm bands and crackles (charged_x_wind's), the bands in the hitter's colour; the lime bolt path
+##            on to every other charged foe is void_element._arc's
+##   molten   Burst: the hot splat and flame tongues (molten_x_earth's), tongues in the hitter's colour
+##   bound    Snap: the violet ropes snapping off its feet (bound_x_wind's), the strokes up in the hitter's colour
+##   airborne Juggle: the burst of spikes round it in the air (airborne_x_water's), in the hitter's colour
+##   buried   Crater: the shock rings and cracks out of the crater (buried_x_earth's), rings in the hitter's colour
 ## Its word is ComicFx.IMPROV_WORDS[cell] (ComicFx.improv: said over the move's own word).
 ##   ComicImprov.spawn(parent, "frozen_x_void", foe, hero_spot, neighbour_or_null)
+##   ComicImprov.spawn(parent, "frozen", foe, hero_spot, null, "wind")
 
 const SELF := preload("res://scripts/comic_improv.gd")
 const RIP := preload("res://scripts/comic_rip.gd")
@@ -35,7 +46,7 @@ const GRAVITY := 9.0  # m/s/s on flung chips (screen down)
 ## the foe, and the two palettes (fx_palette) it joins.
 const LOOKS := {
 	"frozen_x_wind": {"name": "Gale Lift", "life": 0.42, "ride": true, "a": "air", "b": "water"},
-	"frozen_x_void": {"name": "Shatter", "life": 0.42, "ride": false, "a": "void", "b": "water"},
+	"frozen_x_void": {"name": "Shard Cut", "life": 0.42, "ride": false, "a": "void", "b": "water"},
 	"buried_x_water": {"name": "Frozen In", "life": 0.45, "ride": false, "a": "water", "b": "earth"},
 	"buried_x_earth": {"name": "Aftershock", "life": 0.42, "ride": false, "a": "earth", "b": "earth"},
 	"buried_x_void": {"name": "Swallowed", "life": 0.45, "ride": false, "a": "void", "b": "earth"},
@@ -53,6 +64,13 @@ const LOOKS := {
 	"charged_x_water": {"name": "Superconduct", "life": 0.42, "ride": false, "a": "water", "b": "wind"},
 	"charged_x_earth": {"name": "Arc Flash", "life": 0.38, "ride": false, "a": "earth", "b": "wind"},
 	"charged_x_wind": {"name": "Overload", "life": 0.4, "ride": true, "a": "wind", "b": "wind"},
+	# The six rules (round 49): `a` is the hitter's element at spawn (`tint`), `draw` the cell whose drawing it borrows.
+	"frozen": {"name": "Shatter", "life": 0.42, "ride": false, "a": "void", "b": "water", "draw": "frozen_x_void", "rule": true},
+	"charged": {"name": "Arc", "life": 0.4, "ride": true, "a": "wind", "b": "wind", "draw": "charged_x_wind", "rule": true},
+	"molten": {"name": "Burst", "life": 0.4, "ride": true, "a": "earth", "b": "earth", "draw": "molten_x_earth", "rule": true},
+	"bound": {"name": "Snap", "life": 0.4, "ride": false, "a": "air", "b": "void", "draw": "bound_x_wind", "rule": true},
+	"airborne": {"name": "Juggle", "life": 0.38, "ride": true, "a": "water", "b": "water", "draw": "airborne_x_water", "rule": true},
+	"buried": {"name": "Crater", "life": 0.42, "ride": false, "a": "earth", "b": "earth", "draw": "buried_x_earth", "rule": true},
 }
 const BAND_R := 0.62  # m: a band round a foe (a dummy is ~0.5 m across; the ice cube 0.9)
 const BAND_W := 0.11
@@ -63,6 +81,8 @@ const JAW := 0.85  # m: Swallowed's mouth, half its width
 const SHOCK := Vector2(0.5, 1.45)  # m: Aftershock's ring, start / end radius
 
 var cell := ""
+var tint := ""  # a rule's hitting element (its first palette)
+var _key := ""  # the cell whose drawing it is (a rule's `draw`)
 var foe: Variant  # (untyped: it may be freed mid-tell)
 var to: Variant = null  # Vector3 (world) of the neighbour a chain reached, or null
 var from := Vector3.ZERO  # world: the hero (Torn Off's pull)
@@ -77,17 +97,18 @@ var _shape := PackedFloat32Array()
 
 
 ## The tell for `cell` on `e`. `toward` is the hero's spot; `next` the neighbour a chain jumped to (Vector3) or null.
-static func spawn(parent: Node, which: String, e: Variant, toward: Vector3, next: Variant = null) -> Node3D:
+static func spawn(parent: Node, which: String, e: Variant, toward: Vector3, next: Variant = null, hitter := "") -> Node3D:
 	if not LOOKS.has(which) or not is_instance_valid(e):
 		return null
 	if DESIGNED_EL.DESIGNED.on():  # fx-polygons: each cell from the shared designed pieces (designed_polish.improv)
-		POLISH.improv(parent, which, e, toward, next)
+		POLISH.improv(parent, which, e, toward, next, hitter)
 		if which == "skewered_x_void":
 			RIP.spawn(parent, e, toward)
 		ComicFx.improv(which, e.global_position)
 		return null
 	var f: Node3D = SELF.new()
 	f.cell = which
+	f.tint = hitter
 	f.foe = e
 	f.from = toward
 	f.to = next
@@ -102,25 +123,26 @@ static func spawn(parent: Node, which: String, e: Variant, toward: Vector3, next
 
 func _build() -> void:
 	_look = LOOKS[cell]
-	_a = PAL.of(_look.a)
+	_key = _look.get("draw", cell)
+	_a = PAL.of(tint if _look.get("rule", false) and tint != "" else _look.a)  # (a rule: the hitter's colour)
 	_b = PAL.of(_look.b)
 	_spot = Vector3(foe.global_position.x, 0.0, foe.global_position.z)
 	_turn = _rng.randf() * TAU
-	var n: int = {"frozen_x_wind": 3, "frozen_x_void": 5, "molten_x_water": 4, "buried_x_earth": 2, "skewered_x_void": 2}.get(cell, 0)
+	var n: int = {"frozen_x_wind": 3, "frozen_x_void": 5, "molten_x_water": 4, "buried_x_earth": 2, "skewered_x_void": 2}.get(_key, 0)
 	for i in n:
 		var a := _turn + TAU * (i + _rng.randf_range(-0.2, 0.2)) / n
-		if cell in ["molten_x_water", "buried_x_earth"]:  # (spilling sideways and up, not down through the floor)
+		if _key in ["molten_x_water", "buried_x_earth"]:  # (spilling sideways and up, not down through the floor)
 			a = PI * 0.5 + (i - (n - 1) * 0.5) * 0.9 + _rng.randf_range(-0.15, 0.15)
-		if cell == "skewered_x_void":  # the stake's two halves, flung across the way he pulls
+		if _key == "skewered_x_void":  # the stake's two halves, flung across the way he pulls
 			var pull := _angle(from - foe.global_position)
 			a = pull + PI * 0.5 + PI * i
 		_bits.append([_screen(a), _rng.randf_range(3.2, 4.6), _rng.randf_range(CHIP.x, CHIP.y), _rng.randf_range(-9.0, 9.0), _rng.randf() * TAU])
-	if cell == "frozen_x_void" and to is Vector3:  # one plate flies at the foe the shards cut
+	if _key == "frozen_x_void" and to is Vector3:  # one plate flies at the foe the shards cut
 		_bits[0][0] = (to - foe.global_position).normalized()
 		_bits[0][1] = 6.0
 	for i in 10:
 		_shape.append(_rng.randf_range(0.88, 1.1))
-	if cell in ["buried_x_earth", "airborne_x_earth", "buried_x_water"]:
+	if _key in ["buried_x_earth", "airborne_x_earth", "buried_x_water"]:
 		for i in 4:
 			var a := _turn + TAU * (i + _rng.randf_range(-0.2, 0.2)) / 4.0
 			var d := Vector2(cos(a), sin(a))
@@ -135,7 +157,7 @@ func _follow(_delta: float) -> void:
 func _draw(s: int) -> void:
 	var k := _t / life
 	var a := clampf((1.0 - k) / 0.35, 0.0, 1.0)  # fades over its last third
-	match cell:
+	match _key:
 		"frozen_x_wind": _gale_lift(s, k, a)
 		"frozen_x_void": _shatter(s, k, a)
 		"buried_x_water": _frozen_in(s, k, a)
