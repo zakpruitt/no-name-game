@@ -55,6 +55,8 @@ environmental combos!"
   `holds_for_slam()`, `pillar_slam_on()`, `pillar_slams`).
 - `scripts/counter.gd` `ricochet_target`: through `pinwheel_target(..., "ricochet", RICOCHET_REACH)`; a chosen wall
   wins outright over a nearer foe.
+- `scripts/camera_rig.gd` `_frame_fight`: in a hang, the indicator's structure (state "target") counts as a cued foe
+  (`ENV_TARGET_Y`), so the bracket on the back wall is in view (it sat on the frame's top edge, half off).
 - `scripts/thrown_foe.gd` `_burst`: a wall splat with no foe struck calls `ENV.impact()`.
 - `scripts/training_bot.gd`: the `pillar` layout and token (by `main.PILLARS[0]`), the strings `pillar H hold`
   (the pillar slam) and `wall alt D H H` (Impale's window, Pinwheel), and the `[env]` line.
