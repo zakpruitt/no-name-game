@@ -21,7 +21,7 @@ const TYPES := {
 		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
 		"attack_recover": 0.5, "projectile_speed": 9.0},
 	"rogue": {"model": "Skeleton_Rogue", "title": "skeleton rogue", "bar_height": 1.55, "run_foot_speed": 5.62, "attack_hit": 11.0, "max_hp": 28.0, "move_speed": 5.4, "attack_damage": 8.0,
-		"attack_windup": 0.45, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
+		"attack_windup": 0.5, "attack_recover": 0.5, "flank": true, "dodge_chance": 0.5, "run_anim": "Running_C"},
 	"archer": {"model": "Skeleton_Rogue", "title": "skeleton archer", "bar_height": 2.0, "run_foot_speed": 3.21, "max_hp": 22.0, "move_speed": 3.2, "attack_kind": "line",
 		"attack_range": 13.0, "preferred_range": 10.0, "attack_damage": 14.0, "attack_windup": 1.1,
 		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A",
