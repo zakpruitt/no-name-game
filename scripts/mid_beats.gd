@@ -50,6 +50,13 @@ const GALE_R := 1.5
 const GALE_TIME := 0.7
 const GALE_IN := 0.55
 const GALE_PULL := 0.22
+## Round 55 cool pass 4: Rockslide's boulder drops out of the sky (rock_boulder, its first frame held over the fall)
+## DROP_SIZE x the designed boulder's size; Meltdown's globs are the molten fireball at GLOB_SIZE of its size.
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
+const DROP_SIZE := 1.6
+const DROP_HIGH := 0.75  # m: the boulder's middle over the floor where it lands (comic_boulder.HIGH)
+const GLOB_SIZE := 0.7
 
 static var _registered := false
 static var reels := 0  # (checks) reels started
@@ -58,6 +65,8 @@ static var spreads := 0
 static var fuses := 0
 static var gales := 0
 static var trails := 0
+static var drops := 0  # round 55: Rockslide's boulder drops
+static var globs := 0  # round 55: Meltdown's globs
 
 var root_node: Node3D  # the reel's root follows this node while it lives (the hole)
 var root_at := Vector3.ZERO
@@ -271,6 +280,47 @@ func _gale_tick() -> void:
 		var to: Vector3 = from.lerp(_mid, GALE_IN)
 		var now: Vector3 = from.lerp(to, k)
 		(e as Node3D).global_position = Vector3(now.x, (e as Node3D).global_position.y, now.z)
+
+
+# --- Rockslide's boulder and Meltdown's globs (round 55) -------------------------------------------------------------
+
+## The boulder falls `high` m onto `spot` in `fall` s (game time) and lands: its impact frames, dust and a ring.
+static func boulder_drop(parent: Node, spot: Vector3, fall: float, high: float) -> void:
+	drops += 1
+	if not _draws():
+		return
+	DESIGNED_FINISH._register()
+	var times: Array = [fall]
+	times.append_array(DESIGNED_FINISH.BOULDER_TIMES.slice(1))
+	var at := Vector3(spot.x, DROP_HIGH, spot.z)
+	var fx: Node3D = DESIGNED.spawn(parent, "rock_boulder", at + Vector3.UP * high, DESIGNED_FINISH.BOULDER_SIZE * DROP_SIZE, "earth", times, Vector2(0.55, 1.0))
+	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+	fx.create_tween().tween_property(fx, "global_position", at, fall).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	parent.get_tree().create_timer(fall, false).timeout.connect(_boulder_land.bind(parent, spot))
+
+
+static func _boulder_land(parent: Variant, spot: Vector3) -> void:
+	if is_instance_valid(parent) and (parent as Node).is_inside_tree():
+		DESIGNED.dust(parent, Vector3(spot.x, 0.0, spot.z), 1.8)
+		DESIGNED_INK.shock(parent, Vector3(spot.x, 0.0, spot.z), PAL_EARTH, 2.6, 0.3)
+
+
+const PAL_EARTH := Color(1.0, 0.5, 0.15)
+
+
+## A molten glob from `from` to foe `e` arriving in `time` s (game time): the drawn fireball, small, following it.
+static func glob(parent: Node, from: Vector3, e: Node3D, time: float) -> void:
+	globs += 1
+	if not _draws() or time <= 0.0 or not is_instance_valid(e):
+		return
+	var to: Vector3 = e.global_position + Vector3.UP * 0.6
+	var s: Node3D = DESIGNED_EL.meteor_shell(parent, to - from)
+	s.top_level = true
+	s.global_position = from
+	s.scale = Vector3.ONE * GLOB_SIZE
+	var tw := s.create_tween()
+	tw.tween_property(s, "global_position", to, time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(s.queue_free)
 
 
 # --- a thrown foe's trail (Ricochet) --------------------------------------------------------------------------------

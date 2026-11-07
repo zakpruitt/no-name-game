@@ -457,6 +457,7 @@ func seize(b := {}) -> void:
 				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true, "harpoon": true})
 		return
 	if b.has("press"):
+		VOID_ELEMENT.deep_freeze_flush()  # (round 55: Deep Freeze's wave, the blocks still to pop, before the hold takes the cubes)
 		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
 			if VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
 				VOID_ELEMENT.encase(e)  # (they stay frozen for the whole window)

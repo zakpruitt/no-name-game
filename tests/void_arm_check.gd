@@ -799,6 +799,7 @@ func _spear_string() -> void:
 	hero.bot_enabled = true
 	hero._start_attack("IS")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return near.frozen and far.frozen and big.frozen, 1.0)  # (round 55: the blocks pop as a wave)
 	var gap := Vector2(hero.global_position.x - there.x, hero.global_position.z - there.z).length()
 	_check(gap < 1.2, "and comes down on the spear (%.1f m off)" % gap)
 	_check(SPEAR.current(self) == null, "it goes off")
@@ -1038,6 +1039,7 @@ func _crossovers() -> void:
 	var down := _foe(Vector3(-1, 0, 2))
 	hero._start_attack("XR")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await create_timer(el.ROCKSLIDE_FALL + 0.1).timeout  # (round 55: the boulder lands ROCKSLIDE_FALL s after the blow)
 	_check(up.last_kb.y < 0.0 and down.last_kb.y < 0.0, "Rockslide drives them both down (craters)")
 	_check(500.0 - up.hp > (500.0 - down.hp) * 1.9, "the one in the air takes double (%.0f vs %.0f)" % [500.0 - up.hp, 500.0 - down.hp])
 	_check(hero._void.buried == [up], "and Fault Line knows who it buried")
@@ -1894,6 +1896,7 @@ func _spear_by_hand(vault_button: String) -> void:
 	_check(hero._move_id == "IS", "right click comes down on it (%s)" % hero._move_id)
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 	_check(near.frozen and far.frozen, "and they freeze")
+	await _until(func() -> bool: return near.frozen and far.frozen, 1.0)  # (round 55: the wave)
 	_check(SPEAR.current(self) == null, "and the spear's gone")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "the window opens")

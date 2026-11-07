@@ -65,6 +65,11 @@ const CTX := {
 	"singularity": {"el": "void", "choose": true, "far": false},
 	"spear": {"el": "water", "choose": true, "far": false},
 	"cold_front": {"el": "water", "choose": true, "far": false},  # Live Wire air's window (LMB): where the cubes bowl
+	# round 55 cool pass 4 (combo-cool4): Rockslide's boulder (the foe it lands on), Deep Freeze's first block (the wave
+	# runs from it), Meltdown's block (the hammer's, the globs fly from it)
+	"rockslide": {"el": "earth", "choose": true, "far": false},
+	"deep_freeze": {"el": "water", "choose": true, "far": false},
+	"meltdown": {"el": "earth", "choose": true, "far": false},
 	"tow": {"el": "void", "choose": true, "far": false},  # Tow Line (Dash H) before its hit: a foe, the one they're yanked into  # Steam Burst's window: a foe, the shell that breaks first
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
@@ -576,6 +581,8 @@ func context(h: CharacterBody3D) -> Dictionary:
 ## (before its hit) and, like Tow Line's, already in the move before it once its press is buffered or the cursor is on
 ## a foe (`need_choice`): Reap off the grab (H, then L), Frost Spear off Hurl (L L, then H). Singularity's opens in its
 ## own start-up only (the grab held next to a pillar is the pillar slam's). Two or more foes in reach, or nothing.
+## Round 55 (combo-cool4): Frost Spear's default is the nearest group (`spear_auto`, the bracket from the start-up);
+## Rockslide (off the air slash), Deep Freeze (off the vault, round the spear) and Meltdown (off Hailstorm) take one too.
 func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 	var ve: GDScript = h.VOID_ELEMENT
 	var id: String = h._move_id
@@ -583,6 +590,12 @@ func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 		id = "VR"
 	elif id == "L2" and h._buffered == "heavy":
 		id = "IP"
+	elif id == "AL1" and h._buffered == "light":  # round 55: Rockslide off the air slash
+		id = "XR"
+	elif id == "IJ" and h._buffered == "heavy":  # round 55: Deep Freeze off the vault
+		id = "IS"
+	elif id == "XG" and h._buffered == "light":  # round 55: Meltdown off Hailstorm
+		id = "XM"
 	elif h._hits_done > 0:
 		return {}
 	var key := "mid:%s:%d" % [id, h.get_instance_id()]
@@ -601,8 +614,27 @@ func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 		"IP":
 			var near: Array = ve.spear_candidates(h, me)
 			if near.size() >= 2:
+				# (round 55: the bracket shows the default plant, the nearest group, from the start-up; the cursor moves it)
 				return {"ctx": "spear", "from": me, "reach": ve.SPEAR_PICK_REACH, "mode": "foe", "foes": near,
-					"key": key, "need_choice": true}
+					"auto": ve.spear_auto(h, me), "key": key}
+		"XR":
+			var near: Array = ve.rockslide_candidates(h, me)
+			if near.size() >= 2:
+				return {"ctx": "rockslide", "from": me, "reach": ve.ROCKSLIDE_PICK_REACH, "mode": "foe", "foes": near,
+					"auto": ve.rockslide_auto(h, me), "key": key}
+		"IS":
+			var s: Node3D = load("res://scripts/frost_spear.gd").current(get_tree())
+			var at: Vector3 = _flat(s.global_position) if s != null else me
+			var near: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+				return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(at) <= ve.DEEP_FREEZE_RADIUS)
+			if near.size() >= 2:
+				return {"ctx": "deep_freeze", "from": at, "reach": ve.DEEP_FREEZE_RADIUS, "mode": "foe", "foes": near,
+					"auto": ve.deep_freeze_auto(h, at), "key": key}
+		"XM":
+			var near: Array = ve.meltdown_candidates(h, me)
+			if near.size() >= 2:
+				return {"ctx": "meltdown", "from": me, "reach": ve.MELT_REACH, "mode": "foe", "foes": near,
+					"auto": ve.meltdown_auto(near), "key": key}
 	return {}
 
 
