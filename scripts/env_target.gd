@@ -536,7 +536,7 @@ func _resolve_foe(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 	var s: Dictionary = {}
 	var chose := false
 	if CTX[c.ctx].choose:
-		s = _choice(h, c, [], structs)
+		s = _choice(h, c, ["foe"], structs)  # (an empty kinds list means walls and pillars)
 		chose = not s.is_empty()
 	if s.is_empty() and is_instance_valid(c.get("auto")):
 		var auto_id := "foe%d" % (c.auto as Object).get_instance_id()
