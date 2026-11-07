@@ -13,6 +13,10 @@ was built and filmed on dummies that never fight back. This audit plays every st
   - warrior, rogue and shield were filmed on dev fe38240 (before). The minion film ran with the held fix
     and the old respawn.
   - The warrior was filmed again after every fix (`spar_w_after`).
+  - The pieces room, after the fixes: `--spar=warrior --room=pieces --kit=full --from=42 --dir=spar_wp`. It has the 9
+    piece strings and free play. It showed 1 hurt (pool_alt_D_L_H 035, as the string starts) and no strike through a
+    hold. A strike in his dash did nothing (grate_alt_L_L_H_wait_D_L_H 026). The foe was away for 27% of it. The hook
+    string counters the dummy, so the warrior was never hung.
 - **Reading.** A PIL contact sheet per string (24 frames a page, labelled with real ms, move, state and scale, and the
   spar columns). An event pass over every INDEX lists each hurt (and his state), each strike, each windup cut and
   each kill. Frame references below are `string frame` in those films.
