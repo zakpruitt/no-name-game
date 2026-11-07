@@ -893,3 +893,14 @@ Zak: "keep improving on whatever you see fit". `docs/feel-audit-2026-11-06b.md`;
   drag mark, `Fx.soul`, last-kill flare; no crystals. See `docs/features/designed-fx.md` "fx-polygons"
 - [x] Clips: `awaken-combo-clips/27 Polygons *`
 - [ ] Trace the purple radial wedges round the hero on some breaker leaps; check the drag mark on film
+
+
+## Round 48 (breaker-pairs: a second ending where it is compelling)
+Zak: "start refining the breakers to be really flashy and awesome ... offer two breaker options", then "NOT everyone
+needs a dual, but only when its truly compelling and awesome." `scripts/breaker_alt_fx.gd`, `docs/features/combo-breakers.md`
+"Breaker pairs".
+- [x] Meteor Fall / LMB Meteor Shower: a fireball on every foe the palm hit, wherever it went (scattered 310 vs 175;
+  piled on a wall 628 vs 336)
+- [x] Anvil / LMB Pinwheel: the kebab whirled round him in a twister and hurled into the nearest wall or pillar (wall
+  519 vs 406; open 152 vs 406)
+- [x] The autotest counts every window ending (`endings_n=`, `agent.sh check` fails short); Cold Front got its string

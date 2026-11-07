@@ -257,14 +257,14 @@ H L H, H in the window      Maw
 | Live Wire (L H H) | EE | Grounded | RMB |
 | Live Wire, air (L H L H) | EW | Worldbreaker / Cold Front | RMB / LMB |
 | Deep Freeze (L L H L H) | IS | Avalanche | RMB |
-| Undertow (L L L H H) | EV | Meteor Fall | RMB |
+| Undertow (L L L H H) | EV | Meteor Fall / Meteor Shower (breaker pairs) | RMB / LMB |
 | Singularity (H H) | VS | Collapse | RMB |
 | Black Tide (H L H) | VD | Maw / Black Ice | RMB / LMB |
 | Overwhelm (hold H) | OW | Abyss | RMB |
 | Fault Line (L H L L H) | XF | Cataclysm | RMB |
 | Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |
-| Backdraft (L L H, Dash H H L) | XW | Anvil | RMB |
+| Backdraft (L L H, Dash H H L) | XW | Anvil / Pinwheel (breaker pairs) | RMB / LMB |
 | Harpoon, then a pause (Dash L H) | EF | Shatterstorm / Slapshot (round 47) | RMB / LMB |
 
 Two of eleven have a second ending. No ending, number or damage changed in this round.
@@ -295,3 +295,22 @@ Collapse's throw into walls, and any proposal below that uses a wall or pillar k
 
 Each new ending needs its keys in `BREAKERS[...].alt`, a branch in `breaker_impact()`, an `or` row in `move_list.gd`
 and a bot string (`"alt"`) so the autotest lands it; the prompt and the cue need nothing.
+
+
+## Breaker pairs: a second ending only where it is compelling
+
+Zak: "start refining the breakers to be really flashy and awesome. existing ones are good but offer two breaker
+options", then "NOT everyone needs a dual, but only when its truly compelling and awesome." Each candidate from the
+proposal above was ranked by how distinct, flashy and clear its best situation would be; only the top ones were built.
+Convention kept: RMB the existing ending, LMB the new one. Each new ending has its keys in `BREAKERS[...].alt`, a branch
+in `breaker_impact()`, its look in `scripts/breaker_alt_fx.gd` (designed sheets only), a word (`ComicFx.BREAKER_WORDS`),
+an `or` row in `move_list.gd`, a bot string, and `void_arm_check` `_breaker_pairs()` asserts it beats its sibling in its
+best situation and loses in its worst. The autotest's done line has `endings_n=N/N` (every name a window offers, each
+`alt` included), and `agent.sh check` fails unless every ending landed (Cold Front had no bot string until this lane).
+
+| Breaker (RMB) | New LMB ending | Best situation for LMB / for RMB | void_arm_check (bot press at sweet, PERFECT) |
+|---|---|---|---|
+| Meteor Fall | **Meteor Shower**: a fireball out of the sky on every foe the palm hit, wherever it went; leaves them molten | the palm scattered them / the palm piled them on a wall | 4 scattered: shower 310 vs fall 175; 3 piled on a wall: fall 628 vs shower 336 |
+| Anvil | **Pinwheel**: the tentacles whirl the kebab round him in a twister and hurl it into the nearest wall or pillar | a wall or pillar within 10 m / the open | wall: pinwheel 519 vs anvil 406; open: anvil 406 vs pinwheel 152 |
+
+Bot strings: `spread alt L L L H H` (Meteor Shower), `wall alt L L H D H H L` (Pinwheel), `alt L H L H` (Cold Front).
