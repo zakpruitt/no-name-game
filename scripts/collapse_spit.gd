@@ -39,6 +39,17 @@ const BURST_UP := 0.6  # m over the hole's middle (it's a camera-facing sprite: 
 const TRAIL_S := 0.55
 const COMET := preload("res://scripts/comic_comet.gd")
 const TRAIL_COLOR := Color(0.55, 0.22, 0.95)  # (the dark's: comic_comet picks the ink smear by the nearest palette)
+## Round 54 (camera-hang lane; feel audit 6 item 10: in the open the spits flew off the bottom-right edge, H H 030-036).
+## A spit leaves the hole on the side the foe is set down on (void_element._collapse_spit throws it out from the hole's
+## middle), so the side is picked here. A structure the indicator marks still takes the throw (it aims at the face);
+## in the open it is the way with the most room on screen, SPIT_REACH m out, never past SPIT_EDGE of it; each
+## spit after the first fans SPIT_FAN off the last.
+const SPIT_REACH := 5.0  # m: about where a spit in the open comes down (COLLAPSE_THROW x 0.5 off the floor, 10 up)
+const SPIT_EDGE := 0.8  # of the half-screen: the farthest out a landing may be
+const SPIT_DIRS := 16  # ways tried round the hole
+const SPIT_FAN := 0.55  # rad between spits
+const SPIT_SET := 0.6  # m from the hole's middle it is set down on that side
+var spit_dirs: Array[Vector3] = []  # the way each spit went (checks)
 
 var hero: CharacterBody3D
 var hole := Vector3.ZERO
@@ -162,7 +173,10 @@ func _spit(one: Dictionary) -> void:
 	var e: Node3D = one.foe
 	_unfly(one)
 	if not one.heavy:
-		e.global_position = Vector3(one.to.x, 1.4, one.to.z)  # (up out of the hole, chest high)
+		var way := spit_way(int(one.i))
+		spit_dirs.append(way)
+		var at: Vector3 = hole + way * SPIT_SET if way != Vector3.ZERO else one.to
+		e.global_position = Vector3(at.x, 1.4, at.z)  # (up out of the hole, chest high, on the side it goes)
 	if on_spit.is_valid():
 		on_spit.call(e, int(one.i))
 	if not one.heavy:
@@ -181,6 +195,41 @@ func _spit(one: Dictionary) -> void:
 		if cam != null:  # stood a little toward the camera: behind the hole the floor in front hid it (depth tested)
 			var away := hole - cam.global_position
 			fx.global_position += Vector3(away.x, 0.0, away.z).normalized() * SPIT_TOWARD + Vector3.UP * 0.05
+
+
+## The way spit `i` leaves the hole (flat, unit): the side with the most room on screen, fanned per spit; ZERO with no
+## camera (the old ring round the hole). (With a structure picked, _collapse_spit throws at its face anyway.)
+func spit_way(i: int) -> Vector3:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return Vector3.ZERO
+	var best := Vector3.ZERO
+	var best_room := -INF
+	for k in SPIT_DIRS:
+		var a := TAU * k / SPIT_DIRS
+		var d := Vector3(sin(a), 0.0, cos(a))
+		var room := SPIT_EDGE - _edge(cam, hole + d * SPIT_REACH)
+		if room > best_room + 0.01:
+			best_room = room
+			best = d
+	if i == 0:
+		return best
+	var fan := SPIT_FAN * float((i + 1) / 2) * (1.0 if i % 2 == 1 else -1.0)  # (+1, -1, +2, -2... fans off it)
+	var d := best.rotated(Vector3.UP, fan)
+	return d if SPIT_EDGE - _edge(cam, hole + d * SPIT_REACH) > 0.0 else best
+
+
+## How far out on the screen `at` (and a foe's height over it) sits: the larger |ndc|, 1 at the edge.
+static func _edge(cam: Camera3D, at: Vector3) -> float:
+	var vp := cam.get_viewport().get_visible_rect().size
+	var worst := 0.0
+	for h: float in [0.0, 1.6]:
+		var p := at + Vector3.UP * h
+		if cam.is_position_behind(p):
+			return 9.0
+		var s := cam.unproject_position(p) / vp * 2.0 - Vector2.ONE
+		worst = maxf(worst, maxf(absf(s.x), absf(s.y)))
+	return worst
 
 
 func _unfly(one: Dictionary) -> void:

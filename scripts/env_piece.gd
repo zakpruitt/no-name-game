@@ -27,6 +27,19 @@ const ID_META := &"env_id"  # its id in env_target.structures, while registered
 const REBUILD_META := &"env_rebuild"  # on the room: used-up pieces come back REBUILD_S after (training)
 const REBUILD_S := 6.0
 const POP_SIZE := 1.4  # the rebuild's dust pop
+## Round 54 (camera-hang lane; feel audit 6 item 10: Uproot's heaps and the pillar on the floor lingered into the next
+## strings, H L H 003-018): RUBBLE_HOLD_S after the topple (the club has landed by then) the pillar lying there and
+## its heaps erode: a designed dust puff on each, then they sink RUBBLE_SINK m into the floor over RUBBLE_ERODE_S
+## (eased in, a second puff halfway) and hide, about 4 s in all. A room that keeps pieces gone (no rebuild) keeps a
+## low flat rubble decal along the fall line instead (RUBBLE_DECAL, RUBBLE_DECAL_H tall).
+const RUBBLE_HOLD_S := 1.2  # real s
+const RUBBLE_ERODE_S := 2.8  # real s
+const RUBBLE_SINK := 1.3  # m
+const RUBBLE_PUFF := 0.9  # dust puff size on each
+const RUBBLE_DECAL := "floor_tile_large_rocks"
+const RUBBLE_DECAL_H := 0.25  # of the tile's height
+const ERODE_META := &"env_erode"  # the erosion's tween on the toppled piece (rebuild stops it)
+static var eroded := 0  # toppled pieces eroded away (checks)
 
 ## The fourteen nouns. `models` (the first is the default; `assets/comic/dungeon/`, KayKit's per piece as the
 ## fallback), `collider` "box" | "cyl" | "none" and its `size` (box: x, y, z; cyl: radius, height), `wall` (a thrown
@@ -761,6 +774,49 @@ static func topple(n: Node3D, base: Vector3, dir: Vector3) -> void:
 		use_up(h)
 	use_up(n, "toppled")
 	played("topple")
+	_erode(n, left, base, dir)
+
+
+## The toppled pillar `n` and its heaps erode RUBBLE_HOLD_S later (RUBBLE_* above); real time, so a hitstop doesn't
+## stretch it. A room without the rebuild gets the flat decal as they go.
+static func _erode(n: Node3D, heaps: Array, base: Vector3, dir: Vector3) -> void:
+	var room := n.get_parent()
+	var keep: bool = room != null and not room.get_meta(REBUILD_META, false)
+	var tw := n.create_tween().set_ignore_time_scale(true)
+	n.set_meta(ERODE_META, tw)
+	var parts: Array = [n] + heaps
+	var y0 := {}
+	tw.tween_interval(RUBBLE_HOLD_S)
+	tw.tween_callback(func() -> void:
+		for p: Variant in parts:
+			if is_instance_valid(p):
+				y0[(p as Node).get_instance_id()] = (p as Node3D).position.y
+				if DESIGNED.on():
+					DESIGNED.dust((p as Node).get_parent(), (p as Node3D).global_position, RUBBLE_PUFF)
+		if keep and is_instance_valid(room):
+			var decal := ComicLook.piece(RUBBLE_DECAL)
+			var length: float = PIECES.pillar.size.y
+			decal.scale = Vector3(0.35, RUBBLE_DECAL_H, length / 4.0)
+			decal.position = base + dir * length * 0.5
+			decal.rotation.y = atan2(dir.x, dir.z)
+			room.add_child(decal)
+			n.set_meta(&"env_leftovers", heaps + [decal]))
+	tw.tween_method(func(k: float) -> void:
+		for p: Variant in parts:
+			if is_instance_valid(p) and y0.has((p as Node).get_instance_id()):
+				(p as Node3D).position.y = float(y0[(p as Node).get_instance_id()]) - RUBBLE_SINK * k * k, 0.0, 0.5, RUBBLE_ERODE_S * 0.5)
+	tw.tween_callback(func() -> void:
+		if DESIGNED.on() and is_instance_valid(n):
+			DESIGNED.dust(n.get_parent(), n.global_position, RUBBLE_PUFF * 0.8))
+	tw.tween_method(func(k: float) -> void:
+		for p: Variant in parts:
+			if is_instance_valid(p) and y0.has((p as Node).get_instance_id()):
+				(p as Node3D).position.y = float(y0[(p as Node).get_instance_id()]) - RUBBLE_SINK * k * k, 0.5, 1.0, RUBBLE_ERODE_S * 0.5)
+	tw.tween_callback(func() -> void:
+		eroded += 1
+		for p: Variant in parts:
+			if is_instance_valid(p):
+				(p as Node3D).visible = false)
 
 
 ## A breaker came down at `at` (void_element.breaker_impact): crates near it break, rubble under it throws chunks
@@ -828,6 +884,11 @@ static func rebuild(n: Variant) -> void:
 	var home: Dictionary = p.get_meta(HOME_META, {})
 	if home.is_empty():
 		return
+	var erode: Variant = p.get_meta(ERODE_META, null) if p.has_meta(ERODE_META) else null
+	if erode is Tween and (erode as Tween).is_valid():
+		(erode as Tween).kill()  # (round 54: back mid-erosion: stand it up as placed)
+	if p.has_meta(ERODE_META):
+		p.remove_meta(ERODE_META)
 	p.position = home.at
 	p.rotation = Vector3(0.0, deg_to_rad(home.yaw), 0.0)
 	p.visible = true
