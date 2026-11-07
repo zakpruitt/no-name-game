@@ -927,3 +927,18 @@ Zak: "start refining the breakers to be really flashy and awesome", with wind an
 - [x] The banner drops to the bottom of the screen when a cued or wall-splatted foe is under it (Pinwheel's wall throw sat under it at the top edge)
 - [ ] Wall-splat stars are not clearly verified on film: the palm's splat sits at the frame's edge.
 - [ ] Zak: Cold Front's and Flash Freeze's small blue spoked stars (existing ice hit pops, in the before film too) may read as crystals
+
+## Round 49 counter (kit grammar slot 9: the dash counter, Backlash and Ricochet)
+Zak approved the kit grammar ("implement it"); slot 9 is a Smash-style counter on the dash. See
+`docs/features/counter.md` and `docs/characters/kit-grammar.md` section 4.
+- [x] Space into a foe's strike (its last 0.25 s before contact, aimed within 60 deg) is the counter: i-frames, a
+  hitstop, a drawn violet parry flash (`tools/vfx_gen/gen_counter.py`), the attacker staggered and marked, then
+  Backlash (KRRAK-SNAP!): the tentacle swings it up over him and slams it for 18. A dash with nothing coming is the dash
+- [x] A perfect (last 0.1 s) opens the counter breaker window, one violet ending: Ricochet (KA-SPLATT!) hurls the
+  attacker into the nearest foe or wall (30, x2.5 on a wall) and binds it; the breaker spectacle fires on its landing
+- [x] Enemy bolts in the window are batted back at their shooter (x2 damage)
+- [x] Swinging dummies: Settings "Dummies swing" / `--swing` (windup 0.7 s after he stands in front 0.5 s, 4 damage)
+- [x] Check `tests/counter_check.gd` (in `agent.sh check`); bot string `counter D` (perfect, Ricochet into the crowd)
+- [x] Clips: `awaken-combo-clips/31 Counter *`
+- [ ] Zak's call: the bot turns swinging on for its counter string only; bolts get no Backlash or window; the counter
+  window keeps the shared breaker rhythm; `--spar=` foes are counterable by design (melee windups) but not filmed
