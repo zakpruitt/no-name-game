@@ -108,6 +108,9 @@ func _build_moves() -> void:
 		_move_header(list, section)
 		for row: Dictionary in section.rows:
 			_move_row(list, row, player)
+		if sections == MOVE_LIST.SECTIONS:  # (a slot the card hasn't filled yet: the counter, the sixth crossover)
+			for p: Array in MOVE_LIST.pending_slots(section):
+				_label(list, "%s: pending" % p[0], 14, Color(1, 1, 1, 0.35)).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 ## A section heading in the move list, with its hint in a dim line under it.
@@ -115,10 +118,11 @@ func _move_header(list: Control, section: Dictionary) -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 6)
 	list.add_child(gap)
-	var head := _label(list, section.title, 15, Color(1.0, 0.7, 0.25, 0.85))
+	var h: Array = MOVE_LIST.heading(section)  # (round 49: a kit slot group's number, name and role line)
+	var head := _label(list, h[0], 15, Color(1.0, 0.7, 0.25, 0.85))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	if section.has("hint"):
-		var hint := _label(list, section.hint, 13, Color(1, 1, 1, 0.5))
+	if h[1] != "":
+		var hint := _label(list, h[1], 13, Color(1, 1, 1, 0.5))
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
@@ -130,6 +134,9 @@ func _move_row(list: Control, row: Dictionary, player: Node) -> void:
 	var times: int = player.combos_landed.get(combo, 0)
 	if combo != "" and times == 0:
 		color.a = 0.5
+	var locked: bool = MOVE_LIST.row_locked(row)  # (an upgrade that is off: listed, not playable)
+	if locked:
+		color = Color(0.6, 0.6, 0.65, 0.45)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 8)
 	list.add_child(line)
@@ -138,6 +145,9 @@ func _move_row(list: Control, row: Dictionary, player: Node) -> void:
 	input.custom_minimum_size = Vector2(MOVES_INPUT_WIDTH, 0)
 	var title := _label(line, MOVE_LIST.row_name(row, player) + ("   ×%d" % times if times > 0 else ""), 16, color)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var tag: String = "upgrade" if locked else MOVE_LIST.row_tag(row)
+	if tag != "":
+		_label(line, tag, 13, Color(0.72, 0.6, 1.0, 0.7 if not locked else 0.5)).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 ## What the MOVES panel prints for a row's input: a breaker's other ending (`or`, move_list.gd) as "or L in the

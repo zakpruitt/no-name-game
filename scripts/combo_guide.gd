@@ -28,6 +28,10 @@ const PAUSE_TEXT := "or pause: "  # before a row's pause combo (hero_moves.combo
 const MIX_SIZE := 14
 const MIX_COLOR := Color(0.72, 0.6, 1.0)  # the tag's ink: the void arm's violet, lifted
 const PAY_TEXT := "+ "
+## Round 49 (kit slots): the row's kit slot in one word after the name ("launch", "payoff", "cross", "step";
+## KitSlots.tag_of via hero_moves.option() `role`), small and dim, so the slot table teaches itself in play.
+const ROLE_SIZE := 12
+const ROLE_COLOR := Color(1, 1, 1, 0.5)
 const SIDE_GAP := 76.0  # px from the hero's centre to the rows
 const CHEST := 1.1  # metres above the feet the rows centre on
 const EDGE := 330.0  # flip to the hero's left this close to the right edge (and right near the left)
@@ -217,6 +221,11 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 	var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
 	parts.append(["name", x, nw, name])
 	x += nw
+	if row.has("role"):
+		x += 6.0
+		var rw := _font.get_string_size(row.role, HORIZONTAL_ALIGNMENT_LEFT, -1, ROLE_SIZE).x
+		parts.append(["role", x, rw, row.role])
+		x += rw
 	if row.has("pay"):
 		x += 8.0
 		var pt: String = PAY_TEXT + row.pay
@@ -276,6 +285,8 @@ func _draw_row(i: int, row: Dictionary, pos: Vector2, alpha: float, usable: bool
 				_text(Vector2(px, base.y), p[3], NAME_SIZE, Color(col.lightened(0.15 * pressed), alpha * lit))
 			"mix":
 				_text(Vector2(px, base.y), p[3], MIX_SIZE, Color(MIX_COLOR, 0.95 * alpha * lit))
+			"role":
+				_text(Vector2(px, base.y), p[3], ROLE_SIZE, Color(ROLE_COLOR, ROLE_COLOR.a * alpha * lit))
 			"pay":
 				_text(Vector2(px, base.y), p[3], NEXT_SIZE, Color(player.COMBO_TIER_COLORS[1], alpha * lit))
 			"arrow":
