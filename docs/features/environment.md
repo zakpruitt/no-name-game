@@ -43,6 +43,10 @@ environmental combos!"
 | `tow` | Tow Line (Dash H) before its hit, 2+ snare candidates (`tow_candidates`): a **foe** | void | yes (`TOW_PICK_REACH` 7 m) | him | auto: the one nearest where they're yanked (`tow_auto`) |
 | `black_ice` | Black Tide's window (Black Ice, LMB, round 52) | water | yes | the pool (`dark_spot`) | `BLACK_ICE_REACH` 8 m |
 | `flash_freeze` | Steam Burst's window (Flash Freeze, round 52): a **foe**, 2+ in the cloud | water | yes (foes in `FF_CLOUD_R`) | the landing | auto: the nearest the landing |
+| `reap` | Reap (VR) before its hit, 2+ in the hook's cone (`reap_candidates`; round 54): a **foe** | void | yes (`REAP_HOOK_REACH` 10 m, `REAP_HOOK_CONE`) | him | auto: the furthest outside the crescent (`reap_auto`) |
+| `singularity` | Singularity (VS) before its hit, a foe held (round 54): a **foe** | void | yes (`SING_PICK_REACH` 8 m) | him | none: the hole opens where it always did unless the cursor chooses |
+| `spear` | Frost Spear (IP) before its hit, 2+ in reach (round 54): a **foe** | water | yes (`SPEAR_PICK_REACH` 7.5 m) | him | none: planted ahead unless the cursor chooses |
+| `cold_front` | Live Wire's air window (Cold Front, LMB, round 54) | water | yes | the landing | `COLD_REACH` 9 m |
 
 **Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select
 combos where control makes sense." The same bracket goes on a foe where who matters: `context()` returns
@@ -69,6 +73,17 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   is buffered or the cursor is on a foe (a plain dash draws nothing); it was only the ~0.15 s start-up before.
 - The foe bracket in a breaker's leap (round 53): when the prompt circle sits within `FOE_IN_PROMPT` 1.8 m of the
   picked foe, the bracket goes up to `FOE_LIFT_Y` 2.5 m and `FOE_LIFT_SIZE` 0.7 so it clears the prompt and its chips.
+- Round 54 cool pass 3 (`_mid_ctx`): three mids take a foe pick before their hit (the key `mid:<move>:<n>`; the press
+  that starts the move counts, so a buffered H after GR opens Reap's and a buffered H after L2 opens Frost Spear's):
+  - Reap (VR): with two or more in the hook's cone, the bracket is on who the hook bites (default the furthest outside
+    the crescent, `reap_auto`); the cursor picks another. That one is bitten, marked `reaped` and, if light, yanked
+    to his feet; Black Tide pays the reaped x`REAP_TIDE_MULT`.
+  - Singularity (VS): with a foe held (`holds_for_slam`) and no pillar slam on offer, only a cursor choice moves it
+    (`need_choice`): the held foe is thrown onto the chosen one (`SING_ONTO_DAMAGE`) and the hole opens there.
+  - Frost Spear (IP): with two or more in reach, a cursor choice plants the spear at that foe's feet and turns him to
+    it; the frost spreads from there.
+- Cold Front (round 54, a structure pick, `cold_front` from Live Wire's air window): the wall or pillar the cubes are
+  bowled into; none in `COLD_REACH`, they are thrown at their neighbours as before.
 
 ## Files
 

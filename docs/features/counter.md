@@ -96,3 +96,10 @@ the bag snapping forward; again every `SWING_EVERY` 1.4 s while he stays. `--spa
 `counter.gd`: `WINDOW`, `PERFECT`, `ARC`, `REACH_PAD`, `STOP` / `PERFECT_STOP`, `WRAP` / `LIFT` / `SLAM` / `END`,
 `LIFT_Y`, `SLAM_AHEAD`, `DAMAGE`, `RICOCHET_*`, `BIND_TIME`; `BREAKERS.CB.damage`. `counter_fx.gd`: `PARRY_SIZE`,
 `PERFECT_SIZE`, `PARRY_TIMES`, `SNAP_SIZE`. `training_dummy.gd`: `SWING_*`.
+
+Round 54 cool pass 3 (combo-cool3): the parry is sharper and lands like a hit, window timings unchanged. A `parry_glint`
+flick over the clash in real time (`counter_fx.glint`, `GLINT_*`), the attacker's weapon knocked out of its grip and
+spinning off on an arc away from him to clatter down (`counter_fx.blade_off`, `parry_blade` sheet, `BLADE_*`), a
+harder camera punch (`counter.PUNCH` 0.86 / `PUNCH_PERFECT` 0.78) and a `camera_rig.jolt` along the blow (`JOLT*`;
+existing camera APIs only). Ricochet's throw draws the dark comet trail behind the hurled attacker
+(`RICOCHET_TRAIL` 0.6 s, `mid_beats.trail`). Counters for checks: `counter_fx.glints` / `blades` (cool3_check).

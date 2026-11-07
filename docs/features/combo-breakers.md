@@ -622,3 +622,92 @@ Numbers: `cool_pass_check` `_maw_pair` (three in the pool, sweet press not inclu
   (`ANVIL_TWO_MULT` 0.4, a crater each, three magma fissures out of each, "KRUNCH!"; ~33 a foe in the film). The anvil
   pair in `void_arm_check` (open 406 vs Pinwheel 152, by a wall 406 vs 519) reads 0.5 s after the landing, before the
   second slam lands, so Pinwheel's wall margin there is the first slam's.
+
+## Round 54 cool pass 3 (combo-cool3 lane)
+
+Round three against the same bar, this time on the mids and signatures (three beats, the tentacle or element visibly
+in control, a best situation on screen, a beat of its own) and the 3/4 endings. Films: `string_film -- --dir=cool3_before
+--no-awaken --fps=24` (42 strings) before, `--dir=cool3_after` (43) after, and each ending again with `--from=N --to=N
+--tail=1600` for its after-beat. Clips: `awaken-combo-clips/44 Cool3 *` (before left, after right, half speed). Numbers:
+`tests/cool3_check.gd` (breaker_impact at x1.0, the sweet press not included). Slots, inputs and windows unchanged
+(kit_check 23/23, 15/15); hand-overs unchanged (rhythm_check: GR->VS 200, GR->VR 179, VR->VD 317, L2->IP 318, IP->IJ
+414, EA->XS 235 ms, before and after). fx_coverage max 0.304 (budget 0.40; 0.313 before). One word at most a beat, no
+new banners; camera cues only through the existing `frame_cue_ms` meta, `camera_rig.punch()` and `jolt()`.
+
+### The mids ranked (before)
+
+| Score | Move | What it lacked |
+|---|---|---|
+| 1/4 | Frost Spear (L L H) | a thin stick and a puff; the slow is felt, never seen |
+| 1/4 | Reap (H L) | a crescent like any slash, a tiny mark; nothing chosen, nothing controlled |
+| 1/4 | Singularity (H H) | the hole opens off to the side and the pull is not drawn |
+| 1/4 | Steam Burst (Dash L H H L) | the cubes vanish into a generic orange burst |
+| 1/4 | Hailstorm (Dash L H H H) | a speck of whirl per cube, the cubes barely rise |
+| 2/4 | Rockslide, Deep Freeze (blocks pop at once), Overwhelm, Meltdown, Dash Stab (fine as a lunge), Black Tide (3/4 with far marks) | |
+| 3/4 | Updraft Lash, Fault Line, Backdraft, Impale, Tow Line, Undertow, Backlash | |
+| 4/4 | Live Wire, Galvanize, Molten Palm, Harpoon | |
+
+### Rebuilt (the five 1/4s)
+
+- **Reap** (`VR`, now 3/4). (1) the crescent as before; (2) a barbed ink hook (`reap_hook`) bites one more foe out to
+  `REAP_HOOK_REACH` 10 m in the cone: the foe pick `reap` (default the furthest outside the crescent, the cursor
+  chooses), x`REAP_HOOK_MULT` 0.6, marked; (3) the tether yanks a light one to `REAP_YANK_TO` 2.2 m in front of him at
+  `REAP_YANK_SPEED` 24 m/s, the dark trail behind it. Best: a straggler you want in the pile before Black Tide, which
+  now hits the reaped first and x`REAP_TIDE_MULT` 1.4. Close up (all in the crescent) the hook takes the furthest cut.
+- **Singularity** (`VS`, 3/4). The hole reels: tentacles out of it on every light foe in `Hole.RADIUS` for
+  `SING_REEL_TIME` 1.2 s while it pulls (`mid_beats.reel`). With a foe held, the cursor on another (`singularity`,
+  within 8 m; cursor only) throws the held one onto it (`SING_ONTO_DAMAGE` 8) and the hole opens there. Best: a foe in
+  hand and a pile across the room.
+- **Steam Burst** (`XS`, 3/4). A lava fuse races from the fist to each frozen foe (`FUSE_STEP` 0.035 s a link) and a hot
+  steam column goes up where it meets the ice (`steam_shell` in the earth row) before the burst. Best: a row of cubes.
+- **Hailstorm** (`XG`, 3/4). One twister (`designed_twister`, 3.6 m) at the middle of the frozen draws the lifted cubes
+  `GALE_IN` 0.55 of the way in over 0.22 s, so Meltdown lands on a bunch. Best: cubes spread out.
+- **Frost Spear** (`IP`, 2/4). Frost lines race out along the floor from the spear to each foe in its radius and rime
+  takes their feet as they arrive (`SPEAR_RIME_SLOW` 0.3 for 0.9 s); the cursor on a foe (`spear`, 7.5 m) plants it at
+  that foe's feet so the vault and Deep Freeze come down in the crowd you chose. Still 2/4 in the bot film: the bot's
+  facing after L2 plants the spear away from the dummies, so the spread has nobody to reach (see "For Zak").
+
+### The 3/4 endings, a beat or a situation up
+
+- **Cold Front** (`EW` alt, 4/4). Its own situation: by a wall or pillar (structure pick `cold_front`, `COLD_REACH` 9 m)
+  the tentacles bowl each cube along the floor into it (`COLD_BOWL_SPEED` 17 m/s, through anyone in the way, x`COLD_WALL_MULT`
+  2.2 on the wall, the trail behind it); in the open it throws them at neighbours as before. Three cubes: wall 408 vs open
+  264. Bot string `wall alt L H L H` (each cube 257 on the wall in the film).
+- **Maw** (`VD`, 4/4). The hoist goes to `MAW_HOIST_Y` 2.1 m, jaws (`DARK.maw`, `MAW_HEAP_JAW_R` 1.6) open under the heap
+  and bite as it is slammed: hit stop `MAW_HEAP_STOP` 0.08, `camera_rig.punch(0.9, 0.15)`, a bigger word, a dark burst
+  and an ink ring.
+- **Grounded** (`EE`, 4/4). The charge goes to ground: from `GROUND_AT` 0.16 s after the landing a lime arc runs along
+  the floor foe to foe, nearest first `GROUND_STEP` 0.07 s apart, a bolt on each, x(`GROUND_MULT` 0.3 + `GROUND_PER` 0.1
+  a link). Best: the tight group the tentacles held.
+- **Worldbreaker** (`EW`, 4/4). The floor heaves: a magma crack from where he landed to each, and a geyser throws it
+  back up as it arrives, x`HEAVE_MULT` 0.35, launch `HEAVE_LAUNCH` 8. The open floor's ending; Cold Front the wall's.
+- **Cataclysm** (`XF`, 4/4). The aftershock: `AFTERSHOCK_AT` 0.24 s later the fault runs out to each crater again and a
+  bolt comes down in it, x`AFTERSHOCK_MULT` 0.35 on the ones still in them. Best: a few held (Tempest takes a crowd).
+- **Short Circuit** (`EE` alt, 4/4 with a spread crowd). The circuit closes: `LOOP_AFTER` 0.08 s after the last arc a
+  bolt runs from the last link back to the held, and everyone on the circuit takes x(`LOOP_MULT` 0.2 + `LOOP_PER` 0.05 a
+  link). With nobody outside the held (the bot's `spread_far` string) there is no circuit and no loop: still 3/4 there.
+- **Shatterstorm** (`EF`, 4/4). The storm chains: after the last thunder a bolt jumps cube to cube in the order they
+  broke (`CHAIN_AFTER` 0.1 s, `CHAIN_STEP` 0.04 s), x`CHAIN_MULT` 0.3 each. Best: a long row Harpoon gathered in the open.
+- **Ricochet** (`CB`, 4/4). The throw draws the dark trail behind the attacker (`counter.RICOCHET_TRAIL` 0.6 s).
+- Not raised: **Worldbreaker / Cold Front** share one window, so this round has two endings there, no more. **Short
+  Circuit** reads only with a crowd spread past the held.
+
+Each second beat counts on `void_element.ground_beats` (cool3_check: Grounded 3, Worldbreaker 3, Cataclysm 3, Short
+Circuit 2, Shatterstorm 2 on three foes).
+
+### Backlash / Ricochet polish (counter window timings unchanged)
+
+A `parry_glint` flick over the clash in real time, the attacker's cleaver (`parry_blade`) knocked out of its grip and
+spun off on an arc away from him to clatter down with a dust puff, a harder punch (`counter.PUNCH` 0.86, perfect 0.78)
+and a jolt along the blow (`JOLT` 0.16 / 0.26 at 16 Hz). Backlash 3/4 -> 4/4.
+
+### After
+
+| Score | Move |
+|---|---|
+| 2/4 | Frost Spear (in the bot film), Rockslide, Deep Freeze, Overwhelm, Meltdown, Dash Stab |
+| 3/4 | Reap, Singularity, Steam Burst, Hailstorm, Black Tide (Reap's yank feeds it), Updraft Lash, Fault Line, Backdraft, Impale, Tow Line, Undertow |
+| 4/4 | Live Wire, Galvanize, Molten Palm, Harpoon, Backlash |
+
+Endings: Cold Front, Maw, Grounded, Worldbreaker, Cataclysm, Shatterstorm, Ricochet 4/4; Short Circuit 4/4 with a
+spread crowd. Next: Rockslide, Deep Freeze (pop the blocks in a wave), Overwhelm, Meltdown, Frost Spear's default plant.

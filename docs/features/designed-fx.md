@@ -666,3 +666,21 @@ and the frost line between shells `designed_elements.fissure(..., "water")` (flo
   `ice_frost` stays (Deep Freeze's `frost_burst`).
 - `designed_elements.prime_fit(foe)` reads a foe model's skinned vertices at spawn (`enemy._ready`, deferred): the first
   ice block read them back from the GPU mid-fight, a 44 ms frame windowed.
+
+## Round 54 cool pass 3 (combo-cool3 lane)
+
+`python tools/vfx_gen/gen_cool3.py [names] [--preview=<dir>]` (gen_counter's `blade` / `curl_path` / `polar` /
+`tentacle`). Registered by the scripts that play them and drawn once at load from `elements.prewarm`
+(`mid_beats.prewarm`, `counter_fx.prewarm_cool3`). No crystals.
+
+| Sheet | Kind | Played by | What |
+|---|---|---|---|
+| `parry_glint` | sprite (2x2, 4 frames) | `counter_fx.glint` | Backlash's "tink": a hard four-point flick of light over the clash, `GLINT_SIZE` 2.4 m (x1.35 on a perfect), real time so the parry's hitstop does not hold it |
+| `parry_blade` | sprite (4x1, 4 frames) | `counter_fx.blade_off` | the attacker's cleaver knocked out of its grip: a quarter turn a frame with a smear, carried on a real-time arc `BLADE_UP` 2.6 m up and `BLADE_OUT` 3.4 m away from him, spun, a dust puff where it clatters down (dust palette row) |
+| `reap_hook` | sprite (3x2, 5 frames) | `mid_beats.hook` | Reap's barbed ink hook biting the far foe: thrown in, the barbs closing, the bite, the ink running off; follows the foe while it is yanked |
+
+The rest of the round's beats reuse sheets that exist: Singularity's reel is `void_tendril` tentacles from the hole;
+Frost Spear's spread is `designed_elements.fissure(..., "water")` and `frost_mark`; Steam Burst's fuse an earth
+fissure into `steam_shell`; Hailstorm's gale `designed_twister`; Cold Front's bowl, Ricochet's throw and Reap's yank
+the dark comet trail (`comic_comet.beat`, `mid_beats.trail`); the endings' second beats `comic_bolt`, `comic_fault`,
+`storm_strike` and `designed_elements.geyser`.

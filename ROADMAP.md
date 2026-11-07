@@ -1122,3 +1122,22 @@ Every string filmed windowed in both rooms with `--tail`, ranked and fixed; `doc
 - [x] Clips: `awaken-combo-clips/42 Audit5 *`
 - [ ] Open: hang framing at the frame edge (Meteor Fall, Black Ice, Maw), Cold Front's hoist under the banner,
   stacked damage numbers, Collapse's spits off the edge, Eruption's banner without a total, the first-L1 33 ms frame
+
+## Round 54 cool pass 3 (combo-cool3: the mids, the 3/4 endings, the parry)
+
+Zak: "keep iterating on the combos sticking to the scheme; make the others amazing / cooler". See
+`docs/features/combo-breakers.md` "Round 54 cool pass 3".
+- [x] Mids ranked (five at 1/4: Frost Spear, Reap, Singularity, Steam Burst, Hailstorm) and the five rebuilt with a
+  beat of their own (`scripts/mid_beats.gd`): Reap's hook bites and yanks the picked straggler (Black Tide x1.4 on
+  it), Singularity reels on tentacles and throws the held foe onto the picked one, Frost Spear's frost runs out to
+  them, Steam Burst's lava fuse and steam, Hailstorm's one twister drawing the cubes in
+- [x] Foe picks `reap`, `singularity`, `spear`; structure pick `cold_front`
+- [x] Endings to 4/4: Cold Front bowls the cubes into the marked wall (408 vs 264 in the open), Maw's heap jaws and
+  punch, Grounded's earthing, Worldbreaker's heave, Cataclysm's aftershock, Short Circuit's loop, Shatterstorm's
+  chain, Ricochet's drawn throw
+- [x] Backlash: parry glint, the weapon knocked flying, harder punch and jolt (sheets `parry_glint`, `parry_blade`,
+  `reap_hook` from `gen_cool3.py`); `tests/cool3_check.gd`; bot string `wall alt L H L H`
+- [x] Clips: `awaken-combo-clips/44 Cool3 *`
+- [ ] Zak's call: Frost Spear plants ahead of his facing, so after a turning L2 it can land away from the crowd (the
+  bot film); plant toward the nearest group by default?
+- [ ] Open: Rockslide, Deep Freeze, Overwhelm, Meltdown still 2/4; Short Circuit's loop needs foes past the held

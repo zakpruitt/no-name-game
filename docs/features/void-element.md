@@ -347,3 +347,30 @@ Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_
 (`_three_elements`), routing, each move hurting a foe, each breaker holding and hurting a foe and letting go, both window endings, a missed window, cubes hitting foes and walls, the ice strings including the spear, the magma strings, the dark string and its breakers, and the snatch (PASS/FAIL, stand-in foes, in `agent.sh check`).
 
 `godot --path . -s tests/element_shots.gd` is windowed. It films each string against real foes at the game camera, through the hang and the slam, and R's swing, to `user://element_shots/`.
+
+## Round 54 cool pass 3 (combo-cool3 lane)
+
+The weakest mids rebuilt with a beat of their own, the tentacle or element visibly in control (combo-breakers.md
+"Round 54 cool pass 3" has the ranking and numbers). Slots, inputs, windows and hand-overs unchanged (rhythm_check).
+Gameplay is in each move's section of `void_element.gd`; the looks are `scripts/mid_beats.gd`.
+
+- **Reap** (H L, `VR`): the crescent as before, then a barbed hook (`_reap_hook`, `reap_hook` sheet) bites one more
+  foe out to `REAP_HOOK_REACH` 10 m in `REAP_HOOK_CONE`: the env_target `reap` pick (default the furthest outside the
+  crescent, `reap_auto`). x`REAP_HOOK_MULT` 0.6, marked (the dark mark and `reaped`), and a light foe is yanked on a
+  tether to `REAP_YANK_TO` 2.2 m in front of him. Black Tide hits the reaped first, x`REAP_TIDE_MULT` 1.4.
+- **Singularity** (H H, `VS`): the hole now reels: tentacles out of it hold every light foe in its radius while it
+  pulls (`MID_BEATS.reel`, `SING_REEL_TIME` 1.2 s). With a foe held, a cursor choice (`singularity` pick, within
+  `SING_PICK_REACH` 8 m) throws the held foe onto the chosen one (`SING_ONTO_DAMAGE` 8) and opens the hole there.
+- **Frost Spear** (L L H, `IP`): frost lines race out along the floor from the spear to each foe near it, nearest first,
+  and set rime at their feet (`MID_BEATS.frost_spread`, slowed `SPEAR_RIME_SLOW` 0.3 for `SPEAR_RIME_TIME` 0.9 s). A
+  cursor choice (`spear`, within `SPEAR_PICK_REACH` 7.5 m) plants the spear at that foe's feet.
+- **Steam Burst** (Dash L H H L, `XS`): a lava crack runs from the fist to each frozen foe and a steam column goes up
+  where it meets the ice (`MID_BEATS.steam_fuse`), before the burst.
+- **Hailstorm** (Dash L H H H, `XG`): one twister at the middle of the frozen draws the lifted cubes in
+  (`MID_BEATS.gale`: `GALE_IN` 0.55 of the way, over `GALE_PULL` 0.22 s) instead of a speck per cube.
+- Endings raised to a second beat (game time, after the landing; `ground_beats` counts them): Grounded's charge goes
+  to ground foe to foe (`_ground_beat`, `GROUND_*`), Worldbreaker's floor heaves each back up (`HEAVE_*`), Cataclysm's
+  fault goes again (`_aftershock`, `AFTERSHOCK_*`), Short Circuit's circuit closes last link to first (`_sc_loop`,
+  `LOOP_*`), Shatterstorm's thunder chains cube to cube (`_chain_link`, `CHAIN_*`). Cold Front bowls the cubes into the
+  `cold_front` structure (`COLD_*`); Maw's heap gets jaws and a punch (`MAW_HEAP_JAW_R`, `MAW_HEAP_STOP`, `MAW_HOIST_Y` 2.1).
+- Check: `tests/cool3_check.gd`.
