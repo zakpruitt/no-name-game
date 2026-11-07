@@ -942,3 +942,9 @@ Zak approved the kit grammar ("implement it"); slot 9 is a Smash-style counter o
 - [x] Clips: `awaken-combo-clips/31 Counter *`
 - [ ] Zak's call: the bot turns swinging on for its counter string only; bolts get no Backlash or window; the counter
   window keeps the shared breaker rhythm; `--spar=` foes are counterable by design (melee windups) but not filmed
+
+## Round 49 matrix (kit grammar section 3: one payoff rule per state, `docs/characters/kit-grammar.md`)
+- [x] Matrix collapse (section 3): six states, one payoff rule each (Shatter, Arc, Burst, Snap, Juggle, Crater), any
+  element's hit; the 18 old cells are Kit upgrades (`--kit=full`); one look per rule tinted by the hitter; MIX ELEMENTS
+  lists the rules and the upgrades; `[improv]` per rule, `agent.sh check` runs a second autotest with `--kit=full`.
+  Sheets `awaken-combo-clips/32 Matrix *`. `docs/features/element-matrix.md`

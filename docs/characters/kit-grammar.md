@@ -77,6 +77,17 @@ states that is a cross product that grows with every character. The fixed versio
 - The current heretic cells that are not one of those rules (Gale Lift, Flash Freeze's steam, Arc Flash's throw)
   become **crossover** moves (slot 8) or breaker endings, which is where most of them already live.
 
+**Status (round 49, matrix-collapse lane): built.** `void_element.RULES` holds the six rules (frozen Shatter x1.6,
+charged Arc within 6 m, molten Burst x1.5 + a 2.2 m burn, bound Snap x1.5 with no knockback, airborne Juggle at
+7 m/s, buried Crater x1.5); `RULE_OWN` keeps the own-element cells the moves' own (storm on charged, ice on frozen,
+magma on molten, dark on bound) and `RULE_SELF` the moves that pay a state in their body (Molten Palm's steam,
+Updraft Lash's dig-up, the air string, Tow Line's rip). Every other cell is a Kit upgrade (18 ids: the four charged
+ones plus `gale_lift`, `shard_cut`, `frozen_in`, `swallowed`, `firestorm`, `quench`, `flare_up`, `smother`,
+`ice_spreads`, `torn_off`, `freeze_aloft`, `meteor_spike`, `torn_loose`, `frozen_dark`); Aftershock was already the
+crater, so it is the rule. Gale Lift is not a slot move, so it is an upgrade, not a crossover. Flash Freeze's steam
+was never a cell (it is Steam Burst's). "marked" stays the signature's setup, not a paying state. See
+[element-matrix.md](../features/element-matrix.md).
+
 ## 4. Dash counters
 
 **Status (round 49): built for the heretic.** Backlash and its window's ending Ricochet, `WINDOW` 0.25 s, `PERFECT`
