@@ -1625,7 +1625,8 @@ func _breaker_pairs() -> void:
 		_check(hero.breakers_landed > landed, "%s: the breaker lands" % case)
 		var want := "Meteor Shower" if hero.bot_alt else "Meteor Fall"
 		_check(hero.HERO_LEAP.breaker_name(hero) == want, "%s: picks %s (%s)" % [case, want, hero.HERO_LEAP.breaker_name(hero)])
-		for i in 70:
+		await create_timer(1.0, true, false, true).timeout  # (the fireballs fall on real time)
+		for i in 20:
 			await physics_frame
 		var sum := 0.0
 		for i in foes.size():
@@ -1683,6 +1684,45 @@ func _breaker_pairs() -> void:
 	print("  anvil pair: open anvil %.0f / pinwheel %.0f, by a wall anvil %.0f / pinwheel %.0f" % [dealt.anvil_open, dealt.pin_open, dealt.anvil_wall, dealt.pin_wall])
 	_check(dealt.pin_wall > dealt.anvil_wall, "by a wall: Pinwheel out-damages Anvil (%.0f vs %.0f)" % [dealt.pin_wall, dealt.anvil_wall])
 	_check(dealt.anvil_open > dealt.pin_open, "in the open: Anvil out-damages Pinwheel (%.0f vs %.0f)" % [dealt.anvil_open, dealt.pin_open])
+	# Cataclysm / Tempest (XF): a crowd of five round the gale, or a pair.
+	dealt = {}
+	for case: String in ["cata_crowd", "temp_crowd", "cata_pair", "temp_pair"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		hero.model.position.y = 0.0
+		hero.bot_alt = case.begins_with("temp")
+		var spots: Array = [Vector3(0.6, 0, 3.0), Vector3(-0.8, 0, 3.4)]
+		if case.ends_with("crowd"):
+			spots += [Vector3(1.8, 0, 2.2), Vector3(-1.9, 0, 2.0), Vector3(0.2, 0, 4.6)]
+		var foes: Array = spots.map(func(p: Vector3) -> Foe: return _foe(p))
+		await physics_frame
+		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
+		var landed: int = hero.breakers_landed
+		hero._start_attack("XF")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		var opts: Array = hero.breaker_window().get("options", [])
+		_check(opts.size() == 2 and opts[0].button == "light" and opts[0].name == "Tempest" and opts[0].element == "wind"
+			and opts[1].name == "Cataclysm", "%s: the window offers LMB Tempest (storm), RMB Cataclysm (%s)" % [case, str(opts)])
+		await _until(func() -> bool: return hero.breakers_landed > landed, 4.0)
+		_check(hero.breakers_landed > landed, "%s: lands" % case)
+		if case == "temp_crowd":
+			await create_timer(0.4, true, false, true).timeout
+			_check(foes.all(func(f: Foe) -> bool: return f.global_position.y > 1.5 and f.has_meta("thrown_foe_flying")),
+				"Tempest takes the whole crowd up its column (%s)" % str(foes.map(func(f: Foe) -> float: return snappedf(f.global_position.y, 0.1))))
+		await create_timer(1.2, true, false, true).timeout  # (the column runs on real time)
+		for i in 20:
+			await physics_frame
+		_check(foes.all(func(f: Foe) -> bool: return not f.has_meta("thrown_foe_flying")), "%s: everyone let go (%s)" % [case, str(foes.map(func(f: Foe) -> String: return "%.0f/%s" % [f.hp, f.has_meta("thrown_foe_flying")]))])
+		var sum := 0.0
+		for i in foes.size():
+			sum += before[i] - foes[i].hp
+		dealt[case] = sum
+		for f: Foe in foes:
+			f.free()
+		await _settle()
+	print("  cataclysm pair: crowd of five cataclysm %.0f / tempest %.0f, a pair cataclysm %.0f / tempest %.0f" % [dealt.cata_crowd, dealt.temp_crowd, dealt.cata_pair, dealt.temp_pair])
+	_check(dealt.temp_crowd > dealt.cata_crowd, "a crowd: Tempest out-damages Cataclysm (%.0f vs %.0f)" % [dealt.temp_crowd, dealt.cata_crowd])
+	_check(dealt.cata_pair > dealt.temp_pair, "a pair: Cataclysm out-damages Tempest (%.0f vs %.0f)" % [dealt.cata_pair, dealt.temp_pair])
 	hero.bot_alt = false
 	hero.bot_enabled = false
 

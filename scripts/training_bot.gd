@@ -67,6 +67,8 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	["spread", "alt", "L", "L", "L", "H", "H"], ["wall", "alt", "L", "L", "H", "D", "H", "H", "L"],
 	# (Cold Front, Worldbreaker's LMB, had no string: endings_n= counts every ending a window offers.)
 	["alt", "L", "H", "L", "H"],
+	# Tempest (Cataclysm's LMB): Rockslide, Fault Line and the twister on the four dummies.
+	["alt", "L", "H", "L", "L", "H"],
 	# The other charged cells off Galvanize, in real moves: Reap (Conduct), Molten Palm (Arc Flash), Frost Spear (Superconduct;
 	# last: its spear stands 5 s and turns the next string's L L into the vault).
 	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"]]
