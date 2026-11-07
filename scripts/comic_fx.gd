@@ -60,6 +60,7 @@ const BREAKER_WORDS := {
 	"Ricochet": "KA-SPLATT!",  # the dash counter's ending (counter.gd)
 	"Meteor Shower": "BLAM-BLAM-BLAMM!", "Pinwheel": "WHIRRR-KRAK!", "Tempest": "VWOOOM-KZZAK!",  # breaker-pairs (Pinwheel's wall hits say breaker_alt_fx.WALL_WORD)
 	"Hellseam": "KRAKA-FWOOOM!",  # dark-magma lane
+	"Uproot": "KRR-RACK-THOOM!",  # env-pieces lane (Abyss's LMB)
 }
 const BREAKER_SCALE := 0.78
 ## The element matrix's payoffs (void_element.IMPROV; comic_improv.gd draws each cell's tell), by cell: said over the

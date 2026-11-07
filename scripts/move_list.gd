@@ -55,6 +55,7 @@ const SECTIONS := [
 		{"input": "H L H, L in the window", "kind": "text", "name": "Black Ice", "or": true, "tier": 3, "note": "Dark into ice: the pool freezes over with them in it, and he lands and shatters it."},
 		{"input": "hold H", "kind": "move", "id": "OW", "note": "A black pool under what he's aiming at, with tendrils piling on. Works on big foes."},
 		{"input": "hold H, H in the window", "kind": "text", "name": "Abyss", "tier": 3, "note": "They sink through the floor, then black spikes throw them back up."},
+		{"input": "hold H, L in the window", "kind": "text", "name": "Uproot", "or": true, "tier": 3, "note": "The tentacle tears the pillar the bracket marks out of the floor and clubs the pinned foe with it, and everyone on the line it falls along. The pillar is rubble after. Best on a big foe by a pillar; in the open it is a short slam and Abyss is better."},
 	]},
 	{"group": 6, "rows": [
 		{"input": "Dash L", "kind": "move", "id": "DL", "note": "Spear: a lunge off a dash, or off a swing."},

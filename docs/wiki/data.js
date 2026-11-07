@@ -80,6 +80,12 @@ window.WIKI = {
    "word": ""
   },
   "OW": {
+   "alt": {
+    "damage": 70.0,
+    "erupt": "void",
+    "name": "Uproot",
+    "word": "KRR-RACK-THOOM!"
+   },
    "awaken": 10.0,
    "awaken_perfect": 20.0,
    "damage": 40.0,
@@ -693,6 +699,14 @@ window.WIKI = {
      "kind": "text",
      "name": "Abyss",
      "note": "They sink through the floor, then black spikes throw them back up.",
+     "tier": 3
+    },
+    {
+     "input": "hold H, L in the window",
+     "kind": "text",
+     "name": "Uproot",
+     "note": "The tentacle tears the pillar the bracket marks out of the floor and clubs the pinned foe with it, and everyone on the line it falls along. The pillar is rubble after. Best on a big foe by a pillar; in the open it is a short slam and Abyss is better.",
+     "or": true,
      "tier": 3
     }
    ],

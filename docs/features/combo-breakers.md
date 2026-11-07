@@ -260,7 +260,7 @@ H L H, H in the window      Maw
 | Undertow (L L L H H) | EV | Meteor Fall / Meteor Shower (breaker pairs) | RMB / LMB |
 | Singularity (H H) | VS | Collapse | RMB |
 | Black Tide (H L H) | VD | Maw / Black Ice | RMB / LMB |
-| Overwhelm (hold H) | OW | Abyss | RMB |
+| Overwhelm (hold H) | OW | Abyss / Uproot (round 51, [env-pieces.md](env-pieces.md): a pillar near) | RMB / LMB |
 | Fault Line (L H L L H) | XF | Cataclysm / Tempest (breaker pairs) | RMB / LMB |
 | Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |

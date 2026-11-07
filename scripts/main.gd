@@ -268,7 +268,7 @@ func _build_arena() -> void:
 	add_child(env)
 	# Round 51: the room's pieces come from rooms.gd (Game.room: "plain", today's arena, or "pieces").
 	var room: String = Game.room
-	ENV_PIECE.begin(self, room == "pieces")
+	ENV_PIECE.begin(self, true)  # (training: every used-up piece comes back, the plain room's pillars too)
 	var covered: Array = ROOMS.floor_spots(room)
 	var plain := room == "plain"
 	# Floor visuals: big tiles with the odd grate for variety (the plain room; with pieces the grates are placed by data).

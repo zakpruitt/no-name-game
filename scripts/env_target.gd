@@ -44,6 +44,7 @@ const CTX := {
 	"palm": {"el": "earth", "choose": false, "far": true},
 	"leash": {"el": "earth", "choose": false, "far": false},
 	"pillar_slam": {"el": "void", "choose": true, "far": false, "kinds": ["pillar"]},
+	"uproot": {"el": "void", "choose": true, "far": true, "kinds": ["pillar"]},  # round 51: Abyss's LMB (env_piece.gd)
 }
 const CURSOR_SNAP := 2.2  # m from the cursor's ray to a structure that it counts as on it
 const CURSOR_HEIGHTS := [0.3, 1.4, 2.8]  # m: the ray is sampled at these heights (a wall face, a pillar's body)
@@ -417,6 +418,8 @@ func context(h: CharacterBody3D) -> Dictionary:
 			return {}
 		if b.has("collapse"):
 			return {"ctx": "collapse", "from": _flat(h._void.dark_spot), "reach": COLLAPSE_REACH, "mode": "near", "key": key}
+		if alt.has("uproot") and load("res://scripts/env_piece.gd").usable("pillar", "uproot"):  # round 51
+			return {"ctx": "uproot", "from": _flat(h._void.dark_spot), "reach": ve.UPROOT_REACH, "mode": "near", "key": key}
 		if b.has("meteor"):
 			var spot: Dictionary = ve.meteor_spot(h)
 			if spot.found:

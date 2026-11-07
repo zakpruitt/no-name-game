@@ -34,7 +34,7 @@ the same input shapes. This page is how that table lives in code, and how to fil
 | 5 | `sig_mark` | mark | Reap `VR` (H L) | |
 | 5 | `sig_gather` | gather | Singularity `VS` (H H) | Collapse |
 | 5 | `sig_drag` | drag | Black Tide `VD` (H L H) | Maw / Black Ice |
-| 5 | `sig_pin` | pin | Overwhelm `OW` (hold H) | Abyss |
+| 5 | `sig_pin` | pin | Overwhelm `OW` (hold H) | Abyss / Uproot (round 51) |
 | 6 | `dash_l` | lunge | Dash Stab `DL` (Dash L) | |
 | 6 | `dash_h` | snare | Tow Line `TW` (Dash H) | |
 | 7 | `dash_ender_l` | crowd | Harpoon `EF` (Dash L H) | Shatterstorm / Slapshot |
@@ -48,7 +48,7 @@ the same input shapes. This page is how that table lives in code, and how to fil
 | 9 | `counter` | counter | Backlash (Dash into a strike; `counter.gd`, not a routed move: the fill is its window `CB`, `routed: false`) | Ricochet |
 | 10 | `awakening` | awaken | the meter (Q), no move id | |
 
-That is 23 slots filled and the meter. There are 14 windows with 21 endings in all.
+That is 23 slots filled and the meter. There are 15 windows with 22 endings in all.
 
 - **Route steps** (not slots, never an upgrade target): the grab `GR` (H), Air Slash `AL1` (L H L), the vault
   `IJ` (L L H L), Rockslide `XR` (L H L L), Ice Cube `EA` (Dash L H H). R and R-then-H (the swing and Snatch) are

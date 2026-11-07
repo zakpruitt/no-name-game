@@ -237,6 +237,8 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	if b.has("press"):
 		void_grab.aim_crush()
 	_aim(hero)
+	if b.has("uproot"):  # Uproot (round 51): no sink; the tentacle tears the pillar out as he dives
+		VOID_ELEMENT.uproot_dive(hero)
 	if b.has("pinwheel"):  # Pinwheel: the twister he whirls the kebab round in
 		VOID_ELEMENT.ALT_FX.pinwheel_ring(hero.get_parent(), hero._brk_zone, VOID_ELEMENT.PINWHEEL_R, b.dive + 0.25)
 	var perfect: bool = absf(hero._brk_press - b.sweet) <= b.perfect

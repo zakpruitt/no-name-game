@@ -115,7 +115,11 @@ const BREAKERS := {
 		# L in the window (dark into ice): the pool freezes with them in it, and his landing shatters it.
 		"alt": {"erupt": "water", "black_ice": true, "short": 2.0, "damage": 46.0, "names": {"spirit": "Black Ice"}}},
 	"OW": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 2.2, "abyss": true, "damage": 40.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
-		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"}},
+		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Abyss"},
+		# LMB Uproot (round 51, env-pieces): the tentacle tears the pillar nearest the pinned foe out of the floor and
+		# clubs the foe with it along the line pillar -> foe; the pillar is rubble for the room (UPROOT_*, _uproot).
+		# Best: a big foe by a pillar; in the open there is nothing to tear and a short slam is all it does.
+		"alt": {"uproot": true, "damage": UPROOT_DAMAGE, "names": {"spirit": "Uproot"}}},
 	# Crossovers. Cataclysm: Fault Line's gale has them up again and the landing brings them down into the floor. No
 	# `wire` (Live Wire's bolts and binds on every foe in the hang made it the busiest breaker; damage 40 -> 46 for the
 	# jolts it lost) (`cataclysm`: a crater on each, a strike and earth under each).
@@ -330,6 +334,24 @@ const ABYSS_RADIUS := 4.2  # m
 const ABYSS_SINK := 2.6  # m they go down while he's on his way
 const ABYSS_LAUNCH := 11.0
 const OVERWHELM_RADIUS := 3.6
+## Uproot (Abyss's LMB, round 51 env-pieces): the pillar nearest the pinned foe within UPROOT_REACH (the indicator's
+## pick, env_target CTX "uproot") is torn out as he dives and comes down along the line pillar -> foe, UPROOT_LENGTH m
+## (carried closer when the foe stands further off), UPROOT_FALL real s after the landing: UPROOT_DAMAGE into the floor
+## on the foe (buried; x UPROOT_HEAVY on a big one), UPROOT_LINE of it on everyone else within UPROOT_LINE_R of the
+## fall line (buried). The pillar is rubble for the room (env_piece.topple). No pillar in reach: the tentacle slams the
+## foe from the sky for UPROOT_OPEN alone. So, a big foe 4 m from a pillar and one more on the line:
+## (70 x 1.25 + 42) x 1.5 = 194 vs Abyss's (40 + 40) x 1.5 = 120; in the open 22 x 1.5 = 33 vs Abyss's 60.
+const UPROOT_REACH := 6.0  # m from the pinned foe to the pillar
+const UPROOT_DAMAGE := 70.0
+const UPROOT_HEAVY := 1.25
+const UPROOT_LINE := 0.6
+const UPROOT_LINE_R := 1.5  # m either side of the fall line
+const UPROOT_LENGTH := 4.0  # m: the pillar's height, the fall line
+const UPROOT_REACH_IN := 0.6  # m short of the foe's middle the pillar's head comes down
+const UPROOT_FALL := 0.16  # real s from the landing to the club's hit (the swing)
+const UPROOT_DOWN := 7.0  # m/s into the floor: it craters (enemy._is_spike)
+const UPROOT_OPEN := 22.0
+const UPROOT_META := &"uproot_pillar"  # on the hero from the dive to the hit: the pillar it tore out
 const OVERWHELM_REACH := 10.0
 const OVERWHELM_AHEAD := 5.0  # m, with nobody to aim at
 const OVERWHELM_TIME := 2.2  # s
@@ -1874,6 +1896,9 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 	if b.has("maw"):
 		_maw(hero, b, mult)
 		return
+	if b.has("uproot"):
+		_uproot(hero, b, mult)
+		return
 	if b.has("abyss"):
 		_abyss(hero, b, mult)
 		return
@@ -2278,6 +2303,106 @@ static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	if foes.is_empty():
 		DARK.spout(parent, spot)
 	Game.shake(0.6)
+
+
+# --- Uproot (round 51, env-pieces lane: Abyss's LMB) --------------------------------------------------------------
+
+## The pillar Uproot tears out for a foe pinned at `spot`: the one the indicator marks (env_target CTX "uproot", the
+## cursor's pick included) within UPROOT_REACH, else the nearest live pillar in reach (rooms without env_target: the
+## checks). null in the open.
+static func uproot_pillar(hero: CharacterBody3D, spot: Vector3) -> Node3D:
+	var env := ENV.pick(hero, "uproot", spot, UPROOT_REACH)
+	if not env.has("none"):
+		if env.found and env.s.kind == "pillar" and ENV_PIECE.live(env.s.get("node")):
+			return env.s.node
+		return null
+	var near: Array = ENV_PIECE.near(hero.get_tree(), "pillar", spot, UPROOT_REACH)
+	return near[0] if not near.is_empty() else null
+
+
+## The foe Uproot clubs: the nearest living one to Overwhelm's spot.
+static func uproot_target(hero: CharacterBody3D, spot: Vector3) -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for e: Node3D in FOES.near(hero.get_tree(), spot, OVERWHELM_RADIUS):
+		var d := _flat(e.global_position - spot).length()
+		if d < best_d:
+			best_d = d
+			best = e
+	return best
+
+
+## The dive starts (hero_leap._start_dive): no sinking through the floor (Abyss's), and the tentacle takes hold of the
+## pillar and tears it out of the floor (ALT_FX.uproot_tear) while he comes down.
+static func uproot_dive(hero: CharacterBody3D) -> void:
+	if is_instance_valid(hero._void.dark_bind):
+		hero._void.dark_bind.sink = 0.0
+	var spot: Vector3 = _flat(hero._void.dark_spot)
+	var p := uproot_pillar(hero, spot)
+	if p == null:
+		hero.remove_meta(UPROOT_META)
+		return
+	hero.set_meta(UPROOT_META, p)
+	ENV_PIECE.claim(p)  # (out of the swing anchors and the indicator now: it is coming up)
+	ALT_FX.uproot_tear(hero.get_parent(), hero, p)
+
+
+## Uproot lands: the pillar comes down on the foe along the line pillar -> foe (ALT_FX.uproot_club), the hits on the
+## club's arrival; the pillar stays down as rubble. With none torn out, a short slam on the foe alone.
+static func _uproot(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var spot: Vector3 = _flat(hero._void.dark_spot)
+	var target := uproot_target(hero, spot)
+	if is_instance_valid(hero._void.dark_bind):
+		hero._void.dark_bind._let_go()
+	var parent: Node = hero.get_parent()
+	var p: Variant = hero.get_meta(UPROOT_META) if hero.has_meta(UPROOT_META) else null
+	hero.remove_meta(UPROOT_META)
+	if not is_instance_valid(p):
+		var at: Vector3 = _flat(target.global_position) if target != null else spot
+		ALT_FX.uproot_open(parent, at)
+		if target != null:
+			target.take_hit(UPROOT_OPEN * hero._dmg_mult * mult, Vector3.DOWN * UPROOT_DOWN, 0.0, true)
+			Game.register_hit("breaker")
+		return
+	var pillar: Node3D = p
+	var base := _flat(pillar.global_position)
+	var head: Vector3 = _flat(target.global_position) if target != null else spot
+	var dir := head - base
+	dir = dir.normalized() if dir.length() > 0.05 else hero._facing()
+	var reach: float = (head - base).length() - UPROOT_REACH_IN
+	if reach > UPROOT_LENGTH:  # (far: the tentacle carries the pillar in so its head lands on the foe)
+		base += dir * (reach - UPROOT_LENGTH)
+	var line_end := base + dir * UPROOT_LENGTH
+	for e: Node3D in FOES.near(hero.get_tree(), (base + line_end) * 0.5, UPROOT_LENGTH):
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 1200)
+	ALT_FX.uproot_club(parent, hero, pillar, base, dir, UPROOT_FALL, _uproot_hit.bind(hero, target, base, line_end, damage))
+	ENV_PIECE.topple(pillar, base, dir)
+
+
+## The club arrives: the foe into the floor, everyone else on the fall line takes UPROOT_LINE of it, all buried.
+static func _uproot_hit(hero: Variant, target: Variant, base: Vector3, line_end: Vector3, damage: float) -> void:
+	if not is_instance_valid(hero):
+		return
+	var h := hero as CharacterBody3D
+	var struck := {}
+	if is_instance_valid(target) and target.is_alive():
+		struck[target] = true
+		target.take_hit(damage * (UPROOT_HEAVY if h._void.is_heavy(target) else 1.0), Vector3.DOWN * UPROOT_DOWN, 0.0, true)
+		mark(target, "buried")
+		Game.register_hit("breaker")
+	for e: Node3D in FOES.near(h.get_tree(), (base + line_end) * 0.5, UPROOT_LENGTH * 0.5 + UPROOT_LINE_R):
+		if struck.has(e):
+			continue
+		var p := _flat(e.global_position)
+		var ab := line_end - base
+		var k := clampf((p - base).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		if p.distance_to(base + ab * k) > UPROOT_LINE_R + float(e.radius):
+			continue
+		e.take_hit(damage * UPROOT_LINE, Vector3.DOWN * UPROOT_DOWN, 0.0, true)
+		mark(e, "buried")
+		Game.register_hit("breaker")
+	ENV_PIECE.played("uproot")
 
 
 ## Where a cube is on its way up and into the pile, `k` 0 to 1 through the dive: up fast and a little way in,

@@ -1027,3 +1027,5 @@ can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/fea
 - [x] Pieces as data: `scripts/env_piece.gd` (14 pieces, shared rules, `EXCLUSIVE` by element), `scripts/rooms.gd`
   (`ROOMS.training` = today's arena, `training_pieces`), Settings "Room: plain / with pieces", `--room=pieces`,
   rebuild after 6 s, `tests/env_piece_check.gd`, `[env] ... pieces=N/N`
+- [x] Uproot: Overwhelm's LMB ending (`OW.alt`): the tentacle tears the nearest pillar out and clubs the pinned foe
+  (297 vs Abyss 196 by a pillar; 78 vs 196 in the open), the pillar left as rubble; both training rooms rebuild

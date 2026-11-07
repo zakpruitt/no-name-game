@@ -82,3 +82,126 @@ static func twister(parent: Node, at: Vector3, high: float, radius: float, time:
 		TWISTER.spawn(parent, at, high, radius, time)
 	else:
 		load("res://scripts/elements.gd").nova(parent, at, "wind", radius, 8)
+
+# --- Uproot (round 51, env-pieces lane: Abyss's LMB; gameplay in void_element.gd `_uproot`) -------------------------
+# The pillar is the comic dungeon piece itself; the rest is designed sheets: the tentacle's drawn skin (void_tendril),
+# designed dust and ground stamps, env_target's drawn chunks, the dark hit star. No polygons.
+
+const UPROOT_LIFT := 0.8  # m the pillar comes up out of the floor as he dives
+const UPROOT_LEAN := 0.35  # radians it leans back, away from the foe, at the top of the tear
+const UPROOT_TEAR := 0.14  # real s of the tear
+const UPROOT_CHUNKS := 4  # drawn chunks off its foot as it comes out, and along the line as it lands
+const UPROOT_STAMP := 1.6  # m: each ground stamp along the fall line
+const UPROOT_STOP := 0.09  # s hit stop as it lands
+const UPROOT_TENDRIL := &"uproot_tendril"
+
+
+static func _tendril(parent: Node, pillar: Node3D) -> Node3D:
+	var t: Node3D = pillar.get_meta(UPROOT_TENDRIL) if pillar.has_meta(UPROOT_TENDRIL) else null
+	if is_instance_valid(t):
+		return t
+	t = load("res://scripts/void_tendril.gd").new()
+	parent.add_child(t)
+	pillar.set_meta(UPROOT_TENDRIL, t)
+	return t
+
+
+## Where on the pillar the tentacle holds it: two thirds up its axis.
+static func _grip(pillar: Node3D) -> Vector3:
+	return pillar.global_transform * Vector3(0.0, 2.7, 0.0)
+
+
+static func _hand(hero: Node) -> Vector3:
+	var v: Variant = hero.get("_void")
+	if v != null and is_instance_valid(v) and v.has_method("_hand_pos"):
+		return v._hand_pos()
+	return (hero as Node3D).global_position + Vector3.UP * 1.4
+
+
+## The tear (the dive): the tentacle lashes round the pillar, which comes up out of the floor in a burst of chunks
+## and dust and leans back for the swing.
+static func uproot_tear(parent: Node, hero: Node3D, pillar: Node3D) -> void:
+	var home := pillar.transform
+	var away := Vector3(pillar.global_position.x - hero.global_position.x, 0.0, pillar.global_position.z - hero.global_position.z)
+	away = away.normalized() if away.length() > 0.05 else Vector3.BACK
+	var axis := Vector3.UP.cross(away).normalized()
+	var foot := Vector3(pillar.global_position.x, 0.0, pillar.global_position.z)
+	var tendril := _tendril(parent, pillar)
+	var tw := parent.create_tween().set_ignore_time_scale(true)
+	tw.tween_method(func(k: float) -> void:
+		if not is_instance_valid(pillar):
+			return
+		var e := 1.0 - (1.0 - k) * (1.0 - k)
+		pillar.transform = Transform3D(Basis(axis, UPROOT_LEAN * e) * home.basis, home.origin + Vector3.UP * UPROOT_LIFT * e)
+		if is_instance_valid(tendril) and is_instance_valid(hero):
+			tendril.draw(_hand(hero), _grip(pillar), 1.0, 0.05, 0.6 * (1.0 - k) + 0.25, k), 0.0, 1.0, UPROOT_TEAR)
+	if DESIGNED.on():
+		DESIGNED.dust(parent, foot, 1.6)
+		DESIGNED_INK.shock(parent, foot, PAL.of("void").light, 1.4, 0.3)
+	var env: Node = load("res://scripts/env_target.gd").of(parent.get_tree())
+	if env != null:
+		for i in UPROOT_CHUNKS:
+			var a := TAU * i / UPROOT_CHUNKS + randf() * 0.6
+			env._chunk(foot + Vector3.UP * 0.4, Vector3(cos(a), 0.0, sin(a)) * 3.5 + Vector3.UP * 5.5, i)
+	ComicFx.say("KRRRK!", foot + Vector3.UP * 2.2, 0.5)
+	Game.shake(0.35)
+	Game.sfx("quake", -8.0, 0.1)
+
+
+## The club (the landing): the pillar swings down from where the tear left it to lie from `base` along `dir` in `fall`
+## real s, the tentacle hauling on its head; `landed` is called as it hits, then the fall line breaks up the floor.
+static func uproot_club(parent: Node, hero: Node3D, pillar: Node3D, base: Vector3, dir: Vector3, fall: float, landed: Callable) -> void:
+	var from := pillar.transform
+	var yaw := Basis(Vector3.UP, pillar.rotation.y)
+	var axis := Vector3.UP.cross(dir).normalized()
+	var lie := Vector3.UP * float(load("res://scripts/env_piece.gd").PIECES.pillar.size.x)  # (on its side, on the floor)
+	var tendril := _tendril(parent, pillar)
+	var tw := parent.create_tween().set_ignore_time_scale(true)
+	tw.tween_method(func(k: float) -> void:
+		if not is_instance_valid(pillar):
+			return
+		var e := k * k  # (it falls: slow off the top, fast into the floor)
+		var at: Vector3 = from.origin.lerp(base + lie, e)
+		var b := Basis(axis, PI * 0.5 * e) * yaw
+		pillar.transform = Transform3D(from.basis.slerp(b, e), at)
+		if is_instance_valid(tendril) and is_instance_valid(hero):
+			tendril.draw(_hand(hero), _grip(pillar), 1.0, 0.04, 0.2, k), 0.0, 1.0, fall)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(pillar):
+			pillar.transform = Transform3D(Basis(axis, PI * 0.5) * yaw, base + lie)
+		if is_instance_valid(tendril):
+			tendril.queue_free()
+		landed.call()
+		_uproot_land(parent, base, dir))
+
+
+## The fall line breaks up: ground stamps and dust along its four metres, chunks, the dark hit star at its head.
+static func _uproot_land(parent: Node, base: Vector3, dir: Vector3) -> void:
+	if not is_instance_valid(parent):
+		return
+	var length: float = load("res://scripts/env_piece.gd").PIECES.pillar.size.y
+	var env: Node = load("res://scripts/env_target.gd").of(parent.get_tree())
+	for i in 3:
+		var at := base + dir * (length * (0.25 + 0.35 * i))
+		if DESIGNED.on():
+			DESIGNED_INK.shock(parent, at, PAL.of("void").light, UPROOT_STAMP, 0.32)
+			DESIGNED.dust(parent, at, 1.3)
+		if env != null:
+			var side := dir.cross(Vector3.UP) * (1.0 if i % 2 == 0 else -1.0)
+			env._chunk(at + Vector3.UP * 0.3, (side * 3.0 + dir * 1.5) + Vector3.UP * 4.5, i)
+	var head := base + dir * length
+	if DESIGNED.on():
+		DESIGNED.hit(parent, head + Vector3.UP * 0.8, "void", 1.8)
+	Game.hitstop(UPROOT_STOP)
+	Game.shake(0.9)
+	if Game.camera_rig:
+		Game.camera_rig.kick(dir, 0.45)
+	Game.sfx("quake", -2.0, 0.05)
+
+
+## No pillar in reach: the tentacle comes down on the foe from the sky alone, a small slam.
+static func uproot_open(parent: Node, at: Vector3) -> void:
+	if DESIGNED.on():
+		DESIGNED_INK.shock(parent, at, PAL.of("void").light, 1.2, 0.25)
+		DESIGNED.hit(parent, at + Vector3.UP * 0.8, "void", 1.0)
+	Game.shake(0.4)

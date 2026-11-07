@@ -97,6 +97,9 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# the haul smashes it into the pillar, and Collapse throws the rest into the same pillar.
 	# (Impale plants a spear when none stands and Pinwheel leaves it up: last, or the next string's H vaults onto it.)
 	{"slot": "sig_gather", "tokens": ["pillar", "H", "hold"]},
+	# Round 51 (env-pieces): Uproot, Abyss's LMB, by the same pillar: Overwhelm pins the dummy between him and it, and
+	# the tentacle tears the pillar out and clubs the dummy with it (the pillar comes back REBUILD_S later in training).
+	{"slot": "sig_pin", "tokens": ["pillar", "alt", "hold"]},
 	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]},
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
 	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Molten Palm carries the dummies over the spikes into the

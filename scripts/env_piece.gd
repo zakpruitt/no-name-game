@@ -367,6 +367,30 @@ static func _chunks(n: Node3D) -> void:
 			env._chunk(at + Vector3.UP * 0.5, Vector3(cos(a), 0.0, sin(a)) * ENV.CHUNK_SPEED * 0.7 + Vector3.UP * ENV.CHUNK_LIFT, i)
 
 
+## Uproot has hold of pillar `n` (void_element.uproot_dive): it leaves the swing anchors and env_target now.
+static func claim(n: Node3D) -> void:
+	n.remove_from_group("grab_anchors")
+	_unregister(n)
+
+
+## Uproot brought pillar `n` down from `base` along `dir` (breaker_alt_fx.uproot_club lays it there): toppled, its
+## collider off, two drawn rubble heaps at its ends; rubble for the room (back in REBUILD_S in training).
+static func topple(n: Node3D, base: Vector3, dir: Vector3) -> void:
+	claim(n)
+	var room := n.get_parent()
+	var left := []
+	for k: float in [0.3, PIECES.pillar.size.y + 0.2]:
+		var heap := ComicLook.piece("rubble_half")
+		heap.scale = Vector3.ONE * 0.4
+		heap.position = base + dir * k
+		heap.rotation.y = randf() * TAU
+		room.add_child(heap)
+		left.append(heap)
+	n.set_meta(&"env_leftovers", left)
+	use_up(n, "toppled")
+	played("topple")
+
+
 ## A breaker came down at `at` (void_element.breaker_impact): crates near it break, rubble under it throws chunks
 ## (RUBBLE_DAMAGE to everyone round it).
 static func landing(by: Node3D, at: Vector3) -> void:
