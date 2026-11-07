@@ -12,7 +12,7 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 180.0  # (round 52: 170 -> 180 for the torch string; was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
+const AUTOTEST_MAX := 195.0  # (round 56: 180 -> 195 for the stab and tide strings; round 52: 170 -> 180 for the torch string; was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
 # Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100; 125 until round 49's 38th
 # string, Lava Leash, pushed the counter string, the last, past it; 140 until round 51's room with pieces, whose
 # strings come last, ran its 41st past it. The plain room finishes on its strings well before)
