@@ -13,6 +13,22 @@ const UPGRADES := {
 	"superconduct": "charged x ice cell",
 	"arc_flash": "charged x magma cell (the throw)",
 	"conduct": "charged x dark cell",
+	# The element matrix's other cells (round 49, matrix collapse): each is richer than its state's one shared rule
+	# (void_element.RULES); off, the rule plays.
+	"gale_lift": "frozen x storm cell: the gale takes the cube up, still in its ice (rule: shatter)",
+	"shard_cut": "frozen x dark cell: the shatter's shards cut the foe beside it (rule: shatter)",
+	"frozen_in": "buried x ice cell: frozen where it is stuck in the floor (rule: crater)",
+	"swallowed": "buried x dark cell: dragged under and held a moment (rule: crater)",
+	"firestorm": "molten x storm cell: launched, the flames catch the one beside it (rule: burst)",
+	"quench": "molten x ice cell: a steam burst x1.6 and up (rule: burst)",
+	"flare_up": "molten x magma cell: the floor erupts under it (own element: the move's own)",
+	"smother": "molten x dark cell: driven into the floor x1.5 (rule: burst)",
+	"ice_spreads": "skewered x ice cell: the spear's ice climbs onto the nearest foe and skewers it (own element: nothing)",
+	"torn_off": "skewered x dark cell: ripped off the spear towards him (rule: frozen's shatter)",
+	"freeze_aloft": "airborne x ice cell: frozen up there, comes down a cube (rule: juggle)",
+	"meteor_spike": "airborne x magma cell: driven down into a crater x1.5 (rule: juggle)",
+	"torn_loose": "bound x storm cell: torn out of the bind and launched (rule: snap)",
+	"frozen_dark": "bound x ice cell: frozen where the tendrils hold it (rule: snap)",
 }
 
 static var _on := {}

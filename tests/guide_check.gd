@@ -113,10 +113,10 @@ func _mixing(main: Node, p: Node3D) -> void:
 	p._post_dash_t = 0.3
 	_begin(p, "DL")
 	var heavy: Dictionary = p.HERO_MOVES.combo_options(p)[1]
-	_check(heavy.id == "EF" and heavy.get("pay", "") == "Frozen In", "Harpoon's row off Dash Stab, a buried foe on its line: + Frozen In (%s)" % heavy.get("pay", ""))
+	_check(heavy.id == "EF" and heavy.get("pay", "") == "Crater", "Harpoon's row off Dash Stab, a buried foe on its line: + Crater, the buried rule (%s)" % heavy.get("pay", ""))
 	# Round 47: the tentacles reach all round him, so aiming away still pays; past their reach it doesn't.
 	p._face(Vector3(0, 0, -1))
-	_check(p.HERO_MOVES.combo_options(p)[1].get("pay", "") == "Frozen In", "aimed away, the tentacles still reach it: + Frozen In")
+	_check(p.HERO_MOVES.combo_options(p)[1].get("pay", "") == "Crater", "aimed away, the tentacles still reach it: + Crater")
 	foe.global_position = Vector3(0, 0, 12.5)
 	_check(not p.HERO_MOVES.combo_options(p)[1].has("pay"), "past the tentacles' reach, no payoff tag")
 	foe.free()

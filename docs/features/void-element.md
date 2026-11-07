@@ -38,8 +38,9 @@ waits `WIRE_START` 0.12 s, until the tentacles have landed, while the charge gat
 four spikes drawn in): the anticipation. Only the first pulse freezes (`LIVE_CURRENT.ZAP_STOP` 0.035 s); later ones take `ZAP_STOP_AFTER` 0.012 s (feel audit 3: a freeze each flicked the hang x0.03 / x1.0 frame to frame). `WIRE_STEP` 0.1, `WIRE_DAMAGE` 4.5 (was 0.08 / 0.09 / 3.5: about the same
 damage before a sweet-spot press). The dive ends the current (`finish()`): a late pulse mustn't hit what he throws.
 Every jolt leaves the foe **charged** for `ELEMENT_HOLD` (round 44; so do Grounded, Storm Pitch, Galvanize, Fault
-Line and Cataclysm): the element matrix's charged row ([element-matrix.md](element-matrix.md)) pays it with any other
-element: Overload (storm), Superconduct (ice), Arc Flash (magma), Conduct (dark).
+Line and Cataclysm): the element matrix's charged rule ([element-matrix.md](element-matrix.md), round 49) pays it with any other
+element: the hit arcs on through every other charged foe near it. Overload (storm), Superconduct (ice), Arc Flash
+(magma) and Conduct (dark) are upgrades now (`Kit.has()`), played in the rule's place when on.
 
 ### Ice
 
@@ -165,10 +166,13 @@ them out of the air); Ice Cube, Impale, Hailstorm (ice left on them), dash, L L 
 L H H L off the dash for Steam Burst; Meltdown's `molten` lasts for Eruption only. Black Ice, Cataclysm, Meteor
 Fall, Eruption and Anvil end in craters: nothing to carry.
 
-Third pass: every other state x element cell pays something too (Gale Lift, Shatter, Frozen In, Aftershock,
-Swallowed, Firestorm, Quench, Flare-up, Smother, Ice Spreads, Torn Off, Freeze Aloft, Meteor Spike, Torn Loose,
-Frozen in the Dark), paid by the element's base moves through `improvise()` at the top of `fire()`; the table and
-the rules are [element-matrix.md](element-matrix.md). The "bound" state is `floor_bind.holds()`.
+Third pass: every other state x element cell paid something too, through `improvise()` at the top of `fire()`.
+Round 49 (kit grammar section 3) collapsed that grid into **one rule per state**, any element's hit: frozen Shatter
+(x1.6, the ice gone), charged Arc (on through every other charged foe), molten Burst (x1.5, a burn round it), bound
+Snap (x1.5 unblockable, the hold ends), airborne Juggle (kept up), buried Crater (x1.5 back into the floor). The old
+cells (Gale Lift, Shard Cut, Frozen In, Swallowed, Firestorm, Quench, Flare-up, Smother, Ice Spreads, Torn Off,
+Freeze Aloft, Meteor Spike, Torn Loose, Frozen in the Dark and the four charged ones) are Kit upgrades. The tables are
+[element-matrix.md](element-matrix.md). The "bound" state is `floor_bind.holds()`.
 
 #### Third pass: air timing and fixes (round 34, filmed `string_film -- --from=17`)
 

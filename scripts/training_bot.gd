@@ -226,14 +226,23 @@ func _pipelines() -> String:
 	return "/".join(out)
 
 
+## `[improv]`: the payoffs paid this run, per state rule (void_element.RULES, every one, 0 too) and per upgrade cell
+## whose Kit id is on (`--kit=full`: all of them), e.g. `[improv] frozen=2 charged=3 ... | overload=1 conduct=0 ...`.
+static func improv_line(el: GDScript) -> String:
+	var paid: Dictionary = el.improv_paid
+	var rules: Array = el.RULES.keys().map(func(k: String) -> String: return "%s=%d" % [k, int(paid.get(k, 0))])
+	var cells: Array = el.IMPROV_UPGRADE.keys().filter(func(c: String) -> bool: return Kit.has(el.IMPROV_UPGRADE[c])).map(
+		func(c: String) -> String: return "%s=%d" % [el.IMPROV_UPGRADE[c], int(paid.get(c, 0))])
+	return "[improv] %s%s" % [" ".join(rules), (" | " + " ".join(cells)) if not cells.is_empty() else ""]
+
+
 func _autotest_finish() -> void:
 	if _quitting:
 		return
 	_quitting = true
 	for line: String in player.bot_log + _rhythm_log:
 		print(line)
-	var paid: Dictionary = player.VOID_ELEMENT.improv_paid
-	print("[improv] %s" % (", ".join(paid.keys().map(func(k: String) -> String: return "%s=%d" % [k, paid[k]])) if not paid.is_empty() else "none"))
+	print(improv_line(player.VOID_ELEMENT))
 	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d endings_n=%d/%d endings=%s moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
 		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_seen.size(), player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(),

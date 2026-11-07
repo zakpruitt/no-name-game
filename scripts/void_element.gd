@@ -2164,40 +2164,69 @@ static func _flat(v: Vector3) -> Vector3:
 
 
 
-# --- The element matrix (round 34, third pass; docs/features/element-matrix.md) -----------------------------------
-# Every state a crossover leaves x every element: each cell a small payoff, so improvising across any pair does
-# something. The cells the moves already pay themselves aren't here (Molten Palm's steam on the frozen, _cash_buried,
-# Tow Line's rip, Ice Cube taking the frozen first, the crossovers and breakers that read their states); these are paid
-# by the element's base moves (not the X* crossovers, which read their own) through improvise(), at the top of fire(),
-# before the move's own hit, so a payoff never moves a foe the move is about to throw.
-# Each cell's look is a small tell in comic_improv.gd (LOOKS, keyed "<state>_x_<element>"), its word ComicFx.IMPROV_WORDS.
+# --- The element matrix (round 34, third pass; round 49: one payoff rule per state; docs/features/element-matrix.md) --
+# Kit grammar section 3 (docs/characters/kit-grammar.md): six states, and each has ONE payoff rule (RULES) that any
+# element's hit triggers, so a new character or element never adds cells. A character's own element on its own state
+# does its move's own thing (RULE_OWN: storm on charged is Live Wire's pulse), and the moves that pay a state in their
+# own body keep it (RULE_SELF: Molten Palm's steam on the ice, Updraft Lash digging up the buried, Tow Line's air rip,
+# the air string). The old per-cell payoffs (IMPROV) are upgrades now (IMPROV_UPGRADE, Kit.has(): off, the rule plays;
+# on, the richer cell plays in its place). Paid by the element's base moves (not the X* crossovers, which read their own)
+# through improvise(), at the top of fire(), before the move's own hit, so a payoff never moves a foe the move is about
+# to throw. Each rule's look is one tell tinted by the hitting element (comic_improv.gd LOOKS keyed by the state); each
+# upgrade cell keeps its own ("<state>_x_<element>"); words ComicFx.IMPROV_WORDS.
 
-## state -> element -> payoff kind (_pay()).
+## state -> its payoff rule (_pay()'s kind), the same for every element and character.
+const RULES := {"bound": "snap", "molten": "burst", "buried": "crater", "frozen": "shatter", "airborne": "juggle", "charged": "arc"}
+## The rules' names (the combo guide's "+ name" tag and the MIX ELEMENTS page; the autotest's [improv] keys by state).
+const RULE_NAMES := {"bound": "Snap", "molten": "Burst", "buried": "Crater", "frozen": "Shatter", "airborne": "Juggle", "charged": "Arc"}
+## The element that leaves the state: on it, its own move's thing plays, never the rule (Abyss off Overwhelm, Live
+## Wire's pulse, ice on ice refreezes, Eruption). airborne and buried are element-free.
+const RULE_OWN := {"bound": "void", "charged": "wind", "frozen": "water", "molten": "earth"}
+## Who pays a state in its own move body (an element, or one move id), so the rule stays out and it doesn't pay twice:
+## Molten Palm's steam on the ice (Steam Burst's), Updraft Lash digging up the buried (_cash_buried), the air string's
+## juggle (Air Slash, Live Wire), Tow Line's rip out of the air (TOW_AIR_MULT).
+const RULE_SELF := {"frozen": ["EM"], "buried": ["EC"], "airborne": ["wind", "TW"]}
+const RULE_SHATTER_MULT := 1.6  # frozen: the hit shatters the ice for this (and the ice's FREEZE_BREAK, as any hit on it)
+const RULE_ARC_R := 6.0  # m: charged: the hit arcs on from the payer to every other charged foe this near (chained)
+const RULE_BURST_R := 2.2  # m: molten: it goes off, and the burn catches everyone this near it
+const RULE_JUGGLE_LAUNCH := 7.0  # m/s: airborne: the hit keeps it up there (a juggle, not a fresh launch)
+## The old cells, now upgrades: state -> element -> payoff kind (_pay()). Each needs its Kit id on (IMPROV_UPGRADE).
+## buried x magma (Aftershock) is the crater rule itself, so it is not here.
 const IMPROV := {
 	"skewered": {"water": "spread", "void": "tear"},
 	"molten": {"wind": "fan", "water": "quench", "earth": "erupt", "void": "smother"},
-	"buried": {"water": "encase", "earth": "crater", "void": "swallow"},
+	"buried": {"water": "encase", "void": "swallow"},
 	"bound": {"wind": "loose", "water": "encase"},
-	"frozen": {"wind": "lift", "void": "shatter"},
+	"frozen": {"wind": "lift", "void": "shards"},
 	"airborne": {"water": "freeze", "earth": "spike"},
 	"charged": {"void": "conduct", "water": "superconduct", "earth": "flash", "wind": "overload"},
 }
-## A foe in several states pays the first with a cell for the element, in this order (the skewered are frozen too).
-## Charged is last: the lightning goes into nearly everyone (every Live Wire jolt), so it's what pays when nothing
-## rarer is there.
+## Each upgrade cell's Kit id (kit.gd UPGRADES has its doc line).
+const IMPROV_UPGRADE := {
+	"skewered_x_water": "ice_spreads", "skewered_x_void": "torn_off",
+	"molten_x_wind": "firestorm", "molten_x_water": "quench", "molten_x_earth": "flare_up", "molten_x_void": "smother",
+	"buried_x_water": "frozen_in", "buried_x_void": "swallowed",
+	"bound_x_wind": "torn_loose", "bound_x_water": "frozen_dark",
+	"frozen_x_wind": "gale_lift", "frozen_x_void": "shard_cut",
+	"airborne_x_water": "freeze_aloft", "airborne_x_earth": "meteor_spike",
+	"charged_x_void": "conduct", "charged_x_water": "superconduct", "charged_x_earth": "arc_flash", "charged_x_wind": "overload",
+}
+## A foe in several states pays the first with a rule or an upgrade cell for the element, in this order (the skewered
+## are frozen too: with neither of its upgrades on, a skewered foe pays the frozen rule). Charged is last: the lightning
+## goes into nearly everyone (every Live Wire jolt), so it's what pays when nothing rarer is there.
 const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne", "charged"]
 const IMPROV_REACH := 5.0  # m round him: a move with no hit shape of its own (improv_reach()) reaches this far
 const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
-const IMPROV_MULT := 1.5  # the harder payoffs (crater, swallow, smother, spike, tear, loose)
+const IMPROV_MULT := 1.5  # the harder payoffs (crater, snap, burst; the cells swallow, smother, spike, tear, loose)
 const IMPROV_LAUNCH := 8.0  # m/s up: lift, fan, loose (a fresh launch: at least enemy.RELAUNCH_MIN)
 const IMPROV_DOWN := 6.0  # m/s into the floor: crater, swallow, smother, spike (enemy._is_spike craters them)
-const IMPROV_CHAIN_R := 2.6  # m round the payer that a chain (shatter, fan, spread) jumps to its neighbour
-const IMPROV_CHAIN_DAMAGE := 5.0
+const IMPROV_CHAIN_R := 2.6  # m round the payer that a chain (shards, fan, spread) jumps to its neighbour
+const IMPROV_CHAIN_DAMAGE := 5.0  # (and each link of the arc rule, each foe the burst rule's burn catches)
 const IMPROV_PULL := 6.0  # m/s towards him: tear (yanked off the spear)
 const IMPROV_STEAM_MULT := 1.6  # quench: water on the molten goes off in steam, like the ice under magma
 const IMPROV_HOLD := 0.6  # s swallow keeps them stuck in the floor
 ## The charged state (round 44): lightning that went into a foe stays in it (mark(e, "charged"): Live Wire's jolts,
-## Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm), and every other element does something with it.
+## Grounded, Storm Pitch, Galvanize, Fault Line, Cataclysm). Its rule is the arc; these are its four upgrade cells'.
 const CONDUCT_R := 3.0  # m: Conduct (dark) carries the charge on to every uncharged foe this near the payer...
 const CONDUCT_MOST := 4  # ...this many at most...
 const CONDUCT_DAMAGE := 5.0  # ...each zapped for this, and charged; the payer stays charged
@@ -2211,15 +2240,43 @@ const FLASH_SPEED := 20.0  # m/s
 const OVERLOAD_R := 8.0  # m: Overload (storm) discharges every charged foe this near the move at once...
 const OVERLOAD_PER := 0.35  # ...each zap this much harder for every other charged foe in it
 static var _overload_n := 1  # (how many were charged as the move fired: read before the first payer discharges them)
-static var improv_paid := {}  # "state x element" -> payoffs so far (the autotest's [improv] line)
+static var improv_paid := {}  # rule state ("frozen") or upgrade cell ("frozen_x_wind") -> payoffs so far ([improv])
 
 
-## The state on `e` the element `el` pays, or "" (IMPROV, in IMPROV_ORDER).
-static func improv_state(e: Node, el: String) -> String:
+## What `e` pays when the element `el` (move `id`) hits it: an upgrade cell ("frozen_x_wind") when its Kit id is on, a
+## state's rule ("frozen"), or "" (IMPROV_ORDER; the state's own element and RULE_SELF never pay the rule).
+static func improv_cell(e: Node, el: String, id := "") -> String:
 	for state: String in IMPROV_ORDER:
-		if IMPROV[state].has(el) and in_state(e, state):
+		if not in_state(e, state):
+			continue
+		var cell := "%s_x_%s" % [state, el]
+		if IMPROV.get(state, {}).has(el) and Kit.has(IMPROV_UPGRADE[cell]):
+			return cell
+		if RULES.has(state) and RULE_OWN.get(state, "") != el and not _pays_itself(state, el, id):
 			return state
 	return ""
+
+
+static func _pays_itself(state: String, el: String, id: String) -> bool:
+	var who: Array = RULE_SELF.get(state, [])
+	return el in who or (id != "" and id in who)
+
+
+## The state a cell (improv_cell()) is about: "frozen_x_wind" and "frozen" are both "frozen".
+static func cell_state(cell: String) -> String:
+	return cell.get_slice("_x_", 0)
+
+
+## A cell's name: the rule's (RULE_NAMES) or the upgrade cell's (MIX ELEMENTS: move_list.mix_name()).
+static func improv_name(cell: String) -> String:
+	if RULE_NAMES.has(cell):
+		return RULE_NAMES[cell]
+	return load("res://scripts/move_list.gd").mix_name(cell_state(cell), cell.get_slice("_x_", 1))  # (load: move_list preloads this)
+
+
+## The state on `e` the element `el` pays, or "" (improv_cell()'s state).
+static func improv_state(e: Node, el: String, id := "") -> String:
+	return cell_state(improv_cell(e, el, id))
 
 
 static func in_state(e: Node, state: String) -> bool:
@@ -2233,8 +2290,8 @@ static func in_state(e: Node, state: String) -> bool:
 	return marked(e, state)
 
 
-## A base element move's improvised payoffs on everyone its own hit shape reaches (improv_reach()) in a state its
-## element pays. Returns how many paid.
+## A base element move's improvised payoffs on everyone its own hit shape reaches (improv_reach()) in a state: each
+## pays its state's rule, or the upgrade cell in its place. Returns how many paid.
 static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: float, fwd := Vector3.ZERO) -> int:
 	if id.begins_with("X") or not ELEMENT_OF.has(id):
 		return 0
@@ -2242,17 +2299,19 @@ static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: flo
 	var due := []  # (read every state first: a chain sets one on the neighbour, which mustn't pay in the same move)
 	var near: Array = improv_reach(hero, id, at, fwd if fwd.length_squared() > 0.001 else hero._facing())
 	for e: Node3D in near:
-		var state := "" if THROWN.flying(e) else improv_state(e, el)
-		if state != "":
-			due.append([e, state])
+		var cell := "" if THROWN.flying(e) else improv_cell(e, el, id)
+		if cell != "":
+			due.append([e, cell])
 	if el == "wind":
 		_overload_n = maxi(1, FOES.near(hero.get_tree(), at, OVERLOAD_R).filter(func(o: Node3D) -> bool: return marked(o, "charged")).size())
 	for d: Array in due:
-		if d[1] == "charged" and not marked(d[0], "charged"):
-			continue  # (Overload already discharged it, off another payer)
+		var cell: String = d[1]
+		var state := cell_state(cell)
+		if state == "charged" and not marked(d[0], "charged"):
+			continue  # (an arc or Overload already discharged it, off another payer)
 		if is_instance_valid(d[0]) and d[0].is_alive():
-			var cell: String = "%s_x_%s" % [d[1], el]
-			_pay(hero, d[0], IMPROV[d[1]][el], d[1], at, power, cell)
+			var kind: String = RULES[state] if cell == state else IMPROV[state][el]
+			_pay(hero, d[0], kind, state, at, power, cell, el)
 			improv_paid[cell] = int(improv_paid.get(cell, 0)) + 1
 	return due.size()
 
@@ -2341,8 +2400,9 @@ static func _overwhelm_spot(hero: CharacterBody3D, at: Vector3, fwd: Vector3) ->
 	return spot
 
 
-## One payoff (IMPROV's kinds): one hit, and a state, a chain to the neighbour, a launch or a crater.
-static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "") -> void:
+## One payoff (a RULES kind, or an upgrade cell's from IMPROV): one hit, and a state, a chain to the neighbour, a launch
+## or a crater. `el` is the hitting element (a rule's tell is tinted by it).
+static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "", el := "") -> void:
 	var parent: Node = hero.get_parent()
 	var spot := _flat(e.global_position)
 	var heavy: bool = hero._void.is_heavy(e)
@@ -2352,17 +2412,34 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 		unmark(e, state)  # (spent: once; Conduct charges it again)
 	var next: Variant = null  # the neighbour a chain reached (its tell draws the jump)
 	match kind:
+		# The six rules (kit grammar section 3): any element's hit on the state.
+		"shatter":  # frozen: the hit shatters the ice for RULE_SHATTER_MULT, and the ice is gone
+			_break_ice(e)
+			e.take_hit(damage * RULE_SHATTER_MULT, Vector3.ZERO, 0.0, true)
+		"arc":  # charged: the hit arcs on to every other charged foe within RULE_ARC_R, discharging them
+			zap_hit(e, damage)
+			next = _arc(hero, e, IMPROV_CHAIN_DAMAGE * power)
+		"burst":  # molten: it goes off, and the burn catches everyone within RULE_BURST_R
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0, true)
+			next = _burst(hero, e, IMPROV_CHAIN_DAMAGE * power)
+		"snap":  # bound: the hold ends with a snap; no knockback, so no shield blocks it (and the held can't dodge)
+			BIND.let_go_of(hero.get_tree(), e)
+			e.take_hit(damage * IMPROV_MULT, Vector3.ZERO, 0.0, true)
+		"juggle":  # airborne: the hit keeps it up there
+			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else RULE_JUGGLE_LAUNCH, false)
+		# "crater" (buried: driven back in for IMPROV_MULT) is below, with the upgrade cells that crater.
+		# The upgrade cells (IMPROV_UPGRADE, Kit.has()).
 		"lift":  # frozen x wind: the gale takes the cube up, still in its ice
 			e.take_hit(damage, Vector3.ZERO, 0.0 if heavy else IMPROV_LAUNCH, true)
 			freeze_aloft(e)
-		"shatter":  # frozen x dark: the dark crushes the ice, and the shards cut the one beside it
+		"shards":  # frozen x dark (shard_cut): the dark crushes the ice, and the shards cut the one beside it
 			THROWN.remove_cube(e)
 			e.take_hit(damage, Vector3.ZERO, 0.0, true)
 			next = _chain(hero, e, IMPROV_CHAIN_DAMAGE * power, "")
 		"encase":  # buried / bound x ice: frozen where it's stuck
 			e.take_hit(damage, Vector3.ZERO, 0.0, false)
 			encase(e)
-		"crater", "swallow", "smother", "spike":  # buried / molten / airborne x earth or dark: driven (back) into the floor
+		"crater", "swallow", "smother", "spike":  # the buried rule, and molten / airborne / buried x earth or dark: into the floor
 			e.take_hit(damage * IMPROV_MULT, down, 0.0, true)
 			if kind == "swallow" and not heavy:
 				e.stagger(IMPROV_HOLD)
@@ -2403,8 +2480,62 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 			e.take_hit(damage * k, Vector3.ZERO, 0.0, true)
 			next = _overload(hero, e, at, IMPROV_CHAIN_DAMAGE * power * k)
 	if Game.comic_style:
-		COMIC_IMPROV.spawn(parent, cell, e, at, next)
+		COMIC_IMPROV.spawn(parent, cell, e, at, next, el)
 	Game.register_hit("cast")
+
+
+## The frozen rule's ice, gone: the cube off now (renamed, so in_cube() reads it gone this frame) and the ice's time out.
+static func _break_ice(e: Node3D) -> void:
+	var cube: Node = e.get_node_or_null(THROWN.CUBE_NAME)
+	if cube != null:
+		cube.name = "ThrownCubeGone"
+		cube.queue_free()
+
+
+## The charged rule: an arc from `from` on through every other charged foe within RULE_ARC_R of it (nearest first,
+## each from the last: one lime bolt path), `damage` each; they're discharged. Returns where the first went, or null.
+static func _arc(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
+	var live: Array = FOES.near(hero.get_tree(), from.global_position, RULE_ARC_R).filter(func(o: Node3D) -> bool:
+		return o != from and marked(o, "charged") and not THROWN.flying(o))
+	var path := PackedVector3Array([from.global_position + Vector3.UP * 0.9])
+	var last: Node3D = from
+	while not live.is_empty():
+		live.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+			return a.global_position.distance_to(last.global_position) < b.global_position.distance_to(last.global_position))
+		var o: Node3D = live.pop_front()
+		path.append(o.global_position + Vector3.UP * 0.9)
+		unmark(o, "charged")
+		zap_hit(o, damage)
+		Game.register_hit("cast")
+		last = o
+	if path.size() < 2:
+		return null
+	if DESIGNED.on():
+		DESIGNED.bolt_path(hero.get_parent(), path, 0.24)
+	else:
+		for i in path.size() - 1:
+			COMIC_BOLT.spawn(hero.get_parent(), path[i], path[i + 1], 0.24, 0.4)
+	return path[1] - Vector3.UP * 0.9
+
+
+## The molten rule's burn: everyone within RULE_BURST_R of `from` takes `damage` (a quiet burn). Returns where the
+## nearest stood, or null.
+static func _burst(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
+	var first: Variant = null
+	var best := INF
+	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, RULE_BURST_R):
+		if o == from or THROWN.flying(o):
+			continue
+		if o.has_method("burn_hit"):
+			o.burn_hit(damage, false)
+		else:
+			o.take_hit(damage, Vector3.ZERO, 0.0, false)
+		Game.register_hit("cast")
+		var d: float = o.global_position.distance_to(from.global_position)
+		if d < best:
+			best = d
+			first = o.global_position
+	return first
 
 
 ## Conduct: an arc from `from` to each uncharged foe within CONDUCT_R (nearest first, CONDUCT_MOST), `damage`

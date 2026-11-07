@@ -70,6 +70,8 @@ const IMPROV_WORDS := {
 	"airborne_x_water": "FRZZK!", "airborne_x_earth": "KA-CHUNK!",
 	"bound_x_wind": "SNAPP!", "bound_x_water": "KLINNK!",
 	"charged_x_void": "BZZT-ZAP!", "charged_x_water": "KRZZZK!", "charged_x_earth": "FWA-KOOM!", "charged_x_wind": "ZZRAAAK!",
+	# The six rules (round 49, void_element.RULES; the cells above are the upgrade cells').
+	"frozen": "SHA-KRASH!", "charged": "ZZAK-ZAK!", "molten": "FWOOMPH!", "bound": "SNAP!", "airborne": "WHAP-UP!", "buried": "KA-THOOM!",
 }
 const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
 ## Moves whose word is said by the move itself, later than its first hit (say()): Galvanize's on its discharge.

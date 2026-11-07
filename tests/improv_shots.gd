@@ -2,14 +2,18 @@ extends SceneTree
 ## The element matrix's tells (comic_improv.gd), each from the game camera, played for real: the dummies stand in a
 ## fan in front of him, the first one is put in the cell's state (frozen / buried / molten / skewered / airborne /
 ## bound) and he plays the element's base move on it, so the payoff, its word and the move's own hit all show.
+## Round 49: first the six states' rules (void_element.RULES, cell = the state, paid by RULE_HITTER's element), then
+## every upgrade cell with its Kit id turned on for the shot.
 ## Six frames 83 ms apart from the move's first hit:
-##   godot --path . -s tests/improv_shots.gd [-- --only=frozen_x_void,bound_x_wind] [--alone]
+##   godot --path . -s tests/improv_shots.gd [-- --only=frozen,charged,frozen_x_void,bound_x_wind] [--alone]
 ##     user://improv_shots/<cell>/N.png (a 640x480 crop round the foe that pays; `--dir=<name>`: user://<name> instead)
 ## `--alone`: no move, only void_element.improvise() (the tell and its word on their own).
 ## Windowed only (headless draws nothing). `user://` is shared: copy it out at once.
 
 const DIR := "user://improv_shots"
 const BASE := {"wind": "EC", "water": "EF", "earth": "EM", "void": "VR"}  # each element's base move
+## The element each rule is filmed with (any element but the state's own pays it).
+const RULE_HITTER := {"frozen": "wind", "charged": "void", "molten": "wind", "bound": "wind", "airborne": "water", "buried": "water"}
 const FRAMES := 6
 const GAP_S := 0.083
 
@@ -35,11 +39,16 @@ func _initialize() -> void:
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--only="):
 			only = arg.get_slice("=", 1).split(",")
+	for state: String in el.RULES:
+		if only.is_empty() or state in only:
+			await _film(el, state, RULE_HITTER[state], state)
 	for state: String in el.IMPROV_ORDER:
-		for element: String in el.IMPROV[state]:
+		for element: String in el.IMPROV.get(state, {}):
 			var cell := "%s_x_%s" % [state, element]
 			if only.is_empty() or cell in only:
+				Kit.set_on(el.IMPROV_UPGRADE[cell], true)
 				await _film(el, state, element, cell)
+				Kit.set_on(el.IMPROV_UPGRADE[cell], false)
 	print("[improv_shots] done ", ProjectSettings.globalize_path(_dir()))
 	quit()
 
@@ -65,6 +74,9 @@ func _film(el: GDScript, state: String, element: String, cell: String) -> void:
 		"skewered":
 			el.encase(e)
 			el.mark(e, state)
+		"charged":  # (and two more, so the arc rule has somewhere to go)
+			for o: Node3D in foes.slice(0, 3):
+				el.mark(o, state)
 		_:
 			el.mark(e, state)
 	await create_timer(0.15).timeout

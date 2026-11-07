@@ -80,40 +80,36 @@ const SECTIONS := [
 		{"input": "L L H, Dash H H L, H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the lot into the floor, a crater each."},
 		{"input": "L L H, Dash H H L, L in the window", "kind": "text", "name": "Pinwheel", "or": true, "tier": 3, "note": "The tentacles whirl the kebab round him in a twister and hurl it into the nearest wall or pillar: a hard splat each. In the open they just fly; Anvil is better there."},
 	]},
-	# The element matrix (round 34, third pass; void_element.IMPROV, docs/features/element-matrix.md): what any move of
-	# an element does to a foe another string left in a state, every cell in plain words (round 4: the "Mix elements"
-	# page; the cells the moves pay themselves too, `own`). storm = L H, ice = L L H / Dash L H / Dash L H H,
-	# magma = L L L H / L L L H H, dark = H L / H L H / H H / hold H / Dash H. `state` / `el` name the cell
-	# (mix_name(): the combo guide's "+ name" tag on a row whose move would pay it).
-	{"title": "MIX ELEMENTS", "hint": "States last 2 s: dash out, and any move of another element pays.", "rows": [
-		{"input": "frozen, then storm", "kind": "text", "state": "frozen", "el": "wind", "name": "Gale Lift", "tier": 1, "note": "The gale takes the cube up, still in its ice."},
-		{"input": "frozen, then ice", "kind": "text", "state": "frozen", "el": "water", "own": true, "name": "Refreeze", "tier": 1, "note": "Ice Cube takes the frozen first, and ice on ice freezes again."},
-		{"input": "frozen, then magma", "kind": "text", "state": "frozen", "el": "earth", "own": true, "name": "Steam", "tier": 1, "note": "Molten Palm goes off as Steam Burst on the ice."},
-		{"input": "frozen, then dark", "kind": "text", "state": "frozen", "el": "void", "name": "Shatter", "tier": 1, "note": "The dark crushes the ice, and the shards cut the one beside it."},
-		{"input": "buried, then storm", "kind": "text", "state": "buried", "el": "wind", "own": true, "name": "Dug Up", "tier": 1, "note": "Updraft Lash and Storm Pitch throw them out of the floor again."},
-		{"input": "buried, then ice", "kind": "text", "state": "buried", "el": "water", "name": "Frozen In", "tier": 1, "note": "Frozen where Rockslide stuck them in the floor."},
-		{"input": "buried, then magma", "kind": "text", "state": "buried", "el": "earth", "name": "Aftershock", "tier": 1, "note": "Driven back into the floor, harder."},
-		{"input": "buried, then dark", "kind": "text", "state": "buried", "el": "void", "name": "Swallowed", "tier": 1, "note": "The dark drags them under and holds them there a moment."},
-		{"input": "molten, then storm", "kind": "text", "state": "molten", "el": "wind", "name": "Firestorm", "tier": 1, "note": "The gale fans the flames up, and onto the one beside it."},
-		{"input": "molten, then ice", "kind": "text", "state": "molten", "el": "water", "name": "Quench", "tier": 1, "note": "Water on the burning: it goes off in steam and up."},
-		{"input": "molten, then magma", "kind": "text", "state": "molten", "el": "earth", "name": "Flare-up", "tier": 1, "note": "The floor erupts under the burning."},
-		{"input": "molten, then dark", "kind": "text", "state": "molten", "el": "void", "name": "Smother", "tier": 1, "note": "The dark puts the fire out by driving them into the floor."},
-		{"input": "skewered, then storm", "kind": "text", "state": "skewered", "el": "wind", "own": true, "name": "Backdraft", "tier": 1, "note": "The gale hauls the whole kebab back to him (L L H, Dash H H L)."},
-		{"input": "skewered, then ice", "kind": "text", "state": "skewered", "el": "water", "name": "Ice Spreads", "tier": 1, "note": "The spear's ice climbs onto the nearest foe and skewers it too."},
-		{"input": "skewered, then magma", "kind": "text", "state": "skewered", "el": "earth", "own": true, "name": "Steam", "tier": 1, "note": "Still frozen: Molten Palm goes off in steam on them."},
-		{"input": "skewered, then dark", "kind": "text", "state": "skewered", "el": "void", "name": "Torn Off", "tier": 1, "note": "Ripped off the spear towards him."},
-		{"input": "in the air, then storm", "kind": "text", "state": "airborne", "el": "wind", "own": true, "name": "Air String", "tier": 1, "note": "Up after them: Air Slash juggles, Live Wire holds them up there."},
-		{"input": "in the air, then ice", "kind": "text", "state": "airborne", "el": "water", "name": "Freeze Aloft", "tier": 1, "note": "Frozen up there: it comes down a cube."},
-		{"input": "in the air, then magma", "kind": "text", "state": "airborne", "el": "earth", "name": "Meteor Spike", "tier": 1, "note": "Driven down out of the air into a crater."},
-		{"input": "in the air, then dark", "kind": "text", "state": "airborne", "el": "void", "own": true, "name": "Air Rip", "tier": 1, "note": "Tow Line rips them out of the air, harder."},
-		{"input": "held by tendrils, then storm", "kind": "text", "state": "bound", "el": "wind", "name": "Torn Loose", "tier": 1, "note": "The gale tears them out of Undertow or Overwhelm and up."},
-		{"input": "held by tendrils, then ice", "kind": "text", "state": "bound", "el": "water", "name": "Frozen in the Dark", "tier": 1, "note": "Frozen solid where the tendrils hold them."},
-		{"input": "held by tendrils, then magma", "kind": "text", "state": "bound", "el": "earth", "own": true, "name": "Meteor Fall", "tier": 1, "note": "Undertow's window: he dives on the biggest group it holds."},
-		{"input": "held by tendrils, then dark", "kind": "text", "state": "bound", "el": "void", "own": true, "name": "Abyss", "tier": 1, "note": "Overwhelm's window: they sink through the floor and are thrown back up."},
-		{"input": "charged, then storm", "kind": "text", "state": "charged", "el": "wind", "name": "Overload", "tier": 1, "note": "Every charged foe near goes off at once, each zap harder the more are charged. Best after Galvanize or Grounded charged a crowd."},
-		{"input": "charged, then ice", "kind": "text", "state": "charged", "el": "water", "name": "Superconduct", "tier": 1, "note": "Frozen, and the charge runs through every frozen foe near it. Best with cubes standing about."},
-		{"input": "charged, then magma", "kind": "text", "state": "charged", "el": "earth", "name": "Arc Flash", "tier": 1, "note": "The charge goes off and blows the ones beside it away, splatting them on a wall. Best in a corner."},
-		{"input": "charged, then dark", "kind": "text", "state": "charged", "el": "void", "name": "Conduct", "tier": 1, "note": "The dark carries the charge on to everyone near it not charged yet. Best on a pack, to set up Overload."},
+	# The element matrix (round 49, kit grammar section 3; void_element.RULES / IMPROV_UPGRADE, element-matrix.md): one
+	# payoff rule per state, which any element's hit pays, then the upgrade cells that play in a rule's place when their
+	# Kit id is on. storm = L H / L H H, ice = L L H / Dash L H / Dash L H H, magma = L L L H / L L L H H, dark = H L /
+	# H L H / H H / hold H / Dash H. `state` (and `el` for an upgrade cell) name it: mix_name() is the upgrade cells'
+	# name, void_element.improv_name() the combo guide's "+ name" tag.
+	{"title": "MIX ELEMENTS", "hint": "States last 2 s: dash out, and another element pays its rule.", "rows": [
+		{"input": "frozen, then not ice", "kind": "text", "state": "frozen", "rule": true, "name": "Shatter", "tier": 1, "note": "The hit shatters the ice for x1.6, and the ice is gone. Ice on ice freezes again; Molten Palm goes off as Steam Burst instead."},
+		{"input": "charged, then not storm", "kind": "text", "state": "charged", "rule": true, "name": "Arc", "tier": 1, "note": "The hit arcs on to every other charged foe near it, and discharges them. Storm on charged is Live Wire's own pulse."},
+		{"input": "molten, then not magma", "kind": "text", "state": "molten", "rule": true, "name": "Burst", "tier": 1, "note": "It goes off x1.5, and the burn catches everyone beside it. Magma on molten is Eruption's."},
+		{"input": "held, then not dark", "kind": "text", "state": "bound", "rule": true, "name": "Snap", "tier": 1, "note": "A x1.5 hit nothing can block, and the hold ends with a snap. Dark on the held is Abyss off Overwhelm."},
+		{"input": "in the air, then any", "kind": "text", "state": "airborne", "rule": true, "name": "Juggle", "tier": 1, "note": "The hit keeps them up there. Storm's own air string and Tow Line's rip pay it themselves."},
+		{"input": "buried, then any", "kind": "text", "state": "buried", "rule": true, "name": "Crater", "tier": 1, "note": "Driven back into the floor x1.5. Updraft Lash digs them up itself."},
+		{"input": "frozen, then storm", "kind": "text", "state": "frozen", "el": "wind", "upgrade": "gale_lift", "name": "Gale Lift", "tier": 1, "note": "Upgrade: The gale takes the cube up, still in its ice."},
+		{"input": "frozen, then dark", "kind": "text", "state": "frozen", "el": "void", "upgrade": "shard_cut", "name": "Shard Cut", "tier": 1, "note": "Upgrade: The dark crushes the ice, and the shards cut the one beside it."},
+		{"input": "buried, then ice", "kind": "text", "state": "buried", "el": "water", "upgrade": "frozen_in", "name": "Frozen In", "tier": 1, "note": "Upgrade: Frozen where Rockslide stuck them in the floor."},
+		{"input": "buried, then dark", "kind": "text", "state": "buried", "el": "void", "upgrade": "swallowed", "name": "Swallowed", "tier": 1, "note": "Upgrade: The dark drags them under and holds them there a moment."},
+		{"input": "molten, then storm", "kind": "text", "state": "molten", "el": "wind", "upgrade": "firestorm", "name": "Firestorm", "tier": 1, "note": "Upgrade: The gale fans the flames up, and onto the one beside it."},
+		{"input": "molten, then ice", "kind": "text", "state": "molten", "el": "water", "upgrade": "quench", "name": "Quench", "tier": 1, "note": "Upgrade: Water on the burning: it goes off in steam and up."},
+		{"input": "molten, then magma", "kind": "text", "state": "molten", "el": "earth", "upgrade": "flare_up", "name": "Flare-up", "tier": 1, "note": "Upgrade: The floor erupts under the burning."},
+		{"input": "molten, then dark", "kind": "text", "state": "molten", "el": "void", "upgrade": "smother", "name": "Smother", "tier": 1, "note": "Upgrade: The dark puts the fire out by driving them into the floor."},
+		{"input": "skewered, then ice", "kind": "text", "state": "skewered", "el": "water", "upgrade": "ice_spreads", "name": "Ice Spreads", "tier": 1, "note": "Upgrade: The spear's ice climbs onto the nearest foe and skewers it too."},
+		{"input": "skewered, then dark", "kind": "text", "state": "skewered", "el": "void", "upgrade": "torn_off", "name": "Torn Off", "tier": 1, "note": "Upgrade: Ripped off the spear towards him."},
+		{"input": "in the air, then ice", "kind": "text", "state": "airborne", "el": "water", "upgrade": "freeze_aloft", "name": "Freeze Aloft", "tier": 1, "note": "Upgrade: Frozen up there: it comes down a cube."},
+		{"input": "in the air, then magma", "kind": "text", "state": "airborne", "el": "earth", "upgrade": "meteor_spike", "name": "Meteor Spike", "tier": 1, "note": "Upgrade: Driven down out of the air into a crater."},
+		{"input": "held by tendrils, then storm", "kind": "text", "state": "bound", "el": "wind", "upgrade": "torn_loose", "name": "Torn Loose", "tier": 1, "note": "Upgrade: The gale tears them out of Undertow or Overwhelm and up."},
+		{"input": "held by tendrils, then ice", "kind": "text", "state": "bound", "el": "water", "upgrade": "frozen_dark", "name": "Frozen in the Dark", "tier": 1, "note": "Upgrade: Frozen solid where the tendrils hold them."},
+		{"input": "charged, then storm", "kind": "text", "state": "charged", "el": "wind", "upgrade": "overload", "name": "Overload", "tier": 1, "note": "Upgrade: Every charged foe near goes off at once, each zap harder the more are charged."},
+		{"input": "charged, then ice", "kind": "text", "state": "charged", "el": "water", "upgrade": "superconduct", "name": "Superconduct", "tier": 1, "note": "Upgrade: Frozen, and the charge runs through every frozen foe near it."},
+		{"input": "charged, then magma", "kind": "text", "state": "charged", "el": "earth", "upgrade": "arc_flash", "name": "Arc Flash", "tier": 1, "note": "Upgrade: The charge goes off and blows the ones beside it away, splatting them on a wall."},
+		{"input": "charged, then dark", "kind": "text", "state": "charged", "el": "void", "upgrade": "conduct", "name": "Conduct", "tier": 1, "note": "Upgrade: The dark carries the charge on to everyone near it not charged yet."},
 	]},
 ]
 

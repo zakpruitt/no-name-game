@@ -53,7 +53,7 @@ check() {
 			echo "ok    $t"
 		fi
 	done
-	for args in "--autotest"; do
+	for args in "--autotest" "--autotest --kit=full"; do
 		# shellcheck disable=SC2086
 		out=$(godot_run 180 -- $args)
 		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error" || ! echo "$out" | grep -q "\[autotest\] done"; then

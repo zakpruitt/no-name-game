@@ -276,13 +276,35 @@ static func tear(parent: Node, at: Vector3, pull := Vector3.ZERO, size := 1.0) -
 # Each cell said in the two elements it joins, from the shared designed pieces: pops, hit stars, shock lines, frost
 # marks, mist, magma spurts and cracks, gusts, bolts, the dark tear. One beat, no lingering shapes.
 
-static func improv(parent: Node, cell: String, foe: Node3D, from: Vector3, to: Variant) -> void:
+## Round 49: the six states' rules (void_element.RULES) have one look each, keyed by the state, tinted by `hitter` (the
+## element that hit); the "<state>_x_<element>" cells are the upgrade cells' own.
+static func improv(parent: Node, cell: String, foe: Node3D, from: Vector3, to: Variant, hitter := "") -> void:
 	var at := foe.global_position
 	var chest := at + Vector3.UP * 0.9
 	var foot := Vector3(at.x, 0.0, at.z)
 	var next: Vector3 = to if to is Vector3 else Vector3.ZERO
 	var has_next := to is Vector3
+	var tint := hitter if hitter != "" else "hit"
 	match cell:
+		"frozen":  # Shatter: the ice breaking, a pop in the hitter's colour
+			DESIGNED.ice_shatter(parent, chest, 0.9)
+			INK.pop(parent, chest, tint, 0.7)
+		"charged":  # Arc: the current crawling off it, a pop in the hitter's colour (the bolt path is the arc's own)
+			INK.pop(parent, chest, tint, 0.8)
+			DESIGNED.crawl(parent, foe, 0.9)
+		"molten":  # Burst: magma thrown up under it, a shock line in the hitter's colour out to the burn
+			ELEMENTS._spike(parent, foot, "earth", 0.8, 0.45)
+			INK.pop(parent, chest, tint, 0.8)
+			INK.shock(parent, foot, PAL.of(tint).body, 1.0 + (minf((next - at).length(), 2.2) if has_next else 0.6), 0.28)
+		"bound":  # Snap: the hold torn off its feet, a hit star in the hitter's colour
+			INK.pop(parent, at + Vector3.UP * 0.3, "void", 0.8)
+			DESIGNED.hit(parent, chest, tint, 1.0)
+		"airborne":  # Juggle: a hit star and speed strokes up, in the hitter's colour
+			DESIGNED.hit(parent, chest, tint, 1.0)
+			DESIGNED.streaks(parent, chest, Vector3.UP, tint, false)
+		"buried":  # Crater: the crater heaves, a shock line in the hitter's colour
+			ELEMENTS._spike(parent, foot, "earth", 0.75, 0.45)
+			INK.shock(parent, foot, PAL.of(tint).body, 1.5, 0.3)
 		"frozen_x_wind":  # Gale Lift: the cube burst up in a gust
 			DESIGNED.ice_shatter(parent, chest, 0.8)
 			DESIGNED.gust(parent, chest, Vector3.UP, 1.2, true)

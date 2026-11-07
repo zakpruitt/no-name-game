@@ -460,16 +460,17 @@ static func mix_of(from: String, id: String) -> String:
 
 
 ## The improvised payoff move `id` would cash in right now ("" if none): the first foe in its own hit shape
-## (void_element.improv_reach) in a state its element pays (IMPROV). The guide tags the row "+ <name>".
+## (void_element.improv_reach) in a state it pays: the state's rule or an upgrade cell in its place (improv_cell(),
+## improv_name(): "+ Shatter", "+ Overload"). The guide tags the row "+ <name>".
 static func pays(hero: CharacterBody3D, id: String) -> String:
 	if id.begins_with("X") or not VOID_ELEMENT.ELEMENT_OF.has(id):
 		return ""
 	var el: String = VOID_ELEMENT.ELEMENT_OF[id]
 	var at := Vector3(hero.global_position.x, 0.0, hero.global_position.z)
 	for e: Node3D in VOID_ELEMENT.improv_reach(hero, id, at, hero._facing()):
-		var state: String = "" if VOID_ELEMENT.THROWN.flying(e) else VOID_ELEMENT.improv_state(e, el)
-		if state != "":
-			return MOVE_LIST.mix_name(state, el)
+		var cell: String = "" if VOID_ELEMENT.THROWN.flying(e) else VOID_ELEMENT.improv_cell(e, el, id)
+		if cell != "":
+			return VOID_ELEMENT.improv_name(cell)
 	return ""
 
 
