@@ -37,6 +37,14 @@ const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: 
 const ZONE_FILL := 0.26  # (0.34 read as a carpet 12 m across)
 const ZONE_INNER := 0.45  # of the radius: clear inside
 const ZONE_PLATES := false  # the round-29 plates (the zone's dots replace them)
+## Feel audit 3 item 8 (designed): no frost floor. The ice_frost sheet's halftone disc was ~5 m across and filled a
+## third of the frame under the dummies' feet; the plant is a ground stamp now, the language of every other floor
+## mark: a broken brush ring (designed_ink.shock) STAMP_R out and frost_mark cracks STAMP_MARK across, ~2.5 m, gone
+## in about half a second. The spear standing is the tell; the slow still reaches RADIUS.
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
+const STAMP_R := 1.25  # m
+const STAMP_TIME := 0.45  # s
+const STAMP_MARK := 1.5  # frost_mark size (its tile is 1.7 m at 1: the cracks reach ~2.2 m across)
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -47,7 +55,7 @@ var _cleared := false  # the frost's look has gone (standing_fx.gd)
 var _frost: MeshInstance3D
 var _zone: MeshInstance3D  # the halftone fill under the cracks (a child of _frost)
 var _stuck: Node3D
-var _designed := false  # the frost floor is the ice_frost sheet (designed_elements.frost_floor)
+var _designed := false  # designed effects: the plant is a ground stamp (STAMP_*), no frost floor
 
 
 ## Plants one at `spot`, in place of any already standing.
@@ -72,12 +80,7 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	STANDING.add(self)
 	_designed = DESIGNED_EL.DESIGNED.on()
-	if _designed:
-		_frost = DESIGNED_EL.frost_floor()
-		_frost.position.y = DESIGNED_EL.DESIGNED.GROUND_LIFT
-		_frost.scale = Vector3(0.01, 1.0, 0.01)
-		add_child(_frost)
-	else:
+	if not _designed:
 		_frost = MeshInstance3D.new()
 		_frost.mesh = frost_mesh(RandomNumberGenerator.new())
 		_frost.material_override = frost_material()
@@ -95,6 +98,7 @@ func _ready() -> void:
 	else:
 		_zone.free()
 		_zone = null
+		_frost = null
 	_stuck = Node3D.new()
 	add_child(_stuck)
 	var lean := randf() * TAU
@@ -106,7 +110,8 @@ func _ready() -> void:
 	_stuck.scale = Vector3(1.0, 0.1, 1.0)
 	create_tween().tween_property(_stuck, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	if _designed:  # frost cracking out and cold mist where it goes in (fx-ice2: was a burst of crystal shards)
-		DESIGNED_EL.frost_mark(get_parent(), global_position, 0.8, 0.6)
+		DESIGNED_EL.frost_mark(get_parent(), global_position, STAMP_MARK, 0.6)
+		DESIGNED_INK.shock(get_parent(), global_position, PAL.of("water").light, STAMP_R, STAMP_TIME)
 	else:
 		Fx.shards(get_parent(), global_position + Vector3.UP * 0.3, ICE_LIGHT, 12, Vector3.UP, 7.0, 0.12, 0.5)
 
@@ -269,9 +274,8 @@ func _physics_process(delta: float) -> void:
 		return
 	_t += delta
 	_r = RADIUS * smoothstep(0.0, GROW, _t)
-	_frost.scale = Vector3(maxf(_r, 0.01), 1.0, maxf(_r, 0.01))
-	if _designed:
-		DESIGNED_EL.frost_step(_frost, _t, _r / RADIUS)
+	if _frost != null:
+		_frost.scale = Vector3(maxf(_r, 0.01), 1.0, maxf(_r, 0.01))
 	if _t >= _next_tick:
 		_next_tick += TICK
 		for e: Node3D in FOES.near(get_tree(), global_position, _r):
@@ -316,8 +320,7 @@ static func frost_ring(parent: Node, spot: Vector3, radius: float, time: float) 
 ## its chill stay for the ice breaker.
 func clear_standing() -> void:
 	_cleared = true
-	if _designed:
-		create_tween().tween_method(func(e: float) -> void: _frost.set_instance_shader_parameter("erode", e), 0.0, 0.98, STANDING.CLEAR_S)
+	if _designed:  # (no standing floor: the stamp is long gone)
 		return
 	var tw := create_tween().set_parallel()
 	tw.tween_property(_frost, "transparency", 1.0, STANDING.CLEAR_S)
@@ -331,8 +334,6 @@ func melt() -> void:
 	_gone = true
 	remove_from_group(GROUP)
 	var tw := create_tween()
-	if _designed and not _cleared:
-		create_tween().tween_method(func(e: float) -> void: _frost.set_instance_shader_parameter("erode", e), 0.0, 0.98, MELT)
 	tw.tween_property(self, "scale", Vector3(1.0, 0.01, 1.0), MELT)
 	tw.tween_callback(queue_free)
 
