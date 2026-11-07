@@ -105,6 +105,11 @@ var combo_guide := true
 ## Dummies swing (Settings, or `--swing` for one run): a training dummy he stands in front of for a beat winds up and
 ## swings at him, for practising the dash counter (training_dummy.gd, docs/features/counter.md).
 var dummies_swing := false
+## Room (Settings, saved; `--room=plain|pieces` for one run): the training room as it has always been ("plain"), or
+## with one of each environment piece by the dummies ("pieces", scripts/rooms.gd, docs/features/env-pieces.md).
+## Takes effect on the next Restart training. The autotest plays the plain room unless `--room=pieces` is given.
+var room_setting := "plain"
+var room := "plain"
 ## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
 ## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
 var comic_style := true
@@ -148,7 +153,10 @@ func _ready() -> void:
 	_setup_input()
 	_load_settings()
 	hero_model = hero_setting
+	room = room_setting if not "--autotest" in OS.get_cmdline_user_args() else "plain"
 	for a in OS.get_cmdline_user_args() + OS.get_cmdline_args():
+		if a.begins_with("--room=") and a.trim_prefix("--room=") in ["plain", "pieces"]:
+			room = a.trim_prefix("--room=")
 		if a.begins_with("--hero=") and HERO_MODELS.has(a.trim_prefix("--hero=")):
 			hero_model = a.trim_prefix("--hero=")
 		elif a == "--hero=prince":
@@ -464,6 +472,17 @@ func swing_label() -> String:
 	return "Dummies swing: %s" % ("On" if dummies_swing else "Off")
 
 
+## Settings: the training room plain or with pieces, saved; takes effect on the next Restart training.
+func toggle_room() -> void:
+	room_setting = "pieces" if room_setting == "plain" else "plain"
+	room = room_setting
+	_save_settings()
+
+
+func room_label() -> String:
+	return "Room (on restart): %s" % ("with pieces" if room_setting == "pieces" else "plain")
+
+
 ## Settings: heretic <-> chibi heretic, saved; takes effect on the next Restart training.
 func cycle_hero() -> void:
 	var order := HERO_MODELS.keys()
@@ -496,6 +515,9 @@ func _load_settings() -> void:
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
 		dummies_swing = cfg.get_value("training", "dummies_swing", false)
+		room_setting = cfg.get_value("training", "room", "plain")
+		if not room_setting in ["plain", "pieces"]:
+			room_setting = "plain"
 		hero_setting = cfg.get_value("video", "hero_model", HERO_DEFAULT)
 		if not HERO_MODELS.has(hero_setting):
 			hero_setting = HERO_DEFAULT
@@ -511,6 +533,8 @@ func _save_settings() -> void:
 	cfg.set_value("video", "combo_guide", combo_guide)
 	if dummies_swing:  # (off, the default, leaves settings.cfg as it was)
 		cfg.set_value("training", "dummies_swing", true)
+	if room_setting != "plain":  # (plain, the default, leaves settings.cfg as it was)
+		cfg.set_value("training", "room", room_setting)
 	if hero_setting != HERO_DEFAULT:  # the default leaves settings.cfg as it was
 		cfg.set_value("video", "hero_model", hero_setting)
 	cfg.set_value("hints", "seen", _hints_seen)

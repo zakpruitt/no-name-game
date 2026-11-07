@@ -97,11 +97,25 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# the haul smashes it into the pillar, and Collapse throws the rest into the same pillar.
 	# (Impale plants a spear when none stands and Pinwheel leaves it up: last, or the next string's H vaults onto it.)
 	{"slot": "sig_gather", "tokens": ["pillar", "H", "hold"]},
-	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]}]
+	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]},
+	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
+	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Molten Palm carries the dummies over the spikes into the
+	# barrel and the crate (the shared rules: a splat at half, x1.5 on the spikes, both broken).
+	{"room": "pieces", "slot": "ender_3", "tokens": ["keg", "L", "L", "L", "H"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
-const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar"]
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate"]
+## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
+## stands, which way he faces, and the dummies' spots. "keg": east of the barrel at (-11.2, -2), three dummies in
+## Molten Palm's line toward it and one lined up on the crate at (-11, 1). "grate": west of the grate at (6, -2), the
+## dummies on it.
+const BOT_PIECE_LAYOUTS := {
+	"keg": {"at": Vector3(-3.4, 0, -2.0), "face": Vector3(-1, 0, 0),
+		"dummies": [Vector3(-5.6, 0, -2.0), Vector3(-6.3, 0, -2.4), Vector3(-6.3, 0, -1.6), Vector3(-6.0, 0, 0.9)]},
+	"grate": {"at": Vector3(1.6, 0, -2.0), "face": Vector3(1, 0, 0),
+		"dummies": [Vector3(4.6, 0, -2.0), Vector3(5.6, 0, -2.9), Vector3(5.6, 0, -1.1), Vector3(6.6, 0, -2.0)]},
+}
 ## A "pillar" string: he stands BOT_PILLAR_GAP m out from main.PILLARS[0] facing it, the dummies round the pillar's
 ## near side (x across his aim, z along it, from him): one between him and it for the grab, the rest by its face.
 const BOT_PILLAR_GAP := 3.6
@@ -280,8 +294,10 @@ func _autotest_finish() -> void:
 		player.endings_seen.size(), _all_endings().size(), ",".join(player.endings_seen.keys()).replace(" ", "_"), ",".join(_bot_moves.keys())])
 	var env: Node = main.get("env")
 	if env != null:  # round 50: the structure indicator and the beats (env_target.gd)
-		print("[env] shown=%d switches=%d locks=%d pillar_slams=%d pillar_hits=%d chunks=%d marks=%d torch_swings=%d" % [env.shown, env.switches,
-			env.locks, player._void.pillar_slams, env.pillar_hits, env.chunks_shed, env.marks.size(), env.torch_swings])
+		# (round 51: the room, and env_piece.gd's report: the counted pieces the bot touched, each verb's plays)
+		print("[env] shown=%d switches=%d locks=%d pillar_slams=%d pillar_hits=%d chunks=%d marks=%d torch_swings=%d room=%s %s" % [env.shown, env.switches,
+			env.locks, player._void.pillar_slams, env.pillar_hits, env.chunks_shed, env.marks.size(), env.torch_swings, Game.room,
+			load("res://scripts/env_piece.gd").report()])
 	var kit := kit_report()
 	print("[kit] slots=%d/%d windows=%d/%d upgrades=%d/%d missing=%s" % [kit.slots, kit.slots_n, kit.windows, kit.windows_n,
 		kit.upgrades, kit.upgrades_n, ",".join(kit.missing) if not kit.missing.is_empty() else "none"])
@@ -471,7 +487,8 @@ func _all_endings() -> Array:
 
 ## BOT_STRINGS entries this run plays: an `upgrade` string only with its Kit upgrade on.
 static func active() -> Array:
-	return BOT_STRINGS.filter(func(b: Dictionary) -> bool: return not b.has("upgrade") or Kit.has(b.upgrade))
+	return BOT_STRINGS.filter(func(b: Dictionary) -> bool:
+		return (not b.has("upgrade") or Kit.has(b.upgrade)) and b.get("room", Game.room) == Game.room)
 
 
 ## A BOT_STRINGS entry's labels: its slot id(s), or its upgrade.
@@ -586,6 +603,21 @@ func _reset_spots() -> void:
 				d.home = player.global_position + side * o.x + fwd * o.z
 				d.home.y = target.y
 				d.global_position = d.home
+	for key: String in BOT_PIECE_LAYOUTS:  # round 51: by a piece of the room with pieces
+		if key in strings[_bot_string]:
+			var lay: Dictionary = BOT_PIECE_LAYOUTS[key]
+			var spear: Node3D = load("res://scripts/frost_spear.gd").current(get_tree())
+			if spear != null:  # (the last plain string, Impale, leaves one up: any press would vault onto it)
+				spear.melt()
+			player.global_position = Vector3(lay.at.x, player.global_position.y, lay.at.z)
+			player._face(lay.face)
+			player.model.rotation.y = player._facing_yaw
+			for i in main._dummies.size():
+				var d: Node = main._dummies[i]
+				if is_instance_valid(d):
+					_homes[d] = d.home
+					d.home = lay.dummies[i % lay.dummies.size()] + Vector3(0.0, target.y, 0.0)
+					d.global_position = d.home
 	if "spread" in strings[_bot_string]:  # apart on a wide arc ahead (homes too; with "wall", ahead toward it)
 		var fwd: Vector3 = player._facing() if "wall" in strings[_bot_string] else target - player.global_position
 		fwd.y = 0.0

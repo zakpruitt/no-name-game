@@ -10,6 +10,11 @@ Under the room title, the HUD shows the current string's damage and hits, the la
 
 **Swinging dummies** (round 49, for the dash counter, [counter.md](counter.md)): Settings "Dummies swing" (saved), `--swing` for one run, or the bot's `counter` string. A dummy he stands in front of (2.8 m, 60 deg) for 0.5 s winds up with the spar foes' telegraph ring (0.7 s), its bag rocking back, and swings at him for 4 (a spar foe's third), every 1.4 s while he stays. Off by default: the dummy otherwise never attacks.
 
+**Room: plain / with pieces** (round 51, [env-pieces.md](env-pieces.md)): Settings "Room (on restart)" (saved), or
+`--room=plain|pieces` for one run. Plain is the room as it always was. With pieces, rubble, spikes, a barrel, a crate
+and a grate stand by the dummies, the banners tear, and a used-up piece comes back 6 s later. The autotest plays the
+plain room unless `--room=pieces` is given; bot strings tagged `room: pieces` play only there.
+
 Esc opens the pause menu:
 - **Fill Awakening:** fills the meter, for practising the Awakened strings and the burst.
 - **Settings**, **Restart training** (reloads the scene) and **Quit game**.

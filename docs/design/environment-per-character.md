@@ -6,7 +6,9 @@ each character a few environmental aspects only they can interact with." The gam
 [kit-grammar.md](../characters/kit-grammar.md): every character fills the same ten-slot card, runs upgrade slots,
 passives raise elements and states. Environmental combos are "a fun bit", not a second combat system.
 
-Status: proposal, nothing built. It builds on what is on dev at c2ba15f (wall splat and `WALL_META`, Meteor Fall's
+Status: items 0-4 of the build order are built (round 51, env-pieces lane): see
+[env-pieces.md](../features/env-pieces.md) for what shipped and where it differs from this page. The rest is a
+proposal. It builds on what is on dev at c2ba15f (wall splat and `WALL_META`, Meteor Fall's
 wall preference, Pinwheel / Slapshot / Ricochet / Collapse throwing into walls and pillars, pillars as R anchors that
 shake on landings) and on the round 50 environment lane, in progress in `awaken-environment` and not landed yet:
 `scripts/env_target.gd` (one node that knows the room's structures: `add_wall()`, `add_pillar()`, `add_torch()`;

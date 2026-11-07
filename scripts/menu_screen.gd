@@ -45,7 +45,8 @@ func open_settings(back: Callable, dim := 0.7, focus := 0) -> void:
 		[Game.guide_label(), _setting.bind(Game.toggle_combo_guide, 4, dim)],
 		[Game.hero_label(), _setting.bind(Game.cycle_hero, 5, dim)],
 		[Game.swing_label(), _setting.bind(Game.toggle_dummies_swing, 6, dim)],
-		["Reset hints", _setting.bind(Game.reset_hints, 7, dim)],
+		[Game.room_label(), _setting.bind(Game.toggle_room, 7, dim)],
+		["Reset hints", _setting.bind(Game.reset_hints, 8, dim)],
 		["Back", settings_back],
 	], "", dim, focus)
 

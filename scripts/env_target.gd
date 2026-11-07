@@ -112,6 +112,7 @@ var _t := 0.0
 var _last_us := 0
 var _lock_t := -1.0
 var _last_key := ""  # ctx + structure id the indicator is on
+var _made := 0  # structures ever added (ids stay unique after a remove)
 
 
 static func of(tree: SceneTree) -> Node:
@@ -173,12 +174,36 @@ func _piece(sheet: String, mesh: Mesh) -> MeshInstance3D:
 
 ## A wall from `a` to `b` (flat, its face), `n` the flat normal into the room.
 func add_wall(a: Vector3, b: Vector3, n: Vector3) -> void:
+	_made += 1
 	structures.append({"id": "wall%d" % structures.size(), "kind": "wall", "a": _flat(a), "b": _flat(b), "n": _flat(n).normalized()})
 
 
-## A pillar: its node (it shakes and sheds), its body's radius.
-func add_pillar(node: Node3D, r: float) -> void:
-	structures.append({"id": "pillar%d" % structures.size(), "kind": "pillar", "at": _flat(node.position), "r": r, "node": node})
+## A pillar: its node (it shakes and sheds), its body's radius. Returns its id.
+func add_pillar(node: Node3D, r: float) -> String:
+	_made += 1
+	var id := "pillar%d" % (structures.size() if _made == structures.size() + 1 else _made - 1)
+	structures.append({"id": id, "kind": "pillar", "at": _flat(node.position), "r": r, "node": node})
+	return id
+
+
+## Round 51 (env_piece.gd): a prop a verb aims at (a barrel for the keg, a grate), kind `tag`, `r` round. It is a
+## structure of its own kind, so only the contexts that ask for that kind (CTX `kinds`) see it. Returns its id.
+func add_prop(node: Node3D, tag: String, r: float) -> String:
+	_made += 1
+	var id := "%s%d" % [tag, _made - 1]
+	structures.append({"id": id, "kind": tag, "at": _flat(node.global_position), "r": r, "node": node})
+	return id
+
+
+## A wall raised mid-fight (the Frost Wall): like add_wall, with an id to take it down again. Returns the id.
+func add_wall_id(a: Vector3, b: Vector3, n: Vector3, id: String) -> String:
+	structures.append({"id": id, "kind": "wall", "a": _flat(a), "b": _flat(b), "n": _flat(n).normalized()})
+	return id
+
+
+## Takes structure `id` out (a toppled pillar, a burst barrel, a melted Frost Wall).
+func remove(id: String) -> void:
+	structures = structures.filter(func(s: Dictionary) -> bool: return s.id != id)
 
 
 func add_torch(node: Node3D) -> void:
@@ -205,8 +230,10 @@ static func surface(s: Dictionary, from: Vector3) -> Dictionary:
 	return {"at": at, "dist": p.distance_to(at), "n": s.n}
 
 
+## No `kinds`: walls and pillars (round 51: props such as barrels are structures of their own kind, for the verbs
+## that ask for them, and stay out of every other pick).
 static func _kind_ok(s: Dictionary, kinds: Array) -> bool:
-	return kinds.is_empty() or kinds.has(s.kind)
+	return kinds.has(s.kind) if not kinds.is_empty() else s.kind in ["wall", "pillar"]
 
 
 ## The nearest structure to `from`: {found (any at all), s, at, dist, dir, n, in_reach (within `reach`)}.
@@ -569,7 +596,7 @@ func _process(_delta: float) -> void:
 
 func _draw(frame: int) -> void:
 	var s: Dictionary = current.s
-	var pillar: bool = s.kind == "pillar"
+	var pillar: bool = s.kind != "wall"  # (round 51: a prop, a barrel, is marked like a pillar)
 	var row: String = FAR_ROW if current.state == "far" else current.el
 	var alpha := 1.0
 	if current.state == "far":

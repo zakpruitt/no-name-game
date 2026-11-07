@@ -1020,3 +1020,10 @@ indicator to click on the structure for combos that require environment!" See `d
 - [ ] Zak's call: Collapse's x1.6 into a structure; the pillar slam on a held H; the palm's too-far bracket; Meteor
   Fall's cursor only takes a structure with palm foes on it; Dash H H then a pause is now Pinwheel / Anvil, so a
   slow Dash H H L leaps instead of Backdraft
+
+## Round 51 env-pieces (pieces as data, the heretic's environmental verbs)
+Zak: the environment should be "a big part of what you can do", each character with "environmental aspects only they
+can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/features/env-pieces.md`.
+- [x] Pieces as data: `scripts/env_piece.gd` (14 pieces, shared rules, `EXCLUSIVE` by element), `scripts/rooms.gd`
+  (`ROOMS.training` = today's arena, `training_pieces`), Settings "Room: plain / with pieces", `--room=pieces`,
+  rebuild after 6 s, `tests/env_piece_check.gd`, `[env] ... pieces=N/N`

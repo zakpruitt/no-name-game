@@ -34,6 +34,7 @@ const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
 const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs' second endings (breaker-pairs lane)
 const LAVA_LEASH := preload("res://scripts/lava_leash.gd")  # Lava Leash's tentacles and seams (dark-magma lane)
 const ENV := preload("res://scripts/env_target.gd")  # the room's walls and pillars, and the one the player picked (round 50)
+const ENV_PIECE := preload("res://scripts/env_piece.gd")  # the room's pieces (round 51, env-pieces lane)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -1821,6 +1822,7 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	ENV_PIECE.landing(hero, at)  # (round 51: crates near it break, rubble under it throws chunks)
 	if b.has("counter"):  # Ricochet, the dash counter's ending (load: counter.gd preloads this file)
 		load("res://scripts/counter.gd").ricochet(hero, b, at, seized, mult)
 		return

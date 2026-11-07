@@ -101,7 +101,10 @@ environmental combos!"
 - A new move that uses a structure: add a row to `CTX`, a branch in `context()` that returns its `from` and `reach`,
   and have its gameplay ask `ENV.pick(hero, ctx, from, reach)` (with its own fallback when `none`).
 - A new structure kind (a breakable crate, a ledge): register it with an `add_*` and give `surface()` its shape.
-- A new room: call `add_wall` / `add_pillar` / `add_torch` for what it builds; nothing else changes.
+- A new room: call `add_wall` / `add_pillar` / `add_torch` for what it builds; nothing else changes. Since round 51
+  rooms are data (`scripts/rooms.gd`) and `env_piece.gd` `place()` registers each piece (pillars, torches, and props
+  through `add_prop`, a structure of its own kind that only a ctx with that `kinds` sees); see
+  [env-pieces.md](env-pieces.md).
 
 ## Testing
 
