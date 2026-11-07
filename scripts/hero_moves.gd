@@ -28,9 +28,12 @@ const XF_SPEED := 1.5  # Fault Line (was 1.2): Rockslide's hit to Fault Line's w
 # Round 34, third pass (flow audit off the bot's [rhythm] beats, first hit to first hit; shape 196 / 235 / 362 ms):
 const EM_CANCEL := 0.17 * VOID_ELEMENT.AF_K  # Molten Palm / Steam Burst: the whiff cancel after the palm (118 ms)
 const EM_END := VOID_ELEMENT.AF_HIT + 0.43 * VOID_ELEMENT.AF_K  # (was + 0.34) keeps ~300 ms of recovery after the palm at the new pace
-const LLH_SPEED := 1.6  # Harpoon and Frost Spear (was 1.2): the spear drove in 327 ms in, the slowest mid wind-up (DL ->
+const LLH_SPEED := 1.75  # round 51 batch 2 (was 1.6: Dash Stab -> Harpoon beat 353 ms); Harpoon and Frost Spear (was 1.2): the spear drove in 327 ms in, the slowest mid wind-up (DL ->
 # EF beats 418-514 ms); now 245 ms in
 const MELT_SPEED := 1.65  # Meltdown (was 1.2, then 1.5): XG -> XM beat 467, then 434 ms; the slam lands 202 ms in
+const ICE_CUBE_CONFIRM := 0.8  # round 51 batch 2: Ice Cube hands over to Hailstorm / Deep Freeze this far back to its hit (EA -> XG beat 367)
+const HAIL_SPEED := 1.35  # round 51 batch 2 (was 1.2): Hailstorm's rake comes in sooner off Ice Cube
+const REAP_SPEED := 1.35  # round 51 batch 2 (was 1.2): Reap off a grab (GR -> VR beat 337)
 const HAIL_CONFIRM := 0.8  # round 51: Hailstorm's hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5)
 const ROCKSLIDE_SPEED := 1.35  # round 51 (was 1.2): the boulder lands 247 ms in (was 278); AL1 -> XR beats were 297-366
 const DASH_STAB_SPEED := 1.15  # round 51 (was 1.0): the stab lands 204 ms in (235); a dash out of a move into Dash Stab
@@ -104,11 +107,11 @@ const MOVES := {
 	"EC": {"anim": "Ab_LH", "damage": 4.0, "range": 2.6, "arc": 150.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
 		"speed": 1.2, "lunge": 5.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "confirm": EC_CONFIRM, "shake": 0.28, "hop": [VOID_ELEMENT.LH_HIT - 0.01, VOID_ELEMENT.LH_HIT + 0.29, 1.5]},
 	"EA": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
-		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2},
+		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "confirm": ICE_CUBE_CONFIRM, "shake": 0.2},
 	"EV": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.25},
 	"VR": {"anim": "Ab_H", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.H_HIT], "cancel": VOID_ELEMENT.H_HIT + 0.22, "end": VOID_ELEMENT.H_HIT + 0.46,
-		"speed": 1.2, "lunge": 3.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.25},
+		"speed": REAP_SPEED, "lunge": 3.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.25},
 	"VD": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.28, "end": VOID_ELEMENT.GR_HIT + 0.46,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.06, "shake": 0.3},
 	"OW": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.VS_HIT], "cancel": VOID_ELEMENT.VS_HIT + 0.19, "end": VOID_ELEMENT.VS_HIT + 0.43,
@@ -145,7 +148,7 @@ const MOVES := {
 	# The three-element strings (round 34, second pass). Hailstorm (Dash L H H H): the rake, up after the cubes the gale
 	# carries (`air`, `climb`: he's at ~2 m by the hit).
 	"XG": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
-		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "confirm": HAIL_CONFIRM, "shake": 0.35, "air": true, "climb": 2.0},
+		"speed": HAIL_SPEED, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "confirm": HAIL_CONFIRM, "shake": 0.35, "air": true, "climb": 2.0},
 	# Meltdown (Dash L H H H L): the slam clip up there with them (`air`: started in the air, it homes on the nearest
 	# airborne foe, hero_moves.air_home). Its breaker is Eruption, from that height.
 	"XM": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.VS_HIT], "cancel": VOID_ELEMENT.VS_HIT + 0.19, "end": VOID_ELEMENT.VS_HIT + 0.43,
