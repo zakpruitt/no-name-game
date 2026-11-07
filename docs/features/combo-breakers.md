@@ -179,7 +179,7 @@ Round 51 (fluidity lane, `docs/feel-audit-2026-11-07.md`): Tow Line off a dash n
 | Rockslide -> dash -> Dash Stab | 435 ms | 385 ms |
 | Hailstorm -> Meltdown | 434 ms | 343 ms |
 | Harpoon -> dash -> Tow Line | 386 ms | 345 ms |
-| Dash Stab -> Harpoon | 353 ms | 345 ms |
+| Dash Stab -> Harpoon | 353 ms | 353 ms (1.75 broke the ice blocks) |
 | Ice Cube -> Hailstorm | 367 ms | 319 ms |
 | grab -> Reap | 337 ms | 317 ms |
 

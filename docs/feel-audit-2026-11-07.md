@@ -92,7 +92,8 @@ Batch 1 (commits `d43d625` anim, `5f7d71f` combat, `027176f` input):
 
 Batch 2 (commit `0645b1a`, plus the cast gap):
 
-10. `LLH_SPEED` 1.75: Dash Stab -> Harpoon **353 -> 345**. `ICE_CUBE_CONFIRM` 0.8 + `HAIL_SPEED` 1.35: Ice Cube ->
+10. `LLH_SPEED` 1.75 took Dash Stab -> Harpoon 353 -> 345, but Harpoon then set its row down without ice blocks
+    (`ice_block_check`), so it is back at 1.6 (353 ms; not investigated further). `ICE_CUBE_CONFIRM` 0.8 + `HAIL_SPEED` 1.35: Ice Cube ->
     Hailstorm **367 -> 319**, Hailstorm -> Meltdown 351 -> 343. `REAP_SPEED` 1.35: grab -> Reap **337 -> 317**.
     Autotest `[improv] frozen` lines 3 -> 0 (the autotest only reports these; not gated).
 
@@ -107,7 +108,7 @@ Batch 2 (commit `0645b1a`, plus the cast gap):
 | Impale -> Pinwheel (XK -> XW) | 385 | 385 | window -> ending |
 | Hailstorm -> Meltdown | 434 | 343 | ender 380 |
 | Harpoon -> dash -> Tow Line | 386 | 345 | mid 330 (a dash between) |
-| Dash Stab -> Harpoon | 353 | 345 | mid 330 (line layout; 270-333 elsewhere) |
+| Dash Stab -> Harpoon | 353 | 353 | mid 330 (line layout; 270-333 elsewhere) |
 | Frost Spear -> Tow Line | 366 | 317 | |
 | Updraft Lash -> Rockslide | 366 | 332 | |
 | Ice Cube -> Hailstorm | 367 | 319 | |
@@ -128,7 +129,7 @@ endings_n 21/21.
 
 ## Open, for Zak
 
-- The dash hand-overs (Rockslide -> Dash Stab 385, Harpoon -> Tow Line 345, Dash Stab -> Harpoon 345 on the line)
+- The dash hand-overs (Rockslide -> Dash Stab 385, Harpoon -> Tow Line 345, Dash Stab -> Harpoon 353 on the line)
   stay over the 330 mid target, because the dash's own travel is in the beat. Getting them shorter needs a shorter
   dash, which changes movement everywhere.
 - Impale -> Pinwheel 385: that time is the window's hang, which belongs to the ending, not the hand-over; left.
