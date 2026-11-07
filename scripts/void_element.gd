@@ -842,6 +842,10 @@ static func ice_radius(e: Node3D) -> float:
 
 ## Freezes the nearest foe, the frozen first, and bowls it along his aim. Everyone it passes freezes.
 static func _ice_cube(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float) -> int:
+	# Round 51 (fluidity): Ice Cube pressed while Harpoon's tentacles still carried the row found nobody (all of them
+	# flying) and played at x1.00 (feel audit 4, left open); the carries land in their slots now and it bowls the row.
+	if is_instance_valid(hero._void.gather) and not hero._void.gather.done():
+		hero._void.gather.finish_now()
 	var foes: Array = hero._void.reachable().filter(func(e: Node3D) -> bool:
 		return not hero._void.is_heavy(e) and not THROWN.flying(e) and _flat(e.global_position - at).length() <= BOWL_REACH)
 	if foes.is_empty():

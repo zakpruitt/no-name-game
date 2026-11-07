@@ -642,10 +642,10 @@ func _do_hit() -> void:
 		Game.sfx("hit_big" if _move.get("big", false) else "hit")
 		if _move.get("big", false):
 			Game.rumble("hit_big")
-		Game.hitstop(_move.stop * (1.3 if any_airborne else 1.0) + ender * ENDER_HITSTOP)
+		Game.hitstop(HERO_MOVES.hit_stop(self, _move_id, ender, any_airborne))  # (escalates: opener, mid, ender)
 		Game.shake(_move.shake)
 		if ender > 0 or _move.get("big", false):
-			HERO_FX.camera_hit(fwd, ender)
+			HERO_FX.camera_hit(fwd, HERO_MOVES.cam_tier(_move_id, ender))
 
 
 func _facing() -> Vector3:

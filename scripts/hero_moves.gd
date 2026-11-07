@@ -15,18 +15,28 @@ const ELEMENT_WORDS := {"wind": "storm", "water": "ice", "earth": "magma", "void
 
 ## String pacing (round 30; the ms are real time at anim_speed 1.7, printed by tests/rhythm_check.gd).
 const L1_SPEED := 1.1  # opener: hit 216 -> 196 ms, so the first beat comes quickly
-const L3_SPEED := 1.3  # ender: wind-up 471 -> 362 ms; L2's hit to L3's was 553 ms with the hitstop, a stall before the payoff
-const L3_CANCEL := 0.645  # (was 0.6) keeps ~140 ms from L3's hit to its cancel at L3_SPEED
-const L3_END := 0.975  # (was 0.85) keeps ~330 ms of recovery after the hammer lands at L3_SPEED: the ender's weight
+const L3_SPEED := 1.6  # ender: wind-up 471 -> 362 -> 294 ms (round 51 fluidity, was 1.3: L2's hit to L3's was 436 ms, the
+# mid-to-ender target is 380; it still winds up ~90 ms longer than L2)
+const L3_CANCEL := 0.7  # (was 0.645 at 1.3) keeps ~140 ms from L3's hit to its whiff cancel at L3_SPEED
+const L3_END := 1.02  # (was 0.975 at 1.3; a fraction of the old clip, retimed) keeps ~290 ms of recovery after the hammer
+const L3_CONFIRM := 0.8  # round 51: its hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5): of L3 -> Molten
+# Palm's 535 ms, 70 ms was the hammer waiting out its confirm after the stop
 const EM_SPEED := 2.8  # Molten Palm and Steam Burst (was 1.6, then 2.1): its palm landed 619, then 467 ms in; L3 -> EM
 # beats were 539-655 ms and EA -> XS 612 (flow audit, round 34 third pass); now 350 ms in, just under the hammer's 362
 const XF_SPEED := 1.5  # Fault Line (was 1.2): Rockslide's hit to Fault Line's was 454-510 ms, slower than any other
 # hand-over in the strings; its rake now lands 183 ms in (was 229)
 # Round 34, third pass (flow audit off the bot's [rhythm] beats, first hit to first hit; shape 196 / 235 / 362 ms):
-const EM_END := VOID_ELEMENT.AF_HIT + 0.43  # (was + 0.34) keeps ~300 ms of recovery after the palm at the new pace
+const EM_CANCEL := 0.17 * VOID_ELEMENT.AF_K  # Molten Palm / Steam Burst: the whiff cancel after the palm (118 ms)
+const EM_END := VOID_ELEMENT.AF_HIT + 0.43 * VOID_ELEMENT.AF_K  # (was + 0.34) keeps ~300 ms of recovery after the palm at the new pace
 const LLH_SPEED := 1.6  # Harpoon and Frost Spear (was 1.2): the spear drove in 327 ms in, the slowest mid wind-up (DL ->
 # EF beats 418-514 ms); now 245 ms in
-const MELT_SPEED := 1.5  # Meltdown (was 1.2): XG -> XM beat 467 ms; the slam lands 222 ms in (was 278)
+const MELT_SPEED := 1.65  # Meltdown (was 1.2, then 1.5): XG -> XM beat 467, then 434 ms; the slam lands 202 ms in
+const HAIL_CONFIRM := 0.8  # round 51: Hailstorm's hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5)
+const ROCKSLIDE_SPEED := 1.35  # round 51 (was 1.2): the boulder lands 247 ms in (was 278); AL1 -> XR beats were 297-366
+const DASH_STAB_SPEED := 1.15  # round 51 (was 1.0): the stab lands 204 ms in (235); a dash out of a move into Dash Stab
+# was 435 ms hit to hit (Rockslide -> dash -> stab), the dash cancel's next press
+const VAULT_CANCEL := 0.25  # round 51 (was 0.3): the vault hands over to Deep Freeze 46 ms sooner (IJ -> IS beat 453 ms)
+const DEEP_FREEZE_SPEED := 1.35  # round 51 (was 1.2): Deep Freeze's dive lands 260 ms in (293)
 const ROCKSLIDE_STOP := 0.07  # (was 0.1) Rockslide's hitstop: with its tier-2 ender stop it was 150 ms of the 393 ms
 # beat to Fault Line's hit; the weight moves into the boulder's held frames, the blow keeps its contact frame
 const ROCKSLIDE_CONFIRM := 0.8  # its hit-confirm cancel comes this far back to the hit (CANCEL_ON_HIT is 0.5)
@@ -85,7 +95,7 @@ const MOVES := {
 		"stop": 0.05, "shake": 0.14, "hop": [0.12, 0.42, 0.6], "speed": L2_SPEED},
 	"L3": {"anim": "Dualwield_Melee_Attack_Chop", "damage": 16.0, "range": 2.7, "arc": 150.0,
 		"hits": [0.4], "cancel": L3_CANCEL, "end": L3_END, "lunge": 9.0, "knockback": 11.0, "launch": 0.0,
-		"stop": 0.1, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9], "speed": L3_SPEED},
+		"stop": 0.1, "confirm": L3_CONFIRM, "shake": 0.35, "big": true, "hop": [0.1, 0.4, 0.9], "speed": L3_SPEED},
 	# The void arm's right click (void_element.gd). The tentacle and the element do the work.
 	"EE": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.18, "end": VOID_ELEMENT.GR_HIT + 0.36,
 		"speed": 1.0, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.05, "shake": 0.2, "air": true},
@@ -109,22 +119,22 @@ const MOVES := {
 		"speed": LLH_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": HARPOON_STOP, "shake": 0.3},
 	"IP": {"anim": "Ab_LLH", "damage": 4.0, "range": 2.8, "arc": 90.0, "hits": [VOID_ELEMENT.LLH_HIT], "cancel": VOID_ELEMENT.LLH_HIT + 0.16, "end": VOID_ELEMENT.LLH_HIT + 0.46,
 		"speed": LLH_SPEED, "lunge": 1.0, "knockback": 0.0, "launch": 0.0, "stop": 0.07, "shake": 0.3},
-	"IJ": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.2], "cancel": 0.3, "end": 0.8,
+	"IJ": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.2], "cancel": VAULT_CANCEL, "end": 0.8,
 		"speed": 1.1, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.0, "shake": 0.0, "air": true, "climb": 2.4},
 	"IS": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [0.39], "cancel": 0.58, "end": 0.82,
-		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
-	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + 0.17, "end": EM_END,
+		"speed": DEEP_FREEZE_SPEED, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.1, "shake": 0.5, "big": true},
+	"EM": {"anim": "Ab_AF", "damage": 6.0, "range": 3.0, "arc": 200.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + EM_CANCEL, "end": EM_END,
 		"speed": EM_SPEED, "lunge": 3.0, "knockback": 3.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
 	# Crossovers (round 34, void_element.gd): each changes element on the way. Contact frames are the clips' (*_HIT),
 	# cancel / end keep the time after the hit their clip's other moves have.
 	# Rockslide (L H L L): off the air slash, so it starts in the air and comes down onto the slam (plunge).
 	"XR": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.VS_HIT], "cancel": VOID_ELEMENT.VS_HIT + 0.19, "end": VOID_ELEMENT.VS_HIT + 0.43,
-		"speed": 1.2, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": ROCKSLIDE_STOP, "confirm": ROCKSLIDE_CONFIRM, "shake": 0.5, "big": true},
+		"speed": ROCKSLIDE_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": ROCKSLIDE_STOP, "confirm": ROCKSLIDE_CONFIRM, "shake": 0.5, "big": true},
 	# Fault Line (L H L L H): the rake, low, the gale up out of the cracks. Its breaker is Cataclysm.
 	"XF": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
 		"speed": XF_SPEED, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.35},
 	# Steam Burst (Dash L H H L): Molten Palm's clip and pace into the ice. Its breaker is Flash Freeze.
-	"XS": {"anim": "Ab_AF", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + 0.17, "end": EM_END,
+	"XS": {"anim": "Ab_AF", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.AF_HIT], "cancel": VOID_ELEMENT.AF_HIT + EM_CANCEL, "end": EM_END,
 		"speed": EM_SPEED, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.12, "shake": 0.5, "big": true},
 	# Galvanize (H L L, round 44): the tentacle clip; the current runs on after the hit (live_current.gd).
 	"XC": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.5, "end": VOID_ELEMENT.GR_HIT + 0.68,
@@ -135,7 +145,7 @@ const MOVES := {
 	# The three-element strings (round 34, second pass). Hailstorm (Dash L H H H): the rake, up after the cubes the gale
 	# carries (`air`, `climb`: he's at ~2 m by the hit).
 	"XG": {"anim": "Ab_LH", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.LH_HIT], "cancel": VOID_ELEMENT.LH_HIT + 0.17, "end": VOID_ELEMENT.LH_HIT + 0.41,
-		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.35, "air": true, "climb": 2.0},
+		"speed": 1.2, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "confirm": HAIL_CONFIRM, "shake": 0.35, "air": true, "climb": 2.0},
 	# Meltdown (Dash L H H H L): the slam clip up there with them (`air`: started in the air, it homes on the nearest
 	# airborne foe, hero_moves.air_home). Its breaker is Eruption, from that height.
 	"XM": {"anim": "Ab_VS", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.VS_HIT], "cancel": VOID_ELEMENT.VS_HIT + 0.19, "end": VOID_ELEMENT.VS_HIT + 0.43,
@@ -160,7 +170,7 @@ const MOVES := {
 	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
-		"stop": DASH_STAB_STOP, "confirm": DASH_STAB_CONFIRM, "shake": 0.22, "hop": [0.03, 0.3, 0.6], "brake": true,
+		"stop": DASH_STAB_STOP, "confirm": DASH_STAB_CONFIRM, "speed": DASH_STAB_SPEED, "shake": 0.22, "hop": [0.03, 0.3, 0.6], "brake": true,
 		"thrust": true},  # fx-ice3: designed, no weapon ribbon or swing arc (along the lunge they drew ice blades)
 }
 # The named combos: landing one plays its tier's sound and shows its name
@@ -280,6 +290,39 @@ static func effective_move(anim: AnimationPlayer, id: String) -> Dictionary:
 		var length := anim.get_animation(ComicLook.HERO_MOVES[id].clip).length
 		ComicLook.retime(id, m, length, MOVES[id].hits[0], VOID_ELEMENT.BREAKERS.get(id, {}).get("leap", -1.0))
 	return m
+
+
+# --- The hit's weight by its place in the string (round 51, fluidity) ------------
+## A connected hit freezes `stop` plus ENDER_HITSTOP (player.gd) per tier of its named combo. Before round 51 that tier
+## made the named mids freeze like enders (Rockslide 0.12, Hailstorm 0.13, Molten Palm 0.145 s against Live Wire's and
+## Undertow's 0.10), so the weight didn't climb through a string and the mids held the hand-overs. Now it escalates:
+## the opener light (Game.HITSTOP_OPENER), a mid (no window after it) at most MID_STOP_MAX (BIG_MID_STOP_MAX for a
+## `big` one), an ender (a window, the chain's last weapon, a tier-3 combo) at least ENDER_STOP_MIN. The camera punch
+## follows: a mid punches at tier 1 at most, an ender at its tier (hero_fx.camera_hit).
+const MID_STOP_MAX := 0.09  # s
+const BIG_MID_STOP_MAX := 0.1
+const ENDER_STOP_MIN := 0.11
+const CHAIN_ENDERS := ["L3"]  # Triple Chop ends the weapon chain (Molten Palm off it starts the magma route)
+
+
+static func is_ender(id: String) -> bool:
+	return VOID_ELEMENT.BREAKERS.has(id) or id in CHAIN_ENDERS or (COMBOS.has(id) and COMBOS[id].tier >= 3)
+
+
+## The freeze (real s) of a connected hit of `id` (`tier`: its combo's, 0 if unnamed or already named this string).
+static func hit_stop(hero: CharacterBody3D, id: String, tier: int, airborne: bool) -> float:
+	var move: Dictionary = hero._move
+	var s: float = move.stop + tier * hero.ENDER_HITSTOP
+	if is_ender(id):
+		s = maxf(s, ENDER_STOP_MIN)
+	else:
+		s = minf(s, BIG_MID_STOP_MAX if move.get("big", false) else MID_STOP_MAX)
+	return s * (1.3 if airborne else 1.0)
+
+
+## The camera punch's tier for that hit: a mid's is 1 at most.
+static func cam_tier(id: String, tier: int) -> int:
+	return tier if is_ender(id) else mini(tier, 1)
 
 
 # --- Hops, the air string, plunges ----------------------------------------------
