@@ -77,6 +77,7 @@ func _initialize() -> void:
 	await _dark()
 	await _crossovers()
 	await _three_elements()
+	await _breaker_pairs()
 	await _element_matrix()
 	await _tentacle_alone()
 	await _snatch()
@@ -1596,6 +1597,94 @@ func _snatch() -> void:
 	_check(a.hp < hp, "and it flies on and breaks")
 	a.free()
 	await _settle()
+
+
+## Breaker pairs: each new LMB ending against its RMB sibling, in the LMB's best situation and its worst (the damage the
+## held / targeted foes take from the leap to a beat after the landing, the window pressed by the bot at the sweet spot).
+func _breaker_pairs() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	hero.bot_enabled = true
+	# Meteor Fall / Meteor Shower (EV): four the palm scattered, or three it piled on a wall.
+	var dealt := {}
+	for case: String in ["fall_spread", "shower_spread", "fall_pile", "shower_pile"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		hero.bot_alt = case.begins_with("shower")
+		var spots: Array = [Vector3(2, 0, 1), Vector3(-5.5, 0, 5), Vector3(5.5, 0, 6), Vector3(0, 0, 10)] if case.ends_with("spread") \
+			else [Vector3(1.5, 0, 2), Vector3(0.8, 0, 2.8), Vector3(2.4, 0, 2.6)]
+		var foes: Array = spots.map(func(p: Vector3) -> Foe: return _foe(p))
+		for f: Foe in foes:
+			f.set_meta(ve.PALM_META, Time.get_ticks_msec())
+			if case.ends_with("pile"):
+				f.set_meta("last_wall_ms", Time.get_ticks_msec())
+		await physics_frame
+		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
+		var landed: int = hero.breakers_landed
+		hero._start_attack("EV")
+		await _until(func() -> bool: return hero.breakers_landed > landed, 4.0)
+		_check(hero.breakers_landed > landed, "%s: the breaker lands" % case)
+		var want := "Meteor Shower" if hero.bot_alt else "Meteor Fall"
+		_check(hero.HERO_LEAP.breaker_name(hero) == want, "%s: picks %s (%s)" % [case, want, hero.HERO_LEAP.breaker_name(hero)])
+		for i in 70:
+			await physics_frame
+		var sum := 0.0
+		for i in foes.size():
+			sum += before[i] - foes[i].hp
+		dealt[case] = sum
+		if case == "shower_spread":
+			_check(foes.all(func(f: Foe) -> bool: return before[foes.find(f)] - f.hp >= ve.SHOWER_DAMAGE * 0.99), "Meteor Shower drops a fireball on every foe the palm hit (%s)" % str(foes.map(func(f: Foe) -> float: return snappedf(before[foes.find(f)] - f.hp, 1.0))))
+			_check(foes.all(func(f: Foe) -> bool: return ve.marked(f, "molten")), "and leaves them molten")
+		for f: Foe in foes:
+			f.free()
+		for w: Node in get_nodes_in_group("lava_wells"):
+			w.free()
+		await _settle()
+	print("  meteor pair: spread fall %.0f / shower %.0f, wall pile fall %.0f / shower %.0f" % [dealt.fall_spread, dealt.shower_spread, dealt.fall_pile, dealt.shower_pile])
+	_check(dealt.shower_spread > dealt.fall_spread * 1.5, "scattered: Meteor Shower out-damages Meteor Fall (%.0f vs %.0f)" % [dealt.shower_spread, dealt.fall_spread])
+	_check(dealt.fall_pile > dealt.shower_pile * 1.5, "piled on a wall: Meteor Fall out-damages Meteor Shower (%.0f vs %.0f)" % [dealt.fall_pile, dealt.shower_pile])
+	# Anvil / Pinwheel (XW): the kebab by a wall, or in the open.
+	dealt = {}
+	for case: String in ["anvil_open", "pin_open", "anvil_wall", "pin_wall"]:
+		hero.global_position = Vector3.ZERO
+		hero._face(Vector3(0, 0, 1))
+		hero.bot_alt = case.begins_with("pin")
+		var wall: StaticBody3D = _wall(Vector3(0, 1, 7.5)) if case.ends_with("wall") else null
+		await physics_frame
+		await physics_frame
+		var foes: Array = [_foe(Vector3(0.5, 0, 3.0)), _foe(Vector3(-0.5, 0, 3.4)), _foe(Vector3(0.0, 0, 2.6))]
+		await physics_frame
+		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
+		var landed: int = hero.breakers_landed
+		hero._start_attack("XW")
+		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
+		var opts: Array = hero.breaker_window().get("options", [])
+		_check(opts.size() == 2 and opts[0].button == "light" and opts[0].name == "Pinwheel" and opts[0].element == "wind"
+			and opts[1].name == "Anvil", "%s: the window offers LMB Pinwheel (storm), RMB Anvil (%s)" % [case, str(opts)])
+		var held: int = hero._void.held_foes().size()
+		await _until(func() -> bool: return hero.breakers_landed > landed, 4.0)
+		_check(hero.breakers_landed > landed and held == 3, "%s: lands, holding the three (%d)" % [case, held])
+		if case.begins_with("pin"):
+			await _until(func() -> bool: return foes.any(func(f: Foe) -> bool: return f.has_meta("thrown_foe_flying")), 0.5)
+			await _until(func() -> bool: return foes.all(func(f: Foe) -> bool: return not f.has_meta("thrown_foe_flying")), 3.0)
+		for i in 30:
+			await physics_frame
+		var sum := 0.0
+		for i in foes.size():
+			sum += before[i] - foes[i].hp
+		dealt[case] = sum
+		if case == "pin_wall":
+			_check(foes.all(func(f: Foe) -> bool: return f.global_position.z > 5.0 and ve.wall_fresh(f)),
+				"Pinwheel hurls them into the wall (%s)" % str(foes.map(func(f: Foe) -> float: return snappedf(f.global_position.z, 0.1))))
+		for f: Foe in foes:
+			f.free()
+		if wall != null:
+			wall.free()
+		await _settle()
+	print("  anvil pair: open anvil %.0f / pinwheel %.0f, by a wall anvil %.0f / pinwheel %.0f" % [dealt.anvil_open, dealt.pin_open, dealt.anvil_wall, dealt.pin_wall])
+	_check(dealt.pin_wall > dealt.anvil_wall, "by a wall: Pinwheel out-damages Anvil (%.0f vs %.0f)" % [dealt.pin_wall, dealt.anvil_wall])
+	_check(dealt.anvil_open > dealt.pin_open, "in the open: Anvil out-damages Pinwheel (%.0f vs %.0f)" % [dealt.anvil_open, dealt.pin_open])
+	hero.bot_alt = false
+	hero.bot_enabled = false
 
 
 func _wall(at: Vector3) -> StaticBody3D:

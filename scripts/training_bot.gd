@@ -62,6 +62,11 @@ const BOT_STRINGS := [["L", "H"], ["L", "H", "H"], ["L", "L", "L", "H"], ["H", "
 	# aim line) and the pause leaps into the window: Shatterstorm (RMB), then Slapshot (LMB) with the back wall ahead
 	# ("wall": the ring BOT_WALL_GAP m from the wall, facing it), the cubes punched into it.
 	["ring", "D", "L", "H"], ["wall", "alt", "D", "L", "H"],
+	# Breaker pairs: Meteor Shower (Meteor Fall's LMB) on a spread crowd the palm scatters, a fireball each; Pinwheel
+	# (Anvil's LMB) by the back wall, the kebab whirled and hurled into it.
+	["spread", "alt", "L", "L", "L", "H", "H"], ["wall", "alt", "L", "L", "H", "D", "H", "H", "L"],
+	# (Cold Front, Worldbreaker's LMB, had no string: endings_n= counts every ending a window offers.)
+	["alt", "L", "H", "L", "H"],
 	# The other charged cells off Galvanize, in real moves: Reap (Conduct), Molten Palm (Arc Flash), Frost Spear (Superconduct;
 	# last: its spear stands 5 s and turns the next string's L L into the vault).
 	["spread", "H", "L", "L", "wait", "H", "L"], ["spread", "H", "L", "L", "wait", "L", "L", "L", "H"], ["spread", "H", "L", "L", "wait", "L", "L", "H"]]
@@ -224,10 +229,10 @@ func _autotest_finish() -> void:
 		print(line)
 	var paid: Dictionary = player.VOID_ELEMENT.improv_paid
 	print("[improv] %s" % (", ".join(paid.keys().map(func(k: String) -> String: return "%s=%d" % [k, paid[k]])) if not paid.is_empty() else "none"))
-	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d endings=%s moves=%s" % [
+	print("[autotest] done player_hp=%.0f max_combo=%d hits=%d awakening=%.0f rank=%s perfect=%d air=%d guide=%d casts=%d breakers=%d/%d perfect_breakers=%d strings=%d/%d endings_n=%d/%d endings=%s moves=%s" % [
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
 		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_seen.size(), player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), BOT_STRINGS.size(),
-		",".join(player.endings_seen.keys()).replace(" ", "_"), ",".join(_bot_moves.keys())])
+		player.endings_seen.size(), _all_endings().size(), ",".join(player.endings_seen.keys()).replace(" ", "_"), ",".join(_bot_moves.keys())])
 	var n := maxi(_perf.frames, 1)
 	for line in _perf_log:
 		print(line)
@@ -383,6 +388,17 @@ func _dummies_settled() -> bool:
 
 
 ## The start of every string (BOT_SPOT): dummies home and still, the hero in front of the first one, facing it.
+## Every ending a breaker window offers (each BREAKERS entry's name and its `alt`'s): the autotest's `endings_n=`.
+func _all_endings() -> Array:
+	var names := []
+	for id: String in player.VOID_ELEMENT.BREAKERS:
+		var b: Dictionary = player.VOID_ELEMENT.BREAKERS[id]
+		names.append(b.names.spirit)
+		if b.has("alt"):
+			names.append(b.alt.names.spirit)
+	return names
+
+
 func _reset_spots() -> void:
 	for d: Node in _homes:  # (back from a "line" string)
 		if is_instance_valid(d):
