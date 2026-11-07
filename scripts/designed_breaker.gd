@@ -397,6 +397,19 @@ class Screen extends CanvasLayer:
 	var _call_low := false  # moved to the bottom, off a cued / wall-splatted foe
 	var _call_y := 0.135
 	const CALL_TOTAL_MS := 400  # a breaker total that starts up to this long before the callout is the landing's
+	## Round 54 (camera-hang lane): how the banner leaves the top for the bottom when it must dodge. "cut" (round 53:
+	## it jumps there with a pop) or "slide" (CALL_SLIDE_STEPS frames on twos down the screen, faded, then whole at the
+	## bottom; never resting on the middle). `--banner=slide` plays the other one (Zak's call: see camera.md).
+	const CALL_MOVE := "cut"
+	const CALL_SLIDE_STEPS := [Vector2(0.2, 0.4), Vector2(0.8, 0.65)]  # (of the way down, alpha) per frame
+	const CALL_STEP_S := 1.0 / 12.0
+	var move_mode := CALL_MOVE
+	var _move_t := -1.0  # real s into the move down (-1: none)
+	var dodged := 0  # callouts that had to dodge (checks, the camera-hang probe)
+	## Round 54 (feel audit 6 item 10: Eruption's banner showed no total, its damage lands over the beats): while the
+	## banner is up and not fading it counts every hit into its total (comic_number.banner_open), as Live Wire's
+	## shocks count in the hang, and stays CALL_AFTER_ADD_S past the last one, up to CALL_COUNT_MAX_S.
+	const CALL_COUNT_MAX_S := 2.4
 	var _shown_total := -1.0
 	var _pop := 0.0
 	var shown := 0  # callouts drawn (checks)
@@ -406,6 +419,9 @@ class Screen extends CanvasLayer:
 
 	func _ready() -> void:
 		layer = 2
+		for arg: String in OS.get_cmdline_user_args():
+			if arg.begins_with("--banner="):
+				move_mode = arg.get_slice("=", 1)
 		_font = load("res://assets/fonts/Bangers-Regular.ttf")
 		_last_us = Time.get_ticks_usec()
 		vignette = ColorRect.new()
@@ -455,12 +471,14 @@ class Screen extends CanvasLayer:
 		_call_since = 0.0
 		_call_ms = Time.get_ticks_msec()
 		_call_from_ms = _call_ms - CALL_TOTAL_MS
+		_move_t = -1.0
 		# a total already counting (the hang's chain hits: Live Wire's shocks) is the ending's too: the banner
 		# takes it over from there
 		var live: Node3D = SELF.NUMBER._breaker
 		if is_instance_valid(live):
 			_call_from_ms = mini(_call_from_ms, SELF.NUMBER.breaker_ms)
 		shown += 1
+		_adds_at_call = SELF.NUMBER.banner_adds
 		SELF.set_tones(_banner_mat, element, 0.0)  # (the element, even on a perfect: the PERFECT tag is the gold)
 
 	func _process(_delta: float) -> void:
@@ -508,6 +526,7 @@ class Screen extends CanvasLayer:
 	func _callout_tick(dt: float) -> void:
 		if _call_t < 0.0:
 			banner.visible = false
+			SELF.NUMBER.banner_open = false
 			return
 		_call_t += dt
 		_call_since += dt
@@ -521,10 +540,13 @@ class Screen extends CanvasLayer:
 		if is_instance_valid(live) and live.visible and SELF.NUMBER.breaker_ms >= _call_from_ms:
 			live.visible = false  # (the banner carries it now)
 		_pop = maxf(0.0, _pop - dt * 9.0)
-		var end := clampf(maxf(CALL_HOLD_S, _call_t - _call_since + CALL_AFTER_ADD_S), 0.0, CALL_MAX_S)
+		var end := _end_s()
+		SELF.NUMBER.banner_open = _call_t < end
+		SELF.NUMBER.banner_from_ms = _call_from_ms
 		if _call_t >= end + CALL_OUT_S:
 			_call_t = -1.0
 			banner.visible = false
+			SELF.NUMBER.banner_open = false
 			text.queue_redraw()
 			return
 		var vp := get_viewport().get_visible_rect().size
@@ -534,16 +556,45 @@ class Screen extends CanvasLayer:
 		banner.size = Vector2(w, h)
 		if not _call_low and _foe_under(Rect2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y - h * 0.5, w, h).grow(vp.y * CALL_DODGE_PAD)):
 			_call_low = true  # (once a callout: it never flips back)
+			dodged += 1
 			_pop = 1.0  # round 53 (feel audit 5): it cuts to the bottom with a pop; the slide crossed the middle of the
 			# screen, over the pile, for ~0.2 s (Flash Freeze, Abyss, Shatterstorm, Avalanche, Uproot films)
+			if move_mode == "slide":
+				_move_t = 0.0
+				_pop = 0.0
 		_call_y = CALL_Y_LOW if _call_low else CALL_Y
+		var move_a := 1.0
+		if _move_t >= 0.0:  # the slide-fade: a step down the screen a frame, faded, then whole at the bottom
+			var k := int(_move_t / CALL_STEP_S)
+			_move_t += dt
+			if k < CALL_SLIDE_STEPS.size():
+				var st: Vector2 = CALL_SLIDE_STEPS[k]
+				_call_y = lerpf(CALL_Y, CALL_Y_LOW, st.x)
+				move_a = st.y
+			else:
+				_move_t = -1.0
+				_pop = 1.0
 		banner.position = Vector2(vp.x * 0.5 - w * 0.5, vp.y * _call_y - h * 0.5)
 		banner.visible = true
 		var fr := 0.0 if _call_t < CALL_IN_S else 1.0 + float(int(_call_t * 12.0) % 3)
 		_banner_mat.set_shader_parameter("frame", minf(fr, 3.0))
 		_banner_mat.set_shader_parameter("erode", clampf((_call_t - end) / CALL_OUT_S, 0.0, 1.0) * 0.98)
-		_banner_mat.set_shader_parameter("alpha", 1.0)
+		_banner_mat.set_shader_parameter("alpha", move_a)
+		_move_a = move_a
 		text.queue_redraw()
+
+	var _move_a := 1.0  # the slide-fade's alpha this frame (the words follow it)
+
+	## When the banner starts to go: held CALL_HOLD_S at least, CALL_AFTER_ADD_S past the total's last add, at most
+	## CALL_MAX_S, or CALL_COUNT_MAX_S once a beat after the landing's own total has counted in (round 54).
+	func _end_s() -> float:
+		var most := CALL_COUNT_MAX_S if _counted_late else CALL_MAX_S
+		return clampf(maxf(CALL_HOLD_S, _call_t - _call_since + CALL_AFTER_ADD_S), 0.0, most)
+
+	var _counted_late: bool:
+		get:
+			return SELF.NUMBER.banner_adds > _adds_at_call
+	var _adds_at_call := 0
 
 	## Is a foe the camera was cued to (camera_rig.FRAME_CUE) or one fresh off a wall splat on screen inside `r`?
 	## (Pinwheel throws the kebab into the top wall after the landing: the payoff must not sit under the banner.)
@@ -592,8 +643,8 @@ class Screen extends CanvasLayer:
 		if _call_t < CALL_IN_S * 0.5 or not banner.visible:
 			return
 		var vp := get_viewport().get_visible_rect().size
-		var end := clampf(maxf(CALL_HOLD_S, _call_t - _call_since + CALL_AFTER_ADD_S), 0.0, CALL_MAX_S)
-		var a := 1.0 - clampf((_call_t - end) / (CALL_OUT_S * 0.7), 0.0, 1.0)
+		var end := _end_s()
+		var a := (1.0 - clampf((_call_t - end) / (CALL_OUT_S * 0.7), 0.0, 1.0)) * _move_a
 		var settle := clampf((_call_t - CALL_IN_S) / 0.1, 0.0, 1.0)
 		var r := banner.get_rect()
 		var mid_y := r.position.y + r.size.y * 0.5
