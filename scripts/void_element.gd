@@ -44,13 +44,15 @@ const VS_HIT := 17.0 / 46.0  # Ab_VS: the slam lands on f17 (held to f23). Was 0
 const LH_HIT := 14.0 / 51.0  # Ab_LH: the rake arrives on f14. Was 0.29 (f14.8)
 const H_HIT := 15.0 / 63.0  # Ab_H: the crescent arrives on f15. Was 0.24 (f15.1)
 const LLH_HIT := 20.0 / 59.0  # Ab_LLH: the spear drives in on f20. Was 0.34 (f20.1)
-const AF_HIT := 50.0 / 99.0  # Ab_AF: the palm lands on f50. Was 0.51 (f50.5)
+const AF_HIT := 32.0 / 81.0  # Ab_AF: the palm lands on f32 of 81 (round 51 fluidity re-key: the coil was f1-f50 of 99,
+# 350 ms at EM_SPEED and four held frames on film; tools/meshy_rig/clip_warp.py). Was 50 / 99
+const AF_K := 99.0 / 81.0  # the old clip over the new: offsets after the palm (fractions of the clip) x this keep their ms
 ## A breaker's leap comes this long (clip fraction) after the ender's hit, as round 30 had it.
 const LEAP_AFTER_GRAB := 0.02  # Grounded / Worldbreaker / Meteor Fall off a grab-clip ender (was 0.26 - 0.24)
 const LEAP_AFTER_SLAM := 0.11  # Collapse / Abyss off the slam clip (0.5 - 0.39)
 const LEAP_AFTER_TIDE := 0.26  # Maw off Black Tide's grab clip (0.5 - 0.24)
 const LEAP_AFTER_RAKE := 0.05  # Cataclysm off Fault Line's rake clip: once the gale has them up
-const LEAP_AFTER_PALM := 0.05  # Flash Freeze off Steam Burst's palm clip
+const LEAP_AFTER_PALM := 0.05 * AF_K  # Flash Freeze off Steam Burst's palm clip
 const LEAP_AFTER_SWING := 0.1  # Anvil off Backdraft's crescent clip: once the gale has them coming back
 const ANVIL_REEL := 0.65  # of the way to him Anvil's tentacles haul what they seize (void_grab `reel`): the leap comes
 # before the gale's knockback has moved anyone (their hit freeze), so the kebab's pull-back is the tentacles' to show
