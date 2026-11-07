@@ -314,7 +314,7 @@ static func streaks(parent: Node, at: Vector3, dir: Vector3, element: String, bi
 
 ## The melee swing (Fx.swoosh): the same arc mesh, with the authored brush stroke sliding along it.
 static func slash(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float, element: String,
-		flip := false, time := 0.26, height := 0.8, lines_only := false) -> Node3D:
+		flip := false, time := 0.26, height := 0.8, lines_only := false, real := false) -> Node3D:
 	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
 	var inner := radius * (SLASH_INNER_LINES if lines_only else SLASH_INNER)
 	var segs := maxi(12, int(arc_deg / 5.0))
@@ -347,7 +347,7 @@ static func slash(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_d
 	mi.set_instance_shader_parameter("span", SLASH_SPAN)
 	mi.set_instance_shader_parameter("tiles", 0.0)
 	var boil := randi() % 4
-	var tw := fx.create_tween()
+	var tw := fx.create_tween().set_ignore_time_scale(real)  # (real: through the hitstop, the spirit echo's line)
 	tw.tween_method(func(p: float) -> void:
 		var head := pow(p, 0.45) * (1.0 + SLASH_SPAN)
 		mi.set_instance_shader_parameter("head", head)

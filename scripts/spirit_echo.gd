@@ -159,11 +159,6 @@ func pose(t: float) -> void:
 	var side := -1.0 if flip else 1.0
 	_pivot.rotation.y = lerpf(-half, half, t) * side
 	_pivot.scale = Vector3.ONE * lerpf(0.75, 1.0, minf(t * 3.0, 1.0))  # swells as it comes through
-	if _drawn != null and is_inside_tree():
-		var r := radius * DESIGNED_FINISH.ECHO_REACH * _pivot.scale.x
-		var at := _pivot.global_transform * (Vector3(0, 0, r) / _pivot.scale.x)
-		var ahead := global_transform * (Vector3(0, HEIGHT, 0) + Basis(Vector3.UP, _pivot.rotation.y + 0.2 * side) * Vector3(0, 0, r))
-		DESIGNED_FINISH.echo_pose(_drawn, at, ahead)
 	if _axe != null and t > 0.0:
 		set_alpha(minf(t / (FADE_IN / time), 1.0), _axe)
 	if t > 0.0 and is_inside_tree():
@@ -171,11 +166,28 @@ func pose(t: float) -> void:
 
 
 func _start() -> void:
-	if DESIGNED.on():
-		_drawn = DESIGNED_FINISH.echo_axe(get_parent(), global_position + Vector3.UP * HEIGHT, color, time)
-		pose(0.0)
+	if DESIGNED.on():  # feel audit 3 item 9: a small axe head and a thin ink line, in real time (designed_finish)
+		_drawn = DESIGNED_FINISH.echo_axe(get_parent(), global_position + Vector3.UP * HEIGHT, color, DESIGNED_FINISH.ECHO_REAL)
+		DESIGNED_FINISH.echo_line(get_parent(), global_position, fwd, radius, arc_deg, flip, HEIGHT)
+		_pose_drawn(0.0)
+		create_tween().set_ignore_time_scale().tween_method(_pose_drawn, 0.0, 1.0, DESIGNED_FINISH.ECHO_REAL).set_ease(
+			Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		return
 	# Lines only at the real reach: the ghost blade is the body, and a 3.9 m teal crescent under it was the fan.
 	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT, true)
+
+
+## The drawn axe head at sweep `t` on the drawn arc (designed_finish.ECHO_DRAW of the reach), on real time.
+func _pose_drawn(t: float) -> void:
+	if _drawn == null or not is_instance_valid(_drawn) or not is_inside_tree():
+		return
+	var half := deg_to_rad(arc_deg) * 0.5
+	var side := -1.0 if flip else 1.0
+	var a := lerpf(-half, half, t) * side
+	var r := radius * DESIGNED_FINISH.ECHO_DRAW * DESIGNED_FINISH.ECHO_REACH * lerpf(0.75, 1.0, minf(t * 3.0, 1.0))
+	var at := global_transform * (Vector3(0, HEIGHT, 0) + Basis(Vector3.UP, a) * Vector3(0, 0, r))
+	var ahead := global_transform * (Vector3(0, HEIGHT, 0) + Basis(Vector3.UP, a + 0.2 * side) * Vector3(0, 0, r))
+	DESIGNED_FINISH.echo_pose(_drawn, at, ahead)
 
 
 ## Enemies within reach whose bearing the blade has passed are hit once.
