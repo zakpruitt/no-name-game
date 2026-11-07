@@ -414,6 +414,14 @@ static var _bone_boxes := {}  # "mesh id:skin id" -> {bind index: PackedVector3A
 
 ## The extreme vertices of `foe`'s model meshes (per bone, posed by that bone), in `foe`'s space, with the model standing upright at its
 ## own `model_scale` (enemy.freeze stands it up, and a hit's squash is gone in a beat). Empty if it has no meshes.
+## Round 53 (feel audit 5): reads each of the foe's skinned meshes' vertices once (_boxes_of caches them per mesh), at
+## spawn. Windowed, `surface_get_arrays` pulls the mesh back off the GPU: the first ice block of the session (Harpoon's,
+## the first freeze) cost 44 ms in that frame (the autotest's worst cpu spike, 48 ms). enemy._ready calls it deferred.
+static func prime_fit(foe: Node3D) -> void:
+	if is_instance_valid(foe) and foe.is_inside_tree() and Game.comic_style and DESIGNED.on():
+		model_points(foe)
+
+
 static func model_points(foe: Node3D) -> PackedVector3Array:
 	var model: Node3D = foe.get("model") if foe.get("model") is Node3D else foe
 	var out := PackedVector3Array()
