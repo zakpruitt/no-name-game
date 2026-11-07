@@ -447,7 +447,12 @@ func context(h: CharacterBody3D) -> Dictionary:
 				return {"ctx": "ricochet", "from": _flat((foe as Node3D).global_position), "reach": load("res://scripts/counter.gd").RICOCHET_REACH,
 					"mode": "near", "key": key, "foe": foe}
 			return {}
-		if b.has("abyss") and is_instance_valid(h._void.dark_bind):  # round 51: which pinned foe comes back up first
+		# Round 51: which pinned foe Abyss gives back first, unless Uproot (its LMB) has a pillar in reach to mark: then
+		# the bracket is the pillar's (below), one pick per window.
+		var ep: GDScript = load("res://scripts/env_piece.gd")
+		var uproot_near: bool = (alt.has("uproot") and ep.usable("pillar", "uproot")
+			and not ep.near(h.get_tree(), "pillar", _flat(h._void.dark_spot), ve.UPROOT_REACH).is_empty())
+		if b.has("abyss") and is_instance_valid(h._void.dark_bind) and not uproot_near:
 			var held: Array = []
 			for s: Dictionary in h._void.dark_bind._held:
 				if is_instance_valid(s.foe) and s.foe.is_alive():
@@ -455,7 +460,6 @@ func context(h: CharacterBody3D) -> Dictionary:
 			if held.size() >= 2:
 				return {"ctx": "abyss", "from": me, "reach": ve.ABYSS_RADIUS * 3.0, "mode": "foe", "foes": held,
 					"auto": ve.abyss_first(h, held), "key": key}
-			return {}
 		if b.has("collapse"):
 			return {"ctx": "collapse", "from": _flat(h._void.dark_spot), "reach": COLLAPSE_REACH, "mode": "near", "key": key}
 		if alt.has("uproot") and load("res://scripts/env_piece.gd").usable("pillar", "uproot"):  # round 51
