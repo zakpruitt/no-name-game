@@ -24,6 +24,7 @@ var hero: CharacterBody3D
 var hauls := []  # {foe, i, root, top, end, t0, up, hold, down, from, done, tendril, keep}
 var on_up := Callable()  # (foe, i) it leaves the floor
 var on_end := Callable()  # (foe, i) it gets where it ends
+var on_top := Callable()  # (foe, i) round 55: it gets to the top (the hold starts)
 var ended := 0  # (checks)
 var top_y := 0.0  # (checks) the highest any got
 var _t := 0.0
@@ -88,6 +89,10 @@ func _physics_process(delta: float) -> void:
 			p = (one.from as Vector3).lerp(one.top, 1.0 - (1.0 - j) * (1.0 - j))
 		elif k < up + hold:  # 2. hold (a bob)
 			p = (one.top as Vector3) + Vector3.UP * sin((k - up) / hold * PI) * 0.12
+			if not one.get("topped", false):
+				one.topped = true
+				if on_top.is_valid():
+					on_top.call(foe, int(one.i))
 		else:  # 3. down (eased in: the slam)
 			var j := clampf((k - up - hold) / down, 0.0, 1.0)
 			p = (one.top as Vector3).lerp(one.end, j * j)

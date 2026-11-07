@@ -63,6 +63,10 @@ var splash := true
 var spin := CUBE_SPIN
 var on_burst := Callable()
 var wall_gap := 0.0  # m more it stops short of a wall (Slapshot: its fitted ice's reach past WALL_MARGIN)
+## Round 55 cool pass 4: a tether drawn from rope_from (a floor point: Black Tide's pool) instead of his hand, and
+## on_end(foe) when a quiet flight gets where it was going (not when cut()).
+var rope_from := Vector3.INF
+var on_end := Callable()
 const SLIDE_END := 0.3
 var _zaps := 0
 var _next_zap := 0.0
@@ -270,7 +274,9 @@ func _physics_process(delta: float) -> void:
 	var cube := foe.get_node_or_null(CUBE_NAME)
 	if cube != null:
 		cube.rotate_y(spin * delta)
-	if _rope != null and hero._void != null:
+	if _rope != null and rope_from != Vector3.INF:
+		_rope.draw(rope_from, at + Vector3.UP * 0.9, 1.0, 0.05, float(foe.get("radius")) + 0.05, _time)
+	elif _rope != null and hero._void != null:
 		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.get("radius")) + 0.05, _time)
 	if zap and _zaps < ZAP_MAX and _time >= _next_zap:
 		_zap(at)
@@ -286,6 +292,8 @@ func _physics_process(delta: float) -> void:
 	if _gone >= _length:
 		if quiet and not _walled:
 			foe.global_position.y = 0.0
+			if on_end.is_valid():
+				on_end.call(foe)
 			_finish()
 		else:
 			_burst(null)

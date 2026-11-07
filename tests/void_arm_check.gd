@@ -1681,7 +1681,8 @@ func _tentacle_alone() -> void:
 	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
 	await create_timer(0.7).timeout
 	_check(big.hp < big_hp, "Overwhelm works on big foes (%.0f)" % (big_hp - big.hp))
-	_check(a.global_position.distance_to(pin) < 0.3, "and pins small ones")
+	# (round 55: the pool's tentacles drag the rest onto the pinned one, OW_PILE_RING round it, and hold them there)
+	_check(a.global_position.distance_to(pin) < 0.3 or _flat_d(a.global_position, big.global_position) < 1.3, "and pins small ones")
 	big.free()
 	await _settle()
 	# Tow Line: who he passed, yanked together.
@@ -1895,8 +1896,8 @@ func _spear_by_hand(vault_button: String) -> void:
 	await _until(func() -> bool: return hero._move_id == "IS", 2.0)
 	_check(hero._move_id == "IS", "right click comes down on it (%s)" % hero._move_id)
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
-	_check(near.frozen and far.frozen, "and they freeze")
 	await _until(func() -> bool: return near.frozen and far.frozen, 1.0)  # (round 55: the wave)
+	_check(near.frozen and far.frozen, "and they freeze")
 	_check(SPEAR.current(self) == null, "and the spear's gone")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
 	_check(hero.state == hero.State.LEAP, "the window opens")
@@ -1966,3 +1967,7 @@ func _check(ok: bool, what: String) -> void:
 	if not ok:
 		fails += 1
 		print("  FAIL: ", what)
+
+
+func _flat_d(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
