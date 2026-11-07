@@ -1585,12 +1585,17 @@ static func _short_circuit(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		for e: Node3D in FOES.near(hero.get_tree(), _flat(g.global_position), SC_REACH):
 			if not e in held and not e in out and not THROWN.flying(e):
 				out.append(e)
+	for t: Node3D in ENV_PIECE.conducting_torches(hero.get_tree()):  # round 52 (torches conduct): each torch reaches too
+		for e: Node3D in FOES.near(hero.get_tree(), _flat(t.global_position), ENV_PIECE.CONDUCT_REACH):
+			if not e in held and not e in out and not THROWN.flying(e):
+				out.append(e)
 	out = out.slice(0, SC_ARCS)
 	for e: Node3D in out:  # (feel audit 3: the camera takes them in before the arcs land, not after)
 		e.set_meta(&"frame_cue_ms", Time.get_ticks_msec() + SC_CUE_MS)
 	var each := damage * SC_ARC_MULT * (1.0 + SC_PER_HELD * maxi(held.size() - 1, 0))
 	var from: Array = held.duplicate() if not held.is_empty() else [hero]
 	from.append_array(ENV_PIECE.live_grates(hero.get_tree()))  # round 51 (Live Floor): an arc may start from a live grate
+	from.append_array(ENV_PIECE.conducting_torches(hero.get_tree()))  # round 52: or from a conducting torch's flame
 	for i in out.size():  # one after another, out from the pile: a link further each, a beat harder each
 		hero.get_tree().create_timer(SC_DELAY + SC_STEP * i).timeout.connect(_sc_arc.bind(hero, out[i], from, each, i))
 	under(parent, at, "wind")
@@ -1606,6 +1611,8 @@ static func _sc_arc(hero: Variant, e: Variant, from: Array, each: float, i: int)
 		if is_instance_valid(f) and (src == null or f.global_position.distance_to(e.global_position) < src.global_position.distance_to(e.global_position)):
 			src = f
 	var a: Vector3 = (src.global_position if src != null else hero.global_position) + Vector3.UP * 0.9
+	if src != null and ENV_PIECE.tag_of(src) == "torch":  # (round 52: out of its flame)
+		a = src.global_position + Vector3.UP * ENV_PIECE.CONDUCT_FLAME
 	COMIC_BOLT.spawn(hero.get_parent(), a, e.global_position + Vector3.UP * 0.9, 0.26 + 0.02 * i, 0.5 + 0.06 * i, 2)
 	var away := _flat(e.global_position - a)
 	e.take_hit(each, (away.normalized() if away.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, true)

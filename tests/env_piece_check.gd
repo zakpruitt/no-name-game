@@ -92,8 +92,8 @@ func _plain() -> void:
 
 func _pieces() -> void:
 	var rooms: GDScript = load("res://scripts/rooms.gd")
-	_check(EP.counted.size() == rooms.ROOMS.training_pieces.filter(func(e: Dictionary) -> bool: return e.get("count", false)).size(),
-		"every counted training piece counted (%d)" % EP.counted.size())
+	_check(EP.counted.size() == rooms.ROOMS.training_pieces.filter(func(e: Dictionary) -> bool: return e.get("count", false)).size() + 1,
+		"every counted training piece and the middle torch counted (%d)" % EP.counted.size())
 	for n: Node3D in EP.counted:
 		var tag: String = EP.tag_of(n)
 		_check(EP.live(n) and n.is_in_group("env_" + tag), "%s live, in env_%s" % [tag, tag])
@@ -189,7 +189,10 @@ func _usable() -> void:
 func _items() -> void:
 	await _keg()
 	await _frost_wall()
+	await _frost_shatter()
 	await _live_floor()
+	await _conduct()
+	_room_rules()
 
 
 ## Frost Wall: a Frost Spear planted by the grate raises the ice wall on its far edge, on the walls' layer and known to
@@ -217,6 +220,112 @@ func _frost_wall() -> void:
 	await create_timer(FW.LIFE + 0.6, true, false, true).timeout
 	_check(FW.current(self) == null and EP.state(g) == "cold", "it melts after LIFE, the grate cold again (%s)" % EP.state(g))
 	_check(main.env.structures.filter(func(s: Dictionary) -> bool: return s.get("id", "") == FW.ID).is_empty(), "and leaves env_target")
+
+
+## Round 52: an ice cube splatting on the Frost Wall pays x SHATTER_MULT on the wall's mult (the proposal's Shatter);
+## a foe thrown into it out of a cube pays the wall's mult alone. It faces him square to his line (a diagonal here).
+func _frost_shatter() -> void:
+	var FS: GDScript = load("res://scripts/frost_spear.gd")
+	var FW: GDScript = load("res://scripts/frost_wall.gd")
+	var g: Node3D = get_nodes_in_group("env_grate")[0]
+	var got := {}
+	for el: String in ["void", "water"]:
+		hero.global_position = g.global_position + Vector3(-4.0, 0, 0)
+		await _frames(2)
+		var w: Node3D = FS.frost_wall(main, g.global_position + Vector3(-0.5, 0, 0))
+		await _frames(2)
+		var d: Node3D = _dummy(0, g.global_position + Vector3(-1.5, 0, 0))
+		var raised := w != null
+		await _frames(2)
+		var dealt := [0.0]
+		var on_hit := func(dmg: float) -> void: dealt[0] += dmg
+		d.hit_taken.connect(on_hit)
+		THROWN.launch(hero, d, d.global_position + Vector3(10, 0, 0), 10.0, {"el": el, "wall_mult": 2.0, "solid": false, "quiet": true, "splash": false})
+		await _frames(40)
+		d.hit_taken.disconnect(on_hit)
+		got[el] = dealt[0]
+		_check(raised and (not is_instance_valid(w) or w.get("_gone") or w.get("_shattering")), "the %s splat shatters the Frost Wall" % el)
+		await create_timer(0.5, true, false, true).timeout
+	print("  frost wall splat: a foe %.1f, an ice cube %.1f (x%.1f)" % [got.void, got.water, FW.SHATTER_MULT])
+	_check(is_equal_approx(got.void, 20.0), "a foe into the Frost Wall pays the wall's mult (%.1f, want 20)" % got.void)
+	_check(is_equal_approx(got.water, 20.0 * FW.SHATTER_MULT), "an ice cube into it pays x%.1f more (%.1f, want %.1f)" % [FW.SHATTER_MULT, got.water, 20.0 * FW.SHATTER_MULT])
+	# a diagonal: from the grate's south-west, the wall stands square to his line, 6 m wide
+	hero.global_position = g.global_position + Vector3(-3.0, 0, 3.0)
+	await _frames(2)
+	var w2: Node3D = FS.frost_wall(main, g.global_position + Vector3(-0.4, 0, 0.4))
+	await _frames(2)
+	if w2 != null:
+		var n: Vector3 = w2.normal
+		_check(n.dot(Vector3(-1, 0, 1).normalized()) > 0.95, "it faces him on the diagonal (normal %s)" % str(n))
+		_check(is_equal_approx(FW.WIDTH, 6.0), "6 m wide (%.1f)" % FW.WIDTH)
+		w2.melt()
+	else:
+		_check(false, "a diagonal spear raises it too")
+	await create_timer(0.6, true, false, true).timeout
+
+
+## Round 52, torches conduct: storm on a foe within CONDUCT_REACH of the back wall's middle torch makes it conduct;
+## the current runs along the wall to the torch 8 m on and zaps the foe under it (CONDUCT_DAMAGE, charged), who no
+## tentacle or arc reached; the torches are conducting for Short Circuit, lit again after CONDUCT_S. With the torches
+## out, nothing relays; storm far from any torch, nothing; the prince has no storm.
+func _conduct() -> void:
+	var VE: GDScript = load("res://scripts/void_element.gd")
+	var torches: Array = get_nodes_in_group("env_torch")
+	_check(torches.size() == 3, "three torches (%d)" % torches.size())
+	var mid: Node3D = null
+	for t: Node3D in torches:
+		if is_equal_approx(t.global_position.x, -2.0):
+			mid = t
+	if mid == null:
+		_check(false, "the middle torch at x -2")
+		return
+	hero.global_position = Vector3(-2, 0, -2)
+	var a: Node3D = _dummy(0, Vector3(-2.0, 0, -12.6))
+	var far: Node3D = _dummy(1, Vector3(6.0, 0, -12.6))
+	_dummy(2, Vector3(0, 0, 4))
+	_dummy(3, Vector3(3, 0, 6))
+	await _frames(3)
+	var got := [0.0]
+	var on_hit := func(dmg: float) -> void: got[0] += dmg
+	far.hit_taken.connect(on_hit)
+	var mult: float = float(hero.get("_dmg_mult")) if hero.get("_dmg_mult") != null else 1.0
+	var plays: int = int(EP.verbs.get("conduct", 0))
+	VE.unmark(far, "charged")
+	VE.mark(a, "charged")
+	_check(EP.state(mid) == "conducting", "storm on a foe under the torch makes it conduct (%s)" % EP.state(mid))
+	_check(EP.torch_chain(mid).size() == 3, "the current runs along the wall through all three torches (%d)" % EP.torch_chain(mid).size())
+	print("  torches conduct: the foe 8 m along the wall took %.1f (want %.1f)" % [got[0], EP.CONDUCT_DAMAGE * mult])
+	_check(is_equal_approx(got[0], EP.CONDUCT_DAMAGE * mult), "the foe under the far torch takes the relay (%.1f)" % got[0])
+	_check(VE.marked(far, "charged"), "and is charged")
+	_check(EP.conducting_torches(self).size() == 3, "every torch in the chain conducts (Short Circuit's sources)")
+	_check(int(EP.verbs.get("conduct", 0)) == plays + 1, "conduct is counted once")
+	got[0] = 0.0
+	VE.mark(a, "charged")  # (inside CONDUCT_CD: no second relay yet)
+	_check(got[0] == 0.0, "one relay per torch per CONDUCT_CD (%.1f)" % got[0])
+	await create_timer(EP.CONDUCT_S + 0.6, true, false, true).timeout
+	_check(EP.state(mid) == "lit", "lit again after CONDUCT_S (%s)" % EP.state(mid))
+	got[0] = 0.0
+	var b: Node3D = main._dummies[2]
+	VE.mark(b, "charged")  # (8 m off the wall: no torch near)
+	_check(got[0] == 0.0 and EP.state(mid) == "lit", "storm far from any torch relays nothing")
+	for t: Node3D in torches:
+		t.set_meta(EP.STATE_META, "out")
+	VE.mark(a, "charged")
+	_check(got[0] == 0.0 and EP.conducting_torches(self).is_empty(), "an out torch doesn't conduct (%.1f)" % got[0])
+	for t: Node3D in torches:
+		t.set_meta(EP.STATE_META, "lit")
+	game.hero = "prince"
+	_check(not EP.usable("torch", "conduct"), "the prince has no storm: a torch is light to him")
+	game.hero = "heretic"
+	far.hit_taken.disconnect(on_hit)
+
+
+## Round 52: the rooms' rules (rooms.gd ROOM_RULES): both training rooms rebuild, a real room keeps pieces gone.
+func _room_rules() -> void:
+	var rooms: GDScript = load("res://scripts/rooms.gd")
+	_check(rooms.rebuild("plain") and rooms.rebuild("pieces"), "both training rooms rebuild")
+	_check(not rooms.rebuild("hall"), "a real room keeps used-up pieces gone")
+	_check(main.get_meta(EP.REBUILD_META, false) == true, "main passes the room's rule to EnvPiece.begin")
 
 
 ## Live Floor: storm on a foe standing on the grate makes it live; another foe on it is charged by the grate; Short

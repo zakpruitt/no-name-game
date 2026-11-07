@@ -46,6 +46,7 @@ const CTX := {
 	"pillar_slam": {"el": "void", "choose": true, "far": false, "kinds": ["pillar"]},
 	"uproot": {"el": "void", "choose": true, "far": true, "kinds": ["pillar"]},  # round 51: Abyss's LMB (env_piece.gd)
 	"keg": {"el": "earth", "choose": false, "far": false, "kinds": ["barrel"]},  # round 51: Molten Palm toward a barrel
+	"conduct": {"el": "wind", "choose": false, "far": false, "kinds": ["torch"]},  # round 52: a conducting torch (the storm windows)
 	"avalanche": {"el": "water", "choose": true, "far": false},  # round 51 cool pass: where the tower falls
 	# round 51 cool pass: foe picks (the same bracket on a foe: kind "foe" in foe_structs(); picked_foe() reads it)
 	"overwhelm": {"el": "void", "choose": true, "far": false},  # the charged hold: who Overwhelm pins
@@ -73,6 +74,8 @@ const BRACKET_SIZE := 2.5
 const BRACKET_Y := 1.3
 const PILLAR_BRACKET_SIZE := 2.9
 const PILLAR_BRACKET_Y := 1.7
+const TORCH_BRACKET_SIZE := 1.8  # round 52: a conducting torch's bracket, round its flame
+const TORCH_BRACKET_UP := 0.55
 const WALL_OUT := 0.45
 const RING_PAD := 1.0
 const CHEV_SIZE := 0.62
@@ -485,6 +488,10 @@ func context(h: CharacterBody3D) -> Dictionary:
 			return {"ctx": "uproot", "from": _flat(h._void.dark_spot), "reach": ve.UPROOT_REACH, "mode": "near", "key": key}
 		if b.has("press"):  # Avalanche (round 51): the cubes' pile, where the tower stands
 			return {"ctx": "avalanche", "from": _flat(h._void.dark_spot), "reach": ve.AVALANCHE_REACH, "mode": "near", "key": key}
+		if b.get("wire", false) or alt.has("short_circuit"):  # round 52: the storm windows bracket a conducting torch
+			var conducting := _conduct_ctx(h, me, key)
+			if not conducting.is_empty():
+				return conducting
 		if b.has("meteor"):
 			var spot: Dictionary = ve.meteor_spot(h, false)
 			if spot.found:
@@ -516,6 +523,10 @@ func context(h: CharacterBody3D) -> Dictionary:
 		if snare.size() >= 2:
 			return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare), "key": mkey}
 		return {}
+	if h._move_id in ["EE", "XC"]:  # round 52: Live Wire and Galvanize bracket a conducting torch
+		var conducting := _conduct_ctx(h, me, mkey)
+		if not conducting.is_empty():
+			return conducting
 	if h._move_id == "XL" and h._hits_done == 0:
 		for e: Node in get_tree().get_nodes_in_group("enemies"):
 			if ve.palm_fresh(e) and ve.wall_fresh(e):
@@ -524,6 +535,18 @@ func context(h: CharacterBody3D) -> Dictionary:
 	if h._void.holds_for_slam():
 		return {"ctx": "pillar_slam", "from": me, "reach": PILLAR_SLAM_REACH, "mode": "near", "key": "grab:%d" % h.get_instance_id()}
 	return {}
+
+
+## Round 52 (torches conduct, env_piece.gd): the conducting torches as structures of kind "torch" (`node` the torch),
+## for a "torch" mode context; {} when none conducts.
+func _conduct_ctx(h: CharacterBody3D, me: Vector3, key: String) -> Dictionary:
+	var lit: Array = load("res://scripts/env_piece.gd").conducting_torches(h.get_tree())
+	if lit.is_empty():
+		return {}
+	var structs := []
+	for t: Node3D in lit:
+		structs.append({"id": "torch%d" % t.get_instance_id(), "kind": "torch", "at": _flat(t.global_position), "r": 0.5, "node": t})
+	return {"ctx": "conduct", "from": me, "reach": 40.0, "mode": "torch", "torches": structs, "key": key}
 
 
 static func _middle(foes: Array, fallback: Vector3) -> Vector3:
@@ -543,6 +566,10 @@ func resolve(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 	var r: Dictionary
 	if c.mode == "foe":
 		return _resolve_foe(h, c)
+	if c.mode == "torch":  # round 52: the conducting torch nearest him
+		var t := nearest(c.torches, c.from, c.reach, ["torch"])
+		t.chosen = false
+		return t
 	if c.mode == "along":
 		r = along(structures, c.from, c.dir, c.reach, kinds)
 		if not r.found:  # (nothing along the line at all: the nearest, for the too-far bracket)
@@ -731,14 +758,17 @@ func _draw(frame: int) -> void:
 	var at: Vector3 = current.at
 	var n: Vector3 = current.n
 	_bracket.visible = true
-	if pillar:
+	if s.kind == "torch" and is_instance_valid(s.get("node")):  # round 52: on the flame, on the wall
+		_bracket.global_position = (s.node as Node3D).global_position + Vector3(0.0, TORCH_BRACKET_UP, 0.0) + Vector3(n.x, 0.0, n.z) * 0.3
+		_bracket.scale = Vector3.ONE * TORCH_BRACKET_SIZE
+	elif pillar:
 		_bracket.global_position = Vector3(s.at.x, PILLAR_BRACKET_Y, s.at.z)
 		_bracket.scale = Vector3.ONE * PILLAR_BRACKET_SIZE
 	else:
 		_bracket.global_position = at + n * WALL_OUT + Vector3.UP * BRACKET_Y
 		_bracket.scale = Vector3.ONE * BRACKET_SIZE
 	_tone(_bracket, frame, row, alpha)
-	_ring.visible = pillar and frame <= 3 or (pillar and current.state == "far")
+	_ring.visible = (pillar and frame <= 3 or (pillar and current.state == "far")) and s.kind != "torch"
 	if _ring.visible:
 		var rf := 3 if current.state == "far" else (frame - 1 if frame >= 1 else 0)
 		_ring.global_position = Vector3(s.at.x, DESIGNED.GROUND_LIFT + 0.01, s.at.z)

@@ -40,7 +40,7 @@ const PIECES := {
 	"pillar": {"models": ["pillar_decorated"], "collider": "cyl", "size": Vector2(0.75, 4.0), "wall": true, "breaks": false,
 		"states": ["whole", "cracked", "toppled"], "built": true,
 		"rule": "A wall for splats, the R swing's anchor, the pillar slam; shakes on landings. Toppled: rubble for the room."},
-	"torch": {"models": ["torch_mounted"], "collider": "none", "wall": false, "breaks": false, "states": ["lit", "out"], "built": true,
+	"torch": {"models": ["torch_mounted"], "collider": "none", "wall": false, "breaks": false, "states": ["lit", "out", "conducting"], "built": true,
 		"rule": "Light; swings when a foe splats on the wall under it."},
 	"brazier": {"models": ["brazier", "brazier_spilled"], "stub": false, "collider": "cyl", "size": Vector2(0.55, 1.3), "wall": false, "breaks": true,
 		"states": ["lit", "out", "spilled"], "built": false,
@@ -82,16 +82,16 @@ const EXCLUSIVE := {
 	"void": {"pillar": ["uproot"]},
 	"earth": {"barrel": ["keg"]},
 	"water": {"grate": ["frost_wall"]},
-	"wind": {"grate": ["live_floor"]},
+	"wind": {"grate": ["live_floor"], "torch": ["conduct"]},
 }
 ## Which verbs are in the game (the rest of EXCLUSIVE is the proposal's, still to build).
-const BUILT := ["uproot", "keg", "frost_wall", "live_floor"]
+const BUILT := ["uproot", "keg", "frost_wall", "live_floor", "conduct"]
 ## The elements each hero hits with (the heretic's four colours; the prince's from his draft card).
 const HERO_ELEMENTS := {"heretic": ["void", "wind", "water", "earth"], "prince": ["dragonfire", "radiance", "steel"]}
 ## The element verbs a hit can trigger: element -> piece -> the verb hit() plays.
 const RULES_BY_ELEMENT := {
 	"earth": {"barrel": "keg"},
-	"wind": {"grate": "live_floor"},
+	"wind": {"grate": "live_floor", "torch": "conduct"},
 }
 
 ## Shared numbers.
@@ -115,6 +115,14 @@ const KEG_DAMAGE := KEG_BASE * 1.5  # (void_element.IMPROV_MULT, the Burst rule'
 const KEG_CATCH := 1.2  # m: magma on a foe this near a barrel reaches it
 const KEG_WORD := "KA-BLOOOM!"
 const KEG_TELL := 2.2  # m: the tell_molten licks on the burning barrel
+## Round 52 (env-pieces2): the keg's word waits its turn. ComicFx shows one word at a time (`replace`), so in the keg
+## string Meteor Fall's word, landing on the pile as the keg went, wiped "KA-BLOOOM!" in the same beat. It waits while
+## he is in a breaker's leap and until KEG_WORD_GAP_MS after the last word (at most KEG_WORD_WAIT real s), and goes up
+## KEG_WORD_UP over the barrel.
+const KEG_WORD_GAP_MS := 450
+const KEG_WORD_WAIT := 1.2
+const KEG_WORD_UP := 2.8
+const KEG_WORD_POLL := 0.05
 
 ## Live Floor (round 51, storm on a grate): a storm hit that charges a foe standing on a grate (Live Wire's jolts,
 ## Grounded, Galvanize: void_element.mark(e, "charged")) makes the grate live for LIVE_S: everyone on it is charged
@@ -127,10 +135,32 @@ const LIVE_CRAWL_SIZE := 1.7
 
 static var _live_ticking := false  # (the grate's own charge doesn't make it live again)
 
+## Live Floor's look (round 52, env-pieces2): the crawls sit on the tile's edge, bigger, and a lime bolt runs round its
+## rim every tick, so a live grate reads under the pile standing on it.
+const LIVE_EDGE_CRAWLS := 8  # arc_crawl loops round the edge (corners and edge middles)
+const LIVE_EDGE_SIZE := 2.4
+const LIVE_RIM_W := 0.3  # the rim bolt's width
+
+## Torches conduct (round 52, env-pieces2; build order item 5): a storm hit that charges a foe within CONDUCT_REACH of a
+## lit torch makes it conduct for CONDUCT_S: the current runs along the wall through every lit torch within
+## CONDUCT_LINK of the next (a lime bolt_path from the foe to the torch and on along the wall), and each torch in the
+## chain zaps the foes within CONDUCT_REACH of it for CONDUCT_DAMAGE and charges them. Live Wire's jolts, Galvanize's
+## zaps and Short Circuit's arcs all charge, so all three relay; Short Circuit also counts conducting torches as
+## sources and reaches CONDUCT_REACH round each (void_element._short_circuit). One relay per torch per CONDUCT_CD.
+const CONDUCT_REACH := 3.5  # m (flat) from the torch
+const CONDUCT_LINK := 8.5  # m between torches along the wall the current jumps (the training room's are 8 apart)
+const CONDUCT_S := 3.0  # s (game) a torch keeps conducting after the last storm near it
+const CONDUCT_DAMAGE := 8.0  # each relayed zap (x his damage mult)
+const CONDUCT_CD := 0.45  # real s between one torch's relays (Live Wire jolts every 0.1 s)
+const CONDUCT_FLAME := 0.55  # m over the torch's origin: its flame, where the bolts meet it
+const CONDUCT_WORD := "ZZRAK!"
+static var _relaying := false  # (the relay's own charges don't relay again)
+
 ## Run counters (the autotest's [env] line): the pieces placed with `count` and the ones a hit has touched.
 static var counted: Array = []
 static var touched := {}  # instance id -> verb or rule it played last
 static var verbs := {}  # verb id -> times
+static var keg_words := 0  # (round 52: the keg's words that went up, after their wait)
 
 
 # --- placing ------------------------------------------------------------------------------------------------------
@@ -319,6 +349,8 @@ static func _verb(n: Node3D, verb_id: String, _el: String, by: Node, _how: Strin
 			return _keg(n, by)
 		"live_floor":
 			return _live(n)
+		"conduct":
+			return _conduct(n, by)
 	return ""
 
 
@@ -336,6 +368,12 @@ static func _live(n: Node3D) -> String:
 		for i in LIVE_CRAWLS:
 			var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_CRAWL_SIZE, "wind", 6)
 			c.position = Vector3((float(i % 2) - 0.5) * 2.0 * h, 0.35, (float(i >> 1) - 0.5) * 2.0 * h)
+			crawls.append(c)
+		var edge: float = float(PIECES.grate.size.x) * 0.5 - 0.15  # round 52: bigger crawls on the edge, out from under the pile
+		for i in LIVE_EDGE_CRAWLS:
+			var a := TAU * i / LIVE_EDGE_CRAWLS
+			var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_EDGE_SIZE, "wind", 6)
+			c.position = Vector3(clampf(cos(a) * 1.5, -1.0, 1.0) * edge, 0.5, clampf(sin(a) * 1.5, -1.0, 1.0) * edge)
 			crawls.append(c)
 	n.set_meta(&"env_tell", crawls)
 	ComicFx.say("BZZZT!", n.global_position + Vector3.UP * 1.2, 0.5)
@@ -355,12 +393,25 @@ static func _live_tick(n: Variant) -> void:
 				c.erode_out(0.3)
 		p.remove_meta(&"env_tell")
 		return
+	_live_rim(p)
 	var VE: GDScript = load("res://scripts/void_element.gd")
 	_live_ticking = true
 	for e: Node3D in on_tile(p):
 		VE.mark(e, "charged")
 	_live_ticking = false
 	p.get_tree().create_timer(LIVE_TICK, false).timeout.connect(_live_tick.bind(p))
+
+
+## The live grate's lime rim (round 52): a bolt along each of the tile's four edges, drawn again every tick.
+static func _live_rim(n: Node3D) -> void:
+	if not DESIGNED.on():
+		return
+	var e: float = float(PIECES.grate.size.x) * 0.5
+	var c := Vector3(n.global_position.x, 0.12, n.global_position.z)
+	var pts := PackedVector3Array()
+	for k: Vector3 in [Vector3(-e, 0, -e), Vector3(e, 0, -e), Vector3(e, 0, e), Vector3(-e, 0, e), Vector3(-e, 0, -e)]:
+		pts.append(c + k)
+	DESIGNED.bolt_path(n.get_parent(), pts, LIVE_RIM_W)
 
 
 ## The living foes standing on floor piece `n` (its square).
@@ -372,6 +423,140 @@ static func on_tile(n: Node3D) -> Array:
 ## The live grates in the room.
 static func live_grates(tree: SceneTree) -> Array:
 	return tree.get_nodes_in_group("env_grate").filter(func(g: Node) -> bool: return state(g) == "live")
+
+
+## Torches conduct: torch `n` takes the current from `by` (the charged foe by it) and relays it along the wall.
+static func _conduct(n: Node3D, by: Node) -> String:
+	var now := Time.get_ticks_msec()
+	var until := now + int(CONDUCT_S * 1000.0 / maxf(Game.slow, 0.01))
+	if now < int(n.get_meta(&"relay_ms", 0)):
+		n.set_meta(&"conduct_until", until)
+		return "conducting"
+	var chain := torch_chain(n)
+	for t: Node3D in chain:
+		t.set_meta(&"relay_ms", now + int(CONDUCT_CD * 1000.0))
+		t.set_meta(&"conduct_until", until)
+		if state(t) != "conducting":
+			t.set_meta(STATE_META, "conducting")
+			if t == n:
+				played("conduct")
+			_flare(t)
+			_conduct_tick(t)
+	_relay(chain, by)
+	return "conducting"
+
+
+## The lit torches the current runs through from `n`: `n`, then every one within CONDUCT_LINK of one already in (along
+## the wall).
+static func torch_chain(n: Node3D) -> Array:
+	var out: Array = [n]
+	var left: Array = n.get_tree().get_nodes_in_group("env_torch").filter(func(t: Node) -> bool:
+		return t != n and live(t) and state(t) != "out")
+	var grew := true
+	while grew:
+		grew = false
+		for t: Node3D in left.duplicate():
+			for o: Node3D in out:
+				if _flat_d(t.global_position, o.global_position) <= CONDUCT_LINK:
+					out.append(t)
+					left.erase(t)
+					grew = true
+					break
+	return out
+
+
+## The relay: a lime bolt from the charged foe to the torch and on along the wall, and each torch's zap on the foes by it.
+static func _relay(chain: Array, by: Node) -> void:
+	var first := chain[0] as Node3D
+	var tree := first.get_tree()
+	var parent := first.get_parent()
+	var hero: Node = tree.get_first_node_in_group("player")
+	var mult: float = float(hero.get("_dmg_mult")) if hero != null and hero.get("_dmg_mult") != null else 1.0
+	var VE: GDScript = load("res://scripts/void_element.gd")
+	var THROWN: GDScript = load("res://scripts/thrown_foe.gd")
+	if DESIGNED.on():
+		var path := PackedVector3Array()
+		if is_instance_valid(by) and by is Node3D:
+			path.append((by as Node3D).global_position + Vector3.UP * 1.0)
+		for t: Node3D in chain:
+			path.append(_flame(t))
+		if path.size() >= 2:
+			DESIGNED.bolt_path(parent, path, 0.3)
+	_relaying = true
+	var zapped := {}
+	if is_instance_valid(by):
+		zapped[by] = true
+	for t: Node3D in chain:
+		for e: Node3D in FOES.near(tree, _flat(t.global_position), CONDUCT_REACH):
+			if zapped.has(e) or THROWN.flying(e):
+				continue
+			zapped[e] = true
+			if DESIGNED.on():
+				DESIGNED.bolt(parent, _flame(t), e.global_position + Vector3.UP * 1.0, 0.26, 0.6)
+			VE.zap_hit(e, CONDUCT_DAMAGE * mult)
+			VE.mark(e, "charged")
+			Game.register_hit("cast")
+			t.set_meta(&"relayed", int(t.get_meta(&"relayed", 0)) + 1)
+	_relaying = false
+	Game.sfx("hit_big", -9.0, 0.15)
+
+
+## A torch takes the current: its flame flares (a storm star on it, arcs crawling round it while it conducts), the word.
+static func _flare(t: Node3D) -> void:
+	if DESIGNED.on():
+		DESIGNED.hit(t.get_parent(), _flame(t), "wind", 1.1)
+		var c: Node3D = load("res://scripts/designed_polish.gd").loop(t, "arc_crawl", 1.6, "wind", 6)
+		c.position = Vector3.UP * CONDUCT_FLAME
+		t.set_meta(&"env_tell", c)
+	var tw := t.create_tween()
+	var home := t.scale
+	tw.tween_property(t, "scale", home * 1.25, 0.06)
+	tw.tween_property(t, "scale", home, 0.18)
+	ComicFx.say(CONDUCT_WORD, _flame(t) + Vector3.UP * 0.8, 0.45)
+
+
+static func _conduct_tick(n: Variant) -> void:
+	if not is_instance_valid(n) or state(n) != "conducting":
+		return
+	var t := n as Node3D
+	if Time.get_ticks_msec() >= int(t.get_meta(&"conduct_until", 0)):
+		t.set_meta(STATE_META, "lit")
+		var c: Variant = t.get_meta(&"env_tell") if t.has_meta(&"env_tell") else null
+		if is_instance_valid(c):
+			c.erode_out(0.3)
+		t.remove_meta(&"env_tell")
+		return
+	t.get_tree().create_timer(0.25, false).timeout.connect(_conduct_tick.bind(t))
+
+
+## The conducting torches in the room (Short Circuit's sources, the indicator's brackets).
+static func conducting_torches(tree: SceneTree) -> Array:
+	return tree.get_nodes_in_group("env_torch").filter(func(t: Node) -> bool: return state(t) == "conducting")
+
+
+## Storm on foe `e`: the nearest lit torch within CONDUCT_REACH of it takes the current.
+static func conduct_near(e: Node3D) -> void:
+	if not usable("torch", "conduct"):
+		return
+	var best: Node3D = null
+	for t: Node in e.get_tree().get_nodes_in_group("env_torch"):
+		var d := _flat_d((t as Node3D).global_position, e.global_position)
+		if live(t) and state(t) != "out" and d <= CONDUCT_REACH and (best == null or d < _flat_d(best.global_position, e.global_position)):
+			best = t
+	if best != null:
+		hit(best, "wind", e, "element")
+
+
+static func _flame(t: Node3D) -> Vector3:
+	return t.global_position + Vector3.UP * CONDUCT_FLAME
+
+
+static func _flat(v: Vector3) -> Vector3:
+	return Vector3(v.x, 0.0, v.z)
+
+
+static func _flat_d(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 ## Powder Keg: the barrel catches (KEG_FUSE), then bursts.
@@ -417,7 +602,7 @@ static func _keg_burst(n: Variant, by: Variant) -> void:
 	if DESIGNED.on():
 		DESIGNED.meteor(parent, at, KEG_R * 0.8)
 		load("res://scripts/designed_polish.gd").chips(parent, at + Vector3.UP * 1.0, Color(0.55, 0.36, 0.2), STAVES, 8.0, Vector3.UP, true)
-	ComicFx.say(KEG_WORD, at + Vector3.UP * 2.0, 0.7)
+	_keg_word(tree, at, 0.0)
 	Game.hitstop(0.06)
 	Game.shake(0.7)
 	Game.sfx("hit_big", -2.0, 0.08)
@@ -427,6 +612,21 @@ static func _keg_burst(n: Variant, by: Variant) -> void:
 		hit(c, "earth", hero, "burst")
 	for b: Node3D in near(tree, "barrel", at, KEG_R):
 		hit(b, "earth", hero, "element")  # (a chain: the next keg catches)
+
+
+## "KA-BLOOOM!" over the burst, once no other word or breaker leap holds the page (KEG_WORD_*).
+static func _keg_word(tree: SceneTree, at: Vector3, waited: float) -> void:
+	if tree == null:
+		return
+	var hero: Node = tree.get_first_node_in_group("player")
+	var busy := ComicFx._inst != null and Time.get_ticks_msec() - int(ComicFx._inst.get("_last_word_ms")) < KEG_WORD_GAP_MS
+	if hero != null and "state" in hero and hero.state == hero.State.LEAP:
+		busy = true
+	if busy and waited < KEG_WORD_WAIT:
+		tree.create_timer(KEG_WORD_POLL, true, false, true).timeout.connect(_keg_word.bind(tree, at, waited + KEG_WORD_POLL))
+		return
+	keg_words += 1
+	ComicFx.say(KEG_WORD, at + Vector3.UP * KEG_WORD_UP, 0.7)
 
 
 ## A foe took a state (void_element.mark): the pieces it reaches answer.
@@ -439,6 +639,8 @@ static func marked(e: Variant, st: String) -> void:
 		var g := under((e as Node).get_tree(), "grate", (e as Node3D).global_position)
 		if g != null:
 			hit(g, "wind", e, "element")
+		if not _relaying:  # round 52: torches conduct
+			conduct_near(e)
 
 
 ## Magma reached foe `e` (void_element.mark(e, "molten")): a barrel within KEG_CATCH of it catches.

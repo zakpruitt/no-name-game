@@ -12,7 +12,7 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 170.0  # (was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
+const AUTOTEST_MAX := 180.0  # (round 52: 170 -> 180 for the torch string; was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
 # Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100; 125 until round 49's 38th
 # string, Lava Leash, pushed the counter string, the last, past it; 140 until round 51's room with pieces, whose
 # strings come last, ran its 41st past it. The plain room finishes on its strings well before)
@@ -116,11 +116,14 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"room": "pieces", "slot": ["ender_2", "dash_ender_l"], "tokens": ["grate", "alt", "L", "L", "H", "wait", "D", "L", "H"]},
 	# "grate": Live Floor: Live Wire's jolts on the dummy standing on the grate make it live, and Short Circuit's arcs
 	# run from it.
-	{"room": "pieces", "slot": "big_1", "tokens": ["grate", "alt", "L", "H", "H"]}]
+	{"room": "pieces", "slot": "big_1", "tokens": ["grate", "alt", "L", "H", "H"]},
+	# Round 52 (env-pieces2): torches conduct: Live Wire's jolts on the dummies under the back wall's middle torch make
+	# it conduct, the current runs along the wall to the torch over the far dummy, and Short Circuit arcs from them.
+	{"room": "pieces", "slot": "big_1", "tokens": ["torch", "alt", "L", "H", "H"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
-const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate"]
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch"]
 ## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
 ## stands, which way he faces, and the dummies' spots. "keg": east of the barrel at (-11.2, -2), three dummies in
 ## Molten Palm's line toward it and one lined up on the crate at (-11, 1). "grate": west of the grate at (6, -2), the
@@ -130,6 +133,10 @@ const BOT_PIECE_LAYOUTS := {
 		"dummies": [Vector3(-5.6, 0, -2.0), Vector3(-6.3, 0, -2.4), Vector3(-6.3, 0, -1.6), Vector3(-6.0, 0, 0.9)]},
 	"grate": {"at": Vector3(1.6, 0, -2.0), "face": Vector3(1, 0, 0),
 		"dummies": [Vector3(4.6, 0, -2.0), Vector3(5.6, 0, -2.9), Vector3(5.6, 0, -1.1), Vector3(6.6, 0, -2.0)]},
+	# round 52: "torch": facing the back wall under its middle torch (-2, 2.4, -15.5), three dummies within its
+	# CONDUCT_REACH and the fourth 8 m along under the torch at (6, 2.4, -15.5), out of the tentacles' reach
+	"torch": {"at": Vector3(-2.0, 0, -9.2), "face": Vector3(0, 0, -1),
+		"dummies": [Vector3(-2.0, 0, -12.2), Vector3(-3.0, 0, -12.7), Vector3(-1.0, 0, -12.7), Vector3(6.0, 0, -12.7)]},
 }
 ## A "pillar" string: he stands BOT_PILLAR_GAP m out from main.PILLARS[0] facing it, the dummies round the pillar's
 ## near side (x across his aim, z along it, from him): one between him and it for the grab, the rest by its face.
