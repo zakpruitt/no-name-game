@@ -23,16 +23,17 @@ const DRAG_SHADER := preload("res://shaders/designed_drag.gdshader")
 
 const STAGGER := 0.03  # s between tentacles leaving his claw (Galvanize 0.035, Harpoon 0.02)
 const REACH := 0.04  # s out to a foe beside him...
-const REACH_PER_M := 0.007  # ...and this much more a metre (a wall 10 m off: 0.11 s, a whip you can see go)
+const REACH_PER_M := 0.005  # ...and this much more a metre (a wall 10 m off: 0.09 s, a whip you can see go)
 const WAVE := 0.07  # the reach's whip
-const DRAG_SPEED := 38.0  # m/s the drag averages...
+const DRAG_SPEED := 60.0  # m/s the drag averages...
 const DRAG_MIN := 0.12  # s, at the least...
-const DRAG_MAX := 0.3  # s, at the most: a far one comes faster, so the pile is in before the window
+const DRAG_MAX := 0.18  # s, at the most: a far one comes faster, so the pile is in (and erupted) before his leap
 const DRAG_EASE := 1.7  # k^ease: it starts slow off the wall and slams into the pile
 const HOP := 0.18  # m it bounces off the floor at the drag's middle
 const HOLD := 1.0  # s the tentacles stay on after the eruption with no breaker
 const LET_GO := 0.1  # s they draw back
 const CHEST := Vector3(0.0, 0.85, 0.0)
+const ANKLE := Vector3(0.0, 0.25, 0.0)  # where the coil holds the pile once it has erupted
 const FLYING := "thrown_foe_flying"  # (thrown_foe.FLYING)
 const LAVA := Color(1.0, 0.42, 0.08)  # the tentacle's glow as it drags through the lava
 const HEAT := 0.75  # how far the glow goes at the drag's end
@@ -246,9 +247,10 @@ func _physics_process(delta: float) -> void:
 			continue
 		if not one.arrived:
 			_arrive(one)
-		var cool := 0.0 if not _erupted else clampf((_t - _erupt_t) / 0.6, 0.0, 1.0)
+		var cool := 0.0 if not _erupted else clampf((_t - _erupt_t) / 0.3, 0.0, 1.0)
 		tendril.electrify(HEAT * (1.0 - cool * 0.7), LAVA)
-		tendril.draw(hand, (e as Node3D).global_position + CHEST, out, 0.02, coil if out > 0.5 else 0.0, _t)
+		var grip := CHEST.lerp(ANKLE, cool)  # (once the seam erupts the coil slides down to the legs: the burst reads over it)
+		tendril.draw(hand, (e as Node3D).global_position + grip, out, 0.02, (coil * lerpf(1.0, 0.75, cool)) if out > 0.5 else 0.0, _t)
 	if all_in and not _erupted:
 		_erupt()
 	_seam_draw()

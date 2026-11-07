@@ -148,8 +148,8 @@ const MOVES := {
 		"speed": 1.2, "lunge": 2.0, "knockback": 0.0, "launch": 0.0, "stop": 0.08, "shake": 0.35, "big": true},
 	# Lava Leash (L L L H L, dark-magma lane): the tentacle clip; the drags and the seam's eruption run on after the hit
 	# (lava_leash.gd), and Hellseam's leap waits for them (BREAKERS.XL `leap`, before this cancel).
-	"XL": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.74, "end": VOID_ELEMENT.GR_HIT + 0.77,
-		"speed": 1.1, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.04, "shake": 0.2},
+	"XL": {"anim": "Ab_GR", "damage": 0.0, "range": 0.0, "arc": 0.0, "hits": [VOID_ELEMENT.GR_HIT], "cancel": VOID_ELEMENT.GR_HIT + 0.765, "end": VOID_ELEMENT.GR_HIT + 0.774,
+		"speed": 0.95, "lunge": 0.0, "knockback": 0.0, "launch": 0.0, "stop": 0.04, "shake": 0.2},
 	# Light after Updraft Lash (L H L): an air slash. He stays up with the foe
 	# the lash threw (`air`: holds the height he started at) and the cut
 	# re-juggles it; right click off it is Live Wire's breaker (void_element.gd).

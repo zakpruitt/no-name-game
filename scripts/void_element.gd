@@ -437,7 +437,7 @@ const LEASH_WORD := 0.42  # the word's size with one in the pile, LEASH_WORD_PER
 const LEASH_WORD_PER := 0.05
 const LEASH_CUE_MS := 1600  # real ms the leashed count for the camera's framing (camera_rig.FRAME_CUE): the far one stays in
 const LEASH_META := "leash_m"  # meta: the metres the leash dragged it (Hellseam reads it)
-const LEAP_AFTER_LEASH := 0.7  # (clip fraction) Hellseam's leap: after the last drag lands and the pile's burst has peaked (it hid under his leap at 0.56)
+const LEAP_AFTER_LEASH := 0.76  # (clip fraction, near its end) Hellseam's leap: after the last drag lands and the pile's burst has peaked (it hid under his leap at 0.56)
 ## Hellseam (Lava Leash's breaker, H): he dives onto the pile and the seam goes up its whole length. The held pile is
 ## driven into the floor (a crater) for the breaker's damage x (1 + HELLSEAM_PER_M a metre each was dragged, to
 ## LEASH_DRAG_CAP); then the eruption races back out along every seam a foe was dragged down, from the pile to where it
