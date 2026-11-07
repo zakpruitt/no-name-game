@@ -59,6 +59,8 @@ static func swoosh(hero: CharacterBody3D, fwd: Vector3) -> void:
 	var move: Dictionary = hero._move
 	if move.has("width"):
 		return
+	if move.get("thrust", false) and Fx.DESIGNED.on():
+		return  # fx-ice3: a thrust (Dash Stab) has no arc; in water's palette its two arcs read as ice blades
 	hero._swoosh_flip = not hero._swoosh_flip
 	var trails: Array = hero._trails
 	var c: Color = trails[0].color if not trails.is_empty() else trail_rest_color(hero)
@@ -204,5 +206,8 @@ static func last_kill(hero: CharacterBody3D, e: Node) -> void:
 	var parent := hero.get_parent()
 	Fx.ring(parent, at, Color(gold, 0.95), 5.0, 0.5)
 	Fx.ring(parent, at, Color(1, 1, 1, 0.8), 2.5, 0.3)
-	Fx.flare(parent, at + Vector3.UP * 1.1, gold, 6.0, 0.3, "star8")
+	if Game.comic_style and Fx.DESIGNED.on():  # fx-polygons: the drawn gold star, not a soft flare
+		Fx.DESIGNED_POLISH.last_kill(parent, at)
+	else:
+		Fx.flare(parent, at + Vector3.UP * 1.1, gold, 6.0, 0.3, "star8")
 	Fx.burst(parent, at + Vector3.UP * 0.8, gold, 30, 12.0, 0.16, 0.6, Vector3.UP, 120.0, -10.0, 0.2, "spark")

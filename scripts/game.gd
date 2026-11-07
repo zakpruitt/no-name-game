@@ -267,6 +267,21 @@ func hitstop(duration: float, time_scale := 0.03) -> void:
 	Engine.time_scale = minf(Engine.time_scale, time_scale * slow)
 
 
+## Breaker spectacle: a breaker landing's stop shape (designed_breaker.FEEL per element): a hard crunch at
+## CRUNCH_SCALE for `crunch` real s, then a short slow exhale at `tail_scale` for `tail` more (its own eased ramp),
+## laid over the landing's own stop (overlapping stops: the slowest wins). Short: crunch + tail stays under
+## SLAM_STOP_MAX, so the next string's first press is never held.
+const CRUNCH_SCALE := 0.02
+const SLAM_STOP_MAX := 0.25  # real s
+func slam_stop(crunch: float, tail: float, tail_scale: float) -> void:
+	crunch = clampf(crunch, 0.0, SLAM_STOP_MAX)
+	tail = clampf(tail, 0.0, SLAM_STOP_MAX - crunch)
+	if crunch > 0.0:
+		hitstop(crunch, CRUNCH_SCALE)
+	if tail > 0.0:
+		hitstop(crunch + tail, clampf(tail_scale, SLOWMO_SCALE, HITSTOP_FLAT_SCALE - 0.01))
+
+
 ## Each frame: the slowest live stop sets the time scale; a stop in its ramp
 ## eases from its scale up to 1.0; finished stops drop off.
 func _update_hitstop() -> void:

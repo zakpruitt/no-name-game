@@ -43,6 +43,10 @@ const HOT_CORE := Color(1.0, 0.86, 0.12)
 
 static var _live := {}  # foe instance id -> number
 static var _breaker: Node3D = null  # the breaker landing's one total, while it takes hits
+## Breaker spectacle: designed, the landing's total goes up on the ending's callout banner (designed_breaker.gd's
+## Screen reads these), and the 3D total over the pile is kept for its logic but not drawn.
+static var breaker_total := 0.0
+static var breaker_ms := -100000  # real ms the last breaker total started
 
 var total := 0.0
 var big := false
@@ -70,6 +74,8 @@ static func add(parent: Node, pos: Vector3, amount: float, is_big: bool, foe: Ob
 		var b: Node3D = SELF.new()
 		b.breaker = true
 		parent.add_child(b)
+		breaker_total = 0.0
+		breaker_ms = Time.get_ticks_msec()
 		b.setup(b._pile_middle(pos), amount, true, 0)
 		_breaker = b
 		return b
@@ -166,6 +172,8 @@ func _away_from_pile(pos: Vector3) -> Vector3:
 
 func add_hit(amount: float, is_big: bool) -> void:
 	total += amount
+	if breaker:
+		breaker_total = total
 	big = big or is_big
 	_since_add = 0.0
 	_pop_from = maxi(_step, 0)

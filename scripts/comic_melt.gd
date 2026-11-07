@@ -9,6 +9,14 @@ extends "res://scripts/comic_flat.gd"
 ##     Replaces the placeholder's Fx.shards, Fx.burst and Fx.scorch per foe.
 
 const SELF := preload("res://scripts/comic_melt.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
+## fx-polygons (designed): the hammer's arc is the drawn brush slash in magma; a foe it hits goes down inside a small
+## drawn fireball (Meteor Fall's, D_FIREBALL of its size), its ice bursting off first, and lands in a magma burst and
+## a crack. Nothing polygon.
+const D_FIREBALL := 0.42
+const D_SLASH_ARC := 220.0
 const SWING_R := 1.7  # m: the crescent's radius round him
 const SWING_W := 0.5  # m at its widest
 const SWING_ARC := 2.2  # rad it covers
@@ -33,6 +41,9 @@ var _chips := []  # {pos, vel, turn}
 var _landed := -1.0
 var _cracks := []  # PackedVector2Array
 var _shape := PackedFloat32Array()
+var _shell: Node3D
+var _d_started := false
+var _d_landed := false
 
 
 static func swing(parent: Node, at: Vector3, facing: Vector3) -> Node3D:
@@ -87,6 +98,9 @@ func _follow(_delta: float) -> void:
 
 
 func _draw(s: int) -> void:
+	if DESIGNED_EL.DESIGNED.on():
+		_designed()
+		return
 	if mode == "swing":
 		_draw_swing(s)
 		return
@@ -140,6 +154,32 @@ func _draw(s: int) -> void:
 		_floor_strip(_scaled(pts, grow), 0.12, 0.0, PAL.fade(_p.light if hot else _p.deep, k))
 	if ls == 0:  # the hit on the floor
 		_fan(_up * 0.3, _star_ring(_shape, 0.7, 0.35), HOT_CORE, PAL.fade(HOT, 0.8))
+
+
+func _designed() -> void:
+	if mode == "swing":
+		if not _d_started:
+			_d_started = true
+			var at := global_position
+			DESIGNED.slash(get_parent(), Vector3(at.x, 0.0, at.z), fwd, SWING_R * 1.15, D_SLASH_ARC, "earth", false, 0.25, at.y)
+		return
+	if not _d_started:
+		_d_started = true
+		if frozen:
+			DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * CHEST, 0.75)
+		_shell = DESIGNED_EL.meteor_shell(self, Vector3.DOWN)
+		_shell.scale = Vector3.ONE * D_FIREBALL
+		_shell.position = Vector3.UP * CHEST
+	if _landed >= 0.0 and not _d_landed:
+		_d_landed = true
+		if is_instance_valid(_shell):
+			_shell.queue_free()
+		var foot := Vector3(global_position.x, 0.0, global_position.z)
+		var b := DESIGNED.spawn(get_parent(), "magma_burst", foot, 1.9, "earth", DESIGNED.MAGMA_TIMES, Vector2(0.55, 1.0))
+		b.real_until = 1
+		var c := DESIGNED_EL._spawn(get_parent(), "magma_crack", Vector3(foot.x, DESIGNED.GROUND_LIFT, foot.z), DESIGNED_EL.CRACK_SIZE * 0.8,
+			"earth", DESIGNED_EL.CRACK_TIMES, Vector2(0.6, 1.0))
+		c.rotation.y = randf() * TAU
 
 
 func _draw_swing(s: int) -> void:

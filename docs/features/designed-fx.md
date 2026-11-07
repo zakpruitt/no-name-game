@@ -219,6 +219,8 @@ Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash
 `thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
 hit in the element's shape, crowd caps), the axe ribbon.
 
+Converted in fx-polygons (round 47 d): the breaker dive trails, `Fx.burst` chips (so `hero_fx.rank_up`), `comic_fault`'s ground, `comic_freeze_over`'s pool and break, `comic_melt`, `comic_rip`, the `comic_improv` payoffs, the state tells, Reap's mark, `Fx.soul`, the last-kill flare, `comic_drag_mark`, the claw lash's turn flare. See "fx-polygons" below; the numbered list is the older one, kept for history.
+
 1. Every hit: `Fx.chain_spark` halos past 10 / 20 / 35 hits (capped to one a frame, still polygons), the foe's
    `daze` stars. (The element chips are done.)
 2. Every swing: (the axe ribbon is done) the axe's element aura (`comic_axe_aura.gd`), the floor drag line (`comic_drag_mark.gd`), the spirit
@@ -390,21 +392,19 @@ registered into `DESIGNED.extra_sheets` the first time anything spawns (`registe
 | `magma_geyser` | 384, 8 | sprite_depth | `elements.geyser` / `rim_geyser` (Worldbreaker's pile): the floor splits hot, a lumpy column punches up with a splash crown spilling over, drops fall, the column slumps into a crusted mound |
 | `magma_pool` | 384, 6 | ground | Undertow's lava well (`Well._comic_mark`, was an `Fx.scorch`): a hot crack opens into a round pool with crust rafts and popping domes, crusting over in `WELL_COMIC_SHOW` |
 | `magma_meteor` | 384, 5 | sprite_depth | Meteor Fall's fireball in flight (`void_element.meteor_shell`, was cones and spheres): a crusted molten ball with a white-hot bow and fat tongues streaming back, ignite frame then boiling on twos in real time, turned to the dive on screen and stood `METEOR_BACK` behind him from the camera so he reads in front |
-| `ice_spike` | 256, 6 | sprite_depth | ice spikes (`elements.spikes("water")`, so nova, the fissure in water, Worldbreaker's ice): faceted crystals on a hex plate with lit / shadow facets and one specular stripe, floor cracks and a glint first, cracking, then chips |
-| `ice_trail` | 256 strip, 4 rows | ribbon | an ice breaker's dive (`comic_comet.gd` when the dive's colour is water's, Avalanche): a big faceted crystal point at his end, a chain of shards shrinking behind it, chips and glints off the tail, boiling on twos; the other elements keep the polygon streak |
-| `ice_frost` | 512, 4 | ground | the frost spear's floor (frames 1-3 boil slowly: the glints move) and Deep Freeze's burst (frame 0 only, the cracks racing out) |
+| `ice_frost` | 512, 4 | ground | the frost spear's floor (frames 1-3 boil slowly: the glints move), Deep Freeze's burst and every frost mark (frame 0 only, the cracks racing out) |
 
 Not flipbooks: the ice block round a frozen or cubed foe (`thrown_foe.comic_cube`, so `comic_ice` too) and the frost
-spear are faceted meshes (`ice_block()`, `spear()`): a hex prism with crown crystals, the spear a violet faceted shaft
-with an ice crystal head. `shaders/ice_facet.gdshader` paints each face one flat cel tone by how it faces the camera
+spear are faceted meshes (`ice_block()`, `spear()`): a clean hex prism (fx-ice2 took its crown crystals off and fits it
+to the foe, see "fx-ice2" below), the spear a violet faceted shaft with one slim ice point. `shaders/ice_facet.gdshader` paints each face one flat cel tone by how it faces the camera
 (lit / body / shadow), a light rim band, one hot specular stripe on lit faces and a straight ink crack on some; the
 `ghost_ink` hull inks the silhouette. See-through in the middle so the foe inside shows.
 
 **Tuning.** `FIST_SIZE` 2.5 m, `SPURT_SIZE` 2.2, `ICE_SPIKE_SIZE` 2.5, `SPIKE_TOWARD_CAM` 0.35 m (stood towards the
 camera so the floor doesn't clip the plate), `CRACK_SIZE` 2.1, `METEOR_SIZE` 4.6 / `METEOR_BACK` 0.9 /
 `METEOR_IGNITE` 0.06 s, `GEYSER_QUAD` 1.5 (quad side per metre of column), `POOL_QUAD` 2.25 (per metre of the well's
-radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOCK_CROWN` 3, ice_facet `fill_alpha`
-0.42.
+radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, ice_facet `fill_alpha` 0.42 (the crystal
+sizes `ICE_SPIKE_SIZE` / `BLOCK_CROWN` went with fx-ice2).
 
 **Gotchas.**
 - Small sprites need fat ink in the sheet: a 256 sheet seen at 0.3-0.45 of its size needs 5-6 px of ink, a 384 floor
@@ -423,8 +423,73 @@ radius: 2.6 merged a pile's pools into one orange slab), `FACET_INK_PX` 3, `BLOC
   cracks) tween its scale on twos with an ignore-time-scale tween.
 - Bubbles drawn as a light ring round a dark middle read as eyes on the pool; draw them as lit domes.
 
-Still polygons in this lane: the breaker dive trail in the other elements (`comic_comet.gd`; only water's is drawn), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own
-lava / ice skins.
+Still polygons in this lane: the breaker dive trail (`comic_comet.gd`, every element: water's drawn crystal trail went
+with fx-ice2), the Harpoon's line (it is the tentacle: designed in round 44), the tentacle's own lava / ice skins.
+
+## fx-ice2: no crystals, a block that fits (round 47)
+
+Zak, after playing round 46: "the ice is also a big improvement, but there are times these crystals manifest that look
+awful. get rid of the crystals. i love the new ice block, ensure they're covering the whole character model tho. the
+dummies part of them clip out."
+
+**What went, what took its place** (designed mode; `--fx=classic` keeps its own polygons):
+
+| Was | Now |
+|---|---|
+| `ice_spike` crystal clusters out of the floor: every water `elements.spikes` (the nova, Deep Freeze's ring, Worldbreaker's ice, `storm_strike` in water) and Harpoon's line (`elements.fissure` in water) | `designed_elements.frost_mark`: a new `ice_mark` ground sheet (2x2, `gen_elements.py ice_mark`): a pale hexagonal rime with seven fat straight inked cracks, hot on its first two frames, glinting, then eroding; and a low puff of cold mist (`dust_puff` in water's tones, 0.7 of its size). Harpoon's line is a crack every step with mist on every other one (the first try used `ice_frost` frame 0's cracks: too thin to read on the line) |
+| the block's three crown crystals (`BLOCK_CROWN`) | nothing: a clean prism, top a little narrower (`BLOCK_TAPER` 0.94) |
+| the frost spear's ring of six crystals and its crystal head; a burst of `ice_shatter` shards where it goes in | the faceted violet shaft with one slim four-sided ice point; a `frost_mark` where it goes in |
+| the frost floor's hexagonal ice plates (read as crystal cubes on the floor) | gone from `ice_frost` frames 1-3 (`gen_elements.py ice_frost`); its cracks, toothed edge and glints stay |
+| the ice dive's crystal trail (`ice_trail` on `comic_comet`, Avalanche) | the inked comet streak every other element dives with, in water's colour |
+| Flash Freeze's crystal shell climbing each held foe (`comic_freeze_over.foe`) | the ice block itself (`void_grab.freeze_seized` cubes them) and a `frost_mark` under each |
+| Impale's eight floor spikes and its crystal stake (`comic_impale`) | Deep Freeze's crack burst out to the ring and a `frost_mark` at the spear; a water hit star where each lands on it |
+| the every-hit ice pop (`pop_ice`, a cluster of faceted shards) | redrawn shard-free (`gen_cohesion.py pop_ice`): a glint, a thin hex ring opening with short straight rays off its corners, a glint in its middle |
+| the improv tells' ice tips (Frozen In, Ice Spreads, Freeze Aloft's ring of spikes in the air; `comic_improv._tip`) | none drawn; Ice Spreads with nobody to spread to makes a `frost_mark`, Freeze Aloft a water hit star (its block is the read) |
+
+The `ice_spike` and `ice_trail` sheets and their generators are deleted; `ice_mark` is new. Kept on purpose (fx-ice3 later made it shard-free, see below): `ice_shatter` (the block
+breaking into shards is debris from a break, not crystals growing), the skewered state's stake (`comic_state_tell`,
+the only tell for Backdraft), Black Ice's floor plates and the axe aura's shards (already off in designed mode).
+
+**The block fits the foe** (`designed_elements.fit_block(foe, ice)`, called by `thrown_foe.cube_on` and every
+`enemy.freeze`; `ice_block(r, high)` is unchanged for other callers):
+- `model_points(foe)`: each skinned mesh's vertices are sorted to their main bone and only the extreme ones along 14
+  directions are kept, once per mesh (`_boxes_of`, in the bone's rest space; about 5 ms the first time a kind freezes,
+  then cached), and a freeze moves those by the bones' current poses: 0.3-0.8 ms a foe. The model is taken standing upright at its own `model_scale` (a hit's squash is
+  gone in a beat).
+- `block_fit(points)`: the block centres on the body (the points within `FIT_CORE` 0.75 m of the foe's middle), its
+  radius encloses every point round that axis (a circle, so the cube may spin in flight without a corner swinging onto
+  him), narrowing with the taper, plus `FIT_MARGIN` 0.08 m, capped at `FIT_R_MAX` 1.2 m (weapons held out past it poke
+  out: a sword at arm's length made a 3 m slab); its height runs from the floor to `FIT_TOP` 0.1 m over the head.
+  Sizes round up to `BLOCK_STEP` 5 cm so fitted blocks share meshes.
+- Each block gets a random turn, so a row of frozen foes is a row of blocks, not one slab.
+- Frozen foes hold still: `enemy._clip_speed` holds the clip at 0 while `frozen_t` runs (also for `freeze_aloft`,
+  which sets `frozen_t` by hand) and gives it back at the thaw; `enemy.freeze` stands the model upright (a hit's lean
+  tween is cut) and the dummy's bag spring stays upright while frozen (`training_dummy._bag_step`), so the wobble can't
+  swing it out.
+
+Measured (`tests/ice_block_check.gd`, every kind hit and encased, its CPU-skinned vertices checked against the prism
+for a second): the dummy's block is 1.05 m round and 2.2 m tall (it was 0.75 x 1.5, and the bag's arms, head and
+squash poked out); the spar kinds come out at 1.2-1.3 m with weapon tips 0.2-0.7 m out (warrior, rogue, archer,
+shield, necromancer). Every body vertex is in.
+
+
+**fx-ice3 (follow-up, the crystals film still showed).** Clip 26 (Harpoon Slapshot) still had two crystal shapes:
+- Dash Stab's hit fanned big cyan faceted blades round him: the weapon ribbon (`weapon_trail.gd`, the slash_strip
+  brush in water's palette) dragged along the 16 m/s lunge, plus the two swing arcs (`hero_fx.swoosh`). A thrust has
+  no arc: `"thrust": true` on DL (`hero_moves.gd`) turns off its weapon ribbon (`player.gd`) and its swing arcs in
+  designed mode. The claw lash, the hit pop and the streaks carry it.
+- Each latched foe stood a fan of ice-blue spikes: the latch's hit has no knockback, so `Fx.impact`'s
+  `impact_streaks` were thrown straight up in water's palette. `designed_fx.streaks` now draws no water streaks on a
+  blow under half horizontal (the pop carries the latch).
+- `ice_shatter` is shard-free: a frozen foe thawed by a hit, a cube bursting and Slapshot's wall smash were all faceted
+  shards. Now it's the ice pop's ring opening round a glint (`ICE_BREAK_POP` 0.75 of `ICE_SIZE`) in a puff of cold
+  mist (`dust_puff` in water, `ICE_BREAK_MIST` 0.7). The `ice_shatter` sheet is still registered but nothing draws it.
+- Harpoon's set (`void_element._harpoon` `on_set`) leaves a `frost_mark` under each block, not ice chips
+  (`Fx.shards`).
+- `pop_ice` lost the short rays off its hex ring's corners (they read as a snowflake).
+
+Clips: `awaken-combo-clips/25 Ice fx-ice3 *` (strings 6, 7, 27, 28 before / after, and full-size crops).
+
 
 ## Round 46: the finish (fx-finish lane)
 
@@ -482,3 +547,62 @@ Lessons:
 Still polygons: `hero_fx.rank_up`, `callout_cap`, `comic_fault`'s ground, `comic_freeze_over`, `comic_melt`,
 `comic_impale`, `comic_rip`, the `comic_improv` tells, kills' `Fx.soul` and `last_kill` rings, `comic_drag_mark`,
 Dash Stab's claw lash.
+
+## Feel audit 4 (feel-polish, 2026-11-06)
+
+- Frost spear: no `ice_frost` floor in designed mode (its disc of cracks grew to ~5 m under the dummies). The plant is
+  a ground stamp, `designed_ink.shock` 1.25 m (`frost_spear.STAMP_R`) and `frost_mark` at `STAMP_MARK` 1.5 (~2.5 m).
+  `designed_elements.frost_floor` / `frost_step` have no caller now. Deep Freeze's `frost_burst` is unchanged.
+- Spirit echo: drawn at `designed_finish.ECHO_DRAW` 0.62 of the cast's reach (the hit reach is unchanged), the axe
+  head `ECHO_SIZE` 1.4 m, the line `echo_line()` a thin void-ink `slash` (`ECHO_LINE_INNER` 0.94 of its radius in),
+  both on real time for `ECHO_REAL` 0.2 s (`designed_fx.slash(..., real)`), so neither hangs through the hitstop into
+  the next move. See `docs/feel-audit-2026-11-06b.md`.
+
+## fx-polygons: the last runtime polygons (round 47 d)
+
+Zak, after fx-ice3: wind and electricity "phenomenal", the see-through ice block loved, no spiky crystals anywhere,
+"keep improving ... focus on improving effects". This lane drew the polygon assemblies still on film in the 32 bot
+strings. Sheets: `python tools/vfx_gen/gen_polygons.py` (previews with `--preview`); code: `scripts/designed_polish.gd`
+(registered as extra sheets, prewarmed in `elements.prewarm`). Every swap is behind `DESIGNED.on()`; `--fx=classic`
+plays the old look.
+
+| Effect | Was | Now |
+|---|---|---|
+| Breaker dive trail (`comic_comet.gd`) | flat tapered polygon ribbon per element | earth / water / fire: `dive_trail` brush comet strip; void: `dive_ink` smear; storm: the lime `bolt_strip` zigzag, tiled and scrolled. Landing: `INK.pop` + `INK.shock` |
+| `Fx.burst` in comic style (rank-up, many hits) | polygon shard fan | `chip_spray` drawn chips flying out along the burst's direction |
+| State tells (`comic_state_tell.gd`) | buried: polygon rubble; skewered: flat plates; molten: polygon flames; charged: polygon sparks | `tell_buried` stone crust ring (dust row), `tell_pinned` frost rime with cracks and glints (no crystals), `tell_molten` flame licks stood behind the foe, `arc_crawl` crawling arcs |
+| Reap's mark (`dark_fx.Mark`) | three pink flat crescents | `tell_marked`: three curling violet ink claw strokes with splatter, spinning |
+| Fault Line ground (`comic_fault.gd`) | polygon crack lines | `magma_crack` tiles every 0.75 m, a pop on arrival, `magma_burst` on Cataclysm |
+| Flash Freeze / Black Ice pool (`comic_freeze_over.gd`) | polygon ice plates | `tell_pinned` rime loop on the floor; break: `ice_shatter` ring + `frost_mark` |
+| Meltdown (`comic_melt.gd`) | polygon slash, shell, splash | designed slash arc, `ice_shatter`, the `meteor_shell` fireball, `magma_burst` + `magma_crack` landing |
+| Tow Line (`comic_rip.gd`) | polygon tear | `ink_tear` following the foe |
+| Element payoffs (`comic_improv.gd`) | polygon tells per cell | per-cell designed combos of existing sheets (shatter, gust, streaks, frost mark, fissure, crawl, steam, pop, shock) |
+| Drag mark (`comic_drag_mark.gd`) | flat polygon strip | `drag_line` strip through `designed_drag.gdshader` (UV in metres, erodes by age) |
+| `Fx.soul`, last-kill rings, claw lash turn flare | polygon wisps / extra flare | `air_wisp` spirit wisps rising; a gold `hit` flare on the last kill (the designed rings stay); `DESIGNED.hit` on the lash turn |
+
+Coverage (`tests/fx_coverage.py`, full 32-string film): mean 0.081 -> 0.079, max 0.195 -> 0.210 (budget 0.40).
+Clips: `awaken-combo-clips/27 Polygons *` (before / after contact sheets).
+
+Still polygons: `callout_cap` (a HUD-like word cap, not an effect drawing), `comic_axe_aura` (off in designed), the
+purple radial wedges round the hero on some breaker leaps (seen on film, source not traced), `Fx.chain_spark` halos past
+the caps. Unverified on film: the drag mark (no frame caught it clearly) and the claw lash's turn flare.
+
+## Breaker spectacle (round 48, breaker-spectacle lane)
+
+Every breaker landing is one shared comic beat in the element's shape language. Code: `scripts/designed_breaker.gd`; screen shader: `shaders/designed_canvas.gdshader` (a designed sheet on a canvas item, with the five tones as uniforms and a `band` sub-rect). Sheets: `python tools/vfx_gen/gen_spectacle.py` (`--out=` for a preview dir; slow, ~5 min). See `docs/features/combo-breakers.md` "Round 48" for the beats.
+
+| Sheet | Kind | What |
+|---|---|---|
+| `slam_star` | sprite_depth | storm: a spiky lightning star with zigzag arcs, halftone body |
+| `slam_magma` | sprite_depth | magma: a lumpy blast with ember blobs |
+| `slam_frost` | sprite_depth | ice: a wavy frost cloud with halftone dots and thin cold glints (no crystals) |
+| `slam_ink` | sprite_depth | dark: an ink splash with drips and tendrils |
+| `slam_rays` | sprite | radial speed lines with a clear middle |
+| `floor_arcs` / `floor_cracks` / `floor_splat` | ground | the floor-wide spread: arcs, cracks, an ink splat |
+| `wall_star` | sprite | the drawn impact star on a wall splat |
+| `smoke_curl` | sprite_depth | the after-beat's curl (dust / water / void rows: smoke, mist, wisps) |
+| `hang_focus` | screen | the hang's focus lines |
+| `callout_panel` | screen | the callout banner (drawn across y 0.27-0.71 of the frame) |
+
+Coverage (`tests/fx_coverage.py`, the full 32-string film): per HIT frame, mean 0.063-0.081 -> 0.070-0.088 and max 0.171 -> 0.327 over the three ranges. The landing's frames +1..+10, which the tool does not score, have a mean peak of 0.123 -> 0.187 and a max of 0.179 -> 0.327 (Meteor Shower). Budget 0.40. Maw's ink splat was 0.409 at full size, so the dark floor splat is drawn at 0.72 (`LOOK.dark.floor_size`).
+Clips: `awaken-combo-clips/30 Spectacle *`.

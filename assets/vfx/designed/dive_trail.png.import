@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwt5pd5jg33fo"
-path="res://.godot/imported/ice_trail.png-3f30f84e6e7b56d7e3e4e26e9b83c604.ctex"
+uid="uid://c04hn3axln5ks"
+path="res://.godot/imported/dive_trail.png-1f047b810ad29207677793406cffda61.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/designed/ice_trail.png"
-dest_files=["res://.godot/imported/ice_trail.png-3f30f84e6e7b56d7e3e4e26e9b83c604.ctex"]
+source_file="res://assets/vfx/designed/dive_trail.png"
+dest_files=["res://.godot/imported/dive_trail.png-1f047b810ad29207677793406cffda61.ctex"]
 
 [params]
 

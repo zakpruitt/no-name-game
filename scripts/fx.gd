@@ -37,6 +37,7 @@ const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # round 44: ground stamps, element hit pops  # round 43: authored flipbook effects (--fx=classic: off)
+const DESIGNED_POLISH := preload("res://scripts/designed_polish.gd")  # round 48 (fx-polygons): chips, comet, tells, kills
 const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")  # round 46: the Awakening, halos, daze stars, combo burst
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
 const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
@@ -368,6 +369,9 @@ static func burst(parent: Node, pos: Vector3, color: Color, amount := 14, speed 
 			return
 		var c := Color(color, 1.0)
 		var wide := spread >= 120.0 or dir.length() < 0.01
+		if DESIGNED.on():  # fx-polygons: one drawn chip spray, not a handful of polygon chips
+			DESIGNED_POLISH.chips(parent, pos, c, amount, speed, dir, wide)
+			return
 		COMIC_POP.spawn(parent, pos, {"chips": clampi(amount / 3, 2, COMIC_BURST_CHIPS), "chip": c,
 			"chip_size": clampf(size * 0.9, 0.08, 0.17), "chip_speed": clampf(speed * 0.6, 2.5, 6.0),
 			"dir": Vector3.ZERO if wide else dir, "spread": deg_to_rad(clampf(spread, 20.0, 80.0)), "steps": 3})
@@ -590,6 +594,9 @@ static func awaken_burst(parent: Node, pos: Vector3, color: Color, radius := 7.0
 
 ## Pale motes rising off a corpse as it sinks away.
 static func soul(parent: Node, pos: Vector3, color := Color(0.3, 0.75, 1.0, 0.9)) -> void:
+	if Game.comic_style and DESIGNED.on():  # fx-polygons: two drawn spirit wisps curling up off it
+		DESIGNED_POLISH.soul(parent, pos)
+		return
 	burst(parent, pos + Vector3.UP * 0.3, color, 16, 2.5, 0.2, 0.9, Vector3.UP, 25.0, 3.0, 0.5, "dot")
 	burst(parent, pos + Vector3.UP * 0.3, Color(0.85, 0.95, 1.0), 6, 3.0, 0.1, 0.7, Vector3.UP, 20.0, 3.0, 0.4, "dot", true)
 

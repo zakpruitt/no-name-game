@@ -168,6 +168,12 @@ func _physics_process(delta: float) -> void:
 ## The spring: rocks the tilt back past upright until it settles. Held through
 ## the hit freeze; the tumble and the landing settle own the tilt while they run.
 func _bag_step(delta: float) -> void:
+	if frozen_t > 0.0:  # frozen solid in its ice, standing up (fx-ice2; enemy.freeze stood it up): no swing out of the block
+		_bag_tilt = Vector2.ZERO
+		_bag_vel = Vector2.ZERO
+		model.rotation.x = 0.0
+		model.rotation.z = 0.0
+		return
 	if _freeze_t > 0.0 or state == State.AIRBORNE or (_lean_tween != null and _lean_tween.is_running()):
 		return
 	if _bag_tilt.length() < BAG_REST and _bag_vel.length() < BAG_REST:

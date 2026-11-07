@@ -50,8 +50,17 @@ const BURST_TIMES := [0.033, 0.05, 0.05, 0.05, 0.06, 0.07]
 
 ## The spirit echo's ghost axe (spirit_echo.gd, designed): a drawn axe head flying the swing's outer arc with two
 ## edge echoes behind it, instead of the 3 m halftone axe mesh that covered his swing.
-const ECHO_SIZE := 2.3  # m: the axe head's quad (the head is ~0.9 m tall in it; 1.25 read as a speck at the arc's edge)
-const ECHO_REACH := 0.82  # of the echo's radius: on the arc's outer edge, past his own blade
+const ECHO_SIZE := 1.4  # m: the axe head's quad (was 2.3: feel audit 3 item 9, half the size)
+const ECHO_REACH := 0.82  # of the drawn arc's radius: on its outer edge
+## Feel audit 3 item 9: the echo's fan (its slash stroke out at the cast's full 3.4-3.9 m reach, the element's fill,
+## lingering in game time through the hitstop into the next move's wind-up) was the biggest shape on L2 / L3 / Air
+## Slash and sat under his own arc. Now it is drawn at ECHO_DRAW of the reach (the hit reach is unchanged), as a
+## thin ink-coloured line only (ECHO_LINE_INNER of its radius in), and the line and the axe head play in real time,
+## ECHO_REAL s, so both are gone by the time the string's next hit lands.
+const ECHO_DRAW := 0.62
+const ECHO_LINE_INNER := 0.94
+const ECHO_REAL := 0.2  # s, real: the sweep (the hitstop it starts in is ~0.05-0.1 s)
+const ECHO_ELEMENT := "void"  # the ink-dark palette row for the line
 
 ## The limb changing into a weapon (heretic_form_fx.gd, designed): the weapon's element pop (designed_ink's drawn
 ## storm / ice / magma / dark hit pops) up the new haft, clear of his hood, instead of a polygon star and chips.
@@ -239,10 +248,38 @@ static func daze(node: Node3D, height: float, time: float, ring: float, spin: fl
 ## with its echoes over the sweep, 3 the edge left behind; spirit_echo.pose() moves and turns it (echo_pose()).
 static func echo_axe(parent: Node, at: Vector3, color: Color, time: float) -> Node3D:
 	_register()
-	var times := [0.033, time * 0.5, time * 0.5, 0.09]
-	var fx := DESIGNED.spawn(parent, "echo_axe", at, ECHO_SIZE, DESIGNED.PAL.nearest(color), times, Vector2(0.7, 1.0))
-	fx.real_until = 1
+	var times := [0.033, time * 0.4, time * 0.4, 0.05]
+	var fx := DESIGNED.spawn(parent, "echo_axe", at, ECHO_SIZE, DESIGNED.PAL.nearest(color), times, Vector2(0.55, 1.0))
+	fx.real_time = true  # (gone by the next hit: it played on through the hitstop in game time)
 	return fx
+
+
+## spirit_echo (designed): the echo's line, a thin ink stroke on the drawn arc (ECHO_DRAW of `radius`), real time.
+static func echo_line(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float, flip: bool,
+		height: float) -> Node3D:
+	var fx: Node3D = DESIGNED.slash(parent, pos, fwd, radius * ECHO_DRAW, arc_deg, ECHO_ELEMENT, flip, ECHO_REAL * 1.2,
+		height, true, true)
+	var mi := fx.get_child(0) as MeshInstance3D
+	if mi != null and mi.mesh is ArrayMesh:  # thinner than lines_only's 0.84: rebuild the strip's inner edge
+		_thin_strip(mi.mesh as ArrayMesh, radius * ECHO_DRAW * ECHO_LINE_INNER, radius * ECHO_DRAW)
+	return fx
+
+
+## Moves the inner vertices (even ones) of a slash strip to `inner` m out (the strip's back still tapers in).
+static func _thin_strip(mesh: ArrayMesh, inner: float, outer: float) -> void:
+	var arrays := mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i in range(0, v.size(), 2):
+		var d := Vector3(v[i].x, 0.0, v[i].z)
+		var r := d.length()
+		if r > 0.001:
+			v[i] = d / r * clampf(r, inner, outer)
+	arrays[Mesh.ARRAY_VERTEX] = v
+	var mat := mesh.surface_get_material(0)
+	mesh.clear_surfaces()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLE_STRIP, arrays)
+	if mat != null:
+		mesh.surface_set_material(0, mat)
 
 
 ## Put the drawn axe at `at`, turned on screen so it flies towards `ahead` (a point a little further along the arc).

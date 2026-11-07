@@ -62,7 +62,10 @@ func _turn() -> void:
 	_back = true
 	_hit.clear()
 	var tip := Vector3(_from.x, HEIGHT, _from.z) + dir * reach
-	Fx.flare(get_parent(), tip, Color(color, 0.9), size * 0.9, 0.12, "star8", true)
+	if Game.comic_style and Fx.DESIGNED.on():  # fx-polygons: the snap is a drawn star in the lash's element
+		Fx.DESIGNED.hit(get_parent(), tip, el, 1.0)
+	else:
+		Fx.flare(get_parent(), tip, Color(color, 0.9), size * 0.9, 0.12, "star8", true)
 
 
 ## Where the ribbon starts: his claw when the rig has one, else his chest.

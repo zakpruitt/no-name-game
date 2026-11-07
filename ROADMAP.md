@@ -801,12 +801,12 @@ Orchestrator: film every string, audit combat feel as a whole, fix the worst. `d
 - [x] Item 3: an ender's name goes to the top band in the hang, off his chest
 - [x] Item 4: the lava well's ticks are quiet burns (words and stars with nothing doing them)
 - [x] Item 5: Short Circuit cues its targets for the camera (`FRAME_CUE`), so the far arc lands in frame
-- [ ] Item 6: Meteor Fall's wall splat in the top-left corner (camera / combo lane: frame the splatted foe in the hang, or a shorter carry)
+- [x] Item 6: Meteor Fall's wall splat in the top-left corner (feel-polish: Molten Palm cues the splatted foe, the hang frames cued foes)
 - [ ] Item 7: L3 -> Molten Palm 538 ms (re-key Ab_AF's coil, then `EM_SPEED`; heretic anim + combo-rhythm)
 - [x] Item 8: the frost spear's 5 m halftone floor (fx-elements: the drawn `ice_frost` floor)
-- [ ] Item 9: the spirit echo's brown halftone fan on L2 / L3 (fx-finish)
+- [x] Item 9: the spirit echo's brown halftone fan on L2 / L3 (feel-polish: drawn at 0.62 of the reach, thin ink line, real time)
 - [x] Item 10: Maw's landing total at the top edge: `comic_number` keeps every number inside `PAGE_MARGIN`
-- [ ] The spear vault (IJ) is the only contact without a stop
+- [x] The spear vault (IJ) is the only contact without a stop (feel-polish: `VAULT_STOP` 0.06)
 - [ ] Zak plays Live Wire / Short Circuit / Galvanize by hand after these
 
 ## Round 46 (fx-elements: ice and magma base moves designed)
@@ -834,3 +834,96 @@ change and the crossover breakers drawn. `tools/vfx_gen/gen_finish.py`, `scripts
 - [x] Rockslide boulder, Steam Burst cloud, Eruption and Anvil landings
 - [ ] `hero_fx.rank_up`, `callout_cap`, `comic_fault` ground, freeze-over, melt, impale, rip, improv tells
 - [ ] Zak: is the Awakening crown big enough (5.4 m), and should the echo axe stay or go entirely?
+
+## Round 47 (fx-ice2: no crystals, ice blocks that fit)
+Zak: "get rid of the crystals. i love the new ice block, ensure they're covering the whole character model tho. the
+dummies part of them clip out." See `docs/features/designed-fx.md` "fx-ice2".
+- [x] No ice crystals in designed mode: water spikes (nova, Deep Freeze's ring, Worldbreaker, Harpoon's line) are
+  frost cracks on the floor and cold mist (`designed_elements.frost_mark`); the block's crown, the frost spear's ring
+  and crystal head, the frost floor's plates, the ice dive's crystal trail, Flash Freeze's shell, Impale's spikes and
+  stake and the improv tells' ice tips are gone (`ice_spike` / `ice_trail` sheets deleted; new `ice_mark` crack sheet;
+  the every-hit `pop_ice` redrawn as a shard-free ring and glint)
+- [x] Every ice block is fitted to the foe's posed model (`fit_block`, a margin, a random turn); frozen foes hold their
+  pose and stand upright, the dummy's wobble is held; `tests/ice_block_check.gd` checks every kind's vertices
+- [x] Clips: `awaken-combo-clips/25 Ice *` (before / after)
+- [ ] Weapons held out past 1.2 m still poke out of a spar foe's block (by design); the skewered stake tell stays
+- [ ] Zak: is a dummy's block (2.2 m across) too big now it holds the arms?
+- [x] fx-ice3: the last crystals on film are gone: Dash Stab's cyan blades (its weapon ribbon and swing arcs: off on a
+  `thrust` in designed mode), the latch's upright ice-blue streaks (no water streaks on a vertical blow), `ice_shatter`'s
+  shards (now a ring, glint and cold mist), Harpoon's set chips (a `frost_mark`), `pop_ice`'s corner rays. Clips
+  `awaken-combo-clips/25 Ice fx-ice3 *`
+
+## Round 47 b (combo-harpoon2: Harpoon's tentacles gather, two breaker endings)
+Zak: "harpoon grabs any enemies near by in a clean tentacle animation and places them in a line or group in front of
+the heretic", then a molten fist punches the cubes into a wall or thunder breaks them where they stand.
+`scripts/harpoon_gather.gd`, `scripts/slapshot_fx.gd`, `docs/features/void-element.md`.
+- [x] Harpoon (Dash L H): a tentacle to every foe within 8 m (x the chain's reach growth, 5 at most, nearest first):
+  reach, latch (10), a curved carry round him, set down in one rank across his aim short of walls, then the cube.
+  Big ones freeze where they stand. H during it is still Ice Cube (Dash L H H)
+- [x] A pause after it leaps into a two-ending window: LMB Slapshot (Molten Palm's fist slides the cubes along the
+  floor with a frost streak; a wall shatters them, 63 base each, KRAKOOM; no wall 14) and RMB Shatterstorm (a sky
+  strike on each cube where it stands, 30 base). Bot strings `ring D L H` and `wall alt D L H`; void_arm_check asserts
+  the gather and the ordering (three cubes: wall 386 > thunder 184 > open 86)
+- [x] Camera: a cued foe lets the framing lean up to 3.5 m (`FRAME_CUE_LEAN_MAX`) so the slide and the wall hit stay
+  in view; `string_film --fps=N --tail=MS`
+- [x] Clips: `awaken-combo-clips/26 Harpoon *` (grab, Shatterstorm, Slapshot into a wall)
+- [x] Fitted ice (after fx-ice2): the row is spaced by each foe's fitted block (`ice_radius()`, `HARPOON_GAP` 0.15,
+  `ICE_CORNER`), the hang finishes any carry and keeps the row iced, Slapshot stops a cube when its ice's face meets
+  the wall (`wall_gap`), the wall hit says KER-SMASH! (breaker words KRSSSH-BOOM! / THWAKK!); ice_block_check holds
+  every dummy's vertices inside its block after the gather, in the hang and mid-slide; `string_film --no-awaken`
+- [ ] Zak's call: the endings sit behind a pause (Ice Cube keeps its line), not on Harpoon outright; hand-play the
+  gather's speed and whether a wall past ~10 m (the slide's reach) should still count
+
+## Round 47 c (feel-polish: audit 3's open items, then the whole game on film again)
+Zak: "keep improving on whatever you see fit". `docs/feel-audit-2026-11-06b.md`; clips `awaken-combo-clips/28 Feel *`.
+- [x] Meteor Fall: Molten Palm cues a foe it carries to a wall (`PALM_CUE_MS`), and a hang frames cued foes only
+  (`camera_rig.FRAME_CUE_RANGE`): the splat stays whole in frame through the hang and the dive
+- [x] Frost spear (designed): a ground stamp (brush ring 1.25 m + `frost_mark` cracks ~2.5 m), no 5 m frost floor
+- [x] Spirit echo: 0.62 of the reach, a 1.4 m axe head and a thin ink line, on real time (gone by the next hit)
+- [x] Hit stops: the vault's push-off (`VAULT_STOP` 0.06) and Harpoon's first latch (`LATCH_STOP` 0.035)
+- [x] 32 strings re-filmed (`feel4_a/b/c`), coverage PASS (max 0.163); rhythm_check PASS
+- [ ] Live Wire's hang with a far foe: the current runs off frame (cue Short Circuit's targets in the hang? Zak's call)
+- [ ] Ice Cube pressed during Harpoon's gather finds nobody (the tentacles still carry them): combo-harpoon lane
+
+## Round 47 d (fx-polygons: the last runtime polygons drawn)
+
+- [x] Designed sheets for the polygons still on film (`gen_polygons.py`, `designed_polish.gd`): breaker dive trails
+  (storm a lime bolt, void an ink smear), `Fx.burst` chips (rank-up), state tells (stone crust, frost rime, flame licks,
+  arcs), Reap's mark as ink claw strokes, Fault Line, Black Ice / Flash Freeze, Meltdown, Tow Line, improv payoffs,
+  drag mark, `Fx.soul`, last-kill flare; no crystals. See `docs/features/designed-fx.md` "fx-polygons"
+- [x] Clips: `awaken-combo-clips/27 Polygons *`
+- [ ] Trace the purple radial wedges round the hero on some breaker leaps; check the drag mark on film
+
+
+## Round 48 (breaker-pairs: a second ending where it is compelling)
+Zak: "start refining the breakers to be really flashy and awesome ... offer two breaker options", then "NOT everyone
+needs a dual, but only when its truly compelling and awesome." `scripts/breaker_alt_fx.gd`, `docs/features/combo-breakers.md`
+"Breaker pairs".
+- [x] Meteor Fall / LMB Meteor Shower: a fireball on every foe the palm hit, wherever it went (scattered 310 vs 175;
+  piled on a wall 628 vs 336)
+- [x] Anvil / LMB Pinwheel: the kebab whirled round him in a twister and hurled into the nearest wall or pillar (wall
+  519 vs 406; open 152 vs 406)
+- [x] The autotest counts every window ending (`endings_n=`, `agent.sh check` fails short); Cold Front got its string
+- [x] Cataclysm / LMB Tempest: a twister takes the crowd up its column, bolts blast each out, harder the more it holds
+  (five 666 vs 524; two 144 vs 209). Bot string `alt L H L L H`
+- [x] Skipped on purpose (combo-breakers.md says why): Avalanche, Collapse, Abyss, Flash Freeze, Eruption
+- [x] Clips: `awaken-combo-clips/29 Breakers *` (Meteor Shower, Pinwheel, Tempest; filmed on top of breaker-spectacle)
+- [ ] Zak's call: Pinwheel's wall splat lands on the top edge of the frame under the breaker callout banner (camera lean
+  cap 3.5 m); Meteor Fall and Meteor Shower share the magma colour, so the prompt's two chips are both orange
+
+## Round 48 b (breaker-spectacle: every breaker ending as a flashy comic beat)
+Zak: "start refining the breakers to be really flashy and awesome", with wind and lightning as the bar. See
+`docs/features/combo-breakers.md` "Round 48" and `docs/features/designed-fx.md` "Breaker spectacle".
+- [x] The window: the endings' colours charge round the ring; a press sweeps the chosen ending's colour round it; a PERFECT flashes white with gold rays; the chips are bigger so they read at 800x450; the hang gets focus lines and a vignette. The hang's length is unchanged.
+- [x] The landing, for every ending:
+  - the negative in the element's colours, with halftone and speed lines;
+  - a camera jolt and a crunch-then-exhale stop per family;
+  - a burst behind the pile, speed lines (not for ice), a floor-wide spread and pillars shaking dust;
+  - after-beats on the struck (arcs, smoke, mist, wisps);
+  - one banner with the ending's name and its total.
+  - Sheets: `tools/vfx_gen/gen_spectacle.py`. Check: `tests/breaker_spectacle_check.gd`.
+- [x] Clips: `awaken-combo-clips/30 Spectacle *` (before / after boards and side-by-side clips)
+- [ ] Shatterstorm and Slapshot's banner shows the name only: their damage lands later, through the blocks.
+- [x] The banner drops to the bottom of the screen when a cued or wall-splatted foe is under it (Pinwheel's wall throw sat under it at the top edge)
+- [ ] Wall-splat stars are not clearly verified on film: the palm's splat sits at the frame's edge.
+- [ ] Zak: Cold Front's and Flash Freeze's small blue spoked stars (existing ice hit pops, in the before film too) may read as crystals

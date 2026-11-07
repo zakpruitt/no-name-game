@@ -8,9 +8,13 @@ extends Node3D
 const SELF := preload("res://scripts/comic_comet.gd")  # (held: a load() at fire time recompiled it once freed)
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
-const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
-const ELEMENTS := preload("res://scripts/elements.gd")
-const ICE_TRAIL_W := 1.1  # m: the designed ice comet's strip height (its head crystal ~1 m across)
+const POLISH := preload("res://scripts/designed_polish.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
+## fx-polygons (designed): the trail is a drawn strip on a camera-facing ribbon (designed_polish.trail_sheet: a brush
+## comet, the dark's ink smear, storm's lime bolt), its rows boiling on twos; the landing is the element's pop.
+const D_WIDTH := 0.9  # m: the ribbon (the comet's head fills ~0.85 of it)
+const D_BOLT_WIDTH := 1.1
+const D_BOLT_TILE := 2.6  # the bolt strip's length on the ribbon, in widths
 const INK := Color(0.012, 0.01, 0.02)
 const HOT_CORE := Color(1.0, 0.88, 0.25)
 const STEPS_PER_S := 12.0  # the wobble changes on twos; the head follows him every frame
@@ -36,7 +40,10 @@ var _view := Vector3.BACK
 var _mesh := ArrayMesh.new()
 var _verts := PackedVector3Array()
 var _colors := PackedColorArray()
-var _ice: MeshInstance3D  # designed (round 46): an ice dive drawn as the authored crystal trail, not the polygon streak
+var _designed := false
+var _el := "spirit"
+var _sheet := ""
+var _dmi: MeshInstance3D
 
 
 ## The comet on `model`, made on the first beat and fed by the rest.
@@ -64,16 +71,22 @@ func setup(model: Node3D) -> void:
 		_view = cam.global_basis.z
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh
+	_designed = POLISH.DESIGNED.on()
+	if _designed:
+		POLISH.register()
+		_el = PAL.nearest(color)
+		_sheet = POLISH.trail_sheet(_el)
+		mi.material_override = POLISH.DESIGNED.material(_sheet)
+		mi.set_instance_shader_parameter("pal_row", POLISH.DESIGNED.row(_el))
+		mi.set_instance_shader_parameter("head", 1.0)
+		mi.set_instance_shader_parameter("span", 1.0)
+		mi.set_instance_shader_parameter("erode", 0.0)
+		mi.set_instance_shader_parameter("heat", 0.15 if _sheet == "bolt_strip" else 0.0)
+		_dmi = mi
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_ghost", true)
 	mi.extra_cull_margin = 16.0
 	add_child(mi)
-	if DESIGNED_EL.DESIGNED.on() and color.is_equal_approx(ELEMENTS.LOOK.water.color):
-		DESIGNED_EL.register()
-		_ice = mi
-		mi.material_override = DESIGNED_EL.DESIGNED.material("ice_trail")
-		mi.set_instance_shader_parameter("pal_row", DESIGNED_EL.DESIGNED.row("water"))
-		mi.set_instance_shader_parameter("erode", 0.0)
 
 
 func feed() -> void:
@@ -111,7 +124,10 @@ func _land() -> void:
 		var dir := Vector3.DOWN
 		if _pts.size() > 1:
 			dir = (at - _pts[0]).normalized()
-		COMIC_POP.spawn(get_parent(), down, {"star": STAR, "spikes": 8, "hold": STAR_HOLD, "steps": 3,
+		if _designed:
+			POLISH.dive_land(get_parent(), down, color, _el)
+		else:
+			COMIC_POP.spawn(get_parent(), down, {"star": STAR, "spikes": 8, "hold": STAR_HOLD, "steps": 3,
 			"strokes": 7, "radial": true, "gap": STAR * 0.85, "stroke_len": 0.7, "stroke_w": 0.22,
 			"stroke_color": color.lightened(0.3), "chips": 6, "chip": color, "chip_size": 0.15,
 			"chip_speed": 6.0, "chip_ink": 4, "dir": -dir})
@@ -143,8 +159,17 @@ func _draw() -> void:
 	_mesh.clear_surfaces()
 	if pts.size() < 2:
 		return
-	if _ice != null:
-		_draw_ice(pts)
+	if _designed:
+		var bolt := _sheet == "bolt_strip"
+		var w := D_BOLT_WIDTH if bolt else D_WIDTH
+		POLISH.trail_mesh(_mesh, pts, w, _view, _right)
+		_dmi.set_instance_shader_parameter("frame", float(_step % 4))
+		if bolt:
+			var run := pts[0].distance_to(pts[pts.size() - 1])
+			_dmi.set_instance_shader_parameter("tiles", maxf(1.0, run / (w * D_BOLT_TILE)))
+			_dmi.set_instance_shader_parameter("scroll", _step * 0.21)
+		else:
+			_dmi.set_instance_shader_parameter("tiles", 0.0)
 		return
 	_ribbon(pts, WIDTH + 0.07, INK)
 	_ribbon(pts, WIDTH, Color(color, 0.88))
@@ -183,33 +208,6 @@ func _ribbon(pts: PackedVector3Array, w: float, c: Color) -> void:
 		var a0 := PI * i / 8.0 - PI * 0.5
 		var a1 := PI * (i + 1) / 8.0 - PI * 0.5
 		_tri(pts[0], pts[0] + (dir * cos(a0) + across * sin(a0)) * r, pts[0] + (dir * cos(a1) + across * sin(a1)) * r, c)
-
-
-## The designed ice comet: the crystal trail strip laid along the path (head crystal at him, chips off the tail),
-## its frames boiling on twos.
-func _draw_ice(pts: PackedVector3Array) -> void:
-	var n := pts.size()
-	var verts := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	for i in n:
-		var a := pts[maxi(i - 1, 0)]
-		var b := pts[mini(i + 1, n - 1)]
-		var across := (b - a).cross(_view)
-		across = across.normalized() if across.length() > 0.001 else _right
-		var u := 1.0 - float(i) / (n - 1)  # (the strip's head is u = 1, at pts[0])
-		verts.append_array([pts[i] + across * ICE_TRAIL_W * 0.5, pts[i] - across * ICE_TRAIL_W * 0.5])
-		uvs.append_array([Vector2(u, 1.0), Vector2(u, 0.0)])
-	var idx := PackedInt32Array()
-	for i in n - 1:
-		var k := i * 2
-		idx.append_array([k, k + 1, k + 2, k + 1, k + 3, k + 2])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = idx
-	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	_ice.set_instance_shader_parameter("frame", float(_step % 4))
 
 
 func _tri(a: Vector3, b: Vector3, c: Vector3, color_: Color) -> void:

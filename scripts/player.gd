@@ -303,6 +303,8 @@ func _physics_process(delta: float) -> void:
 	var swinging: bool = state == State.ATTACK and HERO_MOVES.progress(self) < _move.cancel
 	if swinging and VOID_ELEMENT.is_element_move(_move_id):
 		swinging = false  # the element is the swing (void_element.gd)
+	if swinging and _move.get("thrust", false) and TRAIL.DESIGNED.on():
+		swinging = false  # fx-ice3: a thrust drags the brush ribbon into long cyan blades (Zak: no crystals)
 	for trail in _trails:
 		trail.emitting = swinging
 	model.rotation.y = lerp_angle(model.rotation.y, _facing_yaw, 1.0 - exp(-25.0 * delta))

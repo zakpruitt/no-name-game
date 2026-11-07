@@ -5,6 +5,7 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicRip.spawn(parent, foe, toward)
 
 const SELF := preload("res://scripts/comic_rip.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
 const CHEST := 0.9
 const TEAR := 1.15  # m
 const TEAR_W := 0.2
@@ -20,6 +21,11 @@ var _drops := []  # [dir, speed, r]
 static func spawn(parent: Node, e: Variant, to: Vector3) -> Node3D:
 	if not is_instance_valid(e):
 		return null
+	if POLISH.DESIGNED.on():  # fx-polygons: the drawn ink tear, run across the way it's yanked
+		var t: Node3D = POLISH.tear(parent, e.global_position + Vector3.UP * CHEST, to - e.global_position)
+		t.follow = e  # (rides the foe it's ripped off)
+		t.follow_off = Vector3.UP * CHEST
+		return t
 	var r: Node3D = SELF.new()
 	r.foe = e
 	r.toward = to

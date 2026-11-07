@@ -88,7 +88,8 @@ var _spare := []  # tendrils from earlier breakers
 var _zaps := 0  # jolts so far this hang
 var _current: Node3D  # Live Wire's current along the tentacles (live_current.gd)
 var _jolted := []  # who it zapped: charged once the hang ends (round 44 b: the crackle tell over the held pile was noise)
-var _spear_at := Vector3.ZERO  # Harpoon: where the spear tip's going
+var gather: Node3D  # Harpoon's gather while it runs (harpoon_gather.gd): the hang sets down anyone still carried
+var harpooned := []  # who Harpoon's tentacles took last (round 47): its breaker holds these cubes (`hold_cubes`)
 var _carry: Node3D  # the foe he snatched off a swing
 var _carry_rope: Node3D
 var _skel: Skeleton3D
@@ -224,20 +225,6 @@ func _flat_to(at: Vector3) -> Vector3:
 	return to.normalized() if to.length() > 0.01 else hero._facing()
 
 
-## Harpoon: out along the line up to the hit. After that the foes' own tethers draw it (thrown_foe).
-func _tick_spear(t: float) -> void:
-	var hit: float = hero._move.hits[0]
-	var fwd: Vector3 = hero._facing()
-	var to := _spear_at if _spear_at != Vector3.ZERO else hero.global_position + fwd * VOID_ELEMENT.HARPOON_LENGTH + Vector3.UP * 0.9
-	if t < hit:
-		to = hero.global_position + fwd * VOID_ELEMENT.HARPOON_LENGTH + Vector3.UP * 0.9
-	tendril.draw(_hand_pos(), to, smoothstep(0.05, hit, t) * (1.0 - smoothstep(hit + 0.05, hit + 0.2, t)), 0.03, 0.0, _time)
-
-
-func spear_to(at: Vector3) -> void:
-	_spear_at = at
-
-
 ## Molten Palm: the tentacle follows its fist out.
 func _tick_palm() -> void:
 	if is_instance_valid(fist):
@@ -256,8 +243,6 @@ func attack_tick(t: float, delta: float) -> void:
 		_tick_slam(t)
 	elif hero._move_id in ["EC", "XF", "XG"]:
 		_tick_sweep(t)
-	elif hero._move_id == "EF":
-		_tick_spear(t)
 	elif hero._move_id == "EM" or hero._move_id == "XS":
 		_tick_palm()
 
@@ -403,6 +388,18 @@ func seize(b := {}) -> void:
 	arm.shape("hand")
 	if b.has("no_hold"):
 		return
+	if b.has("hold_cubes"):  # Harpoon's row (round 47): a tentacle on each cube it set down, holding it where it stands
+		if is_instance_valid(gather):
+			gather.finish_now()  # (a carry the hit stops held past the leap lands now, in its slot and its cube)
+		for e: Variant in harpooned:
+			if is_instance_valid(e) and e.is_alive() and not VOID_ELEMENT.THROWN.flying(e):
+				VOID_ELEMENT.encase(e)  # (frozen for the whole window; a cube a stray hit broke since the set-down too)
+				var held: Node3D = _spare.pop_back() if not _spare.is_empty() else null
+				if held == null:
+					held = TENDRIL.new()
+					hero.add_child(held)
+				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true, "harpoon": true})
+		return
 	if b.has("press"):
 		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
 			if VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
@@ -468,10 +465,12 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 		_current = null
 		_charge_jolted()
 	for s: Dictionary in _seized:
-		var e: Node3D = s.foe
-		if not is_instance_valid(e) or not e.is_alive():
+		if not is_instance_valid(s.foe) or not s.foe.is_alive():
 			s.tendril.visible = false
 			continue
+		var e: Node3D = s.foe  # (checked first: a typed assign of a freed foe is an error)
+		if s.has("harpoon") and phase == 0 and not VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
+			VOID_ELEMENT.encase(e)  # (Harpoon's row stays in its ice through the hang: a lash or the Awakening's burst broke it)
 		if s.has("anchored"):  # held where it stands (Avalanche's cubes)
 			if _time >= s.stagger_at and not is_heavy(e):
 				s.stagger_at = _time + RESTAGGER
@@ -493,6 +492,16 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 				var up: Vector3 = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
 				e.global_position = e.global_position.lerp(up, 1.0 - exp(-SEIZE_LIFT_RATE * delta))
 			s.tendril.draw(hand, e.global_position + CHEST, shoot, 0.06, float(e.radius) + 0.05, _time)
+		elif b.has("pinwheel"):  # Pinwheel (Anvil's LMB): whirled round him, out to PINWHEEL_R, until he lets go
+			if not s.has("whirl"):
+				var off: Vector3 = e.global_position - hero.global_position
+				s["whirl"] = [atan2(off.x, off.z), Vector2(off.x, off.z).length(), e.global_position.y]
+			var k := clampf(t / float(b.dive), 0.0, 1.0)
+			var a: float = s.whirl[0] + TAU * VOID_ELEMENT.PINWHEEL_TURNS * k * k
+			var r: float = lerpf(s.whirl[1], VOID_ELEMENT.PINWHEEL_R, smoothstep(0.0, 0.4, k))
+			var y: float = lerpf(s.whirl[2], VOID_ELEMENT.PINWHEEL_Y, smoothstep(0.0, 0.5, k))
+			e.global_position = Vector3(hero.global_position.x + sin(a) * r, y, hero.global_position.z + cos(a) * r)
+			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.04, float(e.radius) + 0.05, _time)
 		elif b.has("cubes"):  # frozen where they hang, until he throws them
 			e.global_position = Vector3(s.from.x, SEIZE_LIFT, s.from.z)
 			s.tendril.draw(hand, e.global_position + CHEST, 1.0, 0.02, float(e.radius) + 0.05, _time)
@@ -508,7 +517,7 @@ func seized_tick(phase: int, t: float, b: Dictionary) -> void:
 func slam_seized() -> Array:
 	var foes := []
 	for s: Dictionary in _seized:
-		var e: Node3D = s.foe
+		var e: Variant = s.foe
 		if is_instance_valid(e) and e.is_alive():
 			if s.has("crush_to"):
 				e.global_position = s.crush_to

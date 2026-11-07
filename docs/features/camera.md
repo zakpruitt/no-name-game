@@ -61,6 +61,8 @@ Fall onto a group up to 12 m off) it follows him there smoothly. Hits, enders, h
 | `FRAME_HIT_MS`, `FRAME_RANGE` | 2200 ms, 11 m | which foes count as the fight |
 | `FRAME_OUT`, `FRAME_BACK` | 2.5, 0.6 /s | ease out, slow return |
 | `FRAME_CUE`, `FRAME_CUE_OUT` | meta, 7 /s | a foe a move is about to strike counts for the framing until the meta's real ms, and the view eases out fast (feel audit 3: Short Circuit's targets, `void_element.SC_CUE_MS` 900; its far arc landed at ndc 1.47, now 1.06) |
+| `FRAME_CUE_LEAN_MAX` | 3.5 m | the lean's cap while a cued foe is in the fight (`FRAME_LEAN_MAX` 1.5 otherwise): Slapshot's cubes sliding 8-10 m up-screen hit the wall on the top edge at 1.5 (round 47, `void_element.SLIDE_CUE_MS` 1400) |
+| `FRAME_CUE_RANGE` | 17 m | how far out a cued foe still counts (Molten Palm carries a foe ~9.5 m to the back wall); in a hang only cued foes count (feel audit 3 item 6) |
 | `FRAME_LEAN`, `FRAME_LEAN_MAX`, `FRAME_LEAN_RAMP` | 0.6, 1.5 m, 0.25 | lean towards the fight, only as the fight needs room (none while it fits at rest) |
 | `HANG_ZOOM` | 0.16 | breaker hang push-in (0.12 at 12.5 m) |
 | `HANG_FRAME_GAIN` | 1.3 | beats cap: `frame_max` x this (x1.625, 21 m; was x2.0; an uncapped two-wall throw wants ~x3.5) |
@@ -109,3 +111,24 @@ while the rig follows with the engine's frame delta; headless the two disagree. 
 hand at 1/60 s (24 steps for the 0.4 s dive), and an injected lean jump mid-dive still fails it. The Molten Palm
 films (`string_film --layout=wall|stray`) keep hero and target in frame through the hang and the dive; the wall
 splat itself sits ~9.5 m up-screen, at the top edge for a beat (the hang turns the fight framing off).
+
+## Meteor splat framing (feel audit 3 item 6, 2026-11-06)
+
+The wall splat sat in the top-left corner, half off frame, through Undertow and the whole Meteor Fall hang: the hang
+turned the fight framing off. Now Molten Palm cues a foe it carries to a wall (`void_element.PALM_CUE_MS` 2600 real
+ms, `FRAME_CUE`), and `_frame_fight()` still runs in a hang for cued foes only (a foe merely hit keeps him centred,
+as the calm pass wants; `camera_feel_check`'s 12 m hang foe is hit, not cued, and still sees no lean). Cued foes
+count out to `FRAME_CUE_RANGE` and ease at `FRAME_CUE_OUT` with the `FRAME_CUE_LEAN_MAX` lean, also in the hang. Film
+(L L L H H, frames 036-046 of `string_film -- --from=11 --to=11`): the splatted dummy and its ring sit whole inside
+the frame through the hang and the dive; for ~0.25 s after the splat (Undertow's start) it is still at the edge while
+the view eases out.
+
+## Breaker landing jolt (round 48, breaker-spectacle lane)
+
+`camera_rig.jolt(amount, hz, decay, axis)` is a damped cosine shake along a screen axis, in metres at `REF_DIST`
+scaled by the distance, capped at `JOLT_MAX` 0.9, and added to `h_offset` / `v_offset` on real time. It is separate
+from `trauma`, so the noise shake and the jolt stack. `designed_breaker.landing()` calls it with the family's `FEEL`
+(storm 22 Hz sideways, magma 9 Hz down, ice 15 Hz short, dark 6.5 Hz slow), together with an FOV snap
+(`fov_punch`, `FOV_ENDER` x1.2-1.6) and `Game.slam_stop()`. That last one is two stacked hitstops: a crunch freeze at
+`CRUNCH_SCALE` 0.02, then a slow tail at the family's `tail_scale` (clamped 0.1-0.49 so the hitstop check reads it as
+slow-mo, not a freeze), with the total capped at `SLAM_STOP_MAX` 0.25 real s. Check: `tests/camera_feel_check.gd`, `tests/hitstop_check.gd`.

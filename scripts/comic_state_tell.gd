@@ -13,6 +13,7 @@ extends "res://scripts/comic_flat.gd"
 ##   STATE_TELL.sync(self)
 
 const SELF := preload("res://scripts/comic_state_tell.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
 const STATES := ["buried", "molten", "skewered", "charged"]
 const META := "x_tell"
 const FADE_S := 0.4  # s: fades over its last
@@ -40,6 +41,7 @@ var _born := {}  # state -> real s it showed
 var _rim_shape := PackedFloat32Array()
 var _cracks := []
 var _stake_a := 0.0
+var _loops := {}  # fx-polygons (designed): state -> designed_polish.Loop
 
 
 ## Spawns a tell on `e` if it carries a live state and has none yet.
@@ -111,6 +113,19 @@ func _alpha(state: String) -> float:
 
 func _draw(s: int) -> void:
 	if not is_instance_valid(foe):
+		return
+	if POLISH.DESIGNED.on():  # fx-polygons: a drawn loop per state (crust ring, frost rime, flame licks, crawling arcs)
+		for st: String in STATES:
+			var al := _alpha(st)
+			var l: Variant = _loops.get(st)
+			if al > 0.0:
+				if not is_instance_valid(l):
+					l = POLISH.tell(self, st)
+					_loops[st] = l
+				l.set_alpha(al)
+			elif is_instance_valid(l):
+				l.queue_free()
+				_loops.erase(st)
 		return
 	var a := _alpha("buried")
 	if a > 0.0:

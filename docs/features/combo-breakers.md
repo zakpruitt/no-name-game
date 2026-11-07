@@ -257,14 +257,15 @@ H L H, H in the window      Maw
 | Live Wire (L H H) | EE | Grounded | RMB |
 | Live Wire, air (L H L H) | EW | Worldbreaker / Cold Front | RMB / LMB |
 | Deep Freeze (L L H L H) | IS | Avalanche | RMB |
-| Undertow (L L L H H) | EV | Meteor Fall | RMB |
+| Undertow (L L L H H) | EV | Meteor Fall / Meteor Shower (breaker pairs) | RMB / LMB |
 | Singularity (H H) | VS | Collapse | RMB |
 | Black Tide (H L H) | VD | Maw / Black Ice | RMB / LMB |
 | Overwhelm (hold H) | OW | Abyss | RMB |
-| Fault Line (L H L L H) | XF | Cataclysm | RMB |
+| Fault Line (L H L L H) | XF | Cataclysm / Tempest (breaker pairs) | RMB / LMB |
 | Steam Burst (Dash L H H L) | XS | Flash Freeze | RMB |
 | Meltdown (Dash L H H H L) | XM | Eruption | RMB |
-| Backdraft (L L H, Dash H H L) | XW | Anvil | RMB |
+| Backdraft (L L H, Dash H H L) | XW | Anvil / Pinwheel (breaker pairs) | RMB / LMB |
+| Harpoon, then a pause (Dash L H) | EF | Shatterstorm / Slapshot (round 47) | RMB / LMB |
 
 Two of eleven have a second ending. No ending, number or damage changed in this round.
 
@@ -294,3 +295,92 @@ Collapse's throw into walls, and any proposal below that uses a wall or pillar k
 
 Each new ending needs its keys in `BREAKERS[...].alt`, a branch in `breaker_impact()`, an `or` row in `move_list.gd`
 and a bot string (`"alt"`) so the autotest lands it; the prompt and the cue need nothing.
+
+
+## Breaker pairs: a second ending only where it is compelling
+
+Zak: "start refining the breakers to be really flashy and awesome. existing ones are good but offer two breaker
+options", then "NOT everyone needs a dual, but only when its truly compelling and awesome." Each candidate from the
+proposal above was ranked by how distinct, flashy and clear its best situation would be; only the top ones were built.
+Convention kept: RMB the existing ending, LMB the new one. Each new ending has its keys in `BREAKERS[...].alt`, a branch
+in `breaker_impact()`, its look in `scripts/breaker_alt_fx.gd` (designed sheets only), a word (`ComicFx.BREAKER_WORDS`),
+an `or` row in `move_list.gd`, a bot string, and `void_arm_check` `_breaker_pairs()` asserts it beats its sibling in its
+best situation and loses in its worst. The autotest's done line has `endings_n=N/N` (every name a window offers, each
+`alt` included), and `agent.sh check` fails unless every ending landed (Cold Front had no bot string until this lane).
+
+| Breaker (RMB) | New LMB ending | Best situation for LMB / for RMB | void_arm_check (bot press at sweet, PERFECT) |
+|---|---|---|---|
+| Meteor Fall | **Meteor Shower**: a fireball out of the sky on every foe the palm hit, wherever it went; leaves them molten | the palm scattered them / the palm piled them on a wall | 4 scattered: shower 310 vs fall 175; 3 piled on a wall: fall 628 vs shower 336 |
+| Anvil | **Pinwheel**: the tentacles whirl the kebab round him in a twister and hurl it into the nearest wall or pillar | a wall or pillar within 10 m / the open | wall: pinwheel 519 vs anvil 406; open: anvil 406 vs pinwheel 152 |
+| Cataclysm | **Tempest**: a twister on the pile takes everyone near up its column, and bolts blast each out in turn, harder for every other one in it | a crowd (four or more) / a few | five: tempest 666 vs cataclysm 524; two: cataclysm 209 vs tempest 144 |
+
+Skipped, single on purpose (each stays one ending):
+
+- **Avalanche**: Harpoon's Shatterstorm / Slapshot already are the two things to do with a row of cubes (thunder where
+  they stand, a punch into the wall); a third cube ending would repeat one of them, and the proposal said leave it.
+- **Collapse**: Event Horizon (the hole holds them tight) is a pause, not a beat, and a gather Singularity's own hole
+  already does; Collapse's throw into the walls is the environmental payoff.
+- **Abyss**: Sinkhole (left sunk, bound) is Abyss without its spikes, and Overwhelm's job is one big foe, so there is
+  no second situation for it to win.
+- **Flash Freeze**: Scald (the steam goes off for damage) is the same landing on the same held foes with a bigger
+  number; nothing about where they are or what they are picks it.
+- **Eruption**: Ash Rain (they hang burning) repeats Eruption's launch, and Meteor Shower now owns fire from above.
+
+Bot strings: `spread alt L L L H H` (Meteor Shower), `wall alt L L H D H H L` (Pinwheel), `alt L H L H` (Cold Front).
+
+## Round 48: breaker spectacle (breaker-spectacle lane)
+
+Zak: "start refining the breakers to be really flashy and awesome", with the wind and lightning effects as the bar.
+The work is the presentation round every ending, from take-off to landing; the endings themselves (hero_leap,
+void_element) are the breaker-pairs lane's. The hang stays ~0.6 s real, and every beat runs on real time.
+
+### Presentation
+
+**The window** (`breaker_prompt.gd`):
+- While the window is live, short dashes in the endings' colours race round the ring (`CHARGE_DASHES`).
+- The chips are bigger and on a darker back (`NAME_SIZE` 24, `CHIP_KEY_H` 25, `CHIP_BACK` 0.72), so two endings read at 800x450.
+- A press sweeps the chosen ending's colour round the ring (`SWEEP_S` 0.1).
+- A PERFECT adds a white flash disc, `PERFECT_RAYS` inked gold rays and a fat gold ring, and holds for `PERFECT_OUT` 0.34 s.
+- The screen (`designed_breaker.Screen`) adds the `hang_focus` speed lines and a vignette. They show at a quarter strength from take-off, come to full strength when the window opens, and go on the press.
+- The floor cue stays the quieter paper one.
+
+**The landing** (`designed_breaker.landing()`, fired by `impact_frame.gd` when `breakers_landed` goes up; no gameplay file calls it):
+- **Impact frame.** `impact_frame.slam(perfect, hero)` replaces the cream negative with one in the element's colours: the paper mixed with the element body, halftone dots, and radial speed lines from the hero's spot on screen. It lasts 0.07 s held plus a 0.1 s fade.
+- **Camera.** `camera_rig.jolt()` gives a damped shake along a per-family axis and frequency, plus an FOV snap. `Game.slam_stop()` gives the landing's stop its shape: a crunch freeze, then a short slow exhale. Per-family values are in `FEEL`:
+  - storm: a sideways buzz;
+  - magma: a downward thud and rumble;
+  - ice: short and hard;
+  - dark: a slow sink.
+  - A perfect is 1.25x.
+- **Burst.** After `BEAT_S`, a burst stands behind the pile, depth-tested so the foes stay in front: `slam_star` (storm), `slam_magma`, `slam_frost` (a frost cloud, no crystals) or `slam_ink`. `slam_rays` speed lines are thrown out with it.
+- **Floor spread.** `floor_arcs`, `floor_cracks` or `floor_splat` spreads across the floor.
+- **Pillars.** Pillars within 8 m shake dust off their tops.
+- **After-beats.** After `AFTER_S`, each struck foe gets one: arcs crackling (storm), smoke curling (magma), cold mist (ice) or dark wisps (dark).
+- **Wall splats.** A foe splatting a wall in the second after a landing gets a drawn `wall_star`, a pillar shake and a small jolt.
+- **Callout.** The ending's name and its total go up as one banner (`callout_panel`) at the top centre, in the element's colours (a perfect adds a gold "PERFECT!" tag).
+  - The total is comic_number's breaker total, including the hang's chain hits. The banner takes it over and hides the 3D number.
+  - `callout_cap`'s breaker label keeps its placement but goes invisible.
+  - The banner moves to the bottom (`CALL_Y_LOW` 0.86) when a foe the camera was cued to (`camera_rig.FRAME_CUE`) or one just splatted on a wall comes under it, so Pinwheel's and Meteor Fall's wall payoffs at the top edge stay in view. It moves once per callout and never flips back.
+
+Endings that want an extra beat can call `DESIGNED_BREAKER.burst()`, `spread()`, `after_beat()` or `wall_star()`
+themselves. All of it sits behind `DESIGNED.on()`; `--fx=classic` plays the old landing.
+
+### Film (36 bot strings, `string_film -- --dir=spectacle_a|b|c`)
+
+The before film had these problems:
+- Every ending landed in the same cream negative.
+- Collapse, Abyss, Black Ice, Eruption, Anvil and Flash Freeze landed small: a few spikes or pops round a word.
+- The name sat in a small cap, apart from the pile's number.
+- The hang showed nothing more than the ring.
+
+After the change:
+- Every ending lands as one big element burst with floor spread and after-beats, under one name-and-total banner.
+- The weakest six read as big as Grounded and Meteor Fall. Grounded and Meteor Fall keep their own lightning and meteor.
+- Meteor Shower and Pinwheel (breaker-pairs) got all of it with no change.
+- Ice lands without speed lines: in the ice colours they read as crystal spikes.
+
+Clips: `awaken-combo-clips/30 Spectacle *`.
+
+Open items:
+- Shatterstorm and Slapshot show their name only: their damage lands later, through the blocks, after the banner's 0.4 s window.
+- The wall-splat star is not clearly seen on film: Molten Palm's splat sits at the frame's edge.

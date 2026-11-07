@@ -94,7 +94,7 @@ numbers):
 | Updraft Lash (EC) | the gale's circle, `CUTTER_RADIUS` x the chain's grow, `CUTTER_AHEAD` in front of him |
 | Live Wire (EE, EW) | whoever the tentacles reach (`void_grab.reachable()`, `SEIZE_RANGE`) |
 | Ice Cube (EA) | the nearest within `BOWL_REACH` and the roll ahead of it (`BOWL_LENGTH`, `IMPROV_ROLL_HALF_WIDTH` 1 m either side) |
-| Harpoon (EF) | the spear tip's line (`HARPOON_LENGTH`, `HARPOON_HALF_WIDTH`, cut short by a wall) |
+| Harpoon (EF) | everyone its tentacles take (round 47: `harpoon_targets()`, `HARPOON_REACH` 8 m round him, nearest `HARPOON_MAX` 5) |
 | Frost Spear (IP) | the frost round where the spear goes in (`frost_spear.RADIUS`) |
 | Vault (IJ) | nobody: it hits nothing |
 | Deep Freeze (IS) | the frost ring round the spear (`DEEP_FREEZE_RADIUS`) |

@@ -233,6 +233,7 @@ var frozen_t := 0.0
 var frozen_mult := 1.0
 var _ice: MeshInstance3D
 var _frozen_speed := -1.0
+var _clip_want := 1.0  # the clip's speed once it's free (frozen in ice it holds at 0: _clip_speed)
 var _squash_tween: Tween
 var _ink_mat: ShaderMaterial  # this foe's own outline (Fx.outline_own; null headless), thickened by _ink_pulse
 var _ink_px := 0.0  # its resting width_px
@@ -356,6 +357,8 @@ func _physics_process(delta: float) -> void:
 		frozen_t -= delta
 		if frozen_t <= 0.0:
 			_thaw(false)
+		elif anim.speed_scale != 0.0:  # (ice set straight on frozen_t, void_element.freeze_aloft: hold the pose too)
+			_clip_speed(anim.speed_scale)
 	_state_t += delta * slow
 	_attack_cd -= delta
 	_dodge_cd -= delta
@@ -635,13 +638,21 @@ func freeze(time: float, mult: float) -> void:
 			preload("res://scripts/thrown_foe.gd").comic_ice(_ice, radius + 0.2, m.height)
 		add_child(_ice)
 		_ice.position.y = m.height * 0.5
+	if _lean_tween:  # frozen solid standing up (fx-ice2): a hit's lean would tip it out of its block
+		_lean_tween.kill()
+	model.rotation.x = 0.0
+	model.rotation.z = 0.0
+	if Game.comic_style and Fx.DESIGNED.on():  # fx-ice2: the block fitted to the model as it stands, every freeze
+		preload("res://scripts/designed_elements.gd").fit_block(self, _ice)
 	_ice.visible = true
+	_clip_speed(_clip_want)  # (frozen solid: the clip holds until the thaw)
 	Game.sfx("cage_shut", -10.0, 0.1)
 
 
 ## Ice ends: on a hit (`shattered`) it bursts into shards.
 func _thaw(shattered: bool) -> void:
 	frozen_t = 0.0
+	_clip_speed(_clip_want)
 	if _ice:
 		_ice.visible = false
 	var cube := get_node_or_null("ThrownCube")  # (thrown_foe.cube_on)
@@ -1243,10 +1254,7 @@ func _play(anim_name: String, blend := 0.15, speed := 1.0, restart := false) -> 
 	anim.play(anim_name, blend, 1.0)
 	if restart:
 		anim.seek(0.0, true)
-	if _frozen_speed >= 0.0:
-		_frozen_speed = speed  # applied when the hit freeze ends
-	else:
-		anim.speed_scale = speed
+	_clip_speed(speed)  # (applied when the hit freeze ends; held at 0 while frozen in ice)
 
 
 ## Comic clips the state machine would otherwise replace next frame with run/idle.
@@ -1279,6 +1287,9 @@ func run_clip_speed(ground: float) -> float:
 
 ## Speed of the clip already playing, respecting a running hit freeze.
 func _clip_speed(speed: float) -> void:
+	_clip_want = speed
+	if frozen_t > 0.0:  # frozen in ice: the pose holds (the block was fitted to it)
+		speed = 0.0
 	if _frozen_speed >= 0.0:
 		_frozen_speed = speed
 	else:

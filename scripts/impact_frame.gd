@@ -22,10 +22,38 @@ uniform vec3 ink : source_color = vec3(0.06, 0.03, 0.1);
 uniform vec3 paper : source_color = vec3(1.0, 0.95, 0.82);
 uniform vec2 dir = vec2(0.0);  // screen direction of the blow (UV units, y down); zero = centred
 uniform vec3 tint : source_color = vec3(0.06, 0.03, 0.1);  // the vignette's ink, toned by his element
+// Breaker spectacle: a breaker landing's frame is printed in its element (paper and ink from its palette), with
+// halftone dots in the element's body over the paper, densest at the edges, and radial speed lines from the spot.
+uniform float halftone = 0.0;
+uniform float rays = 0.0;
+uniform vec2 center = vec2(0.5);  // the landing on screen (UV)
+uniform vec3 dot_col : source_color = vec3(0.8, 0.4, 0.2);
 void fragment() {
 	vec3 col = textureLod(screen, SCREEN_UV, 0.0).rgb;
 	float l = dot(col, vec3(0.299, 0.587, 0.114));
-	vec3 two = mix(paper, ink, smoothstep(0.3, 0.7, l));
+	float inked = smoothstep(0.3, 0.7, l);
+	vec3 two = mix(paper, ink, inked);
+	if (halftone > 0.0) {
+		vec2 px = SCREEN_UV / SCREEN_PIXEL_SIZE;
+		float pitch = 9.0;
+		vec2 rot = mat2(vec2(0.82, 0.57), vec2(-0.57, 0.82)) * px / pitch;
+		float d = length(fract(rot) - 0.5);
+		float edge = length((SCREEN_UV - center) * vec2(1.6, 1.0));
+		float r = mix(0.12, 0.42, smoothstep(0.15, 0.85, edge)) * halftone;
+		two = mix(two, dot_col, (1.0 - smoothstep(r - 0.06, r + 0.06, d)) * (1.0 - inked));
+	}
+	if (rays > 0.0) {
+		vec2 v = (SCREEN_UV - center) * vec2(SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x, 1.0);
+		float ang = atan(v.y, v.x) / 6.2832 + 0.5;
+		float k = ang * 72.0;
+		float lane = fract(k);
+		float seed = fract(sin(floor(k) * 12.9898) * 43758.5453);
+		float w = mix(0.06, 0.2, seed);
+		float line = 1.0 - smoothstep(w, w + 0.04, abs(lane - 0.5) * 2.0 * 0.5);
+		float start = mix(0.2, 0.38, fract(seed * 7.13));
+		line *= smoothstep(start, start + 0.08, length(v)) * step(0.35, seed);
+		two = mix(two, ink, line * rays);
+	}
 	vec3 c = mix(col, two, strength * invert);
 	// The vignette's middle sits back against the blow, so the ink piles up on the side it went.
 	float d = length((SCREEN_UV - 0.5 + dir) * vec2(1.4, 1.0));
@@ -58,6 +86,20 @@ var _last_ms := -100000
 var dir := Vector2.ZERO  # what the shader's dir is set to (read by impact_frame_check)
 var tint := INK  # and its tint
 var _breakers_seen := -1  # the hero's breakers_landed last frame (-1: not read yet)
+## Breaker spectacle (docs/features/combo-breakers.md "Presentation"): a landing's frame is printed in the ending's
+## element (SLAM_PAPER_MIX of its light tone into the paper, its ink, halftone dots in its body, radial speed
+## lines from the landing on screen) and held a little longer, SLAM_HOLD / SLAM_FADE. Every other frame keeps the
+## cream negative. The landing's whole beat (designed_breaker.landing) is fired from here too.
+const SLAM_HOLD := 0.07
+const SLAM_FADE := 0.1
+const SLAM_PAPER_MIX := 0.55
+const SLAM_HALFTONE := 1.0
+const SLAM_RAYS := 0.85
+const PAPER := Color(1.0, 0.95, 0.82)
+var _hold := IMPACT_HOLD
+var _fade := IMPACT_FADE
+var styled := false  # the frame showing is a breaker's element print (impact_frame_check)
+var _breaker_fx: GDScript = null  # designed_breaker.gd (loaded at run time: the autoload chain must not preload it)
 
 
 func _ready() -> void:
@@ -71,6 +113,12 @@ func _ready() -> void:
 	rect.material = _mat
 	rect.visible = false
 	add_child(rect)
+	_breaker_fx = load("res://scripts/designed_breaker.gd")
+	call_deferred("_make_screen")
+
+
+func _make_screen() -> void:
+	_breaker_fx.screen(self)
 
 
 ## Flash a frame of `strength` (0..1). False when one just fired (IMPACT_GAP_MS)
@@ -88,6 +136,9 @@ func flash(strength: float, kill := false, blow := Vector2.ZERO, element := Colo
 	_start_ms = now
 	_strength = clampf(strength, 0.0, 1.0) * (REDUCED_SCALE if _reduced else 1.0)
 	_invert = 0.0 if _reduced else 1.0
+	_hold = IMPACT_HOLD
+	_fade = IMPACT_FADE
+	_print_plain()
 	_mat.set_shader_parameter("invert", _invert)
 	tint = INK.lerp(element.darkened(TINT_DARK), TINT_MIX) if element.a > 0.0 else INK
 	_mat.set_shader_parameter("tint", tint)
@@ -114,15 +165,48 @@ func current() -> float:
 	if _strength <= 0.0:
 		return 0.0
 	var t := (Time.get_ticks_msec() - _start_ms) * 0.001
-	if t <= IMPACT_HOLD:
+	if t <= _hold:
 		return _strength
-	return _strength * clampf(1.0 - (t - IMPACT_HOLD) / IMPACT_FADE, 0.0, 1.0)
+	return _strength * clampf(1.0 - (t - _hold) / _fade, 0.0, 1.0)
 
 
-## A combo breaker landed: the frame at slam strength, and the camera's ender FOV punch.
-func slam(perfect: bool) -> bool:
+func _print_plain() -> void:
+	styled = false
+	_mat.set_shader_parameter("paper", PAPER)
+	_mat.set_shader_parameter("ink", INK)
+	_mat.set_shader_parameter("halftone", 0.0)
+	_mat.set_shader_parameter("rays", 0.0)
+
+
+## The breaker's element print over the frame just flashed: `element` (fx_palette) and where it landed on screen.
+func print_element(element: String, spot: Vector2) -> void:
+	if _reduced:
+		return
+	var p: Dictionary = load("res://scripts/fx_palette.gd").of(element)
+	styled = true
+	_hold = SLAM_HOLD
+	_fade = SLAM_FADE
+	_mat.set_shader_parameter("paper", PAPER.lerp(p.light, SLAM_PAPER_MIX))
+	_mat.set_shader_parameter("ink", (p.ink as Color).lerp(INK, 0.4))
+	_mat.set_shader_parameter("dot_col", p.body)
+	_mat.set_shader_parameter("halftone", SLAM_HALFTONE)
+	_mat.set_shader_parameter("rays", SLAM_RAYS)
+	_mat.set_shader_parameter("center", spot)
+
+
+## A combo breaker landed: the frame at slam strength, and the camera's ender FOV punch. `hero` (optional): the
+## frame takes the ending's element and leans on where he landed.
+func slam(perfect: bool, hero: Node = null) -> bool:
 	if not flash(IMPACT_SLAM_PERFECT if perfect else IMPACT_SLAM, false, Game.hit_dir_screen(), Game.hero_hit_color()):
 		return false
+	if hero != null and _breaker_fx != null and _breaker_fx.DESIGNED.on():  # (classic keeps the cream negative)
+		var inf: Dictionary = _breaker_fx.info(hero)
+		var spot := Vector2(0.5, 0.5)
+		var cam := get_viewport().get_camera_3d()
+		if cam != null and not cam.is_position_behind(inf.at):
+			var vp := get_viewport().get_visible_rect().size
+			spot = cam.unproject_position(inf.at + Vector3.UP * 0.8) / Vector2(maxf(vp.x, 1.0), maxf(vp.y, 1.0))
+		print_element(inf.element, spot)
 	if Game.camera_rig and Game.camera_rig.has_method("fov_punch"):
 		Game.camera_rig.fov_punch(Game.camera_rig.FOV_ENDER)
 	return true
@@ -135,7 +219,9 @@ func _watch_hero() -> void:
 		return
 	var n: int = hero.breakers_landed
 	if _breakers_seen >= 0 and n > _breakers_seen:
-		slam(hero.get("_brk_ended") == "perfect")
+		slam(hero.get("_brk_ended") == "perfect", hero)
+		if _breaker_fx != null:
+			_breaker_fx.landing(hero)
 	_breakers_seen = n
 
 
@@ -146,7 +232,7 @@ func _process(_delta: float) -> void:
 	var s := current()
 	if s <= 0.0:
 		_strength = 0.0
-	elif Time.get_ticks_msec() - _start_ms <= IMPACT_HOLD * 1000.0 and Game.last_hit_ms >= _start_ms:
+	elif Time.get_ticks_msec() - _start_ms <= _hold * 1000.0 and Game.last_hit_ms >= _start_ms:
 		lean(Game.hit_dir_screen())  # (the hero kicks the camera along the blow just after the hitstop that fired this)
 	_apply(s)
 

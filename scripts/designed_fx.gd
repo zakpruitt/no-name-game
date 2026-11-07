@@ -77,6 +77,10 @@ const METEOR_BACK := 1.1  # m the crown stands behind the pile (depth tested: th
 const METEOR_SPLASH := 1.9  # m, the small crowns round the rim
 const SPLAT_SIZE := 1.9
 const ICE_SIZE := 2.3
+const ICE_BREAK_POP := 0.75  # fx-ice3: the shard-free break's ring, of ICE_SIZE
+const ICE_BREAK_MIST := 0.7  # its cold mist, of ICE_SIZE
+const ICE_BREAK_TIMES := [0.04, 0.07, 0.06, 0.06, 0.06, 0.07]
+const ICE_BREAK_MIST_TIMES := [0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11]
 const STRIKE_BURST := 1.6
 const STRIKE_DROP := 3.0  # m: a bolt falling further than this is a sky strike (designed_strike.gd)
 const BOLT_TILE := 3.2  # the strip's length on the mesh, in widths: zigzags keep their drawn proportions
@@ -290,6 +294,8 @@ static func hit(parent: Node, at: Vector3, element: String, size := 0.9) -> Node
 static func streaks(parent: Node, at: Vector3, dir: Vector3, element: String, big := false) -> Node3D:
 	if PAL.ALIAS.get(element, element) == "wind":  # fx-air: a storm blow's directional half is a pale gust, not lime wedges
 		return gust(parent, at, dir, 1.25 if big else 0.95)
+	if PAL.ALIAS.get(element, element) == "water" and Vector2(dir.x, dir.z).length() < dir.length() * 0.5:
+		return null  # fx-ice3: thrown straight up (a latch, no knockback) the ice-blue streaks stood as a fan of icicles
 	var size := STREAK_SIZE * (1.3 if big else 1.0)
 	var fx := spawn(parent, "impact_streaks", at, size, element, STREAK_TIMES, Vector2(0.55, 1.0))
 	fx.real_until = 1
@@ -308,7 +314,7 @@ static func streaks(parent: Node, at: Vector3, dir: Vector3, element: String, bi
 
 ## The melee swing (Fx.swoosh): the same arc mesh, with the authored brush stroke sliding along it.
 static func slash(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_deg: float, element: String,
-		flip := false, time := 0.26, height := 0.8, lines_only := false) -> Node3D:
+		flip := false, time := 0.26, height := 0.8, lines_only := false, real := false) -> Node3D:
 	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
 	var inner := radius * (SLASH_INNER_LINES if lines_only else SLASH_INNER)
 	var segs := maxi(12, int(arc_deg / 5.0))
@@ -341,7 +347,7 @@ static func slash(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_d
 	mi.set_instance_shader_parameter("span", SLASH_SPAN)
 	mi.set_instance_shader_parameter("tiles", 0.0)
 	var boil := randi() % 4
-	var tw := fx.create_tween()
+	var tw := fx.create_tween().set_ignore_time_scale(real)  # (real: through the hitstop, the spirit echo's line)
 	tw.tween_method(func(p: float) -> void:
 		var head := pow(p, 0.45) * (1.0 + SLASH_SPAN)
 		mi.set_instance_shader_parameter("head", head)
@@ -387,11 +393,20 @@ static func wall_splat(parent: Node, at: Vector3, element := "earth") -> Node3D:
 	return fx.set_spin(randf_range(-0.25, 0.25), -1.0 if randf() < 0.5 else 1.0)
 
 
-## Ice breaking (a frozen foe shattered, an ice cube bursting): faceted shards and glints.
+## Ice breaking (a frozen foe shattered, an ice cube bursting). fx-ice3: no shards (Zak: "get rid of the
+## crystals"; the faceted shards of the `ice_shatter` sheet burst on every latched, thawed or thrown foe): the ice
+## pop's ring opening round a glint, at ICE_BREAK_POP of the old size, in a puff of cold mist.
 static func ice_shatter(parent: Node, at: Vector3, size := 1.0) -> Node3D:
-	var fx := spawn(parent, "ice_shatter", at, ICE_SIZE * size, "water", ICE_TIMES, Vector2(0.55, 1.0))
+	if not extra_sheets.has("pop_ice"):  # (designed_ink registers it with the other pops; it may not have yet)
+		extra_sheets["pop_ice"] = {"tex": load("res://assets/vfx/designed/pop_ice.png"), "grid": Vector2(3, 2),
+			"frames": 6, "kind": "sprite"}
+	var mist := spawn(parent, "dust_puff", at + Vector3.DOWN * 0.3, ICE_SIZE * size * ICE_BREAK_MIST, "water",
+		ICE_BREAK_MIST_TIMES, Vector2(0.4, 1.0))
+	mist.real_until = 1
+	mist.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
+	var fx := spawn(parent, "pop_ice", at, ICE_SIZE * size * ICE_BREAK_POP, "water", ICE_BREAK_TIMES, Vector2(0.45, 1.0))
 	fx.real_until = 1
-	return fx.vary(0.5, true)
+	return fx.vary(PI, true)
 
 
 ## A lightning bolt from `a` to `b` (comic_bolt.spawn: strikes out of the sky and the arcs between foes): the

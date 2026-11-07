@@ -49,6 +49,16 @@ var _cued := false  # a foe in the framing is cued (FRAME_CUE), not hit yet: eas
 var _lean := Vector3.ZERO  # metres the follow point leans towards the fight's middle, chases _lean_to
 var _lean_to := Vector3.ZERO
 var _last_us := 0  # Time.get_ticks_usec() at the last _process (the real delta)
+## Breaker spectacle: a landing's jolt (jolt()): a damped shake along one screen axis on real time, on top of the
+## random trauma shake, so each element's landing has its own feel (storm buzzes sideways, magma thuds down and
+## rumbles, ice cracks short, dark sinks slow; designed_breaker.FEEL). Starts at its peak (cos), so the blow lands
+## on the landing's first frame.
+const JOLT_MAX := 0.9  # metres at REF_DIST
+var _jolt_amp := 0.0
+var _jolt_t := 0.0
+var _jolt_hz := 0.0
+var _jolt_decay := 0.0
+var _jolt_axis := Vector2.DOWN
 
 # Per-hit feel (hero-agnostic; Game calls these): hits push the camera in a
 # hair, more as the chain climbs, clamped so a crowd hit doesn't dive; heavy
@@ -108,6 +118,8 @@ const FRAME_CUE_OUT := 7.0  # per real second
 const FRAME_BACK := 0.6  # per real second, the slow return
 const FRAME_LEAN := 0.6  # of the way from him to the middle of the fight's box (heads included)
 const FRAME_LEAN_MAX := 1.5  # metres (was 2.5: he sat visibly off-centre)
+const FRAME_CUE_LEAN_MAX := 3.5  # metres while a cued foe is in the fight (round 47: Slapshot's cubes sliding 8-10 m
+# up-screen into a wall hit on the top edge at 1.5; a cue is a short, deliberate look away from him)
 const FRAME_LEAN_RAMP := 0.25  # the lean fades in over this much needed zoom-out; a fight that fits at rest has none
 # The camera aims AIM_HEIGHT m above his feet, not at them: from 53 deg his body and anything in front of him
 # (the dummies, a pile in the air) sits up-screen under the HUD, and the round-36 film put their heads on the top
@@ -117,6 +129,10 @@ const AIM_HEIGHT := 0.8
 # hang's push-in through the rise, the window and the dive. (Round 36's HANG_FRAME_* pull-out for Meteor Fall's wall
 # throw and gather went with those beats in round 42: the meteor now dives straight onto a group.)
 const HANG_SETTLE := 3.0  # per real second
+## Feel audit 3 item 6: a cued foe still counts in a hang (only cued ones: a foe merely hit keeps him centred), so
+## Meteor Fall's hang frames the wall splat Molten Palm cued (void_element.PALM_CUE_MS) and the dive onto it; it
+## sat in the top-left corner, half off frame, for the whole hang. Cued foes count this far out (the palm's carry).
+const FRAME_CUE_RANGE := 17.0
 
 
 func _ready() -> void:
@@ -207,6 +223,26 @@ func roll(deg: float) -> void:
 	_roll_to = clampf(_roll_to + _roll_sign * deg * Game.shake_scale, -ROLL_MAX, ROLL_MAX)
 
 
+## A damped jolt of `amount` m (at REF_DIST) along `axis` (screen x right, y up), ringing at `hz`, dying at `decay`
+## per real second; a new one adds to what is left of the last. Scaled by the shake setting, none with it off.
+func jolt(amount: float, hz: float, decay: float, axis: Vector2) -> void:
+	if Game.shake_scale <= 0.0:
+		return
+	var left := _jolt_amp * exp(-_jolt_decay * _jolt_t)
+	_jolt_amp = minf(left + amount * minf(Game.shake_scale, 1.5), JOLT_MAX)
+	_jolt_t = 0.0
+	_jolt_hz = hz
+	_jolt_decay = decay
+	_jolt_axis = axis.normalized() if axis.length() > 0.01 else Vector2.DOWN
+
+
+## The jolt's offset now (screen x, y), metres at the current distance.
+func jolt_offset() -> Vector2:
+	if _jolt_amp <= 0.0:
+		return Vector2.ZERO
+	return _jolt_axis * _jolt_amp * exp(-_jolt_decay * _jolt_t) * cos(TAU * _jolt_hz * _jolt_t) * dist / REF_DIST
+
+
 func add_trauma(amount: float) -> void:
 	trauma = clampf(trauma + amount, 0.0, 1.0)
 
@@ -228,14 +264,14 @@ func _process(delta: float) -> void:
 		goal.y = _lift + AIM_HEIGHT
 		_frame_fight(goal, hanging)
 		var lean_rate := (FRAME_CUE_OUT if _cued else FRAME_OUT) if _lean_to.length() > _lean.length() else FRAME_BACK
-		if hanging:
+		if hanging and not _cued:
 			lean_rate = HANG_SETTLE
 		_lean = _lean.lerp(_lean_to, 1.0 - exp(-lean_rate * real_delta))
 		goal += _lean
 		var speed := follow_speed * (3.0 if _zoom_to != 1.0 else 1.0)  # keep up while zoomed
 		global_position = global_position.lerp(goal, 1.0 - exp(-speed * delta))
 	var frame_rate := (FRAME_CUE_OUT if _cued else FRAME_OUT) if _frame_to > _frame else FRAME_BACK
-	if hanging:
+	if hanging and not _cued:
 		frame_rate = HANG_SETTLE
 	_frame = lerpf(_frame, _frame_to, 1.0 - exp(-frame_rate * real_delta))
 	trauma = maxf(trauma - trauma_decay * delta, 0.0)
@@ -255,8 +291,12 @@ func _process(delta: float) -> void:
 	camera.position = offset * _frame * _squeeze() * (1.0 - _hit_zoom * (1.0 - _hang)) + _kick
 	var s := trauma * trauma
 	var shake := max_shake_offset * dist / REF_DIST * s
-	camera.h_offset = randf_range(-1.0, 1.0) * shake
-	camera.v_offset = randf_range(-1.0, 1.0) * shake
+	_jolt_t += real_delta
+	if _jolt_amp > 0.0 and exp(-_jolt_decay * _jolt_t) < 0.02:
+		_jolt_amp = 0.0
+	var j := jolt_offset()
+	camera.h_offset = randf_range(-1.0, 1.0) * shake + j.x
+	camera.v_offset = randf_range(-1.0, 1.0) * shake + j.y
 	camera.rotation.z = deg_to_rad(randf_range(-1.0, 1.0) * max_shake_roll * s + _roll)
 
 
@@ -272,8 +312,8 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 	_frame_to = 1.0
 	_lean_to = Vector3.ZERO
 	_cued = false
-	if frame_max <= 1.0 or hanging:
-		return  # (a hang: the rise, the window and the dive keep him centred in its push-in)
+	if frame_max <= 1.0:
+		return  # (a hang: the rise, the window and the dive keep him centred in its push-in, cued foes aside)
 	var now := Time.get_ticks_msec()
 	var hero := target.global_position
 	var pts: Array[Vector3] = []
@@ -284,10 +324,10 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 			continue
 		var hit_ms: Variant = foe.get("last_hit_ms")
 		var cued: bool = int(foe.get_meta(FRAME_CUE, 0)) > now
-		if not cued and (not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS):
+		if not cued and (hanging or not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS):
 			continue
 		var at: Vector3 = foe.global_position
-		if at.distance_to(hero) > FRAME_RANGE:
+		if at.distance_to(hero) > (FRAME_CUE_RANGE if cued else FRAME_RANGE):
 			continue
 		pts.append(at)
 		_cued = _cued or cued
@@ -297,7 +337,8 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 		return
 	var mid := (lo + hi) * 0.5
 	pts.append(hero)
-	var lean := (Vector3(mid.x - hero.x, 0.0, mid.y - hero.z) * FRAME_LEAN).limit_length(FRAME_LEAN_MAX)
+	var lean := (Vector3(mid.x - hero.x, 0.0, mid.y - hero.z) * FRAME_LEAN).limit_length(
+		FRAME_CUE_LEAN_MAX if _cued else FRAME_LEAN_MAX)
 	# Lean only as far as the fight needs room: none while everyone fits around him at rest.
 	_lean_to = lean * clampf((_need(pts, goal) - 1.0) / FRAME_LEAN_RAMP, 0.0, 1.0)
 	_frame_to = minf(_need(pts, goal + _lean_to), frame_max)

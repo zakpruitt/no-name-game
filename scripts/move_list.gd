@@ -35,13 +35,16 @@ const SECTIONS := [
 		{"input": "L L H L", "kind": "move", "id": "IJ", "note": "Vaults up over the spear, any time while it stands. Right click does too."},
 		{"input": "L L H L H", "kind": "move", "id": "IS", "note": "Slams down onto the spear: it explodes and everyone on the frost freezes into a cube."},
 		{"input": "L L H L H, H in the window", "kind": "text", "name": "Avalanche", "tier": 3, "note": "The tentacles pick up every cube and slam them all together in the middle."},
-		{"input": "Dash L H", "kind": "move", "id": "EF", "note": "A spear tip through a whole line: they freeze and are reeled in, one behind the other."},
+		{"input": "Dash L H", "kind": "move", "id": "EF", "note": "A tentacle grabs everyone near him, all round, and sets them down frozen in a row in front of him. Pause, and he leaps over the row: the window has two endings."},
+		{"input": "Dash L H (pause), H in the window", "kind": "text", "name": "Shatterstorm", "tier": 3, "note": "Thunder crashes down on every cube where it stands and shatters it. Good damage anywhere."},
+		{"input": "Dash L H (pause), L in the window", "kind": "text", "name": "Slapshot", "or": true, "tier": 3, "note": "A molten fist punches the row: the cubes slide along the floor. One that hits a wall shatters on it for the most damage in the kit; one that doesn't slides to a stop for a little. Aim the row at a wall."},
 		{"input": "Dash L H H", "kind": "move", "id": "EA", "note": "Freezes the nearest and bowls it. Everyone it passes freezes too."},
 	]},
 	{"title": "MAGMA", "rows": [
 		{"input": "L L L H", "kind": "move", "id": "EM", "note": "The arm swells into a fist and shoves them along a line of lava. Punch a group into a wall: the wall hits hard (x2.5), and sets up Meteor Fall."},
 		{"input": "L L L H H", "kind": "move", "id": "EV", "note": "Tendrils drag them waist-deep into lava, stuck and burning, however far the palm sent them."},
 		{"input": "L L L H H, H in the window", "kind": "text", "name": "Meteor Fall", "tier": 3, "note": "He dive-bombs the biggest group in reach as a meteor, and everyone in the blast takes it. The group Molten Palm just splatted on a wall counts more, and takes x1.3. Big ones take it worst; shields come off for good."},
+		{"input": "L L L H H, L in the window", "kind": "text", "name": "Meteor Shower", "or": true, "tier": 3, "note": "He stays where he is and calls a fireball down out of the sky on every foe the palm hit, wherever it went, and leaves them burning. Best when the palm scattered them; Meteor Fall is for the pile at the wall."},
 	]},
 	{"title": "DARK", "rows": [
 		{"input": "H", "kind": "text", "name": "Grab", "note": "Yanks a foe to him. Something too big drags him to it instead. Whips on a miss."},
@@ -61,6 +64,7 @@ const SECTIONS := [
 		{"input": "L H L L", "kind": "move", "id": "XR", "note": "Storm into earth: the hammer comes down off the air slash and drives everyone into the floor together. Double on those the gale had up."},
 		{"input": "L H L L H", "kind": "move", "id": "XF", "note": "Earth into storm: cracks run to each of them and the gale comes up out of them, throwing the buried hardest."},
 		{"input": "L H L L H, H in the window", "kind": "text", "name": "Cataclysm", "tier": 3, "note": "Lightning through them in the hang, then down into the floor, a strike and the earth under each."},
+		{"input": "L H L L H, L in the window", "kind": "text", "name": "Tempest", "or": true, "tier": 3, "note": "A twister goes up where they land and takes everyone near up it; lightning blasts each one out, harder the more it holds. Four or more: Tempest; a few: Cataclysm."},
 		{"input": "Dash L H H L", "kind": "move", "id": "XS", "note": "Ice into magma: the molten fist goes into the ice and every frozen foe goes off in steam, scalding the rest."},
 		{"input": "Dash L H H L, H in the window", "kind": "text", "name": "Flash Freeze", "tier": 3, "note": "The steam freezes on them as he dives, and the landing shatters it again."},
 		{"input": "Dash H L", "kind": "move", "id": "XT", "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass."},
@@ -71,6 +75,7 @@ const SECTIONS := [
 		{"input": "L L H, Dash H H", "kind": "move", "id": "XK", "note": "Dark into ice: the tentacles throw Tow Line's bunch onto the spear and they freeze round it. Without the spear first it plants one."},
 		{"input": "L L H, Dash H H L", "kind": "move", "id": "XW", "note": "Ice into storm: the gale blows the spear apart and hauls the frozen kebab back up to him."},
 		{"input": "L L H, Dash H H L, H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the lot into the floor, a crater each."},
+		{"input": "L L H, Dash H H L, L in the window", "kind": "text", "name": "Pinwheel", "or": true, "tier": 3, "note": "The tentacles whirl the kebab round him in a twister and hurl it into the nearest wall or pillar: a hard splat each. In the open they just fly; Anvil is better there."},
 	]},
 	# The element matrix (round 34, third pass; void_element.IMPROV, docs/features/element-matrix.md): what any move of
 	# an element does to a foe another string left in a state, every cell in plain words (round 4: the "Mix elements"

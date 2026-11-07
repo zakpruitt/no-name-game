@@ -9,6 +9,7 @@ extends "res://scripts/comic_flat.gd"
 ##     carries it for the rest of ELEMENT_HOLD.
 
 const SELF := preload("res://scripts/comic_impale.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
 const SPIKES := 8
 const CHEST := 0.85
 const STAKE_W := 0.22  # m at the root
@@ -27,6 +28,9 @@ var _from := Vector3.ZERO  # world: the spear's foot
 
 
 static func burst(parent: Node, spot: Vector3, r: float) -> Node3D:
+	if DESIGNED_EL.DESIGNED.on():  # fx-ice2: the frost cracking out to them and cold mist, no ice spikes
+		DESIGNED_EL.frost_mark(parent, spot, 0.9, 0.6)
+		return DESIGNED_EL.frost_burst(parent, spot, r / DESIGNED_EL.FROST_BURST_REACH * 0.8)
 	var b: Node3D = SELF.new()
 	b.mode = "burst"
 	b.reach = r
@@ -87,6 +91,11 @@ func _draw(s: int) -> void:
 	if _hit < 0.0:
 		return
 	var hs := int((_t - _hit) * STEPS_PER_S)
+	if DESIGNED_EL.DESIGNED.on():  # fx-ice2: no crystal stake; a clean water hit star where it lands on the spear
+		if hs == 0 and not has_meta("starred"):
+			set_meta("starred", true)
+			DESIGNED_EL.DESIGNED.hit(get_parent(), global_position + Vector3.UP * CHEST, "water", 1.0)
+		return
 	var fade := clampf((hs - 2) / 3.0, 0.0, 1.0)
 	var chest := Vector3.UP * CHEST
 	var root := _from - global_position

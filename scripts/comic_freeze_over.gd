@@ -11,6 +11,10 @@ extends "res://scripts/comic_flat.gd"
 ##   ComicFreezeOver.shatter(parent, spot, radius): breaks the pool there (spawning one already broken if there is none).
 
 const SELF := preload("res://scripts/comic_freeze_over.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
+const D_POOL := 1.7  # fx-polygons: the drawn rime's square, per metre of the pool's radius (the rime is ~0.46 of it round)
+const D_POOL_ALPHA := 0.85
 const GROUP := "comic_freeze_pool"
 const SHELL := Vector2(0.88, 1.5)  # m: half its width, its height (a dummy is about 1.5 m)
 const SHELL_POINTS := 12
@@ -32,10 +36,14 @@ var _tips := []  # [angle, length]
 var _plates := []  # {a0, a1, r: PackedFloat32Array (outer edge), mid: Vector2}
 var _broke := -1.0  # _t it shattered at
 var _chips := []  # {pos, vel, size, shape, turn}
+var _loop: Node3D  # fx-polygons (designed): the frost floor over the pool
 
 
 static func foe(parent: Node, e: Variant) -> Node3D:
 	if not is_instance_valid(e):
+		return null
+	if DESIGNED_EL.DESIGNED.on():  # fx-ice2: the ice block (freeze_seized's cube) is the frost-over; frost and mist under it
+		DESIGNED_EL.frost_mark(parent, e.global_position, 0.75, 0.5)
 		return null
 	var f: Node3D = SELF.new()
 	f.mode = "foe"
@@ -71,6 +79,15 @@ static func shatter(parent: Node, spot: Vector3, r: float) -> void:
 
 
 func break_up() -> void:
+	if DESIGNED_EL.DESIGNED.on():  # fx-polygons: the frost floor breaks away, the ice ring and cold mist over it
+		_broke = _t
+		life = _t + 0.3
+		remove_from_group(GROUP)
+		if is_instance_valid(_loop):
+			_loop.erode_out(0.22)
+		DESIGNED_EL.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.5, clampf(radius / 2.5, 0.7, 1.3))
+		DESIGNED_EL.frost_mark(get_parent(), global_position, clampf(radius / 1.6, 0.8, 1.6), 0.5)
+		return
 	_broke = _t
 	life = _t + SHATTER_STEPS / STEPS_PER_S
 	remove_from_group(GROUP)
@@ -93,6 +110,11 @@ func _build() -> void:
 			_shape.append(1.0 if i % 2 == 0 else _rng.randf_range(0.8, 0.9))
 		for i in TIPS:
 			_tips.append([PI * 0.5 + (i - 1) * 0.55 + _rng.randf_range(-0.12, 0.12), _rng.randf_range(0.32, 0.48)])
+		return
+	if DESIGNED_EL.DESIGNED.on():  # fx-polygons: a drawn rime over the pool (straight cracks, glints; no plates, no shards)
+		_loop = POLISH.loop(self, "tell_pinned", radius * D_POOL, "water")
+		_loop.set_alpha(D_POOL_ALPHA)
+		_loop.offset(Vector3.UP * (DESIGNED_EL.DESIGNED.GROUND_LIFT + 0.02))  # (over the dark pool's own decal)
 		return
 	var turn := _rng.randf() * TAU
 	var cuts := PackedFloat32Array()  # shared edges, so every ink gap is the same width
@@ -118,6 +140,8 @@ func _follow(_delta: float) -> void:
 
 
 func _draw(s: int) -> void:
+	if _loop != null:
+		return
 	if mode == "foe":
 		_draw_shell(s)
 	elif _broke < 0.0:

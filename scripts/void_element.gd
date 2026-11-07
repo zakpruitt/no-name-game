@@ -29,6 +29,9 @@ const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
 const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
 const COMIC_RIP := preload("res://scripts/comic_rip.gd")
 const COMIC_IMPROV := preload("res://scripts/comic_improv.gd")  # the element matrix's tells (round 37, third pass)
+const HARPOON_GATHER := preload("res://scripts/harpoon_gather.gd")  # Harpoon's tentacles (round 47)
+const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
+const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs' second endings (breaker-pairs lane)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -68,7 +71,7 @@ const ELEMENT_OF := {"EC": "wind", "EE": "wind", "EW": "wind", "EF": "water", "E
 	"XR": "earth", "XF": "wind", "XS": "earth", "XT": "wind", "XC": "wind",
 	"XG": "wind", "XM": "earth", "XK": "water", "XW": "wind"}
 ## The arm's shape for the crossovers (ComicLook.HERO_MOVE_FORMS has the rest; void_grab.on_move reads this first).
-const FORM_OF := {"XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
+const FORM_OF := {"EF": "hand", "XC": "hand", "XR": "hammer", "XF": "hand", "XS": "hand", "XT": "axe", "XG": "hand", "XM": "hammer", "XK": "hand", "XW": "axe"}
 const NO_CAST := ["AL1", "L3"]  # their giant axes stood in front of the tentacle move that follows
 const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
@@ -97,7 +100,10 @@ const BREAKERS := {
 	# (meteor_target: the ones Molten Palm just splatted on a wall count more) and the landing takes everyone in
 	# METEOR_PILE_R (_meteor_landing). Undertow keeps them pinned in the lava until he lands.
 	"EV": {"erupt": "earth", "meteor": true, "no_hold": true, "damage": 60.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 10.0, "awaken_perfect": 20.0,
-		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"}},
+		"height": 3.6, "back": 0.0, "rise": 0.28, "dive": 0.3, "fall": 0.4, "names": {"spirit": "Meteor Fall"},
+		# LMB Meteor Shower (breaker-pairs): he stays over his own spot and calls a fireball down on every foe the palm
+		# hit, wherever it is (SHOWER_*). Best when the palm scattered them; Meteor Fall wins on a pile at the wall.
+		"alt": {"shower": true, "damage": SHOWER_DAMAGE, "dive": 0.2, "names": {"spirit": "Meteor Shower"}}},
 	# Dark: he comes down at dark_spot, where the string gathered them (`at_spot`, `short` m this side of it).
 	"VS": {"erupt": "void", "no_hold": true, "at_spot": true, "short": 1.6, "collapse": true, "damage": 44.0, "leap": VS_HIT + LEAP_AFTER_SLAM,
 		"awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Collapse"}},
@@ -111,7 +117,10 @@ const BREAKERS := {
 	# `wire` (Live Wire's bolts and binds on every foe in the hang made it the busiest breaker; damage 40 -> 46 for the
 	# jolts it lost) (`cataclysm`: a crater on each, a strike and earth under each).
 	"XF": {"erupt": "earth", "cataclysm": true, "damage": 46.0, "leap": LH_HIT + LEAP_AFTER_RAKE, "height": 2.4,
-		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Cataclysm"}},
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Cataclysm"},
+		# LMB Tempest (breaker-pairs): a twister goes up where they land and takes everyone near up its column; lightning
+		# blasts each out of it in turn, harder the more it holds (TEMPEST_*). A crowd: Tempest; a few: Cataclysm.
+		"alt": {"erupt": "wind", "tempest": true, "damage": TEMPEST_DAMAGE, "names": {"spirit": "Tempest"}}},
 	# Flash Freeze: Steam Burst's steam freezes on them as he dives (`refreeze`), and the landing shatters it again.
 	"XS": {"erupt": "water", "refreeze": true, "damage": 30.0, "leap": AF_HIT + LEAP_AFTER_PALM,
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Flash Freeze"}},
@@ -121,7 +130,17 @@ const BREAKERS := {
 		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Eruption"}},
 	# Anvil ends Backdraft: the gale brought the kebab back up to him, and the hammer drives it into the floor.
 	"XW": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "damage": 44.0, "leap": H_HIT + LEAP_AFTER_SWING, "height": 2.2,
-		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"}},
+		"awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"},
+		# LMB Pinwheel (breaker-pairs): the tentacles whirl the kebab round him in a twister and hurl it into the
+		# nearest wall or pillar within PINWHEEL_REACH (PINWHEEL_*). Best by a wall or pillar; Anvil wins in the open.
+		"alt": {"erupt": "wind", "pinwheel": true, "damage": PINWHEEL_DAMAGE, "dive": PINWHEEL_DIVE, "names": {"spirit": "Pinwheel"}}},
+	# Round 47: Harpoon's row of cubes. A pause after Dash L H (no press by its cancel: a press there is still Ice Cube,
+	# Dash L H H) and he leaps with a tentacle on each cube (`hold_cubes`), landing just behind the row (`zone`).
+	# RMB Shatterstorm: thunder on every cube where it stands, reliable anywhere. LMB Slapshot: a molten fist punches the
+	# row along his aim; a cube that reaches a wall shatters on it for the most, one that doesn't slides to a stop.
+	"EF": {"erupt": "wind", "hold_cubes": true, "pause": true, "thunder": true, "damage": SHATTER_DAMAGE, "leap": LLH_HIT + LEAP_AFTER_HARPOON,
+		"zone": 0.6, "awaken": 10.0, "awaken_perfect": 20.0, "names": {"spirit": "Shatterstorm"},
+		"alt": {"erupt": "earth", "slapshot": true, "damage": SLIDE_DAMAGE * SLIDE_WALL_MULT, "names": {"spirit": "Slapshot"}}},
 }
 
 const CUTTER_AHEAD := 3.5  # m: where the gale throws them up from
@@ -132,18 +151,101 @@ const CUTTER_DAMAGE := 10.0
 const CUTTER_PULL := 7.0
 const CUTTER_LAUNCH := 9.5
 const WIRE_DAMAGE := 4.5  # each jolt, each foe (round 44: 3.5 at a 0.09 s step; the pulses come every 0.1 s and later)
-const HARPOON_LENGTH := 10.0
-const HARPOON_HALF_WIDTH := 1.3
-const HARPOON_STEPS := 8
+const HARPOON_STEPS := 8  # (Molten Palm's lava seam steps)
+## Harpoon (round 47, harpoon_gather.gd): a tentacle to every foe this near him, all round (Galvanize's GALV_REACH),
+## nearest first and HARPOON_MAX at most, set down frozen in a rank across his aim HARPOON_SET m ahead, each
+## HARPOON_GAP clear of the next, short of walls (harpoon_slots). Big ones freeze where they stand.
+const HARPOON_REACH := 8.0
+const HARPOON_MAX := 5
 const HARPOON_DAMAGE := 10.0
-const HARPOON_SPEED := 24.0
-const KEBAB_FROM := 1.7  # m ahead of him, the first one reeled in
-const KEBAB_GAP := 0.9  # m to the next
+## Feel audit 4: the gather's latches (10 each) landed at x1.00, contacts with no stop, on the same frame as the
+## Ice Cube press. The first latch of a gather takes LATCH_STOP ("it connected"); the rest stay quiet, so Harpoon
+## stays a quick mid (EA -> XG / XS were 200 ms; a stop on every latch made them ~260).
+const LATCH_STOP := 0.035
+const HARPOON_SET := 2.6  # m ahead of him, the rank
+const HARPOON_SET_MIN := 1.5  # m: never closer (a wall right ahead squeezes it to this)
+const HARPOON_GAP := 0.15  # m between neighbouring cubes' ice (their fitted width: ice_radius())
+const HARPOON_WALL := 0.7  # m a slot keeps off a wall
+const ICE_CORNER := 0.93  # of a hex block's corner radius a neighbour is spaced by: between its flat (0.87) and its
+# corner (1.0), since each block turns at random (fit_block): two corners may just touch, two flats leave a gap
+const LEAP_AFTER_HARPOON := 0.36  # Shatterstorm / Slapshot: the leap, after EF's cancel (LLH_HIT + 0.16) so a press is Ice Cube
+## Shatterstorm (RMB): a sky strike on each held cube in turn, SHATTER_STEP apart after SHATTER_DELAY (past the
+## landing's impact frame), SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged).
+const SHATTER_DAMAGE := 30.0
+const SHATTER_DELAY := 0.12  # s (game)
+const SHATTER_STEP := 0.06  # s (game)
+## Slapshot (LMB): the molten fist goes out to the row and punches every cube along his aim at SLIDE_SPEED. One
+## that reaches a wall within SLIDE_REACH shatters on it for SLIDE_DAMAGE x SLIDE_WALL_MULT; one that doesn't
+## slides to a stop and bursts for SLIDE_DAMAGE. So: wall 63 > thunder 30 > no wall 14 (x FREEZE_BREAK on all three).
+const SLIDE_REACH := 10.0  # m
+const SLIDE_SPEED := 20.0  # m/s off the fist (slowing to thrown_foe.SLIDE_END of it short of a wall)
+const SLIDE_DAMAGE := 14.0
+const SLIDE_WALL_MULT := 4.5
+const SLIDE_SPIN := 2.0  # radians/s: a slide, not a throw
+const SLIDE_FIST_PAST := 0.4  # m the fist reaches past the row's near face
+const SLIDE_CUE_MS := 1400  # real ms the sliding cubes count for the camera's framing (camera_rig.FRAME_CUE)
+const CAMERA_CUE := &"frame_cue_ms"  # (camera_rig.FRAME_CUE)
+## Meteor Shower (Meteor Fall's LMB, breaker-pairs): he comes down where he hangs and a fireball falls out of the sky
+## onto each foe Molten Palm hit (palm_fresh, within METEOR_SPLAT_REACH, nearest first, SHOWER_MAX), SHOWER_STEP apart
+## after SHOWER_DELAY, each SHOWER_DAMAGE into the floor on its foe alone, which it leaves molten. So: four scattered
+## foes 4 x 30 = 120 vs Meteor Fall's 60 on the one it dives on; three piled at a wall 3 x 30 vs 3 x 60 x 1.3.
+const SHOWER_DAMAGE := 30.0
+const SHOWER_MAX := 6
+const SHOWER_DELAY := 0.12  # real s past the landing (the impact frame), real time so its freeze doesn't hold them
+const SHOWER_STEP := 0.08  # real s
+const SHOWER_FALL := 0.24  # real s each fireball takes from the sky
+const SHOWER_CUE_MS := 1500  # real ms its targets count for the camera's framing (camera_rig.FRAME_CUE)
+## Pinwheel (Anvil's LMB, breaker-pairs): the dive is a whirl in place (PINWHEEL_DIVE s, PINWHEEL_TURNS round him at
+## PINWHEEL_R, a twister round them), then each held foe is hurled at the nearest wall or pillar within PINWHEEL_REACH
+## of him (PINWHEEL_RAYS rays) at PINWHEEL_SPEED: PINWHEEL_DAMAGE x PINWHEEL_WALL_MULT on it. No wall in reach: they
+## fly PINWHEEL_OPEN m out and land for PINWHEEL_DAMAGE. Anyone else in the whirl takes PINWHEEL_SWEEP of it.
+## So: 80 a foe at a wall vs Anvil's 44 x 1.4 = 62; 20 in the open.
+const PINWHEEL_DAMAGE := 20.0
+const PINWHEEL_WALL_MULT := 4.0
+const PINWHEEL_REACH := 10.0  # m round him (the room's pillars stand ~11 m from its middle: there it is the open)
+const PINWHEEL_RAYS := 32
+const PINWHEEL_R := 2.3  # m round him they whirl
+const PINWHEEL_TURNS := 1.25
+const PINWHEEL_Y := 1.3  # m up they whirl (his chest as he lands: a hammer throw)
+const PINWHEEL_DIVE := 0.42  # s
+const PINWHEEL_SPEED := 24.0  # m/s
+const PINWHEEL_OPEN := 7.0  # m
+const PINWHEEL_SWEEP := 0.5
+const PINWHEEL_CUE_MS := 1400  # real ms the thrown count for the camera's framing
+## Tempest (Cataclysm's LMB, breaker-pairs): where they land (the held pile's middle) a twister takes everyone not big
+## within TEMPEST_REACH up its column (TEMPEST_MAX at most), spiralling in to TEMPEST_R and up; from TEMPEST_FIRST s
+## a bolt out of the sky blasts each out of it in turn (TEMPEST_STEP apart), TEMPEST_DAMAGE x (1 + TEMPEST_PER per other
+## foe in the column), charged and thrown clear. Big ones stay on the floor and take TEMPEST_BIG of one blast.
+## So: one foe 20 vs Cataclysm's 46; two 2 x 30 vs 92; four 4 x 50 = 200 vs 184; five 5 x 60 vs 230.
+const TEMPEST_DAMAGE := 20.0
+const TEMPEST_PER := 0.5
+const TEMPEST_REACH := 7.0  # m round the pile
+const TEMPEST_MAX := 8
+const TEMPEST_R := 1.1  # m round the column's middle they ride
+const TEMPEST_HIGH := 2.4  # m up they ride (TEMPEST_HIGH_STEP more for every other one, so they stack)
+const TEMPEST_HIGH_STEP := 0.55
+const TEMPEST_SPIN := 9.0  # rad/s round the column
+const TEMPEST_FIRST := 0.42  # s (game) from the landing to the first bolt: they are up by then
+const TEMPEST_STEP := 0.09  # s (game) between bolts
+const TEMPEST_FREEZE := 0.35  # real s the landing's stop holds the game before the ride plays (the twister runs on real time)
+const TEMPEST_THROW := 7.0  # m/s out of the column
+const TEMPEST_LAUNCH := 6.0
+const TEMPEST_BIG := 0.6
+const TEMPEST_COLUMN := 5.5  # m: the twister's height
+const TEMPEST_OUT := 1.4  # m past the held pile's middle, along his aim, the column stands
+const TEMPEST_CUE_MS := 1600
+## Feel audit 3 item 6: a foe Molten Palm carries to a wall is cued for the framing this long (real ms), through
+## Undertow and Meteor Fall's hang (camera_rig frames cued foes in a hang), so the splat and the dive stay on screen.
+const PALM_CUE_MS := 2600
 const CUBE_DAMAGE := 22.0
 const BOWL_REACH := 7.0  # m: how far it'll take a foe from
 const BOWL_LENGTH := 12.0  # m it flies
 const SPEAR_AHEAD := 2.6  # m in front of him it goes in
 const SPEAR_GAP := 0.7  # m short of it he stops
+## Feel audit 3: the vault (IJ) was the only contact with no stop (x1.00 on its HIT frame). His push-off on the
+## spear takes a light freeze, between Frost Spear's plant (IP 0.07) and Deep Freeze (IS 0.1), and a small shake.
+const VAULT_STOP := 0.06  # real s, at Game.hitstop's freeze scale (eased tail)
+const VAULT_SHAKE := 0.2
 const SPEAR_RUN_SPEED := 16.0  # m/s
 const DEEP_FREEZE_RADIUS := 6.5  # m round the spear
 const DEEP_FREEZE_DAMAGE := 16.0
@@ -419,9 +521,14 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 					ELEMENTS.arc(parent, from, at + fwd * k + Vector3.UP, ELEMENTS.LOOK.wind.color)
 			return n
 		"EF":
-			return _harpoon(hero, at, fwd, HARPOON_LENGTH * grow, HARPOON_DAMAGE * power)
+			return _harpoon(hero, at, fwd, HARPOON_REACH * grow, HARPOON_DAMAGE * power)
 		"IP":
 			return _plant(hero, at, fwd)
+		"IJ":  # (no hit: the push-off on the spear is the contact)
+			if SPEAR.current(hero.get_tree()) != null:
+				Game.hitstop(VAULT_STOP)
+				Game.shake(VAULT_SHAKE)
+			return 0
 		"IS":
 			return _deep_freeze(hero, at, DEEP_FREEZE_DAMAGE * power)
 		"EA":
@@ -544,27 +651,97 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 	return foes.size()
 
 
-## A spear tip through everyone in a line. They freeze where it finds them and are reeled in, one
-## behind the other. Big ones freeze where they stand.
-static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: float, damage: float) -> int:
-	var parent: Node = hero.get_parent()
-	length = minf(length, hero._clear_ahead(fwd, length) + 0.5)
-	hero._void.spear_to(at + fwd * length + Vector3.UP * 0.9)
-	ELEMENTS.fissure(parent, at, fwd, length, HARPOON_STEPS, "water", 0.8)
-	var foes := _ahead(hero, at, fwd, length, HARPOON_HALF_WIDTH)
-	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
-	var slot := 0
-	for e: Node3D in foes:
+## Round 47: a tentacle goes out to everyone near him, all round, latches on, and carries each in a quick curve to a
+## slot in a rank in front of him, where it freezes in a cube (harpoon_gather.gd). Big ones freeze where they stand.
+## The row is what the pause after it leaps on (BREAKERS.EF: Shatterstorm / Slapshot) and what Ice Cube bowls.
+static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: float, damage: float) -> int:
+	var foes := harpoon_targets(hero, at, reach)
+	hero._void.harpooned = foes.duplicate()
+	if foes.is_empty():
+		return 0
+	var light: Array = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e))
+	var slots := harpoon_slots(hero, at, fwd, light)
+	var grabs := []
+	for e: Node3D in foes:  # (nearest first: they latch in that order)
+		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
+	var g: Node3D = HARPOON_GATHER.start(hero, grabs)
+	hero._void.gather = g
+	var latched := [0]  # (only the first latch of this gather stops)
+	g.on_latch = func(e: Node3D) -> void:
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
+		if latched[0] == 0:
+			Game.hitstop(LATCH_STOP)
+		latched[0] += 1
+		if e.has_method("stagger") and not hero._void.is_heavy(e):
+			e.stagger(1.0)
+	g.on_set = func(e: Node3D) -> void:
 		encase(e)
-		if hero._void.is_heavy(e):
-			continue
-		var to: Vector3 = at + fwd * (KEBAB_FROM + slot * KEBAB_GAP)
-		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "speed": HARPOON_SPEED, "land_y": 0.0})
-		slot += 1
+		if Fx.DESIGNED.on():  # fx-ice3: frost cracks under the block, not ice chips (Zak: no crystals)
+			preload("res://scripts/designed_elements.gd").frost_mark(hero.get_parent(), _flat(e.global_position), 0.7, 0.5)
+		else:
+			Fx.shards(hero.get_parent(), e.global_position + Vector3.UP * 0.4, Color(0.88, 0.97, 1.0), 6, Vector3.UP, 4.0, 0.12, 0.4)
 	return foes.size()
+
+
+## Who Harpoon takes: every living foe within `reach` of him, nearest first, HARPOON_MAX at most.
+static func harpoon_targets(hero: CharacterBody3D, at: Vector3, reach: float) -> Array:
+	var foes: Array = FOES.near(hero.get_tree(), at, reach).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	return foes.slice(0, HARPOON_MAX)
+
+
+## Each foe's slot in the rank: across his aim HARPOON_SET m ahead (closer when a wall is nearer), side by side in
+## the order they stand across his aim (so no two tentacles cross), each one's ice HARPOON_GAP clear of the next.
+## A slot a wall would cut is drawn in towards him along its line.
+static func harpoon_slots(hero: CharacterBody3D, at: Vector3, fwd: Vector3, foes: Array) -> Dictionary:
+	var out := {}
+	if foes.is_empty():
+		return out
+	var side := fwd.cross(Vector3.UP).normalized()
+	var order := foes.duplicate()
+	order.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return (a.global_position - at).dot(side) < (b.global_position - at).dot(side))
+	var radii := order.map(func(e: Node3D) -> float: return ice_radius(e))
+	var widths := radii.map(func(r: float) -> float: return r * 2.0)
+	var total := 0.0
+	for w: float in widths:
+		total += w
+	total += HARPOON_GAP * (order.size() - 1)
+	var r_max := 0.0
+	for r: float in radii:
+		r_max = maxf(r_max, r)
+	var ahead: float = clampf(hero._clear_ahead(fwd, HARPOON_SET + r_max + HARPOON_WALL) - r_max - HARPOON_WALL, HARPOON_SET_MIN, HARPOON_SET)
+	var x := -total * 0.5
+	for i in order.size():
+		var e: Node3D = order[i]
+		var half: float = widths[i] * 0.5
+		var spot: Vector3 = at + fwd * ahead + side * (x + half)
+		x += widths[i] + HARPOON_GAP
+		var line := _flat(spot - at)
+		var reach: float = line.length()
+		if reach > 0.01:  # (a wall across a slot's line pulls it in)
+			var clear: float = hero._clear_ahead(line / reach, reach + half + HARPOON_WALL) - half - HARPOON_WALL
+			if clear < reach:
+				spot = at + line / reach * maxf(clear, HARPOON_SET_MIN * 0.6)
+		out[e] = _flat(spot)
+	return out
+
+
+## How far round `e` its ice reaches on the floor, from its feet: the cube it's in (fx-ice2 fits it to the model,
+## a dummy's ~1.05 m flat, its corners ~15% more as it turns) or, before it has one, the block that would fit it
+## now. The plain cube (r + 0.1) without designed ice. Harpoon spaces its row by it and Slapshot stops it off a wall.
+static func ice_radius(e: Node3D) -> float:
+	var cube: Node = e.get_node_or_null(THROWN.CUBE_NAME)
+	if cube is MeshInstance3D and cube.mesh != null:
+		var box: AABB = cube.mesh.get_aabb()
+		var flat := Vector2(cube.position.x, cube.position.z).length()
+		return maxf(box.size.x, box.size.z) * 0.5 * ICE_CORNER + flat
+	if Game.comic_style and DESIGNED.on() and e.get("model") is Node3D:
+		var fit: Dictionary = ELEMENTS.DESIGNED_EL.block_fit(ELEMENTS.DESIGNED_EL.model_points(e), -0.08 - e.global_position.y)
+		return float(fit.r) / cos(PI / 6.0) * ICE_CORNER + Vector2(fit.centre.x, fit.centre.z).length()
+	return float(e.get("radius")) + 0.1
 
 
 ## Freezes the nearest foe, the frozen first, and bowls it along his aim. Everyone it passes freezes.
@@ -602,6 +779,8 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 		Game.register_hit("cast")
 		if not hero._void.is_heavy(e) and e.is_alive():
 			var walled: bool = THROWN.clear_from(hero, e, e.global_position, fwd, PALM_WALL_REACH) < PALM_WALL_REACH
+			if walled:
+				e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + PALM_CUE_MS)
 			THROWN.launch(hero, e, e.global_position + fwd * (PALM_WALL_REACH if walled else PALM_SHOVE), PALM_SPLAT * power,
 				{"quiet": true, "solid": false, "el": "earth", "speed": PALM_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
 	return foes.size()
@@ -1419,6 +1598,21 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## The breaker has landed. `seized`: who the tentacles have. Each gets the slam and the element under
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
+	if b.has("shower"):
+		_meteor_shower(hero, b, at, mult)
+		return
+	if b.has("pinwheel"):
+		_pinwheel(hero, b, at, seized, mult)
+		return
+	if b.has("tempest"):
+		_tempest(hero, b, at, seized, mult)
+		return
+	if b.has("slapshot"):
+		_slapshot(hero, b, at, seized, mult)
+		return
+	if b.has("thunder"):
+		_shatterstorm(hero, b, at, seized, mult)
+		return
 	if b.has("cubes"):
 		_cold_front(hero, b, at, seized, mult)
 		return
@@ -1473,6 +1667,305 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		Game.register_hit("breaker")
 	under(parent, at, b.erupt)
 	_pop(parent, at, {"wind": "axe", "water": "spear", "earth": "hammer"}[b.erupt])
+
+
+## The foes Meteor Shower calls a fireball down on: every living one Molten Palm hit (palm_fresh) within
+## METEOR_SPLAT_REACH of him, nearest first, at most SHOWER_MAX.
+static func shower_targets(hero: CharacterBody3D) -> Array:
+	var at := _flat(hero.global_position)
+	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	foes.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
+	return foes.slice(0, SHOWER_MAX)
+
+
+## Meteor Shower (Meteor Fall's LMB ending) has landed: a fireball out of the sky onto each target in turn (ALT_FX.meteor_drop),
+## each a crater on its foe alone; the last lets Undertow go. Nobody the palm hit: one onto the floor ahead of him.
+static func _meteor_shower(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var foes := shower_targets(hero)
+	for e: Node3D in foes:
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SHOWER_CUE_MS)
+	if foes.is_empty():
+		var tw0 := parent.create_tween().set_ignore_time_scale(true)
+		tw0.tween_interval(SHOWER_DELAY)
+		tw0.tween_callback(func() -> void:
+			if is_instance_valid(parent) and DESIGNED.on():
+				DESIGNED.meteor(parent, at + hero._brk_dir * 3.0, ALT_FX.DROP_SPLASH))
+		if is_instance_valid(hero._void.undertow):
+			hero._void.undertow._let_go()
+		return
+	for i in foes.size():
+		var tw := parent.create_tween().set_ignore_time_scale(true)  # (real time: the landing's freeze would hold them a second)
+		tw.tween_interval(SHOWER_DELAY + i * SHOWER_STEP)
+		tw.tween_callback(_shower_call.bind(hero, foes[i], damage, i == foes.size() - 1))
+
+
+static func _shower_call(hero: Variant, e: Variant, damage: float, last: bool) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var from: Vector3 = (hero as Node3D).global_position
+	ALT_FX.meteor_drop(hero.get_parent(), from, e, SHOWER_FALL, _shower_land.bind(hero, e, damage, last))
+
+
+static func _shower_land(_at: Vector3, hero: Variant, e: Variant, damage: float, last: bool) -> void:
+	if not is_instance_valid(hero):
+		return
+	if last and is_instance_valid(hero._void.undertow):
+		hero._void.undertow._let_go()  # (up out of the lava for the last crater)
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	THROWN.cut(e)
+	var body: Variant = e.get("model")
+	if body != null:
+		body.position.y = 0.0
+	e.take_hit(damage, Vector3.DOWN * METEOR_DOWN, 0.0, true)
+	mark(e, "molten")  # (it burns on: the matrix's molten row)
+	Game.register_hit("breaker")
+	Game.hitstop(ALT_FX.DROP_STOP * (1.6 if last else 1.0))
+	Game.shake(0.55 if last else 0.35)
+	Game.sfx("hit_big", -2.0, 0.12)
+
+
+## Where Pinwheel throws: the nearest wall or pillar within PINWHEEL_REACH of `at` (PINWHEEL_RAYS flat rays at chest
+## height, past the foes), as {"found", "at" (the hit point), "dir", "dist"}.
+static func pinwheel_target(hero: CharacterBody3D, at: Vector3) -> Dictionary:
+	var start := Vector3(at.x, 0.9, at.z)
+	var space := hero.get_world_3d().direct_space_state
+	var skip: Array[RID] = [hero.get_rid()]
+	for o: Node in hero.get_tree().get_nodes_in_group("enemies"):
+		if o is CollisionObject3D:
+			skip.append((o as CollisionObject3D).get_rid())
+	var best := {"found": false, "dist": INF}
+	for i in PINWHEEL_RAYS:
+		var a := TAU * i / PINWHEEL_RAYS
+		var d := Vector3(sin(a), 0.0, cos(a))
+		var q := PhysicsRayQueryParameters3D.create(start, start + d * PINWHEEL_REACH, hero.collision_mask)
+		q.exclude = skip
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var dist: float = start.distance_to(hit.position)
+		if dist < best.dist:
+			best = {"found": true, "at": _flat(hit.position), "dir": d, "dist": dist}
+	return best
+
+
+## Pinwheel (Anvil's LMB ending) lands: the whirl (void_grab.seized_tick, `pinwheel`) lets go, and each held foe is
+## hurled at the nearest wall or pillar in reach, wall-splatting there (x PINWHEEL_WALL_MULT); with none it flies out
+## along its swing and lands. Anyone else the whirl passed takes PINWHEEL_SWEEP and is blown clear.
+static func _pinwheel(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var target := pinwheel_target(hero, at)
+	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	for e: Node3D in FOES.near(hero.get_tree(), at, PINWHEEL_R + 1.2):
+		if e in live:
+			continue
+		var from := _flat(e.global_position - at)
+		e.take_hit(damage * PINWHEEL_SWEEP, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 6.0, BREAK_LAUNCH, true)
+		Game.register_hit("breaker")
+	_pop(parent, at, "axe")
+	Game.shake(0.5)
+	for i in live.size():
+		var e: Node3D = live[i]
+		THROWN.remove_cube(e)
+		var out := _flat(e.global_position - at)
+		out = out.normalized() if out.length() > 0.05 else hero._facing()
+		var to: Vector3 = _flat(e.global_position) + out * PINWHEEL_OPEN
+		if target.found:
+			var aim: Vector3 = target.at - _flat(e.global_position)
+			to = _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + PINWHEEL_CUE_MS)
+		THROWN.launch(hero, e, to, damage, {"solid": false, "el": "wind", "speed": PINWHEEL_SPEED, "land_y": 0.0,
+			"wall_mult": PINWHEEL_WALL_MULT, "splash": false, "on_burst": _pinwheel_hit.bind(parent)})
+		Game.register_hit("breaker")
+
+
+static func _pinwheel_hit(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
+	if walled and is_instance_valid(parent):
+		ALT_FX.pinwheel_wall(parent, f.global_position, dir)
+
+
+## Who Tempest's column takes from round `mid`: everyone not big within TEMPEST_REACH, not in flight, nearest first,
+## TEMPEST_MAX at most; and the big ones it leaves standing. {"ride": [...], "big": [...]}
+static func tempest_riders(hero: CharacterBody3D, mid: Vector3) -> Dictionary:
+	var ride := []
+	var big := []
+	for e: Node3D in FOES.near(hero.get_tree(), mid, TEMPEST_REACH):
+		if THROWN.flying(e):
+			continue
+		(big if hero._void.is_heavy(e) else ride).append(e)
+	ride.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position - mid).length() < _flat(c.global_position - mid).length())
+	return {"ride": ride.slice(0, TEMPEST_MAX), "big": big}
+
+
+## Tempest (Cataclysm's LMB ending) lands: the twister goes up on the pile (ALT_FX.twister) and takes the riders up it
+## (a game-time tween drives each, `thrown_foe`'s FLYING meta keeping everything else off them); then a bolt blasts
+## each out in turn (_tempest_bolt), each harder for every other one in the column.
+static func _tempest(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var mid: Vector3 = at + hero._brk_dir * 1.2
+	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	if not live.is_empty():
+		mid = Vector3.ZERO
+		for e: Node3D in live:
+			mid += _flat(e.global_position)
+		mid /= float(live.size())
+		mid += hero._brk_dir * TEMPEST_OUT  # (off him: the column stood on him and a rider hid him)
+	var who := tempest_riders(hero, mid)
+	var riders: Array = who.ride
+	var each: float = b.damage * hero._dmg_mult * mult * (1.0 + TEMPEST_PER * maxi(riders.size() - 1, 0))
+	var life: float = TEMPEST_FIRST + TEMPEST_STEP * riders.size() + 0.25
+	ALT_FX.twister(parent, mid, TEMPEST_COLUMN, TEMPEST_R + 0.5, life + TEMPEST_FREEZE)
+	_pop(parent, mid, "axe")
+	Game.shake(0.6)
+	for e: Node3D in who.big:
+		e.take_hit(each * TEMPEST_BIG, Vector3.ZERO, 0.0, true)
+		Game.register_hit("breaker")
+	for i in riders.size():
+		var e: Node3D = riders[i]
+		THROWN.cut(e)
+		e.set_meta(THROWN.FLYING, true)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + TEMPEST_CUE_MS)
+		if e.has_method("stagger"):
+			e.stagger(life + 0.3)
+		var off := _flat(e.global_position - mid)
+		var a0 := atan2(off.x, off.z)
+		var r0 := off.length()
+		var y0: float = e.global_position.y
+		var high: float = TEMPEST_HIGH + TEMPEST_HIGH_STEP * (i % 3)
+		var strike: float = TEMPEST_FIRST + TEMPEST_STEP * i
+		var tw := parent.create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)  # (game time: the ride plays after the landing's freeze)
+		tw.tween_method(_tempest_ride.bind(e, mid, a0, r0, y0, high, strike), 0.0, strike, strike)
+		tw.tween_callback(_tempest_bolt.bind(hero, e, mid, each, i == 0))
+
+
+## One frame of a rider going up the column (`t` s of `strike`): spiralling in to TEMPEST_R and up to `high`.
+static func _tempest_ride(t: float, e: Variant, mid: Vector3, a0: float, r0: float, y0: float, high: float, strike: float) -> void:
+	if not is_instance_valid(e) or not e.is_alive():
+		return
+	var k := clampf(t / maxf(minf(strike, 0.5), 0.01), 0.0, 1.0)
+	var ease_k := 1.0 - (1.0 - k) * (1.0 - k)
+	var a := a0 + TEMPEST_SPIN * t
+	var r := lerpf(r0, TEMPEST_R, ease_k)
+	var node: Node3D = e
+	node.global_position = Vector3(mid.x + sin(a) * r, lerpf(y0, high, ease_k) + sin(t * 7.0) * 0.08, mid.z + cos(a) * r)
+	if node is CharacterBody3D:
+		(node as CharacterBody3D).velocity = Vector3.ZERO
+
+
+## A bolt out of the sky into a rider, blasting it out of the column: the hit, charged, thrown clear.
+static func _tempest_bolt(hero: Variant, e: Variant, mid: Vector3, damage: float, first: bool) -> void:
+	if not is_instance_valid(e):
+		return
+	if e.has_meta(THROWN.FLYING):
+		e.remove_meta(THROWN.FLYING)
+	if not is_instance_valid(hero) or not e.is_alive():
+		return
+	var parent: Node = hero.get_parent()
+	var at: Vector3 = (e as Node3D).global_position + Vector3.UP * 0.9
+	COMIC_BOLT.spawn(parent, at + Vector3(0.6, 9.0, -0.4), at, 0.3, 0.9 if first else 0.6, 2)
+	var out := _flat((e as Node3D).global_position - mid)
+	out = out.normalized() if out.length() > 0.05 else Vector3.FORWARD
+	e.take_hit(damage, out * TEMPEST_THROW, TEMPEST_LAUNCH, true)
+	mark(e, "charged")
+	Game.register_hit("breaker")
+	Game.hitstop(0.05 if first else 0.03)
+	Game.shake(0.45 if first else 0.3)
+	Game.sfx("hit_big", -3.0, 0.15)
+
+
+## Shatterstorm (Harpoon's RMB ending): thunder crashes on each cube of the row in turn, where it stands, and shatters
+## it: SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged). The first waits out the
+## landing's impact frame (SHATTER_DELAY), which hid Short Circuit's arcs.
+static func _shatterstorm(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var damage: float = b.damage * hero._dmg_mult * mult
+	var row: Array = held.duplicate()
+	var mid := Vector3.ZERO
+	for e: Node3D in row:
+		mid += _flat(e.global_position)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SC_CUE_MS)
+	if row.is_empty():
+		ELEMENTS.storm_strike(parent, at + hero._facing() * 2.0, "wind")
+		return
+	mid /= float(row.size())
+	row.sort_custom(func(a: Node3D, c: Node3D) -> bool:  # (from the middle out: the crash spreads)
+		return _flat(a.global_position).distance_to(mid) < _flat(c.global_position).distance_to(mid))
+	for i in row.size():
+		var tw := parent.create_tween()
+		tw.tween_interval(SHATTER_DELAY + i * SHATTER_STEP)
+		tw.tween_callback(_thunder_on.bind(hero, row[i], damage, i == 0))
+
+
+static func _thunder_on(hero: Variant, e: Variant, damage: float, first: bool) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var parent: Node = hero.get_parent()
+	var spot := _flat((e as Node3D).global_position)
+	ELEMENTS.storm_strike(parent, spot, "wind")
+	if DESIGNED.on():
+		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9, 1.2)
+	THROWN.remove_cube(e)
+	e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH * 0.6, true)
+	mark(e, "charged")
+	Game.register_hit("breaker")
+	Game.hitstop(0.05 if first else 0.025)
+	Game.shake(0.45 if first else 0.25)
+	Game.sfx("hit_big", -3.0, 0.15)
+
+
+## Slapshot (Harpoon's LMB ending): the molten fist goes out to the row (Molten Palm's fist and the tentacle behind
+## it) and, as it lands, punches every cube along his aim, steam going up where the magma meets the ice. Each slides
+## (thrown_foe `slide`, a frost streak behind it): into a wall within SLIDE_REACH it shatters there for x
+## SLIDE_WALL_MULT, otherwise it slows, stops and bursts for SLIDE_DAMAGE.
+static func _slapshot(hero: CharacterBody3D, _b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
+	var parent: Node = hero.get_parent()
+	var fwd: Vector3 = hero._brk_dir
+	var base: float = SLIDE_DAMAGE * hero._dmg_mult * mult
+	var near := INF
+	for e: Node3D in held:
+		near = minf(near, _flat(e.global_position - at).dot(fwd) - float(e.radius))
+	if held.is_empty():
+		near = 1.5
+	var length: float = maxf(near + SLIDE_FIST_PAST, 1.2)
+	var fist := _fist(parent, at, fwd, length)
+	SLAPSHOT_FX.cord(hero, fist, FIST_TIME)
+	var tw := parent.create_tween()
+	tw.tween_interval(FIST_TIME * 0.75)  # (the fist eases out: it is at the row by then)
+	tw.tween_callback(_punch_row.bind(hero, held, fwd, base))
+
+
+static func _punch_row(hero: Variant, held: Array, fwd: Vector3, damage: float) -> void:
+	if not is_instance_valid(hero):
+		return
+	var parent: Node = hero.get_parent()
+	Game.hitstop(0.06)
+	Game.shake(0.5)
+	Game.sfx("hit_big", -1.0, 0.1)
+	var steamed := 0
+	for e: Variant in held:
+		if not is_instance_valid(e) or not e.is_alive():
+			continue
+		var foe: Node3D = e
+		encase(foe)  # (fresh ice for the slide: the hang ran the freeze down)
+		if steamed < 3:  # (three clouds read; five over a row was one white wall)
+			SLAPSHOT_FX.punch(parent, foe.global_position - fwd * 0.4)
+			steamed += 1
+		foe.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SLIDE_CUE_MS)
+		var t: Node = THROWN.launch(hero, foe, foe.global_position + fwd * SLIDE_REACH, damage,
+			{"solid": false, "el": "water", "speed": SLIDE_SPEED, "land_y": 0.0, "wall_mult": SLIDE_WALL_MULT,
+			"slide": true, "splash": false, "spin": SLIDE_SPIN, "on_burst": _slid.bind(parent),
+			"wall_gap": maxf(ice_radius(foe) - THROWN.WALL_MARGIN, 0.0)})  # (the ice's face meets the wall, not its middle)
+		if t != null:
+			SLAPSHOT_FX.trail(parent, foe)
+		Game.register_hit("breaker")
+
+
+static func _slid(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
+	if walled and is_instance_valid(parent):
+		SLAPSHOT_FX.wall(parent, f.global_position, dir)
 
 
 ## Each frozen foe is hurled at someone: anyone it wasn't holding first, then the others it was.
@@ -1783,9 +2276,8 @@ static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Ve
 			var from := _flat(bowl[0].global_position)
 			var path := _ahead(hero, from, fwd, BOWL_LENGTH, IMPROV_ROLL_HALF_WIDTH)
 			return path if bowl[0] in path else [bowl[0]] + path
-		"EF":  # the spear tip's line
-			var length: float = minf(HARPOON_LENGTH * grow, hero._clear_ahead(fwd, HARPOON_LENGTH * grow) + 0.5)
-			return _ahead(hero, at, fwd, length, HARPOON_HALF_WIDTH)
+		"EF":  # the tentacles' reach round him (round 47: everyone near, not a line)
+			return harpoon_targets(hero, at, HARPOON_REACH * grow)
 		"IP":  # the frost round where the spear goes in
 			var spot: Vector3 = at + fwd * minf(SPEAR_AHEAD, hero._clear_ahead(fwd, SPEAR_AHEAD))
 			return FOES.near(tree, spot, SPEAR.RADIUS)

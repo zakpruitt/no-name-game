@@ -11,6 +11,14 @@ extends "res://scripts/comic_flat.gd"
 const SELF := preload("res://scripts/comic_fault.gd")
 const COMIC_GALE := preload("res://scripts/comic_gale.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
+## fx-polygons (designed): each crack is laid as it runs, one magma_crack tile every D_STEP m turned along it (the
+## fissure's drawn seam), and opens with a magma pop where it arrives (Cataclysm: a magma burst under the strike).
+const D_STEP := 0.75
+const D_SIZE := 0.62  # of designed_elements.CRACK_SIZE (Fault Line; Cataclysm x D_BIG)
+const D_BIG := 1.3
+const D_TIMES := [0.05, 0.1, 0.22, 0.3]
 const RUN := 30.0  # m/s a crack runs (big: BIG_RUN)
 const BIG_RUN := 22.0
 const STAGGER := 0.06  # s between one crack starting and the next (nearest first)
@@ -82,6 +90,8 @@ func _build() -> void:
 
 ## Each crack arriving opens its foe's spot that frame, not on the next step.
 func _follow(_delta: float) -> void:
+	if DESIGNED_EL.DESIGNED.on():
+		_lay()
 	for c: Dictionary in _cracks:
 		if c.arrived or _t < c.at:
 			continue
@@ -94,10 +104,46 @@ func _follow(_delta: float) -> void:
 			COMIC_BOLT.spawn(get_parent(), sky, foot, STRIKE_WIDTH, STRIKE_STAR, STRIKE_FORKS)
 		elif not big:
 			COMIC_GALE.spawn(get_parent(), Vector3(s.x, 0.0, s.z), GALE_HIGH, GALE_R, GALE_LIFE)
+		if DESIGNED_EL.DESIGNED.on():
+			DESIGNED_INK.pop(get_parent(), Vector3(s.x, 0.5, s.z), "earth", 1.1 if big else 0.8)
+			if big:
+				var b := DESIGNED_EL.DESIGNED.spawn(get_parent(), "magma_burst", Vector3(s.x, 0.0, s.z), 2.0, "earth",
+					DESIGNED_EL.DESIGNED.MAGMA_TIMES, Vector2(0.55, 1.0))
+				b.real_until = 1
 		_step = -1  # (redraw now, with the splat)
 
 
+## Designed: lay the crack tiles each crack has run past since the last frame.
+func _lay() -> void:
+	var run := BIG_RUN if big else RUN
+	for c: Dictionary in _cracks:
+		var gone := clampf((_t - float(c.delay)) * run, 0.0, float(c.length))
+		var laid: float = c.get("laid", -D_STEP * 0.5)
+		while laid + D_STEP <= gone + 0.001:
+			laid += D_STEP
+			var p := _at(c.pts, c.lens, laid)
+			var q := _at(c.pts, c.lens, minf(laid + 0.2, c.length))
+			var d := q - p
+			var w := global_position + Vector3(p.x, 0.0, p.y)
+			var k := lerpf(1.0, 0.75, laid / maxf(float(c.length), 0.1)) * (D_BIG if big else 1.0)
+			var fx := DESIGNED_EL._spawn(get_parent(), "magma_crack", Vector3(w.x, DESIGNED_EL.DESIGNED.GROUND_LIFT, w.z),
+				DESIGNED_EL.CRACK_SIZE * D_SIZE * k, "earth", D_TIMES, Vector2(0.55, 1.0))
+			fx.real_time = real_time
+			fx.rotation.y = atan2(d.x, d.y) + PI * 0.5 + randf_range(-0.1, 0.1)
+		c["laid"] = laid
+
+
+func _at(pts: PackedVector2Array, lens: PackedFloat32Array, at: float) -> Vector2:
+	for i in range(1, pts.size()):
+		if lens[i] >= at:
+			var f := (at - lens[i - 1]) / maxf(lens[i] - lens[i - 1], 0.001)
+			return pts[i - 1].lerp(pts[i], f)
+	return pts[pts.size() - 1]
+
+
 func _draw(_s: int) -> void:
+	if DESIGNED_EL.DESIGNED.on():  # (the tiles and pops are the look)
+		return
 	var t := _t
 	var run := BIG_RUN if big else RUN
 	var w0 := BIG_WIDTH if big else WIDTH

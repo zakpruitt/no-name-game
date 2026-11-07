@@ -79,6 +79,9 @@ How the rows are built (`combo_options`):
 - **Dash row:** only while attacking and not already dashing. It shows `dash_light()`: `DL` (dash, then light). It dims when `combo_window().dash` is false, which happens while the dash is on cooldown or before the move's first hit or 20% mark.
 - **Charging:** a single `hold` row for `OW` (Overwhelm).
 - **The pause hint:** while attacking, each row also asks `_routed()` with `attacking = false` (the press after the move has finished, chain still live); when that gives a different named combo the row adds "or pause: ..." (`pause` in `combo_options()`, `PAUSE_TEXT`).
+  Round 47: a breaker that waits for a pause (Harpoon: its leap comes after the cancel) puts its endings there instead,
+  once the move has connected (`hero_moves.pause_ending()`): off Harpoon the H row reads "Ice Cube ... or pause:
+  Shatterstorm" and the L row "or pause: Slapshot", the button that picks each in the window.
 - **Lookahead (`_option`):** for any row below tier 3, call `_routed(k, id, true, chain_after(id), false)` for heavy and then light, and keep the highest-tier named combo. Heavy wins ties. `OW` is never offered as a follow-up, because it needs neutral.
 
 Routing rules in `void_route()`, checked in order:

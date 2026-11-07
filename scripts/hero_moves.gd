@@ -156,7 +156,8 @@ const MOVES := {
 	# (a low leap that lands on the stab).
 	"DL": {"anim": "1H_Melee_Attack_Stab", "damage": 12.0, "range": 2.8, "arc": 90.0,
 		"hits": [0.3], "cancel": 0.5, "end": 0.7, "lunge": 16.0, "knockback": 7.0, "launch": 0.0,
-		"stop": DASH_STAB_STOP, "confirm": DASH_STAB_CONFIRM, "shake": 0.22, "hop": [0.03, 0.3, 0.6], "brake": true},
+		"stop": DASH_STAB_STOP, "confirm": DASH_STAB_CONFIRM, "shake": 0.22, "hop": [0.03, 0.3, 0.6], "brake": true,
+		"thrust": true},  # fx-ice3: designed, no weapon ribbon or swing arc (along the lunge they drew ice blades)
 }
 # The named combos: landing one plays its tier's sound and shows its name
 # above the hero. Moves not listed here (L1, L2, AL1) stay quiet. Also the
@@ -425,10 +426,26 @@ static func combo_options(hero: CharacterBody3D) -> Array:
 			var wait := routed(hero, kind, hero._move_id, false, hero._chain_i, false)
 			if wait != id and COMBOS.has(wait):
 				o.pause = {"id": wait, "name": guide_name(wait), "tier": COMBOS[wait].tier}
+			var late := pause_ending(hero._move_id, kind)
+			if late != "" and hero._connected:  # (Harpoon: a pause leaps, and this button is that ending)
+				o.pause = {"id": hero._move_id, "name": late, "tier": 3}
 		rows.append(o)
 	if attacking and not dashing:
 		rows.append(option(hero, "dash", dash_light(hero)))
 	return rows
+
+
+## A breaker that waits for a pause (round 47, Harpoon: its `leap` is after the move's cancel, so a press before it
+## goes on down the string): the ending `kind` picks in its window, or "".
+static func pause_ending(id: String, kind: String) -> String:
+	if not VOID_ELEMENT.BREAKERS.has(id) or not MOVES.has(id):
+		return ""
+	var b: Dictionary = VOID_ELEMENT.entry(id)
+	if float(b.leap) <= float(MOVES[id].cancel):
+		return ""
+	if kind == "heavy":
+		return b.names.spirit
+	return b.alt.names.spirit if kind == "light" and b.has("alt") else ""
 
 
 ## The element change a crossover row makes ("storm > magma"), or "" when the move stays in its element.

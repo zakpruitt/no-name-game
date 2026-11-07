@@ -146,7 +146,7 @@ static func input_text(row: Dictionary) -> String:
 	var text: String = row.input
 	if not row.get("or", false) or text.find(", ") < 0:
 		return text
-	var cut := text.find(", ")
+	var cut := text.rfind(", ")  # (the last: Pinwheel's string has a comma of its own)
 	return "      or " + text.substr(cut + 2)
 
 
