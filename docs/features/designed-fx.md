@@ -654,3 +654,15 @@ Flash Freeze's shell is the fitted ice block (`void_element.encase`, fx-ice2's `
 and the frost line between shells `designed_elements.fissure(..., "water")` (floor cracks and mist). Eruption's geyser is
 `designed_elements.geyser`, the pool under a foe that slid down `designed_elements.pool`, the wall beat
 `breaker_alt_fx.cool_wall`. Collapse's spit trail is the dark breaker dive's ink comet (`comic_comet.gd`) fed on the foe.
+
+## Feel audit 2026-11-07b (feel-audit5 lane)
+
+- `ice_mark` redrawn (`gen_elements.py ice_mark`): an uneven 17-corner patch of rime (alpha 0.3) with a broken lit
+  edge, three jagged crack chords rim to rim (one fork each, a hot core on frame 1) and round frost beads, no glints
+  and nothing radiating from its middle. It read as a spoked crystal star on every water hit (Cold Front, the frost
+  spear, Deep Freeze's ring).
+- Deleted, nothing called them: `comic_freeze_over.foe()` (the crystal shell; only `pool` / `shatter` remain),
+  `designed_elements.frost_floor` / `frost_step` / `FROST_BOIL`, `designed_fx.ICE_TIMES`, `harpoon_gather.carrying`.
+  `ice_frost` stays (Deep Freeze's `frost_burst`).
+- `designed_elements.prime_fit(foe)` reads a foe model's skinned vertices at spawn (`enemy._ready`, deferred): the first
+  ice block read them back from the GPU mid-fight, a 44 ms frame windowed.

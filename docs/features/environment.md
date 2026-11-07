@@ -64,7 +64,11 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   the cursor on a foe of another pile moves the dive there (`meteor_spot` keeps the picked foe's `METEOR_PILE_R`).
 - Tow Line (round 52): the bracket is on who the line is yanked toward; only a cursor / stick choice changes the throw
   (`foe_chosen(by, ctx)`: the lock's foe when chosen, else null): the chosen foe is the anchor, snared where it stands
-  (`TOW_ANCHOR_MULT`), and the rest are yanked into it.
+  (`TOW_ANCHOR_MULT`), and the rest are yanked into it. Round 53 (feel audit 2026-11-07b): the pick opens in the
+  dash Tow Line comes out of (`_tow_dash_ctx`, same `tow:` key, so the lock carries into the move), once a right click
+  is buffered or the cursor is on a foe (a plain dash draws nothing); it was only the ~0.15 s start-up before.
+- The foe bracket in a breaker's leap (round 53): when the prompt circle sits within `FOE_IN_PROMPT` 1.8 m of the
+  picked foe, the bracket goes up to `FOE_LIFT_Y` 2.5 m and `FOE_LIFT_SIZE` 0.7 so it clears the prompt and its chips.
 
 ## Files
 

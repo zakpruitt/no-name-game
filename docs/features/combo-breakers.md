@@ -589,7 +589,13 @@ and down so they don't stack), and the spat foe's own ink trail as it flies (`co
 - Tow Line (Dash H): before its hit, with two or more within `TOW_PICK_REACH` 7 m, the bracket is on the foe nearest
   where the line yanks them (auto: the default throw, nothing changes). The cursor on another foe makes it the anchor:
   it is snared where it stands (`TOW_ANCHOR_MULT` 0.6) and everyone on the line is yanked into it (`env_target.foe_chosen`:
-  only a cursor / stick choice moves the throw).
+  only a cursor / stick choice moves the throw). Round 53: the pick opens in the dash before it once a right click
+  is buffered or the cursor is on a foe (`env_target._tow_dash_ctx`).
+- Round 53 (feel audit 2026-11-07b): the banner cuts to `CALL_Y_LOW` with a pop when a cued foe or piece is under it
+  (it slid across the middle of the frame, over the pile); the callout's ink outline fades with its text
+  (`callout_cap.watch`); Maw's heap (`MAW_CUE_MS` 1000) and Black Ice's skid into the wall (`BLACK_ICE_CUE_MS` 1100)
+  cue the camera; Anvil and Pinwheel melt Impale's spear, so the next Dash L H is Harpoon (it vaulted, IJ, and
+  `wall D L H H H L` never reached Eruption).
 
 **The 2/4 endings, one beat up** (`scripts/tentacle_haul.gd`: a tentacle out of a root takes each foe up to a top, holds
 it, drives it to an end, then `on_end`; game time, after the landing, so no hang is longer). Slots and inputs unchanged.
