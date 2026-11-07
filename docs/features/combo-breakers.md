@@ -448,7 +448,7 @@ cooler! feel free to incorporate effects or make more combos/breakers environmen
 (`string_film -- --dir=cool_before --no-awaken`, 39/39 strings, 27 breakers), contact sheets from the hang to the
 landing. Each line scores the four things the bar has: a three-beat shape (setup, control, payoff), the tentacle or
 element visibly doing the control, a best situation you can read on screen, and a landing beat of its own (not only the
-shared spectacle burst). Weakest first; the first five were rebuilt (below the list).
+shared spectacle burst). Weakest first; Abyss, Collapse and Avalanche were rebuilt first ("Rebuilt", below the list), with foe picks.
 
 Endings:
 
@@ -490,3 +490,41 @@ Black Tide and Impale meet the bar's control beat (the tentacle or element visib
 Updraft Lash, Fault Line, Backdraft and Undertow read; Overwhelm (one claw on one foe, no sense of "pinned"), Reap,
 Steam Burst (the steam is small) and Tow Line are the weakest mids but are not windows, so they stay (Overwhelm's look
 grows with Abyss below).
+
+### Rebuilt (batch 1 and 2)
+
+Each keeps its slot, input and role (kit_check: no new window). Numbers are void_arm_check's `_cool_pass` (the bot
+presses at the sweet spot, so they include the perfect multiplier).
+
+**Collapse** (H H, `VS`; `scripts/collapse_spit.gd`). Word "GLLRK-PTOOO!". Beats: (1) grab: a tentacle whips up out
+of the hole to each foe (`REACH` 0.07 s, `STAGGER` 0.03 s apart); (2) swallow: it drags the foe into the hole and
+under the floor (`SWALLOW` 0.14 s, `SINK` 1.3 m), `COLLAPSE_SWALLOW_MULT` 0.3 of the damage as it goes under; (3)
+spit: from 0.36 s, every 0.11 s, the hole spits one back out in the `void_spit` sheet (tentacles bursting up) into the
+structure the indicator marks (`COLLAPSE_WALL_MULT`, a wall beat each, `breaker_alt_fx.cool_wall`) or straight up
+(`COLLAPSE_SPIT_UP`). Big ones are coiled where they stand (swallow and spit hit them in place). Best: a crowd by a
+wall or pillar (three foes: 548 by a wall, 349 in the open). Worst: one big foe (95: Abyss's).
+
+**Avalanche** (L L H L H, `IS`; `scripts/avalanche_topple.gd`). Word "KRA-KRA-KRASH!". Beats: (1) stack: on the dive
+the tentacles stack the cubes into a tower (`void_grab.aim_crush`'s stack slots, `crush_point` lands each on the one
+under it; `stack_step()` per cube); (2) topple: he lands, the crush hit (`AVALANCHE_CRUSH` 0.3), and the tentacles
+shove the tower over (`STAND` 0.1 s, `TIP` 0.3 s, pivoting on its foot) toward the structure the indicator marks
+(env_target `avalanche`, the cursor may choose, within `AVALANCHE_REACH` 9 m), else away from him; (3) spill: each
+cube breaks off as the tower comes down, top first, and slides on in the `avalanche_spill` snow fan into the
+structure (`AVALANCHE_WALL_MULT` 3.0, spread `AVALANCHE_SPREAD` across it) or out `AVALANCHE_OPEN` 6 m to a stop and
+bursts (`AVALANCHE_OPEN_MULT` 0.75). Anyone in the fall's strip is caught and frozen. Best: by a wall (three cubes 553).
+Worst: the open (284). Bot string: `wall L L H L H`.
+
+**Abyss** (hold H, `OW`; `scripts/abyss_rise.gd`; Uproot, its L ending, is the env-pieces lane's). Word
+"SHLUUUK-WHAM!". Beats: (1) up: the pinned foes sank under the floor on the dive (floor_bind `sink`); when he lands a
+column of tentacles (`abyss_column` sheet) tears up out of the floor under each, the picked one first (`STEP` 0.12 s
+apart), and carries it up to `APEX` 1.9 m (`RISE` 0.15 s), `ABYSS_RISE_MULT` 0.4 as it leaves the floor; (2) hang: the
+column holds it up (`HANG` 0.1 s) with a tentacle coiled round it from the hole; (3) slam: the column folds and drives
+it straight down (`SLAM` 0.06 s): `ABYSS_SLAM_MULT` 1.2, x `ABYSS_BIG_MULT` on a big one, a crater (`MAW_DOWN`
+knockback), a floor stamp and the word. The first one (the bracket's pick, env_target `abyss`: the cursor's, or the
+biggest) takes it whole; the rest share (`ABYSS_SHARE` 0.7). Best: one big foe (186 vs Collapse's 95).
+Worst: a crowd (four: Collapse 470 vs Abyss 381).
+
+**Foe picks** (Zak: "that environment select is AMAZING! maybe can incorporate that in select combos where control
+makes sense"): the structure indicator's bracket now also goes on a foe (docs/features/environment.md "Foe picks").
+The charged hold shows who Overwhelm will pin, and the cursor switches it; Abyss's hang shows who comes up first.
+With Collapse (structure, round 50) and Avalanche (structure, new), four control moves pick with the cursor.

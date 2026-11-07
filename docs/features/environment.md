@@ -33,6 +33,23 @@ environmental combos!"
 | `palm` | Molten Palm (EM) before its hit | earth | no | him, along his facing | the palm's carry |
 | `leash` | Lava Leash (XL) before its hit | earth | no | the wall-splatted palm foes | `LEASH_NEAR` 2.5 m |
 | `pillar_slam` | H H's grab with a foe held | void | yes (pillars only) | him | `PILLAR_SLAM_REACH` 4.5 m |
+| `avalanche` | Deep Freeze's window (Avalanche, round 51) | water | yes | the cubes' tower | `AVALANCHE_REACH` 9 m |
+| `overwhelm` | the charged hold (Overwhelm, round 51): a **foe** | void | yes (foes in `OVERWHELM_REACH`) | him | auto: the nearest in his aim |
+| `abyss` | Overwhelm's window (Abyss, round 51): a **foe**, 2+ pinned | void | yes (the pinned) | him | auto: the biggest pinned |
+
+**Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select
+combos where control makes sense." The same bracket goes on a foe where who matters: `context()` returns
+`mode: "foe"` with the candidates (`foes`) and the default (`auto`); `resolve()` hands it to `_resolve_foe()`, which
+makes each foe a round pick target (`foe_structs()`: kind `"foe"`, id `"foe<instance id>"`, `surface()` treats it
+like a pillar) and lets the cursor (`FOE_SNAP` 1.2 m from its edge) or the stick choose among them. The bracket
+follows the foe (`_draw_foe`: on its chest, `FOE_BRACKET_*`, grows with its radius; the floor ring under it; the
+chevrons run from him to it on the charge). Gameplay reads `ENV.picked_foe(hero, ctx)` (the lock's foe, chosen or
+auto) and keeps its own default when it's null (bare test rooms, no env):
+- Overwhelm: once the hold is charged, the bracket is on who it will pin; the cursor on another foe switches it, and
+  release pins that one even off his aim (`void_element.overwhelm_aim` is the default). The press that takes it is
+  the attack starting (`_end`, key `charge:`).
+- Abyss: with two or more pinned, the bracket in the hang is on who the deep gives back first and whole (the others
+  share, `ABYSS_SHARE`); the default is the biggest (`void_element.abyss_first`).
 
 ## Files
 
@@ -110,8 +127,11 @@ environmental combos!"
 
 - `tests/env_target_check.gd` (in `agent.sh check`): geometry and picks in a built room, the too-far case, the cursor
   and stick choice, `pinwheel_target` / Ricochet / Meteor with a lock, a live Pinwheel window drawing the bracket and
-  aim line, Impale's window offering Anvil / Pinwheel, the beats (chunks, marks capped, torch swing), and the pillar
-  slam held and not held.
+  aim line, Impale's window offering Anvil / Pinwheel, the beats (chunks, marks capped, torch swing), the pillar
+  slam held and not held, and the foe picks (`_foe_picks`: the charged hold's bracket on the foe ahead, drawn on it,
+  the cursor switching it, Overwhelm pinning the chosen one; Abyss's window, the cursor picking who comes up first).
+- Film the foe picks: windowed `tests/target_film.gd [-- --dir=name --fps=24]` (the cursor stand-in moves mid-hold
+  and mid-window) to `user://<dir>/target/`.
 - The autotest prints `[env] shown= switches= locks= pillar_slams= pillar_hits= chunks= marks= torch_swings=`.
 - Film: `tests/string_film.gd -- --from=N --to=N` on the strings `wall alt D H H` and `pillar H hold`.
 

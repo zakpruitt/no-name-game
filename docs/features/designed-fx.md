@@ -621,3 +621,17 @@ and `voronoi` it imports). Registered by `scripts/lava_leash.gd` (`SHEETS`, `reg
 The tentacles are `void_tendril` washed with `electrify(HEAT, LAVA)` as they drag; the pool under the pile and
 Hellseam's seam geysers are `designed_elements` (`pool`, `geyser`). No polygons, no crystals. Headless or `--fx=classic`
 draws no seam (the gameplay is the same).
+
+## Round 51 cool pass (combo-cool lane)
+
+`python tools/vfx_gen/gen_cool.py [names] [--preview=<dir>]` (gen_elements' helpers; its own `_tentacle` with suckers and a
+lit band, `_curl_path`, rounded ice `_block`s). Each sheet is registered by the script that plays it (`register()` into
+`designed_fx.extra_sheets`) and drawn once at load from `elements.prewarm`.
+
+| Sheet | Kind | Played by | What |
+|---|---|---|---|
+| `void_spit` | sprite_depth (4x2, 7 frames) | `collapse_spit.gd` | the hole's mouth, tentacles bursting up out of it and falling back, stood 0.4 m behind the hole from the camera |
+| `avalanche_spill` | ground (3x2, 6 frames) | `avalanche_topple.gd` | the snow fan the toppled tower's cubes slide out on, blocks tumbling in it, laid along the fall (+u) |
+| `abyss_column` | sprite_depth (4x2, 7 frames) | `abyss_rise.gd` | the floor tearing, three braided tentacles rising to a grabbing hand, holding, whipping down, the knot and splash, the hole closing; the foe is carried at the hand (`APEX`) |
+
+No polygons, no crystals (the ice is rounded blocks in snow).
