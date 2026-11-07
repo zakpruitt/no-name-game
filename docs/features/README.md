@@ -24,6 +24,7 @@ invariants and the gotchas.
 | Spirit casts (giant spectral axes on L1, L2, air dash; Dash Stab's claw lash) | [spirit-casts.md](spirit-casts.md) | `scripts/spirit_echo.gd`, `scripts/claw_lash.gd`, `hero_fx.cast()`, `elements.CASTS` |
 | Training room and dummies (the game boots into it) | [training.md](training.md) | `scripts/training_dummy.gd`, `main._start_training()`, `scripts/pause_menu.gd` |
 | The dash counter: Backlash, the perfect's window and Ricochet, swinging dummies | [counter.md](counter.md) | `scripts/counter.gd`, `scripts/counter_fx.gd`, `enemy.strike_in()` |
+| The wiki (player field guide, GitHub Pages): pages, generated data, the staleness check, screenshots. Rebuild: `python tools/wiki.py` | [wiki.md](wiki.md) | `docs/wiki/`, `tools/wiki.py`, `tools/wiki_data.gd`, `tests/wiki_check.gd` |
 | Comic art style (shaders, enemy GLBs, lighting, combat text) | [comic-style.md](comic-style.md) | `scripts/comic_look.gd`, `scripts/comic_fx.gd`, `shaders/comic_toon.gdshader` |
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |
 | Camera: distance, aim, fight framing, `--cam-*=` flags | [camera.md](camera.md) | `scripts/camera_rig.gd` |

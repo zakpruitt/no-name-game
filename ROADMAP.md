@@ -986,3 +986,20 @@ Zak approved the kit grammar ("implement it"); dark x magma was its one empty cr
   0.95 (was 1.1 in the first cut) so the pile's burst shows before his leap; Hellseam's far seam ends sit under the
   ending banner when the palm sent them to the back wall
 - [x] `kit_slots.gd`: the heretic's `cross_dark_magma` slot filled with `XL` (the card is full: 23 slots)
+
+## Round 49 wiki (the field guide rebuilt for the kit grammar)
+Zak: "update the wiki with this new system and how it will grow, also update the heretic's wiki." The old wiki went with
+the roguelike layer (499138a); this one is the game as it is now. See `docs/features/wiki.md`.
+- [x] `docs/wiki/index.html`, one page with a left nav: Home (what it is, controls, breaker windows, the counter,
+  Awakening, where it is going), the kit grammar (signature + three elements, six states, ten slot groups, windows,
+  crossovers, upgrades, the empty card), the heretic's full card slot by slot (input, element, MOVES text, state, best
+  situation, each ending's button, word, damage and best situation), route steps and Storm Pitch, Backlash / Ricochet
+  and the swinging dummies, the Dragon Prince's card with TODOs, the six rules and the 18 upgrade cells, a changelog of
+  rounds 43-49
+- [x] `tools/wiki_data.gd` writes `docs/wiki/data.js` from kit_slots, move_list, hero_moves, BREAKERS + BREAKER_WORDS,
+  RULES, kit.gd, counter.gd, training_dummy.gd; `python tools/wiki.py` runs it and checks `notes.js` covers every move
+  and ending; `tests/wiki_check.gd` in `agent.sh check` fails on a stale data.js
+- [x] Ten screenshots from `string_film -- --dir=wiki_film` and `heretic_shots` (the hero, the two-chip window, Galvanize,
+  Harpoon's row, Lava Leash, Backlash's parry flash, one landing per breaker family), 28-53 KB each
+- [x] `.github/workflows/wiki.yml` restored: a push to dev that touches `docs/wiki/` publishes it
+- [ ] Zak: Backdraft's MOVES note says "Ice into storm" and `ELEMENT_OF.XW` is wind, while its card slot is dark x ice
