@@ -65,8 +65,28 @@ const TAG_COLOR := Color(1.0, 0.86, 0.25)
 const TAG_INK := Color(0.05, 0.03, 0.08)
 const TAG_FONT := "res://assets/fonts/Bangers-Regular.ttf"
 const PAL := preload("res://scripts/fx_palette.gd")
+## Swinging dummies (docs/features/counter.md), for the dash counter: with Settings "Dummies swing", `--swing`, or
+## `swings` set (the bot's counter string), a dummy at home that he stands in front of (SWING_RANGE m, SWING_ARC
+## degrees off its facing) for SWING_BEAT s winds up like a spar foe (enemy._state_windup: the telegraph ring fills
+## over SWING_WINDUP) and swings its whole bag at him for SWING_DAMAGE (a spar foe's third), then again every
+## SWING_EVERY s while he stays. The bag rocks back SWING_LEAN rad over the windup and snaps forward on the strike.
+const SWING_FLAG := "--swing"
+const SWING_RANGE := 2.8
+const SWING_ARC := 60.0
+const SWING_BEAT := 0.5
+const SWING_EVERY := 1.4
+const SWING_WINDUP := 0.7
+const SWING_DAMAGE := 12.0 / 3.0
+const SWING_LEAN := 0.42
+const SWING_KICK := 9.0  # rad/s forward as it strikes
 
 var home := Vector3.ZERO
+var swings := false  # swings whatever the setting (the bot's counter string)
+var swings_done := 0  # strikes it has thrown (counter_check)
+var _front_t := 0.0
+var _swing_cd := 0.0
+var _winding := false
+static var _swing_flag := -1  # --swing on the command line (-1 unread)
 var shakeoffs := 0  # dazes shaken off (enemy_feel_check)
 var _bag_tilt := Vector2.ZERO  # (rotation.x, rotation.z) at the feet, rad
 var _bag_vel := Vector2.ZERO  # rad/s
@@ -96,6 +116,17 @@ func _ready() -> void:
 		print("[training] bag knobs damping=%.2f stiffness=%.1f lean=%.2f squash=%.2f" % [bag_damping, bag_stiffness, bag_lean_mult, bag_squash_mult])
 	_build_tag()
 	Game.combo_changed.connect(_on_combo)
+	attack_kind = "melee"
+	attack_windup = SWING_WINDUP
+	attack_damage = SWING_DAMAGE
+	attack_range = SWING_RANGE
+
+
+## Does it swing at him (swings, `--swing`, or Settings "Dummies swing")?
+func swinging() -> bool:
+	if _swing_flag < 0:
+		_swing_flag = 1 if SWING_FLAG in OS.get_cmdline_user_args() else 0
+	return swings or _swing_flag == 1 or Game.dummies_swing
 
 
 ## The --bag-*=N flags in `args`, as {property: value}.
@@ -162,6 +193,21 @@ func _physics_process(delta: float) -> void:
 		_was_down = false  # back on its feet: boing upright, overshooting back against the blow
 		var local := Basis(Vector3.UP, model.rotation.y).inverse() * _air_dir
 		_bag_vel -= Vector2(local.z, -local.x) * BAG_GETUP_KICK
+	_swing_cd -= delta
+	if state == State.WINDUP:  # rocks back over the windup (the spring waits)
+		_winding = true
+		var k := clampf(_state_t / attack_windup, 0.0, 1.0)
+		_bag_tilt = Vector2(-SWING_LEAN * (1.0 - (1.0 - k) * (1.0 - k)), 0.0)
+		_bag_vel = Vector2.ZERO
+		model.rotation.x = _bag_tilt.x
+		model.rotation.z = 0.0
+		return
+	if _winding:
+		_winding = false
+		if state == State.RECOVER:  # it struck: the bag snaps forward at him
+			swings_done += 1
+			_bag_vel.x += SWING_KICK
+			Game.sfx("swing_heavy", -6.0, 0.1)
 	_bag_step(delta)
 
 
@@ -259,7 +305,26 @@ func _state_chase(delta: float) -> void:
 		to.y = 0.0
 		if to.length() > 0.1:
 			_face(to)
+		if _swing_at(to, delta):
+			return
 	_play("Idle_Combat")
+
+
+## A swinging dummy with him in front of it long enough winds up (enemy._state_windup strikes at its end).
+func _swing_at(to: Vector3, delta: float) -> bool:
+	var fwd := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
+	var front := to.length() <= SWING_RANGE and to.length() > 0.1 and rad_to_deg(fwd.angle_to(to.normalized())) <= SWING_ARC
+	if not swinging() or not front or _player.is_dead():
+		_front_t = 0.0
+		return false
+	_front_t += delta
+	if _front_t < SWING_BEAT or _swing_cd > 0.0:
+		return false
+	_swing_cd = SWING_WINDUP + SWING_EVERY
+	_aim_dir = to.normalized()
+	_set_state(State.WINDUP)
+	Game.sfx("swing", -10.0, 0.15)
+	return true
 
 
 func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> void:

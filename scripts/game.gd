@@ -102,6 +102,9 @@ var rumble_on := true
 var reduce_flashing := false
 ## Combo guide (Settings): the next inputs shown beside the hero mid-string (combo_guide.gd).
 var combo_guide := true
+## Dummies swing (Settings, or `--swing` for one run): a training dummy he stands in front of for a beat winds up and
+## swings at him, for practising the dash counter (training_dummy.gd, docs/features/counter.md).
+var dummies_swing := false
 ## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
 ## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
 var comic_style := true
@@ -452,6 +455,15 @@ func guide_label() -> String:
 	return "Combo guide: %s" % ("On" if combo_guide else "Off")
 
 
+func toggle_dummies_swing() -> void:
+	dummies_swing = not dummies_swing
+	_save_settings()
+
+
+func swing_label() -> String:
+	return "Dummies swing: %s" % ("On" if dummies_swing else "Off")
+
+
 ## Settings: heretic <-> chibi heretic, saved; takes effect on the next Restart training.
 func cycle_hero() -> void:
 	var order := HERO_MODELS.keys()
@@ -483,6 +495,7 @@ func _load_settings() -> void:
 		rumble_on = cfg.get_value("input", "rumble", true)
 		reduce_flashing = cfg.get_value("video", "reduce_flashing", false)
 		combo_guide = cfg.get_value("video", "combo_guide", true)
+		dummies_swing = cfg.get_value("training", "dummies_swing", false)
 		hero_setting = cfg.get_value("video", "hero_model", HERO_DEFAULT)
 		if not HERO_MODELS.has(hero_setting):
 			hero_setting = HERO_DEFAULT
@@ -496,6 +509,8 @@ func _save_settings() -> void:
 	cfg.set_value("input", "rumble", rumble_on)
 	cfg.set_value("video", "reduce_flashing", reduce_flashing)
 	cfg.set_value("video", "combo_guide", combo_guide)
+	if dummies_swing:  # (off, the default, leaves settings.cfg as it was)
+		cfg.set_value("training", "dummies_swing", true)
 	if hero_setting != HERO_DEFAULT:  # the default leaves settings.cfg as it was
 		cfg.set_value("video", "hero_model", hero_setting)
 	cfg.set_value("hints", "seen", _hints_seen)
