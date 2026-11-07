@@ -115,14 +115,14 @@ const UPROOT_STAMP := 1.6  # m: each ground stamp along the fall line
 const UPROOT_STOP := 0.09  # s hit stop as it lands
 const UPROOT_TENDRIL := &"uproot_tendril"
 ## Round 52 (env-pieces2, readability on film: the pillar on the foe was lost under the tentacle and the landing's
-## effects): before it comes down the pillar is held up at the top of the swing for UPROOT_HOLD real s as a solid ink
-## silhouette (Fx.flash_tint in ComicLook.INK), its drop shadow lies on the floor along the fall line from the hold,
+## effects): before it comes down the pillar is held up at the top of the swing for UPROOT_HOLD real s as a solid flat
+## silhouette in the void's light (Fx.flash_tint; ink read as nothing on the dark floor), its drop shadow lies on the floor along the fall line from the hold,
 ## darkening as it falls, and the tentacle lets go of it as the fall starts, so the club lands in the clear.
 const UPROOT_HOLD := 0.16  # real s held at the top before the fall (the club's hit comes this much later)
 const UPROOT_HOLD_LIFT := 1.4  # m it is hauled up to for the hold
 const UPROOT_HOLD_LEAN := 0.55  # radians back, away from the foe, at the hold
 const UPROOT_SHADOW_W := 1.9  # m across the fall line
-const UPROOT_SHADOW := 0.62  # alpha at the landing
+const UPROOT_SHADOW := 0.75  # alpha at the landing
 const UPROOT_SHADOW_FADE := 0.45  # real s after the landing
 
 
@@ -187,11 +187,19 @@ static func uproot_club(parent: Node, hero: Node3D, pillar: Node3D, base: Vector
 	var length: float = load("res://scripts/env_piece.gd").PIECES.pillar.size.y
 	var lie := Vector3.UP * float(load("res://scripts/env_piece.gd").PIECES.pillar.size.x)  # (on its side, on the floor)
 	var tendril := _tendril(parent, pillar)
-	# round 52: the hold at the top of the swing, a silhouette, the shadow down already
+	# round 52: the landing's frame can take a few hundred ms to draw (the impact frame; on film 250-320 ms) and the
+	# first real-time step after it ate the whole hold: start the club two frames later
+	var tree := parent.get_tree()
+	for i in 2:
+		await tree.process_frame
+	if not is_instance_valid(pillar) or not is_instance_valid(parent):
+		landed.call()
+		return
+	# the hold at the top of the swing, a silhouette, the shadow down already
 	var top := Transform3D(Basis(axis, -UPROOT_HOLD_LEAN) * yaw, Vector3(start.origin.x, UPROOT_HOLD_LIFT, start.origin.z))
 	var from := top
 	var shadow := _uproot_shadow(parent, base, dir, length)
-	Fx.flash_tint(pillar, ComicLook.INK, UPROOT_HOLD + fall * 0.7)
+	Fx.flash_tint(pillar, PAL.of("void").light, UPROOT_HOLD + fall * 0.7)  # (a flat light shape: the floor is dark)
 	var tw := parent.create_tween().set_ignore_time_scale(true)
 	tw.tween_method(func(k: float) -> void:
 		if not is_instance_valid(pillar):
@@ -216,7 +224,7 @@ static func uproot_club(parent: Node, hero: Node3D, pillar: Node3D, base: Vector
 	tw.tween_callback(func() -> void:
 		if is_instance_valid(pillar):
 			pillar.transform = Transform3D(Basis(axis, PI * 0.5) * yaw, base + lie)
-			Fx.flash_tint(pillar, PAL.of("void").light, 0.12)  # (it lands: a flash of the void's light on it)
+			Fx.flash(pillar, 0.1)  # (it lands: a white flash on it)
 		if is_instance_valid(tendril):
 			tendril.queue_free()
 		landed.call()
