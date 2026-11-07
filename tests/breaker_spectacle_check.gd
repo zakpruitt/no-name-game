@@ -91,6 +91,18 @@ func _initialize() -> void:
 	_ok(sc.banner.size.x > short_w * 1.15, "a long name gets a wider banner (%.0f > %.0f)" % [sc.banner.size.x, short_w])
 	await create_timer(sc.CALL_MAX_S + sc.CALL_OUT_S + 0.2, true, false, true).timeout
 	_ok(not sc.banner.visible, "the banner goes")
+	# A foe splatted on a wall under the banner (Pinwheel's throw into the top wall): it moves to the bottom.
+	var cam: Camera3D = p.get_viewport().get_camera_3d()
+	var vp: Vector2 = p.get_viewport().get_visible_rect().size
+	sc.callout("Pinwheel", "earth", true)
+	await create_timer(0.1, true, false, true).timeout
+	var top_y: float = sc.banner.position.y
+	var foe: Node3D = foes[1]
+	var spot := cam.project_position(Vector2(vp.x * 0.5, vp.y * sc.CALL_Y), cam.global_position.distance_to(foe.global_position))
+	foe.global_position = Vector3(spot.x, foe.global_position.y, spot.z) - Vector3.UP * 0.0
+	foe.set_meta(bk.WALL_META, Time.get_ticks_msec())
+	await create_timer(0.5, true, false, true).timeout
+	_ok(sc.banner.position.y > top_y + vp.y * 0.4, "a wall-splatted foe under the banner sends it to the bottom (%.0f -> %.0f)" % [top_y, sc.banner.position.y])
 
 	_finish()
 

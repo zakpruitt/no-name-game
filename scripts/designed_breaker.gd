@@ -353,6 +353,10 @@ class Screen extends CanvasLayer:
 	const FOCUS_OUT := 14.0
 	## The callout: the ending's name and the landing's running total on one slanted banner, top centre.
 	const CALL_Y := 0.135  # of the screen height: the banner's middle
+	const CALL_Y_LOW := 0.86  # where it goes when a cued or wall-splatted foe is under it (Pinwheel's wall, Meteor's)
+	const CALL_DODGE_MS := 1500  # a wall splat this fresh counts
+	const CALL_DODGE_PAD := 0.06  # of the screen height round the banner
+	const CALL_SLIDE := 14.0  # per real s
 	const CALL_W := 0.5  # of the screen width: the widest banner (WORLDBREAKER and its total)
 	const CALL_MAX_W := 900.0
 	const CALL_ASPECT := 0.22  # the banner's height over its widest width (the sheet's band is squashed to it)
@@ -390,6 +394,8 @@ class Screen extends CanvasLayer:
 	var _call_since := 0.0  # real s since the total last grew
 	var _call_ms := 0  # when it went up
 	var _call_from_ms := 0  # a breaker total that started at or after this is the callout's
+	var _call_low := false  # moved to the bottom, off a cued / wall-splatted foe
+	var _call_y := 0.135
 	const CALL_TOTAL_MS := 400  # a breaker total that starts up to this long before the callout is the landing's
 	var _shown_total := -1.0
 	var _pop := 0.0
@@ -441,6 +447,8 @@ class Screen extends CanvasLayer:
 	func callout(name_: String, element: String, perfect: bool) -> void:
 		call_name = name_.to_upper()
 		call_perfect = perfect
+		_call_low = false
+		_call_y = CALL_Y
 		call_total = 0.0
 		_shown_total = -1.0
 		_call_t = 0.0
@@ -524,13 +532,39 @@ class Screen extends CanvasLayer:
 		var h := w * CALL_ASPECT
 		w = clampf(_text_w(vp) + h * 1.1, vp.x * CALL_MIN_W, w)  # (fits the words: MAW is not as wide as WORLDBREAKER)
 		banner.size = Vector2(w, h)
-		banner.position = Vector2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y - h * 0.5)
+		if not _call_low and _foe_under(Rect2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y - h * 0.5, w, h).grow(vp.y * CALL_DODGE_PAD)):
+			_call_low = true  # (once a callout: it never flips back)
+		var want_y := CALL_Y_LOW if _call_low else CALL_Y
+		_call_y = lerpf(_call_y, want_y, 1.0 - exp(-CALL_SLIDE * dt))
+		banner.position = Vector2(vp.x * 0.5 - w * 0.5, vp.y * _call_y - h * 0.5)
 		banner.visible = true
 		var fr := 0.0 if _call_t < CALL_IN_S else 1.0 + float(int(_call_t * 12.0) % 3)
 		_banner_mat.set_shader_parameter("frame", minf(fr, 3.0))
 		_banner_mat.set_shader_parameter("erode", clampf((_call_t - end) / CALL_OUT_S, 0.0, 1.0) * 0.98)
 		_banner_mat.set_shader_parameter("alpha", 1.0)
 		text.queue_redraw()
+
+	## Is a foe the camera was cued to (camera_rig.FRAME_CUE) or one fresh off a wall splat on screen inside `r`?
+	## (Pinwheel throws the kebab into the top wall after the landing: the payoff must not sit under the banner.)
+	func _foe_under(r: Rect2) -> bool:
+		var cam := get_viewport().get_camera_3d()
+		if cam == null:
+			return false
+		var now := Time.get_ticks_msec()
+		for e: Node in get_tree().get_nodes_in_group("enemies"):
+			var foe := e as Node3D
+			if foe == null:
+				continue
+			var cued := int(foe.get_meta(&"frame_cue_ms", 0)) > now
+			var walled := foe.has_meta(SELF.WALL_META) and now - int(foe.get_meta(SELF.WALL_META)) < CALL_DODGE_MS
+			if not (cued or walled):
+				continue
+			var at := foe.global_position + Vector3.UP * 1.0
+			if cam.is_position_behind(at):
+				continue
+			if r.has_point(cam.unproject_position(at)):
+				return true
+		return false
 
 	## The callout's words' width (the name and its total at their settled size), for the banner to fit.
 	func _text_w(vp: Vector2) -> float:
@@ -563,7 +597,8 @@ class Screen extends CanvasLayer:
 			var tag_px := int(vp.y * TAG_PX)
 			var tag := "PERFECT!"
 			var tw := _font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_px).x
-			_word(Vector2(r.end.x - tw * 0.85, r.end.y + tag_px * 0.2), tag, tag_px, GOLD, a)
+			var tag_y := r.position.y - tag_px * 0.1 if _call_low else r.end.y + tag_px * 0.2  # (above it at the bottom)
+			_word(Vector2(r.end.x - tw * 0.85, tag_y), tag, tag_px, GOLD, a)
 
 	## Words-font text with the words' ink and red print offset (ComicFx's words).
 	func _word(at: Vector2, s: String, px: int, fill: Color, a: float) -> void:
