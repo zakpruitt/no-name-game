@@ -55,10 +55,12 @@ check() {
 			echo "ok    $t"
 		fi
 	done
-	# The base kit, then every kit upgrade on (scripts/kit.gd: --kit=full plays the demoted moves' strings too).
-	for args in "--autotest" "--autotest --kit=full"; do
+	# The base kit in the plain room, then every kit upgrade on (scripts/kit.gd: --kit=full plays the demoted moves'
+	# strings too) in the room with pieces (round 52: --room=pieces plays every plain string there, then the pieces'
+	# strings by their pieces; folded into the second run rather than a third, ~3 min each).
+	for args in "--autotest" "--autotest --kit=full --room=pieces"; do
 		# shellcheck disable=SC2086
-		out=$(godot_run 180 -- $args)
+		out=$(godot_run 300 -- $args)
 		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error" || ! echo "$out" | grep -q "\[autotest\] done"; then
 			echo "FAIL  $args"; echo "$out" | grep "FAIL\|SCRIPT ERROR\|Parse Error" | sort | uniq -c | head -5; fail=1
 		elif ! echo "$out" | grep -q "\[autotest\] done.* breakers=\([0-9]\+\)/\1 .* strings=\([0-9]\+\)/\2 endings_n=\([0-9]\+\)/\3 "; then
@@ -69,6 +71,10 @@ check() {
 			# every kit slot has a bot string that lands its moves, every window an ending, every upgrade on its string
 			# (training_bot.kit_report)
 			echo "FAIL  $args (not every kit slot / window / upgrade)"; echo "$out" | grep "\[kit\]"; fail=1
+		elif [[ "$args" == *--room=pieces* ]] && ! echo "$out" | grep -q "^\[env\] .* pieces=\([0-9]\+\)/\1 uproot=[1-9][0-9]* keg=[1-9][0-9]* frost_wall=[1-9][0-9]* live_floor=[1-9][0-9]* conduct=[1-9][0-9]*"; then
+			# the room with pieces: the bot touches every counted piece and plays every built verb at least once
+			# (env_piece.report: pieces=N/N and each BUILT verb's count)
+			echo "FAIL  $args (not every piece / verb)"; echo "$out" | grep "^\[env\]" | grep -o "pieces=.*"; fail=1
 		else
 			echo "ok    $args"
 		fi
