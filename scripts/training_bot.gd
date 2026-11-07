@@ -119,11 +119,20 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"room": "pieces", "slot": "big_1", "tokens": ["grate", "alt", "L", "H", "H"]},
 	# Round 52 (env-pieces2): torches conduct: Live Wire's jolts on the dummies under the back wall's middle torch make
 	# it conduct, the current runs along the wall to the torch over the far dummy, and Short Circuit arcs from them.
-	{"room": "pieces", "slot": "big_1", "tokens": ["torch", "alt", "L", "H", "H"]}]
+	{"room": "pieces", "slot": "big_1", "tokens": ["torch", "alt", "L", "H", "H"]},
+	# Round 53 (env-flourish): the heretic flourishes (env_flourish.gd, on in this room by its `flourishes` rule).
+	# "hook": Gallows: the counter by the hook on the east pillar: Ricochet hurls the dummy onto it, and it hangs.
+	{"room": "pieces", "slot": "counter", "tokens": ["hook", "counter", "D"]},
+	# "pool": Ice Rink: Harpoon's cubes on the pool freeze it, and Slapshot punches the row over the ice into the back
+	# wall (~11 m: past SLIDE_REACH in the open).
+	{"room": "pieces", "slot": "dash_ender_l", "tokens": ["pool", "alt", "D", "L", "H"]},
+	# "brazier": Brazier Spill: Molten Palm carries the dummies past the lit brazier and Lava Leash drags them back
+	# over it: the seam tips it, the coals run on and Hellseam erupts from them too.
+	{"room": "pieces", "slot": "cross_dark_magma", "tokens": ["brazier", "L", "L", "L", "H", "L"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
-const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch"]
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier"]
 ## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
 ## stands, which way he faces, and the dummies' spots. "keg": east of the barrel at (-11.2, -2), three dummies in
 ## Molten Palm's line toward it and one lined up on the crate at (-11, 1). "grate": west of the grate at (6, -2), the
@@ -137,6 +146,16 @@ const BOT_PIECE_LAYOUTS := {
 	# CONDUCT_REACH and the fourth under the torch at (-10, 2.4, -15.5), ~10 m off, past the tentacles' SEIZE_RANGE
 	"torch": {"at": Vector3(-2.0, 0, -10.6), "face": Vector3(0, 0, -1),
 		"dummies": [Vector3(-2.0, 0, -13.0), Vector3(-3.0, 0, -13.4), Vector3(-1.0, 0, -13.4), Vector3(-11.8, 0, -13.3)]},
+	# round 53 (env-flourish): "hook": south of the hook on the east pillar's face (7.47, 3.5, -7.47), the swinging
+	# dummy between him and it (~5 m from its point, inside env_flourish.GALLOWS_REACH), the rest off to the west
+	"hook": {"at": Vector3(4.0, 0, -2.6), "face": Vector3(0, 0, -1),
+		"dummies": [Vector3(4.0, 0, -4.6), Vector3(-0.5, 0, -1.0), Vector3(-1.5, 0, -2.4), Vector3(-0.5, 0, -3.6)]},
+	# "pool": south of the pool at (2, -6), facing the back wall: the dash leaves him at its edge, Harpoon's ring on it
+	"pool": {"at": Vector3(2.0, 0, -3.0), "face": Vector3(0, 0, -1),
+		"dummies": [Vector3(2.0, 0, -6.0), Vector3(1.0, 0, -5.2), Vector3(3.0, 0, -5.0), Vector3(2.0, 0, -4.4)]},
+	# "brazier": east of the lit brazier at (-5.8, -5.2), facing it: the dummies between, the palm carries them past
+	"brazier": {"at": Vector3(-1.4, 0, -5.2), "face": Vector3(-1, 0, 0),
+		"dummies": [Vector3(-3.4, 0, -5.2), Vector3(-3.8, 0, -6.0), Vector3(-3.8, 0, -4.4), Vector3(-4.2, 0, -5.2)]},
 }
 ## A "pillar" string: he stands BOT_PILLAR_GAP m out from main.PILLARS[0] facing it, the dummies round the pillar's
 ## near side (x across his aim, z along it, from him): one between him and it for the grab, the rest by its face.

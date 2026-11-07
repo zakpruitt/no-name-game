@@ -2,7 +2,8 @@ extends SceneTree
 ## Lava Leash (L L L H L, the dark x magma crossover, round 49) and Hellseam, headless: the routing, the pile, each of
 ## Lava Leash / Galvanize / Black Tide winning its own situation, the damage helpers and Hellseam's crater and seams.
 ## Runs the real comic hero against stand-in foes (void_arm_check's harness; split out so neither runs past
-## agent.sh's 180 s a test). Prints PASS/FAIL.
+## agent.sh's 180 s a test). Round 53's brazier spill (env_flourish.gd): the seam tips a lit brazier in (the coals run
+## on, the molten patch), magma lights an out one, Hellseam erupts from the spill. Prints PASS/FAIL.
 ## Run: godot --headless --path . -s tests/lava_leash_check.gd
 
 var fails := 0
@@ -52,6 +53,7 @@ func _initialize() -> void:
 	world.add_child(hero)
 	await process_frame
 	await _lava_leash()
+	await _brazier_spill()
 	print("lava_leash_check: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 	quit(1 if fails > 0 else 0)
 
@@ -163,6 +165,104 @@ func _lava_leash() -> void:
 		f.free()
 	g.queue_free()
 	await _settle()
+
+
+## Round 53, brazier spill: Lava Leash drags a foe 10 m out back past a lit brazier 1.6 m off its line: the seam tips
+## it (the spilled model, facing the seam), the coals' patch leaves a foe in it molten, and Hellseam pays x
+## SPILL_HELLSEAM on the pile and erupts at the coals' end too. Magma by an out brazier lights it.
+func _brazier_spill() -> void:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var EP: GDScript = load("res://scripts/env_piece.gd")
+	var FL: GDScript = load("res://scripts/env_flourish.gd")
+	var LEASH: GDScript = load("res://scripts/lava_leash.gd")
+	Kit.set_on("brazier_spill", true)
+	# an out one lights from magma by it
+	var cold: Node3D = EP.place(world, "brazier", Vector3(-6, 0, -6), 0.0, "out")
+	_check(EP.state(cold) == "out", "a brazier placed out is out")
+	var ash: Node3D = cold.find_child("brazier_ash", true, false)
+	var flame: Node3D = cold.find_child("brazier_flame", true, false)
+	_check(ash == null or ash.visible, "it shows its ash")
+	var warm := _foe(Vector3(-6, 0, -4.9))
+	ve.mark(warm, "molten")
+	_check(EP.state(cold) == "lit" and (flame == null or flame.visible), "magma by it lights it")
+	warm.free()
+	cold.free()
+	# the seam tips a lit one
+	hero.global_position = Vector3.ZERO
+	hero.model.position.y = 0.0
+	hero._face(Vector3(0, 0, 1))
+	var env: Node = load("res://scripts/env_target.gd").new()  # (the room's structure list: the bracket's)
+	world.add_child(env)
+	env.hero = hero  # (no main here: its player)
+	await physics_frame
+	var b: Node3D = EP.place(world, "brazier", Vector3(1.6, 0, 6.0))
+	_check(EP.state(b) == "lit", "a brazier is placed lit")
+	var b_id := str(b.get_meta(EP.ID_META, "?"))  # (used up when it spills: out of the structure list)
+	var spilled: int = int(EP.verbs.get("brazier_spill", 0))
+	var foes := [_foe(Vector3(0, 0, 10)), _foe(Vector3(-1.2, 0, 3.5))]
+	for f: Foe in foes:
+		f.set_meta(ve.PALM_META, Time.get_ticks_msec())
+	await physics_frame
+	hero._start_attack("XL")
+	var bracket := ""
+	for i in 180:
+		await physics_frame
+		if hero.has_meta(&"env_pick") and str((hero.get_meta(&"env_pick") as Dictionary).get("ctx", "")) == "brazier":
+			bracket = str((hero.get_meta(&"env_pick") as Dictionary).get("id", ""))
+		if EP.state(b) == "spilled":
+			break
+	_check(bracket != "" and bracket == b_id, "the indicator brackets the brazier while the leash reaches (%s)" % bracket)
+	_check(EP.state(b) == "spilled" and int(EP.verbs.get("brazier_spill", 0)) == spilled + 1, "the leash's seam tips the brazier in")
+	var sp: Node3D = b.get_node_or_null(FL.SPILL_NAME)
+	_check(sp != null and sp.visible, "the spilled brazier's model")
+	if sp != null:
+		var face := sp.global_transform.basis.z
+		_check(face.x < -0.8, "its coals toward the seam (%s)" % str(face))
+	var seam: Array = b.get_meta(&"spill_seam", [])
+	_check(seam.size() == 2 and (seam[0] as Vector3).distance_to(b.global_position) > FL.SPILL_EXTEND, "the coals run the seam on %.0f m" % FL.SPILL_EXTEND)
+	await _until(func() -> bool: return foes.all(func(f: Foe) -> bool: return f.hits >= 3), 1.5)
+	var in_patch := _foe(Vector3(0.6, 0, 6.0))
+	await create_timer(0.7).timeout
+	_check(ve.marked(in_patch, "molten"), "a foe in the coals' patch is left molten")
+	await create_timer(2.2).timeout
+	await _settle()
+	for f: Foe in foes + [in_patch]:
+		f.free()
+	game_end_slowmo()
+	await _settle()
+	# Hellseam with the spill fresh, then with none: the pile's hit and a foe at the coals' end
+	b.set_meta(&"spill_seam", [Vector3(8, 0, -4), Vector3(6, 0, -4)])  # (off his aim: Hellseam's own seams go nowhere near)
+	var with: Array = await _hellseam_by(Vector3(8, 0, -4))
+	b.set_meta(&"spill_ms", -100000)  # (stale: no spill to erupt from)
+	var without: Array = await _hellseam_by(Vector3(8, 0, -4))
+	print("  brazier spill: Hellseam pile hit %.0f with a fresh spill, %.0f without; the coals' end %.0f / %.0f" % [with[0], without[0], with[1], without[1]])
+	_check(absf(with[0] / maxf(without[0], 0.01) - FL.SPILL_HELLSEAM) < 0.05, "Hellseam pays x%.2f with a spill" % FL.SPILL_HELLSEAM)
+	_check(with[1] > 0.0 and without[1] == 0.0, "and erupts at the coals' end")
+	b.free()
+	Kit.set_on("brazier_spill", false)
+
+
+## The Hellseam landing by hand (as _lava_leash's): [the pile foe's damage, a foe at `end`'s damage after the seams go up].
+func _hellseam_by(end: Vector3) -> Array:
+	var ve: GDScript = load("res://scripts/void_element.gd")
+	var LEASH: GDScript = load("res://scripts/lava_leash.gd")
+	hero.global_position = Vector3.ZERO
+	hero._face(Vector3(0, 0, 1))
+	var pile := _foe(Vector3(0.3, 0, 1.7))
+	pile.set_meta(ve.LEASH_META, 4.0)
+	var at_end := _foe(Vector3(end.x, 0, end.z))
+	var g: Node3D = LEASH.start(hero, [], Vector3(0, 0, 1.7))
+	hero._void.dark_spot = Vector3(0, 0, 1.7)
+	ve.breaker_impact(hero, ve.entry("XL"), Vector3(0, 0, 0.5), [], 1.0)
+	var hit := 500.0 - pile.hp
+	await create_timer(0.8).timeout
+	var out := [hit, 500.0 - at_end.hp]
+	pile.free()
+	at_end.free()
+	if is_instance_valid(g):
+		g.queue_free()
+	await _settle()
+	return out
 
 
 func game_end_slowmo() -> void:

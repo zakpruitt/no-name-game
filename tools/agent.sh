@@ -71,7 +71,7 @@ check() {
 			# every kit slot has a bot string that lands its moves, every window an ending, every upgrade on its string
 			# (training_bot.kit_report)
 			echo "FAIL  $args (not every kit slot / window / upgrade)"; echo "$out" | grep "\[kit\]"; fail=1
-		elif [[ "$args" == *--room=pieces* ]] && ! echo "$out" | grep -q "^\[env\] .* pieces=\([0-9]\+\)/\1 uproot=[1-9][0-9]* keg=[1-9][0-9]* frost_wall=[1-9][0-9]* live_floor=[1-9][0-9]* conduct=[1-9][0-9]*"; then
+		elif [[ "$args" == *--room=pieces* ]] && ! echo "$out" | grep -q "^\[env\] .* pieces=\([0-9]\+\)/\1 uproot=[1-9][0-9]* keg=[1-9][0-9]* frost_wall=[1-9][0-9]* live_floor=[1-9][0-9]* conduct=[1-9][0-9]* gallows=[1-9][0-9]* ice_rink=[1-9][0-9]* brazier_spill=[1-9][0-9]*"; then
 			# the room with pieces: the bot touches every counted piece and plays every built verb at least once
 			# (env_piece.report: pieces=N/N and each BUILT verb's count)
 			echo "FAIL  $args (not every piece / verb)"; echo "$out" | grep "^\[env\]" | grep -o "pieces=.*"; fail=1
