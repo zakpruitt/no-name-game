@@ -319,6 +319,7 @@ func _ready() -> void:
 	_orbit_side = 1.0 if randf() < 0.5 else -1.0
 	_play("Spawn_Ground_Skeletons", 0.0, 1.6)
 	Game.sfx("spawn", -10.0, 0.2)
+	load("res://scripts/designed_elements.gd").prime_fit.call_deferred(self)  # (round 53: the first ice block's 44 ms, at spawn)
 
 
 ## Shoots from a distance (doesn't need a melee slot).

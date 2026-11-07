@@ -41,7 +41,7 @@ RETRY="rhythm_check ice_block_check"
 check() {
 	local quick=${1:-}
 	local fail=0 out
-	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check kit_check lava_leash_check env_target_check env_piece_check wiki_check input_snap_check)
+	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check kit_check lava_leash_check cool_pass_check cool3_check cool4_check env_target_check env_piece_check env_breaker_check wiki_check input_snap_check)
 	[ "$quick" = "--quick" ] && tests=()
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue
@@ -55,10 +55,12 @@ check() {
 			echo "ok    $t"
 		fi
 	done
-	# The base kit, then every kit upgrade on (scripts/kit.gd: --kit=full plays the demoted moves' strings too).
-	for args in "--autotest" "--autotest --kit=full"; do
+	# The base kit in the plain room, then every kit upgrade on (scripts/kit.gd: --kit=full plays the demoted moves'
+	# strings too) in the room with pieces (round 52: --room=pieces plays every plain string there, then the pieces'
+	# strings by their pieces; folded into the second run rather than a third, ~3 min each).
+	for args in "--autotest" "--autotest --kit=full --room=pieces"; do
 		# shellcheck disable=SC2086
-		out=$(godot_run 180 -- $args)
+		out=$(godot_run 300 -- $args)
 		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error" || ! echo "$out" | grep -q "\[autotest\] done"; then
 			echo "FAIL  $args"; echo "$out" | grep "FAIL\|SCRIPT ERROR\|Parse Error" | sort | uniq -c | head -5; fail=1
 		elif ! echo "$out" | grep -q "\[autotest\] done.* breakers=\([0-9]\+\)/\1 .* strings=\([0-9]\+\)/\2 endings_n=\([0-9]\+\)/\3 "; then
@@ -69,6 +71,10 @@ check() {
 			# every kit slot has a bot string that lands its moves, every window an ending, every upgrade on its string
 			# (training_bot.kit_report)
 			echo "FAIL  $args (not every kit slot / window / upgrade)"; echo "$out" | grep "\[kit\]"; fail=1
+		elif [[ "$args" == *--room=pieces* ]] && ! echo "$out" | grep -q "^\[env\] .* pieces=\([0-9]\+\)/\1 uproot=[1-9][0-9]* keg=[1-9][0-9]* frost_wall=[1-9][0-9]* live_floor=[1-9][0-9]* conduct=[1-9][0-9]* gallows=[1-9][0-9]* ice_rink=[1-9][0-9]* brazier_spill=[1-9][0-9]*"; then
+			# the room with pieces: the bot touches every counted piece and plays every built verb at least once
+			# (env_piece.report: pieces=N/N and each BUILT verb's count)
+			echo "FAIL  $args (not every piece / verb)"; echo "$out" | grep "^\[env\]" | grep -o "pieces=.*"; fail=1
 		else
 			echo "ok    $args"
 		fi

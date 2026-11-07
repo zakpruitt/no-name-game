@@ -65,12 +65,6 @@ func done() -> bool:
 	return true
 
 
-## Who it still carries (not set down yet).
-func carrying() -> Array:
-	return grabs.filter(func(g: Dictionary) -> bool: return g.latched and not g.set and _alive(g.foe)).map(
-		func(g: Dictionary) -> Node3D: return g.foe)
-
-
 func _physics_process(delta: float) -> void:
 	_t += delta
 	if not is_instance_valid(hero) or hero._void == null:

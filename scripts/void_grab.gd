@@ -457,6 +457,7 @@ func seize(b := {}) -> void:
 				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true, "harpoon": true})
 		return
 	if b.has("press"):
+		VOID_ELEMENT.deep_freeze_flush()  # (round 55: Deep Freeze's wave, the blocks still to pop, before the hold takes the cubes)
 		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
 			if VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
 				VOID_ELEMENT.encase(e)  # (they stay frozen for the whole window)
@@ -597,15 +598,14 @@ func aim_crush() -> void:
 	mid /= float(live.size())
 	mid.y = 0.0
 	dark_spot = mid
-	var ring: float = 0.0 if live.size() == 1 else maxf(VOID_ELEMENT.CRUSH_CUBE_WIDTH * 0.5, live.size() * VOID_ELEMENT.CRUSH_CUBE_WIDTH / TAU)
+	# Round 51 cool pass: stacked into a tower on the pile's middle, each on the one before (avalanche_topple.stack_step),
+	# for Avalanche's topple. One cube still comes straight back down where it was.
+	var h := 0.0
 	for i in live.size():
 		var s: Dictionary = live[i]
-		var out: Vector3 = s.foe.global_position - mid
-		out.y = 0.0
-		if out.length() < 0.1:
-			out = Vector3(sin(TAU * i / live.size()), 0.0, cos(TAU * i / live.size()))
 		s["crush_from"] = s.foe.global_position
-		s["crush_to"] = mid + out.normalized() * ring
+		s["crush_to"] = mid + Vector3.UP * h
+		h += VOID_ELEMENT.AVALANCHE_TOPPLE.stack_step(s.foe)
 
 
 ## Cold Front: everyone held freezes solid.

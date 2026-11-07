@@ -3,7 +3,9 @@ extends SceneTree
 ## the window's timing (nothing before WINDOW s from contact, a counter inside it, a perfect only in the last PERFECT
 ## s), no counter when the dash is aimed away or nothing is coming (a plain dash), the i-frames through the strike,
 ## the mark, Backlash's slam, a perfect opening the counter breaker window and Ricochet landing; the swinging dummy's
-## strike hurting him at a spar foe's third; the guide's hint; a parried bolt. Prints [counter] PASS/FAIL.
+## strike hurting him at a spar foe's third; the guide's hint; a parried bolt; round 53's gallows (env_flourish.gd) in
+## the room with pieces: Ricochet hangs the attacker on the pillar's hook, bound, x GALLOWS_MULT on the wall's, the
+## counter window's bracket on the hook, a hit on it a Snap, a wall the cursor chose wins. Prints [counter] PASS/FAIL.
 ## Run: godot --headless --path . -s tests/counter_check.gd
 
 var _fails: Array[String] = []
@@ -13,9 +15,12 @@ var dummy: Node
 var counter: GDScript
 
 
+var game: Node
+
+
 func _initialize() -> void:
 	await process_frame
-	var game: Node = get_root().get_node("Game")
+	game = get_root().get_node("Game")
 	game.save_hints = false
 	main = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(main)
@@ -33,6 +38,8 @@ func _initialize() -> void:
 	await _backlash()
 	await _perfect()
 	await _bolt()
+	await _gallows()
+	game.room = "plain"
 	if _fails.is_empty():
 		print("[counter] PASS")
 	else:
@@ -212,3 +219,111 @@ func _bolt() -> void:
 	_check(p.reflected and p.direction.dot(_to_dummy()) > 0.9, "the bolt goes back at its shooter")
 	await create_timer(0.3).timeout
 	_check(hero.hp == hero.max_hp, "the bolt never hit him")
+
+
+## Round 53, gallows (env_flourish.gd): in the room with pieces (its `flourishes` rule) the counter dummy stood ~5 m
+## from the hook on the east pillar. The window brackets the hook; Ricochet hurls it onto the hook, where it hangs bound
+## (the hook_swing swinging) after a splat at GALLOWS_MULT x the wall's; a hit on it is a Snap and lets it go. Then the
+## same counter with the flourish off (the plain room's rule) splats it on the pillar: the wall's, for the ratio. The
+## cursor's wall over the hook wins.
+func _gallows() -> void:
+	var FL: GDScript = load("res://scripts/env_flourish.gd")
+	var ENV_T: GDScript = load("res://scripts/env_target.gd")
+	var EP: GDScript = load("res://scripts/env_piece.gd")
+	_check(not FL.on("gallows"), "gallows is off in the plain room (no upgrade, no rule)")
+	main.queue_free()
+	await process_frame
+	game.room = "pieces"
+	main = load("res://scenes/main.tscn").instantiate()
+	get_root().add_child(main)
+	await create_timer(1.5).timeout
+	hero = main.player
+	dummy = main._dummy
+	hero.bot_enabled = true
+	hero.bot_move = Vector3.ZERO
+	_check(FL.on("gallows"), "gallows is on in the room with pieces (its flourishes rule)")
+	var hook: Node3D = null
+	for n: Node in get_root().get_tree().get_nodes_in_group("env_hook"):
+		if Vector2((n as Node3D).global_position.x - 7.47, (n as Node3D).global_position.z + 7.47).length() < 0.5:
+			hook = n
+	_check(hook != null, "the pillar's hook is placed")
+	if hook == null:
+		return
+	var point: Vector3 = FL.hook_point(hook)
+	_check(point.y > 0.6 and point.y < 2.0, "its point hangs at a foe's height (%.2f m)" % point.y)
+	var pillar: Node3D = null
+	for n: Node in get_root().get_tree().get_nodes_in_group("env_pillar"):
+		if Vector2((n as Node3D).global_position.x - 8.0, (n as Node3D).global_position.z + 8.0).length() < 0.5:
+			pillar = n
+	for i in main._dummies.size():  # (the others out of the way: the counter dummy alone by the hook)
+		main._dummies[i].home = Vector3(4.0, dummy.home.y, -4.6) if i == 0 else Vector3(-6.0 - i * 1.5, dummy.home.y, 6.0)
+	hero.global_position = Vector3(4.0, hero.global_position.y, -1.0)
+	var hung: int = FL.Hang.hung
+	var splat: float = await _counter_splat(true)
+	_check(counter.last_ricochet == "hook", "Ricochet takes the attacker to the hook (%s)" % counter.last_ricochet)
+	_check(FL.Hang.hung == hung + 1, "and it hangs on it")
+	await create_timer(0.3).timeout
+	_check(load("res://scripts/floor_bind.gd").holds(dummy), "bound while it hangs")
+	_check(EP.state(hook) == "hung", "the hook is hung")
+	var sw: Node3D = FL._swing(hook)
+	_check(sw != null and absf(sw.rotation.z) > 0.02, "the hook swings with it (%.3f rad)" % (sw.rotation.z if sw != null else 0.0))
+	point = FL.hook_point(hook)  # (where the point is now, swinging)
+	_check(Vector2(dummy.global_position.x - point.x, dummy.global_position.z - point.z).length() < 0.8 and dummy.global_position.y > 0.05,
+		"it hangs up under the hook (%.2f m up, %.2f m off, point %s at %s)" % [dummy.global_position.y, Vector2(dummy.global_position.x - point.x, dummy.global_position.z - point.z).length(), point, dummy.global_position])
+	var snaps: int = FL.Hang.snaps
+	var paid: int = int(hero.VOID_ELEMENT.improv_paid.get("bound", 0))
+	dummy.take_hit(4.0, Vector3.ZERO, 0.0, false)
+	await physics_frame
+	await physics_frame
+	_check(FL.Hang.snaps == snaps + 1 and int(hero.VOID_ELEMENT.improv_paid.get("bound", 0)) > paid, "a hit on the hung foe is a Snap")
+	_check(not load("res://scripts/floor_bind.gd").holds(dummy), "the Snap lets it go")
+	await create_timer(1.8).timeout
+	_check(EP.state(hook) == "empty" and absf(sw.rotation.z) < 0.01, "the hook settles, empty again")
+	game.room = "plain"  # (the rule off: the same counter splats it on the pillar behind the hook)
+	var wall: float = await _counter_splat(false)
+	_check(counter.last_ricochet == "wall", "with the flourish off it is a wall Ricochet (%s)" % counter.last_ricochet)
+	game.room = "pieces"
+	print("  gallows: hung splat %.1f vs the wall's %.1f (x%.2f, want x%.2f)" % [splat, wall, splat / maxf(wall, 0.01), FL.GALLOWS_MULT])
+	_check(wall > 0.0 and absf(splat / wall - FL.GALLOWS_MULT) < 0.02, "the hang pays x%.2f the wall's" % FL.GALLOWS_MULT)
+	await create_timer(1.0).timeout
+	# the cursor's choice in the window (env_target CTX "gallows"): a pillar over the hook, or the hook itself
+	var t: Dictionary
+	if pillar != null and pillar.has_meta(EP.ID_META):
+		hero.set_meta(ENV_T.PICK_META, {"ctx": "gallows", "id": pillar.get_meta(EP.ID_META), "chosen": true, "ms": Time.get_ticks_msec()})
+		t = counter.ricochet_target(hero, dummy)
+		_check(t.kind == "wall", "a pillar the cursor chose wins over the hook (%s)" % t.kind)
+	hero.set_meta(ENV_T.PICK_META, {"ctx": "gallows", "id": hook.get_meta(EP.ID_META, ""), "chosen": true, "ms": Time.get_ticks_msec()})
+	t = counter.ricochet_target(hero, dummy)
+	_check(t.kind == "hook", "the hook the cursor chose (%s)" % t.kind)
+	hero.remove_meta(ENV_T.PICK_META)
+
+
+## A perfect counter on the dummy from where he stands, Ricochet landing: its splat's damage (the first hit after the
+## throw). `bracket`: the window's pick is on the hook (env_target CTX "gallows").
+func _counter_splat(bracket: bool) -> float:
+	await create_timer(1.2).timeout
+	await _stand()
+	_windup(0.06)
+	var landed: int = hero.breakers_landed
+	hero.bot_move = _to_dummy()
+	hero._start_dash()
+	hero.bot_move = Vector3.ZERO
+	var ENV_T: GDScript = load("res://scripts/env_target.gd")
+	var picked := ""
+	for i in 120:
+		await physics_frame
+		if hero.state == hero.State.LEAP and hero.has_meta(ENV_T.PICK_META):
+			var pk: Dictionary = hero.get_meta(ENV_T.PICK_META)
+			if pk.get("ctx", "") == "gallows":
+				picked = str(pk.get("id", ""))
+		if hero.breakers_landed > landed:
+			break
+	if bracket:
+		_check(picked.begins_with("hook"), "the counter window brackets the hook (%s)" % picked)
+	var before: float = dummy.string_damage
+	var hits: int = dummy.hits_taken
+	for i in 90:
+		await physics_frame
+		if dummy.hits_taken > hits:
+			break
+	return dummy.string_damage - before

@@ -190,3 +190,22 @@ punch is tier 1 at most; an ender (`is_ender`: a BREAKERS leap, `CHAIN_ENDERS` L
 longer than the breaker leaps. A spirit echo cast landing more than `CAST_STOP_GAP_MS` 90 ms after the last stop
 takes `spirit_echo.CAST_STOP` 0.03 s, so a whiffed blade's cast is not a contact at x1.00. See
 `docs/feel-audit-2026-11-07.md`.
+
+## Round 54: pile columns and the counting banner (camera-hang lane)
+
+Feel audit 6 item 10: Cold Front's pile read "146209", two numbers inked over each other, and Eruption's banner
+showed no total because its damage lands over the beats.
+
+- **Pile columns** (`comic_number.gd`). The per-foe numbers that started within `STACK_R` (2.4 m, flat) of each other
+  make one pile. They stand in a tidy column: the biggest total lowest, on its own spot (nearest the pile), each
+  smaller one a row up the screen (`STACK_ROW` 0.9 of the number below's height). The order is re-sorted each draw,
+  so a number that grows past another swaps rows. At most `STACK_MAX` 3. A fourth folds into the biggest: its amount
+  is added there, and its foe's next hits go there too while that number is up (`_into`). `folded` counts folds for
+  the probe. The words' dodge (`dodge()`) still runs after the column.
+- **The banner counts** (`comic_number.banner_open` / `banner_from_ms`, set by `designed_breaker.Screen`). While the
+  ending's banner is up and not fading, every hit adds to the landing's total, as Live Wire's shocks do in the hang:
+  Eruption's columns, Shatterstorm's shards, Slapshot's slides, Tempest's bolts, Flash Freeze's chain and Collapse's
+  spits. No per-foe number goes up for those hits. The banner stays `CALL_AFTER_ADD_S` past the last add, up to
+  `CALL_COUNT_MAX_S` 2.4 s once a late beat has counted (`CALL_MAX_S` otherwise). `banner_adds` counts the late adds.
+- Probe (plain room, every bot string): 29 banners, 83 late adds counted, 3-4 numbers folded; pieces room 36
+  banners, 82 adds, 14-16 folds.

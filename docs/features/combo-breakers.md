@@ -384,6 +384,14 @@ that the seam is not up on the landing frame, that it catches the one on it 0.6 
 string: `wall spread L L L H L` (`spread` with `wall` now lays the arc toward the wall); the autotest's
 `endings_n=` counts it (20/20).
 
+### Round 51 env-pieces: endings that use the room's pieces
+
+See [env-pieces.md](env-pieces.md). **Uproot** is Overwhelm's LMB ending (a pillar near the pinned foe: the tentacle
+tears it out and clubs the foe; Abyss is the open-floor ending). The others change what an existing ending finds:
+Slapshot aims at a **Frost Wall** (Frost Spear on a grate: a 4 m ice wall for 6 s, 153 vs 63 in the open), Short
+Circuit's arcs reach from a **Live Floor** grate, and Meteor Fall dives on the pile a **Powder Keg** burst leaves
+molten.
+
 ## Round 48: breaker spectacle (breaker-spectacle lane)
 
 Zak: "start refining the breakers to be really flashy and awesome", with the wind and lightning effects as the bar.
@@ -440,3 +448,385 @@ Clips: `awaken-combo-clips/30 Spectacle *`.
 Open items:
 - Shatterstorm and Slapshot show their name only: their damage lands later, through the blocks, after the banner's 0.4 s window.
 - The wall-splat star is not clearly seen on film: Molten Palm's splat sits at the frame's edge.
+
+## Round 51 cool pass (combo-cool lane): ranking against Lava Leash, Tempest and Pinwheel
+
+Zak: "the lava leash and tempest and pinwheel are amazing. but there's plenty others that could be also made amazing /
+cooler! feel free to incorporate effects or make more combos/breakers environment specific." Film: every bot string
+(`string_film -- --dir=cool_before --no-awaken`, 39/39 strings, 27 breakers), contact sheets from the hang to the
+landing. Each line scores the four things the bar has: a three-beat shape (setup, control, payoff), the tentacle or
+element visibly doing the control, a best situation you can read on screen, and a landing beat of its own (not only the
+shared spectacle burst). Weakest first; Abyss, Collapse and Avalanche were rebuilt first ("Rebuilt", below the list), with foe picks.
+
+Endings:
+
+1. **Abyss** (hold H): the pin is a puddle under one foe, the dive sinks it out of sight under the hero, and the landing
+   is the same purple spike splat every dark ending ends on. No visible "under the floor", no tentacle in the payoff, and
+   its best situation (one big foe) does not show. 0 / 4.
+2. **Collapse** (H H): the hole shuts behind the pile and the landing is the shared purple spike burst; the throw into
+   a picked structure exists (round 50) but plays after the banner, from nowhere, and in the pillar film reads as three
+   numbers by the pillar. The tentacles do nothing in the payoff. 1 / 4 (the indicator).
+3. **Avalanche** (L L H L H): the cubes crushed into a heap is a good image, then one word and blue spoked spikes
+   (crystal-adjacent); every cube takes the same hit wherever the heap is. No best situation beyond "cubes exist". 1 / 4.
+4. **Eruption** (Dash L H H H L): the hang holds them on the floor and nothing happens in it; the landing is the
+   magma family's burst with the floor up under each; the molten bonus (x1.5 on the ones Meltdown lit) is invisible.
+   1 / 4. **Round 52: 4 / 4** (fuse, geyser, hurl into the picked wall and the burning slide; by a wall).
+5. **Flash Freeze** (Dash L H H L): the steam freezes on them only in the last frames of the dive, the landing is the
+   generic shatter, and it reads as Black Ice or Cold Front again; "nothing about where they are picks it" (the pairs
+   audit). 1 / 4. **Round 52: 4 / 4** (steam, shells, the picked chain break; a crowd in the open).
+6. **Maw** (H L H): the drag into the pool is good control (black tentacles you see), then jaws bite and the shared dark
+   splat; the payoff looks like Collapse and Abyss. 2 / 4. **Round 52: 3 / 4** (the knock and slam is its own landing; best
+   a crowd in the open; the heap reads small beside the bite's burst).
+7. **Cold Front** (Live Wire air, LMB): the hang is Live Wire's (strong), the cubes form at the last frame and are thrown
+   under the impact frame, so the throw into neighbours is not seen. 2 / 4. **Round 52: 3 / 4** (tethers hoist each cube
+   and throw it after the impact frame, a cold snap each; no situation of its own beyond Worldbreaker's).
+8. **Black Ice** (H L H, LMB): the pool freezes into a fitted block (Zak's ice block) and his landing shatters it; the
+   shatter is the shared one. 2 / 4. **Round 52: 4 / 4** (they skid across the ice into the picked structure; by a wall).
+9. **Anvil** (XW / XK, RMB): the kebab reeled up and driven into the floor reads, the landing is the generic magma burst;
+   Pinwheel carries the window. 2 / 4. **Round 52: 3 / 4** (the tentacles yank the kebab up and drive it in again,
+   KRUNCH! and fissures; Pinwheel still carries the window by a wall).
+10. **Worldbreaker** (L H L H, RMB): Live Wire's hang conducts through every tentacle (strong), the landing is generic.
+    3 / 4.
+11. **Cataclysm** (L H L L H, RMB): the fault cracks out to each and strikes read; landing generic beside Tempest. 3 / 4.
+12. **Ricochet** (counter): the hurl reads, the landing is the shared dark splat. 3 / 4.
+13. **Grounded** (L H H, RMB): lightning down every tentacle through the hang, strikes under each: near the bar. 3 / 4.
+14. **Short Circuit** (L H H, LMB): the arcs go out one by one, a link further each: near the bar. 3 / 4.
+15. **Shatterstorm** (Dash L H, RMB): thunder on each cube in turn: near the bar. 3 / 4.
+16. **Slapshot** (Dash L H, LMB): the fist punches the row into the marked wall: near the bar. 4 / 4 by a wall.
+17. **Meteor Shower** / **Meteor Fall** (L L L H H): fireballs per foe / the dive on the walled pile, designed meteor. 4 / 4.
+18. **Hellseam**, **Tempest**, **Pinwheel**: the bar.
+
+Moves (mids, enders, big moves, crossovers), for the record: Live Wire, Galvanize, Harpoon, Lava Leash, Molten Palm,
+Black Tide and Impale meet the bar's control beat (the tentacle or element visibly moving the foes); Deep Freeze,
+Updraft Lash, Fault Line, Backdraft and Undertow read; Overwhelm (one claw on one foe, no sense of "pinned"), Reap,
+Steam Burst (the steam is small) and Tow Line are the weakest mids but are not windows, so they stay (Overwhelm's look
+grows with Abyss below).
+
+### Rebuilt (batch 1 and 2)
+
+Each keeps its slot, input and role (kit_check: no new window). Numbers are `tests/cool_pass_check.gd`'s (the bot
+presses at the sweet spot, so they include the perfect multiplier).
+
+**Collapse** (H H, `VS`; `scripts/collapse_spit.gd`). Word "GLLRK-PTOOO!". Beats: (1) grab: a tentacle whips up out
+of the hole to each foe (`REACH` 0.07 s, `STAGGER` 0.03 s apart); (2) swallow: it drags the foe into the hole and
+under the floor (`SWALLOW` 0.14 s, `SINK` 1.3 m), `COLLAPSE_SWALLOW_MULT` 0.3 of the damage as it goes under; (3)
+spit: from 0.36 s, every 0.11 s, the hole spits one back out in the `void_spit` sheet (tentacles bursting up) into the
+structure the indicator marks (`COLLAPSE_WALL_MULT`, a wall beat each, `breaker_alt_fx.cool_wall`) or straight up
+(`COLLAPSE_SPIT_UP`). Big ones are coiled where they stand (swallow and spit hit them in place). Best: a crowd by a
+wall or pillar (three foes: 448 by a wall, 315 in the open). Worst: one big foe (95: Abyss's).
+
+**Avalanche** (L L H L H, `IS`; `scripts/avalanche_topple.gd`). Word "KRA-KRA-KRASH!". Beats: (1) stack: on the dive
+the tentacles stack the cubes into a tower (`void_grab.aim_crush`'s stack slots, `crush_point` lands each on the one
+under it; `stack_step()` per cube); (2) topple: he lands, the crush hit (`AVALANCHE_CRUSH` 0.3), and the tentacles
+shove the tower over (`STAND` 0.1 s, `TIP` 0.3 s, pivoting on its foot) toward the structure the indicator marks
+(env_target `avalanche`, the cursor may choose, within `AVALANCHE_REACH` 9 m), else away from him; (3) spill: each
+cube breaks off as the tower comes down, top first, and slides on in the `avalanche_spill` snow fan into the
+structure (`AVALANCHE_WALL_MULT` 3.0, spread `AVALANCHE_SPREAD` across it) or out `AVALANCHE_OPEN` 6 m to a stop and
+bursts (`AVALANCHE_OPEN_MULT` 0.75). Anyone in the fall's strip is caught and frozen. Best: by a wall (three cubes 553).
+Worst: the open (209). Bot string: `wall L L H L H`.
+
+**Abyss** (hold H, `OW`; `scripts/abyss_rise.gd`; Uproot, its L ending, is the env-pieces lane's). Word
+"SHLUUUK-WHAM!". Beats: (1) up: the pinned foes sank under the floor on the dive (floor_bind `sink`); when he lands a
+column of tentacles (`abyss_column` sheet) tears up out of the floor under each, the picked one first (`STEP` 0.12 s
+apart), and carries it up to `APEX` 1.9 m (`RISE` 0.15 s), `ABYSS_RISE_MULT` 0.3 as it leaves the floor; (2) hang: the
+column holds it up (`HANG` 0.1 s) with a tentacle coiled round it from the hole; (3) slam: the column folds and drives
+it straight down (`SLAM` 0.06 s): `ABYSS_SLAM_MULT` 1.0, x `ABYSS_BIG_MULT` 1.6 on a big one, a crater (`MAW_DOWN`
+knockback), a floor stamp and the word. The first one (the bracket's pick, env_target `abyss`: the cursor's, or the
+biggest) takes it whole; the rest share (`ABYSS_SHARE` 0.3). Best: one big foe (127 vs Collapse's 95).
+Worst: a crowd (four: Collapse 470 vs Abyss 214), and a big foe by a pillar is Uproot's (244 vs 170).
+When Uproot has a pillar in reach the window's bracket marks the pillar, not the foe (one pick per window).
+
+**Foe picks** (Zak: "that environment select is AMAZING! maybe can incorporate that in select combos where control
+makes sense"): the structure indicator's bracket now also goes on a foe (docs/features/environment.md "Foe picks").
+The charged hold shows who Overwhelm will pin, and the cursor switches it; Abyss's hang shows who comes up first.
+With Collapse (structure, round 50) and Avalanche (structure, new), four control moves pick with the cursor.
+
+## Round 52 cool pass (combo-cool2 lane)
+
+Round two against the same bar (three beats, the element or tentacle visibly in control, a best situation on screen, a
+landing of its own). Films: `string_film -- --dir=cool2_before --no-awaken --fps=24` (41 strings) before, one
+string at a time after. Numbers are `tests/cool_pass_check.gd` `_cool2` (bot presses at the sweet spot: perfect
+multiplier in). Each keeps its slot, input and window (kit_check unchanged); no hang is longer (the beats run after the
+landing, in game time, so the hit stop holds them).
+
+**Eruption** (Dash L H H H L, H in Meltdown's window, `XM`; `scripts/eruption_hurl.gd`). Word "KA-BLOOOSH!". Beats:
+(1) fuse: from `START` 0.12 s after the landing (past the shared burst) a crusted lava crack (`erupt_chain` strip,
+`designed_drag.gdshader`) races along the floor to each foe, nearest first `STEP` 0.07 s apart; (2) heave: it reaches
+the foe (`FUSE` 0.1 s) and a geyser (`designed_elements.geyser`, 2.2 m) throws it up to `TOP` 2.1 m (`HEAVE` 0.13 s),
+`ERUPT_HEAVE_MULT` 0.35; (3) hurl: from the top of its column it is thrown at the structure the indicator marks
+(env_target `eruption`, the cursor may choose, within `ERUPT_REACH` 9 m: `ERUPT_HURL_MULT` 0.8 x `ERUPT_WALL_MULT`
+1.6 on the wall, the word "SPLURCH!" and `breaker_alt_fx.cool_wall`), sticks `SPLAT_Y` 1.8 m up it and slides down it
+burning in the `erupt_drip` sheet (`SLIDE` 0.34 s, `ERUPT_SLIDE_MULT` 0.45, lit `molten` again, a pool at the foot). With
+no structure in reach it drops back into a crater (`ERUPT_DROP_MULT` 0.45). Each beat is x1.4 on the ones Meltdown lit
+(`ERUPT_MOLTEN_MULT`) and x0.7 on the rest (`ERUPT_COLD_MULT`). Best: a crowd by a wall (three: 749 vs Flash Freeze's
+321). Worst: the open (four foes: 282 vs Flash Freeze's 378; three in the open 212). Bot string: `wall D L H H H L`.
+
+**Flash Freeze** (Dash L H H L, H in Steam Burst's window, `XS`; `scripts/frost_shell.gd`). Word "FSSSH-KRAK!".
+Beats: (1) roll: on the dive the steam Steam Burst blew off (`steam_shell` sheet, stood 0.4 m toward the camera so it
+rolls over the block) rolls out from where he will land over everyone within `FF_CLOUD_R` 5.5 m, not only the held,
+nearest first `SET_STEP` 0.035 s apart; (2) set: it sets into a shell, the fitted ice block (`encase`),
+`FF_SET_MULT` 0.3; (3) break: the landing breaks the picked shell (env_target `flash_freeze`: the bracket on a foe when
+two or more are in the cloud, the cursor may choose, auto the nearest the landing) and a frost line (`designed_elements.fissure`
+"water": floor cracks, no crystals) races to the nearest unbroken shell every `LINK` 0.09 s, breaking each a link
+harder (`FF_LINK_PER` +60% a link, frozen x `FREEZE_BREAK`), "KRAK!" over each. Best: a crowd in the open (four: 378
+vs Eruption's 282). Worst: by a wall (321 vs 749): the wall does nothing for it. Picking where the chain starts
+decides who takes the last, hardest link.
+
+The pair now splits on where they stand: same branch off Dash L H H (H for Hailstorm / Meltdown / Eruption, L for
+Steam Burst / Flash Freeze), Eruption if the crowd is by a wall, Flash Freeze if it is out in the open.
+
+**Collapse readability** (round 51's rebuild, same timings: `SPIT_FIRST` 0.36 s, `SPIT_STEP` 0.11 s). Each spit is
+now its own beat: a fat ink crown thrown up out of the hole (`spit_burst` sheet, `BURST_SIZE` 3.4 m, a pop on its first
+frame), a word a spit (the first "GLLRK-PTOOO!", then `COLLAPSE_SPIT_WORDS` "PTOO!" / "PTOOIE!" / "PTAH!", stepped up
+and down so they don't stack), and the spat foe's own ink trail as it flies (`comic_comet.beat` on its model for
+`TRAIL_S` 0.55 s: the dark dive's streak and the blot where it lands). Nothing got longer.
+
+**Foe picks on Meteor Fall and Tow Line** (environment.md "Foe picks"). Same bracket, cursor / right stick, auto default:
+- Meteor Fall: when the palm foes stand in two piles or more (`meteor_piles`, each `METEOR_PILE_R` 3 m), Undertow's
+  window puts the bracket on a foe of the pile he will dive on (auto: the default `meteor_spot`, the biggest / walled);
+  the cursor on a foe of another pile makes him dive there (`meteor_spot` keeps that foe's pile). One pile: the
+  structure pick (round 50) as before.
+- Tow Line (Dash H): before its hit, with two or more within `TOW_PICK_REACH` 7 m, the bracket is on the foe nearest
+  where the line yanks them (auto: the default throw, nothing changes). The cursor on another foe makes it the anchor:
+  it is snared where it stands (`TOW_ANCHOR_MULT` 0.6) and everyone on the line is yanked into it (`env_target.foe_chosen`:
+  only a cursor / stick choice moves the throw). Round 53: the pick opens in the dash before it once a right click
+  is buffered or the cursor is on a foe (`env_target._tow_dash_ctx`).
+- Round 53 (feel audit 2026-11-07b): the banner cuts to `CALL_Y_LOW` with a pop when a cued foe or piece is under it
+  (it slid across the middle of the frame, over the pile); the callout's ink outline fades with its text
+  (`callout_cap.watch`); Maw's heap (`MAW_CUE_MS` 1000) and Black Ice's skid into the wall (`BLACK_ICE_CUE_MS` 1100)
+  cue the camera; Anvil and Pinwheel melt Impale's spear, so the next Dash L H is Harpoon (it vaulted, IJ, and
+  `wall D L H H H L` never reached Eruption).
+
+**The 2/4 endings, one beat up** (`scripts/tentacle_haul.gd`: a tentacle out of a root takes each foe up to a top, holds
+it, drives it to an end, then `on_end`; game time, after the landing, so no hang is longer). Slots and inputs unchanged.
+Numbers: `cool_pass_check` `_maw_pair` (three in the pool, sweet press not included: `breaker_impact` at x1.0).
+
+- **Maw** (H L H, RMB, `VD`). Bite (as before: `MAW_DOWN` crater, full damage), then from `MAW_HOIST_AT` 0.2 s the
+  pool's tentacles hoist the bitten (up to `MAW_KNOCK_MOST` 4, the nearest the middle first) to `MAW_HOIST_Y` 1.5 m,
+  knock them together `MAW_HEAP_TOWARD` 1.4 m on his side of the pool (in view, under the ending's banner) and slam
+  the heap down: "KONK!", a dark burst, `MAW_KNOCK_MULT` 0.4 + `MAW_KNOCK_PER` 0.1 for each other one in the heap.
+  Best: a crowd in the open (250 vs Black Ice's 179). Worst: by a wall (250 vs 315).
+- **Black Ice** (H L H, LMB, `VD` alt). The pool freezes (as before); the landing shatters it (`BLACK_ICE_SHATTER` 0.6,
+  frozen x `FREEZE_BREAK`) and they skid across the black ice (`slide`, `BLACK_ICE_SPEED` 15 m/s, `BLACK_ICE_STAGGER`
+  0.04 s apart, nearest him first) into the structure the indicator marks (env_target `black_ice`, the cursor may
+  choose, within `BLACK_ICE_REACH` 8 m of the pool: `BLACK_ICE_SKID_MULT` 0.7 x `BLACK_ICE_WALL_MULT` 2.4, "KLISSH!" and
+  `breaker_alt_fx.cool_wall`), or `BLACK_ICE_SKID` 5.5 m away from him to a stop (x0.7, the ice shatter). Best: the pool
+  by a wall or pillar (315 vs Maw's 250). Worst: the open (179).
+- **Cold Front** (Live Wire's air window, LMB, `EW` alt). The cubes are no longer thrown under the impact frame: a
+  tentacle from his hand tethers each and hoists it `COLD_HOIST` 0.7 m (`COLD_HOIST_T` 0.11 s, `CUBE_STAGGER` apart),
+  then throws it (the `tether` stays on it in flight) at its `cube_target`; each burst is a cold snap: "KRSSH!", the ice
+  shatter and a frost line along the floor where it went. Its situation is still Worldbreaker's split (cubes at
+  neighbours vs the floor), not a new one.
+- **Anvil** (Backdraft's / Impale's window, RMB, `XW` / `XK`). The first slam as before, then from `ANVIL_YANK_AT` 0.2 s
+  the tentacles yank the buried kebab back up out of its craters (`ANVIL_YANK_Y` 2 m) and drive it in again
+  (`ANVIL_TWO_MULT` 0.4, a crater each, three magma fissures out of each, "KRUNCH!"; ~33 a foe in the film). The anvil
+  pair in `void_arm_check` (open 406 vs Pinwheel 152, by a wall 406 vs 519) reads 0.5 s after the landing, before the
+  second slam lands, so Pinwheel's wall margin there is the first slam's.
+
+## Round 54 cool pass 3 (combo-cool3 lane)
+
+Round three against the same bar, this time on the mids and signatures (three beats, the tentacle or element visibly
+in control, a best situation on screen, a beat of its own) and the 3/4 endings. Films: `string_film -- --dir=cool3_before
+--no-awaken --fps=24` (42 strings) before, `--dir=cool3_after` (43) after, and each ending again with `--from=N --to=N
+--tail=1600` for its after-beat. Clips: `awaken-combo-clips/44 Cool3 *` (before left, after right, half speed). Numbers:
+`tests/cool3_check.gd` (breaker_impact at x1.0, the sweet press not included). Slots, inputs and windows unchanged
+(kit_check 23/23, 15/15); hand-overs unchanged (rhythm_check: GR->VS 200, GR->VR 179, VR->VD 317, L2->IP 318, IP->IJ
+414, EA->XS 235 ms, before and after). fx_coverage max 0.304 (budget 0.40; 0.313 before). One word at most a beat, no
+new banners; camera cues only through the existing `frame_cue_ms` meta, `camera_rig.punch()` and `jolt()`.
+
+### The mids ranked (before)
+
+| Score | Move | What it lacked |
+|---|---|---|
+| 1/4 | Frost Spear (L L H) | a thin stick and a puff; the slow is felt, never seen |
+| 1/4 | Reap (H L) | a crescent like any slash, a tiny mark; nothing chosen, nothing controlled |
+| 1/4 | Singularity (H H) | the hole opens off to the side and the pull is not drawn |
+| 1/4 | Steam Burst (Dash L H H L) | the cubes vanish into a generic orange burst |
+| 1/4 | Hailstorm (Dash L H H H) | a speck of whirl per cube, the cubes barely rise |
+| 2/4 | Rockslide, Deep Freeze (blocks pop at once), Overwhelm, Meltdown, Dash Stab (fine as a lunge), Black Tide (3/4 with far marks) | |
+| 3/4 | Updraft Lash, Fault Line, Backdraft, Impale, Tow Line, Undertow, Backlash | |
+| 4/4 | Live Wire, Galvanize, Molten Palm, Harpoon | |
+
+### Rebuilt (the five 1/4s)
+
+- **Reap** (`VR`, now 3/4). (1) the crescent as before; (2) a barbed ink hook (`reap_hook`) bites one more foe out to
+  `REAP_HOOK_REACH` 10 m in the cone: the foe pick `reap` (default the furthest outside the crescent, the cursor
+  chooses), x`REAP_HOOK_MULT` 0.6, marked; (3) if the crescent missed it, the tether yanks a light one to `REAP_YANK_TO` 2.2 m in front of him at
+  `REAP_YANK_SPEED` 24 m/s, the dark trail behind it. Best: a straggler you want in the pile before Black Tide, which
+  now hits the reaped first and x`REAP_TIDE_MULT` 1.4. Close up (all in the crescent) the hook takes the furthest cut.
+- **Singularity** (`VS`, 3/4). The hole reels: tentacles out of it on every light foe in `Hole.RADIUS` for
+  `SING_REEL_TIME` 1.2 s while it pulls (`mid_beats.reel`). With a foe held, the cursor on another (`singularity`,
+  within 8 m; cursor only) throws the held one onto it (`SING_ONTO_DAMAGE` 8) and the hole opens there. Best: a foe in
+  hand and a pile across the room.
+- **Steam Burst** (`XS`, 3/4). A lava fuse races from the fist to each frozen foe (`FUSE_STEP` 0.035 s a link) and a hot
+  steam column goes up where it meets the ice (`steam_shell` in the earth row) before the burst. Best: a row of cubes.
+- **Hailstorm** (`XG`, 3/4). One twister (`designed_twister`, 3.6 m) at the middle of the frozen draws the lifted cubes
+  `GALE_IN` 0.55 of the way in over 0.22 s, so Meltdown lands on a bunch. Best: cubes spread out.
+- **Frost Spear** (`IP`, 2/4). Frost lines race out along the floor from the spear to each foe in its radius and rime
+  takes their feet as they arrive (`SPEAR_RIME_SLOW` 0.3 for 0.9 s); the cursor on a foe (`spear`, 7.5 m) plants it at
+  that foe's feet so the vault and Deep Freeze come down in the crowd you chose. Still 2/4 in the bot film: the bot's
+  facing after L2 plants the spear away from the dummies, so the spread has nobody to reach (see "For Zak").
+
+### The 3/4 endings, a beat or a situation up
+
+- **Cold Front** (`EW` alt, 4/4). Its own situation: by a wall or pillar (structure pick `cold_front`, `COLD_REACH` 9 m)
+  the tentacles bowl each cube along the floor into it (`COLD_BOWL_SPEED` 17 m/s, through anyone in the way, x`COLD_WALL_MULT`
+  2.2 on the wall, the trail behind it); in the open it throws them at neighbours as before. Three cubes: wall 408 vs open
+  264. Bot string `wall alt L H L H` (each cube 257 on the wall in the film).
+- **Maw** (`VD`, 4/4). The hoist goes to `MAW_HOIST_Y` 2.1 m, jaws (`DARK.maw`, `MAW_HEAP_JAW_R` 1.6) open under the heap
+  and bite as it is slammed: hit stop `MAW_HEAP_STOP` 0.08, `camera_rig.punch(0.9, 0.15)`, a bigger word, a dark burst
+  and an ink ring.
+- **Grounded** (`EE`, 4/4). The charge goes to ground: from `GROUND_AT` 0.16 s after the landing a lime arc runs along
+  the floor foe to foe, nearest first `GROUND_STEP` 0.07 s apart, a bolt on each, x(`GROUND_MULT` 0.3 + `GROUND_PER` 0.1
+  a link). Best: the tight group the tentacles held.
+- **Worldbreaker** (`EW`, 4/4). The floor heaves: a magma crack from where he landed to each, and a geyser throws it
+  back up as it arrives, x`HEAVE_MULT` 0.35, launch `HEAVE_LAUNCH` 8. The open floor's ending; Cold Front the wall's.
+- **Cataclysm** (`XF`, 4/4). The aftershock: `AFTERSHOCK_AT` 0.24 s later the fault runs out to each crater again and a
+  bolt comes down in it, x`AFTERSHOCK_MULT` 0.35 on the `AFTERSHOCK_MOST` 2 nearest the landing. Best: a pair held (Tempest
+  still takes a crowd: five, Tempest 666 vs Cataclysm 589 in void_arm_check; a pair, Cataclysm 275 vs 144).
+- **Short Circuit** (`EE` alt, 4/4 with a spread crowd). The circuit closes: `LOOP_AFTER` 0.08 s after the last arc a
+  bolt runs from the last link back to the held, and everyone on the circuit takes x(`LOOP_MULT` 0.2 + `LOOP_PER` 0.05 a
+  link). With nobody outside the held (the bot's `spread_far` string) there is no circuit and no loop: still 3/4 there.
+- **Shatterstorm** (`EF`, 4/4). The storm chains: after the last thunder a bolt jumps cube to cube in the order they
+  broke (`CHAIN_AFTER` 0.1 s, `CHAIN_STEP` 0.04 s), x`CHAIN_MULT` 0.3 each. Best: a long row Harpoon gathered in the open.
+- **Ricochet** (`CB`, 4/4). The throw draws the dark trail behind the attacker (`counter.RICOCHET_TRAIL` 0.6 s).
+- Not raised: **Worldbreaker / Cold Front** share one window, so this round has two endings there, no more. **Short
+  Circuit** reads only with a crowd spread past the held.
+
+Each second beat counts on `void_element.ground_beats` (cool3_check: Grounded 3, Worldbreaker 3, Short
+Circuit 2, Shatterstorm 2, Cataclysm 2 on three foes).
+
+### Backlash / Ricochet polish (counter window timings unchanged)
+
+A `parry_glint` flick over the clash in real time, the attacker's cleaver (`parry_blade`) knocked out of its grip and
+spun off on an arc away from him to clatter down with a dust puff, a harder punch (`counter.PUNCH` 0.86, perfect 0.78)
+and a jolt along the blow (`JOLT` 0.16 / 0.26 at 16 Hz). Backlash 3/4 -> 4/4.
+
+### After
+
+| Score | Move |
+|---|---|
+| 2/4 | Frost Spear (in the bot film), Rockslide, Deep Freeze, Overwhelm, Meltdown, Dash Stab |
+| 3/4 | Reap, Singularity, Steam Burst, Hailstorm, Black Tide (Reap's yank feeds it), Updraft Lash, Fault Line, Backdraft, Impale, Tow Line, Undertow |
+| 4/4 | Live Wire, Galvanize, Molten Palm, Harpoon, Backlash |
+
+Endings: Cold Front, Maw, Grounded, Worldbreaker, Cataclysm, Shatterstorm, Ricochet 4/4; Short Circuit 4/4 with a
+spread crowd. Next: Rockslide, Deep Freeze (pop the blocks in a wave), Overwhelm, Meltdown, Frost Spear's default plant.
+
+## Round 54: hang framing, counting banner, Collapse's spits, Uproot's rubble (camera-hang lane)
+
+Feel audit 6 item 10. The camera side is in [camera.md](camera.md) ("Hang framing"), and the numbers are in
+[impact-feedback.md](impact-feedback.md).
+
+- **Every ending is framed.** The breaker scene takes every foe the ending acts on and its cued structure. It zooms
+  out first, to x1.4, and leans only for what the zoom can't hold. Endings with no cue of their own (Cold Front,
+  Black Ice, Maw, Worldbreaker, Meteor Fall, Shatterstorm, Slapshot, Tempest, Collapse) get it as well.
+  `camera_feel_check` plays one string per ending and holds the worst actor inside 0.9 of the half-screen at the
+  landing and over the payoff. Cold Front's bar is 1.0.
+- **The banner counts up** as the beats land, as Live Wire does: Eruption, Shatterstorm, Slapshot, Tempest, Flash
+  Freeze's chain and Collapse's spits.
+- **The banner move.** It still cuts down with a pop (`Screen.CALL_MOVE` "cut"). `--banner=slide` plays the
+  alternative: two frames on twos (`CALL_SLIDE_STEPS`: 20% of the way at alpha 0.4, then 80% at 0.65), then whole at
+  the bottom with the pop. It never rests on the middle. Zak's call, see camera.md. `Screen.dodged` counts the dodges.
+- **Collapse's spits stay on screen** (`collapse_spit.spit_way`). A structure the indicator picked still takes the
+  throw: `void_element._collapse_spit` aims it at the face. In the open, the spit leaves on the side with the most
+  room on screen. It tries `SPIT_DIRS` 16 ways round the hole, scores where each would land `SPIT_REACH` 5 m out, and
+  keeps the landing inside `SPIT_EDGE` 0.8. Each spit after the first fans `SPIT_FAN` 0.55 rad off the last, unless
+  that runs off. The foe is set down `SPIT_SET` 0.6 m out on that side, so the throw from the hole's middle goes that
+  way. With no camera it falls back to the old ring.
+- **Uproot's rubble erodes** (`env_piece._erode`). `RUBBLE_HOLD_S` 1.2 s after the topple (the club has landed by
+  then), the pillar lying there and its heaps get a designed dust puff each. They then sink `RUBBLE_SINK` 1.3 m into
+  the floor over `RUBBLE_ERODE_S` 2.8 s, eased in, with a second puff halfway, and hide: about 4 s in all, on real
+  time. A room that keeps pieces gone (`rebuild: false`) also gets a low flat rubble decal along the fall line
+  (`RUBBLE_DECAL` floor_tile_large_rocks at `RUBBLE_DECAL_H` 0.25 height). The decal joins `env_leftovers`, so a
+  rebuild clears it. `rebuild()` stops an erosion in progress. `env_piece.eroded` counts them.
+
+## Round 55 cool pass 4 (combo-cool4 lane)
+
+Round four on the six mids still at 2/4, Frost Spear's default plant, Maw's heap and the picks never filmed. Zak:
+"keep iterating, sticking to the scheme; make them amazing; the structure / foe pick is amazing, use it where control
+makes sense" (no ice crystals; tentacle control, wind and lightning). Films: `string_film -- --dir=cool4_before
+--no-awaken --fps=24` before, `--dir=cool4_a1` after (43 strings), `--from=4 --to=16` again after tuning, `--from=N
+--to=N --tail=1600` for Short Circuit and Maw; the picks with the new windowed `tests/pick_film.gd -- --case=<name>`
+(a drawn pointer where `env_target.test_cursor` stands in for the mouse). Clips: `awaken-combo-clips/45 Cool4 *`.
+Numbers: `tests/cool4_check.gd`. Slots, inputs and windows unchanged (kit_check 23/23, 15/15); hand-overs unchanged (no `MOVES`
+timing touched; rhythm_check PASS).
+fx_coverage max 0.312 (budget 0.40). A word at most per mid, said on its beat (`ComicFx.LATE_WORDS` + `XR`, `IS`,
+`XM`, `OW`, `VD`; `MID_WORD_SIZE` 0.5); no new sheets (the boulder is `rock_boulder`, the globs `meteor_shell`); the
+camera only through `camera_rig.punch()`.
+
+### The mids ranked (before)
+
+| Score | Move | What it lacked |
+|---|---|---|
+| 2/4 | Frost Spear (L L H) | planted along his facing: after a turning L2 the frost had nobody to reach |
+| 2/4 | Rockslide (L H L L) | the hammer comes down and everyone craters; nothing falls, nothing chosen |
+| 2/4 | Deep Freeze (L L H L H) | every block pops on the same frame |
+| 2/4 | Overwhelm (hold H) | the pool and tendrils hold, nobody is moved; the pick is there but pays nothing |
+| 2/4 | Meltdown (Dash L H H H L) | one sweep for all; molten on everyone it reached |
+| 2/4 | Dash Stab (Dash > L) | a lunge with a lash along his facing that cuts and snaps back empty |
+| 3/4 | Black Tide (H L H) | the marked fly in on their own; no tentacle seen doing it, no beat on arrival |
+| 4/4 ending | Maw | the heap's second set of jaws read as one more heap, not as a knock |
+
+### Rebuilt
+
+- **Frost Spear** (`IP`, 3/4). The plant's default is now the env_target `spear` pick's auto (`spear_auto`): the foe
+  within `SPEAR_PICK_REACH` 7.5 m with the most others within `SPEAR_GROUP_R` 3 m (nearest on a tie); the spear goes in
+  at its feet and the bracket shows it from the start-up. The cursor still overrides. With no two standing together,
+  ahead as before. Bot film: the spear lands in the crowd and the frost reaches all three.
+- **Deep Freeze** (`IS`, 4/4). The pop is a wave: the `deep_freeze` foe pick (opened off the vault once H is buffered;
+  default `deep_freeze_auto`, the block nearest the spear) pops first, x`DF_FIRST_MULT` 1.5, then each block in order of
+  distance from it `DF_STEP` 0.07 s apart (`deep_freeze_order`, `DF_MOST` 8), a frost fissure from the one before and
+  a `DF_POP_STOP` 0.035 stop on each after the first, the word on the last. Past the frost's edge only foes within
+  `DF_LINK` 3.2 m of the first block join, so the pick decides which side the wave carries out to (cool4_check: the
+  straggler at 7.4 m is reached from its side, not from the other). Avalanche's hold pops any block still to come as
+  its window opens (`deep_freeze_flush`, called from `void_grab.seize`), so its tentacles take every cube.
+- **Rockslide** (`XR`, 3/4). Three beats: the gale drags everyone airborne within `ROCKSLIDE_GALE_R` 6 m in to
+  `ROCKSLIDE_RING` 0.9 m round the `rockslide` pick (default `rockslide_auto`: the most others round it, the airborne
+  counting double; `ROCKSLIDE_PICK_REACH` 7 m), gusts drawn; a boulder (`MID_BEATS.boulder_drop`, `rock_boulder` frame 0,
+  `DROP_SIZE` 1.6) falls from `ROCKSLIDE_DROP_Y` 3.2 m over `ROCKSLIDE_FALL` 0.18 s; the landing (`_rockslide_land`):
+  the hit, x`ROCKSLIDE_AIR_MULT` 2 on those the gale brought, buried, `ROCKSLIDE_STOP` 0.06, dust, a ring and the word.
+  Best: a pair the air slash lifted and one standing where you want the pile.
+- **Meltdown** (`XM`, 3/4). The molten hammer picks its block (`meltdown` pick, default `meltdown_auto`: the most others
+  within `MELT_SPLASH_R` 3.2 m): that one takes x`MELT_HEART_MULT` 1.6, a `MELT_HEART_STOP` 0.07 stop, the burst
+  (`DESIGNED_FINISH.erupt`) and the word; burning globs (`MID_BEATS.glob`, `GLOB_SIZE` 0.7) fly from it to the rest
+  `MELT_STEP` 0.06 s apart. Only those within `MELT_SPLASH_R` of the first are `molten`, so the pick decides who
+  Eruption burns (cool4_check: the bunch lit, the loner 6.5 m off not).
+- **Overwhelm** (`OW`, 3/4). The pick now pays: after the bind the pool's tentacles drag every other light foe in it
+  to `OW_PILE_RING` 1 m round the pinned one (`OW_DRAG` 0.22 s, tethered from the pool), then a tentacle hauls the
+  pinned one up `OW_LIFT` 2 m (`OW_UP` 0.12, `OW_HOLD` 0.09, `OW_DOWN` 0.06; `tentacle_haul`) and slams it into the pile:
+  `OW_SLAM_DAMAGE` 10, `OW_SLAM_STOP` 0.07, `camera_rig.punch(0.92, 0.12)`, a burst, a ring and the word. Abyss's window
+  then has them together. Heavy foes are not hauled (they slow as before).
+- **Black Tide** (`VD`, 4/4 with spread marks). The tentacles do the drag: each marked one is tethered out of the pool
+  (`thrown_foe` `rope_from`, the reaped first) and arrives staggered (`TIDE_FIRST` 0.55 + `TIDE_STEP` 0.15 a foe of
+  `TIDE_ARRIVE`); each arrival knocks the pile (`_tide_knock`: `TIDE_KNOCK` 4 x (1 + `TIDE_KNOCK_PER` 0.5 per one
+  already there)); the last gets a `TIDE_GULP_STOP` 0.06 stop, a burst, the word and a ring. The bot's dummies stand
+  close, so its drag is short (3/4 there).
+- **Dash Stab** (`DL`, 3/4 with a straggler). The claw's lash aims (`claw_lash._aim_catch`: the furthest light foe
+  within `AIM_CONE` 50 degrees of the aim-lock line, `AIM_RANGE` 8 m) and catches: at the turn its barb takes the
+  furthest light foe it cut `CATCH_MIN` 3.2 m or more out and the back leg reels it in to `CATCH_TO` 1.7 m in front of
+  him, a snap hit with a `CATCH_STOP` 0.05 stop as it arrives; it lets go once he leaves Dash Stab. Best: one behind
+  the foe he lunged at (pick film `dash_stab`). With the bot's close dummies there is nobody to catch: 2/4 there.
+- **Maw** (4/4). The heap's jaws are gone (they are the bite's alone). The hoisted meet head to head over the middle
+  (`top` above `MAW_HEAP` toward him at `MAW_HOIST_Y` 2.1 m, held `MAW_KNOCK_HOLD` 0.09 s): KONK at that height
+  (`tentacle_haul.on_top`), `MAW_HEAP_STOP` 0.08, `punch(0.88, 0.15)`, a burst and a designed hit; then the heap is
+  slammed into the pool together for x`MAW_SLAM_MULT` 0.2, dust, a splat and a ring as wide as the pool.
+
+### Picks on film (pick_film)
+
+`singularity` (the held one thrown onto the far pair), `spear` (the bracket on the near pair, the pointer moves to the
+far pair, the spear goes in there), `reap` (the hook's bracket switched to the right), `tow` (the anchor switched),
+`rockslide` (the boulder on the pair the pointer chose), `deep_freeze` (the wave from the picked block), `dash_stab`
+(no cursor: the lash reels in the one behind). Short Circuit's loop with a foe outside the held: `string_film
+--from=25 --to=25 --tail=1600`.
+
+### After
+
+| Score | Move |
+|---|---|
+| 2/4 | none in the mids (Dash Stab with nobody behind) |
+| 3/4 | Frost Spear, Rockslide, Meltdown, Overwhelm, Dash Stab, Reap, Singularity, Steam Burst, Hailstorm, Updraft Lash, Fault Line, Backdraft, Impale, Tow Line, Undertow |
+| 4/4 | Deep Freeze, Black Tide (spread marks), Live Wire, Galvanize, Molten Palm, Harpoon, Backlash |
+
+Endings unchanged at 4/4; Maw's knock now reads as its own beat. Next: Overwhelm's pool reads busy behind the slam;
+Rockslide's boulder is small at the camera's distance; the 3/4 mids want a best situation the bot film shows.

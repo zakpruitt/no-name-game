@@ -20,6 +20,15 @@ const BY_ROLE := {
 const RUN_ONESHOTS := ["Run_Start", "Run_Stop"]
 const RUN_ONESHOT_KINDS := ["rogue", "minion"]
 const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
+## Comic pieces with no KayKit twin (env-art lane, tools/comic_art/env_*.py): their size (Godot axes, the merged
+## mesh bounds as _bounds() measures them) and the nodes the game reaches for (a state swap hides or re-skins them).
+const COMIC_ONLY := {
+	"brazier": {"size": Vector3(1.39, 1.37, 1.49), "nodes": ["brazier_coals", "brazier_ash", "brazier_flame"]},
+	"brazier_spilled": {"size": Vector3(2.09, 1.62, 2.2), "nodes": ["brazier_coals", "brazier_flame"]},
+	"hook_chain": {"size": Vector3(0.91, 2.62, 0.75), "nodes": ["hook_swing"]},
+	"pool": {"size": Vector3(4.0, 0.28, 4.0), "nodes": ["pool_water"]},
+	"ledge": {"size": Vector3(8.1, 1.38, 2.06), "nodes": []},
+}
 const AXE_AHEAD_MAX := 0.45  # m in front of him, axe head, in anything he holds
 const MOVE_TAIL_FROM := 0.75  # abilities.into_guard: from here a move's arms ease into the guard
 const BOSS_ONLY := ["Enrage", "Jump_Idle", "Jump_Land", "Spellcast_Shoot"]
@@ -434,18 +443,25 @@ func _check_dungeon() -> void:
 			missing.append(piece)
 			continue
 		var comic: Node3D = load(Look.PIECE_PATH % piece).instantiate()
-		var kaykit: Node3D = load(Look.KAYKIT_PIECE_PATH % piece).instantiate()
 		var a: Vector3 = _bounds(comic).size
-		var b: Vector3 = _bounds(kaykit).size
-		_expect(a.distance_to(b) < PIECE_SIZE_SLACK, "%s: size %s vs KayKit %s" % [piece, a, b])
+		if COMIC_ONLY.has(piece):
+			_expect(a.distance_to(COMIC_ONLY[piece].size) < PIECE_SIZE_SLACK, "%s: size %s vs its own %s" % [piece, a, COMIC_ONLY[piece].size])
+			for node: String in COMIC_ONLY[piece].nodes:
+				_expect(comic.find_child(node, true, false) != null, "%s: has node %s" % [piece, node])
+		else:
+			var kaykit: Node3D = load(Look.KAYKIT_PIECE_PATH % piece).instantiate()
+			var b: Vector3 = _bounds(kaykit).size
+			_expect(a.distance_to(b) < PIECE_SIZE_SLACK, "%s: size %s vs KayKit %s" % [piece, a, b])
+			kaykit.free()
 		for mat: String in Look.material_names(comic):
 			_expect(Look.known_material(mat), "%s: material %s has tones" % [piece, mat])
 		for mi: MeshInstance3D in comic.find_children("*", "MeshInstance3D", true, false):
 			for i in mi.mesh.get_surface_count():
 				_expect(mi.mesh.surface_get_arrays(i)[Mesh.ARRAY_COLOR] != null, "%s: `g` imported" % piece)
 		comic.free()
-		kaykit.free()
 	_expect(missing.is_empty(), "comic set has every dungeon piece, missing %s" % [missing])
+	for piece: String in COMIC_ONLY:
+		_expect(piece in pieces, "comic-only piece %s is named by env_piece.gd / rooms.gd" % piece)
 	_expect(Look.comic_piece("no_such_piece") == null, "absent piece: null, caller keeps KayKit")
 
 
@@ -485,7 +501,7 @@ func _bounds(root: Node3D) -> AABB:
 ## The game culls and Blender doesn't, so a stone facing down never shows in a Blender render:
 ## the floor just turns into a checker of dark grout.
 func _check_floors_face_up() -> void:
-	for piece: String in ["floor_tile_large", "floor_tile_large_rocks", "floor_tile_big_grate", "floor_tile_big_spikes"]:
+	for piece: String in ["floor_tile_large", "floor_tile_large_rocks", "floor_tile_big_grate", "floor_tile_big_spikes", "pool"]:
 		var n: Node = load("res://assets/comic/dungeon/%s.glb" % piece).instantiate()
 		var stones := 0
 		var down := 0

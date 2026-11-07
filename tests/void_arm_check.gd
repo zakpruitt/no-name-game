@@ -799,6 +799,7 @@ func _spear_string() -> void:
 	hero.bot_enabled = true
 	hero._start_attack("IS")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return near.frozen and far.frozen and big.frozen, 1.0)  # (round 55: the blocks pop as a wave)
 	var gap := Vector2(hero.global_position.x - there.x, hero.global_position.z - there.z).length()
 	_check(gap < 1.2, "and comes down on the spear (%.1f m off)" % gap)
 	_check(SPEAR.current(self) == null, "it goes off")
@@ -820,11 +821,21 @@ func _spear_string() -> void:
 			break
 	_check(hero.breakers_landed == landed + 1, "Avalanche lands")
 	_check(top > 2.0, "the cubes go up first (%.1f m)" % top)
-	_check(absf(far.global_position.y) < 0.05, "and land on the floor (%.2f)" % far.global_position.y)
-	_check(near.global_position.distance_to(far.global_position) < 2.2 and near.global_position.distance_to(far.global_position) < apart, "slammed together (%.1f m, from %.1f)" % [near.global_position.distance_to(far.global_position), apart])
-	_check(big.global_position.distance_to(far.global_position) < 2.2, "all of them (%.1f m)" % big.global_position.distance_to(far.global_position))
-	_check(not far.has_meta("thrown_foe_flying"), "not thrown away")
+	# Round 51 cool pass: the dive stacks them into a tower on the pile; the landing crushes it and it topples.
+	var ys: Array = [near, far, big].map(func(f: Node3D) -> float: return f.global_position.y)
+	var flat_gap := Vector2(near.global_position.x - far.global_position.x, near.global_position.z - far.global_position.z).length()
+	_check(ys.max() - ys.min() > 2.0 and ys.min() < 0.05, "stacked into a tower (%s)" % str(ys.map(func(y: float) -> float: return snappedf(y, 0.1))))
+	_check(flat_gap < 0.5 and flat_gap < apart, "slammed together (%.1f m, from %.1f)" % [flat_gap, apart])
+	_check(Vector2(big.global_position.x - far.global_position.x, big.global_position.z - far.global_position.z).length() < 0.5, "all of them")
 	_check(far.hp < hp, "and it hurts (%.0f)" % (hp - far.hp))
+	var pile: Vector3 = hero._void.dark_spot
+	await create_timer(1.4).timeout
+	for i in 30:
+		await physics_frame
+	_check(absf(far.global_position.y) < 0.05 and absf(near.global_position.y) < 0.05, "the tower falls: down on the floor (%.2f)" % far.global_position.y)
+	_check(not far.has_meta("thrown_foe_flying"), "and comes to rest")
+	var spread: Array = [near, far, big].map(func(f: Node3D) -> float: return snappedf(Vector2(f.global_position.x - pile.x, f.global_position.z - pile.z).length(), 0.1))
+	_check(spread.max() > 2.0, "the cubes slide off it along the fall (%s)" % str(spread))
 	_check(hero.global_position.distance_to(hero._void.dark_spot) > 2.5, "he lands beside the pile, not under it (%.1f m)" % hero.global_position.distance_to(hero._void.dark_spot))
 	hero.bot_enabled = false
 	for f: Node3D in [near, far, out, big]:
@@ -1028,6 +1039,7 @@ func _crossovers() -> void:
 	var down := _foe(Vector3(-1, 0, 2))
 	hero._start_attack("XR")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await create_timer(el.ROCKSLIDE_FALL + 0.1).timeout  # (round 55: the boulder lands ROCKSLIDE_FALL s after the blow)
 	_check(up.last_kb.y < 0.0 and down.last_kb.y < 0.0, "Rockslide drives them both down (craters)")
 	_check(500.0 - up.hp > (500.0 - down.hp) * 1.9, "the one in the air takes double (%.0f vs %.0f)" % [500.0 - up.hp, 500.0 - down.hp])
 	_check(hero._void.buried == [up], "and Fault Line knows who it buried")
@@ -1111,8 +1123,11 @@ func _crossovers() -> void:
 	_check(el.in_cube(pooled), "Black Ice freezes the pool with it in")
 	var b: Dictionary = el.entry("VD")
 	b.merge(b.alt, true)
+	var pool_at: Vector3 = pooled.global_position
 	el.breaker_impact(hero, b, Vector3(0, 0, 2), [], 1.0)
-	_check(pooled.hp < 500.0 and pooled.last_kb.y < 0.0, "and the landing shatters it into the floor")
+	await create_timer(0.8).timeout  # (round 52: the block skids out across the black ice and bursts where it stops)
+	var skid: float = Vector2(pooled.global_position.x - pool_at.x, pooled.global_position.z - pool_at.z).length()
+	_check(pooled.hp < 500.0 and skid > 2.0 and not el.in_cube(pooled), "and the landing skids its block out across the ice to burst (%.1f m, %.0f)" % [skid, 500.0 - pooled.hp])
 	pooled.free()
 	await _settle()
 
@@ -1462,7 +1477,8 @@ func _three_elements() -> void:
 	hp_ice = ice.hp
 	hp_warm = warm.hp
 	el.breaker_impact(hero, be, Vector3(0, 0, 1), [], 1.0)
-	_check(hp_ice - ice.hp > (hp_warm - warm.hp) * 1.9 and ice.last_launch > 0.0, "Eruption throws them up, the molten hardest (%.0f vs %.0f)" % [hp_ice - ice.hp, hp_warm - warm.hp])
+	await create_timer(0.8).timeout  # (round 52: the fuse reaches each, the geyser heaves it, the column drops it)
+	_check(hp_ice - ice.hp > (hp_warm - warm.hp) * 1.7 and ice.last_kb.y < 0.0, "Eruption heaves them and drops them back (no wall), the molten hardest (%.0f vs %.0f)" % [hp_ice - ice.hp, hp_warm - warm.hp])  # (1.4 / 0.7 on each beat; the frozen / airborne payoffs blur it)
 	ice.free()
 	warm.free()
 	floor_ice.free()
@@ -1561,7 +1577,11 @@ func _dark() -> void:
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Collapse lands")
 	_check(get_nodes_in_group("dark_hole").is_empty(), "the hole's gone")
-	_check(hp - other.hp >= 40.0, "and it hits hard (%.0f)" % (hp - other.hp))
+	await create_timer(0.2).timeout
+	_check(other.global_position.y < -0.5, "it swallows them, under the floor (%.1f m)" % other.global_position.y)
+	await create_timer(0.8).timeout  # (round 51 cool pass: swallowed, then spat out one at a time)
+	_check(hp - other.hp >= 40.0, "and spits them back out, hard (%.0f)" % (hp - other.hp))
+	_check(other.global_position.y > -0.05, "up out of the floor (%.1f m)" % other.global_position.y)
 	_check(Vector2(hero.global_position.x - spot.x, hero.global_position.z - spot.z).length() < 2.5, "he came down at it")
 	hero.bot_enabled = false
 	await _settle()
@@ -1624,9 +1644,13 @@ func _dark() -> void:
 	hp = held.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Abyss lands")
-	_check(hp - held.hp >= 40.0, "and it hurts (%.0f)" % (hp - held.hp))
 	await create_timer(0.05).timeout
 	_check(not is_instance_valid(hero._void.dark_bind) or hero._void.dark_bind.is_queued_for_deletion(), "and lets go of them")
+	await _until(func() -> bool: return held.global_position.y > 1.2, 0.6)
+	_check(held.global_position.y > 1.2, "the column carries it up out of the floor (%.1f m)" % held.global_position.y)
+	await create_timer(0.8).timeout
+	_check(hp - held.hp >= 40.0, "and slams it back down: it hurts (%.0f)" % (hp - held.hp))
+	_check(absf(held.global_position.y) < 0.05 and absf(other.global_position.y) < 0.05, "both back on the floor")
 	hero.bot_enabled = false
 	for f: Node3D in [held, other, big, far]:
 		f.free()
@@ -1657,7 +1681,8 @@ func _tentacle_alone() -> void:
 	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
 	await create_timer(0.7).timeout
 	_check(big.hp < big_hp, "Overwhelm works on big foes (%.0f)" % (big_hp - big.hp))
-	_check(a.global_position.distance_to(pin) < 0.3, "and pins small ones")
+	# (round 55: the pool's tentacles drag the rest onto the pinned one, OW_PILE_RING round it, and hold them there)
+	_check(a.global_position.distance_to(pin) < 0.3 or _flat_d(a.global_position, big.global_position) < 1.3, "and pins small ones")
 	big.free()
 	await _settle()
 	# Tow Line: who he passed, yanked together.
@@ -1827,68 +1852,8 @@ func _breaker_pairs() -> void:
 	print("  cataclysm pair: crowd of five cataclysm %.0f / tempest %.0f, a pair cataclysm %.0f / tempest %.0f" % [dealt.cata_crowd, dealt.temp_crowd, dealt.cata_pair, dealt.temp_pair])
 	_check(dealt.temp_crowd > dealt.cata_crowd, "a crowd: Tempest out-damages Cataclysm (%.0f vs %.0f)" % [dealt.temp_crowd, dealt.cata_crowd])
 	_check(dealt.cata_pair > dealt.temp_pair, "a pair: Cataclysm out-damages Tempest (%.0f vs %.0f)" % [dealt.cata_pair, dealt.temp_pair])
-	await _uproot_pair(ve)
 	hero.bot_alt = false
 	hero.bot_enabled = false
-
-
-## Abyss / Uproot (OW, round 51 env-pieces): a big foe 4 m from a pillar with one more on the line the pillar falls
-## along, or the same two in the open. Uproot wins by the pillar, Abyss in the open; the pillar is out of the swing
-## anchors after, laid down along the line.
-func _uproot_pair(ve: GDScript) -> void:
-	var EP: GDScript = load("res://scripts/env_piece.gd")
-	var dealt := {}
-	for case: String in ["abyss_pillar", "uproot_pillar", "abyss_open", "uproot_open"]:
-		hero.global_position = Vector3.ZERO
-		hero._face(Vector3(0, 0, 1))
-		hero.model.position.y = 0.0
-		hero.bot_alt = case.begins_with("uproot")
-		var pillar: Node3D = null
-		if case.ends_with("pillar"):
-			pillar = Node3D.new()
-			world.add_child(pillar)
-			pillar.global_position = Vector3(0, 0, 8)
-			pillar.set_meta(EP.TAG_META, "pillar")
-			pillar.set_meta(EP.STATE_META, "whole")
-			pillar.add_to_group("env_pillar")
-			pillar.add_to_group("grab_anchors")
-		var big := _foe(Vector3(0, 0, 4))
-		big.radius = 1.0
-		var other := _foe(Vector3(0.8, 0, 6))
-		var foes: Array = [big, other]
-		await physics_frame
-		var before: Array = foes.map(func(f: Foe) -> float: return f.hp)
-		var landed: int = hero.breakers_landed
-		hero._start_attack("OW")
-		await _until(func() -> bool: return hero.state == hero.State.LEAP, 3.0)
-		var opts: Array = hero.breaker_window().get("options", [])
-		_check(opts.size() == 2 and opts[0].button == "light" and opts[0].name == "Uproot" and opts[1].name == "Abyss",
-			"%s: the window offers LMB Uproot, RMB Abyss (%s)" % [case, str(opts)])
-		await _until(func() -> bool: return hero.breakers_landed > landed, 4.0)
-		_check(hero.breakers_landed > landed, "%s: lands" % case)
-		await create_timer(0.6, true, false, true).timeout  # (the club comes down on real time)
-		for i in 20:
-			await physics_frame
-		var sum := 0.0
-		for i in foes.size():
-			sum += before[i] - foes[i].hp
-		dealt[case] = sum
-		if case == "uproot_pillar":
-			_check(not pillar.is_in_group("grab_anchors") and EP.state(pillar) == "toppled", "Uproot leaves the pillar toppled, out of the swing anchors (%s)" % EP.state(pillar))
-			_check(pillar.global_transform.basis.y.dot(Vector3(0, 0, -1)) > 0.9, "laid down along the line to the foe (%s)" % str(pillar.global_transform.basis.y))
-			_check(ve.marked(big, "buried") and ve.marked(other, "buried"), "the foe and the one on the line are buried")
-		if pillar != null:
-			for l: Variant in pillar.get_meta(&"env_leftovers", []):
-				if is_instance_valid(l):
-					l.free()
-			pillar.free()
-		for f: Foe in foes:
-			f.free()
-		await _settle()
-	print("  abyss pair: by a pillar abyss %.0f / uproot %.0f, open abyss %.0f / uproot %.0f" % [dealt.abyss_pillar, dealt.uproot_pillar, dealt.abyss_open, dealt.uproot_open])
-	_check(dealt.uproot_pillar > dealt.abyss_pillar * 1.3, "a big foe by a pillar: Uproot out-damages Abyss (%.0f vs %.0f)" % [dealt.uproot_pillar, dealt.abyss_pillar])
-	_check(dealt.abyss_open > dealt.uproot_open * 1.5, "in the open: Abyss out-damages Uproot (%.0f vs %.0f)" % [dealt.abyss_open, dealt.uproot_open])
-	hero.bot_alt = false
 
 
 func _wall(at: Vector3) -> StaticBody3D:
@@ -1931,6 +1896,7 @@ func _spear_by_hand(vault_button: String) -> void:
 	await _until(func() -> bool: return hero._move_id == "IS", 2.0)
 	_check(hero._move_id == "IS", "right click comes down on it (%s)" % hero._move_id)
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	await _until(func() -> bool: return near.frozen and far.frozen, 1.0)  # (round 55: the wave)
 	_check(near.frozen and far.frozen, "and they freeze")
 	_check(SPEAR.current(self) == null, "and the spear's gone")
 	await _until(func() -> bool: return hero.state == hero.State.LEAP, 2.0)
@@ -2001,3 +1967,7 @@ func _check(ok: bool, what: String) -> void:
 	if not ok:
 		fails += 1
 		print("  FAIL: ", what)
+
+
+func _flat_d(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()

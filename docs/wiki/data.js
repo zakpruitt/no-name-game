@@ -157,7 +157,7 @@ window.WIKI = {
    "damage": 42.0,
    "erupt": "earth",
    "name": "Eruption",
-   "word": "BLOOORRM!"
+   "word": "KA-BLOOOSH!"
   },
   "XS": {
    "awaken": 12.0,
@@ -165,7 +165,7 @@ window.WIKI = {
    "damage": 30.0,
    "erupt": "water",
    "name": "Flash Freeze",
-   "word": "FSSHINK!"
+   "word": "FSSSH-KRAK!"
   },
   "XW": {
    "alt": {
@@ -456,6 +456,7 @@ window.WIKI = {
  ],
  "kit_upgrades": {
   "arc_flash": "charged x magma cell (the throw)",
+  "brazier_spill": "brazier x magma: Lava Leash's seam tips a lit brazier in (the coals run the seam on, a molten patch 4 s), Hellseam erupts from it x1.25",
   "conduct": "charged x dark cell",
   "firestorm": "molten x storm cell: launched, the flames catch the one beside it (rule: burst)",
   "flare_up": "molten x magma cell: the floor erupts under it (own element: the move's own)",
@@ -463,6 +464,8 @@ window.WIKI = {
   "frozen_dark": "bound x ice cell: frozen where the tendrils hold it (rule: snap)",
   "frozen_in": "buried x ice cell: frozen where it is stuck in the floor (rule: crater)",
   "gale_lift": "frozen x storm cell: the gale takes the cube up, still in its ice (rule: shatter)",
+  "gallows": "hook x dark: a perfect counter's Ricochet hangs the attacker on a hook in reach, bound 2.5 s, wall damage x1.3, every hit on it a Snap",
+  "ice_rink": "pool x ice: ice by a pool freezes it 6 s; cubes slide across it at full speed 6 m further, foes knocked onto it slide and freeze",
   "ice_spreads": "skewered x ice cell: the spear's ice climbs onto the nearest foe and skewers it (own element: nothing)",
   "meteor_spike": "airborne x magma cell: driven down into a crater x1.5 (rule: juggle)",
   "overload": "charged x storm cell beyond the shared charged rule",
@@ -1005,6 +1008,30 @@ window.WIKI = {
      "name": "Storm Pitch",
      "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass.",
      "tag": "upgrade"
+    },
+    {
+     "input": "perfect counter by a hook",
+     "kind": "text",
+     "name": "Gallows",
+     "note": "Upgrade: Ricochet hangs the attacker on a hook in reach: the wall's hit x1.3, then bound 2.5 s, swinging; any hit on it is a Snap.",
+     "tier": 2,
+     "upgrade": "gallows"
+    },
+    {
+     "input": "ice by a pool",
+     "kind": "text",
+     "name": "Ice Rink",
+     "note": "Upgrade: The pool freezes over for 6 s. Cubes slide across it at full speed and 6 m further (Slapshot reaches a far wall); a foe knocked onto it slides on, frozen.",
+     "tier": 2,
+     "upgrade": "ice_rink"
+    },
+    {
+     "input": "Lava Leash by a brazier",
+     "kind": "text",
+     "name": "Brazier Spill",
+     "note": "Upgrade: The seam tips a lit brazier in: the coals run the seam on and leave a molten patch, and Hellseam erupts from them too. Magma lights an out one.",
+     "tier": 2,
+     "upgrade": "brazier_spill"
     }
    ],
    "title": "UPGRADES"

@@ -12,6 +12,7 @@ const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the faceted ice block
 const ENV := preload("res://scripts/env_target.gd")  # round 50: the wall or pillar it hit plays its beat
 const ENV_PIECE := preload("res://scripts/env_piece.gd")  # round 51: a barrel, crate or chest it stops on, spikes it lands on
+const FLOURISH := preload("res://scripts/env_flourish.gd")  # round 53: ice_rink (a cube's slide over a frozen pool)
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -62,6 +63,10 @@ var splash := true
 var spin := CUBE_SPIN
 var on_burst := Callable()
 var wall_gap := 0.0  # m more it stops short of a wall (Slapshot: its fitted ice's reach past WALL_MARGIN)
+## Round 55 cool pass 4: a tether drawn from rope_from (a floor point: Black Tide's pool) instead of his hand, and
+## on_end(foe) when a quiet flight gets where it was going (not when cut()).
+var rope_from := Vector3.INF
+var on_end := Callable()
 const SLIDE_END := 0.3
 var _zaps := 0
 var _next_zap := 0.0
@@ -71,6 +76,7 @@ var _length := 0.0
 var _gone := 0.0
 var _walled := false
 var _piece: Node3D = null  # round 51: the piece it will stop on (env_piece.gd), found when it's aimed
+var _rink := false  # round 53 (ice_rink): its line crosses a frozen pool: RINK_EXTRA m further, and it never slows
 var _struck := {}
 var _rope: Node3D
 var _time := 0.0
@@ -216,9 +222,15 @@ func _aim(to: Vector3) -> void:
 	_from = foe.global_position
 	var flat := Vector3(to.x - _from.x, 0.0, to.z - _from.z)
 	_dir = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
-	var clear := _clear(flat.length())
-	_walled = clear < flat.length()
-	_length = minf(flat.length(), clear)
+	var want := flat.length()
+	if slide or el == "water" or foe.get_node_or_null(CUBE_NAME) != null:  # (a cube: it slides on a frozen pool)
+		var extra := FLOURISH.rink_extra(foe.get_tree(), _from, _dir, want)
+		if extra > 0.0:
+			_rink = true
+			want += extra
+	var clear := _clear(want)
+	_walled = clear < want
+	_length = minf(want, clear)
 	if _walled:  # (found now: the first of a crowd to arrive may break it before the rest get there)
 		_piece = ENV_PIECE.struck(foe.get_tree(), _from + _dir * _length, _dir, float(foe.get("radius")))
 
@@ -251,7 +263,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_time += delta
 	var v := speed
-	if slide and not _walled:
+	if slide and not _walled and not _rink:
 		v = speed * lerpf(1.0, SLIDE_END, _gone / maxf(_length, 0.01))
 	_gone = minf(_gone + v * delta, _length)
 	var k := _gone / maxf(_length, 0.01)
@@ -262,7 +274,9 @@ func _physics_process(delta: float) -> void:
 	var cube := foe.get_node_or_null(CUBE_NAME)
 	if cube != null:
 		cube.rotate_y(spin * delta)
-	if _rope != null and hero._void != null:
+	if _rope != null and rope_from != Vector3.INF:
+		_rope.draw(rope_from, at + Vector3.UP * 0.9, 1.0, 0.05, float(foe.get("radius")) + 0.05, _time)
+	elif _rope != null and hero._void != null:
 		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.get("radius")) + 0.05, _time)
 	if zap and _zaps < ZAP_MAX and _time >= _next_zap:
 		_zap(at)
@@ -278,6 +292,8 @@ func _physics_process(delta: float) -> void:
 	if _gone >= _length:
 		if quiet and not _walled:
 			foe.global_position.y = 0.0
+			if on_end.is_valid():
+				on_end.call(foe)
 			_finish()
 		else:
 			_burst(null)
@@ -328,6 +344,7 @@ func _burst(other: Node3D) -> void:
 	var parent := hero.get_parent()
 	var spot := Vector3(foe.global_position.x, 0.0, foe.global_position.z)
 	foe.global_position.y = 0.0
+	var cubed: bool = el == "water" or foe.get_node_or_null(CUBE_NAME) != null  # (round 52: the Frost Wall's Shatter)
 	remove_cube(foe)
 	VOID_ELEMENT.under(parent, spot, el)
 	Game.sfx("hit_big", -2.0, 0.1)
@@ -348,8 +365,13 @@ func _burst(other: Node3D) -> void:
 	if _walled and other == null:  # round 51: the piece it stopped on (a breakable splats for half), the banners there
 		if is_instance_valid(_piece):
 			mult = ENV_PIECE.splat_mult(_piece, wall_mult)
-			ENV_PIECE.hit(_piece, el, hero, "throw")
+			ENV_PIECE.hit(_piece, "earth" if VOID_ELEMENT.marked(foe, "molten") else el, hero, "throw")  # (molten: magma)
 		ENV_PIECE.wall_splat(foe.get_tree(), spot, hero)
+		var ice: Node3D = load("res://scripts/frost_wall.gd").struck(foe.get_tree(), spot, _dir)
+		if ice != null:  # (the Frost Wall: one splat and it shatters, a beat later)
+			ice.splat()
+			if cubed:  # round 52: ice on ice, the proposal's Shatter: x1.6 on the wall's mult
+				mult *= ice.SHATTER_MULT
 	var spikes: Node3D = ENV_PIECE.under(foe.get_tree(), "spikes", spot)
 	if spikes != null:  # (it comes down on the spikes: x1.5 on the landing)
 		mult *= ENV_PIECE.SPIKES_MULT

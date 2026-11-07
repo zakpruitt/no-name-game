@@ -54,8 +54,8 @@ const MOVE_WORDS := {
 const BREAKER_WORDS := {
 	"Grounded": "KRA-KOOM!", "Short Circuit": "KZZZT-KRAK!", "Worldbreaker": "KRAKATHOOM!", "Cold Front": "SHKRAASH!", "Meteor Fall": "KA-THOOOM!",
 	"Collapse": "SHLUMPF!", "Maw": "CHOMP!", "Abyss": "SKRUNNCH!",
-	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSHINK!", "Black Ice": "KLISSSH!",
-	"Eruption": "BLOOORRM!", "Anvil": "KLANNNG!",
+	"Cataclysm": "KRAKA-DOOM!", "Flash Freeze": "FSSSH-KRAK!", "Black Ice": "KLISSSH!",
+	"Eruption": "KA-BLOOOSH!", "Anvil": "KLANNNG!",
 	"Shatterstorm": "KRSSSH-BOOM!", "Slapshot": "THWAKK!",  # round 47 b (Slapshot's wall hits say slapshot_fx.WALL_WORD)
 	"Ricochet": "KA-SPLATT!",  # the dash counter's ending (counter.gd)
 	"Meteor Shower": "BLAM-BLAM-BLAMM!", "Pinwheel": "WHIRRR-KRAK!", "Tempest": "VWOOOM-KZZAK!",  # breaker-pairs (Pinwheel's wall hits say breaker_alt_fx.WALL_WORD)
@@ -78,7 +78,7 @@ const IMPROV_WORDS := {
 }
 const IMPROV_SCALE := 0.5  # (WORD_SCALE's tier 2)
 ## Moves whose word is said by the move itself, later than its first hit (say()): Galvanize's on its discharge.
-const LATE_WORDS := ["XC", "XL"]
+const LATE_WORDS := ["XC", "XL", "XR", "IS", "XM", "OW", "VD"]  # round 55 (combo-cool4): the rebuilt mids say theirs on their beat (void_element)
 const IMPROV_HOLD_MS := 300  # the move's own word stays quiet this long after a payoff's
 ## Words sit at the blow (feel audit 2026-11-04 item 2: placed 2-4 m off in clear floor they read as
 ## captions): round the contact point, in the clearest of these directions (degrees off the way from

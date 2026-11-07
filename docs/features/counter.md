@@ -30,6 +30,13 @@ as a strike is about to land, cancels it and answers harder.
 Best situation (kit-grammar "every combo needs a best situation"): Ricochet wants a wall or a crowd near the
 attacker; in the open it only lands for its base.
 
+**Gallows** (round 53, `env_flourish.gd`; the `gallows` Kit upgrade, on in the training room with pieces): with an
+empty hook whose point is within `GALLOWS_REACH` 10 m of the attacker, Ricochet takes it there over any foe or wall
+(the counter window brackets the hook, env_target CTX `gallows`; a wall or pillar the cursor chose wins). It flies
+over the other foes, splats on the hook's wall at x2.5 x `GALLOWS_MULT` 1.3 (146 against the wall's 112), then
+hangs under the hook bound for 2.5 s, the hook swinging with it ("SHNK-CLANK!"); any hit on it is a Snap and drops it.
+Details in [env-pieces.md](env-pieces.md).
+
 ## Files
 
 - `scripts/counter.gd`: static functions over the hero (the hero_*.gd pattern).
@@ -78,6 +85,10 @@ the bag snapping forward; again every `SWING_EVERY` 1.4 s while he stays. `--spa
   a plain dash with nothing coming, i-frames, the stagger and mark, the lift and slam, no window on a plain counter,
   the perfect's window holding the attacker alone with one ending, Ricochet landing and binding, a parried bolt.
 - Autotest: the last string `counter D` lands Ricochet (`breakers=` and `endings_n=` count CB).
+- `counter_check` `_gallows` (round 53): in the room with pieces, the window brackets the pillar's hook, Ricochet hangs
+  the dummy on it (bound, the hook swinging, up under its point), the splat x1.30 the same counter's with the flourish
+  off, a hit on it a Snap that lets it go, the hook empty again; a pillar the cursor chose wins over the hook. Bot
+  string `hook counter D` in the room with pieces.
 - Film: `godot --path . -s tests/string_film.gd -- --from=N --to=N --dir=counter` (N = the counter string's index).
 
 ## Tuning
@@ -85,3 +96,10 @@ the bag snapping forward; again every `SWING_EVERY` 1.4 s while he stays. `--spa
 `counter.gd`: `WINDOW`, `PERFECT`, `ARC`, `REACH_PAD`, `STOP` / `PERFECT_STOP`, `WRAP` / `LIFT` / `SLAM` / `END`,
 `LIFT_Y`, `SLAM_AHEAD`, `DAMAGE`, `RICOCHET_*`, `BIND_TIME`; `BREAKERS.CB.damage`. `counter_fx.gd`: `PARRY_SIZE`,
 `PERFECT_SIZE`, `PARRY_TIMES`, `SNAP_SIZE`. `training_dummy.gd`: `SWING_*`.
+
+Round 54 cool pass 3 (combo-cool3): the parry is sharper and lands like a hit, window timings unchanged. A `parry_glint`
+flick over the clash in real time (`counter_fx.glint`, `GLINT_*`), the attacker's weapon knocked out of its grip and
+spinning off on an arc away from him to clatter down (`counter_fx.blade_off`, `parry_blade` sheet, `BLADE_*`), a
+harder camera punch (`counter.PUNCH` 0.86 / `PUNCH_PERFECT` 0.78) and a `camera_rig.jolt` along the blow (`JOLT*`;
+existing camera APIs only). Ricochet's throw draws the dark comet trail behind the hurled attacker
+(`RICOCHET_TRAIL` 0.6 s, `mid_beats.trail`). Counters for checks: `counter_fx.glints` / `blades` (cool3_check).

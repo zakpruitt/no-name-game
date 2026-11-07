@@ -51,6 +51,7 @@ static func prewarm(root: Node3D) -> void:
 		mi.material_override = DESIGNED.material(n)
 		root.add_child(mi)
 		mi.scale = Vector3.ONE * 20.0
+	prewarm_cool3(root)
 
 
 ## The parry: the clash between him (`from`) and the attacker (`to`), on the frame the counter lands.
@@ -75,6 +76,97 @@ static func parry(parent: Node, from: Vector3, to: Vector3, perfect: bool) -> vo
 	INK.shock(parent, floor_at, PAL.of("void").body, SHOCK_R, 0.3)
 	if perfect:
 		load("res://scripts/designed_breaker.gd").rays(parent, floor_at, "void", RAYS_SIZE)
+	glint(parent, at, perfect)
+	blade_off(parent, from, to, perfect)
+
+
+# --- Round 54 cool pass 3 (combo-cool3): the parry sharper, the weapon knocked flying ------------------------------
+
+const COOL3_SHEETS := {
+	"parry_glint": {"grid": Vector2(2, 2), "frames": 4, "kind": "sprite"},
+	"parry_blade": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite"},
+}
+## The glint: a hard four-point flick of light over the clash, GLINT_SIZE m (x GLINT_PERFECT on a perfect), in real time
+## (the parry's hitstop must not hold it: it is the "tink" before the flash).
+const GLINT_SIZE := 2.4
+const GLINT_PERFECT := 1.35
+const GLINT_TIMES := [0.025, 0.06, 0.04, 0.05]
+## The attacker's weapon knocked out of its grip: BLADE_SIZE m, thrown up BLADE_UP m and out BLADE_OUT m away from him
+## over BLADE_FLIGHT real s, spinning BLADE_SPIN rad/s, clattering down with a dust puff.
+const BLADE_SIZE := 1.25
+const BLADE_UP := 2.6
+const BLADE_OUT := 3.4
+const BLADE_FLIGHT := 0.55
+const BLADE_SPIN := 22.0
+static var _cool3_registered := false
+static var glints := 0  # (counter_check)
+static var blades := 0
+
+
+static func _cool3_register() -> void:
+	if _cool3_registered:
+		return
+	_cool3_registered = true
+	for n: String in COOL3_SHEETS:
+		var s: Dictionary = COOL3_SHEETS[n].duplicate()
+		s["tex"] = load("res://assets/vfx/designed/%s.png" % n)
+		DESIGNED.extra_sheets[n] = s
+
+
+static func prewarm_cool3(root: Node3D) -> void:
+	if not DESIGNED.on():
+		return
+	_cool3_register()
+	for n: String in COOL3_SHEETS:
+		var mi := MeshInstance3D.new()
+		mi.mesh = QuadMesh.new()
+		mi.material_override = DESIGNED.material(n)
+		root.add_child(mi)
+		mi.scale = Vector3.ONE * 20.0
+
+
+## The glint over the clash at `at`.
+static func glint(parent: Node, at: Vector3, perfect: bool) -> void:
+	glints += 1
+	if not DESIGNED.on() or not parent.is_inside_tree():
+		return
+	_cool3_register()
+	var fx := DESIGNED.spawn(parent, "parry_glint", at + Vector3.UP * 0.1, GLINT_SIZE * (GLINT_PERFECT if perfect else 1.0), "void",
+		GLINT_TIMES, Vector2(0.5, 1.0))
+	fx.real_time = true
+	fx.pop = 0.35
+	fx.set_spin(randf_range(-0.25, 0.25), -1.0 if randf() < 0.5 else 1.0)
+
+
+## The attacker's weapon (from `to`'s side, away from him at `from`) spins up and off and clatters down.
+static func blade_off(parent: Node, from: Vector3, to: Vector3, perfect: bool) -> void:
+	blades += 1
+	if not DESIGNED.on() or not parent.is_inside_tree():
+		return
+	_cool3_register()
+	var away := Vector3(to.x - from.x, 0.0, to.z - from.z)
+	away = away.normalized() if away.length() > 0.01 else Vector3.BACK
+	var side := away.cross(Vector3.UP).normalized() * (0.6 if randf() < 0.5 else -0.6)
+	var start := Vector3(to.x, 0.0, to.z) - away * 0.3 + Vector3.UP * 1.3
+	var land := Vector3(to.x, 0.0, to.z) + (away + side).normalized() * BLADE_OUT * (1.2 if perfect else 1.0)
+	var times: Array = [BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0 + 0.25]  # (the last turn lies a beat)
+	var fx := DESIGNED.spawn(parent, "parry_blade", start, BLADE_SIZE, "dust", times, Vector2(0.82, 1.0))
+	fx.real_time = true
+	var spin := [0.0]
+	var dir := 1.0 if randf() < 0.5 else -1.0
+	var tw := fx.create_tween().set_ignore_time_scale(true)
+	tw.tween_method(func(k: float) -> void:
+		if not is_instance_valid(fx):
+			return
+		var p := start.lerp(land + Vector3.UP * 0.15, k)
+		p.y += sin(k * PI) * BLADE_UP * (1.0 - k * 0.35)
+		fx.global_position = p
+		spin[0] = dir * BLADE_SPIN * k * BLADE_FLIGHT
+		fx.set_spin(spin[0]), 0.0, 1.0, BLADE_FLIGHT)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			DESIGNED.dust(parent, land, 0.7)
+			Game.sfx("hit", -12.0, 0.2))
 
 
 ## Backlash's slam lands at `at` (on the floor), having come down along `dir` (flat, from him out).

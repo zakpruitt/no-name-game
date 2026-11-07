@@ -621,3 +621,76 @@ and `voronoi` it imports). Registered by `scripts/lava_leash.gd` (`SHEETS`, `reg
 The tentacles are `void_tendril` washed with `electrify(HEAT, LAVA)` as they drag; the pool under the pile and
 Hellseam's seam geysers are `designed_elements` (`pool`, `geyser`). No polygons, no crystals. Headless or `--fx=classic`
 draws no seam (the gameplay is the same).
+
+## Round 51 cool pass (combo-cool lane)
+
+`python tools/vfx_gen/gen_cool.py [names] [--preview=<dir>]` (gen_elements' helpers; its own `_tentacle` with suckers and a
+lit band, `_curl_path`, rounded ice `_block`s). Each sheet is registered by the script that plays it (`register()` into
+`designed_fx.extra_sheets`) and drawn once at load from `elements.prewarm`.
+
+| Sheet | Kind | Played by | What |
+|---|---|---|---|
+| `void_spit` | sprite_depth (4x2, 7 frames) | `collapse_spit.gd` | the hole's mouth, tentacles bursting up out of it and falling back, stood 0.4 m behind the hole from the camera |
+| `avalanche_spill` | ground (3x2, 6 frames) | `avalanche_topple.gd` | the snow fan the toppled tower's cubes slide out on, blocks tumbling in it, laid along the fall (+u) |
+| `abyss_column` | sprite_depth (4x2, 7 frames) | `abyss_rise.gd` | the floor tearing, three braided tentacles rising to a grabbing hand, holding, whipping down, the knot and splash, the hole closing; the foe is carried at the hand (`APEX`) |
+
+No polygons, no crystals (the ice is rounded blocks in snow).
+
+## Round 52 cool pass (combo-cool2 lane)
+
+`python tools/vfx_gen/gen_cool2.py [names] [--preview=<dir>]` (gen_elements' `tear` / `tongue`, and gen_cool's
+`erupt_chain` drawing, which round 51 left unused). Each sheet is registered by the script that plays it (`register()`
+into `designed_fx.extra_sheets`) and drawn once at load from `elements.prewarm`. No polygons, no crystals: the frost is
+rounded rime lumps, steam is lumpy puffs, magma is tongues and globs, the dark is ink.
+
+| Sheet | Kind | Played by | What |
+|---|---|---|---|
+| `erupt_chain` | ribbon strip (1x4) | `eruption_hurl.gd` | Eruption's fuse: the crusted lava crack that races along the floor from the landing to each burning foe; one ImmediateMesh strip on `shaders/designed_drag.gdshader` (COLOR.r = age, UV.x = metres / `FUSE_TILE`), cooling from its old end |
+| `erupt_drip` | sprite_depth (4x2, 7 frames) | `eruption_hurl.gd` | a burning foe splatted up the wall: the splat, three streams running down (the foe slides down the middle one), the pool at the foot with licks, crusting; stood `DRIP_OUT` out of the wall face, `DRIP_SIZE` 3.6 m |
+| `steam_shell` | sprite_depth (3x2, 6 frames) | `frost_shell.gd` | Flash Freeze's steam rolling over a foe: puffs at its feet, billowing round it, curling over, drawn in tight with a rime of rounded frost lumps, thinning to a cold floor mist; stood 0.4 m toward the camera so it rolls over the ice block |
+| `spit_burst` | sprite (3x2, 6 frames) | `collapse_spit.gd` | Collapse's spit as a beat of its own: three fat ink tongues splaying up out of the mouth, a ring of teardrop globs flung and falling, the puddle; `BURST_SIZE` 3.4 m over the hole, a pop on frame 0 |
+
+Flash Freeze's shell is the fitted ice block (`void_element.encase`, fx-ice2's `fit_block`), its break `designed_fx.ice_shatter`
+and the frost line between shells `designed_elements.fissure(..., "water")` (floor cracks and mist). Eruption's geyser is
+`designed_elements.geyser`, the pool under a foe that slid down `designed_elements.pool`, the wall beat
+`breaker_alt_fx.cool_wall`. Collapse's spit trail is the dark breaker dive's ink comet (`comic_comet.gd`) fed on the foe.
+
+## Feel audit 2026-11-07b (feel-audit5 lane)
+
+- `ice_mark` redrawn (`gen_elements.py ice_mark`): an uneven 17-corner patch of rime (alpha 0.3) with a broken lit
+  edge, three jagged crack chords rim to rim (one fork each, a hot core on frame 1) and round frost beads, no glints
+  and nothing radiating from its middle. It read as a spoked crystal star on every water hit (Cold Front, the frost
+  spear, Deep Freeze's ring).
+- Deleted, nothing called them: `comic_freeze_over.foe()` (the crystal shell; only `pool` / `shatter` remain),
+  `designed_elements.frost_floor` / `frost_step` / `FROST_BOIL`, `designed_fx.ICE_TIMES`, `harpoon_gather.carrying`.
+  `ice_frost` stays (Deep Freeze's `frost_burst`).
+- `designed_elements.prime_fit(foe)` reads a foe model's skinned vertices at spawn (`enemy._ready`, deferred): the first
+  ice block read them back from the GPU mid-fight, a 44 ms frame windowed.
+
+## Round 54 cool pass 3 (combo-cool3 lane)
+
+`python tools/vfx_gen/gen_cool3.py [names] [--preview=<dir>]` (gen_counter's `blade` / `curl_path` / `polar` /
+`tentacle`). Registered by the scripts that play them and drawn once at load from `elements.prewarm`
+(`mid_beats.prewarm`, `counter_fx.prewarm_cool3`). No crystals.
+
+| Sheet | Kind | Played by | What |
+|---|---|---|---|
+| `parry_glint` | sprite (2x2, 4 frames) | `counter_fx.glint` | Backlash's "tink": a hard four-point flick of light over the clash, `GLINT_SIZE` 2.4 m (x1.35 on a perfect), real time so the parry's hitstop does not hold it |
+| `parry_blade` | sprite (4x1, 4 frames) | `counter_fx.blade_off` | the attacker's cleaver knocked out of its grip: a quarter turn a frame with a smear, carried on a real-time arc `BLADE_UP` 2.6 m up and `BLADE_OUT` 3.4 m away from him, spun, a dust puff where it clatters down (dust palette row) |
+| `reap_hook` | sprite (3x2, 5 frames) | `mid_beats.hook` | Reap's barbed ink hook biting the far foe: thrown in, the barbs closing, the bite, the ink running off; follows the foe while it is yanked |
+
+The rest of the round's beats reuse sheets that exist: Singularity's reel is `void_tendril` tentacles from the hole;
+Frost Spear's spread is `designed_elements.fissure(..., "water")` and `frost_mark`; Steam Burst's fuse an earth
+fissure into `steam_shell`; Hailstorm's gale `designed_twister`; Cold Front's bowl, Ricochet's throw and Reap's yank
+the dark comet trail (`comic_comet.beat`, `mid_beats.trail`); the endings' second beats `comic_bolt`, `comic_fault`,
+`storm_strike` and `designed_elements.geyser`.
+
+## Round 55 cool pass 4 (combo-cool4 lane)
+
+No new sheets: the rebuilt mids reuse what exists (`scripts/mid_beats.gd`). Rockslide's falling boulder is
+`rock_boulder` frame 0 held while it drops (`boulder_drop`, `DROP_SIZE` 1.6 x `designed_finish.BOULDER_SIZE`, then
+`DESIGNED.dust` and an earth `designed_ink.shock` ring as it lands); Meltdown's globs are `meteor_shell` tweened to each
+block (`glob`, `GLOB_SIZE` 0.7) and its first block `designed_finish.erupt`; Deep Freeze's wave is
+`designed_elements.fissure(..., "water")` block to block plus `frost_mark`; Overwhelm's slam and Black Tide's tethers are
+the tentacle (`tentacle_haul`, `thrown_foe` tether from the pool), `DARK.burst` and `designed_ink.shock`; Maw's knock
+`DESIGNED.hit` at the height they meet. No crystals. fx_coverage max 0.312 per HIT frame (budget 0.40).

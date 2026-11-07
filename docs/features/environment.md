@@ -30,9 +30,70 @@ environmental combos!"
 | `ricochet` | the counter's window | void | yes | the countered foe | `RICOCHET_REACH` |
 | `collapse` | Singularity's window | void | yes | the hole | `COLLAPSE_REACH` 9 m |
 | `meteor` | Undertow's window (Meteor Fall) | earth | yes (only a structure with palm foes on it) | the meteor's pile | `METEOR_NEAR` 4 m |
+| `meteor` (foe mode, round 52) | Undertow's window with the palm foes in 2+ piles (`meteor_piles`): a **foe** | earth | yes (the palm foes) | him | auto: the foe nearest the default `meteor_spot` |
 | `palm` | Molten Palm (EM) before its hit | earth | no | him, along his facing | the palm's carry |
 | `leash` | Lava Leash (XL) before its hit | earth | no | the wall-splatted palm foes | `LEASH_NEAR` 2.5 m |
+| `brazier` | Lava Leash (XL) through its reach beat, a lit brazier by a seam (brazier_spill, round 53) | earth | no | the brazier (`env_flourish.leash_brazier`) | 1 m |
+| `gallows` | the counter's window with an empty hook in `GALLOWS_REACH` 10 m of the foe (gallows, round 53; mode `hook`) | void | yes (hook, wall, pillar) | the countered foe | `GALLOWS_REACH` |
 | `pillar_slam` | H H's grab with a foe held | void | yes (pillars only) | him | `PILLAR_SLAM_REACH` 4.5 m |
+| `avalanche` | Deep Freeze's window (Avalanche, round 51) | water | yes | the cubes' tower | `AVALANCHE_REACH` 9 m |
+| `overwhelm` | the charged hold (Overwhelm, round 51): a **foe** | void | yes (foes in `OVERWHELM_REACH`) | him | auto: the nearest in his aim |
+| `abyss` | Overwhelm's window (Abyss, round 51): a **foe**, 2+ pinned | void | yes (the pinned) | him | auto: the biggest pinned |
+| `eruption` | Meltdown's window (Eruption, round 52) | earth | yes | the landing (`_brk_zone`) | `ERUPT_REACH` 9 m |
+| `tow` | Tow Line (Dash H) before its hit, 2+ snare candidates (`tow_candidates`): a **foe** | void | yes (`TOW_PICK_REACH` 7 m) | him | auto: the one nearest where they're yanked (`tow_auto`) |
+| `black_ice` | Black Tide's window (Black Ice, LMB, round 52) | water | yes | the pool (`dark_spot`) | `BLACK_ICE_REACH` 8 m |
+| `flash_freeze` | Steam Burst's window (Flash Freeze, round 52): a **foe**, 2+ in the cloud | water | yes (foes in `FF_CLOUD_R`) | the landing | auto: the nearest the landing |
+| `reap` | Reap (VR) before its hit, 2+ in the hook's cone (`reap_candidates`; round 54): a **foe** | void | yes (`REAP_HOOK_REACH` 10 m, `REAP_HOOK_CONE`) | him | auto: the furthest outside the crescent (`reap_auto`) |
+| `singularity` | Singularity (VS) before its hit, a foe held (round 54): a **foe** | void | yes (`SING_PICK_REACH` 8 m) | him | none: the hole opens where it always did unless the cursor chooses |
+| `spear` | Frost Spear (IP) before its hit, 2+ in reach (round 54): a **foe** | water | yes (`SPEAR_PICK_REACH` 7.5 m) | him | auto (round 55): the nearest group (`spear_auto`); ahead with no two together |
+| `rockslide` | Rockslide (XR) before its hit, off the air slash, 2+ in reach (round 55): a **foe** | earth | yes (`ROCKSLIDE_PICK_REACH` 7 m) | him | auto: the most round it, the airborne double (`rockslide_auto`) |
+| `deep_freeze` | Deep Freeze (IS) before its hit, off the vault, 2+ in the frost (round 55): a **foe** | water | yes (`DEEP_FREEZE_RADIUS` round the spear) | the spear | auto: the nearest the spear (`deep_freeze_auto`) |
+| `meltdown` | Meltdown (XM) before its hit, off Hailstorm, 2+ up or frozen (round 55): a **foe** | earth | yes (`MELT_REACH` 6 m) | him | auto: the most within `MELT_SPLASH_R` (`meltdown_auto`) |
+| `cold_front` | Live Wire's air window (Cold Front, LMB, round 54) | water | yes | the landing | `COLD_REACH` 9 m |
+
+**Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select
+combos where control makes sense." The same bracket goes on a foe where who matters: `context()` returns
+`mode: "foe"` with the candidates (`foes`) and the default (`auto`); `resolve()` hands it to `_resolve_foe()`, which
+makes each foe a round pick target (`foe_structs()`: kind `"foe"`, id `"foe<instance id>"`, `surface()` treats it
+like a pillar) and lets the cursor (`FOE_SNAP` 1.2 m from its edge) or the stick choose among them. The bracket
+follows the foe (`_draw_foe`: on its chest, `FOE_BRACKET_*`, grows with its radius; the floor ring under it; the
+chevrons run from him to it on the charge). Gameplay reads `ENV.picked_foe(hero, ctx)` (the lock's foe, chosen or
+auto) and keeps its own default when it's null (bare test rooms, no env):
+- Overwhelm: once the hold is charged, the bracket is on who it will pin; the cursor on another foe switches it, and
+  release pins that one even off his aim (`void_element.overwhelm_aim` is the default). The press that takes it is
+  the attack starting (`_end`, key `charge:`).
+- Abyss: with two or more pinned, the bracket in the hang is on who the deep gives back first and whole (the others
+  share, `ABYSS_SHARE`); the default is the biggest (`void_element.abyss_first`).
+- Flash Freeze (round 52): with two or more in the steam cloud, the bracket in the hang is on the shell his landing
+  breaks first; the chain runs from it to the nearest unbroken shell each link, harder each, so the pick decides who
+  takes the last link (`frost_shell.shatter(first)`). Eruption's pick is a structure (the wall or pillar it hurls into).
+- Meteor Fall (round 52): with the palm foes in two piles or more, the bracket is on a foe of the pile he dives on;
+  the cursor on a foe of another pile moves the dive there (`meteor_spot` keeps the picked foe's `METEOR_PILE_R`).
+- Tow Line (round 52): the bracket is on who the line is yanked toward; only a cursor / stick choice changes the throw
+  (`foe_chosen(by, ctx)`: the lock's foe when chosen, else null): the chosen foe is the anchor, snared where it stands
+  (`TOW_ANCHOR_MULT`), and the rest are yanked into it. Round 53 (feel audit 2026-11-07b): the pick opens in the
+  dash Tow Line comes out of (`_tow_dash_ctx`, same `tow:` key, so the lock carries into the move), once a right click
+  is buffered or the cursor is on a foe (a plain dash draws nothing); it was only the ~0.15 s start-up before.
+- The foe bracket in a breaker's leap (round 53): when the prompt circle sits within `FOE_IN_PROMPT` 1.8 m of the
+  picked foe, the bracket goes up to `FOE_LIFT_Y` 2.5 m and `FOE_LIFT_SIZE` 0.7 so it clears the prompt and its chips.
+- Round 54 cool pass 3 (`_mid_ctx`): three mids take a foe pick before their hit (the key `mid:<move>:<n>`; the press
+  that starts the move counts, so a buffered H after GR opens Reap's and a buffered H after L2 opens Frost Spear's):
+  - Reap (VR): with two or more in the hook's cone, the bracket is on who the hook bites (default the furthest outside
+    the crescent, `reap_auto`); the cursor picks another. That one is bitten, marked `reaped` and, if light, yanked
+    to his feet; Black Tide pays the reaped x`REAP_TIDE_MULT`.
+  - Singularity (VS): with a foe held (`holds_for_slam`) and no pillar slam on offer, only a cursor choice moves it
+    (`need_choice`): the held foe is thrown onto the chosen one (`SING_ONTO_DAMAGE`) and the hole opens there.
+  - Frost Spear (IP): with two or more in reach, a cursor choice plants the spear at that foe's feet and turns him to
+    it; the frost spreads from there.
+- Cold Front (round 54, a structure pick, `cold_front` from Live Wire's air window): the wall or pillar the cubes are
+  bowled into; none in `COLD_REACH`, they are thrown at their neighbours as before.
+- Round 55 cool pass 4 (`_mid_ctx`, combo-cool4): Frost Spear's bracket is on its default plant from the start-up
+  (`spear_auto`, the nearest group; no longer cursor only). Three more mids pick a foe (each opened once its press is
+  buffered in the move before): Rockslide (where the boulder lands; the gale drags the airborne to it), Deep Freeze
+  (the block that pops first; the wave runs out from it, and past the frost only round it), Meltdown (the block the
+  hammer hits; only those round it are set molten). Overwhelm's pick now pays (the rest are dragged onto the pinned
+  one and it is slammed). Film any foe pick with windowed `tests/pick_film.gd -- --case=<name>` (a drawn pointer at
+  `test_cursor`).
 
 ## Files
 
@@ -105,13 +166,26 @@ environmental combos!"
   rooms are data (`scripts/rooms.gd`) and `env_piece.gd` `place()` registers each piece (pillars, torches, and props
   through `add_prop`, a structure of its own kind that only a ctx with that `kinds` sees); see
   [env-pieces.md](env-pieces.md).
+- Round 52 (env-pieces2): CTX `conduct` (torches conduct): in the storm windows (a breaker with `wire` or Short
+  Circuit as its alt) and during Live Wire / Galvanize, `_conduct_ctx()` builds structures of kind `torch` from the
+  conducting torches (`env_piece.conducting_torches()`), mode `torch` in `resolve()` takes the nearest, and `_draw()`
+  puts the bracket on the torch's flame (`TORCH_BRACKET_SIZE` 1.8, `TORCH_BRACKET_UP` 0.55, no floor ring). Torches
+  are still not in `structures`, so no other pick sees them. A room's rebuild rule is `rooms.gd` `ROOM_RULES`.
+- Round 53 (env-flourish): hooks and braziers register through `add_prop` (kinds `hook`, `brazier`). CTX `gallows`
+  takes the counter window over `ricochet` when the flourish is on and an empty hook is in reach; mode `hook` in
+  `resolve()` picks the nearest hook's point, and the cursor may choose a wall or pillar over it
+  (`counter.ricochet_target` reads `chosen(hero, "gallows")`). CTX `brazier` comes before `leash` during Lava Leash.
+  See [env-pieces.md](env-pieces.md) "The heretic's flourishes".
 
 ## Testing
 
 - `tests/env_target_check.gd` (in `agent.sh check`): geometry and picks in a built room, the too-far case, the cursor
   and stick choice, `pinwheel_target` / Ricochet / Meteor with a lock, a live Pinwheel window drawing the bracket and
-  aim line, Impale's window offering Anvil / Pinwheel, the beats (chunks, marks capped, torch swing), and the pillar
-  slam held and not held.
+  aim line, Impale's window offering Anvil / Pinwheel, the beats (chunks, marks capped, torch swing), the pillar
+  slam held and not held, and the foe picks (`_foe_picks`: the charged hold's bracket on the foe ahead, drawn on it,
+  the cursor switching it, Overwhelm pinning the chosen one; Abyss's window, the cursor picking who comes up first).
+- Film the foe picks: windowed `tests/target_film.gd [-- --dir=name --fps=24]` (the cursor stand-in moves mid-hold
+  and mid-window) to `user://<dir>/target/`.
 - The autotest prints `[env] shown= switches= locks= pillar_slams= pillar_hits= chunks= marks= torch_swings=`.
 - Film: `tests/string_film.gd -- --from=N --to=N` on the strings `wall alt D H H` and `pillar H hold`.
 

@@ -97,7 +97,17 @@ static func hanging(hero: Node) -> bool:
 	return body is Node3D and is_instance_valid(body) and (body as Node3D).position.y >= HANG_LIFT
 
 
+## Round 53 (feel audit 5): the label's outline (outline_modulate) does not fade with its modulate, so a breaker name
+## left undrawn for the banner, and every callout's own fade, still showed its dark outline: a ghost FLASH FREEZE /
+## PERFECT in ink over the banner's top band for ~0.6 s. The outline follows the text's alpha.
 static func watch(hero: Node) -> void:
+	_watch(hero)
+	var label: Variant = hero.get("_callout")
+	if label is Label3D and label.visible:
+		(label as Label3D).outline_modulate.a = (label as Label3D).modulate.a
+
+
+static func _watch(hero: Node) -> void:
 	var label: Variant = hero.get("_callout")
 	if not label is Label3D or not label.visible:
 		_fade_from_ms = -1

@@ -1028,7 +1028,15 @@ can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/fea
   (`ROOMS.training` = today's arena, `training_pieces`), Settings "Room: plain / with pieces", `--room=pieces`,
   rebuild after 6 s, `tests/env_piece_check.gd`, `[env] ... pieces=N/N`
 - [x] Uproot: Overwhelm's LMB ending (`OW.alt`): the tentacle tears the nearest pillar out and clubs the pinned foe
-  (297 vs Abyss 196 by a pillar; 78 vs 196 in the open), the pillar left as rubble; both training rooms rebuild
+  (244 vs Abyss 170 by a pillar; 71 vs 197 in the open, after the cool pass), the pillar left as rubble; both training rooms rebuild
+- [x] Powder Keg: magma on a barrel (the palm's carry stops on it) sets it burning; 1.2 s later it bursts, 30 molten
+  to everyone within 3 m; the indicator marks it in the palm's wind-up; `AUTOTEST_MAX` 170 for the room with pieces
+- [x] Frost Wall: Frost Spear on a grate raises a 4 m ice wall on its far edge for 6 s, on the walls' layer and in
+  env_target (`scripts/frost_wall.gd`); Slapshot into it 153 vs 63 in the open (`tests/env_breaker_check.gd`); one splat shatters it
+- [x] Live Floor: storm on a foe on a grate makes it live for 4 s (charges everyone on it, arc_crawl over it); Short
+  Circuit reaches from it (a foe 20 m off: 25 by a live grate, 0 by a cold one); the room with pieces plays
+  `pieces=5/5` with every verb
+- [x] Lore: `docs/design/environment-lore.md` (the church-prison, items that change rooms)
 
 ## Round 51 fluidity (every hand-over snappy, no dead contact, no eaten press)
 
@@ -1044,3 +1052,121 @@ Zak: "work in a loop increasing combat fluidity, ensure everything is snappy and
 - [x] Clips: `awaken-combo-clips/35 Fluidity *`
 - [ ] Zak's call: the dash hand-overs (Rockslide -> Dash Stab 385 ms) are over the 330 mid target because of the dash
   itself; a shorter dash would change movement everywhere
+
+## Round 52 env-pieces2 (the environment's second round: readability, torches conduct)
+Zak: the environment "should be a big part of what you can do". Polish of round 51's verbs, build order item 5; see
+`docs/features/env-pieces.md`.
+- [x] The land check plays the `--kit=full` autotest in the room with pieces (`--room=pieces`) and asserts
+  `pieces=N/N` and every built verb above 0 (`pieces=6/6 uproot=1 keg=1 frost_wall=1 live_floor=4 conduct=3`)
+- [x] Uproot: the pillar held up 0.16 s as a lilac silhouette with its drop shadow before the club lands; Powder
+  Keg's "KA-BLOOOM!" waits for Meteor Fall's word; Live Floor: eight edge crawls and a lime rim bolt round the tile
+- [x] Frost Wall 4 -> 6 m, square to his line; an ice cube splatting on it pays x1.6 (Slapshot into it 153 -> 362,
+  63 in the open)
+- [x] Torches conduct: storm by a lit torch relays along the wall (8 to a foe 8-10 m off under the next torch),
+  Short Circuit arcs from conducting torches, the storm windows bracket one; bot string `torch alt L H H`
+- [x] `rooms.gd` `ROOM_RULES`: a per-room `rebuild`; both training rooms rebuild, real rooms keep pieces gone
+- [x] Clips: `awaken-combo-clips/39 Pieces2 *`
+- [ ] Zak's call: torches_conduct is always on (the proposal had it a run upgrade); Slapshot into the Frost Wall is
+  x5.7 the open; the breaker banner covers Uproot's fall line
+
+## Round 52 cool pass 2 (combo-cool2: the 1/4 and 2/4 endings, foe picks, Collapse readable)
+
+Zak: "the lava leash and tempest and pinwheel are amazing" (round 51 cool pass, round two). See
+`docs/features/combo-breakers.md` "Round 52 cool pass".
+- [x] Eruption rebuilt (`eruption_hurl.gd`): fuse, geyser heave, hurl into the picked wall, burning slide; by a wall
+  749 vs Flash Freeze 321; bot string `wall D L H H H L`
+- [x] Flash Freeze rebuilt (`frost_shell.gd`): steam sets an ice block on each, the break chains from the picked foe;
+  four in the open 378 vs Eruption 282
+- [x] One beat more on Maw (knock and slam), Black Ice (skid into the picked structure: 315 vs Maw 250 by a wall),
+  Cold Front (tethered hoist, cold snaps), Anvil (yanked up and driven in again) (`tentacle_haul.gd`)
+- [x] Foe picks on Meteor Fall's pile (two piles or more) and Tow Line's snare (the anchor); structure picks on
+  Eruption and Black Ice
+- [x] Collapse's spits: an ink crown (`spit_burst`), a word and the foe's own trail each
+- [x] Clips: `awaken-combo-clips/38 Cool2 *`
+- [ ] Zak's call: Tow Line's pick window is the move's start-up (~0.15 s): hover the foe before the press
+
+## Round 53 env-flourish (the heretic's flourishes: gallows, ice rink, brazier spill)
+Zak: the environment "a big part of what you can do". Build order items 6-8 of the proposal, as `Kit.has()` upgrades
+that also play in the training room with pieces (`rooms.gd` rule `flourishes`); `scripts/env_flourish.gd`, see
+`docs/features/env-pieces.md`.
+- [x] Gallows: a perfect counter's Ricochet hangs the attacker on a hook in 10 m, bound 2.5 s, the hook swinging,
+  x1.3 on the wall's splat (146 vs 112), every hit a Snap; the counter window brackets the hook, the cursor may choose
+  a wall; a second hook on the pillar at (8, -8); bot string `hook counter D`
+- [x] Ice Rink: ice by the pool freezes it 6 s (facet panes, frost spread, glints); cubes over it slide 6 m further at
+  full speed (Slapshot, a wall 14 m off: 153 vs 63 in the open); a foe knocked onto it slides on, frozen; bot string
+  `pool alt D L H`
+- [x] Brazier Spill: Lava Leash's seam tips a lit brazier (the spilled model to the seam, 2 m of coals, a 4 s molten
+  patch); Hellseam erupts from it x1.25 (pile 58 vs 46; the coals' end 25 vs 0); magma lights an out brazier; the
+  leash brackets it; bot string `brazier L L L H L`
+- [x] The breaker banner drops off a cued piece (Uproot's pillar, a hung hook, a spilled brazier) as off a cued foe
+- [x] The land check's `[env]` line needs `gallows ice_rink brazier_spill` above 0 (`pieces=9/9 ... gallows=2
+  ice_rink=7 brazier_spill=1`)
+- [x] Clips: `awaken-combo-clips/41 Flourish *`
+- [ ] Zak's call: which flourishes go in the base kit (recommendation: gallows); the extra x1.25 on Hellseam's pile;
+  a spilled brazier rebuilds lit
+
+
+## Round 53 feel-audit5 (feel audit 6: both rooms filmed with the after-beat, perf windowed)
+Every string filmed windowed in both rooms with `--tail`, ranked and fixed; `docs/feel-audit-2026-11-07b.md`.
+- [x] The breaker banner cuts to the bottom with a pop instead of sliding across the pile; the callout's ink outline
+  fades with its text (no ghost name over the banner band)
+- [x] Maw's heap and Black Ice's skid into the wall cue the frame (`MAW_CUE_MS`, `BLACK_ICE_CUE_MS`), so the banner
+  drops off them
+- [x] Tow Line's foe pick opens in the dash it comes out of (Zak's round 52 call), once a right click is buffered or
+  the cursor is on a foe; the picked foe's bracket clears the breaker prompt in the leap
+- [x] Anvil and Pinwheel melt Impale's spear: `wall D L H H H L` plays Eruption again (it vaulted)
+- [x] The frost mark redrawn as cracked rime (it read as a crystal star)
+- [x] Perf: the first ice block's 44-48 ms CPU frame gone (`designed_elements.prime_fit` at spawn); cpu worst 47.5 ->
+  33.4 plain, 48.0 -> 33.3 pieces; two shader signatures warmed
+- [x] Dead code: `comic_freeze_over.foe()`, `frost_floor` / `frost_step`, `harpoon_gather.carrying`, ten constants
+- [x] Clips: `awaken-combo-clips/42 Audit5 *`
+- [ ] Open: hang framing at the frame edge (Meteor Fall, Black Ice, Maw), Cold Front's hoist under the banner,
+  stacked damage numbers, Collapse's spits off the edge, Eruption's banner without a total, the first-L1 33 ms frame
+
+## Round 54 cool pass 3 (combo-cool3: the mids, the 3/4 endings, the parry)
+
+Zak: "keep iterating on the combos sticking to the scheme; make the others amazing / cooler". See
+`docs/features/combo-breakers.md` "Round 54 cool pass 3".
+- [x] Mids ranked (five at 1/4: Frost Spear, Reap, Singularity, Steam Burst, Hailstorm) and the five rebuilt with a
+  beat of their own (`scripts/mid_beats.gd`): Reap's hook bites and yanks the picked straggler (Black Tide x1.4 on
+  it), Singularity reels on tentacles and throws the held foe onto the picked one, Frost Spear's frost runs out to
+  them, Steam Burst's lava fuse and steam, Hailstorm's one twister drawing the cubes in
+- [x] Foe picks `reap`, `singularity`, `spear`; structure pick `cold_front`
+- [x] Endings to 4/4: Cold Front bowls the cubes into the marked wall (408 vs 264 in the open), Maw's heap jaws and
+  punch, Grounded's earthing, Worldbreaker's heave, Cataclysm's aftershock, Short Circuit's loop, Shatterstorm's
+  chain, Ricochet's drawn throw
+- [x] Backlash: parry glint, the weapon knocked flying, harder punch and jolt (sheets `parry_glint`, `parry_blade`,
+  `reap_hook` from `gen_cool3.py`); `tests/cool3_check.gd`; bot string `wall alt L H L H`
+- [x] Clips: `awaken-combo-clips/44 Cool3 *`
+- [ ] Zak's call: Frost Spear plants ahead of his facing, so after a turning L2 it can land away from the crowd (the
+  bot film); plant toward the nearest group by default?
+- [ ] Open: Rockslide, Deep Freeze, Overwhelm, Meltdown still 2/4; Short Circuit's loop needs foes past the held
+
+## Round 54 camera-hang (feel audit 6 item 10: hang framing and clutter)
+One framing rule for every breaker hang, and the clutter round it; `docs/features/camera.md` "Hang framing".
+- [x] Hang framing: every foe the ending acts on and its cued or picked structure; zoom out first (x1.4, x1.55 last
+  tier), lean the least that fits; worst actor at the landing / payoff inside 0.9 for every ending in
+  `camera_feel_check` (Cold Front 1.0); Cold Front 3.3 -> 0.95, Uproot 1.29 -> 0.62, Maw 0.91 -> 0.34
+- [x] Damage numbers over a pile stand in a column, the biggest nearest, a fourth folds into it
+- [x] The banner counts up through the beats (Eruption, Shatterstorm, Slapshot, Tempest, Flash Freeze, Collapse)
+- [x] Collapse's spits go to the picked structure (now framed after the landing) or to the side with room on screen
+- [x] Uproot's pillar and heaps erode (dust, sink, ~4 s); a no-rebuild room keeps a flat rubble decal
+- [x] Banner slide-fade tried (`--banner=slide`); the cut stays
+- [x] Clips: `awaken-combo-clips/43 Camera *`
+- [ ] Zak's call: the banner move (cut kept); Cold Front's cube needs x1.7; the gallows Ricochet payoff (1.2-1.4)
+
+## Round 55 cool pass 4 (combo-cool4: the last 2/4 mids, the picks on film)
+
+Zak: "keep iterating, sticking to the scheme; make them amazing; the structure / foe pick is amazing, use it where
+control makes sense". See `docs/features/combo-breakers.md` "Round 55 cool pass 4".
+- [x] Frost Spear plants in the nearest group by default (`spear_auto`); the cursor still overrides
+- [x] Rebuilt with a beat each: Deep Freeze's wave from the picked block, Rockslide's gale and falling boulder on the
+  picked spot, Meltdown's hammer on the picked block and its globs, Overwhelm drags the rest onto the pinned one and
+  slams it, Black Tide's tentacles haul each in and each knocks the pile, Dash Stab's lash reels in the one behind
+- [x] Foe picks `rockslide`, `deep_freeze`, `meltdown`; Frost Spear's `spear` pick has an auto
+- [x] Maw: no heap jaws, the knock is its own beat at the top (KONK, stop, punch), then the slam
+- [x] `tests/cool4_check.gd`; windowed `tests/pick_film.gd` films a foe pick with a drawn pointer
+- [x] Clips: `awaken-combo-clips/45 Cool4 *` (before / after, and one per pick: Singularity, Frost Spear, Reap, Tow
+  Line, Rockslide, Deep Freeze, Dash Stab, Short Circuit)
+- [ ] Open: Overwhelm's pool reads busy behind the slam; Rockslide's boulder small at the camera's distance; Dash
+  Stab's catch and Black Tide's drag need foes spread out (the bot's dummies stand close)

@@ -5,7 +5,9 @@ extends SceneTree
 ## pillars only); the too-far case; the cursor's and the right stick's override and the ending using it
 ## (pinwheel_target, ricochet_target, Slapshot's aim, Meteor Fall's pile); the live indicator through a window (shown,
 ## switched by the cursor, locked by the press); Impale's window (round 50: Pinwheel off Dash H H after a pause); the
-## beats (a pillar sheds chunks and cracks, a wall keeps a mark per element, capped, a torch swings); the pillar slam.
+## beats (a pillar sheds chunks and cracks, a wall keeps a mark per element, capped, a torch swings); the pillar slam;
+## round 51's foe picks (the charged hold's bracket on who Overwhelm pins, the cursor switching it; Abyss's window on
+## who comes back up first).
 ## Prints [env] PASS/FAIL.
 ## Run: godot --headless --path . -s tests/env_target_check.gd
 
@@ -37,6 +39,8 @@ func _initialize() -> void:
 	_impale_window()
 	_beats()
 	await _pillar_slam()
+	await _foe_picks()
+	await _cool2_picks()
 	if _fails.is_empty():
 		print("[env] PASS")
 	else:
@@ -246,6 +250,221 @@ func _beats() -> void:
 		env.hit_at(Vector3(-12.0 + i * 0.5, 0, -15.2), Vector3.FORWARD, "void")
 	_check(env.marks.size() == ENV.MARK_CAP, "marks are capped at %d (%d)" % [ENV.MARK_CAP, env.marks.size()])
 	print("  beats: pillar hits %d, chunks %d, torch swings %d, marks %d" % [env.pillar_hits, env.chunks_shed, env.torch_swings, env.marks.size()])
+
+
+## Round 51 cool pass: the bracket on a foe. The charged hold shows who Overwhelm will pin (the nearest in his aim),
+## the cursor on another foe switches it and Overwhelm takes that one; in Abyss's window the cursor picks who the deep
+## gives back first.
+func _foe_picks() -> void:
+	var a: Node3D = main._dummies[0]
+	var b: Node3D = main._dummies[1]
+	var homes: Array = main._dummies.map(func(d: Node3D) -> Vector3: return d.home)
+	for d: Node3D in main._dummies.slice(2):
+		d.global_position = Vector3(12, 0, 12) + Vector3(d.get_index() * 1.5, 0, 0)
+		d.home = d.global_position
+	hero.set_physics_process(false)
+	hero.global_position = Vector3(0, 0, 2)
+	hero._face(Vector3(0, 0, -1))
+	a.global_position = Vector3(0, 0, -2)
+	b.global_position = Vector3(4.5, 0, -5.5)
+	a.home = a.global_position
+	b.home = b.global_position
+	hero.state = hero.State.CHARGE
+	hero._charged = true
+	var switches0: int = env.switches
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "overwhelm" and env.current.s.get("node") == a and not env.current.chosen,
+		"charged hold: the bracket on the foe ahead (%s)" % str(env.current.get("ctx")))
+	await process_frame
+	await process_frame
+	_check(env._bracket.visible and env._bracket.global_position.distance_to(a.global_position + Vector3.UP) < 1.5, "drawn on it (%s)" % str(env._bracket.global_position))
+	env.test_cursor = b.global_position + Vector3(0.3, 0, 0)
+	await physics_frame
+	await physics_frame
+	_check(env.current.s.get("node") == b and env.current.chosen and env.switches > switches0, "the cursor on the other foe switches the bracket to it")
+	_check(ENV.picked_foe(hero, "overwhelm") == b, "and the pick is written on the hero")
+	hero.set_physics_process(true)
+	hero._start_attack(VE.CHARGED)
+	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
+	_check(hero._void.dark_spot.distance_to(Vector3(b.global_position.x, 0, b.global_position.z)) < 0.6,
+		"Overwhelm pins the chosen one, off his aim (%s)" % str(hero._void.dark_spot))
+	env.test_cursor = Vector3.INF
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+	await create_timer(0.8).timeout
+	# Abyss's window: two pinned, the cursor on the second
+	hero.global_position = Vector3(0, 0, 2)
+	hero._face(Vector3(0, 0, -1))
+	a.global_position = Vector3(0, 0, -2)
+	b.global_position = Vector3(1.6, 0, -2.6)
+	a.home = a.global_position
+	b.home = b.global_position
+	await physics_frame
+	hero._start_attack(VE.CHARGED)
+	await _until(func() -> bool: return hero.state == hero.State.LEAP and hero._brk_phase == 0, 3.0)
+	await physics_frame
+	await physics_frame
+	var auto_one: Variant = env.current.s.get("node") if env.current.has("s") else null
+	_check(env.current.get("ctx", "") == "abyss" and (auto_one == a or auto_one == b), "Abyss's window: the bracket on a pinned foe (%s)" % str(env.current.get("ctx")))
+	var other: Node3D = b if auto_one == a else a
+	env.test_cursor = other.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "abyss" and env.current.s.get("node") == other and env.current.chosen, "the cursor picks the other")
+	var landed: int = hero.breakers_landed
+	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
+	_check(hero.breakers_landed > landed, "Abyss lands")
+	await _until(func() -> bool: return other.global_position.y > 0.5, 0.8)
+	var first_y: float = other.global_position.y
+	var auto_y: float = (a if other == b else b).global_position.y
+	_check(first_y > auto_y + 0.6, "the picked one comes up first (%.1f vs %.1f m)" % [first_y, auto_y])
+	env.test_cursor = Vector3.INF
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+	await create_timer(1.0).timeout
+	for i in main._dummies.size():
+		main._dummies[i].home = homes[i]
+		main._dummies[i].global_position = homes[i]
+	print("  foe picks: switches %d" % env.switches)
+
+
+## Round 52 cool pass (combo-cool2): the windows that pick by hand. Eruption's (Meltdown's) marks the wall the geysers
+## hurl at; Flash Freeze's (Steam Burst's) a foe, the shell that breaks first, the cursor switching it.
+func _cool2_picks() -> void:
+	var a: Node3D = main._dummies[0]
+	var b: Node3D = main._dummies[1]
+	var homes: Array = main._dummies.map(func(d: Node3D) -> Vector3: return d.home)
+	hero.set_physics_process(false)
+	hero.state = hero.State.LEAP
+	hero._brk_phase = 0
+	hero._brk_locked = false
+	# Eruption: landing 3 m off the back wall
+	hero.global_position = Vector3(-2, 0, -11)
+	hero._brk_id = "XM"
+	hero._brk = VE.entry("XM")
+	hero._brk_zone = Vector3(-2, 0, -12)
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "eruption" and env.current.get("state", "") == "target", "Eruption's window: the bracket on the structure the geysers hurl at (%s)" % str(env.current.get("ctx")))
+	var p: Dictionary = VE.pinwheel_target(hero, hero._brk_zone, "eruption", VE.ERUPT_REACH)
+	_check(p.get("found", false) and p.s.id == env.current.s.id, "and the ending reads that pick")
+	# Flash Freeze: two in the steam's reach, the auto one the nearest the landing; the cursor on the other
+	hero._brk_id = "XS"
+	hero._brk = VE.entry("XS")
+	hero.global_position = Vector3(0, 0, 2)
+	hero._brk_zone = Vector3(0, 0, 0.5)
+	a.global_position = Vector3(0, 0, -0.5)
+	b.global_position = Vector3(2.5, 0, -1.5)
+	a.home = a.global_position
+	b.home = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "flash_freeze" and env.current.s.get("node") == a and not env.current.chosen,
+		"Flash Freeze's window: the bracket on the shell nearest the landing (%s)" % str(env.current.get("ctx")))
+	env.test_cursor = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.s.get("node") == b and env.current.chosen and ENV.picked_foe(hero, "flash_freeze") == b, "the cursor picks the other to break first")
+	var g: Node3D = VE.flash_freeze_dive(hero)
+	hero.remove_meta(VE.FF_META)
+	g.shatter(ENV.picked_foe(hero, "flash_freeze"))
+	_check(g.chain.size() >= 2 and g.chain[0] == b, "the break starts on the picked shell (%d in the chain)" % g.chain.size())
+	g.queue_free()
+	env.test_cursor = Vector3.INF
+	# Meteor Fall (round 52): two piles of palm foes, the bracket on the pile he dives on; the cursor on the other pile
+	var c: Node3D = main._dummies[2]
+	var d: Node3D = main._dummies[3]
+	for f: Node3D in [a, b, c, d]:
+		f.set_meta(VE.PALM_META, Time.get_ticks_msec())
+	a.global_position = Vector3(-5, 0, -4)
+	b.global_position = Vector3(-4.5, 0, -4.6)
+	c.global_position = Vector3(5, 0, -4)
+	d.global_position = Vector3(5.5, 0, -3.4)
+	for f: Node3D in [a, b, c, d]:
+		f.home = f.global_position
+	hero.global_position = Vector3(0, 0, 0)
+	hero._brk_id = "EV"
+	hero._brk = VE.entry("EV")
+	await physics_frame
+	await physics_frame
+	var auto_m: Variant = env.current.get("s", {}).get("node")
+	_check(env.current.get("ctx", "") == "meteor" and (auto_m == a or auto_m == b or auto_m == c or auto_m == d),
+		"Meteor Fall with two piles: the bracket on a foe of the pile (%s)" % str(env.current.get("ctx")))
+	var other_pile: Node3D = c if auto_m == a or auto_m == b else a
+	env.test_cursor = other_pile.global_position
+	await physics_frame
+	await physics_frame
+	var ms: Dictionary = VE.meteor_spot(hero)
+	_check(ENV.picked_foe(hero, "meteor") == other_pile and ms.found and Vector2(ms.at.x - other_pile.global_position.x, ms.at.z - other_pile.global_position.z).length() < VE.METEOR_PILE_R,
+		"the cursor on the other pile: he dives on it (%s)" % str(ms.get("at")))
+	env.test_cursor = Vector3.INF
+	for f: Node3D in [a, b, c, d]:
+		f.remove_meta(VE.PALM_META)
+	# Tow Line (round 52): the bracket on who the line is yanked into; the cursor makes another the anchor
+	hero._brk = {}
+	hero.state = hero.State.ATTACK
+	hero._move_id = VE.DASH_MOVE
+	hero._hits_done = 0
+	hero.global_position = Vector3(0, 0, 0)
+	hero._dash_from = Vector3(0, 0, 0)
+	hero._face(Vector3(0, 0, -1))
+	a.global_position = Vector3(0.5, 0, -2.0)
+	b.global_position = Vector3(-3.0, 0, 1.5)
+	c.global_position = Vector3(20, 0, 0)
+	d.global_position = Vector3(-20, 0, 0)
+	for f: Node3D in [a, b, c, d]:
+		f.home = f.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "tow" and env.current.s.get("node") == a and not env.current.chosen,
+		"Tow Line: the bracket on the foe nearest where they're yanked (%s)" % str(env.current.get("ctx")))
+	env.test_cursor = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(ENV.foe_chosen(hero, "tow") == b, "the cursor makes the other the anchor")
+	var hp_b: float = b.hp
+	var n: int = VE._tow(hero, Vector3.ZERO, Vector3(0, 0, -1), 10.0)
+	_check(n >= 2 and b.hp < hp_b and not b.has_meta("thrown_foe_flying"), "the anchor is snared where it stands, the rest yanked into it (%d)" % n)
+	env.test_cursor = Vector3.INF
+	# Round 53 (feel audit 5): the pick opens in the dash before Tow Line: a buffered right click, or the cursor on a foe
+	hero.state = hero.State.DASH
+	hero._buffered = ""
+	await physics_frame
+	await physics_frame
+	_check(env.current.is_empty(), "a plain dash shows no Tow Line bracket (%s)" % str(env.current.get("ctx")))
+	hero._buffered = "heavy"
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "tow" and env.current.s.get("node") == a,
+		"a right click buffered in the dash opens Tow Line's pick (%s)" % str(env.current.get("ctx")))
+	var shown_dash: int = env.shown
+	hero._buffered = ""
+	env.test_cursor = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "tow" and env.current.s.get("node") == b and ENV.foe_chosen(hero, "tow") == b,
+		"the cursor on a foe in the dash shows the pick before the press")
+	hero.state = hero.State.ATTACK
+	await physics_frame
+	await physics_frame
+	_check(env.shown == shown_dash and env.current.s.get("node") == b, "the dash's bracket carries on into Tow Line (shown %d -> %d)" % [shown_dash, env.shown])
+	env.test_cursor = Vector3.INF
+	await create_timer(0.6).timeout
+	hero.state = hero.State.MOVE
+	hero._brk = {}
+	await physics_frame
+	await physics_frame
+	hero.set_physics_process(true)
+	for i in main._dummies.size():
+		main._dummies[i].home = homes[i]
+		main._dummies[i].global_position = homes[i]
+	await create_timer(0.6).timeout
+
+
+func _until(cond: Callable, timeout: float) -> void:
+	var t := 0.0
+	while t < timeout and not cond.call():
+		await physics_frame
+		t += 1.0 / 60.0
 
 
 ## H, then H held by a pillar: the slam goes into the pillar (the pillar's beat, a wall splat), and Singularity's hole

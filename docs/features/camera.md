@@ -132,3 +132,116 @@ from `trauma`, so the noise shake and the jolt stack. `designed_breaker.landing(
 (`fov_punch`, `FOV_ENDER` x1.2-1.6) and `Game.slam_stop()`. That last one is two stacked hitstops: a crunch freeze at
 `CRUNCH_SCALE` 0.02, then a slow tail at the family's `tail_scale` (clamped 0.1-0.49 so the hitstop check reads it as
 slow-mo, not a freeze), with the total capped at `SLAM_STOP_MAX` 0.25 real s. Check: `tests/camera_feel_check.gd`, `tests/hitstop_check.gd`.
+
+## Hang framing (round 54, camera-hang lane)
+
+Feel audit 6 item 10: the hang framing left the pile at the frame's edge (Meteor Fall, Black Ice, Maw) and Cold Front's
+hoist under the banner. Each fix so far was a per-move cue. Now one rule runs for every breaker, from the leap to its
+payoff.
+
+**The scene** (`_scene_tick()`).
+- A leap (State.LEAP) starts a scene. Each frame of the hang adds the foes the tentacles hold (`_void.held_foes()`)
+  and the foes within `HANG_ZONE_R` (5 m) of the landing zone (`_brk_zone`).
+- The landing (`breakers_landed` going up) adds the foes within `HANG_ZONE_R` of him, and every foe hit from 60 ms
+  before to 200 ms after the landing (`HANG_LAND_HIT_MS`), however far: Short Circuit's arc, Ricochet's bounce.
+- A cued foe (`FRAME_CUE`) joins the scene and keeps it on. A miss or a dash out ends the scene.
+- The scene runs `HANG_AFTER_MS` 1300 past the landing, longer while a cue runs, up to `HANG_AFTER_MAX_MS` 2600.
+- Its structures are the indicator's pick (as of the leap, kept for the scene: Collapse spits into it after the landing) and any cued room piece (`"env"` group, `FRAME_CUE`).
+
+**The framing** (`_frame_scene()`).
+- The scene takes the actors (feet and `FRAME_HEAD`), him (feet and his hang height), the dive's landing spot and the
+  structures, and fits them inside `HANG_SAFE`: (0.82 sideways, 0.5 up, 0.8 down) of the half-screen. Up is kept
+  short so the top banner stays clear.
+- It **zooms out first**, up to `HANG_CAP` x1.4. Only what the zoom can't hold is leaned for, and then by the least
+  lean that fits. `_best_lean()` sweeps x then z twice, coarse (±6 m by 0.5) then fine (±0.5 by 0.1), and a tie goes
+  to the smaller lean. A binary search then scales that lean down to the least that still fits.
+- Fallbacks, in order:
+  - Nothing fits: the box grows to `HANG_SAFE_FULL` (0.8 up), and the banner dodges.
+  - Still nothing fits: the structure is dropped, foes first.
+  - Still too wide, or a lean or follow still on its way: the cap becomes `HANG_CAP_WIDE` x1.55, after the landing
+    only (never during the rise).
+- The zoom it asks for is also checked against where the view centres now: the current eased `_lean`, and, after the
+  landing, the lagging follow point. Without that, a lean still on its way home put the pile off the bottom while the
+  zoom came in.
+- The scene's lean comes home at `HANG_SETTLE`.
+- **Push-ins are clamped.** `_squeeze()` and the per-hit push-in and FOV kick can't go deeper than the scene's actors
+  allow (`camera.position` takes `max(push, need / (frame * narrow))`). The landing's punch still plays when the scene
+  has room.
+
+**Measured** (the lane's scratch probe, deleted before landing; it drove the bot like `string_film`, plain room, every bot string, 1920x1080). The number is the worst
+actor's |ndc|, the larger of x and y over feet and +1.6 m. Landing is the first 150 ms; payoff is 150-1400 ms.
+
+| Ending (plain) | String | Landing before | after | Payoff before | after |
+|---|---|---|---|---|---|
+| Grounded | `L H H` | 0.54 | 0.28 | 0.62 | 0.40 |
+| Collapse | `H H` | 1.02 | 0.70 | 0.98 | 0.71 |
+| Maw | `H L H` | 0.91 | 0.34 | 0.87 | 0.41 |
+| Worldbreaker | `L H L H` | 0.71 | 0.36 | 0.71 | 0.42 |
+| Shatterstorm | `D L H` | 0.82 | 0.47 | 0.78 | 0.53 |
+| Avalanche | `L L H L H` | 1.12 | 0.68 | 1.11 | 0.62 |
+| Abyss | `hold` | 0.56 | 0.47 | 0.81 | 0.59 |
+| Meteor Fall | `L L L H H` | 0.56 | 0.28 | 0.69 | 0.30 |
+| Cataclysm | `L H L L H` | 0.73 | 0.40 | 0.72 | 0.44 |
+| Flash Freeze | `D L H H L` | 0.61 | 0.68 | 0.67 | 0.58 |
+| Black Ice | `alt H L H` | 0.97 | 0.44 | 0.93 | 0.51 |
+| Eruption | `line D L H H H L` | 0.71 | 0.81 | 0.91 | 0.77 |
+| Anvil | `L L H D H H L` | 0.68 | 0.32 | 0.71 | 0.37 |
+| Shatterstorm | `face L H L L D L H` | 1.15 | 0.51 | 1.01 | 0.47 |
+| Shatterstorm | `face L H D L H` | 0.83 | 0.46 | 0.84 | 0.47 |
+| Short Circuit | `spread far alt L H H` | 1.37 | 0.98 | 1.21 | 0.70 |
+| Shatterstorm | `ring D L H` | 0.80 | 0.67 | 0.78 | 0.62 |
+| Slapshot | `wall alt D L H` | 0.57 | 0.46 | 0.61 | 0.56 |
+| Meteor Shower | `spread alt L L L H H` | 1.21 | 0.74 | 1.18 | 0.82 |
+| Pinwheel | `wall alt L L H D H H L` | 1.02 | 0.75 | 0.93 | 0.61 |
+| Hellseam | `wall spread L L L H L` | 0.64 | 0.45 | 0.67 | 0.46 |
+| Cold Front | `alt L H L H` | 3.32 | 0.96 | 3.05 | 0.87 |
+| Tempest | `alt L H L L H` | 1.27 | 0.56 | 1.08 | 0.58 |
+| Ricochet | `counter D` | 1.14 | 0.79 | 1.18 | 0.82 |
+| Collapse | `pillar H hold` | 0.35 | 0.28 | 0.68 | 0.58 |
+| Uproot | `pillar alt hold` | 1.29 | 0.62 | 1.35 | 0.59 |
+| Avalanche | `wall L L H L H` | 0.80 | 0.60 | 0.83 | 0.65 |
+| Pinwheel | `wall alt D H H` | 0.84 | 0.67 | 0.95 | 0.62 |
+| Eruption | `wall D L H H H L` | 0.84 | 0.68 | 0.79 | 0.65 |
+before_final_pieces.txt [hang] banners=36 dodged=18 late_adds=82 folded=15
+after14_pieces.txt [hang] banners=36 dodged=13 late_adds=82 folded=14
+
+Pieces room, the strings only it has:
+
+| Ending (pieces) | String | Landing before | after | Payoff before | after |
+|---|---|---|---|---|---|
+| Ricochet | `counter D` | 1.85 | 0.81 | 1.84 | 1.41 |
+| Meteor Fall | `keg L L L H H` | 0.64 | 0.51 | 0.58 | 0.48 |
+| Slapshot | `grate alt L L H wait D L H` | 1.47 | 0.80 | 1.39 | 0.80 |
+| Short Circuit | `grate alt L H H` | 0.50 | 0.39 | 0.47 | 0.38 |
+| Short Circuit | `torch alt L H H` | 1.59 | 1.07 | 1.39 | 0.75 |
+| Ricochet | `hook counter D` | 0.95 | 0.46 | 1.72 | 1.20 |
+| Slapshot | `pool alt D L H` | 0.61 | 0.45 | 0.92 | 0.86 |
+| Hellseam | `brazier L L L H L` | 0.57 | 0.50 | 0.55 | 0.46 |
+
+The before column comes from the dev rig with the same probe and actor set. Most of the large before numbers are foes
+the hang never framed (the hang kept him centred).
+
+`camera_feel_check` plays one string per ending in the real training room and holds the worst actor inside 0.9 at the
+landing and over the payoff. The landing is measured from the frame after it, because the landing's own frame has the
+camera from before the hit. Cold Front's bar is 1.0: its hoisted cube sits ~8 m down-screen of where the dive lands
+and 2.8 m up, and the scene wants x1.7, past `HANG_CAP_WIDE`. It lands at 0.89-0.96 for the landing's first frames.
+
+**Banner dodges.** The banner dodged 11 of 29 banners in the plain room and 13 of 36 in the pieces room (before:
+cued endings only).
+
+**Zak's calls.**
+- The banner move. `designed_breaker.Screen.CALL_MOVE` is "cut" (round 53: it jumps to the bottom with a pop).
+  `-- --banner=slide` plays the alternative: two frames on twos down the screen (20% at alpha 0.4, then 80% at 0.65),
+  then whole at the bottom with the pop. On film at 800x450 (`camhang_slide_*`, Maw H L H 030-032, Flash Freeze D L H H L 033-036), the slide's middle frame is a faded banner lying over the pile, which is the ghost round 53 removed. The cut reads cleaner, so it stays. Clip: `awaken-combo-clips/43 Camera Banner move *`.
+- Cold Front's cube: give it `HANG_CAP_WIDE` x1.7, or let its dive land nearer the cube.
+- The pieces room: Ricochet onto the gallows hook (payoff 1.2-1.4: the hook 10 m off is cued high) and Short Circuit's
+  torch arc (landing 1.07, the first frame) are still past 0.9.
+
+| Constant | Value | What |
+|---|---|---|
+| `HANG_CAP`, `HANG_CAP_WIDE` | 1.4, 1.55 | zoom-out cap for a scene; the last tier, after the landing |
+| `HANG_SAFE`, `HANG_SAFE_FULL` | (0.82, 0.5, 0.8), (0.82, 0.8, 0.8) | box (sides, up, down) of the half-screen |
+| `HANG_ZONE_R` | 5 m | foes round the zone and the landing count |
+| `HANG_LAND_HIT_MS` | (60, 200) | a foe hit this long before / after the landing counts |
+| `HANG_AFTER_MS`, `HANG_AFTER_MAX_MS` | 1300, 2600 | how long a scene runs past the landing, with cues |
+| `HANG_LEAN_STEPS`, `HANG_LEAN_MAX` | 7, 6 m | lean binary search steps, the lean's reach |

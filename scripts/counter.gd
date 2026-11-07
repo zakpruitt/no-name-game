@@ -16,6 +16,8 @@ const HERO_LEAP := preload("res://scripts/hero_leap.gd")
 const FX := preload("res://scripts/counter_fx.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const FLOOR_BIND := preload("res://scripts/floor_bind.gd")
+const FLOURISH := preload("res://scripts/env_flourish.gd")  # round 53: gallows (a hook in reach takes Ricochet)
+const ENV := preload("res://scripts/env_target.gd")
 
 ## The trigger: game s before the strike lands that a dash counters it (the windup's last WINDOW s, up to the strike
 ## frame), the last PERFECT s of it a perfect; the dash aimed within ARC degrees of the attacker; the attacker no
@@ -32,6 +34,15 @@ const STOP_SCALE := 0.04
 const AWAKEN := 6.0
 const AWAKEN_PERFECT := 10.0
 const WORD := "KRRAK-SNAP!"
+## Round 54 cool pass 3: the parry's camera, a push-in (PUNCH, PUNCH_PERFECT) and a jolt along the blow (camera_rig.jolt),
+## and Ricochet's throw drawn: an ink trail behind the hurled attacker for RICOCHET_TRAIL s (mid_beats.trail).
+const PUNCH := 0.86
+const PUNCH_PERFECT := 0.78
+const JOLT := 0.16
+const JOLT_PERFECT := 0.26
+const JOLT_HZ := 16.0
+const JOLT_DECAY := 11.0
+const RICOCHET_TRAIL := 0.6
 const WORD_SCALE := 0.62  # (ComicFx.WORD_SCALE units; the breakers' words are 0.78)
 ## Backlash, in game s from the parry: the tentacle is on it by WRAP, has it up over him (LIFT_Y m, LIFT_AHEAD m in
 ## front) by LIFT, slams it down SLAM_AHEAD m in front of him at SLAM for DAMAGE, and lets go by END. The attacker is
@@ -65,7 +76,7 @@ const RICOCHET_SPEED := 24.0
 const RICOCHET_CUE_MS := 1400
 const BIND_TIME := 1.6
 
-static var last_ricochet := ""  # "foe" / "wall" / "open": where the last Ricochet went (counter_check)
+static var last_ricochet := ""  # "foe" / "wall" / "open" / "hook": where the last Ricochet went (counter_check)
 
 
 ## The strike (or bolt) a dash along `dir` would counter now, or {}: {foe, t (game s to contact), bolt, perfect}.
@@ -149,8 +160,12 @@ static func start(hero: CharacterBody3D, c: Dictionary) -> void:
 	Game.shake(0.45 if perfect else 0.3)
 	Game.sfx("perfect" if perfect else "hit_big", -3.0, 0.05)
 	Game.sfx("swing_heavy", -5.0, 0.1)
-	if Game.camera_rig:
-		Game.camera_rig.punch(0.86 if perfect else 0.9, 0.2)
+	if Game.camera_rig:  # (round 54 cool pass 3: a harder punch and a jolt along the blow, so the parry lands like a hit)
+		Game.camera_rig.punch(PUNCH_PERFECT if perfect else PUNCH, 0.2)
+		var cam: Camera3D = hero.get_viewport().get_camera_3d()
+		if cam != null:
+			var side: float = (at - hero.global_position).dot(cam.global_basis.x)
+			Game.camera_rig.jolt(JOLT_PERFECT if perfect else JOLT, JOLT_HZ, JOLT_DECAY, Vector2(signf(side) if absf(side) > 0.1 else 1.0, 0.5))
 	ComicFx.say(WORD, hero.global_position.lerp(at, 0.5), WORD_SCALE)
 	Game.add_awakening(AWAKEN_PERFECT if perfect else AWAKEN)
 	Game.register_hit("counter")
@@ -301,8 +316,15 @@ static func ricochet(hero: CharacterBody3D, b: Dictionary, _at: Vector3, seized:
 		var target := ricochet_target(hero, e)
 		last_ricochet = target.kind
 		(e as Node).set_meta(VOID_ELEMENT.CAMERA_CUE, Time.get_ticks_msec() + RICOCHET_CUE_MS)
-		VOID_ELEMENT.THROWN.launch(hero, e, target.to, damage, {"solid": true, "el": "void", "speed": RICOCHET_SPEED,
-			"land_y": 0.0, "wall_mult": RICOCHET_WALL_MULT, "on_burst": _ricochet_hit.bind(hero)})
+		var opts := {"solid": true, "el": "void", "speed": RICOCHET_SPEED, "land_y": 0.0, "wall_mult": RICOCHET_WALL_MULT,
+			"on_burst": _ricochet_hit.bind(hero)}
+		if target.has("hook"):  # round 53, gallows: over the foes onto the hook, x GALLOWS_MULT on the wall's
+			FLOURISH.claim_hook(target.hook)
+			opts.solid = false
+			opts.wall_mult = RICOCHET_WALL_MULT * FLOURISH.GALLOWS_MULT
+			opts.on_burst = _gallows_hit.bind(hero, target.hook)
+		VOID_ELEMENT.THROWN.launch(hero, e, target.to, damage, opts)
+		VOID_ELEMENT.MID_BEATS.trail(hero.get_parent(), e, RICOCHET_TRAIL)
 		Game.register_hit("breaker")
 	Game.shake(0.5)
 
@@ -311,6 +333,18 @@ static func ricochet(hero: CharacterBody3D, b: Dictionary, _at: Vector3, seized:
 ## RICOCHET_REACH of it, else RICOCHET_OPEN m along his aim. {"kind": "foe" / "wall" / "open", "to"}.
 static func ricochet_target(hero: CharacterBody3D, e: Node3D) -> Dictionary:
 	var from := Vector3(e.global_position.x, 0.0, e.global_position.z)
+	# Round 53 (gallows, env_flourish.gd): a hook's point in reach takes it over any foe or wall, unless the cursor chose
+	# a wall or pillar in the window (env_target CTX "gallows").
+	var hook: Node3D = FLOURISH.gallows_hook(hero, e)
+	if hook != null:
+		var p := FLOURISH.hook_point(hook)
+		var to_hook := Vector3(p.x - from.x, 0.0, p.z - from.z)
+		return {"kind": "hook", "hook": hook, "to": from + to_hook.normalized() * (to_hook.length() + 1.0)}
+	var over: Dictionary = ENV.chosen(hero, "gallows")
+	if not over.is_empty():
+		var f: Dictionary = ENV.surface(over, from)
+		var to_wall: Vector3 = f.at - from
+		return {"kind": "wall", "to": from + to_wall.normalized() * (to_wall.length() + 1.5)}
 	var foe: Node3D = null
 	var foe_d := RICOCHET_REACH
 	for o: Node3D in VOID_ELEMENT.FOES.near(hero.get_tree(), from, RICOCHET_REACH):
@@ -336,6 +370,13 @@ static func ricochet_target(hero: CharacterBody3D, e: Node3D) -> Dictionary:
 static func _ricochet_hit(f: Node3D, _walled: bool, _dir: Vector3, hero: CharacterBody3D) -> void:
 	if is_instance_valid(hero) and is_instance_valid(f) and f.is_alive():
 		FLOOR_BIND.bind(hero, [f], {"time": BIND_TIME, "ropes": 3, "tick_damage": 2.0, "color": VOID_ELEMENT.DARK.VIOLET})
+
+
+## Gallows (round 53): the throw stopped by the hook; it hangs there (env_flourish.Hang), or, stopped short, is bound
+## where it lands as any Ricochet.
+static func _gallows_hit(f: Node3D, walled: bool, dir: Vector3, hero: CharacterBody3D, hook: Node3D) -> void:
+	if FLOURISH.hang(hero, f, hook) == null:
+		_ricochet_hit(f, walled, dir, hero)
 
 
 ## The combo guide's hint (combo_guide.gd): while a strike a dash along his facing would counter is coming, a SPACE

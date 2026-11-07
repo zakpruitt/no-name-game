@@ -42,6 +42,24 @@ const HOT := Color(1.0, 0.45, 0.05)
 const HOT_CORE := Color(1.0, 0.86, 0.12)
 
 static var _live := {}  # foe instance id -> number
+## Round 54 (camera-hang lane; feel audit 6 item 10: Cold Front's pile read "146209", two numbers inked over each
+## other): the numbers over one pile stand in a tidy column, the biggest lowest (nearest the pile), the rest stepped up
+## the screen a row each, STACK_MAX at most; a smaller one past that folds into the biggest (its amount added there,
+## and its foe's next hits go there too while it is up).
+const STACK_R := 2.4  # m (flat): numbers that started this close make one pile
+const STACK_MAX := 3
+const STACK_ROW := 0.9  # of the number below's height, row to row
+static var _all: Array = []  # every per-foe number up (not the breaker total)
+static var folded := 0  # numbers folded into their pile's biggest (checks)
+var _at := Vector3.ZERO  # where it stands this step, before the column and the dodge
+var _row := 0  # its row in its pile's column (0: the biggest)
+var _into: Node3D = null  # the pile's biggest it folded into
+## Round 54 (feel audit 6 item 10: Eruption's banner showed no total, its damage lands over the beats): while the
+## ending's banner is up and counting (designed_breaker.Screen sets these), every hit adds into the landing's total,
+## as Live Wire's shocks do in the hang; no per-foe number goes up for it.
+static var banner_open := false
+static var banner_from_ms := 0  # the banner's total is a breaker total that started at or after this
+static var banner_adds := 0  # hits the banner counted after the landing's own total closed (checks)
 static var _breaker: Node3D = null  # the breaker landing's one total, while it takes hits
 ## Breaker spectacle: designed, the landing's total goes up on the ending's callout banner (designed_breaker.gd's
 ## Screen reads these), and the 3D total over the pile is kept for its logic but not drawn.
@@ -70,6 +88,13 @@ static func add(parent: Node, pos: Vector3, amount: float, is_big: bool, foe: Ob
 	if is_instance_valid(_breaker) and _breaker._since_add < BREAKER_BEAT_S and _breaker._t < BREAKER_SPAN_S:
 		_breaker.add_hit(amount, true)
 		return _breaker
+	if banner_open and breaker_ms >= banner_from_ms:  # (the banner counts the ending's later beats)
+		banner_adds += 1
+		if is_instance_valid(_breaker):
+			_breaker.add_hit(amount, true)
+			return _breaker
+		breaker_total += amount
+		return null
 	if parent.is_inside_tree() and breaker_landing(parent.get_tree()):
 		var b: Node3D = SELF.new()
 		b.breaker = true
@@ -81,8 +106,10 @@ static func add(parent: Node, pos: Vector3, amount: float, is_big: bool, foe: Ob
 		return b
 	var key := foe.get_instance_id() if foe != null else 0
 	if key != 0 and _live.has(key):
-		var n: Node3D = _live[key]
-		if is_instance_valid(n) and n._since_add < MERGE_S:
+		var n: Variant = _live[key]  # (Variant: a folded one's lead may be gone)
+		if is_instance_valid(n) and is_instance_valid(n._into):
+			n = n._into
+		if is_instance_valid(n) and n._since_add < MERGE_S and not n.is_queued_for_deletion():
 			n.add_hit(amount, is_big)
 			return n
 	var num: Node3D = SELF.new()
@@ -104,7 +131,35 @@ func setup(pos: Vector3, amount: float, is_big: bool, key: int) -> void:
 	_away = _away_from_pile(pos)
 	_base = pos + Vector3.UP * HEAD + _away * OUT
 	global_position = _base
+	if not breaker:
+		_all.append(self)
 	add_hit(amount, is_big)
+
+
+func _exit_tree() -> void:
+	_all.erase(self)
+
+
+## The numbers in this one's pile (started within STACK_R of it), biggest first (the older first on a tie).
+func _pile() -> Array:
+	var out := []
+	for n: Variant in _all:
+		if is_instance_valid(n) and not (n as Node).is_queued_for_deletion() and n._into == null:
+			var d: Vector3 = n._base - _base
+			if Vector2(d.x, d.z).length() < STACK_R:
+				out.append(n)
+	out.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.total > b.total or (a.total == b.total and a._t > b._t))
+	return out
+
+
+## Fold into `lead`, the pile's biggest: the amount goes there, this one goes.
+func _fold(lead: Node3D) -> void:
+	_into = lead
+	folded += 1
+	lead.add_hit(total, big)
+	if _key != 0:
+		_live[_key] = lead  # (its foe's next hits go there)
+	queue_free()
 
 
 func _make(fill: Color, outline: Color, outline_px: int, priority: int) -> Label3D:
@@ -231,6 +286,20 @@ func _draw(step: int) -> void:
 		size *= 0.7 if step == end_step else 0.4
 	scale = Vector3.ONE * size
 	var at := _base + _away * DRIFT * s + Vector3.UP * RISE * s
+	_at = at
+	if not breaker and is_inside_tree():
+		var pile := _pile()
+		_row = maxi(pile.find(self), 0)
+		if _row >= STACK_MAX:
+			_fold(pile[0])
+			return
+		if _row > 0:  # the column: on the biggest's spot, a row up the screen for each bigger one below
+			var cam := get_viewport().get_camera_3d()
+			var up: Vector3 = cam.global_basis.y if cam != null else Vector3.UP
+			var lift := 0.0
+			for k in _row:
+				lift += FONT_SIZE * PIXEL * (pile[k] as Node3D).scale.y * STACK_ROW
+			at = (pile[0] as Node3D)._at + up * lift
 	_dodge += dodge(at + _dodge, size, _front.text.length(), ComicFx.text_blocks())
 	global_position = at + _dodge
 

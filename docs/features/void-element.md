@@ -46,7 +46,7 @@ element: the hit arcs on through every other charged foe near it. Overload (stor
 
 | Input | Id | Name | Effect |
 |---|---|---|---|
-| L L H | `IP` | Frost Spear | Plants the spear ahead of him (`frost_spear.gd`). Frost spreads out from it and only slows. One at a time; it melts after `LIFE` |
+| L L H | `IP` | Frost Spear | Plants the spear in the nearest group (round 55, `spear_auto`; ahead of him with none) (`frost_spear.gd`). Frost spreads out from it and only slows. One at a time; it melts after `LIFE` |
 | Dash L H H | `EA` | Ice Cube | Freezes the nearest foe and bowls it (`pierce`): whatever it passes takes the hit and freezes |
 | L L H L | `IJ` | Vault | Up over the spear (`run_to_spear`) |
 | L L H L H | `IS` | Deep Freeze | Comes down on the spear and it goes off: everyone on the frost takes a hit and freezes into a cube (`_deep_freeze`). The window opens |
@@ -85,7 +85,7 @@ clip with its `*_HIT` contact frame, with the arm's shape in `VOID_ELEMENT.FORM_
 | L H L L H | `XF` | Fault Line | earth into storm | Cracks run to everyone in `FAULT_REACH` and the gale comes up out of each, launching them; Rockslide's `buried` take `FAULT_BURIED_MULT`. The window opens |
 | L H L L H, H in window | `XF` | Cataclysm | storm + earth | Held in the hang (no `wire` since round 37's review: Live Wire's bolts on every foe made it a wall of effects; `damage` 46 for the lost jolts), then down into the floor: a crater (`CATACLYSM_DOWN`), a sky strike and the earth under each |
 | Dash L H H L | `XS` | Steam Burst | ice into magma | The molten fist goes at the frozen: every foe in a cube or frozen within `STEAM_REACH` goes off (the cube Ice Cube is still bowling too: `THROWN.cut`, so the bot's string steams every run) in steam (`STEAM_DAMAGE` times the ice's `FREEZE_BREAK`, launched), scalding anyone within `STEAM_SPLASH`. Nobody frozen: a small shove. The window opens |
-| Dash L H H L, H in window | `XS` | Flash Freeze | magma into ice | The steam freezes on the held foes as he dives (`refreeze`: `freeze_seized()`), and the landing shatters it again |
+| Dash L H H L, H in window | `XS` | Flash Freeze | magma into ice | Round 52: the steam rolls out on the dive over everyone within `FF_CLOUD_R` and sets into a shell (ice block) on each, nearest first; the landing breaks the picked one and the break chains shell to shell (`frost_shell.gd`; combo-breakers.md "Round 52 cool pass") |
 | H L L | `XC` | Galvanize | dark into storm | Round 44 b, an event in three beats. Reach out: a tentacle whips out to everyone within `GALV_REACH` 8 m round him and to the Reap marked within `GALV_MARK_REACH` 11 m (`GALV_LINKS` 6, the marked first past the cap), nearest first, `GALV_STAGGER` 0.035 s apart. Charge: the claw crackles and the tentacles light out from it, held `GALV_HOLD` 0.07 s in half-speed slow motion. Discharge: one fat pulse (`GALV_FAT` 1.8) takes `GALV_TOGETHER` 0.07 s down every tentacle, so all are hit on the same frame: a real hit each (star, flash, number, a `GALV_STUN` 0.45 s stagger) for `GALV_DAMAGE` 7 x (1 + `GALV_LINK_BONUS` 0.3 per other link), x`GALV_MARK_MULT` 1.25 on the marked, a hit stop of `GALV_STOP` 0.045 + 0.015 per other link (max 0.13) and the word BZZRAKK! on that frame, sized 0.4 + 0.05 per other link; then arcs jump on, chained, to up to `GALV_JUMPS` 4 foes within `GALV_JUMP` 3.5 m of a zapped one (`GALV_JUMP_DAMAGE` 6). **Best situation: a spread-out crowd.** Updraft Lash and Molten Palm want them bunched; Galvanize hits them where they stand, and the more it links the harder each zap (1 linked 7, 3 linked 11.2 each, 5 linked 15.4 each). Off Reap it is the other choice to Black Tide (H L H), which drags the marked together. No breaker |
 | L L L H L | `XL` | Lava Leash | magma into dark | Round 49 (dark-magma lane), the sixth crossover. Off Molten Palm (EM's L, `LIGHT_AFTER`): a tentacle goes to every foe the palm hit (`palm_fresh`) within `LEASH_REACH` 17 m, wherever the palm sent it (the wall too; `LEASH_MAX` 6, nearest first; nobody hit: whoever is in the palm's strip), latches (`LEASH_DAMAGE` 6, `thrown_foe.cut()` ends the palm's shove) and drags it back along the floor through a lava seam into a pile `LEASH_PILE` 2.1 m ahead of him (`leash_slots()`: one on the middle, more round it `LEASH_RING` 0.62 m out in the order they stand across his aim, so no two drags cross). Each pays by the metre on arrival (`leash_drag_damage()`: `LEASH_PER_M` 1.8 a metre to `LEASH_DRAG_CAP` 12, x`LEASH_WALL_MULT` 1.6 torn off a wall, `wall_fresh`). When the last lands the seam erupts under the pile: `leash_erupt_damage()` (`LEASH_ERUPT` 8 each, +`LEASH_PILE_PER` 0.2 per other one), molten, bound (`floor_bind`, `LEASH_BIND_TIME` 1.6 s, `LEASH_TICK` 1.5 a tick, sunk `LEASH_SINK`), the word SHLURK-FWOOM! sized by the pile. Gameplay in `void_element._lava_leash`, the beats in `scripts/lava_leash.gd`. **Best situation: the palm's foes at mixed ranges, one on a wall** (Galvanize wants a spread crowd nobody has marked; Black Tide the marked anywhere). `tests/lava_leash_check.gd` plays all three in each: wall_mixed Lava Leash 103 / Galvanize 42 / Black Tide 72; spread_round (six 7 m round him, unmarked) 36 / 130 / 0; marked_far (four marked 8-10 m off, no palm) 0 / 67 / 96. The window: Hellseam |
 | Dash H L | `XT` | Storm Pitch (kit upgrade `storm_pitch`, round 49: off the base kit) | dark into storm | Whoever Tow Line bunched (`PITCH_GRAB` round `PITCH_AHEAD`) is cut off its tether (`thrown_foe.cut()`) and hurled on along his aim, fanned `PITCH_SPREAD`; in flight lightning jumps from each to anyone it passes (`thrown_foe` `zap`: `ZAP_STEP`, `ZAP_REACH`, `ZAP_MAX`) and it bursts in wind where it lands. Big foes stay and take the jolt |
@@ -108,7 +108,7 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 | Fault Line | One jagged crack per foe from 0.55 m out of his feet, nearest first `STAGGER` 0.06 s apart at `RUN` 30 m/s on real time; ink edge, earth body, hot core line while it runs; a hot splat and `comic_gale` (2.4 m) where it arrives. No foes: one crack 4 m ahead | `comic_fault.gd` `spawn(parent, at, spots)` |
 | Cataclysm | `big`: the same cracks fatter (0.34 m) and slower (22 m/s, game time, so they wait out the impact frame) out of his landing, a `comic_bolt` sky strike (0.3 m, star 0.8) where each arrives. No per-foe geyser, spikes or hammer burst | `comic_fault.gd` `spawn(..., true)` in `_cataclysm` |
 | Steam Burst | Nine puffs, six in a ring round the frozen foe's body and three over its head, every puff's ink first then every fill (only the cloud's outer edge is inked), white to blue-grey, rising and swelling; a magma star and paper strokes on the first frame. 0.55 s | `comic_steam.gd` `spawn(parent, spot)` per frozen foe |
-| Flash Freeze | A see-through crystal shell (`SHELL` 0.88 x 1.5 m) climbs each held foe from its feet (half, then 1.1 overshoot), light rim inside thin ink, three ice tips and a glint, riding the foe, 0.5 s real time | `comic_freeze_over.gd` `foe(parent, e)` from `hero_leap._start_dive` (`refreeze`) |
+| Flash Freeze | A see-through crystal shell (`SHELL` 0.88 x 1.5 m) climbs each held foe from its feet (half, then 1.1 overshoot), light rim inside thin ink, three ice tips and a glint, riding the foe, 0.5 s real time | `comic_freeze_over.gd` `foe(parent, e)`, retired in round 52 (no crystals): the dive now calls `void_element.flash_freeze_dive()` (`frost_shell.gd`: steam, then the ice block) |
 | Black Ice | The pool freezes over from the middle (0.45, 0.8, 1.0 of `MAW_RADIUS` + 0.3 in three steps): a two-ring mosaic of plates on shared edges, ink between, glint lines, lifted 0.06 m over the dark pool; held (real time, 2.2 s at most) until the landing's `shatter()` throws the plates up as inked chips | `comic_freeze_over.gd` `pool()` in `freeze_pool`, `shatter(parent, spot, r)` in `_black_ice` |
 | Galvanize | His own tentacles whip out one by one (`stagger`), the claw charge, the held beat (`hold`: the strip lit out from his claw, the tentacles brightening), one fat pulse landing on all at once (`together`, `fat`), two forks and a real hit pop on each, the word on that frame (`ComicFx.say`, `LATE_WORDS`), the arcs on, the tentacles snap back. The bolt is drawn by `live_current._trail_strip`, `_head`, `_claw` and `_pop` | `live_current.gd` `start(hero, links, true)` in `_galvanize` |
 | Lava Leash | Designed only (`tools/vfx_gen/gen_leash.py`): the tentacles (`void_tendril`, one per foe, `STAGGER` 0.03 s apart) whip out to each, latch, and drag it in (a pow ease, `DRAG_EASE`: slow off the wall, a slam into the pile, `HOP` at the middle), washed in lava as they go (`electrify(HEAT, LAVA)`); behind each a `lava_seam` ribbon (crusted inked banks, lava body, hot core, crust rafts, a popping bubble; `designed_drag.gdshader`, cools and erodes from its old end over `SEAM_LIFE` 2.2 s) and a magma spurt where it was torn away. The eruption: Undertow's designed pool under the pile and the `leash_burst` sprite (a slit, a fan of five tongues, globs, a crust mound; `BURST_SIZE` 4.4 m). The tentacles hold the pile through the leap and let go when he lands. Hellseam's seam geysers are `designed_elements.geyser` | `lava_leash.gd` `start(hero, grabs, pile)` in `_lava_leash` |
@@ -122,8 +122,8 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 | Tow Line's air rip | A jagged inked void tear across the airborne foe's chest, a small star, four ink drops flicked away from him; rides it, 0.3 s | `comic_rip.gd` `spawn(parent, e, at)` in `fire()` `TW` |
 
 Words (`ComicFx.MOVE_WORDS` / `BREAKER_WORDS`): XR KRUNCH!, XF SKRRRAK!, XS PSSHHHH!, XT ZZWANNG!, Cataclysm
-KRAKA-DOOM!, Flash Freeze FSSHINK!, Black Ice KLISSSH!; second pass XG WHIRRRL!, XM SIZZ-BLAM!, XK KSHUNK!,
-XW FWHOOOM!, Eruption BLOOORRM!, Anvil KLANNNG!; round 49 XL SHLURK-FWOOM! (said by the move on the eruption,
+KRAKA-DOOM!, Flash Freeze FSSSH-KRAK! (round 52; was FSSHINK!), Black Ice KLISSSH!; second pass XG WHIRRRL!, XM SIZZ-BLAM!, XK KSHUNK!,
+XW FWHOOOM!, Eruption KA-BLOOOSH! (round 52; was BLOOORRM!), Anvil KLANNNG!; round 49 XL SHLURK-FWOOM! (said by the move on the eruption,
 `LATE_WORDS`), Hellseam KRAKA-FWOOOM!.
 
 **State tells** (`scripts/comic_state_tell.gd`): a foe carrying an improvising state shows it until the state goes
@@ -143,7 +143,7 @@ a breaker window.
 |---|---|---|---|---|
 | Dash L H H H | `XG` | Hailstorm | ice into storm | A whirlwind under every frozen foe within `HAIL_REACH` (Ice Cube's bowl too: `THROWN.cut`) carries it up at `HAIL_LAUNCH`, still in its ice (`freeze_aloft()`: `enemy.freeze()` staggers, which would drop it), and he climbs 2 m after them (`air`, `climb`). The warm only stagger up (`HAIL_WARM_*`) |
 | Dash L H H H L | `XM` | Meltdown | storm into magma, in the air | The molten hammer up there with them: everyone airborne or frozen within `MELT_REACH`, the ice bursting off (x `FREEZE_BREAK`), those in the air x`MELT_AIR_MULT`, all driven down burning (`MELT_DOWN`: craters) and `molten`. The window opens, from his height (`height` 3) |
-| Dash L H H H L, H in window | `XM` | Eruption | magma | The floor goes up under everyone near (`under()` earth, `ERUPT_LAUNCH`), the `molten` x`ERUPT_MOLTEN_MULT` |
+| Dash L H H H L, H in window | `XM` | Eruption | magma | Round 52: a fuse races to each, a geyser heaves it, and it is hurled into the picked wall or pillar to slide down it burning (in the open it drops back in a crater); the `molten` x`ERUPT_MOLTEN_MULT`, the rest x`ERUPT_COLD_MULT` (`eruption_hurl.gd`; combo-breakers.md "Round 52 cool pass") |
 | (L L H,) Dash H H | `XK` | Impale | dark into ice | Whoever Tow Line bunched (`IMPALE_GRAB` round him) is cut off its tether and thrown onto the frost spear, frozen in a cube and `skewered`, in a ring `IMPALE_RING` round it. Onto a spear already standing it's x`IMPALE_SPEAR_MULT`; with none it plants one where Tow Line bunched them |
 | (L L H,) Dash H H L | `XW` | Backdraft | ice into storm | The gale off the axe blows the spear apart and hauls everyone within `BACKDRAFT_REACH` of it back to him and up (`BACKDRAFT_PULL`, `BACKDRAFT_LAUNCH`); the skewered (still frozen: x `FREEZE_BREAK`) take all of it, anyone else 0.6. The window opens |
 | (L L H,) Dash H H L, H in window | `XW` | Anvil | earth | The hammer drives everyone held into the floor, a crater each (`ANVIL_DOWN`, x`ANVIL_AIR_MULT`); anyone near still in the air comes down with them, the rest are thrown clear |
@@ -347,3 +347,55 @@ Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_
 (`_three_elements`), routing, each move hurting a foe, each breaker holding and hurting a foe and letting go, both window endings, a missed window, cubes hitting foes and walls, the ice strings including the spear, the magma strings, the dark string and its breakers, and the snatch (PASS/FAIL, stand-in foes, in `agent.sh check`).
 
 `godot --path . -s tests/element_shots.gd` is windowed. It films each string against real foes at the game camera, through the hang and the slam, and R's swing, to `user://element_shots/`.
+
+## Round 54 cool pass 3 (combo-cool3 lane)
+
+The weakest mids rebuilt with a beat of their own, the tentacle or element visibly in control (combo-breakers.md
+"Round 54 cool pass 3" has the ranking and numbers). Slots, inputs, windows and hand-overs unchanged (rhythm_check).
+Gameplay is in each move's section of `void_element.gd`; the looks are `scripts/mid_beats.gd`.
+
+- **Reap** (H L, `VR`): the crescent as before, then a barbed hook (`_reap_hook`, `reap_hook` sheet) bites one more
+  foe out to `REAP_HOOK_REACH` 10 m in `REAP_HOOK_CONE`: the env_target `reap` pick (default the furthest outside the
+  crescent, `reap_auto`). x`REAP_HOOK_MULT` 0.6, marked (the dark mark and `reaped`), and a light foe the crescent missed is yanked on a
+  tether to `REAP_YANK_TO` 2.2 m in front of him. Black Tide hits the reaped first, x`REAP_TIDE_MULT` 1.4.
+- **Singularity** (H H, `VS`): the hole now reels: tentacles out of it hold every light foe in its radius while it
+  pulls (`MID_BEATS.reel`, `SING_REEL_TIME` 1.2 s). With a foe held, a cursor choice (`singularity` pick, within
+  `SING_PICK_REACH` 8 m) throws the held foe onto the chosen one (`SING_ONTO_DAMAGE` 8) and opens the hole there.
+- **Frost Spear** (L L H, `IP`): frost lines race out along the floor from the spear to each foe near it, nearest first,
+  and set rime at their feet (`MID_BEATS.frost_spread`, slowed `SPEAR_RIME_SLOW` 0.3 for `SPEAR_RIME_TIME` 0.9 s). A
+  cursor choice (`spear`, within `SPEAR_PICK_REACH` 7.5 m) plants the spear at that foe's feet.
+- **Steam Burst** (Dash L H H L, `XS`): a lava crack runs from the fist to each frozen foe and a steam column goes up
+  where it meets the ice (`MID_BEATS.steam_fuse`), before the burst.
+- **Hailstorm** (Dash L H H H, `XG`): one twister at the middle of the frozen draws the lifted cubes in
+  (`MID_BEATS.gale`: `GALE_IN` 0.55 of the way, over `GALE_PULL` 0.22 s) instead of a speck per cube.
+- Endings raised to a second beat (game time, after the landing; `ground_beats` counts them): Grounded's charge goes
+  to ground foe to foe (`_ground_beat`, `GROUND_*`), Worldbreaker's floor heaves each back up (`HEAVE_*`), Cataclysm's
+  fault goes again on the two nearest (`_aftershock`, `AFTERSHOCK_*`), Short Circuit's circuit closes last link to first (`_sc_loop`,
+  `LOOP_*`), Shatterstorm's thunder chains cube to cube (`_chain_link`, `CHAIN_*`). Cold Front bowls the cubes into the
+  `cold_front` structure (`COLD_*`); Maw's heap gets jaws and a punch (`MAW_HEAP_JAW_R`, `MAW_HEAP_STOP`, `MAW_HOIST_Y` 2.1).
+- Check: `tests/cool3_check.gd`.
+
+## Round 55 cool pass 4 (combo-cool4 lane)
+
+The six mids left at 2/4 rebuilt (combo-breakers.md "Round 55 cool pass 4" has the ranking and numbers). Slots,
+inputs, windows and hand-overs unchanged. Each says its one word on its beat (`ComicFx.LATE_WORDS`, `MID_WORD_SIZE`).
+
+- **Frost Spear** (L L H, `IP`): the plant goes to the nearest group by default (`spear_auto`, `SPEAR_GROUP_R` 3 m),
+  not along his facing; the cursor overrides; with no two standing together it goes in ahead as before.
+- **Deep Freeze** (L L H L H, `IS`): the blocks pop as a wave from the picked one (`deep_freeze` pick,
+  `deep_freeze_order`, `_df_pop`: `DF_STEP` 0.07 s apart, the first x`DF_FIRST_MULT` 1.5, a frost fissure block to
+  block); past the frost's edge only foes within `DF_LINK` 3.2 m of the first join. `deep_freeze_flush()` pops the rest
+  when Avalanche's hold opens (`void_grab.seize`).
+- **Rockslide** (L H L L, `XR`): the gale drags the airborne in round the `rockslide` pick, a boulder falls there
+  (`MID_BEATS.boulder_drop`) and `_rockslide_land` buries them `ROCKSLIDE_FALL` 0.18 s later.
+- **Meltdown** (Dash L H H H L, `XM`): the hammer hits the `meltdown` pick (x`MELT_HEART_MULT` 1.6), globs fly from it to
+  the rest (`MID_BEATS.glob`, `MELT_STEP` 0.06 s); only those within `MELT_SPLASH_R` 3.2 m of it are `molten`.
+- **Overwhelm** (hold H, `OW`): `_overwhelm_pin` drags the other light foes in the pool onto the pinned one
+  (`OW_PILE_RING`), a tentacle hauls it up `OW_LIFT` 2 m and slams it (`OW_SLAM_DAMAGE` 10).
+- **Black Tide** (H L H, `VD`): each marked one is tethered in out of the pool (`thrown_foe` `rope_from` / `on_end`),
+  staggered (`TIDE_FIRST` / `TIDE_STEP`), and knocks the pile as it lands (`_tide_knock`, `TIDE_KNOCK`).
+- **Dash Stab** (Dash > L, `DL`): `claw_lash.gd` aims at the furthest light foe in `AIM_CONE` and its barb catches the
+  furthest it cut past `CATCH_MIN` 3.2 m and reels it in to `CATCH_TO` 1.7 m.
+- **Maw**: no heap jaws; the knock happens at the top (`tentacle_haul.on_top`, `MAW_KNOCK_HOLD`), then the slam
+  (`MAW_SLAM_MULT`).
+- Check: `tests/cool4_check.gd`. Film the picks: windowed `tests/pick_film.gd -- --case=<name>`.

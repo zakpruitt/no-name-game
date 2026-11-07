@@ -20,6 +20,7 @@ const TENDRIL := preload("res://scripts/void_tendril.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
 const DRAG_SHADER := preload("res://shaders/designed_drag.gdshader")
+const FLOURISH := preload("res://scripts/env_flourish.gd")  # round 53: brazier_spill (a seam by a lit brazier tips it)
 
 const STAGGER := 0.03  # s between tentacles leaving his claw (Galvanize 0.035, Harpoon 0.02)
 const REACH := 0.04  # s out to a foe beside him...
@@ -324,6 +325,7 @@ func _seam_add(one: Dictionary, at: Vector3) -> void:
 		pts.append({"pos": at, "dist": float(last.dist) + run, "t": _t})
 	else:
 		pts.append({"pos": at, "dist": 0.0, "t": _t})
+	FLOURISH.leash_seam(hero, at, one.get("from", at), one.to)  # (round 53: a brazier by the seam tips into it)
 
 
 func _seam_draw() -> void:
