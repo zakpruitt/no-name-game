@@ -447,6 +447,11 @@ const OW_SLAM_DAMAGE := 10.0
 const OW_SLAM_STOP := 0.07
 const OW_PILE_RING := 1.0
 const OW_DRAG := 0.22
+## Round 56 (feel-audit6, item c): the pool thins to OW_POOL_THIN while the pinned one goes up and is slammed, for
+## OW_POOL_AFTER s past the slam, then comes back over OW_POOL_BACK s, so the slam reads against the floor.
+const OW_POOL_THIN := 0.2
+const OW_POOL_AFTER := 0.15
+const OW_POOL_BACK := 0.3
 static var ow_pins := 0  # (checks)
 const TOW_HALF_WIDTH := 2.6
 const TOW_NEAR := 5.0  # m round him, if nobody's on the line
@@ -519,7 +524,7 @@ const ROCKSLIDE_IN := 3.0  # m/s of it towards the hammer, so they come down tog
 const ROCKSLIDE_PICK_REACH := 7.0
 const ROCKSLIDE_GALE_R := 6.0
 const ROCKSLIDE_RING := 0.9
-const ROCKSLIDE_DROP_Y := 3.2
+const ROCKSLIDE_DROP_Y := 2.7  # (round 56: 3.2 put the bigger boulder's top off the frame at rest)
 const ROCKSLIDE_FALL := 0.18
 const ROCKSLIDE_STOP := 0.06
 static var rockslides := 0  # (checks)
@@ -998,9 +1003,33 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 
 
 ## The wave's blocks not popped yet pop now (void_grab.seize, as Avalanche's window opens: its tentacles take the cubes).
-static func deep_freeze_flush() -> void:
-	for key: int in _df_pending.keys():
-		_df_go(key)
+## Round 56 (feel-audit6, item d): as a fast wave, DF_FLUSH_STEP s (real time) a block in the wave's order and no stop
+## each, not all on one frame. Returns the foes still to pop, so the hold takes them before their cubes are on.
+const DF_FLUSH_STEP := 0.035
+static func deep_freeze_flush() -> Array:
+	var out: Array = []
+	var j := 0
+	for key: int in _df_pending.keys():  # (insertion order: the wave's)
+		var pop: Variant = _df_pending.get(key)
+		_df_pending.erase(key)
+		if not pop is Callable:
+			continue
+		var args: Array = (pop as Callable).get_bound_arguments()
+		if args.size() < 6 or not is_instance_valid(args[0]) or not is_instance_valid(args[1]):
+			continue
+		args.append(false)  # (no stop: the leap is rising)
+		out.append(args[1])
+		j += 1
+		(args[0] as Node).get_tree().create_timer(DF_FLUSH_STEP * j, false, false, true).timeout.connect(_df_pop_args.bind(args))
+	deep_flushed += out.size()
+	return out
+
+
+static var deep_flushed := 0  # blocks the hold flushed as a fast wave (checks)
+
+
+static func _df_pop_args(args: Array) -> void:
+	_df_pop.callv(args)
 
 
 static func _df_go(key: int) -> void:
@@ -1060,7 +1089,7 @@ static func deep_freeze_auto(hero: CharacterBody3D, spot: Vector3) -> Node3D:
 	return best
 
 
-static func _df_pop(hero: Variant, e: Variant, prev: Variant, damage: float, i: int, n: int) -> void:
+static func _df_pop(hero: Variant, e: Variant, prev: Variant, damage: float, i: int, n: int, stop := true) -> void:
 	if not is_instance_valid(e) or not e.is_alive() or not is_instance_valid(hero):
 		return
 	var parent: Node = (hero as Node).get_parent()
@@ -1075,8 +1104,9 @@ static func _df_pop(hero: Variant, e: Variant, prev: Variant, damage: float, i: 
 			if d > 0.8:
 				DESIGNED_EL.fissure(parent, from, foot - from, d, maxi(2, int(d / 0.9)), "water", 1.0, 0.02)
 		DESIGNED_EL.frost_mark(parent, foot, 1.3, 0.7, true)
-	if i > 0:
+	if i > 0 and stop:
 		Game.hitstop(DF_POP_STOP)
+	if i > 0:
 		Game.shake(0.2)
 	if i == n - 1 and Game.comic_style:
 		ComicFx.say(ComicFx.MOVE_WORDS["IS"], foot + Vector3.UP * 1.6, MID_WORD_SIZE)
@@ -1337,7 +1367,7 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	if aim != null:
 		spot = _flat(aim.global_position)
 	hero._void.dark_spot = spot
-	DARK.pool(parent, spot, OVERWHELM_RADIUS, OVERWHELM_TIME)
+	var pool: Node3D = DARK.pool(parent, spot, OVERWHELM_RADIUS, OVERWHELM_TIME)
 	DARK.burst(parent, spot, 1.4)
 	var foes: Array = FOES.near(hero.get_tree(), spot, OVERWHELM_RADIUS).filter(func(e: Node3D) -> bool:
 		return not THROWN.flying(e))
@@ -1345,7 +1375,7 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	if not foes.is_empty():
 		hero._void.dark_bind = BIND.bind(hero, foes, {"time": OVERWHELM_TIME, "tick_damage": OVERWHELM_TICK * power, "step": 0.2, "ropes": 2,
 			"sink": 0.4, "color": DARK.VIOLET})
-	_overwhelm_pin(hero, spot, aim if aim in foes else null, foes, power)
+	_overwhelm_pin(hero, spot, aim if aim in foes else null, foes, power, pool)
 	return foes.size()
 
 
@@ -1353,7 +1383,7 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 ## slams it into the pool (OW_SLAM_DAMAGE, a stop, the move's own word), and the pool's tentacles drag everyone else in
 ## it onto the pinned one (OW_PILE_RING m round it, over OW_DRAG s), so Abyss comes down on one pile. The bind holds
 ## each where it lands (floor_bind follows a flying foe). Best: a crowd round the one you pick.
-static func _overwhelm_pin(hero: CharacterBody3D, spot: Vector3, aim: Variant, foes: Array, power: float) -> void:
+static func _overwhelm_pin(hero: CharacterBody3D, spot: Vector3, aim: Variant, foes: Array, power: float, pool: Node3D = null) -> void:
 	ow_pins += 1
 	var parent: Node = hero.get_parent()
 	var toward := _flat(hero.global_position) - spot
@@ -1375,6 +1405,8 @@ static func _overwhelm_pin(hero: CharacterBody3D, spot: Vector3, aim: Variant, f
 			ComicFx.say(ComicFx.MOVE_WORDS["OW"], spot + Vector3.UP * 1.6, MID_WORD_SIZE)
 		return
 	var foot := _flat((aim as Node3D).global_position)
+	if is_instance_valid(pool) and pool.has_method("thin"):
+		pool.thin(OW_POOL_THIN, OW_UP, OW_HOLD + OW_DOWN + OW_POOL_AFTER, OW_POOL_BACK)
 	var g: Node3D = TENTACLE_HAUL.start(hero, [{"foe": aim, "root": foot + side * 1.1, "top": foot + Vector3.UP * OW_LIFT,
 		"end": foot, "up": OW_UP, "hold": OW_HOLD, "down": OW_DOWN}])
 	g.on_end = func(e: Node3D, _i: int) -> void:

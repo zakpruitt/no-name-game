@@ -60,6 +60,7 @@ func _initialize() -> void:
 	await _spear()
 	await _rockslide()
 	await _deep_freeze()
+	await _flush_wave()
 	await _meltdown()
 	await _overwhelm()
 	await _black_tide()
@@ -142,6 +143,33 @@ func _deep_freeze() -> void:
 	_check(reached.near and not reached.far, "the wave reaches the straggler only from its side (near %s, far %s)" % [reached.near, reached.far])
 
 
+## Round 56 (feel-audit6): Avalanche's hold flushes the blocks still to pop as a fast wave, not on one frame: the hold
+## gets them back to take, and they freeze over the next frames, all of them within 0.25 s.
+func _flush_wave() -> void:
+	_home()
+	var spear: Node3D = ve.SPEAR.plant(world, Vector3(0, 0, 3.0))
+	var foes: Array = [_foe(Vector3(-1.5, 0, 3.0)), _foe(Vector3(0, 0, 3.6)), _foe(Vector3(1.5, 0, 3.0)), _foe(Vector3(0.4, 0, 2.2))]
+	await physics_frame
+	ve._deep_freeze(hero, Vector3.ZERO, 16.0)
+	var first: int = foes.filter(func(f: Foe) -> bool: return f.frozen).size()
+	var wave: Variant = ve.deep_freeze_flush()
+	var now_frozen: int = foes.filter(func(f: Foe) -> bool: return f.frozen).size()
+	_check(wave is Array and (wave as Array).size() == foes.size() - first, "the flush hands the hold the blocks still to pop (%s)" % str(wave.size() if wave is Array else wave))
+	_check(now_frozen == first, "none of them pops on the flush's own frame (%d frozen of %d)" % [now_frozen, foes.size()])
+	var frames := {}
+	var t := 0.0
+	while t < 0.3:
+		await physics_frame
+		t += 1.0 / 60.0
+		var n: int = foes.filter(func(f: Foe) -> bool: return f.frozen).size()
+		frames[n] = true
+	_check(foes.all(func(f: Foe) -> bool: return f.frozen), "all of them pop within 0.3 s")
+	_check(frames.size() >= 3, "on at least three different frames (counts seen %s)" % str(frames.keys()))
+	if is_instance_valid(spear):
+		spear.queue_free()
+	await _clear(foes)
+
+
 ## Meltdown: a bunch of three and one off on its own. Hit in the bunch, the three are molten and the loner not.
 func _meltdown() -> void:
 	_home()
@@ -169,10 +197,22 @@ func _overwhelm() -> void:
 	var n: int = ve.ow_pins
 	var hp0: float = foes[0].hp
 	ve.fire(hero, "OW", Vector3(0, 0, 1))
-	await create_timer(0.6).timeout
+	var thin := INF
+	var t := 0.0
+	while t < 0.6:
+		await physics_frame
+		t += 1.0 / 60.0
+		for p: Node3D in get_nodes_in_group("dark_pool"):
+			if t > 0.2:
+				thin = minf(thin, p.scale.x / ve.OVERWHELM_RADIUS)
+	_check(thin < 0.8, "the pool draws in under the haul (x%.2f of its size)" % thin)
 	_check(ve.ow_pins > n and hp0 - foes[0].hp >= ve.OW_SLAM_DAMAGE * 0.9, "Overwhelm slams the pinned one (%.0f)" % (hp0 - foes[0].hp))
 	var spread: float = foes[1].global_position.distance_to(foes[0].global_position) + foes[2].global_position.distance_to(foes[0].global_position)
 	_check(spread < 3.2, "the rest are dragged onto it (%.1f m)" % spread)
+	# round 56 (feel-audit6): the pool drew in and thinned under the haul, and is back by now
+	await create_timer(0.45).timeout
+	var pools: Array = get_nodes_in_group("dark_pool")
+	_check(not pools.is_empty() and pools.all(func(p: Node3D) -> bool: return p.scale.x > ve.OVERWHELM_RADIUS * 0.95), "the pool is whole again after the slam")
 	hero.remove_meta(env.PICK_META)
 	await create_timer(2.0).timeout
 	await _clear(foes)

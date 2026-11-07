@@ -54,8 +54,9 @@ const GALE_PULL := 0.22
 ## DROP_SIZE x the designed boulder's size; Meltdown's globs are the molten fireball at GLOB_SIZE of its size.
 const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
-const DROP_SIZE := 1.6
-const DROP_HIGH := 0.75  # m: the boulder's middle over the floor where it lands (comic_boulder.HIGH)
+const DROP_SIZE := 2.4  # (round 56, feel-audit6: 1.6 read as a dummy-sized blob at the camera's 800x450)
+const DROP_HIGH := 1.05  # m: the boulder's middle over the floor where it lands (comic_boulder.HIGH x the size)
+const DROP_DUST := 2.4  # m: the landing's dust
 const GLOB_SIZE := 0.7
 
 static var _registered := false
@@ -301,7 +302,7 @@ static func boulder_drop(parent: Node, spot: Vector3, fall: float, high: float) 
 
 static func _boulder_land(parent: Variant, spot: Vector3) -> void:
 	if is_instance_valid(parent) and (parent as Node).is_inside_tree():
-		DESIGNED.dust(parent, Vector3(spot.x, 0.0, spot.z), 1.8)
+		DESIGNED.dust(parent, Vector3(spot.x, 0.0, spot.z), DROP_DUST)
 		DESIGNED_INK.shock(parent, Vector3(spot.x, 0.0, spot.z), PAL_EARTH, 2.6, 0.3)
 
 
