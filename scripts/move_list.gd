@@ -106,6 +106,10 @@ const SECTIONS := [
 	# else the panel draws them as "upgrade" rows and void_route() goes past them (KitSlots.open).
 	{"title": "UPGRADES", "hint": "Out of the base kit: unlocks (--kit=full plays them now).", "rows": [
 		{"input": "Dash H L", "kind": "move", "id": "XT", "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass."},
+		# Round 53 (env_flourish.gd): the heretic's flourishes on the room's pieces (on in the training room with pieces).
+		{"input": "perfect counter by a hook", "kind": "text", "upgrade": "gallows", "name": "Gallows", "tier": 2, "note": "Upgrade: Ricochet hangs the attacker on a hook in reach: the wall's hit x1.3, then bound 2.5 s, swinging; any hit on it is a Snap."},
+		{"input": "ice by a pool", "kind": "text", "upgrade": "ice_rink", "name": "Ice Rink", "tier": 2, "note": "Upgrade: The pool freezes over for 6 s. Cubes slide across it at full speed and 6 m further (Slapshot reaches a far wall); a foe knocked onto it slides on, frozen."},
+		{"input": "Lava Leash by a brazier", "kind": "text", "upgrade": "brazier_spill", "name": "Brazier Spill", "tier": 2, "note": "Upgrade: The seam tips a lit brazier in: the coals run the seam on and leave a molten patch, and Hellseam erupts from them too. Magma lights an out one."},
 	]},
 	# The element matrix (round 49, kit grammar section 3; void_element.RULES / IMPROV_UPGRADE, element-matrix.md): one
 	# payoff rule per state, which any element's hit pays, then the upgrade cells that play in a rule's place when their
