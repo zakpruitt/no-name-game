@@ -202,16 +202,16 @@ func _press(c: Vector2, r: float, k: float, opts: Array) -> void:
 	for i in PERFECT_RAYS:
 		var ang := TAU * i / PERFECT_RAYS + 0.2
 		var r0 := r * lerpf(1.15, 1.6, e)
-		var r1 := r * lerpf(1.5, 2.6 + 0.5 * float(i % 2), e)
-		var w := lerpf(9.0, 3.0, e) * (1.0 if i % 2 == 0 else 0.7)
+		var r1 := r * lerpf(1.6, 3.0 + 0.6 * float(i % 2), e)
+		var w := lerpf(15.0, 5.0, e) * (1.0 if i % 2 == 0 else 0.7)  # (9 px read as hairlines at 800x450)
 		var dir := Vector2(cos(ang), sin(ang))
 		var side := Vector2(-dir.y, dir.x)
 		var ray := PackedVector2Array([c + dir * r0 + side * w * 0.5, c + dir * r1, c + dir * r0 - side * w * 0.5])
 		var ink := PackedVector2Array([c + dir * (r0 - 2.0) + side * (w * 0.5 + 2.0), c + dir * (r1 + 3.0), c + dir * (r0 - 2.0) - side * (w * 0.5 + 2.0)])
 		draw_colored_polygon(ink, Color(HUD_INK.INK, 0.9 * fade))
 		draw_colored_polygon(ray, Color(GOLD.lerp(Color.WHITE, 0.25 * (1.0 - e)), fade))
-	draw_arc(c, r + WIDTH + 26.0 * e, 0.0, TAU, 48, Color(HUD_INK.INK, 0.8 * fade), 6.0, true)
-	draw_arc(c, r + WIDTH + 26.0 * e, 0.0, TAU, 48, Color(GOLD, fade), 3.5, true)
+	draw_arc(c, r + WIDTH + 26.0 * e, 0.0, TAU, 48, Color(HUD_INK.INK, 0.8 * fade), 8.0, true)
+	draw_arc(c, r + WIDTH + 26.0 * e, 0.0, TAU, 48, Color(GOLD, fade), 5.0, true)
 
 
 ## The endings on offer, left button first: the window's `options` (hero_leap.options()), or, for a window with
