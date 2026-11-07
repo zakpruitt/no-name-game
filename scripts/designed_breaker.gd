@@ -356,6 +356,7 @@ class Screen extends CanvasLayer:
 	const CALL_Y_LOW := 0.86  # where it goes when a cued or wall-splatted foe is under it (Pinwheel's wall, Meteor's)
 	const CALL_DODGE_MS := 1500  # a wall splat this fresh counts
 	const CALL_DODGE_PAD := 0.06  # of the screen height round the banner
+	const PIECE_SAMPLES := [-2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0]  # m along a cued piece's up axis (round 53)
 	const CALL_SLIDE := 14.0  # per real s
 	const CALL_W := 0.5  # of the screen width: the widest banner (WORLDBREAKER and its total)
 	const CALL_MAX_W := 900.0
@@ -564,6 +565,19 @@ class Screen extends CanvasLayer:
 				continue
 			if r.has_point(cam.unproject_position(at)):
 				return true
+		return _piece_under(r, cam, now)
+
+	## Round 53 (env-flourish): a cued room piece counts like a cued foe (Uproot's pillar on its fall line, a hook with
+	## a foe hung on it, a spilled brazier): points up its length (its own up axis, so a pillar lying down too).
+	func _piece_under(r: Rect2, cam: Camera3D, now: int) -> bool:
+		for n: Node in get_tree().get_nodes_in_group("env"):
+			var p := n as Node3D
+			if p == null or int(p.get_meta(&"frame_cue_ms", 0)) <= now:
+				continue
+			for k: float in PIECE_SAMPLES:
+				var at := p.global_transform * Vector3(0.0, k, 0.0)
+				if not cam.is_position_behind(at) and r.has_point(cam.unproject_position(at)):
+					return true
 		return false
 
 	## The callout's words' width (the name and its total at their settled size), for the banner to fit.
