@@ -147,6 +147,7 @@ func _backlash() -> void:
 	var hp: float = hero.hp
 	hero.take_hit(10.0, Vector3.ZERO, dummy)
 	_check(hero.hp == hp, "a hit in the counter does nothing")
+	_check(counter.hint(hero, [{"kind": "light"}]).is_empty(), "no guide rows through Backlash (it takes no input)")
 	var lifted := 0.0
 	for i in 60:
 		await physics_frame

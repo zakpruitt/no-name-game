@@ -37,7 +37,8 @@ attacker; in the open it only lands for its base.
   - `try_start()` (from `player._start_dash`), `start()` (the parry), `tick()` (State.DASH while `hero._counter`
     is set: wrap, lift, slam), `_slam()`, `_window()` (the leap), `cut()` (from `player._set_state` leaving DASH).
   - `ricochet()` (from `void_element.breaker_impact` on `counter`), `ricochet_target()`, `_ricochet_hit()` (bind).
-  - `hint()`: the combo guide's SPACE Backlash row (and Ricochet next on a perfect), from `combo_guide._process`.
+  - `hint()`: the combo guide's SPACE Backlash row (and Ricochet next on a perfect), from `combo_guide._process`; no rows
+    while Backlash plays (it takes no input).
 - `scripts/counter_fx.gd`: `parry()` and `snap()`, the two designed sheets (`DESIGNED.extra_sheets`), prewarmed from
   `elements.prewarm`; classic flares and rings under `--fx=classic`. A perfect adds designed_breaker's speed lines.
 - `tools/vfx_gen/gen_counter.py`: `parry_flash` (384 px, 3x2) and `snap_arc` (320 px, 3x2), void palette row.

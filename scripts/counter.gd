@@ -340,7 +340,9 @@ static func _ricochet_hit(f: Node3D, _walled: bool, _dir: Vector3, hero: Charact
 ## The combo guide's hint (combo_guide.gd): while a strike a dash along his facing would counter is coming, a SPACE
 ## Backlash row goes on top (tier 3 and the Ricochet follow-up once it would be perfect), in place of any dash row.
 static func hint(hero: CharacterBody3D, rows: Array) -> Array:
-	if hero.state == hero.State.LEAP or hero.state == hero.State.DEAD or not hero._counter.is_empty():
+	if not hero._counter.is_empty():
+		return []  # (Backlash takes no input: the dash rows under it would lie)
+	if hero.state == hero.State.LEAP or hero.state == hero.State.DEAD:
 		return rows
 	var c := find(hero, hero._facing())
 	if c.is_empty() or c.bolt != null:
