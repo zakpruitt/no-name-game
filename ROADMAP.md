@@ -1068,3 +1068,19 @@ Zak: the environment "should be a big part of what you can do". Polish of round 
 - [x] Clips: `awaken-combo-clips/39 Pieces2 *`
 - [ ] Zak's call: torches_conduct is always on (the proposal had it a run upgrade); Slapshot into the Frost Wall is
   x5.7 the open; the breaker banner covers Uproot's fall line
+
+## Round 52 cool pass 2 (combo-cool2: the 1/4 and 2/4 endings, foe picks, Collapse readable)
+
+Zak: "the lava leash and tempest and pinwheel are amazing" (round 51 cool pass, round two). See
+`docs/features/combo-breakers.md` "Round 52 cool pass".
+- [x] Eruption rebuilt (`eruption_hurl.gd`): fuse, geyser heave, hurl into the picked wall, burning slide; by a wall
+  749 vs Flash Freeze 321; bot string `wall D L H H H L`
+- [x] Flash Freeze rebuilt (`frost_shell.gd`): steam sets an ice block on each, the break chains from the picked foe;
+  four in the open 378 vs Eruption 282
+- [x] One beat more on Maw (knock and slam), Black Ice (skid into the picked structure: 315 vs Maw 250 by a wall),
+  Cold Front (tethered hoist, cold snaps), Anvil (yanked up and driven in again) (`tentacle_haul.gd`)
+- [x] Foe picks on Meteor Fall's pile (two piles or more) and Tow Line's snare (the anchor); structure picks on
+  Eruption and Black Ice
+- [x] Collapse's spits: an ink crown (`spit_burst`), a word and the foe's own trail each
+- [x] Clips: `awaken-combo-clips/38 Cool2 *`
+- [ ] Zak's call: Tow Line's pick window is the move's start-up (~0.15 s): hover the foe before the press

@@ -470,18 +470,21 @@ Endings:
    (crystal-adjacent); every cube takes the same hit wherever the heap is. No best situation beyond "cubes exist". 1 / 4.
 4. **Eruption** (Dash L H H H L): the hang holds them on the floor and nothing happens in it; the landing is the
    magma family's burst with the floor up under each; the molten bonus (x1.5 on the ones Meltdown lit) is invisible.
-   1 / 4.
+   1 / 4. **Round 52: 4 / 4** (fuse, geyser, hurl into the picked wall and the burning slide; by a wall).
 5. **Flash Freeze** (Dash L H H L): the steam freezes on them only in the last frames of the dive, the landing is the
    generic shatter, and it reads as Black Ice or Cold Front again; "nothing about where they are picks it" (the pairs
-   audit). 1 / 4.
+   audit). 1 / 4. **Round 52: 4 / 4** (steam, shells, the picked chain break; a crowd in the open).
 6. **Maw** (H L H): the drag into the pool is good control (black tentacles you see), then jaws bite and the shared dark
-   splat; the payoff looks like Collapse and Abyss. 2 / 4.
+   splat; the payoff looks like Collapse and Abyss. 2 / 4. **Round 52: 3 / 4** (the knock and slam is its own landing; best
+   a crowd in the open; the heap reads small beside the bite's burst).
 7. **Cold Front** (Live Wire air, LMB): the hang is Live Wire's (strong), the cubes form at the last frame and are thrown
-   under the impact frame, so the throw into neighbours is not seen. 2 / 4.
+   under the impact frame, so the throw into neighbours is not seen. 2 / 4. **Round 52: 3 / 4** (tethers hoist each cube
+   and throw it after the impact frame, a cold snap each; no situation of its own beyond Worldbreaker's).
 8. **Black Ice** (H L H, LMB): the pool freezes into a fitted block (Zak's ice block) and his landing shatters it; the
-   shatter is the shared one. 2 / 4.
+   shatter is the shared one. 2 / 4. **Round 52: 4 / 4** (they skid across the ice into the picked structure; by a wall).
 9. **Anvil** (XW / XK, RMB): the kebab reeled up and driven into the floor reads, the landing is the generic magma burst;
-   Pinwheel carries the window. 2 / 4.
+   Pinwheel carries the window. 2 / 4. **Round 52: 3 / 4** (the tentacles yank the kebab up and drive it in again,
+   KRUNCH! and fissures; Pinwheel still carries the window by a wall).
 10. **Worldbreaker** (L H L H, RMB): Live Wire's hang conducts through every tentacle (strong), the landing is generic.
     3 / 4.
 11. **Cataclysm** (L H L L H, RMB): the fault cracks out to each and strikes read; landing generic beside Tempest. 3 / 4.
@@ -603,3 +606,13 @@ Numbers: `cool_pass_check` `_maw_pair` (three in the pool, sweet press not inclu
   choose, within `BLACK_ICE_REACH` 8 m of the pool: `BLACK_ICE_SKID_MULT` 0.7 x `BLACK_ICE_WALL_MULT` 2.4, "KLISSH!" and
   `breaker_alt_fx.cool_wall`), or `BLACK_ICE_SKID` 5.5 m away from him to a stop (x0.7, the ice shatter). Best: the pool
   by a wall or pillar (315 vs Maw's 250). Worst: the open (179).
+- **Cold Front** (Live Wire's air window, LMB, `EW` alt). The cubes are no longer thrown under the impact frame: a
+  tentacle from his hand tethers each and hoists it `COLD_HOIST` 0.7 m (`COLD_HOIST_T` 0.11 s, `CUBE_STAGGER` apart),
+  then throws it (the `tether` stays on it in flight) at its `cube_target`; each burst is a cold snap: "KRSSH!", the ice
+  shatter and a frost line along the floor where it went. Its situation is still Worldbreaker's split (cubes at
+  neighbours vs the floor), not a new one.
+- **Anvil** (Backdraft's / Impale's window, RMB, `XW` / `XK`). The first slam as before, then from `ANVIL_YANK_AT` 0.2 s
+  the tentacles yank the buried kebab back up out of its craters (`ANVIL_YANK_Y` 2 m) and drive it in again
+  (`ANVIL_TWO_MULT` 0.4, a crater each, three magma fissures out of each, "KRUNCH!"; ~33 a foe in the film). The anvil
+  pair in `void_arm_check` (open 406 vs Pinwheel 152, by a wall 406 vs 519) reads 0.5 s after the landing, before the
+  second slam lands, so Pinwheel's wall margin there is the first slam's.
