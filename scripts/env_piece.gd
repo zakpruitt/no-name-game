@@ -43,8 +43,8 @@ const PIECES := {
 	"torch": {"models": ["torch_mounted"], "collider": "none", "wall": false, "breaks": false, "states": ["lit", "out", "conducting"], "built": true,
 		"rule": "Light; swings when a foe splats on the wall under it."},
 	"brazier": {"models": ["brazier", "brazier_spilled"], "stub": false, "collider": "cyl", "size": Vector2(0.55, 1.3), "wall": false, "breaks": true,
-		"states": ["lit", "out", "spilled"], "built": false,
-		"rule": "Floor fire bowl. A thrown foe knocks it over: a 2 m fire patch for 3 s that leaves molten on foes in it."},
+		"states": ["lit", "out", "spilled"], "built": true,
+		"rule": "Floor fire bowl, lit. Lava Leash's seam tips it in (brazier_spill): the coals run the seam on and leave a molten patch; magma lights an out one."},
 	"barrel": {"models": ["barrel_large", "barrel_small"], "collider": "cyl", "size": Vector2(0.8, 2.0), "wall": false, "breaks": true,
 		"states": ["whole", "burning", "gone"], "built": true,
 		"rule": "A thrown foe breaks it: a splat at half the wall's, staves fly, gone."},
@@ -67,10 +67,10 @@ const PIECES := {
 		"wall": false, "breaks": false, "states": [], "built": true,
 		"rule": "Low; a breaker landing on it throws chunks for a small splash."},
 	"pool": {"models": ["pool"], "stub": false, "collider": "none", "floor": true, "size": Vector3(4.0, 0.0, 4.0),
-		"wall": false, "breaks": false, "states": ["water", "frozen", "live", "steam"], "built": false,
-		"rule": "Water: foes in it move at 0.8, and molten on them ends (quenched)."},
+		"wall": false, "breaks": false, "states": ["water", "frozen", "live", "steam"], "built": true,
+		"rule": "Water. Ice by it freezes it (ice_rink): cubes slide across it at full speed and further, foes knocked onto it slide and freeze."},
 	"hook": {"models": ["hook_chain"], "stub": false, "collider": "none", "wall": true, "breaks": false, "states": ["empty", "hung"],
-		"built": false, "rule": "Chains and hooks on a wall segment: a wall for everyone."},
+		"built": true, "rule": "A hook on a chain on a wall: a wall for everyone. Ricochet hangs the attacker on it (gallows): bound, every hit a Snap."},
 	"ledge": {"models": ["ledge"], "stub": false, "collider": "box", "size": Vector3(8.0, 1.2, 2.0), "wall": true, "breaks": false, "states": [], "built": false,
 		"rule": "A raised ledge along a wall, 1.2 m up with a step at its front; its face is a wall."},
 }
@@ -79,13 +79,16 @@ const PIECES := {
 ## structure indicator marks a piece for a verb only when the hero has the element (usable()), so the room reads
 ## differently per character: a grate glows under the heretic's indicator and is plain floor under the prince's.
 const EXCLUSIVE := {
-	"void": {"pillar": ["uproot"]},
-	"earth": {"barrel": ["keg"]},
-	"water": {"grate": ["frost_wall"]},
+	"void": {"pillar": ["uproot"], "hook": ["gallows"]},
+	"earth": {"barrel": ["keg"], "brazier": ["brazier_spill"]},
+	"water": {"grate": ["frost_wall"], "pool": ["ice_rink"]},
 	"wind": {"grate": ["live_floor"], "torch": ["conduct"]},
 }
 ## Which verbs are in the game (the rest of EXCLUSIVE is the proposal's, still to build).
-const BUILT := ["uproot", "keg", "frost_wall", "live_floor", "conduct"]
+const BUILT := ["uproot", "keg", "frost_wall", "live_floor", "conduct", "gallows", "ice_rink", "brazier_spill"]
+## Round 53 (env-flourish): the heretic's flourishes on the hook, the pool and the brazier (env_flourish.gd), each a
+## Kit upgrade, on in a room with the `flourishes` rule (rooms.gd).
+const FLOURISH_PATH := "res://scripts/env_flourish.gd"
 ## The elements each hero hits with (the heretic's four colours; the prince's from his draft card).
 const HERO_ELEMENTS := {"heretic": ["void", "wind", "water", "earth"], "prince": ["dragonfire", "radiance", "steel"]}
 ## The element verbs a hit can trigger: element -> piece -> the verb hit() plays.
@@ -200,6 +203,8 @@ static func place(room: Node, tag: String, at: Vector3, yaw := 0.0, state := "",
 	if tag == "pillar":
 		n.add_to_group("grab_anchors")  # the void arm swings on them (void_grab.gd)
 	_register(n)
+	if tag in ["pool", "brazier"]:  # round 53: the pool's watch (ice_rink), the brazier's lit look
+		load(FLOURISH_PATH).placed(n)
 	if opts.get("count", false):
 		counted.append(n)
 	return n
@@ -248,7 +253,7 @@ static func _register(n: Node3D) -> void:
 			id = env.add_pillar(n, float(PIECES.pillar.size.x))
 		"torch":
 			env.add_torch(n)
-		"barrel", "crate", "chest", "grate":
+		"barrel", "crate", "chest", "grate", "brazier", "hook":  # (round 53: the brazier and hook for the flourishes' brackets)
 			id = env.add_prop(n, tag, radius(n))
 	if id != "":
 		n.set_meta(ID_META, id)
@@ -334,6 +339,12 @@ static func hit(n: Variant, el: String, by: Node, how := "throw") -> String:
 	if did != "":
 		touched[piece.get_instance_id()] = did
 	return did
+
+
+## A flourish played on piece `n` (round 53, env_flourish.gd): it counts as touched for the [env] line's pieces=N/N.
+static func touch(n: Node3D, verb: String) -> void:
+	if is_instance_valid(n):
+		touched[n.get_instance_id()] = verb
 
 
 ## A verb played (counted for the autotest's [env] line and the checks).
@@ -635,6 +646,7 @@ static func marked(e: Variant, st: String) -> void:
 		return
 	if st == "molten":
 		molten_near(e)
+		load(FLOURISH_PATH).molten_near(e)  # round 53: magma lights an out brazier
 	elif st == "charged" and not _live_ticking:  # Live Floor: storm on a foe standing on a grate
 		var g := under((e as Node).get_tree(), "grate", (e as Node3D).global_position)
 		if g != null:
@@ -744,6 +756,9 @@ static func topple(n: Node3D, base: Vector3, dir: Vector3) -> void:
 		room.add_child(heap)
 		left.append(heap)
 	n.set_meta(&"env_leftovers", left)
+	for h: Node3D in near(n.get_tree(), "hook", n.global_position, 1.4):  # round 53: a hook on the pillar goes with it
+		h.visible = false
+		use_up(h)
 	use_up(n, "toppled")
 	played("topple")
 
@@ -828,6 +843,8 @@ static func rebuild(n: Variant) -> void:
 	p.remove_meta(&"env_leftovers")
 	if not p.has_meta(ID_META):
 		_register(p)
+	if tag_of(p) in ["hook", "brazier", "pool"]:  # round 53: the flourishes' pieces as placed (env_flourish.restore)
+		load(FLOURISH_PATH).restore(p)
 	if DESIGNED.on():
 		DESIGNED.dust(p.get_parent(), p.global_position, POP_SIZE)
 

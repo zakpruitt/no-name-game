@@ -28,6 +28,11 @@ const UPGRADES := {
 	"meteor_spike": "airborne x magma cell: driven down into a crater x1.5 (rule: juggle)",
 	"torn_loose": "bound x storm cell: torn out of the bind and launched (rule: snap)",
 	"frozen_dark": "bound x ice cell: frozen where the tendrils hold it (rule: snap)",
+	# The heretic's flourishes on the room's pieces (round 53, env_flourish.gd; proposal environment-per-character.md
+	# section 2): each also plays in a room with rooms.gd's `flourishes` rule (the room with pieces), for practice.
+	"gallows": "hook x dark: a perfect counter's Ricochet hangs the attacker on a hook in reach, bound 2.5 s, wall damage x1.3, every hit on it a Snap",
+	"ice_rink": "pool x ice: ice by a pool freezes it 6 s; cubes slide across it at full speed 6 m further, foes knocked onto it slide and freeze",
+	"brazier_spill": "brazier x magma: Lava Leash's seam tips a lit brazier in (the coals run the seam on, a molten patch 4 s), Hellseam erupts from it x1.25",
 }
 
 static var _on := {}

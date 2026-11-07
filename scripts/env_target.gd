@@ -55,6 +55,10 @@ const CTX := {
 	"eruption": {"el": "earth", "choose": true, "far": false},  # Meltdown's window: the wall or pillar the geysers hurl at
 	"flash_freeze": {"el": "water", "choose": true, "far": false},
 	"black_ice": {"el": "water", "choose": true, "far": false},  # round 52: Black Tide's window (LMB): the structure they skid into
+	# round 53 (env-flourish, env_flourish.gd): gallows, the counter window's hook (the cursor may take a wall or pillar
+	# instead: mode "hook"); brazier_spill, the lit brazier Lava Leash's seam will tip
+	"gallows": {"el": "void", "choose": true, "far": false, "kinds": ["hook", "wall", "pillar"]},
+	"brazier": {"el": "earth", "choose": false, "far": false, "kinds": ["brazier"]},
 	"tow": {"el": "void", "choose": true, "far": false},  # Tow Line (Dash H) before its hit: a foe, the one they're yanked into  # Steam Burst's window: a foe, the shell that breaks first
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
@@ -456,6 +460,10 @@ func context(h: CharacterBody3D) -> Dictionary:
 			return {"ctx": "slapshot", "from": mid, "reach": ve.SLIDE_REACH, "mode": "along", "dir": h._brk_dir, "key": key}
 		if b.has("counter"):
 			var foe: Variant = b.get("only")
+			var fl: GDScript = load("res://scripts/env_flourish.gd")  # round 53: gallows, a hook in reach
+			if is_instance_valid(foe) and fl.on("gallows") and not fl.hooks(get_tree(), _flat((foe as Node3D).global_position), fl.GALLOWS_REACH).is_empty():
+				return {"ctx": "gallows", "from": _flat((foe as Node3D).global_position), "reach": fl.GALLOWS_REACH, "mode": "hook",
+					"key": key, "foe": foe}
 			if is_instance_valid(foe):
 				return {"ctx": "ricochet", "from": _flat((foe as Node3D).global_position), "reach": load("res://scripts/counter.gd").RICOCHET_REACH,
 					"mode": "near", "key": key, "foe": foe}
@@ -530,6 +538,10 @@ func context(h: CharacterBody3D) -> Dictionary:
 		var conducting := _conduct_ctx(h, me, mkey)
 		if not conducting.is_empty():
 			return conducting
+	if h._move_id == "XL":  # round 53 (brazier_spill): the lit brazier the seams will tip, through the reach beat
+		var br: Node3D = load("res://scripts/env_flourish.gd").leash_brazier(h)
+		if br != null:
+			return {"ctx": "brazier", "from": _flat(br.global_position), "reach": 1.0, "mode": "near", "key": mkey}
 	if h._move_id == "XL" and h._hits_done == 0:
 		for e: Node in get_tree().get_nodes_in_group("enemies"):
 			if ve.palm_fresh(e) and ve.wall_fresh(e):
@@ -573,7 +585,18 @@ func resolve(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 		var t := nearest(c.torches, c.from, c.reach, ["torch"])
 		t.chosen = false
 		return t
-	if c.mode == "along":
+	if c.mode == "hook":  # round 53 (gallows): the nearest empty hook's point in reach, over any nearer wall
+		var fl: GDScript = load("res://scripts/env_flourish.gd")
+		var hk: Array = fl.hooks(get_tree(), c.from, c.reach)
+		r = {"found": false}
+		if not hk.is_empty() and hk[0].has_meta(&"env_id"):
+			var s: Dictionary = by_id(str(hk[0].get_meta(&"env_id")))
+			if not s.is_empty():
+				var p: Vector3 = fl.hook_point(hk[0])
+				var to: Vector3 = _flat(p) - _flat(c.from)
+				r = {"found": true, "s": s, "at": s.at, "dist": to.length(), "n": fl.hook_out(hk[0]), "in_reach": true,
+					"dir": to.normalized() if to.length() > 0.01 else Vector3.FORWARD}
+	elif c.mode == "along":
 		r = along(structures, c.from, c.dir, c.reach, kinds)
 		if not r.found:  # (nothing along the line at all: the nearest, for the too-far bracket)
 			r = nearest(structures, c.from, c.reach, kinds)

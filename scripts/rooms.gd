@@ -46,9 +46,13 @@ const ROOMS := {
 		# dummy at (1.6, -4.5) (ice_rink), the brazier behind the one at (-4.2, -3.2) (brazier_spill), the hook on the back
 		# wall between a banner and a torch (gallows; a side wall shows it edge-on to the camera), the ledge on the right wall
 		# level with the dummies (High Ground)
-		{"tag": "pool", "at": Vector3(2, 0, -6)},
-		{"tag": "brazier", "at": Vector3(-5.8, 0, -5.2)},
+		# round 53 (env-flourish): the pool, the brazier and a second hook have rules now (env_flourish.gd) and count. The
+		# second hook hangs on the face of the pillar at (8, -8) toward the dummies (the counter dummy's Ricochet reaches its
+		# point, ~9 m; the back wall's is ~11 m off, past GALLOWS_REACH): ice_rink, brazier_spill, gallows.
+		{"tag": "pool", "at": Vector3(2, 0, -6), "count": true},
+		{"tag": "brazier", "at": Vector3(-5.8, 0, -5.2), "count": true},
 		{"tag": "hook", "at": Vector3(-4.0, 3.4, -15.5)},
+		{"tag": "hook", "at": Vector3(7.47, 3.5, -7.47), "yaw": -45.0, "count": true},
 		{"tag": "ledge", "at": Vector3(14.5, 0, -4.0), "yaw": -90.0},
 	],
 }
@@ -60,11 +64,13 @@ const LIVE_IN_PIECES := ["banner"]
 ## comes back, so the string can be practised again); a real room keeps its pieces gone, so tearing a pillar down costs
 ## the swing anchor for the rest of the fight (the proposal's open question 2). A room with no entry here is a real
 ## room: rebuild false. No run builds real rooms yet; `rule()` is what main.gd and a run will read.
+## Round 53 (env-flourish): `flourishes` turns the heretic's flourishes on in the room (env_flourish.on(): gallows,
+## ice_rink, brazier_spill; elsewhere each is its Kit upgrade), so the room with pieces is where they are practised.
 const ROOM_RULES := {
-	"plain": {"rebuild": true},
-	"pieces": {"rebuild": true},
+	"plain": {"rebuild": true, "flourishes": false},
+	"pieces": {"rebuild": true, "flourishes": true},
 }
-const REAL_ROOM := {"rebuild": false}
+const REAL_ROOM := {"rebuild": false, "flourishes": false}
 
 
 ## Room `room`'s rule `key` (ROOM_RULES, else a real room's REAL_ROOM).

@@ -132,6 +132,7 @@ static func prewarm(parent: Node, at: Vector3) -> void:
 	load("res://scripts/designed_polish.gd").prewarm(root)  # round 48 (fx-polygons): chips, comet trails, tells, tear
 	load("res://scripts/lava_leash.gd").prewarm(root)  # dark-magma lane: Lava Leash's seam and eruption
 	load("res://scripts/env_target.gd").prewarm(root)  # round 50: the structure indicator, chunks, wall marks
+	load("res://scripts/env_flourish.gd").prewarm(root)  # round 53: the frozen pool's glint
 	load("res://scripts/collapse_spit.gd").prewarm(root)  # round 51 cool pass: Collapse's spit
 	load("res://scripts/avalanche_topple.gd").prewarm(root)  # round 51 cool pass: Avalanche's spill
 	load("res://scripts/abyss_rise.gd").prewarm(root)  # round 51 cool pass: Abyss's column
