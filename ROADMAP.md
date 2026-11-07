@@ -1052,3 +1052,19 @@ Zak: "work in a loop increasing combat fluidity, ensure everything is snappy and
 - [x] Clips: `awaken-combo-clips/35 Fluidity *`
 - [ ] Zak's call: the dash hand-overs (Rockslide -> Dash Stab 385 ms) are over the 330 mid target because of the dash
   itself; a shorter dash would change movement everywhere
+
+## Round 52 env-pieces2 (the environment's second round: readability, torches conduct)
+Zak: the environment "should be a big part of what you can do". Polish of round 51's verbs, build order item 5; see
+`docs/features/env-pieces.md`.
+- [x] The land check plays the `--kit=full` autotest in the room with pieces (`--room=pieces`) and asserts
+  `pieces=N/N` and every built verb above 0 (`pieces=6/6 uproot=1 keg=1 frost_wall=1 live_floor=4 conduct=3`)
+- [x] Uproot: the pillar held up 0.16 s as a lilac silhouette with its drop shadow before the club lands; Powder
+  Keg's "KA-BLOOOM!" waits for Meteor Fall's word; Live Floor: eight edge crawls and a lime rim bolt round the tile
+- [x] Frost Wall 4 -> 6 m, square to his line; an ice cube splatting on it pays x1.6 (Slapshot into it 153 -> 362,
+  63 in the open)
+- [x] Torches conduct: storm by a lit torch relays along the wall (8 to a foe 8-10 m off under the next torch),
+  Short Circuit arcs from conducting torches, the storm windows bracket one; bot string `torch alt L H H`
+- [x] `rooms.gd` `ROOM_RULES`: a per-room `rebuild`; both training rooms rebuild, real rooms keep pieces gone
+- [x] Clips: `awaken-combo-clips/39 Pieces2 *`
+- [ ] Zak's call: torches_conduct is always on (the proposal had it a run upgrade); Slapshot into the Frost Wall is
+  x5.7 the open; the breaker banner covers Uproot's fall line

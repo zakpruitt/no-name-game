@@ -17,6 +17,10 @@ aspects only they can use". This builds items 0-4 of the proposal's build order
   `--room=pieces` is given. With pieces, the training room adds one of each piece the heretic or everyone uses, each
   by a dummy and makes the banners live. Both training rooms rebuild every used-up piece `REBUILD_S` 6 s later with
   a dust pop (so a pillar Uproot tore out of the plain room comes back too).
+- **Rebuild is per room** (round 52): `rooms.gd` `ROOM_RULES` holds each room's rules beside its entries
+  (`{"plain": {"rebuild": true}, "pieces": {"rebuild": true}}`); any other room is a real room (`REAL_ROOM`,
+  `rebuild: false`): what is used up stays gone for the fight, so Uproot costs the pillar and its swing anchor.
+  `rooms.rebuild(room)` is what `main._build_arena` passes to `EnvPiece.begin()`. No run builds real rooms yet.
 
 ### The pieces
 
@@ -24,7 +28,7 @@ aspects only they can use". This builds items 0-4 of the proposal's build order
 |---|---|---|---|---|
 | wall | a thrown foe splats on it at the throw's `wall_mult`; the wall endings aim at it | none | yes (main.gd's walls) | `wall` |
 | pillar | a wall for splats, the R anchor, the pillar slam, shakes on landings | whole / cracked / toppled | yes, both rooms | `pillar_decorated` |
-| torch | swings when a foe splats on the wall under it | lit / out | yes, both rooms | `torch_mounted` |
+| torch | swings when a foe splats on the wall under it | lit / out / conducting | yes, both rooms | `torch_mounted` |
 | barrel | a thrown foe breaks it: a splat at half the wall's mult (at least x1), staves fly | whole / burning / gone | with pieces | `barrel_large` |
 | crate | a thrown foe, a breaker landing within 1.5 m, or a burst keg breaks it | whole / gone | with pieces | `crates_stacked` |
 | chest | heavy: a wall for splats, never breaks | shut / open | a look (the corner) | `chest_gold` |
@@ -68,6 +72,7 @@ later lanes get:
 | brazier | (-5.8, -5.2) | behind the dummy at (-4.2, -3.2) (not counted) |
 | hook | (-4, 3.4, -15.5) on the back wall | between a banner and a torch; a side wall shows it edge-on to the camera (not counted) |
 | ledge | (14.5, -4), yaw -90, on the right wall | level with the dummies, out of the bot's lanes (not counted) |
+| torch | the back wall's middle one, (-2, 2.4, -15.5) | counted in this room only (`count_in_pieces`): torches conduct |
 
 ## The heretic's verbs
 
@@ -91,6 +96,18 @@ Look: the tentacle is `void_tendril` (the sheet tendril), the chunks and dust ar
 (`DESIGNED.dust`, `env_target._chunk`), the pillar is the comic `pillar_decorated` itself; no polygons. Bot string:
 `pillar alt hold` (slot `sig_pin`, the plain room).
 
+Readability (round 52): on film the pillar lying on the foe was lost under the tentacle and the landing's effects. Now
+the club has three beats (`breaker_alt_fx.uproot_club`): the tentacle hauls it up to `UPROOT_HOLD_LIFT` 1.4 m,
+leaning `UPROOT_HOLD_LEAN` back, and holds it `UPROOT_HOLD` 0.16 real s as a flat silhouette in the void's light
+(`Fx.flash_tint`; an ink one read as nothing on the dark floor); its drop shadow (a soft ink oval, the dash streak's material, `UPROOT_SHADOW_W` 1.9 m across the
+fall line) is on the floor from the hold and darkens as it falls; the tentacle lets go as the fall starts, so the
+pillar comes down in the clear, and a white flash marks the landing. The club starts two frames after the dive lands
+(the landing frame took 250-320 ms to draw on film, and the first real-time step after it swallowed the whole hold).
+Its hit comes `UPROOT_HOLD` and those two frames later than before; the damage is the same (244 / 71, cool_pass_check).
+Still hard to read on film: the camera frames the dummies low and the breaker banner ("UPROOT n",
+`designed_breaker.Screen`, not this lane's) sits over the fall line in the hold; decision for Zak / the spectacle
+lane: move the banner off the pillar's line for Uproot, or frame the pillar.
+
 ### Powder Keg (magma on a barrel)
 
 Any magma hit on a barrel sets it burning: Molten Palm's carry (the barrel is a collider on the walls' layer, so the
@@ -104,23 +121,32 @@ barrel is used up (rebuilt in training). Bot string: `keg L L L H H` (slot `big_
 carries the dummies over the spikes into the barrel and the crate, Undertow pins them, and Meteor Fall dives on the
 pile as the keg goes.
 
+The word waits its turn (round 52): ComicFx shows one word at a time (`replace`), so Meteor Fall's word, landing as
+the keg went, wiped "KA-BLOOOM!" in the same beat. `_keg_word` holds it while he is in a breaker's leap and until
+`KEG_WORD_GAP_MS` 450 after the last word (at most `KEG_WORD_WAIT` 1.2 real s), `KEG_WORD_UP` 2.8 m over the barrel.
+
 ### Frost Wall (ice on a grate)
 
-Frost Spear (L L H) planted on a grate, or within `REACH` 1 m of one, raises a real wall of ice along the grate's far
-edge from him (`scripts/frost_wall.gd`, `frost_spear.frost_wall()`), for `LIFE` 6 s. The spear goes into the wall: it
+Frost Spear (L L H) planted on a grate, or within `REACH` 1 m of one, raises a real wall of ice `WIDTH` 6 m wide on the
+grate's far side from him, square to his line (round 52: it was 4 m along the grate's edge on the axis he was most
+along, and a diagonal Harpoon row's ends flew past it; now it follows his angle) (`scripts/frost_wall.gd`, `frost_spear.frost_wall()`), for `LIFE` 6 s. The spear goes into the wall: it
 melts `SPENT_INTO_WALL` 0.35 s after, so there is no vault onto it (the wall is the payoff on a grate). It is a StaticBody3D on the
 walls' layer, so `thrown_foe.clear_from` stops on it, and env_target knows it as a wall (`add_wall_id`, id
 `frost_wall`): every wall ending gets a wall in the open (Slapshot aims at it from the cursor's pick, Pinwheel and
 Ricochet see it, a splat on it carries the wall mark for Meteor Fall). One splat shatters it `SHATTER_AFTER` 0.25 s
 later (so the rest of a volley lands) with the designed `ice_shatter`; otherwise it melts. The grate reads frosted
 while it stands. Look: three faceted `designed_elements.ice_block` meshes squashed to `THICK` 0.7 m, rising with a
-back-ease, a `frost_mark` and dust at its foot, "KRRSSHK!"; no crystals. The x1.6 shatter bonus from the proposal is
-not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H wait D L H` (the room with pieces): Harpoon's row is punched into the wall.
+back-ease, a `frost_mark` and dust at its foot, "KRRSSHK!"; no crystals. Shatter (round 52, the proposal's x1.6): an ice cube (a frozen foe
+flying, or any `water` throw) splatting on it pays `SHATTER_MULT` 1.6 on the wall's mult; the rest of a volley inside
+`SHATTER_AFTER` gets it too. Four blocks (`BLOCKS`), the middle two taller. Bot string: `grate alt L L H wait D L H` (the room with pieces): Harpoon's row is punched into the wall.
 
 | Case (env_breaker_check, three cubes, a 4 m grate edge) | Damage |
 |---|---|
-| Slapshot into the Frost Wall | 153 |
+| Slapshot into the Frost Wall | 362 (round 51: 153 at 4 m wide and x1; the 6 m wall stops all three cubes, x1.6 each) |
 | Slapshot in the open | 63 |
+
+Decision for Zak: 362 is x5.7 the open and x1.6 a real wall's Slapshot. It needs a spear planted on a grate first, so
+it is the setup's payoff; if it reads too strong, `SHATTER_MULT` is the knob.
 
 ### Live Floor (storm on a grate)
 
@@ -128,7 +154,10 @@ A storm hit that charges a foe standing on a grate (Live Wire's jolts, Grounded,
 "charged")` calls `env_piece.marked`) makes the grate live for `LIVE_S` 4 s (more storm on it refreshes it). Live, it
 charges everyone on it every `LIVE_TICK` 0.5 s, four designed `arc_crawl` loops run over the tile with "BZZZT!", and
 Short Circuit treats it as a source: its reach is measured from the grate too (foes within `SC_REACH` 12 m of a live
-grate are in the arcs), and an arc may start from the grate itself. Then it goes cold. Bot string: `grate alt L H H`
+grate are in the arcs), and an arc may start from the grate itself. Readability (round 52): the four middle crawls sat under the pile; now `LIVE_EDGE_CRAWLS` 8 more, `LIVE_EDGE_SIZE`
+2.4, stand on the tile's edge (corners and edge middles), and every tick `_live_rim` runs a lime bolt (`bolt_path`,
+`LIVE_RIM_W` 0.3) round the tile's four edges, so the square reads live from the camera past the foes on it.
+Then it goes cold. Bot string: `grate alt L H H`
 (slot `big_1`, the room with pieces): Live Wire's jolts on the dummy on the grate make it live, and Short Circuit
 lands.
 
@@ -136,6 +165,36 @@ lands.
 |---|---|
 | the grate live | 25 |
 | the grate cold | 0 |
+
+### Torches conduct (storm on a lit torch; round 52, build order item 5)
+
+A storm hit that charges a foe within `CONDUCT_REACH` 3.5 m (flat) of a lit torch (`void_element.mark(e, "charged")`
+calls `env_piece.marked`, then `conduct_near`) makes the nearest torch conduct (`hit(torch, "wind", foe, "element")`,
+verb `conduct`, state `conducting` for `CONDUCT_S` 3 s after the last storm by it). The current runs along the wall:
+`torch_chain()` is the torch, then every lit torch within `CONDUCT_LINK` 8.5 m of one already in (the training room's
+three, 8 m apart, are one chain). A lime `bolt_path` runs from the charged foe to the torch's flame and on from torch
+to torch, each flares (a storm star, an `arc_crawl` on the flame while it conducts, "ZZRAK!", a scale pop), and each
+torch zaps the foes within `CONDUCT_REACH` of it (not the source, not flying) for `CONDUCT_DAMAGE` 8 x his damage
+mult, with a bolt from its flame, and charges them. One relay per torch per `CONDUCT_CD` 0.45 real s (Live Wire jolts
+every 0.1 s). Live Wire's jolts, Galvanize's zaps and Short Circuit's arcs all charge, so all three relay; the relay's
+own charges don't relay again (`_relaying`). Short Circuit also takes conducting torches as sources (an arc may start
+from a flame) and reaches `CONDUCT_REACH` round each (`void_element._short_circuit`).
+
+The indicator: in the storm windows (a breaker with `wire` or Short Circuit as its `alt`: Live Wire's, Worldbreaker's)
+and during Live Wire and Galvanize themselves, env_target's context `conduct` (mode `torch`, `_conduct_ctx`) brackets
+the conducting torch nearest him, on its flame (`TORCH_BRACKET_*`, no floor ring); the others show their crawl.
+
+It is an element verb (`EXCLUSIVE.wind.torch`), always on for the heretic, not the proposal's `Kit.has()` upgrade
+(decision for Zak: gate it behind a run upgrade later). Bot string: `torch alt L H H` (slot `big_1`, the room with
+pieces, layout `torch`): three dummies under the back wall's middle torch, the fourth ~10 m off under the torch at
+(-10, 2.4, -15.5), past the tentacles' `SEIZE_RANGE` 8; Live Wire's jolts make the middle torch conduct, the current
+runs the wall to the far dummy, and Short Circuit's arcs come out of the torches' flames. The autotest
+counts `conduct=3`.
+
+| Case (env_piece_check `_conduct`) | The foe 8 m along the wall |
+|---|---|
+| storm on a foe under the middle torch | 8 (`CONDUCT_DAMAGE`), charged |
+| the torches out | 0 |
 
 ## Files
 
@@ -161,7 +220,12 @@ lands.
   `void_element._short_circuit` adds the foes near live grates to its arcs and the grates to its sources.
 - `scripts/frost_wall.gd`: `raise()`, `current()`, `splat()`, `shatter()`, `melt()`, `struck()`;
   `scripts/frost_spear.gd` `plant()` calls `frost_wall()`; `thrown_foe._burst` shatters it on a splat.
-- `scripts/breaker_alt_fx.gd` (the Uproot region): `uproot_tear`, `uproot_club`, `uproot_open`.
+- `scripts/breaker_alt_fx.gd` (the Uproot region): `uproot_tear`, `uproot_club` (round 52: the hold, `_uproot_shadow`,
+  `_shade`), `uproot_open`.
+- `scripts/env_piece.gd` torches conduct (round 52): `CONDUCT_*`, `_conduct()`, `torch_chain()`, `_relay()`, `_flare()`,
+  `_conduct_tick()`, `conducting_torches()`, `conduct_near()`; Live Floor's `_live_rim()`; the keg's `_keg_word()`.
+- `scripts/env_target.gd`: CTX `conduct`, `_conduct_ctx()`, mode `torch` in `resolve()`, the torch bracket in `_draw()`.
+- `scripts/rooms.gd`: `ROOM_RULES`, `REAL_ROOM`, `rule()`, `rebuild()`; `count_in_pieces` on the middle torch.
 - `scripts/game.gd`: `room_setting` (saved under `training/room`), `room` (this run), `toggle_room()`,
   `room_label()`; `scripts/menu_screen.gd` Settings row.
 - `scripts/training_bot.gd`: `room` on a BOT_STRINGS entry plays it only in that room (`active()`);
@@ -173,8 +237,8 @@ lands.
 - The plain room is today's arena: the same pillars with the same 0.75 x 4 m colliders at `rooms.PILLARS`, the
   same torches, the same random floor and walls, and no other live piece (env_piece_check).
 - Every hit on a piece goes through `hit()`; it plays the element's verb only when `usable()`.
-- A used-up piece leaves env_target and its collider goes off; it stays gone for the room, except in training
-  (both training rooms rebuild it).
+- A used-up piece leaves env_target and its collider goes off; it stays gone for the room unless the room's
+  `ROOM_RULES` say `rebuild` (both training rooms do; a real room doesn't).
 
 ## Testing
 
@@ -198,3 +262,18 @@ lands.
 - Look (windowed): `godot --path . -s tests/piece_shots.gd -- --room=pieces [--tag=x]` puts the hero beside each
   placed brazier, pool, hook and ledge from the game camera, then lines every new model up with the hero and kit pieces
   (`user://piece_shots/`, each shot also at 800x450). `comic_check` covers their files, sizes and nodes.
+- `tests/env_piece_check.gd` `_frost_shatter` (round 52): a foe into the Frost Wall 20 (x2), an ice cube 32 (x1.6 more);
+  on a diagonal the wall faces him. `_conduct`: the relay above, once per `CONDUCT_CD`, lit again after `CONDUCT_S`,
+  nothing far from a torch or with them out, nothing for the prince. `_room_rules`: the rebuild rule per room.
+- `agent.sh check` (round 52): the second autotest is `--autotest --kit=full --room=pieces` (folded into the kit run,
+  not a third run: each is about 3 min) and fails unless its `[env]` line has `pieces=N/N` and every built verb
+  (`uproot keg frost_wall live_floor conduct`) above 0. Measured: `pieces=6/6 uproot=1 keg=1 frost_wall=1
+  live_floor=4 conduct=3`, strings 47/47, upgrades 1/1, 190 s.
+
+### Not verified
+
+- The conduct bracket was not filmed in a window long enough to judge it against Live Wire's own tentacles (it
+  shows on the nearest conducting torch only).
+- The 6 m Frost Wall against a real diagonal Harpoon row in play (the bot's row is straight); the check covers the
+  facing, not a diagonal volley.
+- Real rooms (`rebuild: false`) exist only as the rule: nothing builds one yet.

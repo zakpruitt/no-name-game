@@ -134,6 +134,11 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   rooms are data (`scripts/rooms.gd`) and `env_piece.gd` `place()` registers each piece (pillars, torches, and props
   through `add_prop`, a structure of its own kind that only a ctx with that `kinds` sees); see
   [env-pieces.md](env-pieces.md).
+- Round 52 (env-pieces2): CTX `conduct` (torches conduct): in the storm windows (a breaker with `wire` or Short
+  Circuit as its alt) and during Live Wire / Galvanize, `_conduct_ctx()` builds structures of kind `torch` from the
+  conducting torches (`env_piece.conducting_torches()`), mode `torch` in `resolve()` takes the nearest, and `_draw()`
+  puts the bracket on the torch's flame (`TORCH_BRACKET_SIZE` 1.8, `TORCH_BRACKET_UP` 0.55, no floor ring). Torches
+  are still not in `structures`, so no other pick sees them. A room's rebuild rule is `rooms.gd` `ROOM_RULES`.
 
 ## Testing
 

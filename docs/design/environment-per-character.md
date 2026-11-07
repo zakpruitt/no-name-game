@@ -6,7 +6,10 @@ each character a few environmental aspects only they can interact with." The gam
 [kit-grammar.md](../characters/kit-grammar.md): every character fills the same ten-slot card, runs upgrade slots,
 passives raise elements and states. Environmental combos are "a fun bit", not a second combat system.
 
-Status: items 0-4 of the build order are built (round 51, env-pieces lane): see
+Status: items 0-5 of the build order are built (items 0-4 in round 51, env-pieces lane; item 5, torches_conduct,
+in round 52, env-pieces2, as an always-on storm verb rather than a `Kit.has()` upgrade, with the Frost Wall's x1.6
+Shatter and a per-room `rebuild` rule in `rooms.gd`: open question 2's answer as data, training rebuilds, real rooms
+don't): see
 [env-pieces.md](../features/env-pieces.md) for what shipped and where it differs from this page, and
 [environment-lore.md](environment-lore.md) for the world behind it. The rest is a
 proposal. It builds on what is on dev at c2ba15f (wall splat and `WALL_META`, Meteor Fall's
