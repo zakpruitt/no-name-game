@@ -348,7 +348,7 @@ func _burst(other: Node3D) -> void:
 	if _walled and other == null:  # round 51: the piece it stopped on (a breakable splats for half), the banners there
 		if is_instance_valid(_piece):
 			mult = ENV_PIECE.splat_mult(_piece, wall_mult)
-			ENV_PIECE.hit(_piece, el, hero, "throw")
+			ENV_PIECE.hit(_piece, "earth" if VOID_ELEMENT.marked(foe, "molten") else el, hero, "throw")  # (molten: magma)
 		ENV_PIECE.wall_splat(foe.get_tree(), spot, hero)
 	var spikes: Node3D = ENV_PIECE.under(foe.get_tree(), "spikes", spot)
 	if spikes != null:  # (it comes down on the spikes: x1.5 on the landing)

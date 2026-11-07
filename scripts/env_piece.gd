@@ -104,6 +104,18 @@ const RUBBLE_SPLASH_R := 2.0
 const BANNER_NEAR := 1.4  # m along the wall from a splat that tears a banner
 const STAVES := 10  # chips a breaking barrel or crate throws
 
+## Powder Keg (round 51, magma on a barrel): a magma hit on a barrel (Molten Palm carrying a foe into it, a molten
+## foe splatted on it, magma reaching a foe within KEG_CATCH of it) sets it burning; KEG_FUSE s later it bursts,
+## KEG_R round, by the molten rule: KEG_DAMAGE (the Burst rule's x1.5 on KEG_BASE) to everyone in it, and they are
+## left molten; crates in it break. Hits on a burning barrel feed the fire (no break).
+const KEG_FUSE := 1.2  # s (game)
+const KEG_R := 3.0
+const KEG_BASE := 20.0
+const KEG_DAMAGE := KEG_BASE * 1.5  # (void_element.IMPROV_MULT, the Burst rule's)
+const KEG_CATCH := 1.2  # m: magma on a foe this near a barrel reaches it
+const KEG_WORD := "KA-BLOOOM!"
+const KEG_TELL := 2.2  # m: the tell_molten licks on the burning barrel
+
 ## Run counters (the autotest's [env] line): the pieces placed with `count` and the ones a hit has touched.
 static var counted: Array = []
 static var touched := {}  # instance id -> verb or rule it played last
@@ -290,8 +302,82 @@ static func played(verb: String) -> void:
 
 ## The element verbs. Each lane adds its branch (keg, live_floor); Uproot and Frost Wall are moves, not hits, and call
 ## topple() / the frost wall themselves.
-static func _verb(_n: Node3D, _verb_id: String, _el: String, _by: Node, _how: String) -> String:
+static func _verb(n: Node3D, verb_id: String, _el: String, by: Node, _how: String) -> String:
+	match verb_id:
+		"keg":
+			return _keg(n, by)
 	return ""
+
+
+## Powder Keg: the barrel catches (KEG_FUSE), then bursts.
+static func _keg(n: Node3D, by: Node) -> String:
+	if state(n) == "burning":
+		return "burning"  # (a second foe into it feeds the fire)
+	n.set_meta(STATE_META, "burning")
+	played("keg")
+	if DESIGNED.on():
+		var tell: Node3D = load("res://scripts/designed_polish.gd").loop(n, "tell_molten", KEG_TELL, "earth")
+		tell.position.y = 0.4
+		n.set_meta(&"env_tell", tell)
+	ComicFx.say("FSSSS!", n.global_position + Vector3.UP * 2.2, 0.45)
+	Game.sfx("cast_earth", -8.0, 0.1)
+	var tw := n.create_tween()
+	tw.tween_interval(KEG_FUSE)
+	tw.tween_callback(_keg_burst.bind(n, by))
+	return "burning"
+
+
+static func _keg_burst(n: Variant, by: Variant) -> void:
+	if not is_instance_valid(n) or state(n) != "burning":
+		return
+	var p := n as Node3D
+	var tree := p.get_tree()
+	var at := Vector3(p.global_position.x, 0.0, p.global_position.z)
+	var parent := p.get_parent()
+	var tell: Variant = p.get_meta(&"env_tell") if p.has_meta(&"env_tell") else null
+	if is_instance_valid(tell):
+		(tell as Node).queue_free()
+	p.remove_meta(&"env_tell")
+	var hero: Node = tree.get_first_node_in_group("player")
+	var mult: float = float(hero.get("_dmg_mult")) if hero != null and hero.get("_dmg_mult") != null else 1.0
+	var VE: GDScript = load("res://scripts/void_element.gd")
+	var hit_n := 0
+	for e: Node3D in FOES.near(tree, at, KEG_R):
+		var away := Vector3(e.global_position.x - at.x, 0.0, e.global_position.z - at.z)
+		e.take_hit(KEG_DAMAGE * mult, (away.normalized() if away.length() > 0.05 else Vector3.ZERO) * 5.0, 0.0, true)
+		VE.mark(e, "molten")
+		Game.register_hit("breaker")
+		hit_n += 1
+	p.set_meta(&"keg_hits", hit_n)
+	if DESIGNED.on():
+		DESIGNED.meteor(parent, at, KEG_R * 0.8)
+		load("res://scripts/designed_polish.gd").chips(parent, at + Vector3.UP * 1.0, Color(0.55, 0.36, 0.2), STAVES, 8.0, Vector3.UP, true)
+	ComicFx.say(KEG_WORD, at + Vector3.UP * 2.0, 0.7)
+	Game.hitstop(0.06)
+	Game.shake(0.7)
+	Game.sfx("hit_big", -2.0, 0.08)
+	p.visible = false
+	use_up(p)
+	for c: Node3D in near(tree, "crate", at, KEG_R):
+		hit(c, "earth", hero, "burst")
+	for b: Node3D in near(tree, "barrel", at, KEG_R):
+		hit(b, "earth", hero, "element")  # (a chain: the next keg catches)
+
+
+## A foe took a state (void_element.mark): the pieces it reaches answer.
+static func marked(e: Variant, st: String) -> void:
+	if not is_instance_valid(e) or not (e as Node).is_inside_tree():
+		return
+	if st == "molten":
+		molten_near(e)
+
+
+## Magma reached foe `e` (void_element.mark(e, "molten")): a barrel within KEG_CATCH of it catches.
+static func molten_near(e: Node3D) -> void:
+	if not usable("barrel", "keg"):
+		return
+	for b: Node3D in near(e.get_tree(), "barrel", e.global_position, KEG_CATCH):
+		hit(b, "earth", e, "element")
 
 
 ## The shared rules (PIECES[tag].rule).

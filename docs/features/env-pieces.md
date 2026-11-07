@@ -76,6 +76,19 @@ Look: the tentacle is `void_tendril` (the sheet tendril), the chunks and dust ar
 (`DESIGNED.dust`, `env_target._chunk`), the pillar is the comic `pillar_decorated` itself; no polygons. Bot string:
 `pillar alt hold` (slot `sig_pin`, the plain room).
 
+### Powder Keg (magma on a barrel)
+
+Any magma hit on a barrel sets it burning: Molten Palm's carry (the barrel is a collider on the walls' layer, so the
+carry stops on it and the splat is magma), a molten foe splatted on it, or magma reaching a foe within `KEG_CATCH`
+1.2 m of it (`void_element.mark(e, "molten")` calls `env_piece.marked`). During the wind-up the structure indicator
+brackets the barrel when it is along his facing within the palm's reach (env_target context `keg`). Burning, the
+designed `tell_molten` licks it with "FSSSS!"; `KEG_FUSE` 1.2 s later it bursts by the molten rule: `KEG_DAMAGE` 30
+(the Burst rule's x1.5 on 20, x his damage mult) to everyone within `KEG_R` 3 m, knockback, all left molten, crates
+in it broken and other barrels catching (a chain), "KA-BLOOOM!" over the designed meteor burst and stave chips. The
+barrel is used up (rebuilt in training). Bot string: `keg L L L H H` (slot `big_3`, the room with pieces): the palm
+carries the dummies over the spikes into the barrel and the crate, Undertow pins them, and Meteor Fall dives on the
+pile as the keg goes.
+
 ## Files
 
 - `scripts/env_piece.gd`: `PIECES`, `EXCLUSIVE`, `BUILT`, `HERO_ELEMENTS`, `RULES_BY_ELEMENT`; `place()`, `hit()`,
@@ -93,6 +106,9 @@ Look: the tentacle is `void_tendril` (the sheet tendril), the chunks and dust ar
   `splat_mult`, calls `hit(piece, el, hero, "throw")`, tears banners, and x1.5 on spikes.
 - `scripts/void_element.gd` `breaker_impact`: `ENV_PIECE.landing(hero, at)` first. Uproot: `OW.alt`, `UPROOT_*`,
   `uproot_pillar()`, `uproot_target()`, `uproot_dive()` (from `hero_leap._start_dive`), `_uproot()`, `_uproot_hit()`.
+- `scripts/env_piece.gd` Powder Keg: `KEG_*`, `_keg()`, `_keg_burst()`, `marked()`, `molten_near()`;
+  `void_element.mark` calls `marked()`; `thrown_foe._burst` hits the piece with magma when the foe is molten;
+  `env_target` context `keg` (Molten Palm's wind-up, toward a barrel).
 - `scripts/breaker_alt_fx.gd` (the Uproot region): `uproot_tear`, `uproot_club`, `uproot_open`.
 - `scripts/game.gd`: `room_setting` (saved under `training/room`), `room` (this run), `toggle_room()`,
   `room_label()`; `scripts/menu_screen.gd` Settings row.
@@ -113,6 +129,8 @@ Look: the tentacle is `void_tendril` (the sheet tendril), the chunks and dust ar
 - `tests/env_piece_check.gd` (in `agent.sh check`): the plain room's pieces and colliders; the room with pieces;
   a thrown foe breaks the barrel (x1 on half of x2, x1.5 on the spikes: 15 from 10) and the crate (10); a breaker
   landing breaks a crate and throws rubble chunks; a banner tears; everything rebuilds after `REBUILD_S`; `usable()`.
+- `tests/env_piece_check.gd` `_keg`: magma on a foe by the barrel sets it burning, nothing during the fuse, then 30 to
+  the foe beside it and to one 2.5 m off, both molten, the barrel used up.
 - `tests/void_arm_check.gd` `_uproot_pair`: Uproot beats Abyss by a pillar (x1.3 at least), Abyss beats Uproot in
   the open (x1.5 at least); the pillar is toppled, out of the swing anchors, and the foes buried.
 - `godot --headless --path . -- --autotest --room=pieces`: the `[env]` line's `pieces=N/N`.

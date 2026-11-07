@@ -186,4 +186,32 @@ func _usable() -> void:
 
 ## Each build-order item's own cases (the lanes add theirs here).
 func _items() -> void:
-	pass
+	await _keg()
+
+
+## Powder Keg: magma on a foe by the barrel sets it burning; KEG_FUSE later it bursts, KEG_DAMAGE to everyone in KEG_R
+## (the near foe and one 2.5 m off), they are left molten, and the barrel is used up.
+func _keg() -> void:
+	var VE: GDScript = load("res://scripts/void_element.gd")
+	var barrel: Node3D = get_nodes_in_group("env_barrel")[0]
+	var at := barrel.global_position
+	hero.global_position = Vector3(at.x + 6.0, 0, at.z + 5.0)
+	var got := {}
+	for i in 2:
+		var d: Node3D = _dummy(i, Vector3(at.x + (1.0 if i == 0 else 2.5), 0, at.z))
+		got[d] = 0.0
+		d.hit_taken.connect(func(dmg: float) -> void: got[d] += dmg)
+	await _frames(3)
+	var a: Node3D = main._dummies[0]
+	var c: Node3D = main._dummies[1]
+	VE.mark(a, "molten")
+	_check(EP.state(barrel) == "burning", "magma on a foe by the barrel sets it burning (%s)" % EP.state(barrel))
+	_check(got[a] == 0.0 and got[c] == 0.0, "nothing bursts during the fuse")
+	await create_timer(EP.KEG_FUSE + 0.3, true, false, true).timeout
+	var mult: float = float(hero.get("_dmg_mult")) if hero.get("_dmg_mult") != null else 1.0
+	print("  keg: near %.1f, 2.5 m off %.1f (want %.1f)" % [got[a], got[c], EP.KEG_DAMAGE * mult])
+	_check(is_equal_approx(got[a], EP.KEG_DAMAGE * mult) and is_equal_approx(got[c], EP.KEG_DAMAGE * mult),
+		"the keg's burst hits everyone in its radius (%.1f, %.1f)" % [got[a], got[c]])
+	_check(VE.marked(c, "molten"), "the burst leaves them molten")
+	_check(EP.state(barrel) == "gone", "the keg is used up (%s)" % EP.state(barrel))
+	_check(int(EP.verbs.get("keg", 0)) >= 1, "the keg is counted")

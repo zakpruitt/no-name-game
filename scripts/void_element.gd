@@ -1550,6 +1550,7 @@ static func mark(e: Variant, state: String) -> void:
 	if is_instance_valid(e):
 		var hold := CHARGED_HOLD if state == "charged" else ELEMENT_HOLD  # (round 44 b: the charge outlasts a magma string's three swings)
 		e.set_meta("x_" + state, Time.get_ticks_msec() + int(hold * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
+		ENV_PIECE.marked(e, state)  # (round 51: magma by a barrel, storm on a grate)
 
 
 static func marked(e: Variant, state: String) -> bool:

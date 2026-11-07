@@ -45,6 +45,7 @@ const CTX := {
 	"leash": {"el": "earth", "choose": false, "far": false},
 	"pillar_slam": {"el": "void", "choose": true, "far": false, "kinds": ["pillar"]},
 	"uproot": {"el": "void", "choose": true, "far": true, "kinds": ["pillar"]},  # round 51: Abyss's LMB (env_piece.gd)
+	"keg": {"el": "earth", "choose": false, "far": false, "kinds": ["barrel"]},  # round 51: Molten Palm toward a barrel
 }
 const CURSOR_SNAP := 2.2  # m from the cursor's ray to a structure that it counts as on it
 const CURSOR_HEIGHTS := [0.3, 1.4, 2.8]  # m: the ray is sampled at these heights (a wall face, a pillar's body)
@@ -220,7 +221,7 @@ static func _flat(v: Vector3) -> Vector3:
 ## The point of structure `s` nearest `from` (flat) and how far it is: {at, dist, n} (n: the face's normal there).
 static func surface(s: Dictionary, from: Vector3) -> Dictionary:
 	var p := _flat(from)
-	if s.kind == "pillar":
+	if s.kind != "wall":  # (a pillar, or a round prop: round 51)
 		var off: Vector3 = p - s.at
 		var d := off.length()
 		var n: Vector3 = off / d if d > 0.01 else Vector3.BACK
@@ -262,7 +263,7 @@ static func along(structs: Array, from: Vector3, dir: Vector3, reach: float, kin
 		if not _kind_ok(s, kinds):
 			continue
 		var t := INF
-		if s.kind == "pillar":
+		if s.kind != "wall":
 			var oc: Vector3 = p - s.at
 			var bq := oc.dot(d)
 			var cq := oc.length_squared() - float(s.r) * float(s.r)
@@ -429,6 +430,9 @@ func context(h: CharacterBody3D) -> Dictionary:
 		return {}
 	var mkey := "move:%s:%d" % [h._move_id, h.get_instance_id()]
 	if h._move_id == "EM" and h._hits_done == 0:
+		var keg_reach: float = ve.PALM_LENGTH * 0.6 + ve.PALM_WALL_REACH
+		if load("res://scripts/env_piece.gd").usable("barrel", "keg") and along(structures, me, h._facing(), keg_reach, ["barrel"]).get("in_reach", false):
+			return {"ctx": "keg", "from": me, "reach": keg_reach, "mode": "along", "dir": h._facing(), "key": mkey}  # (round 51: Powder Keg)
 		return {"ctx": "palm", "from": me, "reach": ve.PALM_LENGTH * 0.6 + ve.PALM_WALL_REACH, "mode": "along", "dir": h._facing(), "key": mkey}
 	if h._move_id == "XL" and h._hits_done == 0:
 		for e: Node in get_tree().get_nodes_in_group("enemies"):

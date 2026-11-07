@@ -1029,6 +1029,8 @@ can use". Items 0-4 of `docs/design/environment-per-character.md`; see `docs/fea
   rebuild after 6 s, `tests/env_piece_check.gd`, `[env] ... pieces=N/N`
 - [x] Uproot: Overwhelm's LMB ending (`OW.alt`): the tentacle tears the nearest pillar out and clubs the pinned foe
   (297 vs Abyss 196 by a pillar; 78 vs 196 in the open), the pillar left as rubble; both training rooms rebuild
+- [x] Powder Keg: magma on a barrel (the palm's carry stops on it) sets it burning; 1.2 s later it bursts, 30 molten
+  to everyone within 3 m; the indicator marks it in the palm's wind-up; `AUTOTEST_MAX` 170 for the room with pieces
 
 ## Round 51 fluidity (every hand-over snappy, no dead contact, no eaten press)
 

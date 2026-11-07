@@ -12,9 +12,10 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 140.0  # (was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
+const AUTOTEST_MAX := 170.0  # (was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
 # Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100; 125 until round 49's 38th
-# string, Lava Leash, pushed the counter string, the last, past it)
+# string, Lava Leash, pushed the counter string, the last, past it; 140 until round 51's room with pieces, whose
+# strings come last, ran its 41st past it. The plain room finishes on its strings well before)
 
 var main: Node  # the training room
 var player: CharacterBody3D
@@ -102,9 +103,9 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"slot": "sig_pin", "tokens": ["pillar", "alt", "hold"]},
 	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]},
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
-	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Molten Palm carries the dummies over the spikes into the
-	# barrel and the crate (the shared rules: a splat at half, x1.5 on the spikes, both broken).
-	{"room": "pieces", "slot": "ender_3", "tokens": ["keg", "L", "L", "L", "H"]}]
+	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Powder Keg: Molten Palm carries the dummies over the spikes into
+	# the barrel (it catches) and the crate; Undertow pins them, and Meteor Fall dives on the splatted pile as it bursts.
+	{"room": "pieces", "slot": "big_3", "tokens": ["keg", "L", "L", "L", "H", "H"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
 const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
