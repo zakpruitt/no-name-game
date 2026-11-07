@@ -356,7 +356,7 @@ Gameplay is in each move's section of `void_element.gd`; the looks are `scripts/
 
 - **Reap** (H L, `VR`): the crescent as before, then a barbed hook (`_reap_hook`, `reap_hook` sheet) bites one more
   foe out to `REAP_HOOK_REACH` 10 m in `REAP_HOOK_CONE`: the env_target `reap` pick (default the furthest outside the
-  crescent, `reap_auto`). x`REAP_HOOK_MULT` 0.6, marked (the dark mark and `reaped`), and a light foe is yanked on a
+  crescent, `reap_auto`). x`REAP_HOOK_MULT` 0.6, marked (the dark mark and `reaped`), and a light foe the crescent missed is yanked on a
   tether to `REAP_YANK_TO` 2.2 m in front of him. Black Tide hits the reaped first, x`REAP_TIDE_MULT` 1.4.
 - **Singularity** (H H, `VS`): the hole now reels: tentacles out of it hold every light foe in its radius while it
   pulls (`MID_BEATS.reel`, `SING_REEL_TIME` 1.2 s). With a foe held, a cursor choice (`singularity` pick, within
@@ -370,7 +370,7 @@ Gameplay is in each move's section of `void_element.gd`; the looks are `scripts/
   (`MID_BEATS.gale`: `GALE_IN` 0.55 of the way, over `GALE_PULL` 0.22 s) instead of a speck per cube.
 - Endings raised to a second beat (game time, after the landing; `ground_beats` counts them): Grounded's charge goes
   to ground foe to foe (`_ground_beat`, `GROUND_*`), Worldbreaker's floor heaves each back up (`HEAVE_*`), Cataclysm's
-  fault goes again (`_aftershock`, `AFTERSHOCK_*`), Short Circuit's circuit closes last link to first (`_sc_loop`,
+  fault goes again on the two nearest (`_aftershock`, `AFTERSHOCK_*`), Short Circuit's circuit closes last link to first (`_sc_loop`,
   `LOOP_*`), Shatterstorm's thunder chains cube to cube (`_chain_link`, `CHAIN_*`). Cold Front bowls the cubes into the
   `cold_front` structure (`COLD_*`); Maw's heap gets jaws and a punch (`MAW_HEAP_JAW_R`, `MAW_HEAP_STOP`, `MAW_HOIST_Y` 2.1).
 - Check: `tests/cool3_check.gd`.

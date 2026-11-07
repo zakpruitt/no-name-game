@@ -445,6 +445,7 @@ const HEAVE_MULT := 0.35
 const HEAVE_LAUNCH := 8.0
 const AFTERSHOCK_AT := 0.24  # s: Cataclysm's fault goes again
 const AFTERSHOCK_MULT := 0.35
+const AFTERSHOCK_MOST := 2  # the nearest the landing it reaches (a pair: its best; a crowd is Tempest's)
 const LOOP_MULT := 0.2  # Short Circuit: the loop closing, on each linked, + LOOP_PER a link
 const LOOP_PER := 0.05
 const LOOP_AFTER := 0.08  # s after the last arc
@@ -1257,7 +1258,10 @@ static func _reap_hook(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage:
 	mark(e, "reaped")
 	MID_BEATS.hook(hero.get_parent(), e, hero.global_position)
 	e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + REAP_CUE_MS)
-	if not hero._void.is_heavy(e) and _flat(e.global_position - to).length() > 0.8:
+	# (only one the crescent missed is yanked in: a foe it already cut stays where it was, for Black Tide to fetch)
+	var off := _flat(e.global_position - at)
+	var missed := off.length() > REAP_REACH or (off.length() > 0.3 and fwd.angle_to(off.normalized()) > REAP_HALF_ANGLE)
+	if missed and not hero._void.is_heavy(e) and _flat(e.global_position - to).length() > 0.8:
 		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "void", "speed": REAP_YANK_SPEED, "land_y": 0.0})
 	return 1
 
@@ -1900,6 +1904,8 @@ static func _aftershock(hero: Variant, at: Vector3, held: Array, damage: float) 
 	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
 	if live.is_empty() or not is_instance_valid(parent):
 		return
+	live.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(at) < _flat(c.global_position).distance_to(at))
+	live = live.slice(0, AFTERSHOCK_MOST)
 	if Game.comic_style:
 		COMIC_FAULT.spawn(parent, at, live.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)), false)
 	for e: Node3D in live:

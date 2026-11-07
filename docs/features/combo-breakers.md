@@ -651,7 +651,7 @@ new banners; camera cues only through the existing `frame_cue_ms` meta, `camera_
 
 - **Reap** (`VR`, now 3/4). (1) the crescent as before; (2) a barbed ink hook (`reap_hook`) bites one more foe out to
   `REAP_HOOK_REACH` 10 m in the cone: the foe pick `reap` (default the furthest outside the crescent, the cursor
-  chooses), x`REAP_HOOK_MULT` 0.6, marked; (3) the tether yanks a light one to `REAP_YANK_TO` 2.2 m in front of him at
+  chooses), x`REAP_HOOK_MULT` 0.6, marked; (3) if the crescent missed it, the tether yanks a light one to `REAP_YANK_TO` 2.2 m in front of him at
   `REAP_YANK_SPEED` 24 m/s, the dark trail behind it. Best: a straggler you want in the pile before Black Tide, which
   now hits the reaped first and x`REAP_TIDE_MULT` 1.4. Close up (all in the crescent) the hook takes the furthest cut.
 - **Singularity** (`VS`, 3/4). The hole reels: tentacles out of it on every light foe in `Hole.RADIUS` for
@@ -682,7 +682,8 @@ new banners; camera cues only through the existing `frame_cue_ms` meta, `camera_
 - **Worldbreaker** (`EW`, 4/4). The floor heaves: a magma crack from where he landed to each, and a geyser throws it
   back up as it arrives, x`HEAVE_MULT` 0.35, launch `HEAVE_LAUNCH` 8. The open floor's ending; Cold Front the wall's.
 - **Cataclysm** (`XF`, 4/4). The aftershock: `AFTERSHOCK_AT` 0.24 s later the fault runs out to each crater again and a
-  bolt comes down in it, x`AFTERSHOCK_MULT` 0.35 on the ones still in them. Best: a few held (Tempest takes a crowd).
+  bolt comes down in it, x`AFTERSHOCK_MULT` 0.35 on the `AFTERSHOCK_MOST` 2 nearest the landing. Best: a pair held (Tempest
+  still takes a crowd: five, Tempest 666 vs Cataclysm 589 in void_arm_check; a pair, Cataclysm 275 vs 144).
 - **Short Circuit** (`EE` alt, 4/4 with a spread crowd). The circuit closes: `LOOP_AFTER` 0.08 s after the last arc a
   bolt runs from the last link back to the held, and everyone on the circuit takes x(`LOOP_MULT` 0.2 + `LOOP_PER` 0.05 a
   link). With nobody outside the held (the bot's `spread_far` string) there is no circuit and no loop: still 3/4 there.
@@ -692,8 +693,8 @@ new banners; camera cues only through the existing `frame_cue_ms` meta, `camera_
 - Not raised: **Worldbreaker / Cold Front** share one window, so this round has two endings there, no more. **Short
   Circuit** reads only with a crowd spread past the held.
 
-Each second beat counts on `void_element.ground_beats` (cool3_check: Grounded 3, Worldbreaker 3, Cataclysm 3, Short
-Circuit 2, Shatterstorm 2 on three foes).
+Each second beat counts on `void_element.ground_beats` (cool3_check: Grounded 3, Worldbreaker 3, Short
+Circuit 2, Shatterstorm 2, Cataclysm 2 on three foes).
 
 ### Backlash / Ricochet polish (counter window timings unchanged)
 
