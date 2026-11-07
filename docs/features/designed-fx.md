@@ -606,3 +606,18 @@ Every breaker landing is one shared comic beat in the element's shape language. 
 
 Coverage (`tests/fx_coverage.py`, the full 32-string film): per HIT frame, mean 0.063-0.081 -> 0.070-0.088 and max 0.171 -> 0.327 over the three ranges. The landing's frames +1..+10, which the tool does not score, have a mean peak of 0.123 -> 0.187 and a max of 0.179 -> 0.327 (Meteor Shower). Budget 0.40. Maw's ink splat was 0.409 at full size, so the dark floor splat is drawn at 0.72 (`LOOK.dark.floor_size`).
 Clips: `awaken-combo-clips/30 Spectacle *`.
+
+## Lava Leash (round 49, dark-magma lane)
+
+`python tools/vfx_gen/gen_leash.py [names] [--preview=<dir>]` (in the style of gen_elements, whose `tear`, `tongue`
+and `voronoi` it imports). Registered by `scripts/lava_leash.gd` (`SHEETS`, `register()` into
+`designed_fx.extra_sheets`), drawn once at load by `lava_leash.prewarm()` from `elements.prewarm`.
+
+| Sheet | Kind | What |
+|---|---|---|
+| `lava_seam` | ribbon (1x4) | the seam each dragged foe leaves: crusted inked banks with crack joins, the lava body, a lit band and hot core, crust rafts, a popping bubble, drips; drawn as one ImmediateMesh strip with `shaders/designed_drag.gdshader` (COLOR.r = age, UV.x = distance / `SEAM_TILE`), cooling and eroding from its old end |
+| `leash_burst` | sprite_depth (4x2, 7 frames) | the eruption under the pile: a slit, a fan of five tongues, globs, a crust mound; tongues clamped above the ground line, `BURST_SIZE` 4.4 m, stood 0.5 m behind the pile from the camera so the foes read in front |
+
+The tentacles are `void_tendril` washed with `electrify(HEAT, LAVA)` as they drag; the pool under the pile and
+Hellseam's seam geysers are `designed_elements` (`pool`, `geyser`). No polygons, no crystals. Headless or `--fx=classic`
+draws no seam (the gameplay is the same).

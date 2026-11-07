@@ -267,6 +267,7 @@ H L H, H in the window      Maw
 | Backdraft (L L H, Dash H H L) | XW | Anvil / Pinwheel (breaker pairs) | RMB / LMB |
 | Harpoon, then a pause (Dash L H) | EF | Shatterstorm / Slapshot (round 47) | RMB / LMB |
 | Perfect dash counter (Dash into a strike, last 0.1 s) | CB | Ricochet (round 49, [counter.md](counter.md)) | RMB |
+| Lava Leash (L L L H L) | XL | Hellseam (round 49) | RMB |
 
 Two of eleven have a second ending. No ending, number or damage changed in this round.
 
@@ -328,6 +329,22 @@ Skipped, single on purpose (each stays one ending):
 - **Eruption**: Ash Rain (they hang burning) repeats Eruption's launch, and Meteor Shower now owns fire from above.
 
 Bot strings: `spread alt L L L H H` (Meteor Shower), `wall alt L L H D H H L` (Pinwheel), `alt L H L H` (Cold Front).
+
+### Hellseam (round 49, dark-magma lane): Lava Leash's one ending
+
+Lava Leash (L L L H L, `XL`; `docs/features/void-element.md` "Crossovers") drags everyone Molten Palm hit back into
+a pile at his feet along lava seams and erupts them there. Its window has one ending, Hellseam (RMB), on purpose: the
+only second ending that came up was "the seams go up without the dive", which is Hellseam minus its landing. Its
+`BREAKERS.XL` entry: `erupt: earth` (the magma family's spectacle), `hellseam` (the `breaker_impact()` branch,
+`_hellseam`), `no_hold` (no tentacle seize: the leash's own tentacles hold the pile through the hang and let go on the
+landing, `lava_leash.let_go()`), `at_spot` (he dives on `dark_spot`, the pile), `damage` `HELLSEAM_DAMAGE` 40, the
+leap at `GR_HIT + LEAP_AFTER_LEASH` (before the move's cancel, so no press steals it; after the pile's burst, which hid
+under his leap at 0.56). The landing craters the pile, harder the further each was dragged (x1 + 0.04 a metre), then
+the eruption runs back out along each seam to where its foe was taken, a geyser every 1.5 m, and catches whoever
+stands on one for half. `void_arm_check` asserts the crater (a foe dragged 10 m takes over 1.25x one dragged 1 m),
+that the seam is not up on the landing frame, that it catches the one on it 0.6 s later and nobody off it. Bot
+string: `wall spread L L L H L` (`spread` with `wall` now lays the arc toward the wall); the autotest's
+`endings_n=` counts it (20/20).
 
 ## Round 48: breaker spectacle (breaker-spectacle lane)
 

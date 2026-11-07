@@ -132,7 +132,7 @@ What it keeps, by slot. Everything listed exists today.
 | 5 Signature | Reap (H), Singularity (H H: Collapse), Black Tide (H L H: Maw / Black Ice), Overwhelm (hold H: Abyss) | Mark, gather, drag, pin. Exactly the four roles. |
 | 6 Dash moves | Dash Stab (Dash L), Tow Line (Dash H) | Lunge, snare. |
 | 7 Dash enders | Harpoon (Dash L H: Shatterstorm / Slapshot), Impale (Dash H H) | Harpoon is the gather; Impale the skewer. Ice Cube (Dash L H H) is a route step into Hailstorm. |
-| 8 Crossovers (≤ 6, one per colour pair) | storm x magma: **Fault Line** (L H L L H: Cataclysm / Tempest). ice x magma: **Steam Burst** (Dash L H H L: Flash Freeze). dark x storm: **Galvanize** (H L L, charged state). ice x storm: **Hailstorm -> Meltdown** (Dash L H H H, then L: Eruption) counted as one route. dark x ice: **Backdraft** (L L H, Dash H H L: Anvil / Pinwheel). dark x magma: **empty slot** | Five of six pairs filled; dark x magma is the open design slot (a tentacle-and-lava move, e.g. the tentacle drags the marked into the lava well). |
+| 8 Crossovers (≤ 6, one per colour pair) | storm x magma: **Fault Line** (L H L L H: Cataclysm / Tempest). ice x magma: **Steam Burst** (Dash L H H L: Flash Freeze). dark x storm: **Galvanize** (H L L, charged state). ice x storm: **Hailstorm -> Meltdown** (Dash L H H H, then L: Eruption) counted as one route. dark x ice: **Backdraft** (L L H, Dash H H L: Anvil / Pinwheel). dark x magma: **Lava Leash** (L L L H L, `XL`: Hellseam) | All six pairs filled. Lava Leash (round 49, dark-magma lane) is magma into dark: off Molten Palm the tentacles drag everyone the palm hit back along the seam into a pile at his feet, paid by the metre (more torn off a wall), and the seam erupts under the pile (molten, bound). Best situation: the palm's foes at mixed ranges, one on a wall; Galvanize keeps the spread crowd, Black Tide the marked anywhere (`void_arm_check` `_lava_leash()`). Slot id XL: `scripts/kit_slots.gd` is not on dev, so it is registered only here and in `void_element.gd`. |
 | 9 Counter | Backlash (round 49; perfect: Ricochet) | Section 4; [counter.md](../features/counter.md). |
 | 10 Awakening | as now | |
 
@@ -148,8 +148,8 @@ plus **Arc Flash kept as a crossover-grade payoff** if dark x magma needs a home
 the rest of the growth today was breaker endings and effects, which the grammar does not cap beyond two per
 window.
 
-Counts after this: 1 + 3 + 3 + 1 + 4 + 2 + 2 + 5 (+1 open) + 1 counter = 22 moves, 12 of them with a window,
-19 endings today (room for Impale, Avalanche, Flash Freeze, Collapse, Abyss and the counter to gain a second one
+Counts after this: 1 + 3 + 3 + 1 + 4 + 2 + 2 + 6 + 1 counter = 23 moves, 13 of them with a window,
+20 endings today (Lava Leash's Hellseam is the 20th) (room for Impale, Avalanche, Flash Freeze, Collapse, Abyss and the counter to gain a second one
 only when one is compelling).
 
 ## 6. The character card (fill this in for every new character)
@@ -189,7 +189,8 @@ and the crown is his signature; his slice should be re-cut onto these slots befo
 
 1. Three elements plus a signature per character, or should the signature be the fourth element outright (it is
    for the heretic, where dark is both).
-2. The dark x magma crossover: build it, or leave the sixth pair empty on purpose for an unlock.
+2. The dark x magma crossover: built as Lava Leash (L L L H L: Hellseam, round 49). Keep it in the base kit, or
+   move it to an unlock.
 3. Counter on Dash (this page) or on a held H like Smash's down-B. Dash keeps the inputs at three buttons.
 4. Which demoted heretic moves, if any, you would rather keep in the base kit. Storm Pitch is the one most
    likely to be missed.
