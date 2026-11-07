@@ -37,7 +37,7 @@ const HOOK_TIMES := [0.04, 0.07, 0.08, 0.1, 0.12]
 const SPREAD_STEP := 0.04
 const SPREAD_SPEED := 22.0
 const SPREAD_MOST := 5
-const RIME_SIZE := 1.15  # frost_mark size at the foe's feet
+const RIME_SIZE := 1.5  # frost_mark size at the foe's feet (1.15 read as a speck in the film)
 ## Steam Burst's fuse: the lava crack reaches each frozen foe FUSE_S s after the one before; the steam column
 ## (steam_shell, played hot in the earth row on its first frames) STEAM_SIZE m.
 const FUSE_STEP := 0.035
@@ -192,7 +192,7 @@ static func frost_spread(parent: Node, spot: Vector3, who: Array, on_reach: Call
 		if _draws() and d > 1.2:
 			var go := func() -> void:
 				if is_instance_valid(parent) and parent.is_inside_tree():
-					DESIGNED_EL.fissure(parent, at, to, d, maxi(2, int(d / 1.2)), "water", 0.75, 1.0 / SPREAD_SPEED * 1.2)
+					DESIGNED_EL.fissure(parent, at, to, d, maxi(3, int(d / 0.9)), "water", 1.1, 1.0 / SPREAD_SPEED * 0.9)
 			if i == 0:
 				go.call()
 			else:
