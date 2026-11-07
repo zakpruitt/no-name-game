@@ -16,6 +16,7 @@ const HOT := Color(1.0, 0.4, 0.95)
 const MARK_NAME := "VoidMark"
 const MARK_TIME := 6.0  # s
 const MARK_R := 0.75  # m round the foe's feet
+const MARK_DRAWN := 2.8  # fx-polygons: the drawn mark's square per metre of its radius (its strokes sit at ~0.62 of the half)
 ## Round 33 (sleek; feel audit item 7): a pool's ink stays on the floor at most this long, whatever its
 ## gameplay time (the binds still hold the foes): at 1.8-2.2 s it sat under the next string.
 const POOL_SHOW := 1.1
@@ -187,13 +188,16 @@ class Mark extends Node3D:
 
 	func _ready() -> void:
 		var r: float = MARK_R + float(get_parent().get("radius") if get_parent().get("radius") != null else 0.5) * 0.5
-		var mesh := SELF.arc_mesh(r, PI * 0.28, r * 0.3)
-		var mat := SELF.flat_mat(HOT)
 		_spin = Node3D.new()
 		add_child(_spin)
+		STANDING.add(self)
+		if INK_FX.DESIGNED.on():  # fx-polygons: three drawn ink claw strokes round its feet, spinning (no flat arcs)
+			load("res://scripts/designed_polish.gd").loop(_spin, "tell_marked", r * MARK_DRAWN, "void")
+			return
+		var mesh := SELF.arc_mesh(r, PI * 0.28, r * 0.3)
+		var mat := SELF.flat_mat(HOT)
 		for i in 3:
 			SELF.part(_spin, mesh, mat).rotation.y = TAU * i / 3.0
-		STANDING.add(self)
 
 	## The next string's first hit landed (standing_fx.gd): the arcs go, the mark stays for Black Tide.
 	func clear_standing() -> void:

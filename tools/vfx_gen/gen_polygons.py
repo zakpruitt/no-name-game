@@ -470,5 +470,49 @@ def drag_line(i, n, size):
 SHEETS["drag_line"] = (drag_line, 256, 1, 4, "earth", "none", 0.9)
 
 
+
+# --- tell_marked: Reap's mark round a foe's feet (ground, loops; dark_fx.Mark spins it) -----------------------------
+# Three curling ink claw strokes round the foot ring, fat at the head and curling thin at the tail (the dark's shape
+# language, never a hoop), a light edge along each, a hot glint at each head, splatter flicked off the tails.
+
+def tell_marked(i, n, size):
+    f = Frame(size)
+    S = f.S
+    c = f.c
+    g = rng(57)
+    R = 0.62
+    for k in range(3):
+        a0 = math.tau * k / 3 + 0.08 * math.sin(i * 1.7 + k)
+        pts = []
+        for j in range(20):
+            t = j / 19
+            aa = a0 + 1.25 * t
+            rr = R - 0.1 * t ** 2 + 0.015 * math.sin(i + k + t * 5)
+            pts.append(polar(c, c, f.u(rr), aa))
+        tail = pts[-1]
+        for j in range(1, 7):  # the curl at the tail, turning inward
+            t = j / 6
+            aa = a0 + 1.25 + 0.35 * t
+            rr = R - 0.1 - 0.12 * t
+            pts.append(polar(c, c, f.u(rr), aa))
+        _ = tail
+        wid = lambda q: f.u(0.11) * (1 - q) ** 0.75 + 1.5  # noqa: E731
+        m = poly_mask([stroke(pts[::-1], lambda q: wid(1 - q), cap=True)], S)
+        f.fill(m, BODY, ink=4.0)
+        edge = [polar(c, c, f.u(R + 0.025), a0 + 1.0 * t) for t in np.linspace(0.02, 0.8, 12)]
+        f.fill(poly_mask([stroke(edge, lambda q: f.u(0.03) * (1 - q) + 1, cap=False)], S) * m, LIGHT)
+        hx, hy = polar(c, c, f.u(R + 0.005), a0 + 0.06)
+        f.fill(ellipse_mask(hx, hy, f.u(0.03), f.u(0.03), S) * m, HOT)
+        for d in range(2):  # splatter off the tail
+            aa = a0 + 1.5 + 0.18 * d + g.uniform(-0.05, 0.05)
+            x, y = polar(c, c, f.u(R + 0.05 + 0.06 * d), aa)
+            r = f.u(0.028 - 0.008 * d)
+            f.fill(ellipse_mask(x, y, r, r, S), DEEP, ink=2.5)
+    return f.finish()
+
+
+SHEETS["tell_marked"] = (tell_marked, 256, 2, 4, "void", "edge", 0.5)
+
+
 if __name__ == "__main__":
     main()

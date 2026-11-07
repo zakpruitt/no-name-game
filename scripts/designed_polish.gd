@@ -24,6 +24,7 @@ const SHEETS := {
 	"tell_pinned": {"grid": Vector2(2, 2), "frames": 4, "kind": "ground"},
 	"tell_molten": {"grid": Vector2(2, 2), "frames": 4, "kind": "sprite_depth", "anchor": Vector2(0.0, -0.28), "burn": 1.0},
 	"ink_tear": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
+	"tell_marked": {"grid": Vector2(2, 2), "frames": 4, "kind": "ground"},  # Reap's mark (dark_fx.Mark)
 	"drag_line": {"grid": Vector2(1, 4), "frames": 4, "kind": "ribbon"},  # (comic_drag_mark draws it with designed_drag)
 }
 
