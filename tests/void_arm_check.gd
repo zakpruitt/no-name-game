@@ -820,11 +820,21 @@ func _spear_string() -> void:
 			break
 	_check(hero.breakers_landed == landed + 1, "Avalanche lands")
 	_check(top > 2.0, "the cubes go up first (%.1f m)" % top)
-	_check(absf(far.global_position.y) < 0.05, "and land on the floor (%.2f)" % far.global_position.y)
-	_check(near.global_position.distance_to(far.global_position) < 2.2 and near.global_position.distance_to(far.global_position) < apart, "slammed together (%.1f m, from %.1f)" % [near.global_position.distance_to(far.global_position), apart])
-	_check(big.global_position.distance_to(far.global_position) < 2.2, "all of them (%.1f m)" % big.global_position.distance_to(far.global_position))
-	_check(not far.has_meta("thrown_foe_flying"), "not thrown away")
+	# Round 51 cool pass: the dive stacks them into a tower on the pile; the landing crushes it and it topples.
+	var ys: Array = [near, far, big].map(func(f: Node3D) -> float: return f.global_position.y)
+	var flat_gap := Vector2(near.global_position.x - far.global_position.x, near.global_position.z - far.global_position.z).length()
+	_check(ys.max() - ys.min() > 2.0 and ys.min() < 0.05, "stacked into a tower (%s)" % str(ys.map(func(y: float) -> float: return snappedf(y, 0.1))))
+	_check(flat_gap < 0.5 and flat_gap < apart, "slammed together (%.1f m, from %.1f)" % [flat_gap, apart])
+	_check(Vector2(big.global_position.x - far.global_position.x, big.global_position.z - far.global_position.z).length() < 0.5, "all of them")
 	_check(far.hp < hp, "and it hurts (%.0f)" % (hp - far.hp))
+	var pile: Vector3 = hero._void.dark_spot
+	await create_timer(1.4).timeout
+	for i in 30:
+		await physics_frame
+	_check(absf(far.global_position.y) < 0.05 and absf(near.global_position.y) < 0.05, "the tower falls: down on the floor (%.2f)" % far.global_position.y)
+	_check(not far.has_meta("thrown_foe_flying"), "and comes to rest")
+	var spread: Array = [near, far, big].map(func(f: Node3D) -> float: return snappedf(Vector2(f.global_position.x - pile.x, f.global_position.z - pile.z).length(), 0.1))
+	_check(spread.max() > 2.0, "the cubes slide off it along the fall (%s)" % str(spread))
 	_check(hero.global_position.distance_to(hero._void.dark_spot) > 2.5, "he lands beside the pile, not under it (%.1f m)" % hero.global_position.distance_to(hero._void.dark_spot))
 	hero.bot_enabled = false
 	for f: Node3D in [near, far, out, big]:
@@ -1561,7 +1571,11 @@ func _dark() -> void:
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Collapse lands")
 	_check(get_nodes_in_group("dark_hole").is_empty(), "the hole's gone")
-	_check(hp - other.hp >= 40.0, "and it hits hard (%.0f)" % (hp - other.hp))
+	await create_timer(0.2).timeout
+	_check(other.global_position.y < -0.5, "it swallows them, under the floor (%.1f m)" % other.global_position.y)
+	await create_timer(0.8).timeout  # (round 51 cool pass: swallowed, then spat out one at a time)
+	_check(hp - other.hp >= 40.0, "and spits them back out, hard (%.0f)" % (hp - other.hp))
+	_check(other.global_position.y > -0.05, "up out of the floor (%.1f m)" % other.global_position.y)
 	_check(Vector2(hero.global_position.x - spot.x, hero.global_position.z - spot.z).length() < 2.5, "he came down at it")
 	hero.bot_enabled = false
 	await _settle()
@@ -1624,9 +1638,13 @@ func _dark() -> void:
 	hp = held.hp
 	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
 	_check(hero.breakers_landed == landed + 1, "Abyss lands")
-	_check(hp - held.hp >= 40.0, "and it hurts (%.0f)" % (hp - held.hp))
 	await create_timer(0.05).timeout
 	_check(not is_instance_valid(hero._void.dark_bind) or hero._void.dark_bind.is_queued_for_deletion(), "and lets go of them")
+	await _until(func() -> bool: return held.global_position.y > 1.2, 0.6)
+	_check(held.global_position.y > 1.2, "the column carries it up out of the floor (%.1f m)" % held.global_position.y)
+	await create_timer(0.8).timeout
+	_check(hp - held.hp >= 40.0, "and slams it back down: it hurts (%.0f)" % (hp - held.hp))
+	_check(absf(held.global_position.y) < 0.05 and absf(other.global_position.y) < 0.05, "both back on the floor")
 	hero.bot_enabled = false
 	for f: Node3D in [held, other, big, far]:
 		f.free()

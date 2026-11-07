@@ -5,7 +5,9 @@ extends SceneTree
 ## pillars only); the too-far case; the cursor's and the right stick's override and the ending using it
 ## (pinwheel_target, ricochet_target, Slapshot's aim, Meteor Fall's pile); the live indicator through a window (shown,
 ## switched by the cursor, locked by the press); Impale's window (round 50: Pinwheel off Dash H H after a pause); the
-## beats (a pillar sheds chunks and cracks, a wall keeps a mark per element, capped, a torch swings); the pillar slam.
+## beats (a pillar sheds chunks and cracks, a wall keeps a mark per element, capped, a torch swings); the pillar slam;
+## round 51's foe picks (the charged hold's bracket on who Overwhelm pins, the cursor switching it; Abyss's window on
+## who comes back up first).
 ## Prints [env] PASS/FAIL.
 ## Run: godot --headless --path . -s tests/env_target_check.gd
 
@@ -37,6 +39,7 @@ func _initialize() -> void:
 	_impale_window()
 	_beats()
 	await _pillar_slam()
+	await _foe_picks()
 	if _fails.is_empty():
 		print("[env] PASS")
 	else:
@@ -246,6 +249,88 @@ func _beats() -> void:
 		env.hit_at(Vector3(-12.0 + i * 0.5, 0, -15.2), Vector3.FORWARD, "void")
 	_check(env.marks.size() == ENV.MARK_CAP, "marks are capped at %d (%d)" % [ENV.MARK_CAP, env.marks.size()])
 	print("  beats: pillar hits %d, chunks %d, torch swings %d, marks %d" % [env.pillar_hits, env.chunks_shed, env.torch_swings, env.marks.size()])
+
+
+## Round 51 cool pass: the bracket on a foe. The charged hold shows who Overwhelm will pin (the nearest in his aim),
+## the cursor on another foe switches it and Overwhelm takes that one; in Abyss's window the cursor picks who the deep
+## gives back first.
+func _foe_picks() -> void:
+	var a: Node3D = main._dummies[0]
+	var b: Node3D = main._dummies[1]
+	var homes: Array = main._dummies.map(func(d: Node3D) -> Vector3: return d.home)
+	for d: Node3D in main._dummies.slice(2):
+		d.global_position = Vector3(12, 0, 12) + Vector3(d.get_index() * 1.5, 0, 0)
+		d.home = d.global_position
+	hero.set_physics_process(false)
+	hero.global_position = Vector3(0, 0, 2)
+	hero._face(Vector3(0, 0, -1))
+	a.global_position = Vector3(0, 0, -2)
+	b.global_position = Vector3(4.5, 0, -5.5)
+	a.home = a.global_position
+	b.home = b.global_position
+	hero.state = hero.State.CHARGE
+	hero._charged = true
+	var switches0: int = env.switches
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "overwhelm" and env.current.s.get("node") == a and not env.current.chosen,
+		"charged hold: the bracket on the foe ahead (%s)" % str(env.current.get("ctx")))
+	await process_frame
+	await process_frame
+	_check(env._bracket.visible and env._bracket.global_position.distance_to(a.global_position + Vector3.UP) < 1.5, "drawn on it (%s)" % str(env._bracket.global_position))
+	env.test_cursor = b.global_position + Vector3(0.3, 0, 0)
+	await physics_frame
+	await physics_frame
+	_check(env.current.s.get("node") == b and env.current.chosen and env.switches > switches0, "the cursor on the other foe switches the bracket to it")
+	_check(ENV.picked_foe(hero, "overwhelm") == b, "and the pick is written on the hero")
+	hero.set_physics_process(true)
+	hero._start_attack(VE.CHARGED)
+	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
+	_check(hero._void.dark_spot.distance_to(Vector3(b.global_position.x, 0, b.global_position.z)) < 0.6,
+		"Overwhelm pins the chosen one, off his aim (%s)" % str(hero._void.dark_spot))
+	env.test_cursor = Vector3.INF
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+	await create_timer(0.8).timeout
+	# Abyss's window: two pinned, the cursor on the second
+	hero.global_position = Vector3(0, 0, 2)
+	hero._face(Vector3(0, 0, -1))
+	a.global_position = Vector3(0, 0, -2)
+	b.global_position = Vector3(1.6, 0, -2.6)
+	a.home = a.global_position
+	b.home = b.global_position
+	await physics_frame
+	hero._start_attack(VE.CHARGED)
+	await _until(func() -> bool: return hero.state == hero.State.LEAP and hero._brk_phase == 0, 3.0)
+	await physics_frame
+	await physics_frame
+	var auto_one: Variant = env.current.s.get("node") if env.current.has("s") else null
+	_check(env.current.get("ctx", "") == "abyss" and (auto_one == a or auto_one == b), "Abyss's window: the bracket on a pinned foe (%s)" % str(env.current.get("ctx")))
+	var other: Node3D = b if auto_one == a else a
+	env.test_cursor = other.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "abyss" and env.current.s.get("node") == other and env.current.chosen, "the cursor picks the other")
+	var landed: int = hero.breakers_landed
+	await _until(func() -> bool: return hero.breakers_landed > landed, 3.0)
+	_check(hero.breakers_landed > landed, "Abyss lands")
+	await _until(func() -> bool: return other.global_position.y > 0.5, 0.8)
+	var first_y: float = other.global_position.y
+	var auto_y: float = (a if other == b else b).global_position.y
+	_check(first_y > auto_y + 0.6, "the picked one comes up first (%.1f vs %.1f m)" % [first_y, auto_y])
+	env.test_cursor = Vector3.INF
+	await _until(func() -> bool: return hero.state == hero.State.MOVE, 4.0)
+	await create_timer(1.0).timeout
+	for i in main._dummies.size():
+		main._dummies[i].home = homes[i]
+		main._dummies[i].global_position = homes[i]
+	print("  foe picks: switches %d" % env.switches)
+
+
+func _until(cond: Callable, timeout: float) -> void:
+	var t := 0.0
+	while t < timeout and not cond.call():
+		await physics_frame
+		t += 1.0 / 60.0
 
 
 ## H, then H held by a pillar: the slam goes into the pillar (the pillar's beat, a wall splat), and Singularity's hole

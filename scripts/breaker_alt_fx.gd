@@ -23,6 +23,8 @@ const WALL_WORD := "KRAK-THOOM!"  # Pinwheel's wall hits (the breaker word says 
 const WALL_WORD_SIZE := 0.75
 const WALL_STAMP := 1.9  # m
 const WALL_STOP := 0.07
+const COOL_WORD_GAP_MS := 700
+static var _word_ms := {}
 
 
 ## One of Meteor Shower's fireballs: from the sky over `e` (slanting in from `from`, his landing) down onto it in
@@ -74,6 +76,24 @@ static func pinwheel_wall(parent: Node, spot: Vector3, dir: Vector3) -> void:
 	if Game.camera_rig:
 		Game.camera_rig.kick(dir, 0.35)
 	Game.sfx("quake", -6.0, 0.08)
+
+
+## Round 51 cool pass: a rebuilt ending's foe slamming into a wall or pillar at `spot` (its feet), thrown along `dir`, in
+## `el` (Collapse's spits: void; Avalanche's cubes: water): Pinwheel's wall beat in that element, and `word` if given.
+static func cool_wall(parent: Node, spot: Vector3, dir: Vector3, el: String, word := "") -> void:
+	var at := Vector3(spot.x, 0.0, spot.z)
+	if DESIGNED.on():
+		DESIGNED_INK.shock(parent, at, PAL.of(el).light, WALL_STAMP, 0.3)
+		DESIGNED.hit(parent, at + dir * 0.5 + Vector3.UP * 1.1, el, 1.6)
+		DESIGNED.streaks(parent, at + Vector3.UP * 1.1, dir, el, true)
+	if word != "" and Time.get_ticks_msec() - int(_word_ms.get(word, -100000)) > COOL_WORD_GAP_MS:
+		_word_ms[word] = Time.get_ticks_msec()  # (one word for a volley of hits on the same wall)
+		ComicFx.say(word, at + Vector3.UP * 1.7, WALL_WORD_SIZE)
+	Game.hitstop(WALL_STOP * 0.7)
+	Game.shake(0.45)
+	if Game.camera_rig:
+		Game.camera_rig.kick(dir, 0.3)
+	Game.sfx("quake", -7.0, 0.08)
 
 
 ## Tempest's column: a fat twister `high` m tall, `radius` round, for `time` s.

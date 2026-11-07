@@ -35,6 +35,9 @@ const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs'
 const LAVA_LEASH := preload("res://scripts/lava_leash.gd")  # Lava Leash's tentacles and seams (dark-magma lane)
 const ENV := preload("res://scripts/env_target.gd")  # the room's walls and pillars, and the one the player picked (round 50)
 const ENV_PIECE := preload("res://scripts/env_piece.gd")  # the room's pieces (round 51, env-pieces lane)
+const COLLAPSE_SPIT := preload("res://scripts/collapse_spit.gd")  # round 51 cool pass: Collapse's swallow and spit
+const AVALANCHE_TOPPLE := preload("res://scripts/avalanche_topple.gd")  # round 51 cool pass: Avalanche's tower
+const ABYSS_RISE := preload("res://scripts/abyss_rise.gd")  # round 51 cool pass: Abyss's column up and slam down
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -330,11 +333,40 @@ const COLLAPSE_THROW := 9.0
 const COLLAPSE_WALL_MULT := 1.6
 const COLLAPSE_WALL_SPEED := 22.0
 const COLLAPSE_CUE_MS := 1400
+## Round 51 cool pass: the hole swallows each foe (a tentacle out of it, collapse_spit.gd) for COLLAPSE_SWALLOW_MULT of the
+## damage, then spits it out: into the structure (x COLLAPSE_WALL_MULT), or up out of the floor (COLLAPSE_SPIT_UP).
+## So: 0.3 + 1.6 = 1.9 x 44 = 84 a foe by a wall or pillar, 0.3 + 1 = 57 in the open (it was 70 / 44).
+const COLLAPSE_SWALLOW_MULT := 0.3
+const COLLAPSE_SPIT_UP := 10.0
+const COLLAPSE_WORD := "GLLRK-PTOOO!"
+## Round 51 cool pass, Avalanche: the dive stacks the cubes into a tower (aim_crush's stack slots), the landing crushes
+## it (AVALANCHE_CRUSH of the damage each) and the tentacles push it over toward the structure the indicator marks
+## within AVALANCHE_REACH of its foot (env_target "avalanche"), else away from him: each cube slides on off the falling
+## tower (avalanche_topple.gd) into the structure for x AVALANCHE_WALL_MULT, or out AVALANCHE_OPEN m to a stop and bursts.
+## Anyone else in the fall's strip (AVALANCHE_STRIP m either side) is caught: PRESS_NO_CUBE of it and frozen.
+## The open slide bursts for AVALANCHE_OPEN_MULT. So: 0.3 + 3 = 3.3 x 34 = 112 a cube by a wall or pillar, 0.3 + 0.75 =
+## 36 in the open (it was 34 everywhere; void_arm_check measures it with the perfect and the ice's shatter on top).
+const AVALANCHE_REACH := 9.0
+const AVALANCHE_CRUSH := 0.3
+const AVALANCHE_WALL_MULT := 3.0
+const AVALANCHE_OPEN_MULT := 0.75
+const AVALANCHE_OPEN := 6.0
+const AVALANCHE_SPEED := 18.0
+const AVALANCHE_STRIP := 1.4
+const AVALANCHE_SPREAD := 0.7  # m apart the cubes hit the structure, across it
+const AVALANCHE_CUE_MS := 1600
+const AVALANCHE_WORD := "KRA-KRA-KRASH!"
 const MAW_RADIUS := 3.4  # m
 const MAW_DOWN := 6.0  # m/s into the floor as the jaws shut: the swallowed crater (enemy._is_spike)
 const ABYSS_RADIUS := 4.2  # m
 const ABYSS_SINK := 2.6  # m they go down while he's on his way
 const ABYSS_LAUNCH := 11.0
+const ABYSS_RISE_MULT := 0.4  # round 51: of the damage as the column takes it up (abyss_rise.on_rise)
+const ABYSS_SLAM_MULT := 1.2  # and as it drives it back down
+const ABYSS_BIG_MULT := 1.4  # on a big one's slam: one heavy foe is Abyss's best (Collapse only coils them)
+const ABYSS_SHARE := 0.7  # per foe when it gives back more than one (a crowd is Collapse's)
+const ABYSS_CUE_MS := 1200
+const ABYSS_WORD := "SHLUUUK-WHAM!"
 const OVERWHELM_RADIUS := 3.6
 ## Uproot (Abyss's LMB, round 51 env-pieces): the pillar nearest the pinned foe within UPROOT_REACH (the indicator's
 ## pick, env_target CTX "uproot") is torn out as he dives and comes down along the line pillar -> foe, UPROOT_LENGTH m
@@ -996,15 +1028,9 @@ static func _meteor_part(root: Node3D, mesh: Mesh, mat: Material, at: Vector3) -
 static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = at + fwd * minf(OVERWHELM_AHEAD, hero._clear_ahead(fwd, OVERWHELM_AHEAD))
-	var aim: Node3D = null
-	var best := INF
-	for e: Node3D in FOES.near(hero.get_tree(), at, OVERWHELM_REACH):
-		var to := _flat(e.global_position - at)
-		if to.length() > 0.01 and rad_to_deg(fwd.angle_to(to.normalized())) > hero._void.CONE:
-			continue
-		if to.length() < best:
-			best = to.length()
-			aim = e
+	var aim: Node3D = ENV.picked_foe(hero, "overwhelm")  # (round 51: the charge's bracket, the cursor's or the auto one)
+	if aim == null or _flat(aim.global_position - at).length() > OVERWHELM_REACH + 1.0:
+		aim = overwhelm_aim(hero, at, fwd)
 	if aim != null:
 		spot = _flat(aim.global_position)
 	hero._void.dark_spot = spot
@@ -1017,6 +1043,20 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 		hero._void.dark_bind = BIND.bind(hero, foes, {"time": OVERWHELM_TIME, "tick_damage": OVERWHELM_TICK * power, "step": 0.2, "ropes": 2,
 			"sink": 0.4, "color": DARK.VIOLET})
 	return foes.size()
+
+
+## Who Overwhelm pins by default: the nearest foe in his aim cone within OVERWHELM_REACH, or null.
+static func overwhelm_aim(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Node3D:
+	var aim: Node3D = null
+	var best := INF
+	for e: Node3D in FOES.near(hero.get_tree(), at, OVERWHELM_REACH):
+		var to := _flat(e.global_position - at)
+		if to.length() > 0.01 and rad_to_deg(fwd.angle_to(to.normalized())) > hero._void.CONE:
+			continue
+		if to.length() < best:
+			best = to.length()
+			aim = e
+	return aim
 
 
 ## H H: what it holds comes down, and a black hole tears open where it hits (dark_fx.Hole).
@@ -2257,7 +2297,9 @@ static func _cold_front(hero: CharacterBody3D, b: Dictionary, at: Vector3, seize
 		tw.tween_callback(THROWN.launch.bind(hero, e, to, damage))
 
 
-## The hole falls in on itself and everyone near it is thrown clear, hard.
+## Collapse (round 51 cool pass): the hole falls in on itself and swallows everyone near it, a tentacle out of it on
+## each (collapse_spit.gd), then spits them back out one at a time: into the wall or pillar the indicator marks
+## (env_target "collapse", within COLLAPSE_REACH of the hole), or up out of the floor in the open.
 static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var spot: Vector3 = hero._void.dark_spot
@@ -2266,18 +2308,48 @@ static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 	else:
 		spot = at
 		DARK.burst(hero.get_parent(), spot, 2.0)
-	var wall := ENV.pick(hero, "collapse", spot, ENV.COLLAPSE_REACH)
-	for e: Node3D in FOES.near(hero.get_tree(), spot, COLLAPSE_RADIUS):
-		var from := _flat(e.global_position - spot)
-		if wall.get("found", false) and not hero._void.is_heavy(e) and not THROWN.flying(e):
-			var aim: Vector3 = ENV.surface(wall.s, e.global_position).at - _flat(e.global_position)
-			e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + COLLAPSE_CUE_MS)
-			THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage,
-				{"solid": false, "el": "void", "speed": COLLAPSE_WALL_SPEED, "land_y": 0.0, "wall_mult": COLLAPSE_WALL_MULT, "splash": false})
-		else:
-			e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
+	var wall := pinwheel_target(hero, spot, "collapse", ENV.COLLAPSE_REACH)  # (the indicator's pick; a raycast in a bare room)
+	var foes: Array = FOES.near(hero.get_tree(), spot, COLLAPSE_RADIUS).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	var g: Node3D = COLLAPSE_SPIT.start(hero, spot, foes, hero._void.is_heavy)
+	g.on_swallow = func(e: Node3D) -> void:
+		DARK.quiet_hit(e, damage * COLLAPSE_SWALLOW_MULT, true)
 		Game.register_hit("breaker")
+	g.on_spit = _collapse_spit.bind(hero, spot, wall, damage)
+	for e: Node3D in foes:
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + COLLAPSE_CUE_MS)
 	Game.shake(0.6)
+
+
+## One of Collapse's spits (collapse_spit.on_spit): `e` comes back up out of the hole and is thrown into the structure,
+## or up and clear; a big one is hit where the tentacle holds it.
+static func _collapse_spit(e: Node3D, i: int, hero: Variant, spot: Vector3, wall: Dictionary, damage: float) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	if i == 0:
+		ComicFx.say(COLLAPSE_WORD, spot + Vector3.UP * 2.4, ALT_FX.WALL_WORD_SIZE)
+	Game.sfx("hit_big", -3.0, 0.12)
+	Game.hitstop(0.03)
+	if hero._void.is_heavy(e):
+		e.take_hit(damage, Vector3.ZERO, 0.0, true)
+		Game.register_hit("breaker")
+		return
+	if wall.get("found", false):
+		var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
+		var aim: Vector3 = face - _flat(e.global_position)
+		THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage,
+			{"solid": false, "el": "void", "speed": COLLAPSE_WALL_SPEED, "land_y": 0.0, "wall_mult": COLLAPSE_WALL_MULT,
+			"splash": false, "on_burst": _cool_wall.bind(hero.get_parent(), "void")})
+	else:
+		var out := _flat(e.global_position - spot)
+		out = out.normalized() if out.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
+		e.take_hit(damage, out * COLLAPSE_THROW * 0.5, COLLAPSE_SPIT_UP, true)
+	Game.register_hit("breaker")
+
+
+## A rebuilt ending's foe slamming into a wall or pillar (thrown_foe's on_burst): the beat on it (breaker_alt_fx).
+static func _cool_wall(f: Node3D, walled: bool, dir: Vector3, parent: Node, el: String) -> void:
+	if walled and is_instance_valid(parent):
+		ALT_FX.cool_wall(parent, f.global_position, dir, el)
 
 
 ## Jaws of darkness shut on the pool, and on everyone in it.
@@ -2295,20 +2367,40 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	Game.shake(0.6)
 
 
-## They've gone down through the floor (hero_leap._start_dive), and black spikes throw them back up.
+## They've gone down through the floor (hero_leap._start_dive). Round 51 cool pass: the deep gives them back, biggest
+## first: a column of tentacles carries each up out of the floor, holds it, and slams it straight back down
+## (abyss_rise.gd). One foe takes it all, a big one more (ABYSS_BIG_MULT); a crowd shares it (ABYSS_SHARE).
 static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var spot: Vector3 = hero._void.dark_spot
+	var foes: Array = []
 	if is_instance_valid(hero._void.dark_bind):
+		for s: Dictionary in hero._void.dark_bind._held:
+			if is_instance_valid(s.foe) and s.foe.is_alive() and not THROWN.flying(s.foe):
+				foes.append(s.foe)
 		hero._void.dark_bind._let_go()
+	for e: Node3D in FOES.near(hero.get_tree(), spot, ABYSS_RADIUS):
+		if not foes.has(e) and not THROWN.flying(e):
+			foes.append(e)
 	var parent: Node = hero.get_parent()
-	var foes: Array = FOES.near(hero.get_tree(), spot, ABYSS_RADIUS)
-	for e: Node3D in foes:
-		DARK.spout(parent, e.global_position)
-		e.take_hit(damage, Vector3.ZERO, ABYSS_LAUNCH, true)
-		Game.register_hit("breaker")
 	if foes.is_empty():
 		DARK.spout(parent, spot)
+		Game.shake(0.6)
+		return
+	# the one the window's bracket was on (the cursor's, or the biggest) comes back up first and takes it whole
+	var first: Node3D = ENV.picked_foe(hero, "abyss")
+	if first == null or not foes.has(first):
+		first = abyss_first(hero, foes)
+	foes.erase(first)
+	foes.push_front(first)
+	var g: Node3D = ABYSS_RISE.start(hero, foes)
+	g.on_rise = func(e: Node3D, i: int) -> void:
+		DARK.quiet_hit(e, damage * ABYSS_RISE_MULT * (1.0 if i == 0 else ABYSS_SHARE), true)
+		Game.register_hit("breaker")
+	g.on_slam = _abyss_slam.bind(hero, damage)
+	for e: Node3D in foes:
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + ABYSS_CUE_MS)
+	DARK.burst(parent, spot, 1.6)
 	Game.shake(0.6)
 
 
@@ -2335,6 +2427,20 @@ static func uproot_target(hero: CharacterBody3D, spot: Vector3) -> Node3D:
 		var d := _flat(e.global_position - spot).length()
 		if d < best_d:
 			best_d = d
+			best = e
+	return best
+
+
+## Who Abyss gives back first by default: the biggest of `foes` (a heavy one before the rest), or null.
+static func abyss_first(hero: CharacterBody3D, foes: Array) -> Node3D:
+	var best: Node3D = null
+	var best_r := -INF
+	for e: Variant in foes:
+		if not is_instance_valid(e):
+			continue
+		var r: float = float((e as Node).get("radius")) + (10.0 if hero._void.is_heavy(e) else 0.0)
+		if r > best_r:
+			best_r = r
 			best = e
 	return best
 
@@ -2412,20 +2518,35 @@ static func _uproot_hit(hero: Variant, target: Variant, base: Vector3, line_end:
 	ENV_PIECE.played("uproot")
 
 
+## Abyss's third beat (abyss_rise.on_slam): the column drives `e` down into the floor: the hit, the crater.
+static func _abyss_slam(e: Node3D, i: int, hero: Variant, damage: float) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var big: bool = hero._void.is_heavy(e)
+	var share: float = 1.0 if i == 0 else ABYSS_SHARE
+	e.take_hit(damage * share * ABYSS_SLAM_MULT * (ABYSS_BIG_MULT if big else 1.0), Vector3.DOWN * MAW_DOWN, 0.0, true)
+	Game.register_hit("breaker")
+	Game.sfx("hit_big", -2.0, 0.1)
+	ALT_FX.cool_wall(hero.get_parent(), e.global_position, Vector3.DOWN, "void", ABYSS_WORD if i == 0 else "")
+	DARK.burst(hero.get_parent(), _flat(e.global_position), 1.3 if big else 1.0)
+
+
 ## Where a cube is on its way up and into the pile, `k` 0 to 1 through the dive: up fast and a little way in,
-## then down hard onto its place.
+## then down hard onto its place. Round 51: its place may be up the tower (`to.y`, aim_crush's stack slot), so it goes
+## up CRUSH_HIGH over that and comes down onto the cube under it.
 static func crush_point(from: Vector3, to: Vector3, k: float) -> Vector3:
 	const TOP := 0.55
 	var above: Vector3 = from.lerp(to, 0.3)
+	var high: float = CRUSH_HIGH + maxf(to.y, 0.0)
 	if k < TOP:
 		var j := k / TOP
 		var ease_out := 1.0 - (1.0 - j) * (1.0 - j)
 		var at: Vector3 = from.lerp(above, ease_out)
-		at.y = CRUSH_HIGH * ease_out
+		at.y = high * ease_out
 		return at
 	var j := (k - TOP) / (1.0 - TOP)
 	var down: Vector3 = above.lerp(to, j)
-	down.y = CRUSH_HIGH * (1.0 - j * j)
+	down.y = lerpf(high, maxf(to.y, 0.0), j * j)
 	return down
 
 
@@ -2434,26 +2555,76 @@ static func in_cube(e: Node) -> bool:
 	return e.get_node_or_null(THROWN.CUBE_NAME) != null
 
 
-## The tentacles shove every cube near him straight out. They run through whoever's in the way and
-## hit walls hard. Anyone not in a cube just takes some of it.
+## Avalanche (round 51 cool pass): the dive stacked the cubes into a tower; his landing crushes it, and the tentacles
+## push it over (avalanche_topple.gd) toward the wall or pillar the indicator marks, or away from him in the open. Each
+## cube comes off the falling tower top first and slides on: into the structure, shattering on it, or out to a stop.
+## Anyone else in the fall's strip is caught and frozen.
 static func _avalanche(hero: CharacterBody3D, b: Dictionary, cubes: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var mid: Vector3 = hero._void.dark_spot
-	SPEAR.frost_ring(parent, mid, CRUSH_RING, 0.25)
+	var stack: Array = cubes.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
+	var plan := avalanche_plan(hero, mid)
 	_pop(parent, mid, "spear")
-	under(parent, mid, "water")
-	for e: Node3D in cubes:
-		if not is_instance_valid(e) or not e.is_alive():
-			continue
-		Fx.shards(parent, e.global_position + Vector3.UP * 0.8, THROWN.CUBE_COLOR, 8, Vector3.UP, 7.0, 0.16, 0.5)
-		DARK.quiet_hit(e, damage, true)
+	if DESIGNED.on():
+		DESIGNED.ice_shatter(parent, mid + Vector3.UP * 0.9, 1.3)
+	for e: Node3D in stack:
+		DARK.quiet_hit(e, damage * AVALANCHE_CRUSH, true)
+		encase(e)  # (the crush mustn't break them out: the cubes are what falls)
+		hero.get_tree().create_timer(0.03, true, false, true).timeout.connect(encase.bind(e))  # (again: the crush's shatter lands after)
+		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + AVALANCHE_CUE_MS)
 		Game.register_hit("breaker")
-	for e: Node3D in FOES.near(hero.get_tree(), mid, CRUSH_RADIUS):
-		if not e in cubes:
+	var dir: Vector3 = plan.dir
+	var side := dir.cross(Vector3.UP).normalized()
+	for e: Node3D in hero.get_tree().get_nodes_in_group("enemies"):
+		if e in stack or not e.is_alive():
+			continue
+		var rel := _flat(e.global_position - mid)
+		var along := rel.dot(dir)
+		if rel.length() <= CRUSH_RADIUS or (along > 0.0 and along <= float(plan.run) and absf(rel.dot(side)) <= AVALANCHE_STRIP + float(e.radius)):
 			DARK.quiet_hit(e, damage * PRESS_NO_CUBE, true)
+			chill_or_freeze(e)
 			Game.register_hit("breaker")
-	ComicFx.hit(mid + Vector3.UP * 1.5, true)  # one word for the one crash
+	if stack.is_empty():
+		return
+	var g: Node3D = AVALANCHE_TOPPLE.start(hero, mid, stack, dir, float(plan.run))
+	g.on_throw = _avalanche_throw.bind(hero, mid, plan, damage, stack.size())
+	ComicFx.hit(mid + Vector3.UP * 1.5, true)  # one word for the crash (the wall hits say AVALANCHE_WORD)
+
+
+## Where Avalanche's tower falls: {dir, run, wall (the env pick or {}), found}. Toward the structure the indicator marks
+## within AVALANCHE_REACH of the tower's foot `mid`, else away from him (his dive's line).
+static func avalanche_plan(hero: CharacterBody3D, mid: Vector3) -> Dictionary:
+	var wall := pinwheel_target(hero, mid, "avalanche", AVALANCHE_REACH)  # (the indicator's pick; a raycast in a bare room)
+	if wall.get("found", false):
+		var d: Vector3 = _flat(wall.dir)
+		return {"found": true, "wall": wall, "dir": d.normalized() if d.length() > 0.01 else hero._facing(), "run": float(wall.dist) + 1.5}
+	var away := _flat(mid - hero.global_position)
+	if away.length() < 0.3:
+		away = _flat(hero._brk_dir) if hero._brk_dir.length() > 0.01 else hero._facing()
+	return {"found": false, "wall": {}, "dir": away.normalized(), "run": AVALANCHE_OPEN}
+
+
+## One cube off the falling tower (avalanche_topple.on_throw, `i` from the foot): it slides on to the structure (spread
+## across it) or out along the fall, the top one furthest.
+static func _avalanche_throw(e: Node3D, i: int, hero: Variant, mid: Vector3, plan: Dictionary, damage: float, n: int) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
+		return
+	var dir: Vector3 = plan.dir
+	var side := dir.cross(Vector3.UP).normalized()
+	var to: Vector3
+	if plan.found:
+		to = mid + dir * float(plan.run) + side * AVALANCHE_SPREAD * (i - (n - 1) * 0.5)
+	else:
+		to = mid + dir * float(plan.run) * (0.45 + 0.55 * float(i + 1) / float(n)) + side * AVALANCHE_SPREAD * 0.5 * (i - (n - 1) * 0.5)
+	THROWN.launch(hero, e, to, damage * (1.0 if plan.found else AVALANCHE_OPEN_MULT), {"solid": false, "el": "water", "speed": AVALANCHE_SPEED, "land_y": 0.0, "slide": true,
+		"wall_mult": AVALANCHE_WALL_MULT, "splash": false, "spin": 3.0, "on_burst": _avalanche_hit.bind(hero.get_parent())})
+	Game.register_hit("breaker")
+
+
+static func _avalanche_hit(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
+	if walled and is_instance_valid(parent):
+		ALT_FX.cool_wall(parent, f.global_position, dir, "water", AVALANCHE_WORD)
 
 
 ## Where a cube goes. Pure, so the check can walk it.

@@ -101,6 +101,9 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# Round 51 (env-pieces): Uproot, Abyss's LMB, by the same pillar: Overwhelm pins the dummy between him and it, and
 	# the tentacle tears the pillar out and clubs the dummy with it (the pillar comes back REBUILD_S later in training).
 	{"slot": "sig_pin", "tokens": ["pillar", "alt", "hold"]},
+	# Round 51 cool pass: Avalanche by the back wall (the spear's ice on the ring, the tower falls into the wall the
+	# indicator marks; Deep Freeze takes the spear down, so the next string's L L is the swings again).
+	{"slot": "big_2", "tokens": ["wall", "L", "L", "H", "L", "H"]},
 	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]},
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
 	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Powder Keg: Molten Palm carries the dummies over the spikes into

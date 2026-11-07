@@ -46,8 +46,15 @@ const CTX := {
 	"pillar_slam": {"el": "void", "choose": true, "far": false, "kinds": ["pillar"]},
 	"uproot": {"el": "void", "choose": true, "far": true, "kinds": ["pillar"]},  # round 51: Abyss's LMB (env_piece.gd)
 	"keg": {"el": "earth", "choose": false, "far": false, "kinds": ["barrel"]},  # round 51: Molten Palm toward a barrel
+	"avalanche": {"el": "water", "choose": true, "far": false},  # round 51 cool pass: where the tower falls
+	# round 51 cool pass: foe picks (the same bracket on a foe: kind "foe" in foe_structs(); picked_foe() reads it)
+	"overwhelm": {"el": "void", "choose": true, "far": false},  # the charged hold: who Overwhelm pins
+	"abyss": {"el": "void", "choose": true, "far": false},  # Abyss's window: who the deep gives back first, whole
 }
+const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
+const FOE_BRACKET_Y := 1.0  # m over its feet (its chest)
 const CURSOR_SNAP := 2.2  # m from the cursor's ray to a structure that it counts as on it
+const FOE_SNAP := 1.2  # m from the cursor to a foe's edge (foes stand closer together than structures)
 const CURSOR_HEIGHTS := [0.3, 1.4, 2.8]  # m: the ray is sampled at these heights (a wall face, a pillar's body)
 const STICK_DEAD := 0.5
 const STICK_CONE := 32.0  # degrees
@@ -378,6 +385,29 @@ static func pick(by: Node3D, ctx: String, from: Vector3, reach: float) -> Dictio
 	return r
 
 
+## Foes as pick targets (round 51 cool pass): round like a pillar, id "foe<instance id>", `node` the foe.
+static func foe_structs(foes: Array) -> Array:
+	var out: Array = []
+	for e: Variant in foes:
+		if is_instance_valid(e) and (e as Node3D).is_inside_tree():
+			var r: Variant = (e as Node).get("radius")
+			out.append({"id": "foe%d" % (e as Object).get_instance_id(), "kind": "foe", "at": _flat((e as Node3D).global_position),
+				"r": float(r) if r != null else 0.5, "node": e})
+	return out
+
+
+## The foe the indicator was on for `ctx` in its last window (the cursor's or the stick's, or the auto pick), or null.
+static func picked_foe(by: Node3D, ctx: String) -> Node3D:
+	var lock := _lock(by, ctx)
+	var id: String = lock.get("id", "")
+	if not id.begins_with("foe"):
+		return null
+	var e: Object = instance_from_id(int(id.substr(3)))
+	if is_instance_valid(e) and e is Node3D and (e as Node).has_method("is_alive") and e.is_alive():
+		return e as Node3D
+	return null
+
+
 ## The structure the player chose for `ctx` (cursor / stick) in its last window, or {}.
 static func chosen(by: Node3D, ctx: String) -> Dictionary:
 	var lock := _lock(by, ctx)
@@ -417,14 +447,33 @@ func context(h: CharacterBody3D) -> Dictionary:
 				return {"ctx": "ricochet", "from": _flat((foe as Node3D).global_position), "reach": load("res://scripts/counter.gd").RICOCHET_REACH,
 					"mode": "near", "key": key, "foe": foe}
 			return {}
+		if b.has("abyss") and is_instance_valid(h._void.dark_bind):  # round 51: which pinned foe comes back up first
+			var held: Array = []
+			for s: Dictionary in h._void.dark_bind._held:
+				if is_instance_valid(s.foe) and s.foe.is_alive():
+					held.append(s.foe)
+			if held.size() >= 2:
+				return {"ctx": "abyss", "from": me, "reach": ve.ABYSS_RADIUS * 3.0, "mode": "foe", "foes": held,
+					"auto": ve.abyss_first(h, held), "key": key}
+			return {}
 		if b.has("collapse"):
 			return {"ctx": "collapse", "from": _flat(h._void.dark_spot), "reach": COLLAPSE_REACH, "mode": "near", "key": key}
 		if alt.has("uproot") and load("res://scripts/env_piece.gd").usable("pillar", "uproot"):  # round 51
 			return {"ctx": "uproot", "from": _flat(h._void.dark_spot), "reach": ve.UPROOT_REACH, "mode": "near", "key": key}
+		if b.has("press"):  # Avalanche (round 51): the cubes' pile, where the tower stands
+			return {"ctx": "avalanche", "from": _flat(h._void.dark_spot), "reach": ve.AVALANCHE_REACH, "mode": "near", "key": key}
 		if b.has("meteor"):
 			var spot: Dictionary = ve.meteor_spot(h)
 			if spot.found:
 				return {"ctx": "meteor", "from": _flat(spot.at), "reach": METEOR_NEAR, "mode": "near", "key": key}
+		return {}
+	if h.state == h.State.CHARGE and h._charged:  # round 51: the charged hold aims Overwhelm
+		var near: Array = h.get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+			return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(me) <= ve.OVERWHELM_REACH)
+		var aim: Variant = ve.overwhelm_aim(h, me, h._facing())
+		if is_instance_valid(aim):
+			return {"ctx": "overwhelm", "from": me, "reach": ve.OVERWHELM_REACH, "mode": "foe", "foes": near, "auto": aim,
+				"key": "charge:%d" % h.get_instance_id()}
 		return {}
 	if h.state != h.State.ATTACK:
 		return {}
@@ -459,6 +508,8 @@ func resolve(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 	var spec: Dictionary = CTX[c.ctx]
 	var kinds: Array = spec.get("kinds", [])
 	var r: Dictionary
+	if c.mode == "foe":
+		return _resolve_foe(h, c)
 	if c.mode == "along":
 		r = along(structures, c.from, c.dir, c.reach, kinds)
 		if not r.found:  # (nothing along the line at all: the nearest, for the too-far bracket)
@@ -479,24 +530,53 @@ func resolve(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 	return r
 
 
-## The structure under the cursor (or the stick, or a test's stand-in) that is in reach for `c`, or {}.
-func _choice(h: CharacterBody3D, c: Dictionary, kinds: Array) -> Dictionary:
+## A foe pick (round 51 cool pass): the auto foe (`c.auto`), or the one the cursor / stick is on of `c.foes`.
+func _resolve_foe(h: CharacterBody3D, c: Dictionary) -> Dictionary:
+	var structs := foe_structs(c.foes)
+	var s: Dictionary = {}
+	var chose := false
+	if CTX[c.ctx].choose:
+		s = _choice(h, c, [], structs)
+		chose = not s.is_empty()
+	if s.is_empty() and is_instance_valid(c.get("auto")):
+		var auto_id := "foe%d" % (c.auto as Object).get_instance_id()
+		for one: Dictionary in structs:
+			if one.id == auto_id:
+				s = one
+		if s.is_empty():
+			var own: Array = foe_structs([c.auto])
+			if not own.is_empty():
+				s = own[0]
+	if s.is_empty():
+		return {"found": false}
+	var to: Vector3 = s.at - _flat(c.from)
+	return {"found": true, "s": s, "at": s.at, "dist": to.length(), "n": -to.normalized() if to.length() > 0.01 else Vector3.BACK,
+		"in_reach": true, "chosen": chose, "dir": to.normalized() if to.length() > 0.01 else Vector3.FORWARD}
+
+
+## The structure under the cursor (or the stick, or a test's stand-in) that is in reach for `c`, or {}. `pool`: what
+## to pick from (the room's structures, or foe_structs(): then whatever the cursor is on, as is).
+func _choice(h: CharacterBody3D, c: Dictionary, kinds: Array, pool: Variant = null) -> Dictionary:
+	var structs: Array = pool if pool is Array else structures
+	var snap: float = FOE_SNAP if pool is Array else CURSOR_SNAP
 	var s: Dictionary = {}
 	if test_cursor != Vector3.INF:
-		s = under_point(structures, test_cursor, kinds)
+		s = under_point(structs, test_cursor, kinds, snap)
 	elif test_stick.length() > STICK_DEAD:
-		s = along_stick(structures, c.from, test_stick, c.reach, kinds)
+		s = along_stick(structs, c.from, test_stick, c.reach, kinds)
 	elif not h.bot_enabled and DisplayServer.get_name() != "headless":
 		var stick := Vector3(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), 0.0, Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
 		if not h._mouse_active and stick.length() > STICK_DEAD:
-			s = along_stick(structures, c.from, stick, c.reach, kinds)
+			s = along_stick(structs, c.from, stick, c.reach, kinds)
 		elif h._mouse_active:
 			var cam := get_viewport().get_camera_3d()
 			if cam != null:
 				var m := get_viewport().get_mouse_position()
-				s = under_ray(structures, cam.project_ray_origin(m), cam.project_ray_normal(m), kinds)
+				s = under_ray(structs, cam.project_ray_origin(m), cam.project_ray_normal(m), kinds)
 	if s.is_empty():
 		return {}
+	if pool is Array:
+		return s
 	if c.ctx == "meteor":  # (only a structure with the palm's foes by it: the dive goes to them)
 		var ve: GDScript = h.VOID_ELEMENT
 		for e: Node in get_tree().get_nodes_in_group("enemies"):
@@ -560,6 +640,8 @@ func _end(h: CharacterBody3D) -> void:
 		took = h.state == h.State.ATTACK and h._hits_done > 0
 	elif current.key_base.begins_with("grab:"):
 		took = h._void.pillar_slam_on()
+	elif current.key_base.begins_with("charge:"):
+		took = h.state == h.State.ATTACK and h._move_id == h.VOID_ELEMENT.CHARGED
 	if took and current.state == "target" and _lock_t < 0.0:
 		locks += 1
 		_lock_t = 0.0
@@ -603,6 +685,9 @@ func _process(_delta: float) -> void:
 
 func _draw(frame: int) -> void:
 	var s: Dictionary = current.s
+	if s.kind == "foe":
+		_draw_foe(s, frame)
+		return
 	var pillar: bool = s.kind != "wall"  # (round 51: a prop, a barrel, is marked like a pillar)
 	var row: String = FAR_ROW if current.state == "far" else current.el
 	var alpha := 1.0
@@ -643,6 +728,37 @@ func _draw(frame: int) -> void:
 		c.global_transform = Transform3D(basis, from + dir * (0.9 + CHEV_STEP * i) + Vector3.UP * (DESIGNED.GROUND_LIFT + 0.02))
 		var march := posmod(i - int(_t / 0.08), 4)
 		_tone(c, [0, 1, 2, 1][march], row, alpha * (0.6 + 0.4 * float(i + 1) / float(maxi(count, 1))))
+
+
+## The bracket on a foe (round 51 cool pass): round its chest, the floor ring under it, following it; the chevrons run
+## from him to it on the charge, none in a breaker's hang (he's over them).
+func _draw_foe(s: Dictionary, frame: int) -> void:
+	var e: Variant = s.get("node")
+	if is_instance_valid(e):
+		s.at = _flat((e as Node3D).global_position)
+		current.at = s.at
+	var grow := clampf(float(s.r) / 0.5, 1.0, 2.2)
+	_bracket.visible = true
+	_bracket.global_position = Vector3(s.at.x, FOE_BRACKET_Y * grow, s.at.z)
+	_bracket.scale = Vector3.ONE * FOE_BRACKET_SIZE * grow
+	_tone(_bracket, frame, current.el, 1.0)
+	_ring.visible = frame <= 3
+	if _ring.visible:
+		_ring.global_position = Vector3(s.at.x, DESIGNED.GROUND_LIFT + 0.01, s.at.z)
+		_ring.scale = Vector3.ONE * (float(s.r) + RING_PAD * 0.6) * 2.0
+		_tone(_ring, frame - 1 if frame >= 1 else 0, current.el, 1.0)
+	var from: Vector3 = _flat(hero.global_position) if is_instance_valid(hero) and current.key_base.begins_with("charge:") else s.at
+	var to: Vector3 = s.at - from
+	var length := to.length()
+	var dir := to / length if length > 0.01 else Vector3.FORWARD
+	var count := clampi(int((length - 0.6 - float(s.r)) / CHEV_STEP), 0, CHEV_MAX) if _lock_t < 0.0 else 0
+	var basis := Basis(dir, Vector3.UP, dir.cross(Vector3.UP)).scaled(Vector3(CHEV_SIZE, 1.0, CHEV_SIZE))
+	for i in CHEV_MAX:
+		var c: MeshInstance3D = _chevs[i]
+		c.visible = i < count
+		if c.visible:
+			c.global_transform = Transform3D(basis, from + dir * (0.9 + CHEV_STEP * i) + Vector3.UP * (DESIGNED.GROUND_LIFT + 0.02))
+			_tone(c, [0, 1, 2, 1][posmod(i - int(_t / 0.08), 4)], current.el, 0.6 + 0.4 * float(i + 1) / float(maxi(count, 1)))
 
 
 func _tone(mi: MeshInstance3D, frame: int, row: String, alpha: float) -> void:
