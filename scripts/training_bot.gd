@@ -91,11 +91,21 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"slot": "ender_2", "tokens": ["spread", "H", "L", "L", "wait", "L", "L", "H"]},
 	# The dash counter (kit slot 9, counter.gd): "counter" has the first dummy swing at him (training_dummy.swings) and
 	# holds his D until its strike is inside the perfect counter's last PERFECT s: Backlash, then Ricochet in the window.
-	{"slot": "counter", "tokens": ["counter", "D"]}]
+	{"slot": "counter", "tokens": ["counter", "D"]},
+	# Round 50 (environment): Pinwheel's short route, Impale's own window after a pause (Dash H H, then L), by the back
+	# wall; and the pillar slam ("pillar": the dummies round a pillar, one between him and it): H grabs, H held through
+	# the haul smashes it into the pillar, and Collapse throws the rest into the same pillar.
+	# (Impale plants a spear when none stands and Pinwheel leaves it up: last, or the next string's H vaults onto it.)
+	{"slot": "sig_gather", "tokens": ["pillar", "H", "hold"]},
+	{"slot": "dash_ender_h", "tokens": ["wall", "alt", "D", "H", "H"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
-const BOT_LAYOUTS := ["line", "spread", "ring", "wall"]
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar"]
+## A "pillar" string: he stands BOT_PILLAR_GAP m out from main.PILLARS[0] facing it, the dummies round the pillar's
+## near side (x across his aim, z along it, from him): one between him and it for the grab, the rest by its face.
+const BOT_PILLAR_GAP := 3.6
+const BOT_PILLAR_RING := [Vector3(0.0, 0.0, 1.7), Vector3(-2.3, 0.0, 2.4), Vector3(2.3, 0.0, 2.2), Vector3(0.6, 0.0, -1.6)]
 ## A "ring" string's dummies, from where he starts (x across his aim, z along it): one ahead for Dash Stab, the others
 ## off his line round where the dash leaves him (~1.7 m on), one behind. A "wall" string starts BOT_WALL_GAP m from the
 ## back wall (up the screen), facing it, with the same ring.
@@ -268,6 +278,10 @@ func _autotest_finish() -> void:
 		player.hp, _max_combo, _hits, Game.awakening, Game.rank(), Game.perfect_dodges, Game.best_air,
 		hud.combo_guide.shown, player.ELEMENTS.casts, player.breakers_seen.size(), player.VOID_ELEMENT.BREAKERS.size(), player.breaker_perfects, _bot_strings_done.size(), strings.size(),
 		player.endings_seen.size(), _all_endings().size(), ",".join(player.endings_seen.keys()).replace(" ", "_"), ",".join(_bot_moves.keys())])
+	var env: Node = main.get("env")
+	if env != null:  # round 50: the structure indicator and the beats (env_target.gd)
+		print("[env] shown=%d switches=%d locks=%d pillar_slams=%d pillar_hits=%d chunks=%d marks=%d torch_swings=%d" % [env.shown, env.switches,
+			env.locks, player._void.pillar_slams, env.pillar_hits, env.chunks_shed, env.marks.size(), env.torch_swings])
 	var kit := kit_report()
 	print("[kit] slots=%d/%d windows=%d/%d upgrades=%d/%d missing=%s" % [kit.slots, kit.slots_n, kit.windows, kit.windows_n,
 		kit.upgrades, kit.upgrades_n, ",".join(kit.missing) if not kit.missing.is_empty() else "none"])
@@ -443,14 +457,15 @@ func _dummies_settled() -> bool:
 
 
 ## The start of every string (BOT_SPOT): dummies home and still, the hero in front of the first one, facing it.
-## Every ending a breaker window offers (each BREAKERS entry's name and its `alt`'s): the autotest's `endings_n=`.
+## Every ending a breaker window offers (each BREAKERS entry's name and its `alt`'s): the autotest's `endings_n=`. Each
+## name once (round 50: Impale's window offers Backdraft's two endings, Anvil and Pinwheel, by a shorter route).
 func _all_endings() -> Array:
 	var names := []
 	for id: String in player.VOID_ELEMENT.BREAKERS:
 		var b: Dictionary = player.VOID_ELEMENT.BREAKERS[id]
-		names.append(b.names.spirit)
-		if b.has("alt"):
-			names.append(b.alt.names.spirit)
+		for nm: String in [b.names.spirit] + ([b.alt.names.spirit] if b.has("alt") else []):
+			if not names.has(nm):
+				names.append(nm)
 	return names
 
 
@@ -552,6 +567,22 @@ func _reset_spots() -> void:
 			if is_instance_valid(d):
 				_homes[d] = d.home
 				var o: Vector3 = BOT_RING[i % BOT_RING.size()]
+				d.home = player.global_position + side * o.x + fwd * o.z
+				d.home.y = target.y
+				d.global_position = d.home
+	if "pillar" in strings[_bot_string]:  # by the first pillar, facing it, the dummies round its near side
+		var p: Vector3 = main.PILLARS[0]
+		var out := Vector3(0.0, 0.0, 1.0)
+		player.global_position = Vector3(p.x, player.global_position.y, p.z) + out * BOT_PILLAR_GAP
+		player._face(-out)
+		player.model.rotation.y = player._facing_yaw
+		var fwd: Vector3 = player._facing()
+		var side := fwd.cross(Vector3.UP).normalized()
+		for i in main._dummies.size():
+			var d: Node = main._dummies[i]
+			if is_instance_valid(d):
+				_homes[d] = d.home
+				var o: Vector3 = BOT_PILLAR_RING[i % BOT_PILLAR_RING.size()]
 				d.home = player.global_position + side * o.x + fwd * o.z
 				d.home.y = target.y
 				d.global_position = d.home

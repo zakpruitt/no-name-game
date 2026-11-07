@@ -1373,6 +1373,7 @@ func _three_elements() -> void:
 	var b := _foe(Vector3(-0.8, 0, 1.6))
 	hero._start_attack("XK")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
+	hero._connected = false  # (Impale's own window, round 50, is env_target_check's: here XK plays out as the move)
 	_check(a.has_meta("thrown_foe_flying") and el.in_cube(a), "Impale throws them, frozen")
 	_check(el.marked(a, "skewered") and el.marked(b, "skewered"), "and they're skewered")
 	var hit_a := 500.0 - a.hp
