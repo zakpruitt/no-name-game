@@ -148,6 +148,10 @@ const HARPOON_STEPS := 8  # (Molten Palm's lava seam steps)
 const HARPOON_REACH := 8.0
 const HARPOON_MAX := 5
 const HARPOON_DAMAGE := 10.0
+## Feel audit 4: the gather's latches (10 each) landed at x1.00, contacts with no stop, on the same frame as the
+## Ice Cube press. The first latch of a gather takes LATCH_STOP ("it connected"); the rest stay quiet, so Harpoon
+## stays a quick mid (EA -> XG / XS were 200 ms; a stop on every latch made them ~260).
+const LATCH_STOP := 0.035
 const HARPOON_SET := 2.6  # m ahead of him, the rank
 const HARPOON_SET_MIN := 1.5  # m: never closer (a wall right ahead squeezes it to this)
 const HARPOON_GAP := 0.15  # m between neighbouring cubes' ice (their fitted width: ice_radius())
@@ -603,9 +607,13 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: fl
 		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
 	var g: Node3D = HARPOON_GATHER.start(hero, grabs)
 	hero._void.gather = g
+	var latched := [0]  # (only the first latch of this gather stops)
 	g.on_latch = func(e: Node3D) -> void:
 		e.take_hit(damage, Vector3.ZERO, 0.0, false)
 		Game.register_hit("cast")
+		if latched[0] == 0:
+			Game.hitstop(LATCH_STOP)
+		latched[0] += 1
 		if e.has_method("stagger") and not hero._void.is_heavy(e):
 			e.stagger(1.0)
 	g.on_set = func(e: Node3D) -> void:
