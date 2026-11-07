@@ -219,6 +219,8 @@ Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash
 `thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
 hit in the element's shape, crowd caps), the axe ribbon.
 
+Converted in fx-polygons (round 47 d): the breaker dive trails, `Fx.burst` chips (so `hero_fx.rank_up`), `comic_fault`'s ground, `comic_freeze_over`'s pool and break, `comic_melt`, `comic_rip`, the `comic_improv` payoffs, the state tells, Reap's mark, `Fx.soul`, the last-kill flare, `comic_drag_mark`, the claw lash's turn flare. See "fx-polygons" below; the numbered list is the older one, kept for history.
+
 1. Every hit: `Fx.chain_spark` halos past 10 / 20 / 35 hits (capped to one a frame, still polygons), the foe's
    `daze` stars. (The element chips are done.)
 2. Every swing: (the axe ribbon is done) the axe's element aura (`comic_axe_aura.gd`), the floor drag line (`comic_drag_mark.gd`), the spirit
@@ -555,3 +557,32 @@ Dash Stab's claw lash.
   head `ECHO_SIZE` 1.4 m, the line `echo_line()` a thin void-ink `slash` (`ECHO_LINE_INNER` 0.94 of its radius in),
   both on real time for `ECHO_REAL` 0.2 s (`designed_fx.slash(..., real)`), so neither hangs through the hitstop into
   the next move. See `docs/feel-audit-2026-11-06b.md`.
+
+## fx-polygons: the last runtime polygons (round 47 d)
+
+Zak, after fx-ice3: wind and electricity "phenomenal", the see-through ice block loved, no spiky crystals anywhere,
+"keep improving ... focus on improving effects". This lane drew the polygon assemblies still on film in the 32 bot
+strings. Sheets: `python tools/vfx_gen/gen_polygons.py` (previews with `--preview`); code: `scripts/designed_polish.gd`
+(registered as extra sheets, prewarmed in `elements.prewarm`). Every swap is behind `DESIGNED.on()`; `--fx=classic`
+plays the old look.
+
+| Effect | Was | Now |
+|---|---|---|
+| Breaker dive trail (`comic_comet.gd`) | flat tapered polygon ribbon per element | earth / water / fire: `dive_trail` brush comet strip; void: `dive_ink` smear; storm: the lime `bolt_strip` zigzag, tiled and scrolled. Landing: `INK.pop` + `INK.shock` |
+| `Fx.burst` in comic style (rank-up, many hits) | polygon shard fan | `chip_spray` drawn chips flying out along the burst's direction |
+| State tells (`comic_state_tell.gd`) | buried: polygon rubble; skewered: flat plates; molten: polygon flames; charged: polygon sparks | `tell_buried` stone crust ring (dust row), `tell_pinned` frost rime with cracks and glints (no crystals), `tell_molten` flame licks stood behind the foe, `arc_crawl` crawling arcs |
+| Reap's mark (`dark_fx.Mark`) | three pink flat crescents | `tell_marked`: three curling violet ink claw strokes with splatter, spinning |
+| Fault Line ground (`comic_fault.gd`) | polygon crack lines | `magma_crack` tiles every 0.75 m, a pop on arrival, `magma_burst` on Cataclysm |
+| Flash Freeze / Black Ice pool (`comic_freeze_over.gd`) | polygon ice plates | `tell_pinned` rime loop on the floor; break: `ice_shatter` ring + `frost_mark` |
+| Meltdown (`comic_melt.gd`) | polygon slash, shell, splash | designed slash arc, `ice_shatter`, the `meteor_shell` fireball, `magma_burst` + `magma_crack` landing |
+| Tow Line (`comic_rip.gd`) | polygon tear | `ink_tear` following the foe |
+| Element payoffs (`comic_improv.gd`) | polygon tells per cell | per-cell designed combos of existing sheets (shatter, gust, streaks, frost mark, fissure, crawl, steam, pop, shock) |
+| Drag mark (`comic_drag_mark.gd`) | flat polygon strip | `drag_line` strip through `designed_drag.gdshader` (UV in metres, erodes by age) |
+| `Fx.soul`, last-kill rings, claw lash turn flare | polygon wisps / extra flare | `air_wisp` spirit wisps rising; a gold `hit` flare on the last kill (the designed rings stay); `DESIGNED.hit` on the lash turn |
+
+Coverage (`tests/fx_coverage.py`, full 32-string film): mean 0.081 -> 0.079, max 0.195 -> 0.210 (budget 0.40).
+Clips: `awaken-combo-clips/27 Polygons *` (before / after contact sheets).
+
+Still polygons: `callout_cap` (a HUD-like word cap, not an effect drawing), `comic_axe_aura` (off in designed), the
+purple radial wedges round the hero on some breaker leaps (seen on film, source not traced), `Fx.chain_spark` halos past
+the caps. Unverified on film: the drag mark (no frame caught it clearly) and the claw lash's turn flare.

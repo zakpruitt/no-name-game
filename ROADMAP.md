@@ -884,3 +884,12 @@ Zak: "keep improving on whatever you see fit". `docs/feel-audit-2026-11-06b.md`;
 - [x] 32 strings re-filmed (`feel4_a/b/c`), coverage PASS (max 0.163); rhythm_check PASS
 - [ ] Live Wire's hang with a far foe: the current runs off frame (cue Short Circuit's targets in the hang? Zak's call)
 - [ ] Ice Cube pressed during Harpoon's gather finds nobody (the tentacles still carry them): combo-harpoon lane
+
+## Round 47 d (fx-polygons: the last runtime polygons drawn)
+
+- [x] Designed sheets for the polygons still on film (`gen_polygons.py`, `designed_polish.gd`): breaker dive trails
+  (storm a lime bolt, void an ink smear), `Fx.burst` chips (rank-up), state tells (stone crust, frost rime, flame licks,
+  arcs), Reap's mark as ink claw strokes, Fault Line, Black Ice / Flash Freeze, Meltdown, Tow Line, improv payoffs,
+  drag mark, `Fx.soul`, last-kill flare; no crystals. See `docs/features/designed-fx.md` "fx-polygons"
+- [x] Clips: `awaken-combo-clips/27 Polygons *`
+- [ ] Trace the purple radial wedges round the hero on some breaker leaps; check the drag mark on film
