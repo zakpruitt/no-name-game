@@ -49,6 +49,7 @@ const STAMP_MARK := 1.5  # frost_mark size (its tile is 1.7 m at 1: the cracks r
 ## on the grate's far edge from him (scripts/frost_wall.gd), if his element can (env_piece.usable).
 const ENV_PIECE := preload("res://scripts/env_piece.gd")
 const FROST_WALL := preload("res://scripts/frost_wall.gd")
+const SPENT_INTO_WALL := 0.35  # s the spear stands before it melts into the Frost Wall it raised
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -70,7 +71,8 @@ static func plant(parent: Node, spot: Vector3) -> Node3D:
 	var s: Node3D = new()
 	parent.add_child(s)
 	s.global_position = Vector3(spot.x, 0.0, spot.z)
-	frost_wall(parent, s.global_position)
+	if frost_wall(parent, s.global_position) != null:  # (round 51: on a grate the spear goes into the wall, so no vault
+		s.get_tree().create_timer(SPENT_INTO_WALL, false).timeout.connect(s.melt)  # onto it; the wall is the payoff)
 	return s
 
 

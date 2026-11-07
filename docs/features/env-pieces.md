@@ -92,14 +92,15 @@ pile as the keg goes.
 ### Frost Wall (ice on a grate)
 
 Frost Spear (L L H) planted on a grate, or within `REACH` 1 m of one, raises a real wall of ice along the grate's far
-edge from him (`scripts/frost_wall.gd`, `frost_spear.frost_wall()`), for `LIFE` 6 s. It is a StaticBody3D on the
+edge from him (`scripts/frost_wall.gd`, `frost_spear.frost_wall()`), for `LIFE` 6 s. The spear goes into the wall: it
+melts `SPENT_INTO_WALL` 0.35 s after, so there is no vault onto it (the wall is the payoff on a grate). It is a StaticBody3D on the
 walls' layer, so `thrown_foe.clear_from` stops on it, and env_target knows it as a wall (`add_wall_id`, id
 `frost_wall`): every wall ending gets a wall in the open (Slapshot aims at it from the cursor's pick, Pinwheel and
 Ricochet see it, a splat on it carries the wall mark for Meteor Fall). One splat shatters it `SHATTER_AFTER` 0.25 s
 later (so the rest of a volley lands) with the designed `ice_shatter`; otherwise it melts. The grate reads frosted
 while it stands. Look: three faceted `designed_elements.ice_block` meshes squashed to `THICK` 0.7 m, rising with a
 back-ease, a `frost_mark` and dust at its foot, "KRRSSHK!"; no crystals. The x1.6 shatter bonus from the proposal is
-not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H D L H` (the room with pieces).
+not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H wait D L H` (the room with pieces): Harpoon's row is punched into the wall.
 
 | Case (env_breaker_check, three cubes, a 4 m grate edge) | Damage |
 |---|---|
