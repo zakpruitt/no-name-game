@@ -16,11 +16,13 @@ const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
 const SPAR := preload("res://scripts/spar.gd")
 const WARMUP := preload("res://scripts/warmup.gd")
+const ENV_TARGET := preload("res://scripts/env_target.gd")
 const BOT := preload("res://scripts/training_bot.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
 const PILLARS := [Vector3(-8, 0, -8), Vector3(8, 0, -8), Vector3(-8, 0, 7), Vector3(8, 0, 7)]
+const PILLAR_R := 0.75  # m: the pillars' collider (and env_target's structure radius)
 const HINT_GAP := 7.0
 
 const TILE := 4.0
@@ -50,6 +52,7 @@ var _best_string := 0.0
 var _strings := 0
 
 var _bot: Node  # training_bot.gd, with --autotest
+var env: Node3D  # env_target.gd: the walls, pillars and torches the environmental endings use (round 50)
 var _collect_shaders := false  # --collect-shaders: note every material shader seen (warmup.gd)
 
 
@@ -259,6 +262,8 @@ func _build_environment() -> void:
 
 
 func _build_arena() -> void:
+	env = ENV_TARGET.new()
+	add_child(env)
 	# Floor visuals: big tiles with the odd grate for variety.
 	for x in range(-HALF_TILES, HALF_TILES):
 		for z in range(-HALF_TILES, HALF_TILES):
@@ -282,6 +287,10 @@ func _build_arena() -> void:
 	_box_collider(Vector3(0.0, 2.0, ARENA_HALF + t * 0.5), Vector3(ARENA_HALF * 2.0, 4.0, t))
 	_box_collider(Vector3(-ARENA_HALF - t * 0.5, 2.0, 0.0), Vector3(t, 4.0, ARENA_HALF * 2.0))
 	_box_collider(Vector3(ARENA_HALF + t * 0.5, 2.0, 0.0), Vector3(t, 4.0, ARENA_HALF * 2.0))
+	# The three drawn walls are structures (env_target.gd); the near side's collider is open floor on screen, so not.
+	env.add_wall(Vector3(-ARENA_HALF, 0.0, -ARENA_HALF), Vector3(ARENA_HALF, 0.0, -ARENA_HALF), Vector3.BACK)
+	env.add_wall(Vector3(-ARENA_HALF, 0.0, -ARENA_HALF), Vector3(-ARENA_HALF, 0.0, ARENA_HALF), Vector3.RIGHT)
+	env.add_wall(Vector3(ARENA_HALF, 0.0, -ARENA_HALF), Vector3(ARENA_HALF, 0.0, ARENA_HALF), Vector3.LEFT)
 
 	# Low rubble line marks the open near edge.
 	for i in range(-HALF_TILES, HALF_TILES):
@@ -289,7 +298,7 @@ func _build_arena() -> void:
 
 	# Torches on the back wall, with real light.
 	for x in [-10.0, -2.0, 6.0]:
-		_place("torch_mounted", Vector3(x, 2.4, -ARENA_HALF + 0.5))
+		env.add_torch(_place("torch_mounted", Vector3(x, 2.4, -ARENA_HALF + 0.5)))
 		if Game.comic_style:
 			continue  # glow is drawn, not lit: the toon shader would only step its brightness
 		var l := OmniLight3D.new()
@@ -311,7 +320,8 @@ func _build_arena() -> void:
 	for p: Vector3 in PILLARS:
 		var pillar := _place("pillar_decorated", p)
 		pillar.add_to_group("grab_anchors")  # the void arm swings on them (void_grab.gd)
-		_cyl_collider(pillar, 0.75, 4.0)
+		_cyl_collider(pillar, PILLAR_R, 4.0)
+		env.add_pillar(pillar, PILLAR_R)
 		_occluders.append(pillar)
 
 

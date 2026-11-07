@@ -320,9 +320,10 @@ static func ricochet_target(hero: CharacterBody3D, e: Node3D) -> Dictionary:
 		if d < foe_d:
 			foe_d = d
 			foe = o
-	var wall: Dictionary = VOID_ELEMENT.pinwheel_target(hero, from)
-	var wall_d: float = wall.dist if wall.found and float(wall.dist) <= RICOCHET_REACH else INF
-	if foe != null and foe_d <= wall_d:
+	# (round 50: the room's walls and pillars, env_target.gd; a structure the cursor was on at the press wins outright)
+	var wall: Dictionary = VOID_ELEMENT.pinwheel_target(hero, from, "ricochet", RICOCHET_REACH)
+	var wall_d: float = wall.dist if wall.found and float(wall.dist) <= RICOCHET_REACH + 0.5 else INF
+	if foe != null and foe_d <= wall_d and not (wall.get("chosen", false) and wall_d < INF):
 		var aim := Vector3(foe.global_position.x - from.x, 0.0, foe.global_position.z - from.z)
 		return {"kind": "foe", "to": from + aim.normalized() * (aim.length() + 1.0)}
 	if wall_d < INF:

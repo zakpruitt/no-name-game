@@ -10,6 +10,7 @@ const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the faceted ice block
+const ENV := preload("res://scripts/env_target.gd")  # round 50: the wall or pillar it hit plays its beat
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -330,6 +331,7 @@ func _burst(other: Node3D) -> void:
 	Game.shake(0.3)
 	if _walled and other == null:
 		foe.set_meta(WALL_META, Time.get_ticks_msec())
+		ENV.impact(hero, spot, _dir, el)  # (a pillar sheds chunks, a wall keeps a mark, a torch near it swings)
 		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
 			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
 	if DESIGNED.on() and el == "wind":  # fx-air: Storm Pitch lands in a burst of wind (designed_fx.wind_burst)

@@ -65,6 +65,8 @@ const SECTIONS := [
 		{"input": "Dash L H (pause), H in the window", "kind": "text", "name": "Shatterstorm", "tier": 3, "note": "Thunder crashes down on every cube where it stands and shatters it. Good damage anywhere."},
 		{"input": "Dash L H (pause), L in the window", "kind": "text", "name": "Slapshot", "or": true, "tier": 3, "note": "A molten fist punches the row: the cubes slide along the floor. One that hits a wall shatters on it for the most damage in the kit; one that doesn't slides to a stop for a little. Aim the row at a wall."},
 		{"input": "L L H, Dash H H", "kind": "move", "id": "XK", "note": "Dark into ice: the tentacles throw Tow Line's bunch onto the spear and they freeze round it. Without the spear first it plants one."},
+		{"input": "Dash H H (pause), H in the window", "kind": "text", "name": "Anvil", "tier": 3, "note": "The hammer drives the kebab into the floor, a crater each."},
+		{"input": "Dash H H (pause), L in the window", "kind": "text", "name": "Pinwheel", "or": true, "tier": 3, "note": "The quick way to Pinwheel: the bracket marks the wall or pillar it hurls them into; put the cursor on another to pick it."},
 	]},
 	{"group": 8, "rows": [
 		{"input": "L H L L H", "kind": "move", "id": "XF", "note": "Earth into storm: cracks run to each of them and the gale comes up out of them, throwing the buried hardest."},

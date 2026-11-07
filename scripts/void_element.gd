@@ -33,6 +33,7 @@ const HARPOON_GATHER := preload("res://scripts/harpoon_gather.gd")  # Harpoon's 
 const SLAPSHOT_FX := preload("res://scripts/slapshot_fx.gd")
 const ALT_FX := preload("res://scripts/breaker_alt_fx.gd")  # the breaker pairs' second endings (breaker-pairs lane)
 const LAVA_LEASH := preload("res://scripts/lava_leash.gd")  # Lava Leash's tentacles and seams (dark-magma lane)
+const ENV := preload("res://scripts/env_target.gd")  # the room's walls and pillars, and the one the player picked (round 50)
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -135,6 +136,13 @@ const BREAKERS := {
 		# LMB Pinwheel (breaker-pairs): the tentacles whirl the kebab round him in a twister and hurl it into the
 		# nearest wall or pillar within PINWHEEL_REACH (PINWHEEL_*). Best by a wall or pillar; Anvil wins in the open.
 		"alt": {"erupt": "wind", "pinwheel": true, "damage": PINWHEEL_DAMAGE, "dive": PINWHEEL_DIVE, "names": {"spirit": "Pinwheel"}}},
+	# Round 50 (environment): Impale's own window, after a pause (a press by its cancel is still Backdraft, Dash H H L),
+	# so the skewer reaches Pinwheel in three presses: Dash H H, then L. The kebab is stuck frozen round the spear; the
+	# tentacles take it up (`reel` brings it back to him, Anvil's hold). RMB Anvil drives it into the floor, LMB Pinwheel
+	# whirls it into the wall or pillar the indicator marks (env_target.gd).
+	"XK": {"erupt": "earth", "anvil": true, "reel": ANVIL_REEL, "pause": true, "damage": 44.0, "leap": GR_HIT + LEAP_AFTER_IMPALE,
+		"height": 2.2, "awaken": 12.0, "awaken_perfect": 22.0, "names": {"spirit": "Anvil"},
+		"alt": {"erupt": "wind", "pinwheel": true, "damage": PINWHEEL_DAMAGE, "dive": PINWHEEL_DIVE, "names": {"spirit": "Pinwheel"}}},
 	# Round 47: Harpoon's row of cubes. A pause after Dash L H (no press by its cancel: a press there is still Ice Cube,
 	# Dash L H H) and he leaps with a tentacle on each cube (`hold_cubes`), landing just behind the row (`zone`).
 	# RMB Shatterstorm: thunder on every cube where it stands, reliable anywhere. LMB Slapshot: a molten fist punches the
@@ -177,6 +185,7 @@ const HARPOON_GAP := 0.15  # m between neighbouring cubes' ice (their fitted wid
 const HARPOON_WALL := 0.7  # m a slot keeps off a wall
 const ICE_CORNER := 0.93  # of a hex block's corner radius a neighbour is spaced by: between its flat (0.87) and its
 # corner (1.0), since each block turns at random (fit_block): two corners may just touch, two flats leave a gap
+const LEAP_AFTER_IMPALE := 0.3  # Anvil / Pinwheel off Impale (round 50): after XK's cancel (GR_HIT + 0.18), before its end (+ 0.36)
 const LEAP_AFTER_HARPOON := 0.36  # Shatterstorm / Slapshot: the leap, after EF's cancel (LLH_HIT + 0.16) so a press is Ice Cube
 ## Shatterstorm (RMB): a sky strike on each held cube in turn, SHATTER_STEP apart after SHATTER_DELAY (past the
 ## landing's impact frame), SHATTER_DAMAGE each (x FREEZE_BREAK on the ice), and the storm stays in them (charged).
@@ -308,6 +317,12 @@ const TIDE_TIME := 1.8  # s they're stuck
 const TIDE_POOL_R := 3.4
 const COLLAPSE_RADIUS := 6.5  # m
 const COLLAPSE_THROW := 9.0
+## Round 50: with a wall or pillar within env_target.COLLAPSE_REACH of the hole (the one the indicator marks; the
+## cursor's pick), Collapse hurls everyone it throws into it at COLLAPSE_WALL_SPEED: its damage x COLLAPSE_WALL_MULT
+## on the structure. Big ones and an open room: the throw clear, as before.
+const COLLAPSE_WALL_MULT := 1.6
+const COLLAPSE_WALL_SPEED := 22.0
+const COLLAPSE_CUE_MS := 1400
 const MAW_RADIUS := 3.4  # m
 const MAW_DOWN := 6.0  # m/s into the floor as the jaws shut: the swallowed crater (enemy._is_spike)
 const ABYSS_RADIUS := 4.2  # m
@@ -1760,6 +1775,11 @@ static func palm_fresh(e: Object) -> bool:
 static func meteor_spot(hero: CharacterBody3D) -> Dictionary:
 	var at := _flat(hero.global_position)
 	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	var picked := ENV.chosen(hero, "meteor")  # (round 50: the cursor on a wall or pillar: the pile by it)
+	if not picked.is_empty():
+		var by: Array = foes.filter(func(e: Node3D) -> bool: return ENV.gap(picked, e.global_position) <= ENV.METEOR_NEAR)
+		if not by.is_empty():
+			foes = by
 	return meteor_target(at, foes.map(func(e: Node3D) -> Vector3: return e.global_position), foes.map(func(e: Node3D) -> bool: return wall_fresh(e)))
 
 
@@ -1938,7 +1958,10 @@ static func _shower_land(_at: Vector3, hero: Variant, e: Variant, damage: float,
 
 ## Where Pinwheel throws: the nearest wall or pillar within PINWHEEL_REACH of `at` (PINWHEEL_RAYS flat rays at chest
 ## height, past the foes), as {"found", "at" (the hit point), "dir", "dist"}.
-static func pinwheel_target(hero: CharacterBody3D, at: Vector3) -> Dictionary:
+static func pinwheel_target(hero: CharacterBody3D, at: Vector3, ctx := "pinwheel", reach := PINWHEEL_REACH) -> Dictionary:
+	var env := ENV.pick(hero, ctx, at, reach)  # (round 50: the room's structures, the one the indicator marks)
+	if not env.has("none"):
+		return env
 	var start := Vector3(at.x, 0.9, at.z)
 	var space := hero.get_world_3d().direct_space_state
 	var skip: Array[RID] = [hero.get_rid()]
@@ -1949,7 +1972,7 @@ static func pinwheel_target(hero: CharacterBody3D, at: Vector3) -> Dictionary:
 	for i in PINWHEEL_RAYS:
 		var a := TAU * i / PINWHEEL_RAYS
 		var d := Vector3(sin(a), 0.0, cos(a))
-		var q := PhysicsRayQueryParameters3D.create(start, start + d * PINWHEEL_REACH, hero.collision_mask)
+		var q := PhysicsRayQueryParameters3D.create(start, start + d * reach, hero.collision_mask)
 		q.exclude = skip
 		var hit := space.intersect_ray(q)
 		if hit.is_empty():
@@ -2132,6 +2155,13 @@ static func _thunder_on(hero: Variant, e: Variant, damage: float, first: bool) -
 static func _slapshot(hero: CharacterBody3D, _b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
 	var fwd: Vector3 = hero._brk_dir
+	var picked := ENV.chosen(hero, "slapshot")  # (round 50: the wall or pillar the cursor was on at the press)
+	if not picked.is_empty():
+		var to: Vector3 = ENV.surface(picked, at).at - at
+		if to.length() > 0.5:
+			fwd = _flat(to).normalized()
+			hero._brk_dir = fwd
+			hero._face(fwd)
 	var base: float = SLIDE_DAMAGE * hero._dmg_mult * mult
 	var near := INF
 	for e: Node3D in held:
@@ -2202,9 +2232,16 @@ static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 	else:
 		spot = at
 		DARK.burst(hero.get_parent(), spot, 2.0)
+	var wall := ENV.pick(hero, "collapse", spot, ENV.COLLAPSE_REACH)
 	for e: Node3D in FOES.near(hero.get_tree(), spot, COLLAPSE_RADIUS):
 		var from := _flat(e.global_position - spot)
-		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
+		if wall.get("found", false) and not hero._void.is_heavy(e) and not THROWN.flying(e):
+			var aim: Vector3 = ENV.surface(wall.s, e.global_position).at - _flat(e.global_position)
+			e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + COLLAPSE_CUE_MS)
+			THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage,
+				{"solid": false, "el": "void", "speed": COLLAPSE_WALL_SPEED, "land_y": 0.0, "wall_mult": COLLAPSE_WALL_MULT, "splash": false})
+		else:
+			e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * COLLAPSE_THROW, COLLAPSE_THROW, true)
 		Game.register_hit("breaker")
 	Game.shake(0.6)
 
