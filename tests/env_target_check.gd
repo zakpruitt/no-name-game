@@ -425,6 +425,29 @@ func _cool2_picks() -> void:
 	var n: int = VE._tow(hero, Vector3.ZERO, Vector3(0, 0, -1), 10.0)
 	_check(n >= 2 and b.hp < hp_b and not b.has_meta("thrown_foe_flying"), "the anchor is snared where it stands, the rest yanked into it (%d)" % n)
 	env.test_cursor = Vector3.INF
+	# Round 53 (feel audit 5): the pick opens in the dash before Tow Line: a buffered right click, or the cursor on a foe
+	hero.state = hero.State.DASH
+	hero._buffered = ""
+	await physics_frame
+	await physics_frame
+	_check(env.current.is_empty(), "a plain dash shows no Tow Line bracket (%s)" % str(env.current.get("ctx")))
+	hero._buffered = "heavy"
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "tow" and env.current.s.get("node") == a,
+		"a right click buffered in the dash opens Tow Line's pick (%s)" % str(env.current.get("ctx")))
+	var shown_dash: int = env.shown
+	hero._buffered = ""
+	env.test_cursor = b.global_position
+	await physics_frame
+	await physics_frame
+	_check(env.current.get("ctx", "") == "tow" and env.current.s.get("node") == b and ENV.foe_chosen(hero, "tow") == b,
+		"the cursor on a foe in the dash shows the pick before the press")
+	hero.state = hero.State.ATTACK
+	await physics_frame
+	await physics_frame
+	_check(env.shown == shown_dash and env.current.s.get("node") == b, "the dash's bracket carries on into Tow Line (shown %d -> %d)" % [shown_dash, env.shown])
+	env.test_cursor = Vector3.INF
 	await create_timer(0.6).timeout
 	hero.state = hero.State.MOVE
 	hero._brk = {}

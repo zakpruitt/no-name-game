@@ -527,6 +527,8 @@ func context(h: CharacterBody3D) -> Dictionary:
 			return {"ctx": "overwhelm", "from": me, "reach": ve.OVERWHELM_REACH, "mode": "foe", "foes": near, "auto": aim,
 				"key": "charge:%d" % h.get_instance_id()}
 		return {}
+	if h.state == h.State.DASH:  # round 53 (feel audit 5): Tow Line's pick opens in the dash it comes out of
+		return _tow_dash_ctx(h, me)
 	if h.state != h.State.ATTACK:
 		return {}
 	var mkey := "move:%s:%d" % [h._move_id, h.get_instance_id()]
@@ -538,7 +540,8 @@ func context(h: CharacterBody3D) -> Dictionary:
 	if h._move_id == ve.DASH_MOVE and h._hits_done == 0:  # round 52: Tow Line's snare, who the line is yanked into
 		var snare: Array = ve.tow_candidates(h, me)
 		if snare.size() >= 2:
-			return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare), "key": mkey}
+			return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare),
+				"key": "tow:%d" % h.get_instance_id()}
 		return {}
 	if h._move_id in ["EE", "XC"]:  # round 52: Live Wire and Galvanize bracket a conducting torch
 		var conducting := _conduct_ctx(h, me, mkey)
@@ -556,6 +559,19 @@ func context(h: CharacterBody3D) -> Dictionary:
 	if h._void.holds_for_slam():
 		return {"ctx": "pillar_slam", "from": me, "reach": PILLAR_SLAM_REACH, "mode": "near", "key": "grab:%d" % h.get_instance_id()}
 	return {}
+
+
+## Round 53 (feel audit 5): Tow Line's pick in the dash before it. The move's start-up alone (~0.15 s) was too short to
+## read the bracket or move it, so it opens in the dash: once a right click is buffered (the dash hands over to Tow
+## Line), or while the cursor / stick is already on a foe Tow Line would take (an aimed pick shows the whole dash). The
+## same key as the move's, so the bracket carries on into Tow Line without a second intro. {} otherwise (a plain dash).
+func _tow_dash_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
+	var ve: GDScript = h.VOID_ELEMENT
+	var snare: Array = ve.tow_candidates(h, me)
+	if snare.size() < 2:
+		return {}
+	return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare),
+		"key": "tow:%d" % h.get_instance_id(), "need_choice": h._buffered != "heavy"}
 
 
 ## Round 52 (torches conduct, env_piece.gd): the conducting torches as structures of kind "torch" (`node` the torch),
@@ -630,6 +646,8 @@ func _resolve_foe(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 	if CTX[c.ctx].choose:
 		s = _choice(h, c, ["foe"], structs)  # (an empty kinds list means walls and pillars)
 		chose = not s.is_empty()
+	if not chose and c.get("need_choice", false):
+		return {"found": false}  # (a dash with nothing pressed or aimed yet: no bracket)
 	if s.is_empty() and is_instance_valid(c.get("auto")):
 		var auto_id := "foe%d" % (c.auto as Object).get_instance_id()
 		for one: Dictionary in structs:
@@ -732,6 +750,8 @@ func _end(h: CharacterBody3D) -> void:
 		took = h.state == h.State.ATTACK and h._hits_done > 0
 	elif current.key_base.begins_with("grab:"):
 		took = h._void.pillar_slam_on()
+	elif current.key_base.begins_with("tow:"):
+		took = h.state == h.State.ATTACK and h._move_id == h.VOID_ELEMENT.DASH_MOVE and h._hits_done > 0
 	elif current.key_base.begins_with("charge:"):
 		took = h.state == h.State.ATTACK and h._move_id == h.VOID_ELEMENT.CHARGED
 	if took and current.state == "target" and _lock_t < 0.0:
