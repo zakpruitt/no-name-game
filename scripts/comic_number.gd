@@ -58,6 +58,7 @@ var _into: Node3D = null  # the pile's biggest it folded into
 ## ending's banner is up and counting (designed_breaker.Screen sets these), every hit adds into the landing's total,
 ## as Live Wire's shocks do in the hang; no per-foe number goes up for it.
 static var banner_open := false
+static var banner_rect := Rect2()  # round 56: the breaker banner and its PERFECT tag on screen while open (words keep off it)
 static var banner_from_ms := 0  # the banner's total is a breaker total that started at or after this
 static var banner_adds := 0  # hits the banner counted after the landing's own total closed (checks)
 static var _breaker: Node3D = null  # the breaker landing's one total, while it takes hits
@@ -88,6 +89,11 @@ static func add(parent: Node, pos: Vector3, amount: float, is_big: bool, foe: Ob
 	if is_instance_valid(_breaker) and _breaker._since_add < BREAKER_BEAT_S and _breaker._t < BREAKER_SPAN_S:
 		_breaker.add_hit(amount, true)
 		return _breaker
+	if banner_open and breaker_ms < banner_from_ms and not is_instance_valid(_breaker):
+		# Round 56 (feel-audit6): a landing that hit nobody itself (Eruption's fuse, Ricochet's throw) opened no total,
+		# so its banner never counted and each later beat floated its own number off the top: the first beat starts it.
+		breaker_total = 0.0
+		breaker_ms = Time.get_ticks_msec()
 	if banner_open and breaker_ms >= banner_from_ms:  # (the banner counts the ending's later beats)
 		banner_adds += 1
 		if is_instance_valid(_breaker):

@@ -11,6 +11,7 @@ const COMIC_DUST := preload("res://scripts/comic_dust.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
 const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const NUMBER := preload("res://scripts/comic_number.gd")
 const FONT_PATH := "res://assets/fonts/Bangers-Regular.ttf"
 const FONT_SIZE := 96  # rendered big and scaled down, so one size serves every tier
 const INK := Color(0.012, 0.01, 0.02)
@@ -271,6 +272,8 @@ func _text_blocks(cam: Camera3D, hero: Node, me := -1) -> Array[Rect2]:
 		if k != me and _born[k] != 0:
 			var ws: Vector2 = _words[k].size * float(_words[k].get_meta("base", 1.0))
 			blocks.append(Rect2(_words[k].position + _words[k].size * 0.5 - ws * 0.5, ws))
+	if NUMBER.banner_open and NUMBER.banner_rect.size.x > 0.0:  # round 56 (feel-audit6): the breaker banner and its tag
+		blocks.append(NUMBER.banner_rect)  # (Collapse's -FTOOO! and Meteor Shower's BLAMM sat on its PERFECT!)
 	if hero == null:
 		return blocks
 	var callout: Variant = hero.get("_callout")

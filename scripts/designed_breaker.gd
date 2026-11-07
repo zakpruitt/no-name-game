@@ -554,7 +554,9 @@ class Screen extends CanvasLayer:
 		var h := w * CALL_ASPECT
 		w = clampf(_text_w(vp) + h * 1.1, vp.x * CALL_MIN_W, w)  # (fits the words: MAW is not as wide as WORLDBREAKER)
 		banner.size = Vector2(w, h)
-		if not _call_low and _foe_under(Rect2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y - h * 0.5, w, h).grow(vp.y * CALL_DODGE_PAD)):
+		var top := Rect2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y - h * 0.5, w, h).grow(vp.y * CALL_DODGE_PAD)
+		var low := Rect2(vp.x * 0.5 - w * 0.5, vp.y * CALL_Y_LOW - h * 0.5, w, h).grow(vp.y * CALL_DODGE_PAD)
+		if not _call_low and _foe_under(top) and not _foe_under(low, true):
 			_call_low = true  # (once a callout: it never flips back)
 			dodged += 1
 			_pop = 1.0  # round 53 (feel audit 5): it cuts to the bottom with a pop; the slide crossed the middle of the
@@ -576,6 +578,7 @@ class Screen extends CanvasLayer:
 				_pop = 1.0
 		banner.position = Vector2(vp.x * 0.5 - w * 0.5, vp.y * _call_y - h * 0.5)
 		banner.visible = true
+		SELF.NUMBER.banner_rect = Rect2(banner.position, banner.size + Vector2(0.0, h * BANNER_TAG_H))
 		var fr := 0.0 if _call_t < CALL_IN_S else 1.0 + float(int(_call_t * 12.0) % 3)
 		_banner_mat.set_shader_parameter("frame", minf(fr, 3.0))
 		_banner_mat.set_shader_parameter("erode", clampf((_call_t - end) / CALL_OUT_S, 0.0, 1.0) * 0.98)
@@ -583,6 +586,7 @@ class Screen extends CanvasLayer:
 		_move_a = move_a
 		text.queue_redraw()
 
+	const BANNER_TAG_H := 0.6  # of the banner's height: the PERFECT tag under it (round 56: words keep off both)
 	var _move_a := 1.0  # the slide-fade's alpha this frame (the words follow it)
 
 	## When the banner starts to go: held CALL_HOLD_S at least, CALL_AFTER_ADD_S past the total's last add, at most
@@ -598,25 +602,32 @@ class Screen extends CanvasLayer:
 
 	## Is a foe the camera was cued to (camera_rig.FRAME_CUE) or one fresh off a wall splat on screen inside `r`?
 	## (Pinwheel throws the kebab into the top wall after the landing: the payoff must not sit under the banner.)
-	func _foe_under(r: Rect2) -> bool:
+	## Round 56 (feel-audit6): the breaker scene's own foes count too (camera_rig's actors: Meteor Fall's pile and the
+	## keg's burst sat under the banner, which only dodged cued foes), by their middle and their heads (ACTOR_HEAD up).
+	## `low`: the check on the bottom band before the cut; the banner stays up if a foe is under that one too.
+	func _foe_under(r: Rect2, low := false) -> bool:
 		var cam := get_viewport().get_camera_3d()
 		if cam == null:
 			return false
 		var now := Time.get_ticks_msec()
+		var rig: Variant = Game.camera_rig
+		var actors: Dictionary = rig.get("_actors") if rig is Object and is_instance_valid(rig) and rig.get("_actors") is Dictionary else {}
 		for e: Node in get_tree().get_nodes_in_group("enemies"):
 			var foe := e as Node3D
 			if foe == null:
 				continue
 			var cued := int(foe.get_meta(&"frame_cue_ms", 0)) > now
 			var walled := foe.has_meta(SELF.WALL_META) and now - int(foe.get_meta(SELF.WALL_META)) < CALL_DODGE_MS
-			if not (cued or walled):
+			var actor := actors.has(foe.get_instance_id())
+			if not (cued or walled or actor):
 				continue
-			var at := foe.global_position + Vector3.UP * 1.0
-			if cam.is_position_behind(at):
-				continue
-			if r.has_point(cam.unproject_position(at)):
-				return true
+			for up: float in ([0.0, 1.0, ACTOR_HEAD] if low else ([1.0, ACTOR_HEAD] if actor else [1.0])):
+				var at := foe.global_position + Vector3.UP * up
+				if not cam.is_position_behind(at) and r.has_point(cam.unproject_position(at)):
+					return true
 		return _piece_under(r, cam, now)
+
+	const ACTOR_HEAD := 1.8  # m: a scene foe's head and the word over it
 
 	## Round 53 (env-flourish): a cued room piece counts like a cued foe (Uproot's pillar on its fall line, a hook with
 	## a foe hung on it, a spilled brazier): points up its length (its own up axis, so a pillar lying down too).
