@@ -12,6 +12,7 @@ const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: the faceted ice block
 const ENV := preload("res://scripts/env_target.gd")  # round 50: the wall or pillar it hit plays its beat
 const ENV_PIECE := preload("res://scripts/env_piece.gd")  # round 51: a barrel, crate or chest it stops on, spikes it lands on
+const FLOURISH := preload("res://scripts/env_flourish.gd")  # round 53: ice_rink (a cube's slide over a frozen pool)
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -71,6 +72,7 @@ var _length := 0.0
 var _gone := 0.0
 var _walled := false
 var _piece: Node3D = null  # round 51: the piece it will stop on (env_piece.gd), found when it's aimed
+var _rink := false  # round 53 (ice_rink): its line crosses a frozen pool: RINK_EXTRA m further, and it never slows
 var _struck := {}
 var _rope: Node3D
 var _time := 0.0
@@ -216,9 +218,15 @@ func _aim(to: Vector3) -> void:
 	_from = foe.global_position
 	var flat := Vector3(to.x - _from.x, 0.0, to.z - _from.z)
 	_dir = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
-	var clear := _clear(flat.length())
-	_walled = clear < flat.length()
-	_length = minf(flat.length(), clear)
+	var want := flat.length()
+	if slide or el == "water" or foe.get_node_or_null(CUBE_NAME) != null:  # (a cube: it slides on a frozen pool)
+		var extra := FLOURISH.rink_extra(foe.get_tree(), _from, _dir, want)
+		if extra > 0.0:
+			_rink = true
+			want += extra
+	var clear := _clear(want)
+	_walled = clear < want
+	_length = minf(want, clear)
 	if _walled:  # (found now: the first of a crowd to arrive may break it before the rest get there)
 		_piece = ENV_PIECE.struck(foe.get_tree(), _from + _dir * _length, _dir, float(foe.get("radius")))
 
@@ -251,7 +259,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_time += delta
 	var v := speed
-	if slide and not _walled:
+	if slide and not _walled and not _rink:
 		v = speed * lerpf(1.0, SLIDE_END, _gone / maxf(_length, 0.01))
 	_gone = minf(_gone + v * delta, _length)
 	var k := _gone / maxf(_length, 0.01)

@@ -390,6 +390,7 @@ const UPROOT_REACH_IN := 0.6  # m short of the foe's middle the pillar's head co
 const UPROOT_FALL := 0.16  # real s from the landing to the club's hit (the swing)
 const UPROOT_DOWN := 7.0  # m/s into the floor: it craters (enemy._is_spike)
 const UPROOT_OPEN := 22.0
+const UPROOT_CUE_MS := 2200  # round 53: real ms the pillar counts as cued (designed_breaker's banner drops off its line)
 const UPROOT_META := &"uproot_pillar"  # on the hero from the dive to the hit: the pillar it tore out
 const OVERWHELM_REACH := 10.0
 const OVERWHELM_AHEAD := 5.0  # m, with nobody to aim at
@@ -1520,6 +1521,10 @@ static func _hellseam(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 	var tree := hero.get_tree()
 	var spot: Vector3 = hero._void.dark_spot
 	var seams: Array = LAVA_LEASH.seams(hero)
+	var spilled: Array = load("res://scripts/env_flourish.gd").spill_seams(tree)  # round 53, brazier_spill: the coals erupt too
+	if not spilled.is_empty():
+		damage *= load("res://scripts/env_flourish.gd").SPILL_HELLSEAM
+		seams = seams + spilled  # (a new array: the leash keeps its own)
 	LAVA_LEASH.let_go(hero)  # (the leash's tentacles and its bind: the landing takes them)
 	var struck := {}
 	for e: Node3D in FOES.near(tree, spot, HELLSEAM_PILE_R):
@@ -2789,6 +2794,7 @@ static func uproot_dive(hero: CharacterBody3D) -> void:
 		hero.remove_meta(UPROOT_META)
 		return
 	hero.set_meta(UPROOT_META, p)
+	p.set_meta(CAMERA_CUE, Time.get_ticks_msec() + UPROOT_CUE_MS)  # (round 53: the breaker banner dodges the pillar too)
 	ENV_PIECE.claim(p)  # (out of the swing anchors and the indicator now: it is coming up)
 	ALT_FX.uproot_tear(hero.get_parent(), hero, p)
 
