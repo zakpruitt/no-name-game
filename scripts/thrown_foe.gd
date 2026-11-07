@@ -328,6 +328,7 @@ func _burst(other: Node3D) -> void:
 	var parent := hero.get_parent()
 	var spot := Vector3(foe.global_position.x, 0.0, foe.global_position.z)
 	foe.global_position.y = 0.0
+	var cubed: bool = el == "water" or foe.get_node_or_null(CUBE_NAME) != null  # (round 52: the Frost Wall's Shatter)
 	remove_cube(foe)
 	VOID_ELEMENT.under(parent, spot, el)
 	Game.sfx("hit_big", -2.0, 0.1)
@@ -353,6 +354,8 @@ func _burst(other: Node3D) -> void:
 		var ice: Node3D = load("res://scripts/frost_wall.gd").struck(foe.get_tree(), spot, _dir)
 		if ice != null:  # (the Frost Wall: one splat and it shatters, a beat later)
 			ice.splat()
+			if cubed:  # round 52: ice on ice, the proposal's Shatter: x1.6 on the wall's mult
+				mult *= ice.SHATTER_MULT
 	var spikes: Node3D = ENV_PIECE.under(foe.get_tree(), "spikes", spot)
 	if spikes != null:  # (it comes down on the spikes: x1.5 on the landing)
 		mult *= ENV_PIECE.SPIKES_MULT
