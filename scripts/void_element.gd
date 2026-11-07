@@ -2177,6 +2177,10 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 ## it, then anyone else near the landing takes the element too. Cold Front throws them instead.
 static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	ENV_PIECE.landing(hero, at)  # (round 51: crates near it break, rubble under it throws chunks)
+	if b.has("anvil") or b.has("pinwheel"):  # round 53 (feel audit 5): the kebab is off the spear Impale drove in, so it
+		var spear: Node3D = SPEAR.current(hero.get_tree())  # melts (it stood its 5 s and the next string's Dash L H vaulted)
+		if spear != null:
+			spear.melt()
 	if b.has("counter"):  # Ricochet, the dash counter's ending (load: counter.gd preloads this file)
 		load("res://scripts/counter.gd").ricochet(hero, b, at, seized, mult)
 		return
