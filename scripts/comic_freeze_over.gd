@@ -1,9 +1,6 @@
 extends "res://scripts/comic_flat.gd"
-## Ice closing over things, two ways:
-##   ComicFreezeOver.foe(parent, foe): Flash Freeze's frost-over, as he dives. A see-through crystal shell climbs a
-##     held foe from its feet (half on the first frame, full with a 1.1 overshoot on the next), pale in the middle to
-##     ice blue at the edge, a light rim line inside a thin ink line, three ice tips out of the top and a white glint.
-##     It rides the foe (who may be freed: kept untyped) and is gone in 0.5 s of real time (the dive is slow motion).
+## Black Ice's frozen pool (Flash Freeze's crystal shell on a foe, `foe()`, went in round 53: unused since its
+## rebuild, and a crystal; the ice block is the frost-over):
 ##   ComicFreezeOver.pool(parent, spot, radius): Black Ice's press. The dark pool freezes over from the middle out
 ##     in three steps: ice plates with ink between them and a light glint line on each, opaque on the floor, depth
 ##     tested. It holds (real time, at most POOL_HOLD s) until shatter(), when his landing breaks it: the plates
@@ -16,10 +13,6 @@ const POLISH := preload("res://scripts/designed_polish.gd")
 const D_POOL := 1.7  # fx-polygons: the drawn rime's square, per metre of the pool's radius (the rime is ~0.46 of it round)
 const D_POOL_ALPHA := 0.85
 const GROUP := "comic_freeze_pool"
-const SHELL := Vector2(0.88, 1.5)  # m: half its width, its height (a dummy is about 1.5 m)
-const SHELL_POINTS := 12
-const TIPS := 3
-const FOE_LIFE := 0.5
 const PLATES := 9
 const POOL_GROW := [0.45, 0.8, 1.0]  # of the radius, the first steps
 const POOL_HOLD := 2.2  # s at most before it melts on its own
@@ -27,36 +20,16 @@ const POOL_LIFT := 0.06  # m over the dark pool's own floor parts
 const SHATTER_STEPS := 4
 const GRAVITY := 10.0
 
-var mode := "foe"
 var radius := 3.0
-var target: Variant  # the foe (untyped: it may be freed)
 var _p: Dictionary
-var _shape := PackedFloat32Array()
-var _tips := []  # [angle, length]
 var _plates := []  # {a0, a1, r: PackedFloat32Array (outer edge), mid: Vector2}
 var _broke := -1.0  # _t it shattered at
 var _chips := []  # {pos, vel, size, shape, turn}
 var _loop: Node3D  # fx-polygons (designed): the frost floor over the pool
 
 
-static func foe(parent: Node, e: Variant) -> Node3D:
-	if not is_instance_valid(e):
-		return null
-	if DESIGNED_EL.DESIGNED.on():  # fx-ice2: the ice block (freeze_seized's cube) is the frost-over; frost and mist under it
-		DESIGNED_EL.frost_mark(parent, e.global_position, 0.75, 0.5)
-		return null
-	var f: Node3D = SELF.new()
-	f.mode = "foe"
-	f.target = e
-	f.life = FOE_LIFE
-	f.real_time = true
-	f.begin(parent, e.global_position)
-	return f
-
-
 static func pool(parent: Node, spot: Vector3, r: float) -> Node3D:
 	var f: Node3D = SELF.new()
-	f.mode = "pool"
 	f.radius = r
 	f.life = POOL_HOLD
 	f.real_time = true
@@ -105,12 +78,6 @@ func break_up() -> void:
 
 func _build() -> void:
 	_p = PAL.of("water")
-	if mode == "foe":
-		for i in SHELL_POINTS:
-			_shape.append(1.0 if i % 2 == 0 else _rng.randf_range(0.8, 0.9))
-		for i in TIPS:
-			_tips.append([PI * 0.5 + (i - 1) * 0.55 + _rng.randf_range(-0.12, 0.12), _rng.randf_range(0.32, 0.48)])
-		return
 	if DESIGNED_EL.DESIGNED.on():  # fx-polygons: a drawn rime over the pool (straight cracks, glints; no plates, no shards)
 		_loop = POLISH.loop(self, "tell_pinned", radius * D_POOL, "water")
 		_loop.set_alpha(D_POOL_ALPHA)
@@ -131,56 +98,16 @@ func _build() -> void:
 			"ring": _rng.randf_range(0.38, 0.55)})  # (where the inner plate ends and the outer begins: a mosaic, not a pie)
 
 
-func _follow(_delta: float) -> void:
-	if mode == "foe":
-		if not is_instance_valid(target) or not target.is_alive():
-			queue_free()
-			return
-		global_position = target.global_position
-
-
 func _draw(s: int) -> void:
 	if _loop != null:
 		return
-	if mode == "foe":
-		_draw_shell(s)
-	elif _broke < 0.0:
+	if _broke < 0.0:
 		_draw_sheet(POOL_GROW[mini(s, POOL_GROW.size() - 1)], s)
 	else:
 		var bs := int((_t - _broke) * STEPS_PER_S)
 		if bs < 2:
 			_draw_sheet(1.0 - 0.3 * bs, 99)
 		_draw_chips(bs)
-
-
-func _draw_shell(s: int) -> void:
-	var h := 0.55 if s == 0 else (1.1 if s == 1 else 1.0)
-	var fade := clampf((_t / life - 0.7) / 0.3, 0.0, 1.0)
-	var foot := -_up * 0.05
-	var ring := PackedVector3Array()
-	for i in _shape.size():
-		var a := TAU * i / _shape.size()
-		var y := (sin(a) * 0.5 + 0.5) * SHELL.y * h  # 0 at the bottom, up to its top
-		ring.append(_right * cos(a) * SHELL.x * _shape[i] + _up * (y - SHELL.y * h * 0.5))
-	var centre := foot + _up * SHELL.y * h * 0.5
-	if s >= 1:
-		for t: Array in _tips:
-			var root := centre + _screen(t[0]) * SHELL.y * h * 0.42
-			var tip := root + _screen(t[0]) * float(t[1])
-			var side := _screen(t[0] + PI * 0.5) * 0.11
-			_tri(root + side * 1.35, tip + _screen(t[0]) * PAL.LINE * 2.0, root - side * 1.35, INK)
-			_tri3(root + side, tip, root - side, _p.light, _p.hot, _p.body)
-	_outline(centre, ring, PAL.LINE, PAL.fade(INK, 1.0 - fade))
-	_fan(centre, ring, PAL.fade(_p.light, 0.32 * (1.0 - fade)), PAL.fade(_p.body, 0.6 * (1.0 - fade)))
-	var inner := PackedVector3Array()
-	for p in ring:
-		inner.append(p * 0.92)
-	_outline(centre, inner, PAL.LINE * 0.8, PAL.fade(_p.light, 0.9 * (1.0 - fade)))
-	if s == 1 or s == 2:  # the glint
-		var g := centre + _right * SHELL.x * 0.35 + _up * SHELL.y * 0.25
-		var r := 0.34 if s == 1 else 0.2
-		var glint := PackedFloat32Array([1.0, 0.35, 1.0, 0.35])
-		_fan(g, _star_ring(glint, r, 0.12, PI * 0.25), _p.hot, PAL.fade(_p.light, 0.8))
 
 
 ## The ice over the pool out to `k` of the radius: ink under, plates over with a gap of ink between them.

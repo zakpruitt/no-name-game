@@ -6,7 +6,7 @@ extends RefCounted
 ##          decal a step and a lava spurt every other one), every earth `elements.spikes` (`spikes`: `magma_spurt`).
 ##   ice:   every water `elements.spikes` (`frost_mark`: Harpoon's line, the nova, Deep Freeze, Worldbreaker's ice: a
 ##          frost crack on the floor and a puff of cold mist; fx-ice2 took the `ice_spike` crystals out: Zak, "get rid of
-##          the crystals"), the frost spear's floor (`frost_floor` / `ice_frost`), the Deep Freeze burst (`frost_burst`)
+##          the crystals"), the Deep Freeze burst (`frost_burst`)
 ##          and the ice block round a frozen foe, fitted to its model (`fit_block`).
 
 const DESIGNED := preload("res://scripts/designed_fx.gd")
@@ -208,34 +208,6 @@ static func fissure(parent: Node, from: Vector3, dir: Vector3, length: float, st
 # --- The frost spear's floor and the Deep Freeze burst -------------------------------------------------------------
 
 const FROST_BURST_REACH := 0.4  # of Deep Freeze's ring radius the burst's cracks run out to
-const FROST_BOIL := 0.33  # s a frame once the frost has spread (ice boils slowly: its glints move)
-static var _unit_plane: PlaneMesh
-
-
-## A floor quad 2 x 2 m (radius 1, like frost_spear's mesh) with the frost sheet: the spear scales it by its radius.
-static func frost_floor() -> MeshInstance3D:
-	register()
-	if _unit_plane == null:
-		_unit_plane = PlaneMesh.new()
-		_unit_plane.size = Vector2.ONE * 2.0
-	var mi := MeshInstance3D.new()
-	mi.mesh = _unit_plane
-	mi.material_override = DESIGNED.material("ice_frost")
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.set_meta("no_ghost", true)
-	mi.set_instance_shader_parameter("pal_row", DESIGNED.row("water"))
-	mi.set_instance_shader_parameter("frame", 0.0)
-	mi.set_instance_shader_parameter("erode", 0.0)
-	mi.rotation.y = randf() * TAU
-	return mi
-
-
-## The frost's frame at `t` s after planting, `spread` 0..1 of its radius.
-static func frost_step(mi: MeshInstance3D, t: float, spread: float) -> void:
-	var f := 0 if spread < 0.55 else 1 + int(t / FROST_BOIL) % 3
-	mi.set_instance_shader_parameter("frame", float(f))
-
-
 ## Deep Freeze going off: the frost cracks out to `radius` in one beat and breaks up (frost_spear.frost_ring's ring).
 static func frost_burst(parent: Node, spot: Vector3, radius: float) -> Node3D:
 	# only the sheet's first frame (the cracks running out, drawn to 0.55 of the frame), sized so they reach `radius`:
