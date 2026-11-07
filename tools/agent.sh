@@ -39,7 +39,7 @@ RETRY="rhythm_check"
 check() {
 	local quick=${1:-}
 	local fail=0 out
-	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check)
+	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check kit_check)
 	[ "$quick" = "--quick" ] && tests=()
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue
@@ -53,6 +53,7 @@ check() {
 			echo "ok    $t"
 		fi
 	done
+	# The base kit, then every kit upgrade on (scripts/kit.gd: --kit=full plays the demoted moves' strings too).
 	for args in "--autotest" "--autotest --kit=full"; do
 		# shellcheck disable=SC2086
 		out=$(godot_run 180 -- $args)
@@ -62,6 +63,10 @@ check() {
 			# the bot starts every string from the same spots (training_bot BOT_SPOT): every breaker, string and window
 			# ending (each BREAKERS name and its `alt`'s) must land
 			echo "FAIL  $args (not every breaker / string / ending)"; echo "$out" | grep "\[autotest\] done" | grep -o " breakers=[0-9/]* \| strings=[0-9/]* \| endings_n=[0-9/]* "; fail=1
+		elif ! echo "$out" | grep -q "\[kit\] slots=\([0-9]\+\)/\1 windows=\([0-9]\+\)/\2 upgrades=\([0-9]\+\)/\3 "; then
+			# every kit slot has a bot string that lands its moves, every window an ending, every upgrade on its string
+			# (training_bot.kit_report)
+			echo "FAIL  $args (not every kit slot / window / upgrade)"; echo "$out" | grep "\[kit\]"; fail=1
 		else
 			echo "ok    $args"
 		fi
