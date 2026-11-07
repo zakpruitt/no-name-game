@@ -8,7 +8,6 @@ class_name Kit
 ## Every upgrade id a lane gates, with the doc line that explains it. Add here when you gate something.
 const UPGRADES := {
 	"storm_pitch": "Tow Line hurls the bunch (Dash H L); demoted from the base kit",
-	"rockslide_payoff": "Rockslide's own buried payoff (L H L L); the step stays as Fault Line's route",
 	"overload": "charged x storm cell beyond the shared charged rule",
 	"superconduct": "charged x ice cell",
 	"arc_flash": "charged x magma cell (the throw)",

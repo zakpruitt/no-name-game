@@ -101,7 +101,6 @@ const SECTIONS := [
 	# else the panel draws them as "upgrade" rows and void_route() goes past them (KitSlots.open).
 	{"title": "UPGRADES", "hint": "Out of the base kit: unlocks (--kit=full plays them now).", "rows": [
 		{"input": "Dash H L", "kind": "move", "id": "XT", "note": "Dark into storm: the axe hurls whoever Tow Line bunched, lightning jumping off them at everyone they pass."},
-		{"input": "L H L L", "kind": "text", "name": "Rockslide's buried", "upgrade": "rockslide_payoff", "tier": 2, "note": "Rockslide takes double off the ones the gale had up and leaves them buried for the buried cells. Without it Rockslide is only the step to Fault Line."},
 	]},
 	# The element matrix (round 49, kit grammar section 3; void_element.RULES / IMPROV_UPGRADE, element-matrix.md): one
 	# payoff rule per state, which any element's hit pays, then the upgrade cells that play in a rule's place when their

@@ -111,14 +111,13 @@ const HERETIC := {
 	},
 	## Route steps: the hits that walk from a mid to a big move or a crossover. Not slots; never an upgrade target.
 	"route": {"GR": "H", "AL1": "L H L", "IJ": "L L H L", "XR": "L H L L", "EA": "Dash L H H"},
-	## Demoted (section 5): in the game behind Kit.has(<id>), out of the base kit. `moves`: id -> input; `gates`:
+	## Demoted (section 5): in the game behind Kit.has(<id>), out of the base kit. (Rockslide's buried payoff was
+	## demoted too, then put back: Fault Line's buried x2 and the buried rule, Crater, need buried in the base kit.) `moves`: id -> input; `gates`:
 	## "route" = void_route() doesn't reach the move without it, "payoff" = the move stays (a route step) and its
 	## own payoff is what's gated (void_element.fire).
 	"upgrades": {
 		"storm_pitch": {"moves": {"XT": "Dash H L"}, "gates": "route", "name": "Storm Pitch",
 			"note": "Tow Line hurls the bunch, lightning off them: an upgrade to Tow Line."},
-		"rockslide_payoff": {"moves": {"XR": "L H L L"}, "gates": "payoff", "name": "Rockslide's buried",
-			"note": "Rockslide doubles on the airborne and leaves them buried. The step to Fault Line stays."},
 	},
 }
 

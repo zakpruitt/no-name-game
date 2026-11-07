@@ -116,9 +116,8 @@ on the dash, since every character has one and it is already the "get out" butto
 ## 5. The heretic against the grammar
 
 **Implemented (round 49).** `KitSlots.HERETIC` holds this table. Storm Pitch is behind `Kit.has("storm_pitch")`
-(`Dash H L` is Tow Line, then Slice, without it). Rockslide's buried payoff is behind `Kit.has("rockslide_payoff")`:
-the step stays, but without the upgrade there is no double on the airborne and no buried state. `--kit=full` turns
-both on. Reap fills the mark slot at H L (his H alone is the grab, a route step). Backdraft (Dash H H L) fills dark
+(`Dash H L` is Tow Line, then Slice, without it); `--kit=full` turns it on. It is the only demotion: Rockslide's
+buried payoff stays in the base kit, because Fault Line's buried x2 and the buried rule (Crater) need buried to exist. Reap fills the mark slot at H L (his H alone is the grab, a route step). Backdraft (Dash H H L) fills dark
 x ice. Impale fills the Dash H H slot but has no window yet. The counter fills slot 9 by its window (`CB`, Ricochet). The
 matrix cells are gated by the matrix collapse (section 3). `tests/kit_check.gd` checks the card.
 
@@ -140,7 +139,8 @@ What it keeps, by slot. Everything listed exists today.
 **Demote** (keep in the game as upgrade or unlock content, out of the base kit, so a new character is not
 measured against them): **Storm Pitch** (Dash H L: a second dark x storm move beside Galvanize; it becomes an
 upgrade to Tow Line, "Tow Line hurls them") and **Rockslide** (L H L L: the step before Fault Line stays as the
-route step, but its own buried payoff is an upgrade). The `charged` state's four payoffs (Overload, Superconduct,
+route step, but its own buried payoff is an upgrade; round 49 put the payoff back in the base kit, since Fault Line's
+x2 and the buried rule need the buried state). The `charged` state's four payoffs (Overload, Superconduct,
 Arc Flash, Conduct) collapse into the one charged rule in section 3 (the hit arcs to every other charged foe)
 plus **Arc Flash kept as a crossover-grade payoff** if dark x magma needs a home; the other three are upgrades.
 

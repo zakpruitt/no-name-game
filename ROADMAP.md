@@ -954,16 +954,15 @@ Zak approved the kit grammar ("implement it"). The heretic's kit is now data a s
 `docs/features/kit-slots.md` and `docs/characters/kit-grammar.md` section 5.
 - [x] `scripts/kit_slots.gd`: 10 groups, 24 slots (input shape, role, one-word tag, window). The heretic's card fills
   22 slots (the counter by its window, Ricochet); the dark x magma crossover is pending, and the meter has no move id. It also lists his
-  route steps and the two demoted upgrades. `KitSlots.of(Game.hero)`; the prince's card is a TODO with his obvious moves
-- [x] The gate: Storm Pitch (`Dash H L`) and Rockslide's buried payoff are off unless `--kit=full` / their id. Rockslide
-  stays as the step into Fault Line. The routing, the combo guide, the MOVES panel and `move_list_check` agree
+  route steps and the demoted upgrade. `KitSlots.of(Game.hero)`; the prince's card is a TODO with his obvious moves
+- [x] The gate: Storm Pitch (`Dash H L`) is off unless `--kit=full` / `--kit=storm_pitch`. Rockslide's buried payoff
+  was gated too, then put back in the base kit (Zak): Fault Line's x2 and the Crater rule need buried. The routing, the combo guide, the MOVES panel and `move_list_check` agree
 - [x] The MOVES panel is laid out by slot group (role line, per-row tag, dim "upgrade" rows, pending slots), then ROUTE
   STEPS, UPGRADES and MIX ELEMENTS. The combo guide tags each row with its slot
 - [x] Bot strings name their slot. The autotest prints `[kit] slots=22/22 windows=13/13 upgrades=0/0`
-  (`--kit=full`: 37 strings, `upgrades=2/2`). `agent.sh check` runs both and asserts the line
+  (`--kit=full`: 37 strings, `upgrades=1/1`). `agent.sh check` runs both and asserts the line
 - [x] `tests/kit_check.gd`: every slot filled with a routable move, shapes, ≤ 2 endings a window, ≤ 15 windows, ≤ 6
   crossovers on distinct pairs, every MOVES id on the card, every slot with a bot string, demoted moves reachable
   only with their gate
 - [ ] Zak: Reap fills the mark slot at H L (the grammar says H; his H alone is the grab). Impale (Dash H H) has no
-  window. With Rockslide's payoff off nothing is buried, so the buried rule (Crater) never plays in the base kit;
-  maybe the payoff belongs back in the base kit, or the buried state needs a second source
+  window

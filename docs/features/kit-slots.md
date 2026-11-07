@@ -53,12 +53,12 @@ That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 e
 - **Route steps** (not slots, never an upgrade target): the grab `GR` (H), Air Slash `AL1` (L H L), the vault
   `IJ` (L L H L), Rockslide `XR` (L H L L), Ice Cube `EA` (Dash L H H). R and R-then-H (the swing and Snatch) are
   listed with them on the panel.
-- **Upgrades** (`HERETIC.upgrades`):
+- **Upgrades** (`HERETIC.upgrades`), one:
   - `storm_pitch` gates the **route**: `Dash H L` is Tow Line then Slice until it is on.
-  - `rockslide_payoff` gates the **payoff**: Rockslide still routes and still hits as the step into Fault Line.
-    Without the upgrade it does not double on the airborne and does not leave them buried, so nothing in the
-    base kit is buried: the buried rule (Crater) and its cells never come up without it. Fault Line still
-    throws the ones Rockslide drove down hardest, because that is Fault Line's own payoff.
+  - Rockslide's buried payoff was demoted too (`rockslide_payoff`), then put back in the base kit (Zak, round 49):
+    Fault Line's buried x2 and the buried rule (Crater) need the buried state, and Rockslide is its only source.
+  - The `"payoff"` kind of gate stays in `KitSlots` and `kit_check` (a move that routes, with its payoff behind
+    `Kit.has()` at the payoff site), unused for now.
 
 ## Files
 
@@ -67,7 +67,6 @@ That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 e
 | `scripts/kit_slots.gd` | `GROUPS`, `SLOTS` (id, group, name, shape, tag, role, window, `pair` on crossovers), `HERETIC` / `PRINCE` cards, `of()`, `slot()`, `slot_of()`, `pending()`, `upgrade_of()`, `open()` (may the routing reach this id?), `tag_of()` |
 | `scripts/kit.gd` | `Kit.has(id)`, `--kit=full` / `--kit=<ids>`, `set_on()` for tests |
 | `scripts/hero_moves.gd` | `void_route()` asks `KitSlots.open()` before `LIGHT_AFTER` / `AFTER`; `option()` adds `role` |
-| `scripts/void_element.gd` | `fire()` "XR" and `_rockslide()`: the `rockslide_payoff` gate |
 | `scripts/move_list.gd` | `SECTIONS` by `group`, then ROUTE STEPS, UPGRADES, MIX ELEMENTS; `heading()`, `pending_slots()`, `row_upgrade()`, `row_locked()`, `row_tag()` |
 | `scripts/pause_menu.gd` | draws the headings, the slot tag per row, dim "upgrade" rows and pending slots |
 | `scripts/combo_guide.gd` | the `role` tag (`ROLE_SIZE`, `ROLE_COLOR`) |
@@ -84,7 +83,7 @@ That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 e
 - **`windows=`** counts every BREAKERS key on a slot's move. A window counts when one of its endings is in
   `player.endings_seen`. `endings_n=` still asks for every ending.
 - **`upgrades=`** counts only the upgrades that are on in this run. An upgrade counts when its labelled string
-  played and its moves connected. On a plain run this is `0/0`; with `--kit=full` it is `2/2`.
+  played and its moves connected. On a plain run this is `0/0`; with `--kit=full` it is `1/1`.
 - **`missing=`** names the slots, windows and upgrades that did not land.
 
 `kit_check` fails on any of these:
@@ -149,4 +148,4 @@ The worked example is the dragon prince (`KitSlots.PRINCE`, paused, `docs/charac
 
 - `godot --headless --path . -s tests/kit_check.gd` prints `[kit] PASS/FAIL`, the window count and the pending slots.
 - `godot --headless --path . -- --autotest` prints `[kit] slots=22/22 windows=13/13 upgrades=0/0 missing=none`.
-- With `-- --autotest --kit=full`: 37 strings (35 plain) (Storm Pitch's and the buried x ice string join), `upgrades=2/2`.
+- With `-- --autotest --kit=full`: 37 strings (36 plain: Storm Pitch's joins), `upgrades=1/1`.

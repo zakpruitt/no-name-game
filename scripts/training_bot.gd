@@ -53,7 +53,7 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# ("face": he aims at the nearest foe for the string, as a player would. The payoff follows the move's own hit
 	# shape (void_element.improv_reach), and the dash and Dash Stab's lunge leave the buried behind him.)
 	{"slot": "dash_h", "tokens": ["line", "D", "L", "H", "D", "H"]},
-	{"upgrade": "rockslide_payoff", "tokens": ["face", "L", "H", "L", "L", "D", "L", "H"]},
+	{"slot": "dash_ender_l", "tokens": ["face", "L", "H", "L", "L", "D", "L", "H"]},
 	{"slot": "dash_ender_l", "tokens": ["face", "L", "H", "D", "L", "H"]},
 	# Round 4: the two cells only a hand could reach. "out" lets him dash out of a breaker's hang (the bot never
 	# does otherwise), "wait" holds the next press until he stands again (so L is L1, not Dash Stab).

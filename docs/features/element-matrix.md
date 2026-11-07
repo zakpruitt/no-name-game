@@ -193,8 +193,8 @@ Rules: `RULE_SHATTER_MULT` (1.6), `RULE_ARC_R` (6 m), `RULE_BURST_R` (2.2 m), `R
 - "marked" (Reap's mark) is not a state here: it is the signature's own setup (Black Tide, Galvanize); the bound
   half of marked/bound is the state.
 - Gale Lift is not a slot move, so it went to the upgrades (kit-grammar section 3 suggested a crossover home).
-- `buried` stays Updraft Lash's own (`RULE_SELF`) while `_cash_buried` digs them up; if the kit-slots lane gates
-  that behind `rockslide_payoff`, drop `"EC"` from `RULE_SELF.buried` so the Crater rule pays in its place.
+- `buried` stays Updraft Lash's own (`RULE_SELF`) while `_cash_buried` digs them up. Rockslide's buried payoff stays
+  in the base kit (kit-slots, round 49), so the buried state and its Crater rule play without `--kit`.
 - `Kit.set_on(id, false)` can't turn one off under `--kit=full` (it reads `_all`): the tests run without `--kit`.
 - Meteor Spike's falling line hides under Molten Palm's stars when the move plays; its word and dent carry it.
 - Coverage per crop (round 37 numbers, cells): 0.04-0.15 alone, at most 0.27 with the move's own hit.
