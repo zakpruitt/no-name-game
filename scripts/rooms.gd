@@ -20,7 +20,7 @@ const ROOMS := {
 		{"tag": "pillar", "at": Vector3(8, 0, 7), "occlude": true},
 		# torches on the back wall (env_target swings them)
 		{"tag": "torch", "at": Vector3(-10, 2.4, -15.5), "light": true},
-		{"tag": "torch", "at": Vector3(-2, 2.4, -15.5), "light": true},
+		{"tag": "torch", "at": Vector3(-2, 2.4, -15.5), "light": true, "count_in_pieces": true},  # (round 52: torches conduct)
 		{"tag": "torch", "at": Vector3(6, 2.4, -15.5), "light": true},
 		{"tag": "banner", "at": Vector3(-6, 0, -15.6), "live": false},
 		{"tag": "banner", "at": Vector3(2, 0, -15.6), "live": false},
@@ -55,6 +55,27 @@ const ROOMS := {
 ## Pieces the plain room has as looks that "with pieces" makes live (the banners tear).
 const LIVE_IN_PIECES := ["banner"]
 
+## Round 52 (env-pieces2): each room's own rules, beside its entries. `rebuild`: used-up pieces come back
+## EnvPiece.REBUILD_S after (with a dust pop). Both training rooms rebuild (a pillar Uproot tore out of the plain room
+## comes back, so the string can be practised again); a real room keeps its pieces gone, so tearing a pillar down costs
+## the swing anchor for the rest of the fight (the proposal's open question 2). A room with no entry here is a real
+## room: rebuild false. No run builds real rooms yet; `rule()` is what main.gd and a run will read.
+const ROOM_RULES := {
+	"plain": {"rebuild": true},
+	"pieces": {"rebuild": true},
+}
+const REAL_ROOM := {"rebuild": false}
+
+
+## Room `room`'s rule `key` (ROOM_RULES, else a real room's REAL_ROOM).
+static func rule(room: String, key: String) -> Variant:
+	return ROOM_RULES.get(room, REAL_ROOM).get(key, REAL_ROOM.get(key))
+
+
+## Whether used-up pieces come back in `room` (main.gd passes it to EnvPiece.begin).
+static func rebuild(room: String) -> bool:
+	return bool(rule(room, "rebuild"))
+
 
 ## The entries for a room: "plain" (today's arena) or "pieces" (training plus training_pieces).
 static func layout(room: String) -> Array:
@@ -63,6 +84,8 @@ static func layout(room: String) -> Array:
 		var d := e.duplicate()
 		if room == "pieces" and d.tag in LIVE_IN_PIECES:
 			d.live = true
+		if room == "pieces" and d.get("count_in_pieces", false):  # (round 52: on the [env] line's pieces=N/N)
+			d.count = true
 		out.append(d)
 	if room == "pieces":
 		out.append_array(ROOMS.training_pieces)
