@@ -146,16 +146,18 @@ const BOT_PIECE_LAYOUTS := {
 	# CONDUCT_REACH and the fourth under the torch at (-10, 2.4, -15.5), ~10 m off, past the tentacles' SEIZE_RANGE
 	"torch": {"at": Vector3(-2.0, 0, -10.6), "face": Vector3(0, 0, -1),
 		"dummies": [Vector3(-2.0, 0, -13.0), Vector3(-3.0, 0, -13.4), Vector3(-1.0, 0, -13.4), Vector3(-11.8, 0, -13.3)]},
-	# round 53 (env-flourish): "hook": south of the hook on the east pillar's face (7.47, 3.5, -7.47), the swinging
+	# round 53 (env-flourish): "hook": south of the hook on the east pillar's face (7.47, 3.85, -7.47), the swinging
 	# dummy between him and it (~5 m from its point, inside env_flourish.GALLOWS_REACH), the rest off to the west
 	"hook": {"at": Vector3(4.0, 0, -2.6), "face": Vector3(0, 0, -1),
 		"dummies": [Vector3(4.0, 0, -4.6), Vector3(-0.5, 0, -1.0), Vector3(-1.5, 0, -2.4), Vector3(-0.5, 0, -3.6)]},
 	# "pool": south of the pool at (2, -6), facing the back wall: the dash leaves him at its edge, Harpoon's ring on it
 	"pool": {"at": Vector3(2.0, 0, -3.0), "face": Vector3(0, 0, -1),
 		"dummies": [Vector3(2.0, 0, -6.0), Vector3(1.0, 0, -5.2), Vector3(3.0, 0, -5.0), Vector3(2.0, 0, -4.4)]},
-	# "brazier": east of the lit brazier at (-5.8, -5.2), facing it: the dummies between, the palm carries them past
-	"brazier": {"at": Vector3(-1.4, 0, -5.2), "face": Vector3(-1, 0, 0),
-		"dummies": [Vector3(-3.4, 0, -5.2), Vector3(-3.8, 0, -6.0), Vector3(-3.8, 0, -4.4), Vector3(-4.2, 0, -5.2)]},
+	# "brazier": west along a line 1.2 m up the screen from the lit brazier at (-5.8, -5.2), just off the pool's edge:
+	# the palm carries the dummies past it and the leash's seams run back by it (inside SPILL_NEAR), so the pile lands
+	# off the bowl and the tipped bowl shows in front of it
+	"brazier": {"at": Vector3(-0.3, 0, -6.4), "face": Vector3(-1, 0, 0),
+		"dummies": [Vector3(-2.3, 0, -6.4), Vector3(-2.7, 0, -7.2), Vector3(-2.7, 0, -5.6), Vector3(-3.1, 0, -6.4)]},
 }
 ## A "pillar" string: he stands BOT_PILLAR_GAP m out from main.PILLARS[0] facing it, the dummies round the pillar's
 ## near side (x across his aim, z along it, from him): one between him and it for the grab, the rest by its face.

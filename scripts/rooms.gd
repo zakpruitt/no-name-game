@@ -52,7 +52,7 @@ const ROOMS := {
 		{"tag": "pool", "at": Vector3(2, 0, -6), "count": true},
 		{"tag": "brazier", "at": Vector3(-5.8, 0, -5.2), "count": true},
 		{"tag": "hook", "at": Vector3(-4.0, 3.4, -15.5)},
-		{"tag": "hook", "at": Vector3(7.47, 3.5, -7.47), "yaw": -45.0, "count": true},
+		{"tag": "hook", "at": Vector3(7.47, 3.85, -7.47), "yaw": -45.0, "count": true},
 		{"tag": "ledge", "at": Vector3(14.5, 0, -4.0), "yaw": -90.0},
 	],
 }

@@ -43,8 +43,8 @@ const GALLOWS_REACH := 10.0
 const GALLOWS_MULT := 1.3
 const GALLOWS_HANG := 2.5  # s (game)
 const GALLOWS_CATCH := 2.6  # m
-const GALLOWS_LIFT := 0.1  # s (game)
-const GALLOWS_NECK := 1.05  # m: the point to the hung foe's origin (its feet)
+const GALLOWS_LIFT := 0.12  # s (game)
+const GALLOWS_NECK := 0.8  # m: the point to the hung foe's origin (its feet): hooked by the collar, feet well off the floor
 const GALLOWS_OUT := 0.3  # m out from the hook's point, off the wall
 const GALLOWS_SWING := 0.45  # rad
 const GALLOWS_SWING_W := 5.2  # rad/s
@@ -65,6 +65,7 @@ const RINK_POLL := 0.1  # s between looks for fresh ice by the pool
 const RINK_KNOCKED_MS := 700
 const RINK_MOVING := 1.0  # m/s
 const RINK_SLIDE_MIN := 4.0  # m/s
+const RINK_INSET := 0.14  # m the panes sit in from the water's edge (the kerb's corners are round)
 const RINK_PANES := 4  # ice panes a side
 const RINK_ICE_Y := 0.09  # m: the panes (the water is at 0.075, the kerb's top 0.18)
 const RINK_GLINT_EVERY := 0.32  # real s between glints while frozen
@@ -530,6 +531,7 @@ class RinkWatch extends Node:
 			_sliding[e] = flat.normalized() * maxf(flat.length(), SELF.RINK_SLIDE_MIN)
 			slides += 1
 			VE.encase(e)  # (the frozen rule's state: the next hit Shatters it)
+			_was[e] = true  # (the rink's own ice doesn't keep it frozen: only ice from a move does)
 			ComicFx.say(SELF.RINK_SLIDE_WORD, e.global_position + Vector3.UP * 1.6, 0.42)
 			if DESIGNED.on():
 				DESIGNED_EL.frost_mark(pool.get_parent(), Vector3(e.global_position.x, 0.0, e.global_position.z), 0.8, 0.6, true)
@@ -542,6 +544,7 @@ static func rink_ice(pool: Node3D) -> MeshInstance3D:
 	var ab := AABB(Vector3(-1.56, 0.075, -1.5), Vector3(3.12, 0.0, 3.0))
 	if water != null and water.mesh != null:
 		ab = (pool.global_transform.affine_inverse() * water.global_transform) * water.get_aabb()
+	ab = AABB(ab.position + Vector3(RINK_INSET, 0.0, RINK_INSET), ab.size - Vector3(RINK_INSET * 2.0, 0.0, RINK_INSET * 2.0))  # (inside the kerb's round corners)
 	var f: RefCounted = DESIGNED_EL.Facets.new()
 	f.centre = ab.get_center() + Vector3.DOWN * 0.4
 	var n := RINK_PANES
