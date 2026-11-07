@@ -34,7 +34,9 @@ godot_run() { timeout "$1" godot --headless --path "$(root)" "${@:2}" < /dev/nul
 # Timing checks that can miss by a frame when other Godot runs load the machine
 # (rhythm_check "L1 hands over to L2 sooner on a hit (224 < 233 ms)"): rerun once
 # before failing. A real regression fails both runs.
-RETRY="rhythm_check"
+# ice_block_check: the dummy's hit-freeze shudder put 4-16 body vertices 0.05-0.08 m past its block in 3 of 9 runs
+# (round 51; 0 of 6 run alone).
+RETRY="rhythm_check ice_block_check"
 
 check() {
 	local quick=${1:-}
