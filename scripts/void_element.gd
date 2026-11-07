@@ -179,6 +179,10 @@ const BOWL_REACH := 7.0  # m: how far it'll take a foe from
 const BOWL_LENGTH := 12.0  # m it flies
 const SPEAR_AHEAD := 2.6  # m in front of him it goes in
 const SPEAR_GAP := 0.7  # m short of it he stops
+## Feel audit 3: the vault (IJ) was the only contact with no stop (x1.00 on its HIT frame). His push-off on the
+## spear takes a light freeze, between Frost Spear's plant (IP 0.07) and Deep Freeze (IS 0.1), and a small shake.
+const VAULT_STOP := 0.06  # real s, at Game.hitstop's freeze scale (eased tail)
+const VAULT_SHAKE := 0.2
 const SPEAR_RUN_SPEED := 16.0  # m/s
 const DEEP_FREEZE_RADIUS := 6.5  # m round the spear
 const DEEP_FREEZE_DAMAGE := 16.0
@@ -457,6 +461,11 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 			return _harpoon(hero, at, fwd, HARPOON_REACH * grow, HARPOON_DAMAGE * power)
 		"IP":
 			return _plant(hero, at, fwd)
+		"IJ":  # (no hit: the push-off on the spear is the contact)
+			if SPEAR.current(hero.get_tree()) != null:
+				Game.hitstop(VAULT_STOP)
+				Game.shake(VAULT_SHAKE)
+			return 0
 		"IS":
 			return _deep_freeze(hero, at, DEEP_FREEZE_DAMAGE * power)
 		"EA":
