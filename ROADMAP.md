@@ -907,3 +907,6 @@ needs a dual, but only when its truly compelling and awesome." `scripts/breaker_
 - [x] Cataclysm / LMB Tempest: a twister takes the crowd up its column, bolts blast each out, harder the more it holds
   (five 666 vs 524; two 144 vs 209). Bot string `alt L H L L H`
 - [x] Skipped on purpose (combo-breakers.md says why): Avalanche, Collapse, Abyss, Flash Freeze, Eruption
+- [x] Clips: `awaken-combo-clips/29 Breakers *` (Meteor Shower, Pinwheel, Tempest; filmed on top of breaker-spectacle)
+- [ ] Zak's call: Pinwheel's wall splat lands on the top edge of the frame under the breaker callout banner (camera lean
+  cap 3.5 m); Meteor Fall and Meteor Shower share the magma colour, so the prompt's two chips are both orange
