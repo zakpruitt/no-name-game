@@ -1104,3 +1104,21 @@ that also play in the training room with pieces (`rooms.gd` rule `flourishes`); 
 - [x] Clips: `awaken-combo-clips/41 Flourish *`
 - [ ] Zak's call: which flourishes go in the base kit (recommendation: gallows); the extra x1.25 on Hellseam's pile;
   a spilled brazier rebuilds lit
+
+
+## Round 53 feel-audit5 (feel audit 6: both rooms filmed with the after-beat, perf windowed)
+Every string filmed windowed in both rooms with `--tail`, ranked and fixed; `docs/feel-audit-2026-11-07b.md`.
+- [x] The breaker banner cuts to the bottom with a pop instead of sliding across the pile; the callout's ink outline
+  fades with its text (no ghost name over the banner band)
+- [x] Maw's heap and Black Ice's skid into the wall cue the frame (`MAW_CUE_MS`, `BLACK_ICE_CUE_MS`), so the banner
+  drops off them
+- [x] Tow Line's foe pick opens in the dash it comes out of (Zak's round 52 call), once a right click is buffered or
+  the cursor is on a foe; the picked foe's bracket clears the breaker prompt in the leap
+- [x] Anvil and Pinwheel melt Impale's spear: `wall D L H H H L` plays Eruption again (it vaulted)
+- [x] The frost mark redrawn as cracked rime (it read as a crystal star)
+- [x] Perf: the first ice block's 44-48 ms CPU frame gone (`designed_elements.prime_fit` at spawn); cpu worst 47.5 ->
+  33.4 plain, 48.0 -> 33.3 pieces; two shader signatures warmed
+- [x] Dead code: `comic_freeze_over.foe()`, `frost_floor` / `frost_step`, `harpoon_gather.carrying`, ten constants
+- [x] Clips: `awaken-combo-clips/42 Audit5 *`
+- [ ] Open: hang framing at the frame edge (Meteor Fall, Black Ice, Maw), Cold Front's hoist under the banner,
+  stacked damage numbers, Collapse's spits off the edge, Eruption's banner without a total, the first-L1 33 ms frame
