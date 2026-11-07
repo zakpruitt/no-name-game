@@ -49,6 +49,16 @@ var _cued := false  # a foe in the framing is cued (FRAME_CUE), not hit yet: eas
 var _lean := Vector3.ZERO  # metres the follow point leans towards the fight's middle, chases _lean_to
 var _lean_to := Vector3.ZERO
 var _last_us := 0  # Time.get_ticks_usec() at the last _process (the real delta)
+## Breaker spectacle: a landing's jolt (jolt()): a damped shake along one screen axis on real time, on top of the
+## random trauma shake, so each element's landing has its own feel (storm buzzes sideways, magma thuds down and
+## rumbles, ice cracks short, dark sinks slow; designed_breaker.FEEL). Starts at its peak (cos), so the blow lands
+## on the landing's first frame.
+const JOLT_MAX := 0.9  # metres at REF_DIST
+var _jolt_amp := 0.0
+var _jolt_t := 0.0
+var _jolt_hz := 0.0
+var _jolt_decay := 0.0
+var _jolt_axis := Vector2.DOWN
 
 # Per-hit feel (hero-agnostic; Game calls these): hits push the camera in a
 # hair, more as the chain climbs, clamped so a crowd hit doesn't dive; heavy
@@ -213,6 +223,26 @@ func roll(deg: float) -> void:
 	_roll_to = clampf(_roll_to + _roll_sign * deg * Game.shake_scale, -ROLL_MAX, ROLL_MAX)
 
 
+## A damped jolt of `amount` m (at REF_DIST) along `axis` (screen x right, y up), ringing at `hz`, dying at `decay`
+## per real second; a new one adds to what is left of the last. Scaled by the shake setting, none with it off.
+func jolt(amount: float, hz: float, decay: float, axis: Vector2) -> void:
+	if Game.shake_scale <= 0.0:
+		return
+	var left := _jolt_amp * exp(-_jolt_decay * _jolt_t)
+	_jolt_amp = minf(left + amount * minf(Game.shake_scale, 1.5), JOLT_MAX)
+	_jolt_t = 0.0
+	_jolt_hz = hz
+	_jolt_decay = decay
+	_jolt_axis = axis.normalized() if axis.length() > 0.01 else Vector2.DOWN
+
+
+## The jolt's offset now (screen x, y), metres at the current distance.
+func jolt_offset() -> Vector2:
+	if _jolt_amp <= 0.0:
+		return Vector2.ZERO
+	return _jolt_axis * _jolt_amp * exp(-_jolt_decay * _jolt_t) * cos(TAU * _jolt_hz * _jolt_t) * dist / REF_DIST
+
+
 func add_trauma(amount: float) -> void:
 	trauma = clampf(trauma + amount, 0.0, 1.0)
 
@@ -261,8 +291,12 @@ func _process(delta: float) -> void:
 	camera.position = offset * _frame * _squeeze() * (1.0 - _hit_zoom * (1.0 - _hang)) + _kick
 	var s := trauma * trauma
 	var shake := max_shake_offset * dist / REF_DIST * s
-	camera.h_offset = randf_range(-1.0, 1.0) * shake
-	camera.v_offset = randf_range(-1.0, 1.0) * shake
+	_jolt_t += real_delta
+	if _jolt_amp > 0.0 and exp(-_jolt_decay * _jolt_t) < 0.02:
+		_jolt_amp = 0.0
+	var j := jolt_offset()
+	camera.h_offset = randf_range(-1.0, 1.0) * shake + j.x
+	camera.v_offset = randf_range(-1.0, 1.0) * shake + j.y
 	camera.rotation.z = deg_to_rad(randf_range(-1.0, 1.0) * max_shake_roll * s + _roll)
 
 
