@@ -34,6 +34,15 @@ const STOP_SCALE := 0.04
 const AWAKEN := 6.0
 const AWAKEN_PERFECT := 10.0
 const WORD := "KRRAK-SNAP!"
+## Round 54 cool pass 3: the parry's camera, a push-in (PUNCH, PUNCH_PERFECT) and a jolt along the blow (camera_rig.jolt),
+## and Ricochet's throw drawn: an ink trail behind the hurled attacker for RICOCHET_TRAIL s (mid_beats.trail).
+const PUNCH := 0.86
+const PUNCH_PERFECT := 0.78
+const JOLT := 0.16
+const JOLT_PERFECT := 0.26
+const JOLT_HZ := 16.0
+const JOLT_DECAY := 11.0
+const RICOCHET_TRAIL := 0.6
 const WORD_SCALE := 0.62  # (ComicFx.WORD_SCALE units; the breakers' words are 0.78)
 ## Backlash, in game s from the parry: the tentacle is on it by WRAP, has it up over him (LIFT_Y m, LIFT_AHEAD m in
 ## front) by LIFT, slams it down SLAM_AHEAD m in front of him at SLAM for DAMAGE, and lets go by END. The attacker is
@@ -151,8 +160,12 @@ static func start(hero: CharacterBody3D, c: Dictionary) -> void:
 	Game.shake(0.45 if perfect else 0.3)
 	Game.sfx("perfect" if perfect else "hit_big", -3.0, 0.05)
 	Game.sfx("swing_heavy", -5.0, 0.1)
-	if Game.camera_rig:
-		Game.camera_rig.punch(0.86 if perfect else 0.9, 0.2)
+	if Game.camera_rig:  # (round 54 cool pass 3: a harder punch and a jolt along the blow, so the parry lands like a hit)
+		Game.camera_rig.punch(PUNCH_PERFECT if perfect else PUNCH, 0.2)
+		var cam: Camera3D = hero.get_viewport().get_camera_3d()
+		if cam != null:
+			var side: float = (at - hero.global_position).dot(cam.global_basis.x)
+			Game.camera_rig.jolt(JOLT_PERFECT if perfect else JOLT, JOLT_HZ, JOLT_DECAY, Vector2(signf(side) if absf(side) > 0.1 else 1.0, 0.5))
 	ComicFx.say(WORD, hero.global_position.lerp(at, 0.5), WORD_SCALE)
 	Game.add_awakening(AWAKEN_PERFECT if perfect else AWAKEN)
 	Game.register_hit("counter")
@@ -311,6 +324,7 @@ static func ricochet(hero: CharacterBody3D, b: Dictionary, _at: Vector3, seized:
 			opts.wall_mult = RICOCHET_WALL_MULT * FLOURISH.GALLOWS_MULT
 			opts.on_burst = _gallows_hit.bind(hero, target.hook)
 		VOID_ELEMENT.THROWN.launch(hero, e, target.to, damage, opts)
+		VOID_ELEMENT.MID_BEATS.trail(hero.get_parent(), e, RICOCHET_TRAIL)
 		Game.register_hit("breaker")
 	Game.shake(0.5)
 
