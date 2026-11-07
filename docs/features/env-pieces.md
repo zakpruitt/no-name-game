@@ -32,15 +32,26 @@ aspects only they can use". This builds items 0-4 of the proposal's build order
 | grate | floor to anyone without storm or ice | cold / live / frosted | with pieces | `floor_tile_big_grate` |
 | spikes | a thrown foe that comes down on it takes x1.5 | up / down | with pieces | `floor_tile_big_spikes` |
 | rubble | a breaker landing on it throws three chunks, 6 to everyone within 2 m | none | with pieces | `floor_tile_large_rocks` |
-| brazier | (data) knocked over: a 2 m fire patch, molten | lit / out / spilled | no | **stub**: `column` |
-| pool | (data) foes move at 0.8, molten quenched | water / frozen / live / steam | no | **stub**: `floor_tile_large_rocks` |
-| hook | (data) a wall for everyone | empty / hung | no | **stub**: `wall_broken` |
-| ledge | (data) a walkway 2.5 m up, its face a wall | none | no | **stub**: `wall_arched` |
+| brazier | (data) knocked over: a 2 m fire patch, molten | lit / out / spilled | a look, with pieces | `brazier`, `brazier_spilled` |
+| pool | (data) foes move at 0.8, molten quenched | water / frozen / live / steam | a look, with pieces | `pool` |
+| hook | (data) a wall for everyone | empty / hung | a look, with pieces | `hook_chain` |
+| ledge | (data) a raised ledge 1.2 m up, its face a wall | none | a look, with pieces (box collider) | `ledge` |
 
-**Art.** The ten pieces in the game use the comic dungeon kit (`assets/comic/dungeon/`). The brazier, pool, hook and
-ledge have no comic piece yet; their `PIECES` rows name an existing model as a stand-in (`stub: true`) and none of
-them is placed in a room. They belong to later lanes (brazier_spill, ice_rink, gallows, High Ground), which make them
-with the `comic-asset-kit` skill in one batch.
+**Art.** Every piece uses the comic dungeon kit (`assets/comic/dungeon/`). The brazier, pool, hook and ledge (env-art
+lane) have no KayKit twin: one Blender script each in `tools/comic_art/` (`env_brazier.py`, `env_hook.py`,
+`env_pool.py`, `env_ledge.py`, helpers in `env_extra.py`; run `blender -b -P tools/comic_art/env_<name>.py`, outputs
+and `_game` / `_side` renders in the worktree's gitignored `vendor_src/env_art/out/`, then `python tools/comic_glb.py
+--env vendor_src/env_art/out <names>`). `comic_check` measures them against their own sizes (`COMIC_ONLY`) and the
+nodes the rules will reach for. Their rules are still data, so they stand in the room with pieces uncounted. What the
+later lanes get:
+
+| Model | Size (m, x / up / z) | Tris | Nodes | For |
+|---|---|---|---|---|
+| `brazier` | 1.4 / 1.37 / 1.5 | 1.8k | `brazier` (bowl, three legs, rim teeth, skull), `brazier_coals` (glowing, `comic_ember`), `brazier_ash` (the same coals dark, just under them: hide `brazier_coals` for "out"), `brazier_flame` (the flame cap; a designed effect may replace it) | brazier_spill, Kindle, torches_conduct |
+| `brazier_spilled` | 2.1 / 1.6 / 2.2 | 2.0k | the bowl on its side, the coals in a ~2 m patch toward +Z at yaw 0 (turn it to the throw), `brazier_coals`, `brazier_flame` | the spilled state: swap the model |
+| `pool` | 4 / 0.18 / 4 (a floor tile) | 1.0k | `pool` (flagstones, kerb), `pool_water` (the surface at y 0.075 and its ripple lines, `comic_water` / `comic_water_hi`) | ice_rink: give `pool_water` `designed_elements.facet_material()` or hide it under an ice slab |
+| `hook_chain` | 0.9 / 2.6 / 0.75 | 1.4k | `hook_chain` (plate, bracket), `hook_swing` (chain, hook, red rag; origin at the bracket's eye, so it swings like the torch) | gallows: mounted 3.4 m up on a wall face, the hook's point ~1.1 m off the floor |
+| `ledge` | 8.1 / 1.38 / 2.06 | 1.7k | `ledge` (one node: stone courses, a 0.55 m step along the front, coping, a red runner with a skull clasp) | High Ground: its back on a wall, the step side out |
 
 ### The training room with pieces
 
@@ -53,6 +64,10 @@ with the `comic-asset-kit` skill in one batch.
 | barrel | (-11.2, -2) | the back of the spikes |
 | crate | (-11, 1) | beside the barrel |
 | grate | tile (6, -2) | under the dummy at (4.2, -3.2) |
+| pool | tile (2, -6) | under the dummy at (1.6, -4.5) (not counted: no rule yet) |
+| brazier | (-5.8, -5.2) | behind the dummy at (-4.2, -3.2) (not counted) |
+| hook | (-4, 3.4, -15.5) on the back wall | between a banner and a torch; a side wall shows it edge-on to the camera (not counted) |
+| ledge | (14.5, -4), yaw -90, on the right wall | level with the dummies, out of the bot's lanes (not counted) |
 
 ## The heretic's verbs
 
@@ -180,3 +195,6 @@ lands.
 - `tests/cool_pass_check.gd` `_uproot_pair` (moved there from void_arm_check by the cool pass): Uproot beats Abyss by a pillar (x1.3 at least), Abyss beats Uproot in
   the open (x1.5 at least); the pillar is toppled, out of the swing anchors, and the foes buried.
 - `godot --headless --path . -- --autotest --room=pieces`: the `[env]` line's `pieces=N/N`.
+- Look (windowed): `godot --path . -s tests/piece_shots.gd -- --room=pieces [--tag=x]` puts the hero beside each
+  placed brazier, pool, hook and ledge from the game camera, then lines every new model up with the hero and kit pieces
+  (`user://piece_shots/`, each shot also at 800x450). `comic_check` covers their files, sizes and nodes.

@@ -25,7 +25,7 @@ const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a 
 const COMIC_ONLY := {
 	"brazier": {"size": Vector3(1.39, 1.37, 1.49), "nodes": ["brazier_coals", "brazier_ash", "brazier_flame"]},
 	"brazier_spilled": {"size": Vector3(2.09, 1.62, 2.2), "nodes": ["brazier_coals", "brazier_flame"]},
-	"hook_chain": {"size": Vector3(0.7, 2.02, 0.58), "nodes": ["hook_swing"]},
+	"hook_chain": {"size": Vector3(0.91, 2.62, 0.75), "nodes": ["hook_swing"]},
 	"pool": {"size": Vector3(4.0, 0.28, 4.0), "nodes": ["pool_water"]},
 	"ledge": {"size": Vector3(8.1, 1.38, 2.06), "nodes": []},
 }

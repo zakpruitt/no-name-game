@@ -108,8 +108,13 @@ def spilled():
         n0 = len(b.v)
         C.rock(b, (x, y, s * .4), (s, s * .9, s * .55), sub=1, jit=.25)
         X.tones(b, n0, r.choice((.3, .55, .55, .85)))
+    # a few coals still caught in the bowl's mouth, so the tipped bowl reads lit from above
+    for x, y, sz in ((.3, -.42, .15), (.08, -.4, .12), (.52, -.38, .12), (.32, -.62, .11), (.15, -.6, .1)):
+        n0 = len(b.v)
+        C.rock(b, (x, y, sz * .55), (sz, sz * .9, sz * .65), sub=1, jit=.25)
+        X.tones(b, n0, .85)
     fi = p.b('fire', node='brazier_flame')
-    for x, y, h in ((-.15, -.6, .3), (.32, -.85, .24), (.02, -1.15, .2), (-.48, -1.0, .18)):
+    for x, y, h in ((.3, -.48, .36), (-.15, -.6, .3), (.32, -.85, .26), (.02, -1.15, .22), (-.48, -1.0, .2)):
         E.flame(fi, x, y, .02, h, h * .55, r)
     # scorch strokes on the floor under the patch
     w = p.b('wash')

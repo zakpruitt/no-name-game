@@ -1,17 +1,18 @@
 # The hook (env piece `hook`, gallows): a wall-mounted iron bracket, a short heavy chain and a big meat hook.
 #   blender -b -P tools/comic_art/env_hook.py   -> hook_chain.glb + shots, in env_extra.OUT
 # Mounted like the kit's torch_mounted: the back plate lies on the wall plane y = 0 and everything hangs out toward -Y
-# (Godot +Z at yaw 0); the pivot is the bracket's mount, so place it on a wall face about 3 m up (the hook's point is
-# then ~1.4 m off the floor: a hung chibi foe's feet clear the floor). Nodes: `hook_chain` (the plate and bracket) and
+# (Godot +Z at yaw 0); the pivot is the bracket's mount, so place it on a wall face 3.4 m up (the hook's point is
+# then ~1.1 m off the floor: a hung chibi foe's feet clear the floor). Nodes: `hook_chain` (the plate and bracket) and
 # `hook_swing` (chain, hook, rag), whose origin is the bracket's eye, so a script can swing it like the torch.
 # Links are oversized (0.3 m, 0.09 m thick) so the chain still reads as links from the game camera at 13 m.
 import bpy, sys, os, math, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import env_extra as X
 from env_extra import C, E
-from mathutils import Vector as V
+from mathutils import Vector as V, Matrix
 
-EYE = V((0, -.42, -.02))   # where the chain hangs from (the hook_swing node's origin)
+SCALE = 1.3                # the whole piece, built at 1 and grown so it holds its own beside the kit's banners
+EYE = V((0, -.42, -.02))   # where the chain hangs from, before SCALE (the hook_swing node's origin is EYE * SCALE)
 LINK = .3                  # link length
 LINKS = 4
 
@@ -66,14 +67,15 @@ def build():
     n = len(rag.v)
     for i in range(n - 24, n):
         rag.v[i] = rag.v[i] + V((0, 0, c.z + .1))
+    X.xform(list(p.bags.values()), Matrix.Scale(SCALE, 4))
     return p
 
 
 if __name__ == '__main__':
     X.clear_scene(); X.materials()
     root = X.finish_natural(build())
-    X.export(root, 'hook_chain', origins={'hook_swing': tuple(EYE)})
+    X.export(root, 'hook_chain', origins={'hook_swing': tuple(EYE * SCALE)})
     # the shot: on a kit wall, 3 m up, as the game places it
     w = E.build('wall'); w.location = (0, .5, 0)
-    root.location = (0, 0, 3.0)
+    root.location = (0, 0, 3.4)
     X.shots(root, 'hook_chain', extent=2.6, centre_z=1.6)

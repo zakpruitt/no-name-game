@@ -8,7 +8,7 @@ extends SceneTree
 ## Every shot is also written at 800x450 (<name>_800.png), the size the art is judged at.
 
 const SHOT := Vector2i(800, 450)
-const LINE_Z := 11.0  # the lineup's row, in front of the dummies (the near pillars stand at z 7)
+const LINE_Z := 8.5  # the lineup's row, in front of the dummies (behind the near edge's 3.5 m rubble, which fades)
 const CLOSE_SIZE := 10.0  # m tall, ortho along the game's angle
 const FRONT_SIZE := 6.0
 
@@ -47,7 +47,7 @@ func _initialize() -> void:
 	cam.make_current()
 	# the hero beside each placed piece, from the game camera (its offset, its fov)
 	var EP: GDScript = load("res://scripts/env_piece.gd")
-	var beside := {"brazier": Vector3(1.3, 0, 0.6), "pool": Vector3(1.0, 0, 2.6), "hook": Vector3(1.4, 0, 1.0), "ledge": Vector3(-1.4, 0, 2.2)}
+	var beside := {"brazier": Vector3(1.8, 0, 1.2), "pool": Vector3(1.0, 0, 2.6), "hook": Vector3(2.2, 0, 1.0), "ledge": Vector3(-1.4, 0, 2.2)}
 	for tag_p: String in beside:
 		var ns: Array = get_nodes_in_group("env_" + tag_p)
 		if ns.is_empty():
@@ -66,14 +66,14 @@ func _initialize() -> void:
 	# the lineup: every new model, the hero, and kit pieces to compare with
 	var room: Node3D = main
 	var row := [
-		["barrel", Vector3(-7.0, 0, LINE_Z + 1.5), 0.0, "barrel_small"],
+		["barrel", Vector3(-6.4, 0, LINE_Z + 1.5), 0.0, "barrel_small"],
 		["brazier", Vector3(-5.0, 0, LINE_Z + 1.5), 0.0, "brazier"],
 		["brazier", Vector3(-2.2, 0, LINE_Z + 1.2), 0.0, "brazier_spilled"],
 		["crate", Vector3(5.2, 0, LINE_Z + 1.8), 15.0, "box_large"],
 		["ledge", Vector3(-1.5, 0, LINE_Z - 1.6), 0.0, "ledge"],
 		["pool", Vector3(3.0, 0.012, LINE_Z + 1.6), 0.0, "pool"],
 		["wall", Vector3(6.5, 0, LINE_Z - 2.0), 0.0, "wall"],
-		["hook", Vector3(6.5, 3.0, LINE_Z - 1.5), 0.0, "hook_chain"],
+		["hook", Vector3(6.5, 3.4, LINE_Z - 1.5), 0.0, "hook_chain"],
 		["torch", Vector3(4.6, 2.4, LINE_Z - 1.5), 0.0, "torch_mounted"],
 	]
 	for e: Array in row:

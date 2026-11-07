@@ -17,6 +17,7 @@ them. Renders, `.blend` outputs and GLBs aren't stored here; they total about 1.
 | `chibi_pass.py` | Chibi proportions on a finished enemy blend: `blender -b out/enemies/<name>.blend -P chibi_pass.py -- <name>` -> `out/enemies_chibi/` |
 | `chunk_pass.py` | After chibi_pass: thin bone parts unioned into a few masses per limb group, wider run strides, hit squint: `blender -b out/enemies_chibi/<name>.blend -P chunk_pass.py -- <name>` -> `out/enemies_chunky/` |
 | `env_kit.py`, `env_room.py` | The 25 dungeon pieces and a composed room |
+| `env_brazier.py`, `env_hook.py`, `env_pool.py`, `env_ledge.py`, `env_extra.py` | The four pieces with no KayKit twin (brazier lit / spilled, hook and chain, pool, ledge), on env_kit without editing it. These run from the repo (`blender -b -P tools/comic_art/env_pool.py`) and read the kit from the integration checkout's `vendor_src`; outputs go to this worktree's `vendor_src/env_art/out/` (gitignored, `ENV_ART_OUT` overrides) |
 | `comic_vfx.py`, `ability_vfx.py`, `render_abilities.py`, `reel_room.py` | The comic effects and showcase reels. Blender only; not in the game |
 | `style_poc/` | What the kit builds on: `build_poc.py`, `rig_poc.py` and `shaman_poc.blend`, which holds the baked retargets |
 

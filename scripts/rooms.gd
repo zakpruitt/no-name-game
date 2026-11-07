@@ -43,11 +43,12 @@ const ROOMS := {
 		{"tag": "crate", "at": Vector3(-11.0, 0, 1.0), "yaw": 10.0, "model": "crates_stacked", "count": true},
 		{"tag": "grate", "at": Vector3(6, 0, -2), "count": true},
 		# env-art lane: the four pieces whose rules are still to build (art only, not counted): the pool's tile under the
-		# dummy at (1.6, -4.5) (ice_rink), the brazier behind the one at (-4.2, -3.2) (brazier_spill), the hook on the left
-		# wall and the ledge on the right wall, level with the dummies (gallows, High Ground)
+		# dummy at (1.6, -4.5) (ice_rink), the brazier behind the one at (-4.2, -3.2) (brazier_spill), the hook on the back
+		# wall between a banner and a torch (gallows; a side wall shows it edge-on to the camera), the ledge on the right wall
+		# level with the dummies (High Ground)
 		{"tag": "pool", "at": Vector3(2, 0, -6)},
 		{"tag": "brazier", "at": Vector3(-5.8, 0, -5.2)},
-		{"tag": "hook", "at": Vector3(-15.5, 3.0, -4.0), "yaw": 90.0},
+		{"tag": "hook", "at": Vector3(-4.0, 3.4, -15.5)},
 		{"tag": "ledge", "at": Vector3(14.5, 0, -4.0), "yaw": -90.0},
 	],
 }
