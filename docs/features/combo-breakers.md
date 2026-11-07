@@ -360,6 +360,7 @@ void_element) are the breaker-pairs lane's. The hang stays ~0.6 s real, and ever
 - **Callout.** The ending's name and its total go up as one banner (`callout_panel`) at the top centre, in the element's colours (a perfect adds a gold "PERFECT!" tag).
   - The total is comic_number's breaker total, including the hang's chain hits. The banner takes it over and hides the 3D number.
   - `callout_cap`'s breaker label keeps its placement but goes invisible.
+  - The banner moves to the bottom (`CALL_Y_LOW` 0.86) when a foe the camera was cued to (`camera_rig.FRAME_CUE`) or one just splatted on a wall comes under it, so Pinwheel's and Meteor Fall's wall payoffs at the top edge stay in view. It moves once per callout and never flips back.
 
 Endings that want an extra beat can call `DESIGNED_BREAKER.burst()`, `spread()`, `after_beat()` or `wall_star()`
 themselves. All of it sits behind `DESIGNED.on()`; `--fx=classic` plays the old landing.

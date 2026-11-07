@@ -924,5 +924,6 @@ Zak: "start refining the breakers to be really flashy and awesome", with wind an
   - Sheets: `tools/vfx_gen/gen_spectacle.py`. Check: `tests/breaker_spectacle_check.gd`.
 - [x] Clips: `awaken-combo-clips/30 Spectacle *` (before / after boards and side-by-side clips)
 - [ ] Shatterstorm and Slapshot's banner shows the name only: their damage lands later, through the blocks.
+- [x] The banner drops to the bottom of the screen when a cued or wall-splatted foe is under it (Pinwheel's wall throw sat under it at the top edge)
 - [ ] Wall-splat stars are not clearly verified on film: the palm's splat sits at the frame's edge.
 - [ ] Zak: Cold Front's and Flash Freeze's small blue spoked stars (existing ice hit pops, in the before film too) may read as crystals
