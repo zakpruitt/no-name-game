@@ -108,7 +108,7 @@ func _build_moves() -> void:
 		_move_header(list, section)
 		for row: Dictionary in section.rows:
 			_move_row(list, row, player)
-		if sections == MOVE_LIST.SECTIONS:  # (a slot the card hasn't filled yet: the counter, the sixth crossover)
+		if sections == MOVE_LIST.SECTIONS:  # (a slot the card hasn't filled yet: the sixth crossover)
 			for p: Array in MOVE_LIST.pending_slots(section):
 				_label(list, "%s: pending" % p[0], 14, Color(1, 1, 1, 0.35)).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 

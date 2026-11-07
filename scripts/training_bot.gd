@@ -477,7 +477,10 @@ func kit_report() -> Dictionary:
 		if fill.is_empty():
 			continue
 		r.slots_n += 1
-		if labelled.has(s.id) and fill.keys().all(func(id: String) -> bool: return _bot_landed.has(id)):
+		var landed := func(id: String) -> bool: return _bot_landed.has(id)
+		if not s.get("routed", true):  # (the counter: no move id; it lands when its window's ending does)
+			landed = func(id: String) -> bool: return breakers.has(id) and player.endings_seen.has(breakers[id].names.spirit)
+		if labelled.has(s.id) and fill.keys().all(landed):
 			r.slots += 1
 		else:
 			r.missing.append(s.id)

@@ -9,7 +9,7 @@ extends SceneTree
 ## godot --headless --path . -s tests/kit_check.gd
 
 ## Slots allowed empty for now: their lanes (counter, dark-magma) fill them.
-const PENDING_OK := ["counter", "cross_dark_magma"]
+const PENDING_OK := ["cross_dark_magma"]
 const MAX_WINDOWS := 15
 const MAX_ENDINGS := 2
 const MAX_CROSS := 6
@@ -59,6 +59,10 @@ func _check_slots(card: Dictionary) -> void:
 		var fill: Dictionary = card.fill.get(s.id, {})
 		if fill.is_empty():
 			_check(s.get("meter", false) or s.id in PENDING_OK, "slot %s is empty" % s.id)
+			continue
+		if not s.get("routed", true):  # (the counter: its fill is its window, not a routed move)
+			for id: String in fill:
+				_check(VOID.BREAKERS.has(id), "%s's %s is a breaker window" % [s.id, id])
 			continue
 		for id: String in fill:
 			_check(MOVES_GD.MOVES.has(id), "%s's %s is a move" % [s.id, id])

@@ -17,7 +17,7 @@ extends RefCounted
 ## role line are the heading, `heading()`), then ROUTE STEPS, UPGRADES and MIX ELEMENTS. A move row's slot is
 ## KitSlots.slot_of(id) (its one-word tag, `row_tag()`). `upgrade`: a Kit upgrade id; a row whose move or payoff is
 ## behind an upgrade that is off draws as an "upgrade" row (`row_locked()`), and move_list_check expects its input
-## to reach the move only with the upgrade on. A slot with no rows yet (pending: the counter, the sixth crossover)
+## to reach the move only with the upgrade on. A slot with no move yet (pending: the sixth crossover)
 ## is drawn from the card (`pending_slots()`).
 
 const SECTIONS := [

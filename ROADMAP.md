@@ -953,14 +953,14 @@ Zak approved the kit grammar ("implement it"); slot 9 is a Smash-style counter o
 Zak approved the kit grammar ("implement it"). The heretic's kit is now data a second character can fill in. See
 `docs/features/kit-slots.md` and `docs/characters/kit-grammar.md` section 5.
 - [x] `scripts/kit_slots.gd`: 10 groups, 24 slots (input shape, role, one-word tag, window). The heretic's card fills
-  21 slots; the counter and the dark x magma crossover are pending, and the meter has no move id. It also lists his
+  22 slots (the counter by its window, Ricochet); the dark x magma crossover is pending, and the meter has no move id. It also lists his
   route steps and the two demoted upgrades. `KitSlots.of(Game.hero)`; the prince's card is a TODO with his obvious moves
 - [x] The gate: Storm Pitch (`Dash H L`) and Rockslide's buried payoff are off unless `--kit=full` / their id. Rockslide
   stays as the step into Fault Line. The routing, the combo guide, the MOVES panel and `move_list_check` agree
 - [x] The MOVES panel is laid out by slot group (role line, per-row tag, dim "upgrade" rows, pending slots), then ROUTE
   STEPS, UPGRADES and MIX ELEMENTS. The combo guide tags each row with its slot
-- [x] Bot strings name their slot. The autotest prints `[kit] slots=21/21 windows=12/12 upgrades=0/0`
-  (`--kit=full`: 36 strings, `upgrades=2/2`). `agent.sh check` runs both and asserts the line
+- [x] Bot strings name their slot. The autotest prints `[kit] slots=22/22 windows=13/13 upgrades=0/0`
+  (`--kit=full`: 37 strings, `upgrades=2/2`). `agent.sh check` runs both and asserts the line
 - [x] `tests/kit_check.gd`: every slot filled with a routable move, shapes, ≤ 2 endings a window, ≤ 15 windows, ≤ 6
   crossovers on distinct pairs, every MOVES id on the card, every slot with a bot string, demoted moves reachable
   only with their gate

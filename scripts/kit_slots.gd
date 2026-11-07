@@ -7,7 +7,7 @@ class_name KitSlots
 ##
 ## Readers: move_list.gd (the pause MOVES panel's sections are GROUPS), combo_guide.gd (the role tag, `tag_of`),
 ## training_bot.gd (each BOT_STRINGS entry names its slot; the autotest's `[kit]` line), tests/kit_check.gd.
-## Pending slots (counter, the sixth crossover) have an empty fill: their lanes add `"<id>": "<input>"` to it.
+## Pending slots (the sixth crossover) have an empty fill: its lane adds `"<id>": "<input>"` to it.
 
 ## The ten groups of section 2, in order: the MOVES panel's headings (`n` = the grammar's slot number).
 const GROUPS := [
@@ -26,7 +26,8 @@ const GROUPS := [
 ## The slots. `group` is GROUPS' n; `shape` the inputs the slot allows (tests/kit_check.gd; "*" = one route step's
 ## press between the ender and the H, "+" = one press off a move or route step: a crossover's fixed extension);
 ## `tag` the one word the combo guide shows; `window` whether the grammar gives the slot a breaker window
-## ("finisher": when it ends a string).
+## ("finisher": when it ends a string). `routed: false`: no press of void_route() starts it (the counter is the dash
+## meeting a strike, counter.gd), so its fill is the window's BREAKERS key.
 const SLOTS := [
 	{"id": "light_string", "group": 1, "name": "Light string", "shape": ["L", "L L", "L L L"], "tag": "string",
 		"role": "Three hits, tinted 1 / 2 / 3: the string teaches the colours.", "window": false},
@@ -72,7 +73,7 @@ const SLOTS := [
 		"tag": "cross", "role": "The signature and element 2 in one move.", "window": "finisher"},
 	{"id": "cross_dark_magma", "group": 8, "name": "Dark x magma", "pair": ["void", "earth"], "shape": ["+"],
 		"tag": "cross", "role": "The signature and element 3 in one move.", "window": "finisher"},
-	{"id": "counter", "group": 9, "name": "Counter", "shape": ["Dash"], "tag": "counter",
+	{"id": "counter", "group": 9, "name": "Counter", "shape": ["Dash into a strike"], "tag": "counter", "routed": false,
 		"role": "Dash into a strike; a perfect opens the counter breaker.", "window": true},
 	{"id": "awakening", "group": 10, "name": "Awakening", "shape": ["Q"], "tag": "awaken", "meter": true,
 		"role": "The meter: a stronger mode, not new inputs.", "window": false},
@@ -105,7 +106,7 @@ const HERETIC := {
 		"cross_ice_storm": {"XG": "Dash L H H H", "XM": "Dash L H H H L"},  # Hailstorm -> Meltdown, one route
 		"cross_dark_ice": {"XW": "Dash H H L"},  # Backdraft, off Impale (Tow Line's dark onto the spear's ice)
 		"cross_dark_magma": {},  # pending: the dark-magma lane adds its move here
-		"counter": {},  # pending: the counter lane adds Backlash here
+		"counter": {"CB": "Dash into a strike"},  # Backlash; CB is its perfect's window (Ricochet), counter.gd
 		"awakening": {},  # the meter (Q), no move id
 	},
 	## Route steps: the hits that walk from a mid to a big move or a crossover. Not slots; never an upgrade target.

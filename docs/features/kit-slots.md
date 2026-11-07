@@ -10,7 +10,7 @@ the same input shapes. This page is how that table lives in code, and how to fil
   demoted upgrades. `KitSlots.of(Game.hero)` returns the card.
 - The pause menu's MOVES panel is laid out by slot group. Each group heading has its number, name and role line
   ("2  LIGHT ENDERS: One per element..."). After the groups come ROUTE STEPS, UPGRADES and MIX ELEMENTS. Each move
-  row ends with its slot's one-word tag. A slot nobody has filled yet shows as "Counter: pending".
+  row ends with its slot's one-word tag. A slot nobody has filled yet shows as "Dark x magma: pending".
 - The combo guide shows the same tag after the move's name (`launch`, `plant`, `payoff`, `cross`, `step`, ...).
   It only appears while the guide is on (`Game.combo_guide`).
 - Demoted moves stay in the game behind `Kit.has()` (`scripts/kit.gd`). With the upgrade off, the routing goes
@@ -45,10 +45,10 @@ the same input shapes. This page is how that table lives in code, and how to fil
 | 8 | `cross_ice_storm` | cross | Hailstorm `XG` (Dash L H H H), then Meltdown `XM` (+ L) | Eruption |
 | 8 | `cross_dark_ice` | cross | Backdraft `XW` (Dash H H L) | Anvil / Pinwheel |
 | 8 | `cross_dark_magma` | cross | pending (the dark-magma lane) | |
-| 9 | `counter` | counter | pending (the counter lane: Backlash) | |
+| 9 | `counter` | counter | Backlash (Dash into a strike; `counter.gd`, not a routed move: the fill is its window `CB`, `routed: false`) | Ricochet |
 | 10 | `awakening` | awaken | the meter (Q), no move id | |
 
-That is 21 slots filled, 2 pending and the meter. There are 12 windows with 19 endings in all.
+That is 22 slots filled, 1 pending and the meter. There are 13 windows with 20 endings in all.
 
 - **Route steps** (not slots, never an upgrade target): the grab `GR` (H), Air Slash `AL1` (L H L), the vault
   `IJ` (L L H L), Rockslide `XR` (L H L L), Ice Cube `EA` (Dash L H H). R and R-then-H (the swing and Snatch) are
@@ -80,6 +80,7 @@ That is 21 slots filled, 2 pending and the meter. There are 12 windows with 19 e
 
 - **`[kit] slots=`** counts every slot with a fill (not pending, not the meter). A slot counts as landed when a
   bot string labelled with it played and every move in its fill connected (`player._connected` in ATTACK or LEAP).
+  The counter has no move id: it lands when its window's ending (Ricochet) does.
 - **`windows=`** counts every BREAKERS key on a slot's move. A window counts when one of its endings is in
   `player.endings_seen`. `endings_n=` still asks for every ending.
 - **`upgrades=`** counts only the upgrades that are on in this run. An upgrade counts when its labelled string
@@ -88,7 +89,8 @@ That is 21 slots filled, 2 pending and the meter. There are 12 windows with 19 e
 
 `kit_check` fails on any of these:
 
-- a slot that is empty and is neither the meter nor in `PENDING_OK` (`counter`, `cross_dark_magma`);
+- a slot that is empty and is neither the meter nor in `PENDING_OK` (`cross_dark_magma`);
+- a `routed: false` slot (the counter) whose fill isn't a BREAKERS key;
 - a fill whose input does not start its move through `void_route()`;
 - an input outside the slot's `shape`. Shapes are exact, except:
   - `*`: one route step's press between the ender and the last H (Deep Freeze's vault);
@@ -133,7 +135,7 @@ The worked example is the dragon prince (`KitSlots.PRINCE`, paused, `docs/charac
    filled, drop `todo`.
 
 **Pending lanes:** when a move lands for a pending slot, fill it with one line, for example
-`"counter": {"<id>": "Dash"}` in `HERETIC.fill`. Then add a labelled bot string, and drop the slot from
+`"cross_dark_magma": {"<id>": "<input>"}` in `HERETIC.fill` (the counter was filled that way, `{"CB": ...}`). Then add a labelled bot string, and drop the slot from
 `kit_check.PENDING_OK`.
 
 ## Invariants
@@ -146,5 +148,5 @@ The worked example is the dragon prince (`KitSlots.PRINCE`, paused, `docs/charac
 ## Testing
 
 - `godot --headless --path . -s tests/kit_check.gd` prints `[kit] PASS/FAIL`, the window count and the pending slots.
-- `godot --headless --path . -- --autotest` prints `[kit] slots=21/21 windows=12/12 upgrades=0/0 missing=none`.
-- With `-- --autotest --kit=full`: 36 strings (Storm Pitch's and the buried x ice string join), `upgrades=2/2`.
+- `godot --headless --path . -- --autotest` prints `[kit] slots=22/22 windows=13/13 upgrades=0/0 missing=none`.
+- With `-- --autotest --kit=full`: 37 strings (35 plain) (Storm Pitch's and the buried x ice string join), `upgrades=2/2`.
