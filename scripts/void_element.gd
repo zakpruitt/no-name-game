@@ -426,7 +426,7 @@ const LEASH_DRAG_CAP := 12.0  # ...counted to this far
 const LEASH_WALL_MULT := 1.6  # on the drag, torn off a wall it was splatted on
 const LEASH_ERUPT := 8.0  # the seam erupting under the pile, each...
 const LEASH_PILE_PER := 0.2  # ...and this much more per other foe in the pile
-const LEASH_PILE := 1.7  # m ahead of him the pile is
+const LEASH_PILE := 2.1  # m ahead of him the pile is (clear of his body on the game camera)
 const LEASH_RING := 0.62  # m round the pile's middle they land
 const LEASH_BIND_TIME := 1.6  # s the pile is held (bound) in the erupted seam: through the window
 const LEASH_TICK := 1.5  # its burn a tick (floor_bind step 0.25)
@@ -437,7 +437,7 @@ const LEASH_WORD := 0.42  # the word's size with one in the pile, LEASH_WORD_PER
 const LEASH_WORD_PER := 0.05
 const LEASH_CUE_MS := 1600  # real ms the leashed count for the camera's framing (camera_rig.FRAME_CUE): the far one stays in
 const LEASH_META := "leash_m"  # meta: the metres the leash dragged it (Hellseam reads it)
-const LEAP_AFTER_LEASH := 0.56  # (clip fraction) Hellseam's leap: after the last drag lands (lava_leash.DRAG_MAX + its reach)
+const LEAP_AFTER_LEASH := 0.7  # (clip fraction) Hellseam's leap: after the last drag lands and the pile's burst has peaked (it hid under his leap at 0.56)
 ## Hellseam (Lava Leash's breaker, H): he dives onto the pile and the seam goes up its whole length. The held pile is
 ## driven into the floor (a crater) for the breaker's damage x (1 + HELLSEAM_PER_M a metre each was dragged, to
 ## LEASH_DRAG_CAP); then the eruption races back out along every seam a foe was dragged down, from the pile to where it
@@ -452,7 +452,7 @@ const HELLSEAM_DELAY := 0.12  # s (game) past the landing: the impact frame hide
 const HELLSEAM_RUN := 0.025  # s (game) a metre: the eruption runs out along the seam
 const HELLSEAM_SEAM := 0.5  # of the damage, to anyone else on a seam
 const HELLSEAM_SEAM_R := 1.1  # m either side of a geyser
-const HELLSEAM_GEYSER := 2.2  # m tall
+const HELLSEAM_GEYSER := 3.0  # m tall
 const HELLSEAM_CUE_MS := 1400
 const BLACK_ICE_DOWN := 6.0  # m/s into the floor as the ice gives (enemy._is_spike)
 const CATACLYSM_DOWN := 6.0  # m/s
