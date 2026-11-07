@@ -41,6 +41,7 @@ const ABYSS_RISE := preload("res://scripts/abyss_rise.gd")  # round 51 cool pass
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
 const ERUPTION_HURL := preload("res://scripts/eruption_hurl.gd")  # round 52 cool pass: Eruption's fuse, heave and hurl
 const FROST_SHELL := preload("res://scripts/frost_shell.gd")  # round 52 cool pass: Flash Freeze's steam, shells and break
+const TENTACLE_HAUL := preload("res://scripts/tentacle_haul.gd")  # round 52 cool pass: Maw's knock, Anvil's second slam, Cold Front's tethers
 
 ## Contact frames of the tentacle clips (30 fps, the chibi's keys; `tests/contact_frames.gd` measures them,
 ## `comic_check` fails when a move's first hit isn't on its clip's): the void moves hit on the keyed contact
@@ -575,6 +576,28 @@ const FF_SET_MULT := 0.3
 const FF_LINK_PER := 0.6
 const FF_DOWN := 3.0
 const FF_META := &"frost_shell"
+## Round 52 cool pass, the 2/4 endings one beat up (tentacle_haul.gd; combo-breakers.md "Round 52 cool pass"):
+## Maw: after the bite the pool's tentacles hoist the bitten, knock them together over its middle and slam the heap
+## into it (MAW_KNOCK_MULT, + MAW_KNOCK_PER for each other one in the heap: a crowd).
+const MAW_HOIST_AT := 0.2  # s after the bite
+const MAW_HOIST_Y := 1.5  # m
+const MAW_HEAP_TOWARD := 1.4  # m from the pool's middle toward him the heap meets (in view, under the banner)
+const MAW_HOIST_IN := 0.4  # of the way to the pool's middle they are hoisted
+const MAW_HEAP := 0.45  # m off the middle they meet
+const MAW_KNOCK_MULT := 0.4
+const MAW_KNOCK_PER := 0.1
+const MAW_KNOCK_MOST := 4
+const MAW_KNOCK_WORD := "KONK!"
+## Black Ice: the landing cracks the frozen pool and the blocks skid out across it away from him, each bursting where it
+## stops, harder on a wall (BLACK_ICE_WALL_MULT): Black Ice by a wall, Maw in the open.
+const BLACK_ICE_SKID := 5.5  # m (with no structure picked)
+const BLACK_ICE_REACH := 8.0  # m from the pool to the structure they skid into
+const BLACK_ICE_SHATTER := 0.6  # of the damage as the pool shatters (the landing)
+const BLACK_ICE_SKID_MULT := 0.7  # as they stop (x BLACK_ICE_WALL_MULT on the structure)
+const BLACK_ICE_SPEED := 15.0  # m/s
+const BLACK_ICE_WALL_MULT := 2.4
+const BLACK_ICE_STAGGER := 0.04  # s
+const BLACK_ICE_WORD := "KLISSH!"
 const IMPALE_GRAB := 4.0  # m round where Tow Line bunched them
 const IMPALE_DAMAGE := 12.0
 const IMPALE_SPEAR_MULT := 1.5  # dark into ice: onto a spear that was already standing, frost and all
@@ -1561,11 +1584,43 @@ static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> voi
 	var damage: float = b.damage * hero._dmg_mult * mult
 	var spot: Vector3 = hero._void.dark_spot
 	COMIC_FREEZE.shatter(parent, spot, MAW_RADIUS + 0.3)  # (the frozen pool breaks up: was a splat, spikes and shards each)
-	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5):
-		e.take_hit(damage, Vector3.DOWN * BLACK_ICE_DOWN, 0.0, true)  # (frozen: x FREEZE_BREAK, and it shatters)
+	# round 52: the blocks skid out across the black ice away from where he landed, each bursting where it stops
+	var from := _flat(hero.global_position)
+	var wall := pinwheel_target(hero, spot, "black_ice", BLACK_ICE_REACH)  # (the indicator's pick; a raycast in a bare room)
+	var pooled: Array = FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
+	pooled.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(from) < _flat(c.global_position).distance_to(from))
+	for i in pooled.size():
+		var e: Node3D = pooled[i]
+		e.take_hit(damage * BLACK_ICE_SHATTER, Vector3.ZERO, 0.0, true)  # (frozen: x FREEZE_BREAK, and it shatters)
 		Game.register_hit("breaker")
+		var to: Vector3
+		if wall.get("found", false):
+			var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
+			var aim: Vector3 = face - _flat(e.global_position)
+			to = _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
+		else:
+			var out := _flat(e.global_position) - from
+			out = out.normalized() if out.length() > 0.05 else _flat(spot - from).normalized()
+			if out.length() < 0.5:
+				out = Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
+			to = _flat(e.global_position) + out * BLACK_ICE_SKID
+		var tw := parent.create_tween()
+		tw.tween_interval(0.06 + i * BLACK_ICE_STAGGER)
+		tw.tween_callback(THROWN.launch.bind(hero, e, to, damage * BLACK_ICE_SKID_MULT,
+			{"el": "water", "solid": false, "slide": true, "speed": BLACK_ICE_SPEED, "land_y": 0.0, "wall_mult": BLACK_ICE_WALL_MULT,
+			"splash": false, "on_burst": _black_ice_burst.bind(parent)}))
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)
 	Game.shake(0.6)
+
+
+## A Black Ice block stops (thrown_foe's on_burst, round 52): on a wall the wall beat, else the block bursts in the open.
+static func _black_ice_burst(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
+	if not is_instance_valid(parent):
+		return
+	if walled:
+		ALT_FX.cool_wall(parent, f.global_position, dir, "water", BLACK_ICE_WORD)
+	elif DESIGNED.on():
+		DESIGNED.ice_shatter(parent, f.global_position + Vector3.UP * 0.8, 1.0)
 
 
 ## Short Circuit lands (SC_*): the held take a little and are spent; the charge arcs out to everyone else in reach.
@@ -2532,11 +2587,48 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	if not is_instance_valid(jaws):
 		jaws = DARK.maw(hero.get_parent(), spot, MAW_RADIUS)
 	jaws.bite()
-	for e: Node3D in FOES.near(hero.get_tree(), spot, MAW_RADIUS):
+	var bitten: Array = FOES.near(hero.get_tree(), spot, MAW_RADIUS)
+	for e: Node3D in bitten:
 		DARK.quiet_hit(e, damage, true, Vector3.DOWN * MAW_DOWN)
 		Game.register_hit("breaker")
 	ComicFx.hit(spot + Vector3.UP * 1.5, true)  # one word for the one bite
 	Game.shake(0.6)
+	maw_knock(hero, spot, bitten, damage)
+
+
+## Maw's after-beat (round 52): the pool's tentacles hoist the bitten (nearest the middle first, MAW_KNOCK_MOST),
+## knock them together over its middle and slam the heap into it. Returns the haul (checks).
+static func maw_knock(hero: CharacterBody3D, spot: Vector3, bitten: Array, damage: float) -> Node3D:
+	var live: Array = bitten.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive() and not hero._void.is_heavy(e))
+	live.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(spot) < _flat(c.global_position).distance_to(spot))
+	live = live.slice(0, MAW_KNOCK_MOST)
+	if live.is_empty():
+		return null
+	var mid := _flat(spot)
+	var toward := _flat(hero.global_position) - mid
+	if toward.length() > 0.2:
+		mid += toward.normalized() * minf(MAW_HEAP_TOWARD, toward.length())
+	var items: Array = []
+	for i in live.size():
+		var e: Node3D = live[i]
+		var off := _flat(e.global_position) - mid
+		var dir := off.normalized() if off.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
+		items.append({"foe": e, "root": mid, "t0": MAW_HOIST_AT, "top": mid + off * (1.0 - MAW_HOIST_IN) + Vector3.UP * MAW_HOIST_Y,
+			"end": mid + dir * MAW_HEAP})
+	var g: Node3D = TENTACLE_HAUL.start(hero, items)
+	var each := damage * (MAW_KNOCK_MULT + MAW_KNOCK_PER * (live.size() - 1))
+	var parent: Node = hero.get_parent()
+	g.on_end = func(e: Node3D, i: int) -> void:
+		DARK.quiet_hit(e, each, true, Vector3.DOWN * MAW_DOWN)
+		Game.register_hit("breaker")
+		if i == 0:
+			Game.hitstop(0.05)
+			Game.sfx("hit_big", -2.0, 0.1)
+			Game.shake(0.5)
+			if Game.comic_style and is_instance_valid(parent):
+				ComicFx.say(MAW_KNOCK_WORD, mid + Vector3.UP * 1.6, ALT_FX.WALL_WORD_SIZE)
+				DARK.burst(parent, mid, 1.4)
+	return g
 
 
 ## They've gone down through the floor (hero_leap._start_dive). Round 51 cool pass: the deep gives them back, biggest

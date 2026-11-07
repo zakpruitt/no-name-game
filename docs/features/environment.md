@@ -39,6 +39,7 @@ environmental combos!"
 | `abyss` | Overwhelm's window (Abyss, round 51): a **foe**, 2+ pinned | void | yes (the pinned) | him | auto: the biggest pinned |
 | `eruption` | Meltdown's window (Eruption, round 52) | earth | yes | the landing (`_brk_zone`) | `ERUPT_REACH` 9 m |
 | `tow` | Tow Line (Dash H) before its hit, 2+ snare candidates (`tow_candidates`): a **foe** | void | yes (`TOW_PICK_REACH` 7 m) | him | auto: the one nearest where they're yanked (`tow_auto`) |
+| `black_ice` | Black Tide's window (Black Ice, LMB, round 52) | water | yes | the pool (`dark_spot`) | `BLACK_ICE_REACH` 8 m |
 | `flash_freeze` | Steam Burst's window (Flash Freeze, round 52): a **foe**, 2+ in the cloud | water | yes (foes in `FF_CLOUD_R`) | the landing | auto: the nearest the landing |
 
 **Foe picks (round 51 cool pass).** Zak: "that environment select is AMAZING! maybe can incorporate that in select

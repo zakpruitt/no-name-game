@@ -587,3 +587,19 @@ and down so they don't stack), and the spat foe's own ink trail as it flies (`co
   where the line yanks them (auto: the default throw, nothing changes). The cursor on another foe makes it the anchor:
   it is snared where it stands (`TOW_ANCHOR_MULT` 0.6) and everyone on the line is yanked into it (`env_target.foe_chosen`:
   only a cursor / stick choice moves the throw).
+
+**The 2/4 endings, one beat up** (`scripts/tentacle_haul.gd`: a tentacle out of a root takes each foe up to a top, holds
+it, drives it to an end, then `on_end`; game time, after the landing, so no hang is longer). Slots and inputs unchanged.
+Numbers: `cool_pass_check` `_maw_pair` (three in the pool, sweet press not included: `breaker_impact` at x1.0).
+
+- **Maw** (H L H, RMB, `VD`). Bite (as before: `MAW_DOWN` crater, full damage), then from `MAW_HOIST_AT` 0.2 s the
+  pool's tentacles hoist the bitten (up to `MAW_KNOCK_MOST` 4, the nearest the middle first) to `MAW_HOIST_Y` 1.5 m,
+  knock them together `MAW_HEAP_TOWARD` 1.4 m on his side of the pool (in view, under the ending's banner) and slam
+  the heap down: "KONK!", a dark burst, `MAW_KNOCK_MULT` 0.4 + `MAW_KNOCK_PER` 0.1 for each other one in the heap.
+  Best: a crowd in the open (250 vs Black Ice's 179). Worst: by a wall (250 vs 315).
+- **Black Ice** (H L H, LMB, `VD` alt). The pool freezes (as before); the landing shatters it (`BLACK_ICE_SHATTER` 0.6,
+  frozen x `FREEZE_BREAK`) and they skid across the black ice (`slide`, `BLACK_ICE_SPEED` 15 m/s, `BLACK_ICE_STAGGER`
+  0.04 s apart, nearest him first) into the structure the indicator marks (env_target `black_ice`, the cursor may
+  choose, within `BLACK_ICE_REACH` 8 m of the pool: `BLACK_ICE_SKID_MULT` 0.7 x `BLACK_ICE_WALL_MULT` 2.4, "KLISSH!" and
+  `breaker_alt_fx.cool_wall`), or `BLACK_ICE_SKID` 5.5 m away from him to a stop (x0.7, the ice shatter). Best: the pool
+  by a wall or pillar (315 vs Maw's 250). Worst: the open (179).

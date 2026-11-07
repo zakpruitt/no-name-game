@@ -54,6 +54,7 @@ const CTX := {
 	# round 52 cool pass (combo-cool2): Eruption's structure, Flash Freeze's first shell
 	"eruption": {"el": "earth", "choose": true, "far": false},  # Meltdown's window: the wall or pillar the geysers hurl at
 	"flash_freeze": {"el": "water", "choose": true, "far": false},
+	"black_ice": {"el": "water", "choose": true, "far": false},  # round 52: Black Tide's window (LMB): the structure they skid into
 	"tow": {"el": "void", "choose": true, "far": false},  # Tow Line (Dash H) before its hit: a foe, the one they're yanked into  # Steam Burst's window: a foe, the shell that breaks first
 }
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
@@ -482,6 +483,8 @@ func context(h: CharacterBody3D) -> Dictionary:
 				steamed.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(zone) < _flat(c.global_position).distance_to(zone))
 				return {"ctx": "flash_freeze", "from": zone, "reach": ve.FF_CLOUD_R, "mode": "foe", "foes": steamed, "auto": steamed[0], "key": key}
 			return {}
+		if alt.has("black_ice"):  # round 52: the structure Black Ice's blocks skid into (Maw, its RMB, picks nothing)
+			return {"ctx": "black_ice", "from": _flat(h._void.dark_spot), "reach": ve.BLACK_ICE_REACH, "mode": "near", "key": key}
 		if b.has("collapse"):
 			return {"ctx": "collapse", "from": _flat(h._void.dark_spot), "reach": COLLAPSE_REACH, "mode": "near", "key": key}
 		if alt.has("uproot") and load("res://scripts/env_piece.gd").usable("pillar", "uproot"):  # round 51
