@@ -114,6 +114,16 @@ const UPROOT_CHUNKS := 4  # drawn chunks off its foot as it comes out, and along
 const UPROOT_STAMP := 1.6  # m: each ground stamp along the fall line
 const UPROOT_STOP := 0.09  # s hit stop as it lands
 const UPROOT_TENDRIL := &"uproot_tendril"
+## Round 52 (env-pieces2, readability on film: the pillar on the foe was lost under the tentacle and the landing's
+## effects): before it comes down the pillar is held up at the top of the swing for UPROOT_HOLD real s as a solid ink
+## silhouette (Fx.flash_tint in ComicLook.INK), its drop shadow lies on the floor along the fall line from the hold,
+## darkening as it falls, and the tentacle lets go of it as the fall starts, so the club lands in the clear.
+const UPROOT_HOLD := 0.16  # real s held at the top before the fall (the club's hit comes this much later)
+const UPROOT_HOLD_LIFT := 1.4  # m it is hauled up to for the hold
+const UPROOT_HOLD_LEAN := 0.55  # radians back, away from the foe, at the hold
+const UPROOT_SHADOW_W := 1.9  # m across the fall line
+const UPROOT_SHADOW := 0.62  # alpha at the landing
+const UPROOT_SHADOW_FADE := 0.45  # real s after the landing
 
 
 static func _tendril(parent: Node, pillar: Node3D) -> Node3D:
@@ -171,12 +181,30 @@ static func uproot_tear(parent: Node, hero: Node3D, pillar: Node3D) -> void:
 ## The club (the landing): the pillar swings down from where the tear left it to lie from `base` along `dir` in `fall`
 ## real s, the tentacle hauling on its head; `landed` is called as it hits, then the fall line breaks up the floor.
 static func uproot_club(parent: Node, hero: Node3D, pillar: Node3D, base: Vector3, dir: Vector3, fall: float, landed: Callable) -> void:
-	var from := pillar.transform
+	var start := pillar.transform
 	var yaw := Basis(Vector3.UP, pillar.rotation.y)
 	var axis := Vector3.UP.cross(dir).normalized()
+	var length: float = load("res://scripts/env_piece.gd").PIECES.pillar.size.y
 	var lie := Vector3.UP * float(load("res://scripts/env_piece.gd").PIECES.pillar.size.x)  # (on its side, on the floor)
 	var tendril := _tendril(parent, pillar)
+	# round 52: the hold at the top of the swing, a silhouette, the shadow down already
+	var top := Transform3D(Basis(axis, -UPROOT_HOLD_LEAN) * yaw, Vector3(start.origin.x, UPROOT_HOLD_LIFT, start.origin.z))
+	var from := top
+	var shadow := _uproot_shadow(parent, base, dir, length)
+	Fx.flash_tint(pillar, ComicLook.INK, UPROOT_HOLD + fall * 0.7)
 	var tw := parent.create_tween().set_ignore_time_scale(true)
+	tw.tween_method(func(k: float) -> void:
+		if not is_instance_valid(pillar):
+			return
+		var e := 1.0 - (1.0 - k) * (1.0 - k) * (1.0 - k)
+		pillar.transform = Transform3D(start.basis.slerp(top.basis, e), start.origin.lerp(top.origin, e))
+		_shade(shadow, UPROOT_SHADOW * 0.35 * k)
+		if is_instance_valid(tendril) and is_instance_valid(hero):
+			tendril.draw(_hand(hero), _grip(pillar), 1.0, 0.04, 0.2, 1.0), 0.0, 1.0, UPROOT_HOLD * 0.5)
+	tw.tween_interval(UPROOT_HOLD * 0.5)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(tendril):
+			tendril.visible = false)  # (lets go: the fall is the pillar's own)
 	tw.tween_method(func(k: float) -> void:
 		if not is_instance_valid(pillar):
 			return
@@ -184,15 +212,38 @@ static func uproot_club(parent: Node, hero: Node3D, pillar: Node3D, base: Vector
 		var at: Vector3 = from.origin.lerp(base + lie, e)
 		var b := Basis(axis, PI * 0.5 * e) * yaw
 		pillar.transform = Transform3D(from.basis.slerp(b, e), at)
-		if is_instance_valid(tendril) and is_instance_valid(hero):
-			tendril.draw(_hand(hero), _grip(pillar), 1.0, 0.04, 0.2, k), 0.0, 1.0, fall)
+		_shade(shadow, UPROOT_SHADOW * (0.35 + 0.65 * e)), 0.0, 1.0, fall)
 	tw.tween_callback(func() -> void:
 		if is_instance_valid(pillar):
 			pillar.transform = Transform3D(Basis(axis, PI * 0.5) * yaw, base + lie)
+			Fx.flash_tint(pillar, PAL.of("void").light, 0.12)  # (it lands: a flash of the void's light on it)
 		if is_instance_valid(tendril):
 			tendril.queue_free()
 		landed.call()
 		_uproot_land(parent, base, dir))
+	tw.tween_method(func(k: float) -> void: _shade(shadow, UPROOT_SHADOW * (1.0 - k)), 0.0, 1.0, UPROOT_SHADOW_FADE)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(shadow):
+			shadow.queue_free())
+
+
+## The falling pillar's drop shadow: a soft ink oval along the fall line from `base` (the dash streak's material).
+static func _uproot_shadow(parent: Node, base: Vector3, dir: Vector3, length: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(UPROOT_SHADOW_W, length + 0.8)
+	mi.mesh = plane
+	mi.material_override = Fx.unshaded_mat(Color(ComicLook.INK, 0.0), "dot")
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.set_meta("no_ghost", true)
+	parent.add_child(mi)
+	mi.global_transform = Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), base + dir * (length * 0.5) + Vector3.UP * 0.03)
+	return mi
+
+
+static func _shade(shadow: Variant, a: float) -> void:
+	if is_instance_valid(shadow):
+		((shadow as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = a
 
 
 ## The fall line breaks up: ground stamps and dust along its four metres, chunks, the dark hit star at its head.
