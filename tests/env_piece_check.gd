@@ -187,6 +187,34 @@ func _usable() -> void:
 ## Each build-order item's own cases (the lanes add theirs here).
 func _items() -> void:
 	await _keg()
+	await _frost_wall()
+
+
+## Frost Wall: a Frost Spear planted by the grate raises the ice wall on its far edge, on the walls' layer and known to
+## env_target as a wall; it melts LIFE later and the grate is cold again.
+func _frost_wall() -> void:
+	var FS: GDScript = load("res://scripts/frost_spear.gd")
+	var FW: GDScript = load("res://scripts/frost_wall.gd")
+	var g: Node3D = get_nodes_in_group("env_grate")[0]
+	hero.global_position = g.global_position + Vector3(-4.0, 0, 0)
+	await _frames(2)
+	var w: Node3D = FS.frost_wall(main, g.global_position + Vector3(-0.5, 0, 0))
+	_check(w != null and FW.current(self) == w, "a spear by the grate raises the Frost Wall")
+	if w == null:
+		return
+	await _frames(2)
+	_check(w.global_position.x > g.global_position.x + 1.0, "on the grate's far edge from him (%s)" % str(w.global_position))
+	_check(EP.state(g) == "frosted", "the grate is frosted (%s)" % EP.state(g))
+	var walls: Array = main.env.structures.filter(func(s: Dictionary) -> bool: return s.get("id", "") == FW.ID)
+	_check(walls.size() == 1 and walls[0].kind == "wall", "env_target knows it as a wall (%d)" % walls.size())
+	var ray := PhysicsRayQueryParameters3D.create(hero.global_position + Vector3.UP, w.global_position + Vector3(2, 1, 0), hero.collision_mask)
+	var hit: Dictionary = hero.get_world_3d().direct_space_state.intersect_ray(ray)
+	_check(not hit.is_empty() and hit.collider.get_parent() == w, "it is on the walls' layer (a throw stops on it)")
+	_check(FS.frost_wall(main, Vector3(-10, 0, 10)) == null, "no grate near, no wall")
+	_check(int(EP.verbs.get("frost_wall", 0)) >= 1, "the Frost Wall is counted")
+	await create_timer(FW.LIFE + 0.6, true, false, true).timeout
+	_check(FW.current(self) == null and EP.state(g) == "cold", "it melts after LIFE, the grate cold again (%s)" % EP.state(g))
+	_check(main.env.structures.filter(func(s: Dictionary) -> bool: return s.get("id", "") == FW.ID).is_empty(), "and leaves env_target")
 
 
 ## Powder Keg: magma on a foe by the barrel sets it burning; KEG_FUSE later it bursts, KEG_DAMAGE to everyone in KEG_R

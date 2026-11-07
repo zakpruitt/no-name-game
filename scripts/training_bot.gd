@@ -108,7 +108,10 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
 	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Powder Keg: Molten Palm carries the dummies over the spikes into
 	# the barrel (it catches) and the crate; Undertow pins them, and Meteor Fall dives on the splatted pile as it bursts.
-	{"room": "pieces", "slot": "big_3", "tokens": ["keg", "L", "L", "L", "H", "H"]}]
+	{"room": "pieces", "slot": "big_3", "tokens": ["keg", "L", "L", "L", "H", "H"]},
+	# "grate": Frost Wall: Frost Spear planted on the grate raises the ice wall on its far edge, and Harpoon's row is
+	# punched into it (Slapshot, a wall in the open).
+	{"room": "pieces", "slot": ["ender_2", "dash_ender_l"], "tokens": ["grate", "alt", "L", "L", "H", "D", "L", "H"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
 const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate"]
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).

@@ -350,6 +350,9 @@ func _burst(other: Node3D) -> void:
 			mult = ENV_PIECE.splat_mult(_piece, wall_mult)
 			ENV_PIECE.hit(_piece, "earth" if VOID_ELEMENT.marked(foe, "molten") else el, hero, "throw")  # (molten: magma)
 		ENV_PIECE.wall_splat(foe.get_tree(), spot, hero)
+		var ice: Node3D = load("res://scripts/frost_wall.gd").struck(foe.get_tree(), spot, _dir)
+		if ice != null:  # (the Frost Wall: one splat and it shatters, a beat later)
+			ice.splat()
 	var spikes: Node3D = ENV_PIECE.under(foe.get_tree(), "spikes", spot)
 	if spikes != null:  # (it comes down on the spikes: x1.5 on the landing)
 		mult *= ENV_PIECE.SPIKES_MULT

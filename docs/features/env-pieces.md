@@ -67,10 +67,10 @@ along the line pillar to foe (`uproot_club`, carried in when the foe is further 
 The pillar stays down as two rubble heaps, out of the swing anchors and the structure list, "KRR-RACK-THOOM!", until
 the training rebuild. With no pillar near, Uproot is a short slam (`UPROOT_OPEN` 22), so Abyss is the open-floor ending.
 
-| Case (void_arm_check `_uproot_pair`, one big foe and one on the line) | Abyss | Uproot |
+| Case (cool_pass_check `_uproot_pair`, one big foe and one on the line; Abyss as rebuilt by the cool pass) | Abyss | Uproot |
 |---|---|---|
-| a pillar within reach | 196 | 297 |
-| open floor | 196 | 78 |
+| a pillar within reach | 170 | 244 |
+| open floor | 197 | 71 |
 
 Look: the tentacle is `void_tendril` (the sheet tendril), the chunks and dust are the designed sheets
 (`DESIGNED.dust`, `env_target._chunk`), the pillar is the comic `pillar_decorated` itself; no polygons. Bot string:
@@ -88,6 +88,23 @@ in it broken and other barrels catching (a chain), "KA-BLOOOM!" over the designe
 barrel is used up (rebuilt in training). Bot string: `keg L L L H H` (slot `big_3`, the room with pieces): the palm
 carries the dummies over the spikes into the barrel and the crate, Undertow pins them, and Meteor Fall dives on the
 pile as the keg goes.
+
+### Frost Wall (ice on a grate)
+
+Frost Spear (L L H) planted on a grate, or within `REACH` 1 m of one, raises a real wall of ice along the grate's far
+edge from him (`scripts/frost_wall.gd`, `frost_spear.frost_wall()`), for `LIFE` 6 s. It is a StaticBody3D on the
+walls' layer, so `thrown_foe.clear_from` stops on it, and env_target knows it as a wall (`add_wall_id`, id
+`frost_wall`): every wall ending gets a wall in the open (Slapshot aims at it from the cursor's pick, Pinwheel and
+Ricochet see it, a splat on it carries the wall mark for Meteor Fall). One splat shatters it `SHATTER_AFTER` 0.25 s
+later (so the rest of a volley lands) with the designed `ice_shatter`; otherwise it melts. The grate reads frosted
+while it stands. Look: three faceted `designed_elements.ice_block` meshes squashed to `THICK` 0.7 m, rising with a
+back-ease, a `frost_mark` and dust at its foot, "KRRSSHK!"; no crystals. The x1.6 shatter bonus from the proposal is
+not built: the wall pays Slapshot's own wall mult. Bot string: `grate alt L L H D L H` (the room with pieces).
+
+| Case (env_breaker_check, three cubes, a 4 m grate edge) | Damage |
+|---|---|
+| Slapshot into the Frost Wall | 153 |
+| Slapshot in the open | 63 |
 
 ## Files
 
@@ -109,6 +126,8 @@ pile as the keg goes.
 - `scripts/env_piece.gd` Powder Keg: `KEG_*`, `_keg()`, `_keg_burst()`, `marked()`, `molten_near()`;
   `void_element.mark` calls `marked()`; `thrown_foe._burst` hits the piece with magma when the foe is molten;
   `env_target` context `keg` (Molten Palm's wind-up, toward a barrel).
+- `scripts/frost_wall.gd`: `raise()`, `current()`, `splat()`, `shatter()`, `melt()`, `struck()`;
+  `scripts/frost_spear.gd` `plant()` calls `frost_wall()`; `thrown_foe._burst` shatters it on a splat.
 - `scripts/breaker_alt_fx.gd` (the Uproot region): `uproot_tear`, `uproot_club`, `uproot_open`.
 - `scripts/game.gd`: `room_setting` (saved under `training/room`), `room` (this run), `toggle_room()`,
   `room_label()`; `scripts/menu_screen.gd` Settings row.
@@ -131,6 +150,9 @@ pile as the keg goes.
   landing breaks a crate and throws rubble chunks; a banner tears; everything rebuilds after `REBUILD_S`; `usable()`.
 - `tests/env_piece_check.gd` `_keg`: magma on a foe by the barrel sets it burning, nothing during the fuse, then 30 to
   the foe beside it and to one 2.5 m off, both molten, the barrel used up.
-- `tests/void_arm_check.gd` `_uproot_pair`: Uproot beats Abyss by a pillar (x1.3 at least), Abyss beats Uproot in
+- `tests/env_piece_check.gd` `_frost_wall`: a spear by the grate raises it on the far edge, the grate frosted, a wall in
+  env_target, on the walls' layer (a ray stops on it), none with no grate near, melted and gone after `LIFE`.
+- `tests/env_breaker_check.gd` (in `agent.sh check`): Slapshot into the Frost Wall pays more than in the open (x1.3 at least).
+- `tests/cool_pass_check.gd` `_uproot_pair` (moved there from void_arm_check by the cool pass): Uproot beats Abyss by a pillar (x1.3 at least), Abyss beats Uproot in
   the open (x1.5 at least); the pillar is toppled, out of the swing anchors, and the foes buried.
 - `godot --headless --path . -- --autotest --room=pieces`: the `[env]` line's `pieces=N/N`.

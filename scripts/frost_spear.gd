@@ -45,6 +45,10 @@ const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
 const STAMP_R := 1.25  # m
 const STAMP_TIME := 0.45  # s
 const STAMP_MARK := 1.5  # frost_mark size (its tile is 1.7 m at 1: the cracks reach ~2.2 m across)
+## Round 51 (env-pieces, Frost Wall): planted on a grate or within FROST_WALL.REACH of one, the spear raises an ice wall
+## on the grate's far edge from him (scripts/frost_wall.gd), if his element can (env_piece.usable).
+const ENV_PIECE := preload("res://scripts/env_piece.gd")
+const FROST_WALL := preload("res://scripts/frost_wall.gd")
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -66,7 +70,20 @@ static func plant(parent: Node, spot: Vector3) -> Node3D:
 	var s: Node3D = new()
 	parent.add_child(s)
 	s.global_position = Vector3(spot.x, 0.0, spot.z)
+	frost_wall(parent, s.global_position)
 	return s
+
+
+## Round 51: the Frost Wall, when the spear went in on or by a grate (env_piece.gd) and this hero has ice.
+static func frost_wall(parent: Node, spot: Vector3) -> Node3D:
+	if not ENV_PIECE.usable("grate", "frost_wall"):
+		return null
+	var grates: Array = ENV_PIECE.near(parent.get_tree(), "grate", spot, FROST_WALL.REACH)
+	if grates.is_empty():
+		return null
+	var hero: Node3D = parent.get_tree().get_first_node_in_group("player")
+	var from: Vector3 = hero.global_position if hero != null else spot - Vector3.FORWARD
+	return FROST_WALL.raise(parent, grates[0], from)
 
 
 ## The one standing, or null.
