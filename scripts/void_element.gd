@@ -598,6 +598,18 @@ const BLACK_ICE_SPEED := 15.0  # m/s
 const BLACK_ICE_WALL_MULT := 2.4
 const BLACK_ICE_STAGGER := 0.04  # s
 const BLACK_ICE_WORD := "KLISSH!"
+## Cold Front: a tentacle from him tethers each cube and hoists it COLD_HOIST m before the throw (after the impact
+## frame, so the throw is seen), the tether stays on it in flight, and each burst is a cold snap (frost and a word).
+const COLD_HOIST := 0.7  # m
+const COLD_HOIST_T := 0.11  # s
+const COLD_SNAP_WORD := "KRSSH!"
+## Anvil: the tentacles yank the buried kebab back up out of its craters and drive it in a second time, magma
+## fissures out of each (ANVIL_TWO_MULT).
+const ANVIL_YANK_AT := 0.2  # s after the first slam
+const ANVIL_YANK_Y := 2.0  # m
+const ANVIL_TWO_MULT := 0.4
+const ANVIL_TWO_WORD := "KRUNCH!"
+const ANVIL_FISSURES := 3
 const IMPALE_GRAB := 4.0  # m round where Tow Line bunched them
 const IMPALE_DAMAGE := 12.0
 const IMPALE_SPEAR_MULT := 1.5  # dark into ice: onto a spear that was already standing, frost and all
@@ -1994,6 +2006,43 @@ static func _anvil(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Ar
 	COMIC_ANVIL.spawn(parent, at, craters)  # (a crater each, nearest first: was three earth spikes each)
 	_pop(parent, at, "hammer")
 	Game.shake(0.7)
+	anvil_again(hero, at, seized, damage)
+
+
+## Anvil's after-beat (round 52): the tentacles yank the kebab back up out of its craters and drive it in a second
+## time, magma fissures out of each crater. Returns the haul (checks).
+static func anvil_again(hero: CharacterBody3D, at: Vector3, seized: Array, damage: float) -> Node3D:
+	var hand: Vector3 = hero.global_position + Vector3.UP * 1.2
+	var items: Array = []
+	for e: Variant in seized:
+		if not is_instance_valid(e) or not e.is_alive() or hero._void.is_heavy(e):
+			continue
+		var p := _flat((e as Node3D).global_position)
+		items.append({"foe": e, "root": hand, "t0": ANVIL_YANK_AT, "top": p + Vector3.UP * ANVIL_YANK_Y, "end": p,
+			"up": 0.12, "hold": 0.05, "down": 0.06})
+	if items.is_empty():
+		return null
+	var g: Node3D = TENTACLE_HAUL.start(hero, items)
+	var parent: Node = hero.get_parent()
+	var to := _flat(at)
+	g.on_end = func(e: Node3D, i: int) -> void:
+		e.take_hit(damage * ANVIL_TWO_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
+		Game.register_hit("breaker")
+		var p := _flat(e.global_position)
+		if i == 0:
+			Game.hitstop(0.05)
+			Game.sfx("hit_big", -2.0, 0.1)
+			Game.shake(0.6)
+		if not Game.comic_style or not is_instance_valid(parent):
+			return
+		if i == 0:
+			ComicFx.say(ANVIL_TWO_WORD, p + Vector3.UP * 2.2, ALT_FX.WALL_WORD_SIZE)
+		COMIC_ANVIL.spawn(parent, to, [p])
+		if DESIGNED.on():
+			for k in ANVIL_FISSURES:
+				var a := TAU * (float(k) / ANVIL_FISSURES) + i * 0.9
+				DESIGNED_EL.fissure(parent, p, Vector3(sin(a), 0.0, cos(a)), 2.2, 4, "earth", 0.8, 0.03)
+	return g
 
 
 # --- Meteor Fall's dive (round 42) -----------------------------------------------------------------------
@@ -2514,14 +2563,34 @@ static func _cold_front(hero: CharacterBody3D, b: Dictionary, at: Vector3, seize
 	var damage: float = b.damage * hero._dmg_mult * mult
 	ELEMENTS.nova(parent, at, "water", 3.0, 8)
 	_pop(parent, at, "spear")
+	# round 52: a tentacle from him tethers each cube and hoists it before the throw (past the impact frame, so it is
+	# seen), and stays on it in flight; each burst is a cold snap
+	var items: Array = []
+	var hand: Vector3 = hero.global_position + Vector3.UP * 1.1
 	for i in seized.size():
-		var e: Node3D = seized[i]
+		var e: Variant = seized[i]
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
+		var p: Vector3 = (e as Node3D).global_position
+		items.append({"foe": e, "root": hand, "t0": i * CUBE_STAGGER, "top": p + Vector3.UP * COLD_HOIST, "end": p + Vector3.UP * COLD_HOIST,
+			"up": COLD_HOIST_T, "hold": 0.03, "down": 0.01, "keep": true})
+	var g: Node3D = TENTACLE_HAUL.start(hero, items)
+	g.on_end = func(e: Node3D, _i: int) -> void:
+		if not is_instance_valid(hero):
+			return
 		var to := cube_target(e, seized, at, hero.get_tree().get_nodes_in_group("enemies"), hero._facing())
-		var tw := parent.create_tween()
-		tw.tween_interval(i * CUBE_STAGGER)
-		tw.tween_callback(THROWN.launch.bind(hero, e, to, damage))
+		THROWN.launch(hero, e, to, damage, {"tether": true, "on_burst": _cold_snap.bind(parent)})
+
+
+## A Cold Front cube bursts (round 52): a cold snap, frost out over the floor and a word.
+static func _cold_snap(f: Node3D, _walled: bool, dir: Vector3, parent: Node) -> void:
+	if not is_instance_valid(parent) or not Game.comic_style:
+		return
+	ComicFx.say(COLD_SNAP_WORD, f.global_position + Vector3.UP * 2.0, 0.55)
+	if DESIGNED.on():
+		DESIGNED.ice_shatter(parent, f.global_position + Vector3.UP * 0.8, 1.1)
+		var d := _flat(dir)
+		DESIGNED_EL.fissure(parent, _flat(f.global_position), d if d.length() > 0.1 else Vector3.FORWARD, 2.4, 3, "water", 0.8, 0.03)
 
 
 ## Collapse (round 51 cool pass): the hole falls in on itself and swallows everyone near it, a tentacle out of it on
