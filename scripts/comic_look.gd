@@ -47,6 +47,8 @@ const TONES := {
 	"comic_banner": {"shadow": Color(0.22, 0.025, 0.06), "mid": Color(0.56, 0.07, 0.05), "light": Color(0.86, 0.2, 0.05), "hi": Color(0.96, 0.32, 0.07), "rim": Color(0.2, 0.03, 0.02), "brush": 0.22, "inner": 0.14},
 	"comic_gold": {"shadow": Color(0.2, 0.07, 0.05), "mid": Color(0.55, 0.26, 0.06), "light": Color(0.82, 0.5, 0.12), "hi": Color(0.95, 0.7, 0.3), "rim": Color(0.2, 0.1, 0.02), "brush": 0.12, "inner": 0.12},
 	"comic_void": {"shadow": Color(0.008, 0.008, 0.02), "mid": Color(0.016, 0.016, 0.036), "light": Color(0.028, 0.028, 0.06), "brush": 0.02, "inner": 0.0},
+	# env-art lane (tools/comic_art/env_extra.py): the pool's water surface (its own node, `pool_water`)
+	"comic_water": {"shadow": Color(0.02, 0.05, 0.13), "mid": Color(0.045, 0.15, 0.3), "light": Color(0.09, 0.29, 0.48), "hi": Color(0.14, 0.4, 0.62), "rim": Color(0.04, 0.12, 0.24), "brush": 0.03, "inner": 0.0, "spot": 0.02},
 	# enemy_*.py extras
 	"P_Rust": {"shadow": Color(0.14, 0.04, 0.03), "mid": Color(0.55, 0.24, 0.09), "light": Color(0.8, 0.45, 0.2), "hi": Color(1, 0.82, 0.55), "rim": Color(0.3, 0.12, 0.04), "brush": 0.3},
 	"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.42, 0.23, 0.13), "light": Color(0.72, 0.47, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.32, "inner": 0.1},
@@ -101,6 +103,9 @@ const EMITS := {
 	"comic_fire": [Color(0.95, 0.16, 0.03), Color(1, 0.88, 0.28)],
 	"comic_ink": [Color(0.035, 0.032, 0.07), Color(0.035, 0.032, 0.07)],
 	"comic_wash": [Color(0.028, 0.027, 0.06), Color(0.028, 0.027, 0.06)],
+	# env-art lane: the pool's ripple lines, the brazier's coals (env_extra.py)
+	"comic_water_hi": [Color(0.56, 0.84, 0.96), Color(0.56, 0.84, 0.96)],
+	"comic_ember": [Color(0.42, 0.04, 0.03), Color(1, 0.62, 0.12)],
 }
 ## A kind whose script defines a shared material name differently.
 const KIND_TONES := {
