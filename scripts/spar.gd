@@ -25,6 +25,13 @@ var _hp := -1.0  # his hp last frame
 var cuts := 0  # its windups a hold cut (enemy.held_cuts)
 var hurts := 0  # times he lost hp while sparring (its strikes; nothing else hits him in training)
 var strays := 0  # times it fell out of the room and was put back
+## Spar pass two, his hurt measured in play: hurts that landed mid-string (his combo running, or a move or a breaker
+## under way: `mid=`), and the real ms he spent in State.HURT each time (`hurt_ms=` avg/max).
+var hurts_mid := 0
+var _combo_prev := 0
+var _state_prev := -1
+var _hurt_from := -1  # ms he went into HURT, while he is in it
+var _hurt_ms: Array[int] = []
 var _main: Node
 
 
@@ -82,7 +89,18 @@ func _physics_process(_delta: float) -> void:
 	if is_instance_valid(hero):
 		if _hp >= 0.0 and hero.hp < _hp:
 			hurts += 1
+			var busy: bool = _state_prev in [hero.State.ATTACK, hero.State.LEAP, hero.State.CHARGE]
+			if _combo_prev > 0 or busy:
+				hurts_mid += 1
 		_hp = hero.hp
+		_combo_prev = Game.combo_count
+		var now := Time.get_ticks_msec()
+		if hero.state == hero.State.HURT and _hurt_from < 0:
+			_hurt_from = now
+		elif hero.state != hero.State.HURT and _hurt_from >= 0:
+			_hurt_ms.append(now - _hurt_from)
+			_hurt_from = -1
+		_state_prev = hero.state
 	if is_instance_valid(foe) and foe.global_position.y < FALL_Y and not foe.has_meta(ENEMY.HELD_FLYING):  # (out of the room: back in)
 		strays += 1
 		foe.global_position = spot()
@@ -106,8 +124,11 @@ func _on_died(e: Node) -> void:
 
 func report() -> void:
 	var live := is_instance_valid(foe)
-	print("[spar] type=%s hits_taken=%d kills=%d hurts=%d blocks=%d cuts=%d strays=%d" % [kind, total_hits(), kills, hurts,
-		blocks(), cuts + (foe.held_cuts if live else 0), strays])
+	var avg := 0.0
+	for ms in _hurt_ms:
+		avg += ms / float(_hurt_ms.size())
+	print("[spar] type=%s hits_taken=%d kills=%d hurts=%d blocks=%d cuts=%d strays=%d mid=%d hurt_ms=%d/%d" % [kind, total_hits(), kills, hurts,
+		blocks(), cuts + (foe.held_cuts if live else 0), strays, hurts_mid, roundi(avg), _hurt_ms.max() if not _hurt_ms.is_empty() else 0])
 
 
 ## Hits its shield blocked since sparring began.
