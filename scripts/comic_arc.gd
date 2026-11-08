@@ -8,6 +8,10 @@ extends "res://scripts/comic_flat.gd"
 
 const SELF := preload("res://scripts/comic_arc.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
+const FX_BEAT := preload("res://scripts/fx_beat.gd")
+const RIDE_EVERY := 3  # steps (on twos) between the rider's arc stamps: each crawl's peak is over by then
+const RIDE_SIZE := 2.6  # m: a crawl's square (DESIGNED.CRAWL_SIZE 1.9 sat on the body as specks; the forks must reach past it)
 const CHEST := 0.9  # m up the foe
 const FORKS := 3
 const FORK_LEN := Vector2(0.75, 1.05)  # m
@@ -30,6 +34,12 @@ var _over := -1.0
 static func ride(parent: Node, e: Variant, by: Variant) -> Node3D:
 	if not is_instance_valid(e):
 		return null
+	if DESIGNED.on():  # fx-queue-b: the drawn crawling arcs (arc_crawl, the lime lightning's own) for the flight
+		var d := Rider.new()
+		d.foe = e
+		d.flight = by
+		parent.add_child(d)
+		return d
 	var r: Node3D = SELF.new()
 	r.foe = e
 	r.flight = by
@@ -87,3 +97,38 @@ func _draw(_s: int) -> void:
 		_strip(pts, FORK_W, FORK_W * 0.4, _p.body)
 	for pts: PackedVector3Array in forks:
 		_strip(pts, FORK_W * 0.35, FORK_W * 0.12, _p.hot)
+
+
+## Designed ride (fx-language queue item 7): the flat polygon forks became the authored `arc_crawl` sheet riding the
+## thrown foe, stamped again every RIDE_EVERY steps while its flight lasts (then AFTER), pooled by FX_BEAT.stamp. The
+## crawl's own beat (glint, held strike, afterimage, erosion) carries each burst; no speed strokes (the throw's own
+## trail and the jolts it throws show the flight).
+class Rider extends Node3D:
+	var foe: Variant
+	var flight: Variant
+	var _t := 0.0
+	var _over := -1.0
+	var _next := 0
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if not is_instance_valid(foe):
+			queue_free()
+			return
+		var flying: bool = is_instance_valid(flight) and not (flight as Node).is_queued_for_deletion()
+		if not flying and _over < 0.0:
+			_over = _t
+		if (_over >= 0.0 and _t - _over >= AFTER) or _t >= MAX_LIFE:
+			queue_free()
+			return
+		var step := FX_BEAT.step(_t)
+		if step < _next or _over >= 0.0:
+			return
+		_next = step + RIDE_EVERY
+		var off := Vector3.UP * DESIGNED.CRAWL_UP
+		var fx: Node3D = FX_BEAT.stamp(get_parent(), "arc_crawl", (foe as Node3D).global_position + off, RIDE_SIZE, "wind",
+				DESIGNED.CRAWL_TIMES, {"erode": Vector2(0.5, 1.0)})
+		if fx != null:
+			fx.follow = foe
+			fx.follow_off = off
+			(foe as Node3D).set_meta("arc_crawl_until", Time.get_ticks_msec() + 360)  # (DESIGNED.crawl won't stack one on it)

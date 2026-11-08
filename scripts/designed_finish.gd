@@ -25,6 +25,7 @@ const SHEETS := {
 	"echo_axe": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite"},
 	"rock_boulder": {"grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},
 	"steam_cloud": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite_depth"},
+	"hail_whirl": {"grid": Vector2(4, 2), "frames": 8, "kind": "sprite"},  # fx-queue-b: Hailstorm's lift (comic_hail), gen_queue.py
 }
 
 const GATHER_SIZE := 5.2  # m: the focus lines' square (the hole in it is 0.27 of the half: ~1.4 m across)
@@ -202,9 +203,9 @@ static func burst(parent: Node, at: Vector3, color: Color, tier: int) -> Node3D:
 	var times: Array = BURST_TIMES.duplicate()
 	if t >= 3:
 		times[1] = 0.1  # the big ones hold their peak
-	var fx := DESIGNED.spawn(parent, "combo_burst", at, BURST_SIZE + BURST_GROW * (t - 1), DESIGNED.PAL.nearest(color), times, Vector2(0.45, 1.0))
-	fx.real_until = 1
-	return fx.vary(PI, true)
+	# (fx-queue-b: three uneven fans, gen_finish.combo_burst; pooled, a named combo lands every few seconds)
+	return FX_BEAT.stamp(parent, "combo_burst", at, BURST_SIZE + BURST_GROW * (t - 1), DESIGNED.PAL.nearest(color), times,
+			{"erode": Vector2(0.45, 1.0)})
 
 
 ## Fx.daze (designed): two drawn stars on a spinning pivot over the head. Named "DazeStars" like the old one.
