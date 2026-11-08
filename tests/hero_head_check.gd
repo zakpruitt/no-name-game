@@ -1,6 +1,7 @@
 extends SceneTree
 ## The hero's head rides his torso (hero fix 2026-11-07, docs/hero-audit-2026-11-07.md). Headless, about 5 s:
-##   godot --headless --path . -s tests/hero_head_check.gd [-- --clips=Run_F,Idle] [--frames] [--raw]
+##   godot --headless --path . -s tests/hero_head_check.gd [-- --clips=Run_F,Idle] [--frames] [--raw] [--hero=v3]
+## (--hero= any ComicLook.HERETIC_MODELS key on the shared rig; the chibi by default)
 ## Plays each clip through the AnimationPlayer at 30 fps (MODEL_SCALE applied), then runs heretic_rig.steady()
 ## as the game does (State.MOVE for stances and runs, ATTACK for Ab_ clips; --raw skips it: the clip as keyed,
 ## with the old HOOD_SQUASH_K 0.45 only). Per clip, in cm:
@@ -30,6 +31,7 @@ func _initialize() -> void:
 	var only := ""
 	var per_frame := false
 	var raw := false
+	var hero := "chibi"
 	for a: String in OS.get_cmdline_user_args():
 		if a.begins_with("--clips="):
 			only = a.trim_prefix("--clips=")
@@ -37,14 +39,17 @@ func _initialize() -> void:
 			per_frame = true
 		if a == "--raw":
 			raw = true
-	var model: Node3D = (load("res://assets/comic/heretic_chibi.glb") as PackedScene).instantiate()
+		if a.begins_with("--hero="):
+			hero = a.trim_prefix("--hero=")
+	print("hero_head_check: %s" % hero)
+	var model: Node3D = (load("res://assets/comic/%s.glb" % load("res://scripts/comic_look.gd").get_script_constant_map()["HERETIC_MODELS"][hero]) as PackedScene).instantiate()
 	get_root().add_child(model)
 	await process_frame
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var n: Node = skel
 	while n.get_parent() != model:
 		n = n.get_parent()
-	(n as Node3D).scale *= rig.MODEL_SCALE.get("chibi", 1.0)
+	(n as Node3D).scale *= rig.MODEL_SCALE.get(hero, 1.0)
 	var ap: AnimationPlayer = model.find_children("*", "AnimationPlayer", true, false)[0]
 	ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	var bones := PackedInt32Array()
