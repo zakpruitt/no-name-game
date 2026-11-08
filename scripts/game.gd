@@ -116,13 +116,14 @@ var room := "plain"
 ## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
 var comic_style := true
 ## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "chibi" (default since round 29,
-## assets/comic/heretic_chibi.glb; an orchestrator call Zak can veto) or "heretic" (the round-28
-## model, heretic.glb). --hero=heretic for this process only, or the Settings entry (saved).
+## assets/comic/heretic_chibi.glb; an orchestrator call Zak can veto), "v3" (the Meshy v3 redesign on the same
+## rig, heretic_v3.glb: docs/characters/heretic.md; not the default, Zak decides) or "heretic" (the round-28
+## model, heretic.glb). --hero=v3 / --hero=heretic for this process only, or the Settings entry (saved).
 ## Read as the player is built, so a change shows from the next Restart training.
 const HERO_DEFAULT := "chibi"
 var hero_model := HERO_DEFAULT
 var hero_setting := HERO_DEFAULT
-const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic"}
+const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic", "v3": "Heretic v3"}
 ## Which hero plays: "heretic" (player.gd, the default) or "prince" (scripts/prince/prince.gd, the dragon prince
 ## slice: docs/characters/dragon-prince.md), from --hero=prince for this process only. main.gd reads it.
 var hero := "heretic"
@@ -486,7 +487,7 @@ func room_label() -> String:
 	return "Room (on restart): %s" % ROOMS.label(room_setting)
 
 
-## Settings: heretic <-> chibi heretic, saved; takes effect on the next Restart training.
+## Settings: heretic -> chibi heretic -> heretic v3, saved; takes effect on the next Restart training.
 func cycle_hero() -> void:
 	var order := HERO_MODELS.keys()
 	hero_setting = order[(order.find(hero_setting) + 1) % order.size()]
