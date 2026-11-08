@@ -116,9 +116,9 @@ designed drawer in designed mode are scored as that drawer.
 | `designed_ink.gd` | tentacle skin, ground stamps, hit pops, trail | every sheet | - | 10 |
 | `designed_finish.gd` | Awakening, halos, daze, combo burst, echo axe, form pop, Rockslide / Steam Burst / Eruption / Anvil | L_H_L_L_H 013, H_H 000 | 4, 6, 7 (Rockslide's boulder is a flat orange blob under three straight bars in the magma row: rock should be stone; combo burst is an even ring of 14 wedges) | 7 |
 | `designed_polish.gd` | dive trails, chip sprays, state tells, Reap's mark, ink tear, drag line, improv payoffs, soul | H_H 011, face_* | - | 10 |
-| `designed_breaker.gd` | every breaker landing: burst, rays, floor spread, after-beats, banner | L_H_H 033, H_H 032, hold 052, L_L_L_H_H 062, L_H_L_L_H 026, D_H_L 000, line_D_L_H_H_H_L 004 | 6, 7, 8 (rays: 26 tapered wedges in an even ring on every landing, carrots / sawblade; bursts: slam_ink an urchin of evenly spaced arms, slam_star a 12-point gear; ice floor cracks: hairline blue rays round a flat blue splat; storm floor arcs: a dark green scribble web) | 5 |
-| `breaker_quake.gd` | the war cry (12 polygon strokes in an even ring + a hoop) and the crater's vent stars | H_H 020-026 (violet wedges round him in every hang), L_L_L_H_H 046-054 | 1, 2, 6, 7, 10 | 4 |
-| `comic_backdraft.gd` | Backdraft's blast (8 polygon wind strokes in a ring) and haul ribbon | L_L_H_D_H_H_L 039-040 (a cluster of sharp pale-blue spikes over the spear) | 1, 2, 6, 7 | 5 |
+| `designed_breaker.gd` | every breaker landing: burst, rays, floor spread, after-beats, banner | L_H_H 033, H_H 032, hold 052, L_L_L_H_H 062, L_H_L_L_H 026, D_H_L 000, line_D_L_H_H_H_L 004 | 6, 7, 8 (rays: 26 tapered wedges in an even ring on every landing, carrots / sawblade, and in the void row an urchin; ice floor cracks: hairline blue rays round a flat blue splat; storm floor arcs: a dark green scribble web). After fx-modern (rays clustered, none on dark): 6 (the floor spreads) | 5 -> 8 |
+| `breaker_quake.gd` | the war cry (12 polygon strokes in an even ring + a hoop) and the crater's vent stars | H_H 020-026 (violet wedges round him in every hang), L_L_L_H_H 046-054 | 1, 2, 6, 7, 10. After fx-modern (drawn `war_cry` sheet, pooled stamp): - | 4 -> 10 |
+| `comic_backdraft.gd` | Backdraft's blast (8 polygon wind strokes in a ring) and haul ribbon | L_L_H_D_H_H_L 039-040 (a cluster of sharp pale-blue spikes over the spear) | 1, 2, 6, 7. After fx-modern (blast = `DESIGNED.wind_burst`): - | 5 -> 9 |
 | `comic_hail.gd` | Hailstorm's lift: polygon helix bands + chips | line_D_L_H_H_H_L 035-038 (not isolated: under the twister) | 1, 2 | 7 |
 | `comic_arc.gd` | Storm Pitch's forks riding the thrown foe | D_H_L 024-028 | 1, 2 (flat polygon zigzags; the jumps are designed bolts) | 7 |
 | `comic_anvil.gd`, `comic_erupt.gd`, `comic_boulder.gd`, `comic_steam.gd` | crossover drawers handed to `designed_finish` | L_L_H_D_H_H_L 052, line_D_L_H_H_H_L 056 | as designed_finish | 7 |
@@ -144,23 +144,35 @@ designed drawer in designed mode are scored as that drawer.
 
 ### The conversion queue (worst first)
 
-Ordered by how often each is on screen times how badly it fails.
+Ordered by how often each is on screen times how badly it fails. A sheet preview (`gen_spectacle.py slam_ink
+slam_star --preview=<dir>`) cleared the landing bursts: `slam_ink` is a fair ink splat and `slam_star` a lopsided star;
+the "urchin" on Abyss was the rays in the void row. So the bursts left the queue and the list below is the one Part 2
+worked from.
 
 1. **Breaker landing rays** (`designed_breaker` `slam_rays`): every breaker ending, an even ring of 26 tapered
-   carrots in the element's light tone. -> three clustered fans (`cluster_angles`), fewer and longer, varied lengths.
+   carrots in the element's light tone. **Converted (fx-modern):** three uneven fans of 13 lines (`cluster_angles`), the
+   longest and fattest in each fan's middle; none on dark landings (their splat has arms).
 2. **War cry** (`breaker_quake.war_cry`): every breaker hang, 12 polygon wedges in an even ring round the hero.
-   -> a drawn sheet (`war_cry`), clustered strokes fat at the inner end round an open middle, through `FX_BEAT.stamp`.
-3. **Breaker landing bursts** (`slam_ink`, `slam_star`): the dark urchin (evenly spaced arms) and the storm gear.
-   -> ink: a few uneven curling tendrils and splatter; star: fewer, lopsided spikes, clustered.
-4. **Backdraft's blast** (`comic_backdraft.blast`): polygon wind strokes over the spear's break read as spiky ice
-   crystals. -> air ribbons (`air_gust`) and the shard-free ice break.
-5. **Rockslide's boulder** (`rock_boulder` in the magma row, `mid_beats.boulder_drop`): a flat orange blob under three
+   **Converted:** the drawn `war_cry` sheet (three fans of strokes, fat round inner ends round a clear middle, hot inner
+   third at the peak), `designed_breaker.war_cry()` through `FX_BEAT.stamp` (pooled, real time so the hang's slow
+   motion can't hold it), the hoop kept as the ink stamp.
+3. **Backdraft's blast** (`comic_backdraft.blast`): 8 ink polygon wedges in an even ring over the spear's break.
+   **Converted:** the air language's `DESIGNED.wind_burst` (floor swirl and gusts over the heads). The refilm showed the
+   spiky pale-blue cluster on that frame was not the blast: it is the water-row hit pops (`designed_ink.pop`, `pop_ice`)
+   and impact streaks on four skewered foes in one frame, one set per foe. That stack is now queue item 9.
+4. **Rockslide's boulder** (`rock_boulder` in the magma row, `mid_beats.boulder_drop`): a flat orange blob under three
    straight bars. -> a stone boulder in the dust row with magma only in its cracks, drawn speed lines tapered.
-6. **Ice floor spread** (`floor_cracks` in the water row on ice landings: Black Ice, Flash Freeze, Avalanche): hairline
+5. **Ice floor spread** (`floor_cracks` in the water row on ice landings: Black Ice, Flash Freeze, Avalanche): hairline
    blue rays round a flat blue splat. -> hex plates and a few straight lit cracks (the `frost_mark` language).
-7. **Storm floor spread** (`floor_arcs`): a dark green scribble web. -> fewer, fatter zigzags with a white core.
-8. **The last polygon riders** (`comic_hail.ride`, `comic_arc.ride`, `comic_pop` radial strokes left in `Fx.combo_pop`
-   fallbacks): flat polygons. -> designed strips (air ribbon helix, `bolt_strip` forks).
+6. **Storm floor spread** (`floor_arcs`): a dark green scribble web. -> fewer, fatter zigzags with a white core.
+7. **The last polygon riders** (`comic_hail.ride`, `comic_arc.ride`): flat polygons. -> designed strips (air ribbon
+   helix, `bolt_strip` forks).
+8. **Even rings left elsewhere:** the combo burst (`combo_burst`, 14 wedges on every named combo) and `comic_pop`'s
+   radial `strokes` still used by `Fx.combo_pop` fallbacks. -> `cluster_angles`.
+
+9. **Crowd ice hits** (Backdraft / Impale on four skewered foes, L_L_H_D_H_H_L 039 before, fxm_bd 029 after): a pop
+   and a streak fan per foe in the water row stack into a cluster of crystals (breaks the "no spiky ice" verdict). ->
+   one pop at the batch's middle, the rest mist; no water streaks on a crowd hit.
 
 Also noted, not queued: impact streaks thrown straight up read as a comb (`designed_fx.streaks`: a vertical blow could
 use a gust or skip, as ice already does); the combo burst's even ring (`combo_burst`) wants `cluster_angles` too.
@@ -168,6 +180,8 @@ use a gust or skip, as ice already does); the combo burst's even ring (`combo_bu
 ## 6. Decisions made in this lane (Zak can overturn)
 
 - The rays drop from the dark family: its ink splat already has arms, and rays plus arms made the urchin.
+- The war cry runs on real time (`WAR_CRY_TIMES`, 0.44 s): it fires as the hang's slow motion starts, and on game time
+  it stood for seconds.
 - Rock is stone (dust row), not magma; magma is only what glows.
 - The breaker cue's closed ring stays: it is a timing cue (UI), quiet by design (round 45), not an effect.
 - `FX_BEAT.stamp` pools by sheet and parent (12 spare nodes a sheet); standing effects are not pooled.

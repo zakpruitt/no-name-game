@@ -558,3 +558,11 @@ the worktree, and deletes the branch once it has been merged.
   tracks; the game's Skeleton3D restores modifier poses each frame), so a probe that edits an unkeyed bone must restore
   it per frame or its offsets integrate. Bone-local axes are not world axes: work in skeleton space and convert into the
   parent's frame (`parent_global.basis.inverse() * v`).
+
+- **Effects are held to `docs/features/fx-language.md`** (fx-modern): read its checklist before an fx change, use
+  `scripts/fx_beat.gd` numbers and `stamp()` (pooled) rather than new timing constants, and add a row to its audit
+  table when you convert or add an effect.
+- **A sheet redraw can be previewed without touching the worktree:** every `tools/vfx_gen/gen_*.py` takes
+  `--out=<dir> --preview=<dir>`; run it from a scratch copy while a land runs on your worktree, then copy the PNG in.
+- **The land lock** (`Desktop/dev/land.lock`, the lane name inside): wait for it before a land and before filming;
+  delete it after the land passes or fails. Don't chain several foreground waits on it: one background wait is enough.
