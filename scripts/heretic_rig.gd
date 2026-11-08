@@ -406,12 +406,26 @@ func _add_eyes(skel: Skeleton3D) -> void:
 	var mat := _face_material(2)
 	for i in 2:
 		var mi := MeshInstance3D.new()
-		mi.mesh = _eye_mesh(-1.0 if i == 0 else 1.0)  # his right eye is on screen left
+		mi.mesh = _scaled(_eye_mesh(-1.0 if i == 0 else 1.0), face.get("k", 1.0))  # his right eye is on screen left
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.set_meta("no_ghost", true)
 		mi.transform = rest.affine_inverse() * _on_face(face.eyes[i], face.up)
 		follow.add_child(mi)
+
+
+## A copy of a face shape scaled k about its middle (its own space), so _step_face's squint scale stays free.
+static func _scaled(mesh: ArrayMesh, k: float) -> ArrayMesh:
+	if is_equal_approx(k, 1.0):
+		return mesh
+	var arrays := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i in verts.size():
+		verts[i] *= k
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
 
 
 ## A face spot [point, surface normal] as a transform whose +z is the normal and +y the face's up.
@@ -474,7 +488,7 @@ func _add_grin(skel: Skeleton3D) -> void:
 	skel.add_child(follow)
 	grin = follow
 	var mi := MeshInstance3D.new()
-	mi.mesh = grin_mesh()
+	mi.mesh = _scaled(grin_mesh(), face.get("k", 1.0))
 	mi.material_override = _face_material(1)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_ghost", true)
@@ -633,27 +647,117 @@ func _process_modification_with_delta(delta: float) -> void:
 			skel.set_bone_pose_scale(bones[0], Vector3.ONE * lerpf(base, KEYED_COLLAPSED if keyed else COLLAPSED, _out))
 	_pose_main(skel, flex)
 	_lean_into_turns(delta, skel)
-	_soften_hood(skel)
+	_steady_head(delta, skel)
 	_time_scarf += delta
 	_flutter_scarf(delta, skel)
 	if eyes != null:
 		_step_face(delta)
 
 
-## The clips squash and stretch the head bone (chibi_keys.py `hsq`: VS, LLH and Death_A reach y 0.7, x/z 1.41),
-## keyed for the Meshy hood. On v2 the head is 42% of him with horns out to the sides, so the full squash
-## flattened the hood into a pancake and threw the horns wide. Keep HOOD_SQUASH_K of it: the beat still reads.
-const HOOD_SQUASH_K := 0.45
-var _head_bone := -2
+## Hero fix (2026-11-07, docs/hero-audit-2026-11-07.md): the head rides the torso. The clips were keyed for the
+## Meshy hood (a small cap over a 1.0 m neck joint); on the v2 body the head is 42% of him, so the same neck and
+## head turns, the hood squash (`hsq`) and the run's whole-body squash (`bsq`, root scale) threw the big head
+## around: in Run_F the crown travelled 46 cm up and down per step at 4.7 steps a second, the head nodded 14
+## degrees on the chest on twos while the body moved on ones, and Idle rolled it 11 cm off the shoulders.
+## Each frame, after the clip: the neck and head keep HEAD_TURN_K of their keyed turn (away from rest); the head
+## keeps no squash (HOOD_SQUASH_K) except on the slams (SLAM_MOVES, SLAM_SQUASH_K); in State.MOVE the root keeps
+## RUN_SQUASH_K of its squash and the upper body (spine) gives back RUN_BOB_K of the hips' bob about its running
+## mean, so the legs bound and the head glides. Feet, hands and contact frames are the clip's (no hand bone is
+## under the head; the spine shift is under 6 cm and only while moving). tests/hero_head_check.gd measures it.
+const HEAD_TURN_K := 0.35
+const HEAD_TURN_ATTACK_K := 0.5  # attacks keep a little more: the head's lunge into the hit reads
+## Then the head levels: it takes back HEAD_LEVEL_K of whatever tilt (pitch and roll, not the turn about
+## the vertical) the body under it gives it, as a head on a big chibi body would to keep its eyes level:
+## Idle's 16 degree hunch tipped the hood forward off the shoulders, the run's 26 degree lean buried the face.
+const HEAD_LEVEL_K := 0.5
+const HEAD_LEVEL_ATTACK_K := 0.25
+const HOOD_SQUASH_K := 0.0
+const SLAM_SQUASH_K := 0.45
+const SLAM_MOVES := ["L3", "VS", "EF"]  # the overhead slams: Ab_L3, Ab_VS (and the breaker dive), Ab_LLH
+const RUN_SQUASH_K := 0.3
+const RUN_BOB_K := 0.6
+const RUN_ROCK_K := 0.6  # of the hips' pitch and roll rocking about its running mean the spine gives back
+const RUN_BOB_TAU := 0.3  # s: the hips' running mean (a step is 0.21 s)
+var _steady_bones := PackedInt32Array()  # head, neck, root, hips, spine (-1 when missing)
+var _hips_mean := {}  # steady()'s running mean of the hips: {y, q}
+var _bob_on := 0.0  # 0..1 eased in and out of State.MOVE
 
 
-func _soften_hood(skel: Skeleton3D) -> void:
-	if _head_bone == -2:
-		_head_bone = skel.find_bone("head")
-	if _head_bone < 0:
+func _steady_head(delta: float, skel: Skeleton3D) -> void:
+	if _steady_bones.is_empty():
+		for b: String in ["head", "neck", "root", "hips", "spine"]:
+			_steady_bones.append(skel.find_bone(b))
+	var hero: CharacterBody3D = void_arm.hero
+	var moving: bool = hero.state == hero.State.MOVE
+	var attacking: bool = hero.state in [hero.State.ATTACK, hero.State.SWING, hero.State.CHARGE, hero.State.LEAP]
+	var slam: bool = attacking and String(hero.get("_move_id")) in SLAM_MOVES
+	_bob_on = move_toward(_bob_on, 1.0 if moving else 0.0, delta / 0.15)
+	steady(skel, _steady_bones, HEAD_TURN_ATTACK_K if attacking else HEAD_TURN_K,
+		HEAD_LEVEL_ATTACK_K if attacking else HEAD_LEVEL_K, SLAM_SQUASH_K if slam else HOOD_SQUASH_K,
+		lerpf(1.0, RUN_SQUASH_K, _bob_on), _bob_on, _hips_mean, delta)
+
+
+## The pose work of _steady_head, static so tests/hero_head_check.gd runs the same maths on bare clips.
+## bones: head, neck, root, hips, spine. run 0..1 scales RUN_BOB_K and RUN_ROCK_K; mean is the caller's
+## running mean of the hips (empty to start), updated in place.
+static func steady(skel: Skeleton3D, bones: PackedInt32Array, turn_k: float, level_k: float, squash_k: float,
+		body_k: float, run: float, mean: Dictionary, delta: float) -> void:
+	var head := bones[0]
+	if head < 0:
 		return
-	var sc := skel.get_bone_pose_scale(_head_bone)
-	skel.set_bone_pose_scale(_head_bone, Vector3.ONE.lerp(sc, HOOD_SQUASH_K))
+	for b in [bones[1], head]:
+		if b < 0:
+			continue
+		var rest_q := skel.get_bone_rest(b).basis.get_rotation_quaternion()
+		skel.set_bone_pose_rotation(b, rest_q.slerp(skel.get_bone_pose_rotation(b), turn_k))
+	skel.set_bone_pose_scale(head, Vector3.ONE.lerp(skel.get_bone_pose_scale(head), squash_k))
+	var root := bones[2]
+	if root >= 0 and body_k < 1.0:
+		skel.set_bone_pose_scale(root, Vector3.ONE.lerp(skel.get_bone_pose_scale(root), body_k))
+	_run_glide(skel, bones, run, mean, delta)
+	_level_head(skel, head, level_k)
+
+
+## Take back k of the head's tilt from upright (its swing off the vertical, keeping its turn about it).
+static func _level_head(skel: Skeleton3D, head: int, k: float) -> void:
+	var parent := skel.get_bone_parent(head)
+	if k <= 0.0 or parent < 0:
+		return
+	var turn := skel.get_bone_global_pose(head).basis.get_rotation_quaternion() 		* skel.get_bone_global_rest(head).basis.get_rotation_quaternion().inverse()
+	var up := turn * Vector3.UP
+	var axis := up.cross(Vector3.UP)
+	if axis.length_squared() < 1e-10:
+		return
+	var swing := Quaternion(axis.normalized(), up.angle_to(Vector3.UP))  # brings his up back to the vertical
+	var fix := Quaternion.IDENTITY.slerp(swing, k)
+	var pq := skel.get_bone_global_pose(parent).basis.get_rotation_quaternion()
+	skel.set_bone_pose_rotation(head, pq.inverse() * fix * pq * skel.get_bone_pose_rotation(head))
+
+
+static func _run_glide(skel: Skeleton3D, bones: PackedInt32Array, run: float, mean: Dictionary, delta: float) -> void:
+	var hips := bones[3]
+	var spine := bones[4]
+	if hips < 0 or spine < 0:
+		return
+	var hips_g := skel.get_bone_global_pose(hips)
+	var y := hips_g.origin.y  # skeleton space: y is up (bone-local axes are not)
+	var q := hips_g.basis.get_rotation_quaternion()
+	if mean.is_empty() or delta <= 0.0:
+		mean.y = y
+		mean.q = q
+		return
+	var w := 1.0 - exp(-delta / RUN_BOB_TAU)
+	mean.y = lerpf(mean.y, y, w)
+	mean.q = (mean.q as Quaternion).slerp(q, w)
+	if run <= 0.0:
+		return
+	# the spine gives back part of the hips' bob and rock about their mean: legs bound, the top glides
+	var inv := hips_g.basis.inverse()
+	var drop := inv * Vector3(0.0, -(y - mean.y) * RUN_BOB_K * run, 0.0)
+	skel.set_bone_pose_position(spine, skel.get_bone_pose_position(spine) + drop)
+	var back := Quaternion.IDENTITY.slerp((mean.q as Quaternion) * q.inverse(), RUN_ROCK_K * run)
+	var hq := q
+	skel.set_bone_pose_rotation(spine, hq.inverse() * back * hq * skel.get_bone_pose_rotation(spine))
 
 
 func _lean_into_turns(delta: float, skel: Skeleton3D) -> void:
