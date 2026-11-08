@@ -98,9 +98,10 @@ const SPILL_NAME := "Spilled"  # the brazier_spilled model, a child of the piece
 static var _registered := false
 
 
-## Is flourish `id` on: its Kit upgrade, or the room's `flourishes` rule (the room with pieces).
+## Is flourish `id` on: its Kit upgrade, or the room's `flourishes` rule (round 57: the ids it lists; the room with
+## pieces has all three, the cistern gallows and ice_rink, the forge brazier_spill).
 static func on(id: String) -> bool:
-	return Kit.has(id) or bool(ROOMS.rule(Game.room, "flourishes"))
+	return Kit.has(id) or ROOMS.flourish(Game.room, id)
 
 
 static func register() -> void:
@@ -378,21 +379,29 @@ static func frozen_pools(tree: SceneTree) -> Array:
 	return tree.get_nodes_in_group("env_pool").filter(func(p: Node) -> bool: return ENV_PIECE.state(p) == "frozen")
 
 
-## thrown_foe._aim: how much further a cube's flight from `from` along `dir` over `length` goes: RINK_EXTRA if its line
-## crosses a frozen pool, else 0.
+## thrown_foe._aim: how much further a cube's flight from `from` along `dir` over `length` goes: RINK_EXTRA for each
+## frozen pool its line crosses, else 0. Round 57 (rooms lane): every pool counts, and the line is looked along again
+## as it grows, so a channel of frozen pools end to end (the cistern's aqueduct) carries a cube its whole length. One
+## pool (all the room with pieces has) is RINK_EXTRA, as before.
 static func rink_extra(tree: SceneTree, from: Vector3, dir: Vector3, length: float) -> float:
 	if tree == null or not on("ice_rink"):
 		return 0.0
 	var pools := frozen_pools(tree)
 	if pools.is_empty():
 		return 0.0
-	var steps := maxi(1, int(length / 0.25))
-	for i in steps + 1:
-		var p := from + dir * (length * float(i) / steps)
-		for pool: Node3D in pools:
-			if ENV_PIECE.gap(pool, p) <= 0.0:
-				return RINK_EXTRA
-	return 0.0
+	var crossed := {}
+	var looked := 0.0
+	var reach := length
+	while reach > looked + 0.01:
+		var steps := maxi(1, int((reach - looked) / 0.25))
+		for i in steps + 1:
+			var p := from + dir * lerpf(looked, reach, float(i) / steps)
+			for pool: Node3D in pools:
+				if not crossed.has(pool) and ENV_PIECE.gap(pool, p) <= 0.0:
+					crossed[pool] = true
+		looked = reach
+		reach = length + RINK_EXTRA * crossed.size()
+	return RINK_EXTRA * crossed.size()
 
 
 ## A pool's watch (env_piece.place): fresh ice by it freezes it; frozen, it keeps knocked foes sliding and glints;
@@ -407,6 +416,7 @@ class RinkWatch extends Node:
 	var _ice: MeshInstance3D
 	var _spear := false
 	static var freezes := 0  # (checks)
+	static var _linking := false  # (round 57: a linked channel's freeze doesn't spread back)
 	static var slides := 0
 
 	func _ready() -> void:
@@ -461,10 +471,18 @@ class RinkWatch extends Node:
 			SELF.RINK_GLINT_TIMES, Vector2(0.7, 1.0))
 		g.real_until = 4
 
-	## Ice by the pool: frozen (or RINK_S more).
+	## Ice by the pool: frozen (or RINK_S more). Round 57: in a room whose `links` hold "pool", every pool touching this
+	## one is the same water and freezes with it (ENV_PIECE.linked).
 	func freeze() -> void:
 		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		_until = SELF.RINK_S
+		if not _linking:
+			_linking = true
+			for other: Node3D in ENV_PIECE.linked(pool):
+				var w := other.get_node_or_null("RinkWatch")
+				if w != null:
+					w.freeze()
+			_linking = false
 		if ENV_PIECE.state(pool) == "frozen":
 			return
 		pool.set_meta(ENV_PIECE.STATE_META, "frozen")
@@ -634,6 +652,20 @@ static func spill(n: Node3D, seam_at: Vector3, run: Vector3, by: Node) -> void:
 	Game.sfx("hit_big", -4.0, 0.12)
 	Game.sfx("cast_earth", -6.0, 0.1)
 	_patch_tick(n, b + dir * 1.0, SPILL_PATCH_S, by)
+
+
+## Round 57 (rooms lane): a Powder Keg burst at `at` (env_piece._keg_burst) tips every lit brazier within KEG_R of it,
+## away from the blast: the coals run out, the molten patch, Hellseam fresh on them. The forge's powder line between two
+## braziers; the room with pieces has its brazier 6 m from its barrel, out of reach.
+static func keg_spill(tree: SceneTree, at: Vector3, by: Node) -> void:
+	if tree == null or not on("brazier_spill") or not ENV_PIECE.usable("brazier", "brazier_spill"):
+		return
+	for b: Node3D in ENV_PIECE.near(tree, "brazier", at, ENV_PIECE.KEG_R):
+		if _lit(b):
+			var away := _flat(b.global_position) - _flat(at)
+			away = away.normalized() if away.length() > 0.05 else Vector3.BACK
+			spill(b, _flat(b.global_position) + away, away, by)
+			ENV_PIECE.played("keg_spill")
 
 
 ## The molten patch: everyone in it is left molten, every SPILL_TICK s for its life.
