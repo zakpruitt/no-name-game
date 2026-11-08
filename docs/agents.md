@@ -475,6 +475,17 @@ fast-forward, so no agent edits another's files or index.
   (`hero_input.promote`).
 - **A standing object the routing reads is a trap if every press reads it.** Gate it on intent the player shows
   (facing, distance, "his last move made it"), never on "it exists"; and give it a leash so walking away ends it.
+- **A lock check that does not block is no lock** (2026-11-08, heretic-port): take `land.lock` atomically and wait in
+  the same loop, `until ( set -o noclobber; echo <lane> > ../land.lock ) 2>/dev/null; do sleep 60; done`; a separate
+  `ls` then `echo >` races. The same goes for "don't film while it exists": one windowed run started on a stale check
+  while another lane held it. Wrap every film in `while [ -e ../land.lock ]; do sleep 60; done` right before it.
+- **A second hero model on the same rig keeps every clip** (2026-11-08, heretic-port): fit the mesh to the rest pose
+  (`tools/hero_build/hero_v3.py`), and when a limb is far shorter than the rig's chains move those bones' rest instead
+  of stretching the mesh (only for bones no clip keys a translation on; `glb_swap.py` rewrites the inverse binds).
+  Prove it with `contact_frames` (it loops every `HERETIC_MODELS` entry) and the autotest with `--hero=<id>`: the
+  `strings=`, `breakers=` and `endings_n=` counts must equal the plain run's.
+- **Skeleton-only checks can't tell two bodies apart:** `hero_head_check` measures the crown as head joint + 0.55 m,
+  so v3 and the chibi print the same numbers. Judge a new body's look from windowed `heretic_shots` / `string_film`.
 
 ## The harness (`tools/agent.sh`)
 
