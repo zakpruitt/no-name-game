@@ -518,3 +518,14 @@ the worktree, and deletes the branch once it has been merged.
 - **`git checkout <file>` to undo a test sed also undid my uncommitted palette edit in that file** (the lesson above,
   again). For an A/B of a constant, commit or copy the file aside first.
 - **Judge a hero's look in the play camera's film, not close-ups** (2026-11-06, model-hero2 round 2): close shots of v2 read well while the string film showed a pale blob, because the camera mostly sees the top and back of the hood. Contrast on the top surface (dark horns, a crimson stripe, a wide scarf) fixed it; an additive fresnel overlay tuned for a pale body turned every dark region gold.
+- **A `.blend` anywhere in the project stops `godot --import` before it reaches the GLB you changed** (2026-11-07,
+  hero-fix): `vendor_src/hero_v2/fix1/hero_v2.blend` made the import fail on "Blender path is invalid" and the game kept
+  the old `heretic_chibi.glb` import, so the new face spots sat inside the old, bigger head (eyes gone in the shots).
+  Put a `.gdignore` in every gitignored build folder under the repo before importing, and check
+  `.godot/imported/<name>.glb-*.scn`'s mtime after an asset swap.
+- **Measure a "bob" from the skeleton, not from frames** (2026-11-07, hero-fix): play the clip through the
+  AnimationPlayer (`seek(t, true)`), read `get_bone_global_pose`, and split the travel into hips, whole-body squash and
+  head-on-chest. A bone with no clip track keeps whatever a probe writes into it (the AnimationPlayer only resets keyed
+  tracks; the game's Skeleton3D restores modifier poses each frame), so a probe that edits an unkeyed bone must restore
+  it per frame or its offsets integrate. Bone-local axes are not world axes: work in skeleton space and convert into the
+  parent's frame (`parent_global.basis.inverse() * v`).

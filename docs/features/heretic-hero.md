@@ -308,12 +308,28 @@ Judged only on `string_film` frames. The play camera mostly sees the top and bac
 - **Scarf tail** wider (to 0.15 m) and running `SCARF_MORE` 0.16 m past its last bone (weighted to it), with a bigger swallowtail.
 - **Body**: shoulders and skirt a little wider, skirt hem crimson.
 - **Awakened**: the overlay `player._awaken_rim` (`rim_glow.gdshader`, additive fresnel, power 2.2, intensity 2.5) turned every dark region gold. `heretic_rig._tighten_awaken_rim` sets the hero's own copy to `AWAKEN_RIM_POWER` 5 and `AWAKEN_RIM_INTENSITY` 1.6: his colours stay, gold only at the edge.
-- **Hood squash**: the clips scale the head bone for the Meshy hood (VS, LLH and Death_A reach y 0.7, x/z 1.41). `heretic_rig._soften_hood` keeps `HOOD_SQUASH_K` 0.45 of it each frame.
+- **Hood squash**: the clips scale the head bone for the Meshy hood (VS, LLH and Death_A reach y 0.7, x/z 1.41). Since the hero fix (below) only the slams keep it (`SLAM_SQUASH_K` 0.45).
 - **Axe** built 0.8x about the hand (`WEAPON_K`, about 1.54 m): at full size the Awakened crescent hid the dummies it hit.
 - **Axe edge** in fx_palette's storm lime: `ComicLook.EMITS["P_StormGreen"]`, a material only the hero's GLBs use.
 - **Re-keying keeps the v2 body**: `chibi_keys.py` runs `glb_swap.py` over its own export with `HERO_BUILD` (default `vendor_src/hero_v2/out`) and stops if there is no build; `--meshy-body` exports the old body on purpose. Not run end to end: the baked blend it keys over is not on this machine.
 
 Body 21.9k tris, weapons 3.7k.
+
+## Hero fix (2026-11-07): the head rides the torso
+
+Zak: "the head is bobbing and doesn't fit at all". Full diagnosis, numbers, mess catalogue and the hand-over for the
+redesign: [docs/hero-audit-2026-11-07.md](../hero-audit-2026-11-07.md); sheets 63 / 64 in `awaken-combo-clips`.
+
+- **Cause:** the clips were keyed for the Meshy hood; on v2's head the keyed neck / head turns, `hsq` and the run's
+  root squash moved the crown 46 cm per Run_F step, the head tilting 14-39 degrees.
+- **`heretic_rig.steady()`** (every frame after the clip, static so `tests/hero_head_check.gd` runs the same maths):
+  neck and head keep `HEAD_TURN_K` 0.35 of their keyed turn (0.5 attacking), the head takes back `HEAD_LEVEL_K` 0.5
+  of its tilt off upright (0.25 attacking), hood squash only on `SLAM_MOVES` (L3, VS, EF), and in State.MOVE the root
+  keeps `RUN_SQUASH_K` 0.3 of its squash while the spine gives back `RUN_BOB_K` / `RUN_ROCK_K` 0.6 of the hips' bob
+  and rock about their running mean (`RUN_BOB_TAU` 0.3 s). Run_F crown 46 -> 12 cm; Idle face_dot 0.83 -> 0.91.
+- **Proportions:** `hero_v2.py` `HEAD_K` 0.86 (head group about the neck joint) and `BACK_K` 0.7 (the back point),
+  env `HERO_HEAD_K` / `HERO_BACK_K`; `FACE["chibi"]["k"]` sizes the eyes and grin. Rebuilt over the committed GLB.
+- **Check:** `tests/hero_head_check.gd` (in `agent.sh check`; `-- --raw` prints the clip as keyed, `--frames` per frame).
 
 ## The rig
 
@@ -383,7 +399,7 @@ Rebuild as above (`chibi_keys.py` over the baked blend, `comic_glb.py`, `--impor
 - The change has no sound of its own.
 - The orbiting motes are still the old soft cyan dots (`elements.Orbit`).
 - v2 (round 44) has only been seen in stills and filmed strings, not played by hand.
-- The clips' hood squash is only damped in the engine (`HOOD_SQUASH_K`), not re-keyed for the v2 hood.
+- The clips are not re-keyed for the v2 head: `heretic_rig.steady()` corrects the head, squash and run bob in the engine (hero fix, below).
 - The main tentacle's last bone assumes `Vector3.UP` as its direction, because nothing follows it to measure from.
 - `mid` and `low` bulge when coiled hard, where they're fused to the limb.
 - High knees can stretch the skirt where it meets the thigh.
