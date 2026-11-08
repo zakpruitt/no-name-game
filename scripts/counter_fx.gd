@@ -98,6 +98,11 @@ const BLADE_UP := 2.6
 const BLADE_OUT := 3.4
 const BLADE_FLIGHT := 0.55
 const BLADE_SPIN := 22.0
+## Impact lane (feel audit 7 item 10): it clatters down and skids BLADE_SKID m on along its throw over BLADE_SKID_S
+## real s, eroding from the touchdown, so it is off the floor 0.3 s after it lands (it lay whole a beat, then eroded).
+## (The "cleaver lying 2 s" in counter_D 032-052 of that audit was the previous string's Frost Spear, standing its 5 s.)
+const BLADE_SKID := 0.7
+const BLADE_SKID_S := 0.3
 static var _cool3_registered := false
 static var glints := 0  # (counter_check)
 static var blades := 0
@@ -149,8 +154,8 @@ static func blade_off(parent: Node, from: Vector3, to: Vector3, perfect: bool) -
 	var side := away.cross(Vector3.UP).normalized() * (0.6 if randf() < 0.5 else -0.6)
 	var start := Vector3(to.x, 0.0, to.z) - away * 0.3 + Vector3.UP * 1.3
 	var land := Vector3(to.x, 0.0, to.z) + (away + side).normalized() * BLADE_OUT * (1.2 if perfect else 1.0)
-	var times: Array = [BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0 + 0.25]  # (the last turn lies a beat)
-	var fx := DESIGNED.spawn(parent, "parry_blade", start, BLADE_SIZE, "dust", times, Vector2(0.82, 1.0))
+	var times: Array = [BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0, BLADE_FLIGHT / 4.0 + BLADE_SKID_S]  # (the last turn skids)
+	var fx := DESIGNED.spawn(parent, "parry_blade", start, BLADE_SIZE, "dust", times, Vector2(BLADE_FLIGHT / (BLADE_FLIGHT + BLADE_SKID_S), 1.0))
 	fx.real_time = true
 	var spin := [0.0]
 	var dir := 1.0 if randf() < 0.5 else -1.0
@@ -167,6 +172,11 @@ static func blade_off(parent: Node, from: Vector3, to: Vector3, perfect: bool) -
 		if is_instance_valid(parent) and parent.is_inside_tree():
 			DESIGNED.dust(parent, land, 0.7)
 			Game.sfx("hit", -12.0, 0.2))
+	var skid_to := land + Vector3.UP * 0.15 + (away + side).normalized() * BLADE_SKID
+	tw.tween_method(func(k: float) -> void:
+		if is_instance_valid(fx):
+			fx.global_position = (land + Vector3.UP * 0.15).lerp(skid_to, k)
+			fx.set_spin(spin[0] + dir * 0.6 * k), 0.0, 1.0, BLADE_SKID_S).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 
 ## Backlash's slam lands at `at` (on the floor), having come down along `dir` (flat, from him out).
