@@ -9,6 +9,7 @@ extends Node3D
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
 const INK_FX := preload("res://scripts/designed_ink.gd")
+const FX_BEAT := preload("res://scripts/fx_beat.gd")
 const STEPS_PER_S := 12.0  # on twos, at 24 fps
 const INK := Color(0.012, 0.01, 0.02)
 const HOT := Color(1.0, 0.45, 0.05)  # the impact star, whatever the element
@@ -166,13 +167,13 @@ func setup(at: Vector3, opts: Dictionary) -> void:
 	_mi.sorting_offset = o.layer
 	_new_star()
 	var n: int = o.strokes
-	for i in n:
-		var a: float
-		if o.radial or _fwd == Vector3.ZERO:
-			a = TAU * (i + _rng.randf_range(-0.2, 0.2)) / n
-		else:
-			a = _angle(_fwd) + (lerpf(-1.0, 1.0, (i + 0.5) / n) + _rng.randf_range(-0.25, 0.25)) * o.spread
-		_strokes.append([a, _rng.randf_range(0.0, 0.25), _rng.randf_range(0.7, 1.15), _rng.randf_range(0.8, 1.2)])
+	if o.radial or _fwd == Vector3.ZERO:  # fx-language rule 7: three uneven fans with gaps, never an even ring
+		for aw: Vector2 in FX_BEAT.cluster_angles(n, _rng, 3 if n >= 6 else 2, 0.5):
+			_strokes.append([aw.x, _rng.randf_range(0.0, 0.15), lerpf(0.55, 1.15, aw.y), lerpf(0.65, 1.2, aw.y)])
+	else:
+		for i in n:
+			var a: float = _angle(_fwd) + (lerpf(-1.0, 1.0, (i + 0.5) / n) + _rng.randf_range(-0.25, 0.25)) * o.spread
+			_strokes.append([a, _rng.randf_range(0.0, 0.25), _rng.randf_range(0.7, 1.15), _rng.randf_range(0.8, 1.2)])
 	_throw_chips()
 	for c: Dictionary in _chips:
 		c.pos += c.vel * CHIP_HEAD_START

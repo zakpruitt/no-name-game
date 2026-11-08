@@ -13,7 +13,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, SS, Frame, catmull, ellipse_mask, erode_field, fbm, grow,  # noqa: E402
+from vfxlib import (BODY, cluster_angles, DEEP, HOT, INK, LIGHT, SS, Frame, catmull, ellipse_mask, erode_field, fbm, grow,  # noqa: E402
                     pack, poly_mask, preview, rng, save, star, stroke, wobble_ring)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
@@ -325,29 +325,38 @@ def daze_star(i, n, size):
     return f.finish()
 
 
-# --- combo_burst: a named combo landing (Fx.combo_pop): strokes bursting out all round him -----------------------
-# Manga burst lines thrown outward from a clear hole round him (never over him): frame 0 short and fat at the hole's
-# edge, then they race out and stretch, then snap thin and break to dashes.
+# --- combo_burst: a named combo landing (Fx.combo_pop): strokes bursting out round him -----------------------------
+# fx-queue-b (fx-language rule 7): three uneven fans of burst lines (vfxlib.cluster_angles), never an even ring, thrown
+# out from a clear hole round him (never over him), the war cry's language: fat round inner ends tapering to needles,
+# the longest and fattest in each fan's middle. Frame 0 short hot stubs at the hole's edge (the anticipation), 1 the
+# peak (full length, hot inner third), 2 lit, then the inner ends race out after the tips (tail first) and thin.
 
 def combo_burst(i, n, size):
     f = Frame(size)
     c = f.c
     g = rng(907)
-    k_l = 14
     t = i / (n - 1)
-    for j in range(k_l):
-        a = math.tau * j / k_l + g.uniform(-0.12, 0.12)
-        ln = g.uniform(0.65, 1.3)
-        back = lerp(0.46, 0.74, ease_out(t)) + g.uniform(0.0, 0.04)
-        front = min(0.99, back + lerp(0.42, 0.22, t) * ln)
-        w = f.u(lerp(0.085, 0.04, t)) * g.uniform(0.8, 1.2)
-        path = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0, 1, 14)]
-        # fat at the inner end (round cap), drawn out to a needle at the outside: thrown out from him
-        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.9 + 0.5, cap=True)], f.S)
-        f.fill(m, BODY, ink=2.2)
-        if t < 0.6:
-            core = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0.04, 0.55, 8)]
-            f.fill(poly_mask([stroke(core, [w * 0.4, w * 0.25, 0.0], cap=False)], f.S) * m, HOT if i <= 1 else LIGHT)
+    hole = 0.4
+    for j, (a, wt) in enumerate(cluster_angles(12, 911, clusters=3, spread=0.5)):
+        ln = lerp(0.45, 1.0, wt) * g.uniform(0.9, 1.06)
+        bow = (0.03 if j % 2 else -0.025) * g.uniform(0.6, 1.2)
+        if i == 0:
+            back, front = hole * 0.95, hole + 0.14 * ln
+        else:
+            back = hole + lerp(0.0, 0.34, ease_out(t) ** 1.3) + g.uniform(0.0, 0.03)
+            front = min(0.985, hole + lerp(0.5, 0.58, ease_out(t)) * ln)
+        if front - back < 0.04:
+            continue
+        w = f.u(lerp(0.095, 0.035, t) if i > 0 else 0.1) * lerp(0.55, 1.15, wt)
+        path = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0, 1, 14)]
+        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.85 + 0.5, cap=True)], f.S)
+        f.fill(m, BODY, ink=2.6)
+        if i <= 2:
+            core = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0.04, 0.45, 8)]
+            f.fill(poly_mask([stroke(core, [w * 0.45, w * 0.22, 0.0], cap=False)], f.S) * m, HOT if i <= 1 else LIGHT)
+        elif i <= 3:
+            lit = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0.04, 0.5, 8)]
+            f.fill(poly_mask([stroke(lit, [w * 0.35, w * 0.15, 0.0], cap=False)], f.S) * m, LIGHT)
     return f.finish()
 
 
