@@ -136,9 +136,36 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"room": "pieces", "slot": "dash_ender_l", "tokens": ["pool", "alt", "D", "L", "H"]},
 	# "brazier": Brazier Spill: Molten Palm carries the dummies past the lit brazier and Lava Leash drags them back
 	# over it: the seam tips it, the coals run on and Hellseam erupts from them too.
-	{"room": "pieces", "slot": "cross_dark_magma", "tokens": ["brazier", "L", "L", "L", "H", "L"]}]
+	{"room": "pieces", "slot": "cross_dark_magma", "tokens": ["brazier", "L", "L", "L", "H", "L"]},
+	# Spar pass two (`spar`: only with `--spar=<kind>`, "melee" for the four that strike, "ranged" for the archer and
+	# mage; spar_kind()). "foe": the string is played on the live foe (the bot aims at it, not the dummies). "C" waits for
+	# its strike and dashes at it early in the counter window (Backlash, no perfect); "CP" waits for the perfect
+	# (Backlash, then Ricochet in the window); against a shooter "C" parries its bolt. "W" waits until it is mid-windup
+	# (strike_in() <= BOT_W_AT) and the next press is a hold that catches it there (the `cuts=` of `[spar]`).
+	# Backlash slams it down in front of him, staggered: the hammer string follows up on it (L L L H, Molten Palm).
+	{"spar": "melee", "slot": "ender_3", "tokens": ["foe", "C", "L", "L", "L", "H"]},
+	# The perfect: Ricochet hurls it into the dummies (the crowd it wants).
+	{"spar": "melee", "slot": "counter", "tokens": ["foe", "CP"]},
+	# Hold-cuts: the grab seizes it mid-windup, Siphon Slam heaves it overhead and Collapse takes the hole.
+	{"spar": "melee", "slot": "sig_gather", "tokens": ["foe", "W", "H", "H"]},
+	# Harpoon mid-windup: the dash takes him past its strike and the tentacle sets it down frozen in the row.
+	{"spar": "melee", "slot": "dash_ender_l", "tokens": ["foe", "W", "D", "L", "H"]},
+	# A shooter: two bolts parried back at it.
+	{"spar": "ranged", "slot": "counter", "tokens": ["foe", "C", "C"]},
+	# The gallows on a live foe (room with pieces): Ricochet hangs it on the east pillar's hook, then Galvanize latches
+	# a tentacle on it where it hangs (and on the dummies) and the current runs down them.
+	{"spar": "melee", "room": "pieces", "slot": ["counter", "cross_dark_storm"], "tokens": ["hook", "foe", "CP", "wait", "H", "L", "L"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide", "foe"]
+## Spar pass two: the tokens that wait on the live foe ("C" / "CP" its counter window, "W" its windup), up to
+## BOT_FOE_WAIT s each (then the token is skipped and counted in `[spar_bot] missed=`). "C" dashes once the strike is
+## BOT_C_AT s off (inside counter.WINDOW, before its PERFECT); "W" lets the next press go once it is BOT_W_AT s off (the
+## telegraph has shown ~0.2 s on the warrior). Between, he walks at it when it is past BOT_FOE_NEAR m.
+const BOT_FOE_TOKENS := ["C", "CP", "W"]
+const BOT_FOE_WAIT := 6.0
+const BOT_C_AT := 0.2
+const BOT_W_AT := 0.6
+const BOT_FOE_NEAR := 2.4
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
 const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide"]
 ## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
@@ -207,6 +234,10 @@ var _settle_t := 0.0
 var _press_frame := -1  # physics frame of the bot's last press
 var _bot_string := 0  # BOT_STRINGS index playing
 var _bot_face := false  # this string aims at the nearest foe ("face")
+var _bot_foe := false  # this string is played on the live spar foe ("foe")
+var _bot_foe_t := 0.0  # s the current foe token has waited
+## Spar pass two's foe tokens: counters / perfects / bolts pressed, windups caught ("W"), tokens that timed out.
+var foe_stats := {"c": 0, "cp": 0, "bolt": 0, "w": 0, "missed": 0}
 var _homes := {}  # dummy -> its home, while a "line" string has it standing elsewhere
 var _bot_step := 0  # next token in it
 var _bot_wait := 1.0  # s before the next string starts
@@ -369,6 +400,8 @@ func _autotest_finish() -> void:
 	if main._spar != null:
 		main._spar.report()
 	print("[counter] counters=%d perfect=%d ricochet=%s" % [player.counters, player.counter_perfects, player.COUNTER.last_ricochet])
+	if main._spar != null:
+		print("[spar_bot] c=%d cp=%d bolt=%d w=%d missed=%d" % [foe_stats.c, foe_stats.cp, foe_stats.bolt, foe_stats.w, foe_stats.missed])
 	Game.stop_all_sfx()
 	# Give the audio thread a moment to release playbacks, or they leak at exit.
 	await get_tree().create_timer(0.2, true, false, true).timeout
@@ -404,7 +437,13 @@ func _drive_bot() -> void:
 		_bot_landed[player._move_id] = true  # (a breaker's ender: its leap can start the frame after the hit)
 	var nearest: Node3D = null
 	var nd := INF
+	var live: Node3D = _spar_foe()
+	_bot_foe = "foe" in strings[_bot_string]
 	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.has_meta("spar") and not _bot_foe:
+			continue  # (spar pass two: the dummies' strings walk up to and aim at the dummies; the live foe joins in)
+		if _bot_foe and live != null and e != live:
+			continue  # ("foe": the live foe's strings aim at it)
 		var d: float = e.global_position.distance_to(player.global_position)
 		if d < nd:
 			nd = d
@@ -430,7 +469,8 @@ func _drive_bot() -> void:
 	to.y = 0.0
 	var string: Array = strings[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
-	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not _placed(string) else Vector3.ZERO
+	var stay: bool = _placed(string) or (_bot_foe and live != null and live.is_ranged())  # (a shooter keeps its range)
+	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not stay else Vector3.ZERO
 	if _bot_face and _bot_step > 0 and to.length() > 0.3:
 		player.bot_move = to.normalized()  # (aims every press at the nearest foe; he jogs at it between them)
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
@@ -465,7 +505,7 @@ func _drive_bot() -> void:
 		_reset_spots()
 		_reset_done = true
 		return  # (the next frame starts the string from there)
-	if _bot_step == 0 and (not idle or (nd > 3.0 and not _placed(string))):
+	if _bot_step == 0 and (not idle or (nd > 3.0 and not stay)):
 		return  # walk up first (not to a "line": the dash takes him there)
 	if _bot_step == 0:
 		_bot_rhythm.clear()
@@ -473,6 +513,7 @@ func _drive_bot() -> void:
 		player.bot_alt = "alt" in string
 		player.bot_out = "out" in string
 		_bot_face = "face" in string
+		_bot_foe_t = 0.0
 	if string[_bot_step] in BOT_SETUP:  # (not a press: bot_alt / the line is set for the whole string)
 		_bot_step += 1
 		return
@@ -480,7 +521,10 @@ func _drive_bot() -> void:
 		if player.state == player.State.MOVE and player._post_dash_t <= 0.0:
 			_bot_step += 1
 		return
-	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
+	var ready: bool = idle or ((player.state == player.State.DASH or player._post_dash_t > 0.0) and player._counter.is_empty())
+	if string[_bot_step] in BOT_FOE_TOKENS:
+		_foe_token(string[_bot_step], idle, dt)
+		return
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
 		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
@@ -506,6 +550,68 @@ func _drive_bot() -> void:
 	_bot_pending_t = 0.0
 	_bot_starts_at = _bot_starts
 	_bot_step += 1
+
+
+## Spar pass two: "C" / "CP" / "W" on the live foe (BOT_FOE_TOKENS). He walks at it while it is past BOT_FOE_NEAR;
+## "C" / "CP" press the dash at it when counter.find() has its strike (or bolt) at BOT_C_AT s / inside the perfect,
+## "W" steps on once its windup is BOT_W_AT s from the strike, so the next press (a hold) catches it mid-windup.
+func _foe_token(tok: String, idle: bool, dt: float) -> void:
+	var foe: Node3D = _spar_foe()
+	_bot_foe_t += dt
+	if _bot_foe_t > BOT_FOE_WAIT:
+		foe_stats.missed += 1
+		_bot_step += 1
+		_bot_foe_t = 0.0
+		return
+	if foe == null or foe.state == foe.State.SPAWN:
+		return
+	var to: Vector3 = foe.global_position - player.global_position
+	to.y = 0.0
+	if idle:
+		player.bot_move = to.normalized() if to.length() > BOT_FOE_NEAR and not foe.is_ranged() else Vector3.ZERO
+	if not idle and not (player.state == player.State.ATTACK and player._hits_done > 0):
+		return  # (from a stand, or a move already past its hit: a dash cancels it)
+	if tok == "W":
+		var si: float = foe.strike_in()
+		if si < 0.0 or si > BOT_W_AT or not idle:
+			return
+		player.bot_move = Vector3.ZERO
+		player._face(to)
+		foe_stats.w += 1
+		_bot_step += 1
+		_bot_foe_t = 0.0
+		return
+	var c: Dictionary = player.COUNTER.find(player, to.normalized())
+	if c.is_empty():
+		return
+	if c.bolt == null and (c.foe != foe or (tok == "CP" and not c.perfect) or (tok == "C" and c.t > BOT_C_AT)):
+		return
+	if c.bolt != null:
+		var bolt_to: Vector3 = (c.bolt as Node3D).global_position - player.global_position
+		bolt_to.y = 0.0
+		to = bolt_to
+	player.bot_move = to.normalized()  # (the dash is aimed at it: counter.ARC)
+	Input.action_press("dash")
+	foe_stats["bolt" if c.bolt != null else ("cp" if c.perfect else "c")] += 1
+	_press_frame = Engine.get_physics_frames()
+	_bot_pending = "D"
+	_bot_pending_t = 0.0
+	_bot_starts_at = _bot_starts
+	_bot_step += 1
+	_bot_foe_t = 0.0
+
+
+## The live spar foe (spar.gd), alive, or null.
+func _spar_foe() -> Node3D:
+	var s: Node = main.get("_spar") if main != null else null
+	if s == null or not is_instance_valid(s.foe) or not s.foe.is_alive():
+		return null
+	return s.foe
+
+
+## `--spar=<kind>` on the command line ("" without), for the `spar` strings (BOT_STRINGS).
+static func spar_kind() -> String:
+	return load("res://scripts/spar.gd").kind_from(OS.get_cmdline_user_args())
 
 
 ## A "counter" string has the first dummy swing at him (training_dummy.swings); every other string, none.
@@ -544,7 +650,17 @@ func _all_endings() -> Array:
 ## BOT_STRINGS entries this run plays: an `upgrade` string only with its Kit upgrade on.
 static func active() -> Array:
 	return BOT_STRINGS.filter(func(b: Dictionary) -> bool:
-		return (not b.has("upgrade") or Kit.has(b.upgrade)) and b.get("room", Game.room) == Game.room)
+		return (not b.has("upgrade") or Kit.has(b.upgrade)) and b.get("room", Game.room) == Game.room and _spar_ok(b))
+
+
+## A `spar` string plays only against a live foe of its sort: "melee" (it strikes) or "ranged" (it shoots).
+static func _spar_ok(b: Dictionary) -> bool:
+	if not b.has("spar"):
+		return true
+	var k := spar_kind()
+	if k == "":
+		return false
+	return (k in load("res://scripts/spar.gd").RANGED) == (b.spar == "ranged")
 
 
 ## A BOT_STRINGS entry's labels: its slot id(s), or its upgrade.

@@ -171,13 +171,30 @@ func _gather() -> void:
 	_p.global_position = Vector3(0.0, _p.global_position.y, 0.0)
 	_p._face(Vector3(0.0, 0.0, -1.0))
 	var fwd: Vector3 = _p._facing()
-	var foes := get_nodes_in_group("enemies")
+	var foes := get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return not e.has_meta("spar"))
+	_spar_near()
 	for i in foes.size():
 		var side := (i - (foes.size() - 1) * 0.5) * 1.4
 		foes[i].global_position = _p.global_position + fwd * (2.2 + i % 2 * 1.0) + fwd.cross(Vector3.UP) * side
 		foes[i].velocity = Vector3.ZERO
 		if "home" in foes[i]:
 			foes[i].home = foes[i].global_position  # (or it strolls back mid-string)
+
+
+## Spar pass two: the live foe (`--spar=`) is not gathered into the fan (pulled 1.6-1.8 m in front of him, it wound
+## up as the bot walked in, so his hurts clustered at each string's start). It stays where it is, in play; only when it
+## has wandered past SPAR_NEAR m from the room's middle is it put SPAR_AT from there, on his flank, to walk back in.
+const SPAR_NEAR := 7.0
+const SPAR_AT := Vector3(4.6, 0.0, 1.2)
+func _spar_near() -> void:
+	var spar: Node = _main.get_node_or_null("Spar")
+	if spar == null or not is_instance_valid(spar.foe) or not spar.foe.is_alive():
+		return
+	var e: Node3D = spar.foe
+	if e.has_meta("thrown_foe_flying") or Vector2(e.global_position.x, e.global_position.z).length() <= SPAR_NEAR:
+		return
+	e.global_position = Vector3(SPAR_AT.x, e.global_position.y if e.is_on_floor() else 0.0, SPAR_AT.z)
+	e.velocity = Vector3.ZERO
 
 
 ## `--layout=`: the dummies' homes (the bot puts them there before each string, and him BOT_SPOT m short of the

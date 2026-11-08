@@ -7,7 +7,10 @@ extends SceneTree
 ##     gather, thrown, bound, frozen in a cube, hung on a hook, launched, seized), and nothing held starts one;
 ##   - each of those reaches its state (flying, bound, frozen, airborne, staggered) on a live foe;
 ##   - his hurt: a dash cancels it within HURT_OUT s;
-##   - the spar foe spawns and respawns inside the room, wherever he stands.
+##   - the spar foe spawns and respawns inside the room, wherever he stands;
+##   - spar pass two, in play: the bot (training_bot.gd) plays its `spar` strings in a fresh training room on a live
+##     warrior (Backlash into L L L H, Ricochet off a perfect, the grab and Harpoon cutting its windups) and archer (bolts
+##     parried back), as `--autotest --spar=<kind>` would; the counters, Ricochet and a hold cut must land.
 ## Prints one `[spar_check] <kind> ...` line each and [spar_check] PASS/FAIL.
 ## Run: godot --headless --path . -s tests/spar_check.gd
 
@@ -48,6 +51,8 @@ func _initialize() -> void:
 	await _poise()
 	await _hurt()
 	await _respawn()
+	await _bot("warrior")
+	await _bot("archer")
 	if _fails.is_empty():
 		print("[spar_check] PASS")
 	else:
@@ -280,6 +285,54 @@ func _hurt() -> void:
 	_check(ms <= HURT_OUT * 1000.0 + 20.0, "the dash is out of hurt within %.2f s (%d ms)" % [HURT_OUT, ms])
 	print("[spar_check] hurt dash_out=%d ms" % ms)
 	await create_timer(0.5).timeout
+
+
+## The bot's `spar` strings (training_bot.BOT_STRINGS, the plain room's) against a live `kind` in a fresh training
+## room, BOT_ROUNDS times over (a respawn or a dodge can cost one round its counter), up to BOT_S s of game time.
+const BOT_ROUNDS := 2
+const BOT_S := 70.0
+func _bot(kind: String) -> void:
+	main.queue_free()
+	await process_frame
+	main = load("res://scenes/main.tscn").instantiate()
+	get_root().add_child(main)
+	await create_timer(1.5).timeout
+	hero = main.player
+	main._spar = SPAR.start(main, PackedStringArray(["--spar=" + kind]))
+	var BOT: GDScript = load("res://scripts/training_bot.gd")
+	var ranged: bool = kind in SPAR.RANGED
+	var picked: Array = BOT.BOT_STRINGS.filter(func(b: Dictionary) -> bool:
+		return b.has("spar") and not b.has("room") and (b.spar == "ranged") == ranged)
+	var labels: Array = []
+	for i in BOT_ROUNDS:
+		labels.append_array(picked)
+	var bot: Node = BOT.new()
+	bot.main = main
+	bot.strings = labels.map(func(b: Dictionary) -> Array: return b.tokens)
+	bot.string_labels = labels
+	bot._quitting = true  # (its finish would quit the tree)
+	bot._shots_taken = 99
+	main.add_child(bot)
+	var counters0: int = hero.counters
+	var t := 0.0
+	while bot._bot_strings_done.size() < bot.strings.size() and t < BOT_S:
+		await physics_frame
+		t += hero.get_physics_process_delta_time()
+	var s: Node = main._spar
+	var cuts: int = s.cuts + (s.foe.held_cuts if is_instance_valid(s.foe) else 0)
+	var st: Dictionary = bot.foe_stats
+	print("[spar_check] bot %s strings=%d/%d c=%d cp=%d bolt=%d w=%d missed=%d counters=%d ricochet=%s cuts=%d hurts=%d hits_taken=%d kills=%d %.0f s" % [
+		kind, bot._bot_strings_done.size(), bot.strings.size(), st.c, st.cp, st.bolt, st.w, st.missed, hero.counters - counters0,
+		hero.endings_seen.has(hero.VOID_ELEMENT.BREAKERS.CB.names.spirit), cuts, s.hurts, s.total_hits(), s.kills, t])
+	_check(bot._bot_strings_done.size() == bot.strings.size(), "bot %s: every spar string played (%d/%d)" % [kind, bot._bot_strings_done.size(), bot.strings.size()])
+	if ranged:
+		_check(st.bolt > 0 and hero.counters > counters0, "bot %s: a bolt parried in play" % kind)
+	else:
+		_check(st.c > 0 and st.cp > 0 and hero.counters > counters0, "bot %s: Backlash and the perfect counter in play" % kind)
+		_check(hero.endings_seen.has(hero.VOID_ELEMENT.BREAKERS.CB.names.spirit), "bot %s: Ricochet lands in play" % kind)
+		_check(cuts > 0, "bot %s: a hold cuts a windup in play (cuts=%d)" % [kind, cuts])
+	bot.queue_free()
+	hero.bot_enabled = false
 
 
 ## He stands by the room's back wall: the foe spawns, and respawns, inside the room on the floor.
