@@ -2,6 +2,7 @@ extends SceneTree
 ## Films every autotest bot string (training_bot.strings: all 21 moves and the 7 breakers) from the game
 ## camera at 12 fps, on the training dummies, played by the bot exactly as the autotest plays them:
 ##   timeout 300 godot --path . -s tests/string_film.gd [-- --no-gather] [--from=N: start at strings[N]] [--to=N: stop after it] [--dir=name] [--fps=N] [--tail=MS: film on after the string] [--no-awaken]
+##     [--tokens=L,L,H,wait,L: film this bot string instead, repeatable]
 ##     user://string_film/<string>/NNN.png + INDEX.txt  (one folder per string, e.g. L_L_L_H, hold)
 ##     user://string_film/freeplay/NNN.png + INDEX.txt  (10 s of the bot chaining strings after the pass)
 ##   `--room=<name>` (Game reads it: plain, pieces, cistern, forge; rooms.gd ORDER) films in that room; with
@@ -81,6 +82,13 @@ func _initialize() -> void:
 		_bot.strings = _show.map(func(sc: Dictionary) -> Array: return sc.tokens)
 		_bot.string_labels = _show
 		physics_frame.connect(_showcase_start)
+	var own: Array = []  # `-- --tokens=L,L,H,wait,L` (repeatable): film these bot strings instead (ice-staff lane: a string
+	for arg: String in OS.get_cmdline_user_args():  # no BOT_STRINGS entry plays, e.g. the vault after a plant)
+		if arg.begins_with("--tokens="):
+			own.append(Array(arg.trim_prefix("--tokens=").split(",")))
+	if not own.is_empty():
+		_bot.strings = own
+		_bot.string_labels = own.map(func(t: Array) -> Dictionary: return {"slot": "step", "tokens": t})
 	if "--overview" in OS.get_cmdline_user_args():  # (round 57: the whole room from high over the near edge, a fixed camera)
 		var cam := Camera3D.new()
 		get_root().add_child(cam)
