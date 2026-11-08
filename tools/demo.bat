@@ -6,7 +6,7 @@ rem   3  flooded cistern, full kit         (down the channel: Dash L H, pause, L
 rem   4  forge hall, full kit              (powder line L L L H H; bonded plates L H H, L in the window)
 rem   5  room with pieces, full kit, archer spar    (parry bolts back)
 rem   6  plain room, full kit, warrior spar
-rem Add "bot" after the number to watch the autotest bot play every string in that preset (about 1-2 min, quits by itself).
+rem Add "bot" after the number to watch the autotest bot play every string in that preset (3-4 min, quits by itself).
 rem Add "show" after 3 or 4 to watch the bot play that room's showcase combos (string_film --showcase, quits by itself).
 setlocal
 set "ROOT=%~dp0.."
