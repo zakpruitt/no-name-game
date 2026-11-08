@@ -114,6 +114,29 @@ var _hit_ms := -100000
 var replace := true
 var _breakers_seen := 0
 var _improv_ms := -100000
+var _brk_word_ms := -100000  # the last breaker word said
+
+## Impact lane (spar audit 2026-11-07 item 10): a kill under an impact frame (the kill's own grey negative, or a
+## breaker's) had its kill star washed out and nothing else said it died. The frame draws on layer -1, under this
+## layer, so the kill word KILL_WORD goes up on the frame itself; the kill star pops again, bigger, once the frame has
+## cleared (Game.impact.current() back to 0, at most KILL_STAR_WAIT_MS). A breaker word this fresh keeps the page
+## (KILL_QUIET_MS): the re-popped star carries that kill.
+const KILL_WORD := "K.O.!"
+const KILL_SCALE := 0.7
+const KILL_QUIET_MS := 250
+const KILL_STAR_WAIT_MS := 260
+const KILL_STAR_SIZE := 1.8  # x designed_fx.HIT_SIZE (Fx.death's star is 1.3, 1.6 for an elite)
+const KILL_STAR_UP := 0.9
+var _kills: Array = []  # [foe, ms, last position] waiting for the frame to clear
+static var kill_words := 0  # (breaker_spectacle_check)
+static var kill_stars := 0
+## Impact lane (feel audit 7 item 8): a word placed before a name callout went up, or before the breaker banner opened
+## (FAULT LINE over KRUNCH!, BLACK TIDE over SPLOOSH!, SHLUMPF! on COLLAPSE's PERFECT!), stayed under it: the name
+## lifts to the top band in the hang, and the banner opens a frame after the landing word. Every frame each live word
+## is checked against the hero's name callout and the open banner and moved clear of them (below a block in the top
+## half of the screen, above one in the bottom half), RELAY_PAD px off.
+const RELAY_PAD := 6.0
+static var relaid := 0  # words moved off a name or the banner (breaker_spectacle_check)
 
 
 ## An element-matrix payoff (comic_improv.gd) on the foe at `world`: its cell's word, once a move however many pay.
@@ -154,6 +177,7 @@ func _ready() -> void:
 		var l := _make_label()
 		_words.append(l)
 		_born.append(0)
+	Game.enemy_killed.connect(_on_killed)
 
 
 func _exit_tree() -> void:
@@ -217,9 +241,12 @@ func _show(i: int, world: Vector3, base: float) -> void:
 	l.set_meta("base", base)
 	l.set_meta("y", l.position.y)
 	l.set_meta("reduced", reduced)
+	l.remove_meta("relaid")  # (a pooled label: the next word may need moving again)
 	l.scale = Vector2.ONE * base * word_scale(0, reduced)
 	l.visible = true
 	_born[i] = maxi(Time.get_ticks_msec(), 1)
+	if is_inside_tree():
+		_relay(get_tree().get_first_node_in_group("player"))  # (said after this frame's _process: clear of the name now)
 
 
 ## Where a word of `size_px` goes: at the contact point (`world` raised WORD_HEAD), turned from the way
@@ -276,17 +303,104 @@ func _text_blocks(cam: Camera3D, hero: Node, me := -1) -> Array[Rect2]:
 		blocks.append(NUMBER.banner_rect)  # (Collapse's -FTOOO! and Meteor Shower's BLAMM sat on its PERFECT!)
 	if hero == null:
 		return blocks
-	var callout: Variant = hero.get("_callout")
-	if callout is Label3D and callout.is_visible_in_tree() and not cam.is_position_behind(callout.global_position):
-		var half_m: float = callout.get_aabb().size.x * 0.5 * callout.global_basis.get_scale().x
-		var mid := cam.unproject_position(callout.global_position)
-		var half_px := absf(cam.unproject_position(callout.global_position + cam.global_basis.x * half_m).x - mid.x)
-		var half_h := CALLOUT_HALF_H_PX * float(callout.text.count("\n") + 1)
-		blocks.append(Rect2(mid - Vector2(half_px, half_h), Vector2(half_px, half_h) * 2.0))
+	var name_rect := _callout_rect(cam, hero)
+	if name_rect.size.x > 0.0:
+		blocks.append(name_rect)
 	var prompt: Variant = hero.get("_brk_prompt")
 	if prompt is Control and is_instance_valid(prompt) and prompt.get("_shown") == true:
 		blocks.append(Rect2(prompt.center - PROMPT_HALF_PX * Vector2(1.0, 0.8), PROMPT_HALF_PX * 2.0))
 	return blocks
+
+
+## The hero's name callout on screen (Rect2() when none shows: hidden, or left undrawn for the banner).
+func _callout_rect(cam: Camera3D, hero: Node) -> Rect2:
+	var callout: Variant = hero.get("_callout") if hero != null else null
+	if not callout is Label3D or not callout.is_visible_in_tree() or (callout as Label3D).modulate.a < 0.05:
+		return Rect2()
+	if cam.is_position_behind(callout.global_position):
+		return Rect2()
+	var half_m: float = callout.get_aabb().size.x * 0.5 * callout.global_basis.get_scale().x
+	var mid := cam.unproject_position(callout.global_position)
+	var half_px := absf(cam.unproject_position(callout.global_position + cam.global_basis.x * half_m).x - mid.x)
+	var half_h := CALLOUT_HALF_H_PX * float(callout.text.count("\n") + 1)
+	return Rect2(mid - Vector2(half_px, half_h), Vector2(half_px, half_h) * 2.0)
+
+
+## Live word `i`'s drawn rect (its label scaled about its middle).
+func word_rect(i: int) -> Rect2:
+	var l := _words[i]
+	var ws := l.size * l.scale
+	return Rect2(l.position + l.size * 0.5 - ws * 0.5, ws)
+
+
+## Moves each live word off the name callout and the open banner (item 8 above).
+func _relay(hero: Node) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var blocks: Array[Rect2] = []
+	var name_rect := _callout_rect(cam, hero)
+	if name_rect.size.x > 0.0:
+		blocks.append(name_rect)
+	if NUMBER.banner_open and NUMBER.banner_rect.size.x > 0.0:
+		blocks.append(NUMBER.banner_rect)
+	if blocks.is_empty():
+		return
+	var mid_y := get_viewport().get_visible_rect().size.y * 0.5
+	for i in POOL:
+		if _born[i] == 0:
+			continue
+		for b: Rect2 in blocks:
+			var r := word_rect(i)
+			if not r.intersects(b):
+				continue
+			var dy := (b.end.y + RELAY_PAD - r.position.y) if b.get_center().y < mid_y else (b.position.y - RELAY_PAD - r.end.y)
+			_words[i].position.y += dy
+			_words[i].set_meta("y", float(_words[i].get_meta("y")) + dy)
+			if not _words[i].has_meta("relaid"):
+				_words[i].set_meta("relaid", true)
+				relaid += 1
+
+
+## A foe died (Game.enemy_killed; game.gd's kill frame has already fired by now).
+func _on_killed(e: Node) -> void:
+	var foe := e as Node3D
+	if foe == null or not is_inside_tree() or Game.impact == null or Game.impact.current() <= 0.0:
+		return  # (no frame up: the kill's own star reads)
+	var now := Time.get_ticks_msec()
+	if now - _brk_word_ms > KILL_QUIET_MS:
+		_say(KILL_WORD, foe.global_position, KILL_SCALE)
+		kill_words += 1
+	_kills.append([foe, now, foe.global_position])
+
+
+## The kill stars waiting for the frame to clear.
+func _kill_tick() -> void:
+	var now := Time.get_ticks_msec()
+	var left: Array = []
+	for k: Array in _kills:
+		var foe: Variant = k[0]
+		var alive := is_instance_valid(foe) and (foe as Node).is_inside_tree()
+		if Game.impact.current() > 0.0 and now - int(k[1]) < KILL_STAR_WAIT_MS:
+			if alive:
+				k[2] = (foe as Node3D).global_position
+			left.append(k)
+			continue
+		var parent: Node = (foe as Node).get_parent() if alive else get_tree().current_scene
+		if parent == null:
+			continue
+		var at: Vector3 = (foe as Node3D).global_position if alive else k[2]
+		kill_stars += 1
+		var designed: GDScript = load("res://scripts/designed_fx.gd")
+		if designed.on():
+			var star: Node3D = designed.spawn(parent, "hit_spark", at + Vector3.UP * KILL_STAR_UP, designed.HIT_SIZE * KILL_STAR_SIZE,
+				"hit", load("res://scripts/designed_ink.gd").KILL_TIMES, Vector2(0.55, 1.0))
+			star.real_time = true
+			star.pop = 0.25
+			star.vary(PI, true)
+		else:
+			Fx.death(parent, at, Vector3.ZERO, true)
+	_kills = left
 
 
 ## _text_blocks for anyone else (ComicNumber), [] with the comic style off.
@@ -346,6 +460,7 @@ func _watch_hero() -> void:
 		var word: String = BREAKER_WORDS.get(hero.HERO_LEAP.breaker_name(hero), "")
 		if word != "":
 			_say(word, hero.global_position, BREAKER_SCALE)
+			_brk_word_ms = Time.get_ticks_msec()
 
 
 func _to_screen(world: Vector3) -> Vector2:
@@ -367,6 +482,8 @@ func _on_page(p: Vector2, size_px: Vector2) -> Vector2:
 
 func _process(_delta: float) -> void:
 	_watch_hero()
+	if not _kills.is_empty():
+		_kill_tick()
 	var now := Time.get_ticks_msec()
 	for i in POOL:
 		if _born[i] == 0:
@@ -379,6 +496,7 @@ func _process(_delta: float) -> void:
 			continue
 		l.scale = Vector2.ONE * float(l.get_meta("base")) * word_scale(frame, l.get_meta("reduced"))
 		l.position.y = float(l.get_meta("y")) - WORD_RISE_PX * frame
+	_relay(get_tree().get_first_node_in_group("player"))
 
 
 ## Whole frames at FPS, held on twos.
