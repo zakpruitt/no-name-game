@@ -36,7 +36,9 @@ godot_run() { timeout "$1" godot --headless --path "$(root)" "${@:2}" < /dev/nul
 # before failing. A real regression fails both runs.
 # ice_block_check: the dummy's hit-freeze shudder put 4-16 body vertices 0.05-0.08 m past its block in 3 of 9 runs
 # (round 51; 0 of 6 run alone).
-RETRY="rhythm_check ice_block_check"
+# cool_pass_check: its open-vs-wall damage pairs sit near their margins and vary run to run (2026-11-08 hero-fix:
+# Collapse 448 vs 384 failed 1 in 3 on dev alone; Eruption open 310-324 against Flash Freeze 378 at a 1.2x bar).
+RETRY="rhythm_check ice_block_check cool_pass_check"
 
 check() {
 	local quick=${1:-}
