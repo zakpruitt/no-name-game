@@ -177,3 +177,63 @@ Contacts: L1 11/31, L2 12/33, L3 24/56, DL 12/61, AL1 11/30; GR 7, VS 17, LH 14,
 - The clips are not re-keyed (no baked blend); the steadying is a procedural layer over them.
 - Attacks still move the crown 50-110 cm (lunges and slams, by design); only their head turn and tilt were damped.
 - Items 5-11 above.
+
+## 6. v3 vs chibi (heretic-port lane, 2026-11-08)
+
+The Meshy v3 model (docs/characters/heretic.md, task 01a1ba0d) is in the game behind `--hero=v3` and the Settings
+picker, on the chibi's rig: every one of the 62 clips plays, the 11 contact lines match (`contact_frames`), the
+autotest with `--hero=v3` lands what the plain run lands (strings 45/45, breakers 15/15, endings 22/22, the same
+moves), and `heretic_shots` passes headless and windowed. **Not the default: Zak decides.** How it is built:
+docs/features/heretic-hero.md "Heretic v3". Sheets: `69 heretic v3 in game.png` (heretic_shots poses close and from
+the game camera, then string_film frames: walk, run, L1-L3, dash, vault, GR, the VS / EF / L3 slams, DL, EC, plain
+room with the four dummies) and `70 heretic v3 vs chibi.png` (the same, v3 over the chibi).
+
+| | chibi | v3 |
+|---|---|---|
+| body tris | 21,900 (+ weapons) | 12,644 (+ the same weapons) |
+| texture | 128 px swatch palette | 2048 px painted atlas (2 edits) |
+| crown / head (neck joint to crown) | 1.55 m / 37% | 1.548 m / 36.5% |
+| Run_F crown travel on screen (steadied) | 12.7 cm facing, 21.2 side | the same (skeleton-only measure) |
+| Idle face_dot / dark face px / eye glow px | 0.91 / 221 / 91, 85 | 0.92 / 255 / 41, 81 (`EYE_PX` 25) |
+| feet at rest height (Idle) | | off by 0.020 m |
+
+**Better.**
+- It is the concept: bone-white hood with ram horns (crimson tips), the void face with the grin, the red scarf, the
+  shackle and chain, real boots. Up close (the `close` row) it reads as a character with a costume; the chibi reads
+  as a toy. Nothing pokes out of the head past the horns, so the crown stays put from above.
+- The hood is the lightest value on the screen and the horns frame it: from the game camera he is a white skull-cap
+  with two black hooks; that separates from the dummies' cream better than the chibi's cream-and-red cone did.
+- Half the triangles, and a real two-legged stance: the stride clips look like steps, not a skirt sliding.
+- The face plate tipped 40 degrees faces the camera better than the chibi's (0.92).
+
+**Worse.**
+- **The tentacle is smaller than the chibi's claw.** The concept's limb is one hand-sized cluster; the chibi's claw is
+  the signature (audit 4: at least 1.5x a natural hand, the brightest thing on him). Even at `TIP_GIRTH` 1.4 the
+  resting tips are a purple tangle the size of his hood's cheek; the weapon forms (`void_arm`) carry the reads in
+  attacks, as on the chibi.
+- **The body vanishes from above.** Slate-blue clothes and boots on the indigo floor, the scarf mostly under the hood:
+  from the game camera v3 is a hood, horns and a tentacle. The chibi's red skirt rim and red hood stripe give it
+  three warm marks; v3 has only the horn tips.
+- **The painted texture is busy** next to the flat swatches of everything else: the hood's painted folds and
+  the clothes' noise read as grain at 130 px. The comic toon bands and paper rim work, but the inner shading fights them.
+- **Tentacle at rest.** The five tips on the chibi's claw keys bunch and cross in Idle and the slam frames (traced
+  from v3's hanging pose onto chains keyed for long claws): from close they look tangled, not curled.
+- **Eyes sit low in a deep hood.** The painted eyes were under the brim, out of the game camera's sight; the decals
+  are moved down to 0.35 of the void and pulled 0.8 together, which passes (`EYE_PX`) but is lower in the face than
+  the concept.
+- The scarf is part of the shell (no flutter: the scarf bones carry nothing).
+
+**What the design doc should change next** (docs/characters/heretic.md):
+1. Make the tentacle the signature again: a fatter, longer cluster in the concept (tips at least the hood's width
+   when spread), or keep v3's body and give it the chibi's claw. Re-key the five tips' rest for v3's shorter chains
+   (or let `heretic_rig` drive them procedurally at rest) so they curl apart instead of crossing.
+2. Put a warm mark on top: a crimson band or sigil across the hood's crown (seen from 53 degrees down) and a lighter
+   belt or sash, so his body reads on the indigo floor.
+3. Flatten the texture to swatches (one value per region, the comic ink does the folds) before any further Meshy
+   spend; hero_v3.py's class map (hood / slate / crimson / magenta / cyan / black) already knows the regions.
+4. A shallower hood (brim higher) so the eyes can sit where the concept paints them and still face the camera.
+5. A separate scarf tail weighted to `scarf.*` for motion.
+
+**Not done / could not fix.** Not played by hand. The resting tentacle tangle (above). Eye 0 (his right) is the
+weaker of the two from the game camera (the hood's cheek). The scarf tail. The texture stays painted (a flat
+retexture would be Meshy credits or hand work: not spent).

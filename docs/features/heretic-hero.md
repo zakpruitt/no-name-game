@@ -420,3 +420,63 @@ kept start; `--linear` for the round-28 heretic's per-frame bakes). Ab_AF: drawi
 `1:1,7:6,13:11,25:16,31:21,43:25,47:29,50:32`, so the palm lands on f32 of 81 (was f50 of 99), on both
 heretic_chibi.glb and heretic.glb. `chibi_keys.py` carries the same keys, so a full re-key from the blend matches.
 Every MOVES fraction tied to the old length goes through `void_element.AF_HIT` / `AF_K`.
+
+## Heretic v3 (2026-11-08): the Meshy v3 model on the same rig
+
+`--hero=v3` (or Settings: heretic -> chibi heretic -> heretic v3). **Not the default; Zak decides.** The model is the
+Meshy Image-to-3D result from the concept sheet (docs/characters/heretic.md, task 01a1ba0d, 12,644 tris, 2048 px
+painted texture), fitted onto the chibi's 93-joint rig at rest so all 62 clips, the contact frames, weapon forms and
+every bone lookup work unchanged. Verdict against the chibi: [hero audit, section 6](../hero-audit-2026-11-07.md).
+
+**Files.** `assets/comic/heretic_v3.glb` (+ `heretic_v3_paint.png`, the extracted texture), `tools/hero_build/hero_v3.py`
+(Meshy GLB in, build dir out), `tools/hero_build/glb_swap.py` (build dir + the chibi GLB in, game GLB out),
+`heretic_rig.FACE["v3"]` / `MODEL_SCALE["v3"]`, `ComicLook.HERETIC_MODELS["v3"]`, `Game.HERO_MODELS["v3"]`.
+Sources (gitignored): `vendor_src/heretic_v3/model_01a1ba0d.glb`, builds in `vendor_src/heretic_v3/b*/`.
+
+**Rebuild** (headless, about 15 s, zero Meshy credits):
+
+```
+blender -b --factory-startup -P tools/hero_build/hero_v3.py -- assets/comic/heretic_chibi.glb \
+    vendor_src/heretic_v3/model_01a1ba0d.glb vendor_src/heretic_v3/b3 [render] [parts|fit|tips]
+python tools/hero_build/glb_swap.py assets/comic/heretic_chibi.glb vendor_src/heretic_v3/b3 assets/comic/heretic_v3.glb
+# copy b3/face.txt's spots into heretic_rig.FACE["v3"]; then godot --headless --path . --import
+```
+
+`parts` / `fit` / `tips` render the part split, the fitted rest pose with bones, or the tentacle's chain colours, then
+stop. `render` writes workbench views of the rest pose and Idle / Run_F / L1 / GR / L3 / VS frames from `hero_v3.blend`.
+
+**How it is fitted** (the sections of `hero_v3.py`):
+- **Mirror.** v3 has the tentacle on his left; x is mirrored (faces reversed) so it hangs off `hand.r`.
+- **Parts by texture colour + connectivity**: hood/horns flood-filled from the crown (head), the crimson scarf, the
+  magenta tentacle, the left sleeve (flood from the shackle), loose islands (the chain links), the rest body.
+- **Body**: a uniform horizontal scale and a piecewise height map: boot top 0.17, belt 0.33, shoulder 0.45, hood hem
+  0.60 (Meshy units) onto the rig's 0.28 / 0.62 / 0.84 / head joint 0.983 m. The head group is a similarity about
+  the neck, sized to `HEAD_PCT` (env `HERO_HEAD_PCT`, 0.365): crown 1.548 m, head 36.5% of his height.
+- **Tentacle**: Dijkstra surface distance from where it meets the body; tips are local maxima of that distance
+  (a candidate within `BR_MIN` 0.05 of a kept tip's path is a bump); the trunk is the run of 0.04-wide distance bands
+  that stay one connected piece. The five tips go onto `main` / `up` / `out` / `mid` / `low` by best direction
+  match (`tent.back` carries nothing). Each bone maps its traced v3 segment onto its rest bone (shortest-arc
+  rotation, axial stretch, across scale; the tips' across scale x `TIP_GIRTH` 1.4: at 1.0 they read thin from the
+  game camera); the mesh is the linear blend of those maps under the final skin weights.
+- **New tentacle rest.** The chibi's claw chains are 0.7-0.9 m with up to 0.3 m of palm; v3's tips are 0.31-0.41 m.
+  No clip keys a translation on `tent.*` (or the right arm), so each chain root moves `PALM_K` 0.3 of the way to the
+  hand and the chain takes the tip's own length x `TIP_STRETCH` 1.15. `bones.json` carries the new heads;
+  `glb_swap.py` rewrites those nodes' translations and every inverse bind matrix (it asserts bind = rest first).
+- **Weights**: surface-distance seeds with an exponential falloff on the tentacle and left arm, torso / skirt / legs
+  split by leg columns round the boots, head 100% `head`, seams smoothed (skirt 5 rounds), top 4 kept.
+- **Face plate**: the painted void's 66 vertices laid on one plane tipped `FACE_TILT` 40 degrees up, pulled
+  `-FACE_SINK` 0.03 out of the hood, the painted eyes blacked out. The decals are not on the painted eyes: those sit
+  high under the brim, which the game camera never sees. `EYE_H` / `GRIN_H` put them that far up the plate, square
+  about the void's middle, `EYE_GAP` 0.8 of the painted spacing (wider, the hood's cheek hides his
+  right eye in Idle). Env overrides: `HERO_V3_FACE_TILT` / `_FACE_SINK` / `_EYE_H` / `_GRIN_H` / `_EYE_GAP` / `_FACE_K`. Blink, squint and the grin are the chibi's (`heretic_rig.FACE`, `"k"` 0.85).
+- **Texture** (per texel, by rasterising the UV triangles; islands padded 8 px against mip bleed): horn tips crimson
+  `#A8282E` past 0.64 along each horn, the hood moved toward bone-white `#E9E8F0` by luminance ratio, the face
+  `#05050A`. `glb_swap.py` embeds it as a PNG, linear + mipmaps (`build/texture.png`; without it the old palette path).
+- **Look**: the same `P_HereticPaint` material, so the comic toon + paper rim come from `ComicLook.painted()` as on
+  the chibi. The scarf is part of the shell: the `scarf.*` bones are there (on their spring), nothing is weighted
+  to them.
+
+**Checks** (`--hero=v3` where they take one): `heretic_shots` (headless and windowed, face checks for every
+`FACE` entry), `hero_head_check` / `hero_stride_check` (now take `--hero=`; skeleton-only, so identical to the chibi),
+`contact_frames` (loops all models: the 11 v3 lines match), `comic_check`, `lean_spike_check`, `void_arm_check`,
+the autotest. Numbers and pictures: hero audit section 6; sheets 69 / 70 in `awaken-combo-clips`.
