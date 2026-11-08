@@ -1227,3 +1227,21 @@ Zak: the environment should be a big part of what you can do, and later be shape
 - [ ] Zak's call: hazards that hurt the hero in harder rooms; the item kinds that write to a room (lore doc); whether
   the new rooms' showcases join the autotest (a `BOT_STRINGS` entry with `room`, training_bot's lane)
 
+## Round 57 spar2 (spar pass two: the counter and the holds in real play)
+
+The first spar pass left the bot blind to the live foe, `cuts=0`, the foe gathered into every film's fan, and the
+gallows never filmed on a live foe. Audit: `docs/spar-audit-2026-11-07b.md`.
+- [x] Bot tokens on the live foe (`training_bot.gd`, strings with `spar: melee|ranged`): `C` Backlash, `CP` the
+  perfect and Ricochet, `W` waits for its windup so the next press is a hold, `settle`; strings `foe C L L L H`,
+  `foe CP`, `foe W H H`, `foe W D L H`, `foe C C` (shooters), `hook foe CP settle H L L` (room with pieces)
+- [x] `cuts` count in play: a hold whose own hit broke the windup a frame earlier (`enemy.HOLD_CUT_GRACE`), the
+  tentacle's grab; not Backlash. Warrior autotest `cuts=0` -> 3-6
+- [x] `string_film` leaves the live foe out of the gather (hurts at string start 4 of 5 -> 0 of 2; away 31% -> 21%)
+- [x] Melee spar foes 3x hp (`spar.HP_SCALE`, `--spar-hp=N`), refilled for their own strings: the gallows now hangs a
+  live warrior and Galvanize latches on it (at 1x the splat killed it every time)
+- [x] `[spar]` adds `mid=` and `hurt_ms=`; `[spar_bot]`; `AUTOTEST_SPAR` +60 s with a live foe
+- [x] `spar_check` plays the spar strings in play on a warrior and an archer (the gate; a `--spar=warrior` autotest
+  stays out of `agent.sh check`)
+- [x] Clips: `awaken-combo-clips/50 Spar2 *`
+- [ ] Zak's call: the gallows splat kills any real foe (cap it to hang alive?); grabbing a foe out of Ricochet's
+  throw; the spar foe's 3x hp; his hurt kept at 0.35 / 0.12 (a mid-string hurt still resets the string)
