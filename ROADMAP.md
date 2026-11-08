@@ -1206,3 +1206,24 @@ clips. Audit: `docs/feel-audit-2026-11-07c.md`.
   even if it crops the pile for 0.3 s
 - [ ] Open: mid name callouts stacked over their beat words; Cataclysm's pile under the top banner for ~0.5 s; the
   parried cleaver lying ~2 s; Collapse's stray pebbles
+
+## Round 57 rooms (rooms as data: the flooded cistern and the forge hall)
+
+Zak: the environment should be a big part of what you can do, and later be shaped by items. Doc:
+`docs/features/rooms.md`; world: `docs/design/environment-lore.md`.
+- [x] A room is pure data (`rooms.gd` `ROOM_DEFS`: label, size, layers of placements with yaw, `make_live`, `rebuild`,
+  its own `flourishes`, `links`, lore, showcase strings); plain and with pieces build the same entries as before
+- [x] The flooded cistern (ice, dark): a channel of four linked pools and a sluice grate on the back wall, hooks over
+  it. Down the channel: Harpoon by it freezes it all, Slapshot carries the row ~21 m into the east wall (one pool: ~17)
+- [x] The forge hall (magma, storm): three kegs between two lit braziers, three bonded plates. Powder line: one magma
+  hit bursts all three kegs and spills both braziers; bonded plates: storm on one makes all three live
+- [x] Rules, no-ops in the old rooms: linked floor tiles (`env_piece.linked`), `RINK_EXTRA` per frozen pool crossed,
+  a keg burst tips a lit brazier (`env_flourish.keg_spill`), flourishes per room. Hazards stay hero-safe
+- [x] Settings room picker (plain / with pieces / flooded cistern / forge hall), `--room=<name>`; `string_film --room=
+  --showcase [--overview]`, `piece_shots` overview
+- [x] `tests/rooms_check.gd` (in `agent.sh check`): every room loads, fits, doesn't overlap; each showcase reaches its
+  state; the hero unhurt
+- [x] Clips and stills: `awaken-combo-clips/49 Rooms *`
+- [ ] Zak's call: hazards that hurt the hero in harder rooms; the item kinds that write to a room (lore doc); whether
+  the new rooms' showcases join the autotest (a `BOT_STRINGS` entry with `room`, training_bot's lane)
+
