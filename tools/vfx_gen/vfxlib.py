@@ -126,6 +126,26 @@ def stroke(path, widths, cap=True):
     return pts
 
 
+def cluster_angles(n, seed, clusters=3, spread=0.55, start=None):
+    """fx-language rule 7 (docs/features/fx-language.md): `n` radial angles grouped into `clusters` uneven fans with
+    clear gaps between them, never an even ring (an even ring of wedges reads as a sawblade or a gear; three clusters
+    with gaps read as a sunburst). `spread` is each fan's width as a share of its slot. Returns [(angle, weight)]:
+    weight 1 for the middle of a fan (the longest stroke), falling to ~0.45 at its edges, so lengths vary by design."""
+    g = rng(seed)
+    a0 = g.uniform(0, math.tau) if start is None else start
+    slot = math.tau / clusters
+    sizes = [n // clusters + (1 if k < n % clusters else 0) for k in range(clusters)]
+    out = []
+    for k, m in enumerate(sizes):
+        mid = a0 + slot * k + g.uniform(-0.18, 0.18) * slot
+        width = slot * spread * g.uniform(0.75, 1.15)
+        for j in range(m):
+            u = 0.0 if m == 1 else j / (m - 1) * 2 - 1  # -1..1 across the fan
+            a = mid + u * width * 0.5 + g.uniform(-0.04, 0.04)
+            out.append((a, 1.0 - 0.55 * abs(u) ** 1.3 * g.uniform(0.8, 1.1)))
+    return out
+
+
 def jag_path(a, b, seg, jag, seed, keep_ends=True):
     """A lightning zigzag from a to b: segments of about `seg`, each corner pushed sideways by up to jag*seg."""
     g = rng(seed)

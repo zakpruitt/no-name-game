@@ -175,6 +175,7 @@ var first := 0  # the sheet frame the timeline's frame 0 shows (single-frame she
 var follow: Node3D  # rides this node (at follow_off) while it lives: arcs crawling on a launched foe
 var follow_off := Vector3.ZERO
 var standing := false  # fades when the next string's first hit lands (standing_fx)
+var recycle := Callable()  # fx_beat.stamp's pool: called with self when it ends; true = kept for reuse (not freed)
 var _mi: MeshInstance3D
 var _base_scale := Vector3.ONE
 var _t := 0.0
@@ -256,10 +257,10 @@ func tick(delta: float) -> void:
 	if _clearing:
 		_fade -= delta / STANDING.CLEAR_S
 		if _fade <= 0.0:
-			queue_free()
+			_end()
 			return
 	if _t >= _life:
-		queue_free()
+		_end()
 		return
 	var acc := 0.0
 	var f := 0
@@ -277,6 +278,40 @@ func tick(delta: float) -> void:
 	var e := clampf((share - erode_span.x) / maxf(erode_span.y - erode_span.x, 0.001), 0.0, 1.0)
 	_mi.set_instance_shader_parameter("erode", e * 0.98)
 	_mi.set_instance_shader_parameter("alpha", _fade)
+
+
+## Ends the effect: back to fx_beat's pool when it has one (hidden, idle), freed otherwise.
+func _end() -> void:
+	if recycle.is_valid() and not _clearing and recycle.call(self):
+		visible = false
+		set_process(false)
+		follow = null
+		return
+	queue_free()
+
+
+## A pooled node starting over (fx_beat.stamp): same sheet, new spot, size, palette and timeline.
+func reuse(at: Vector3, size: float, element: String, frame_times: Array, erode: Vector2) -> void:
+	times = frame_times
+	erode_span = erode
+	_t = 0.0
+	_life = 0.0
+	for t: float in times:
+		_life += t
+	_frame = -1
+	_fade = 1.0
+	_clearing = false
+	_last_us = Time.get_ticks_usec()
+	global_position = at
+	_base_scale = Vector3.ONE * size
+	_mi.scale = _base_scale
+	_mi.extra_cull_margin = size * 2.0
+	_mi.set_instance_shader_parameter("pal_row", row(element))
+	_mi.set_instance_shader_parameter("frame", 0.0)
+	_mi.set_instance_shader_parameter("erode", 0.0)
+	_mi.set_instance_shader_parameter("alpha", 1.0)
+	visible = true
+	set_process(true)
 
 
 # --- the effects ----------------------------------------------------------------------------------------------
