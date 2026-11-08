@@ -458,6 +458,16 @@ fast-forward, so no agent edits another's files or index.
 - **A background `land` prints other lanes' landings too** (it fast-forwards dev over whatever landed meanwhile): read
   `git log dev` for your own subjects before re-landing.
 
+- **"It triggers by accident" can be the press buffer, not the move** (2026-11-07, ice-staff). A headless probe that
+  feeds `press()` at fixed gaps (60-300 ms) through each string and prints the moves started (`tests/spear_intent_check.gd
+  -- --probe`) showed L L L H at 90-150 ms planting the Frost Spear: one buffer slot, so the H overwrote the third L
+  still waiting on L2's cancel. Run the probe on the old code first; the table is the before / after.
+- **A queued press needs its own clock.** A press queued behind another and given a plain BUFFER_MS when it moved up
+  lapsed before the next move's cancel (L3's is ~0.5 s in): hold it until that move's whiff cancel + BUFFER_MS
+  (`hero_input.promote`).
+- **A standing object the routing reads is a trap if every press reads it.** Gate it on intent the player shows
+  (facing, distance, "his last move made it"), never on "it exists"; and give it a leash so walking away ends it.
+
 ## The harness (`tools/agent.sh`)
 
 - `new <name>`: worktree `../awaken-<name>` on `agent/<name>` from dev, imported, line-ending noise dropped.

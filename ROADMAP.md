@@ -1245,3 +1245,11 @@ gallows never filmed on a live foe. Audit: `docs/spar-audit-2026-11-07b.md`.
 - [x] Clips: `awaken-combo-clips/50 Spar2 *`
 - [ ] Zak's call: the gallows splat kills any real foe (cap it to hang alive?); grabbing a foe out of Ricochet's
   throw; the spar foe's 3x hp; his hurt kept at 0.35 / 0.12 (a mid-string hurt still resets the string)
+
+## Ice-staff (Frost Spear on purpose only, 2026-11-07)
+- [x] Accidental plant: a quick L L L H (90-150 ms gaps) planted the spear, its H overwriting the third L in the one-slot
+  buffer. Two press slots in order (`hero_input.press` / `promote`); `tests/spear_intent_check.gd`
+- [x] The vault is an option: off the plant either button; later only a fresh press facing it within 3.5 m
+  (`void_element.vaults`); off a vault the next press is the string; walking 9 m off for 1 s pops it (`frost_spear.LEASH`)
+- [x] A spear that ends pops at once (no 0.3 s sink lying about in the next string)
+- [ ] Zak's call: a dash through the spear shattering it (left out: Tow Line's dash runs through it on the Impale route)

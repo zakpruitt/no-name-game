@@ -46,9 +46,9 @@ element: the hit arcs on through every other charged foe near it. Overload (stor
 
 | Input | Id | Name | Effect |
 |---|---|---|---|
-| L L H | `IP` | Frost Spear | Plants the spear in the nearest group (round 55, `spear_auto`; ahead of him with none) (`frost_spear.gd`). Frost spreads out from it and only slows. One at a time; it melts after `LIFE` |
+| L L H | `IP` | Frost Spear | Plants the spear in the nearest group (round 55, `spear_auto`; ahead of him with none) (`frost_spear.gd`). Frost spreads out from it and only slows. One at a time; it pops after `LIFE`, or once he is past `LEASH` 9 m from it for `LEASH_S` 1 s |
 | Dash L H H | `EA` | Ice Cube | Freezes the nearest foe and bowls it (`pierce`): whatever it passes takes the hit and freezes |
-| L L H L | `IJ` | Vault | Up over the spear (`run_to_spear`) |
+| L L H L | `IJ` | Vault | Up over the spear (`run_to_spear`). Off the plant either button; later only a fresh press facing it near it (`vaults()`, below) |
 | L L H L H | `IS` | Deep Freeze | Comes down on the spear and it goes off: everyone on the frost takes a hit and freezes into a cube (`_deep_freeze`). The window opens |
 | Dash L H | `EF` | Harpoon | Round 47: a tentacle to every foe within `HARPOON_REACH` 8 m of him, all round (nearest first, `HARPOON_MAX` 5; Galvanize's reach), each reaching, latching (`HARPOON_DAMAGE` 10), carried in a quick curve round him and set down frozen in a cube in one rank across his aim (`harpoon_slots()`: `HARPOON_SET` 2.6 m ahead, `HARPOON_GAP` 0.15 m between the ice, short of walls by `HARPOON_WALL`; spaced by each foe's fitted ice, `ice_radius()`: fx-ice2's `fit_block` makes a dummy's block ~1.05 m round and 2.2 m tall), `harpoon_gather.gd`. Big ones freeze where they stand. H off it is Ice Cube; a pause opens the window (Shatterstorm / Slapshot) |
 
@@ -150,7 +150,8 @@ a breaker window.
 | (L L H,) Dash H H L, L in window | `XW`, its `alt` | Pinwheel | wind | Breaker pairs. The dive is a whirl where he hangs (`pinwheel`, `PINWHEEL_DIVE` 0.42 s): `void_grab.seized_tick` swings the held kebab `PINWHEEL_TURNS` 1.25 round him out to `PINWHEEL_R` 2.3 m at his chest (`PINWHEEL_Y`), he spins with it and a twister stands round them (`breaker_alt_fx.pinwheel_ring`). On landing each is hurled (`thrown_foe`, wind, `PINWHEEL_SPEED` 24 m/s) at the nearest wall or pillar within `PINWHEEL_REACH` 10 m (`pinwheel_target()`: 32 flat rays past the foes) for `PINWHEEL_DAMAGE` 20 x `PINWHEEL_WALL_MULT` 4 = 80 each (ground stamp, gust, KRAK-THOOM!, a stop each: `pinwheel_wall`); no wall in reach, they fly `PINWHEEL_OPEN` 7 m out along the swing and land for 20. Anyone else in the whirl takes `PINWHEEL_SWEEP` 0.5 and is blown clear. Best by a wall or pillar (80 vs Anvil's 44 x 1.4 = 62 a foe); in the open Anvil wins |
 
 With the spear standing, presses off `NO_VAULT` moves (TW, XK, XW, XT) go on down their own string instead of up
-the spear (`vaults()`), so L L H, Dash H H L is 8 presses with the breaker.
+the spear (`vaults()`), so L L H, Dash H H L is 8 presses with the breaker. (Since the ice-staff lane no press off a
+dash or mid-string vaults either; see the notes below.)
 
 ### Improvising: dash routes out of the crossovers
 
@@ -311,7 +312,18 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 - His element and tentacle moves skip `Fx.combo_pop` entirely, and `ComicFx` spaces words by `WORD_GAP_HERETIC_MS` for him, since these moves hit whole crowds at once.
 - Maw is the test of the new effect style: the jaws rise during the dive (`hero_leap._start_dive`) and `bite()` snaps them shut on impact, so the breaker's hitstop holds the shut frame. Its hit goes through `enemy.burn_hit(damage, true)`, one word for the bite, and `Splat` and `ink_drops` in place of gold sparks. A foe killed by it still gets the normal death effect.
 - On this hero a style rank climb is a thin `hoop_run`, not the soft ring and star, which sat on him and fought his effects.
-- While the frost spear stands, either button vaults (`vaults()`, from `hero_moves.routed`), not only during the plant's animation: that ends before the frost has finished spreading, so a player watching it got a plain slice. `tests/void_arm_check.gd` `_spear_by_hand` plays this with real button presses.
+- The vault is an option, not a trap (ice-staff lane, 2026-11-07; was: every press while the spear stood vaulted, so
+  he bounced on it until it broke). `vaults()` (from `hero_moves.routed`): off the plant either button vaults (L L H L /
+  L L H H); mid-string off any other move the string goes on; a fresh press vaults only facing the spear (`VAULT_ARC`
+  60 deg) and near it (`VAULT_REACH` 3.5 m, or the plant's reach + 1 m while the plant is still his last move, so
+  watching the frost spread still vaults); never off a dash, a vault, Deep Freeze or Tow Line's string. Walking off
+  (`frost_spear.LEASH` 9 m for `LEASH_S` 1 s) pops it, and every end that isn't Deep Freeze or Backdraft is a small
+  frost pop the same frame (`melt()`, `POP_SIZE`), not a 0.3 s sink that read as a weapon left lying on the floor.
+  `tests/void_arm_check.gd` `_spear_by_hand` plays the route with real button presses; `tests/spear_intent_check.gd`
+  the rules and the rhythms.
+- The press buffer has two slots in press order (`hero_input.press()` / `promote()`): a quick L L L H used to lose its
+  third L to the H (one slot, the last press won), so the H came off L2 and planted the spear. Now L L L H at 80-300 ms
+  gaps is Molten Palm and L L H Frost Spear at every gap (`spear_intent_check` `[rhythm]` lines).
 - Black Tide's flight is capped at `TIDE_ARRIVE`: far foes fly faster, so an early Maw press can't bite before they reach the pool.
 - Damage that ticks on a whole crowd (`dark_fx.Hole`, `floor_bind.gd`) goes through `enemy.burn_hit`: the damage and number with no sparks, word or flash, which buried the thing holding them.
 - Tentacle breakers (and every comic hero) use the `crisp` version of `breaker_cue.gd`, flat inked bands, since they land right on that spot.
