@@ -145,7 +145,7 @@ func _initialize() -> void:
 				" wait=", _bot._bot_wait, " post_dash=", _p._post_dash_t, " state=", _p.state, " foes=",
 				get_nodes_in_group("enemies").map(func(e: Node3D) -> float: return snappedf(e.global_position.distance_to(_p.global_position), 0.1)))
 			break
-	if not _show.is_empty() and strings.size() == 1 and not _frames.is_empty():  # (one showcase: the bot's index never moves on, so it isn't flushed in the loop)
+	if (not _show.is_empty() or not own.is_empty()) and strings.size() == 1 and not _frames.is_empty():  # (one showcase: the bot's index never moves on, so it isn't flushed in the loop)
 		_bot.process_mode = Node.PROCESS_MODE_DISABLED  # (or it resets the dummies and plays the string again)
 		var end_t0 := Time.get_ticks_msec()
 		while Time.get_ticks_msec() - end_t0 < _tail:  # (and its tail: the bot is idle, the room plays on)
