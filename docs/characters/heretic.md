@@ -53,13 +53,13 @@ Three values plus one accent, flat regions, two tones per part at most (body + o
 
 | Part | Colour | Notes |
 |---|---|---|
-| Hood | bone white `#E8E2CF`, lilac-grey shade | The lightest thing on him: the floor is dark indigo. |
-| Horns | blue-black `#1E2A33`, crimson tips optional | Round 44 film: crimson tips beat violet ones (violet merged into the arm). |
+| Hood | cool bone white `#E9E8F0`, lilac-grey shade | The lightest thing on him: the floor is dark indigo. Cooler than the training dummies' cream (audit item 11: a cream hood merges with them in a crowd). |
+| Horns | blue-black `#1E2A33` with crimson tips `#A8282E` on the last third | Void-dark horns vanish on the indigo floor (audit item 6); the tips carry them. Round 44 film: crimson tips beat violet ones (violet merged into the arm). Clean tip edge: paint by texel, not per face. |
 | Face | pitch black `#05050A` | A void, not a shadowed face. See section 6. |
 | Eyes | cyan `#3FF2F2`, emissive | The only cyan on him. |
 | Scarf, belt sash accent | crimson `#A8282E` | Separates head from body; one tail. |
 | Tunic, skirt, sleeves | blue-black `#22303F` | Dark body; relies on `hero_rim` for its edge on the indigo floor. |
-| Glove, boots | slate `#4A5A70` | One step lighter than the tunic so hands and feet read. |
+| Glove, boots | light slate `#7F8FB0` | The body's light value (audit item 9: an all blue-black body vanishes). v3's texture already has them light. |
 | Shackle | iron grey `#6B6660` | Left wrist only; a chunky band, two links. |
 | Tentacles | void magenta `#C83CE6`, tips light pink `#F2A0F5`, deep cuff `#6A1E8A` at the shoulder | The fx palette's void, so arm and effects are one set. |
 | Skin | none visible | He shows no skin anywhere. |
@@ -102,7 +102,10 @@ No suckers, no veins, a single specular gloss band at most.
 
 ## 7. Proportions (in head-heights, head = hood without horns)
 
-- Total height about 2.4 heads (head is about 42% of his height, as the round 44 build).
+- Total height about 2.7 heads: the head (neck joint to hood crown) at most 37% of his crown height, the limit the
+  hero-fix audit measured at the game camera ([../hero-audit-2026-11-07.md](../hero-audit-2026-11-07.md) section 4).
+  The concept sheet and the v3 mesh are at about 41%; the port scales the head group down about the neck to fit.
+- No hood point or tail more than 0.55 m behind the head (the audit's cone limit). v3's hood has a short soft back.
 - Hood: 1 head tall, 1.1 heads wide; horns add 0.35 heads per side.
 - Torso (scarf to belt): 0.6 heads. Skirt and legs to the boot top: 0.45 heads. Boots: 0.35 heads, 0.45 heads long.
 - Shoulders: 1 head wide. Left glove: 0.35 heads across (big). Tentacle trunk: 0.45 heads across at the shoulder,
@@ -136,6 +139,68 @@ mass), added C's broken shackle on the left wrist. Result: `67 heretic chosen tu
 sheet: the trunk is still narrower than asked (about 0.35 heads, not 0.45), and the side view shows the left
 side only. The front view (`vendor_src/meshy/heretic_concepts/front_for_3d.png`) is the Image-to-3D input.
 
-## 10. Port plan (stage 2)
+## 10. The v3 model (stage 2)
 
-To be filled after the 3D generation.
+One generation, used: Image-to-3D from `front_for_3d.png`, Meshy T2.5 smart topology, `target_polycount` 12000,
+texture model meshy-n1, no `pose_mode` (task `01a1ba0d-c56b-7116-a878-241a595054cf`, 15 credits). File:
+`vendor_src/meshy/heretic_v3/t25/model_01a1ba0d.glb` (heretic-design worktree, gitignored). Renders:
+`awaken-combo-clips/68 heretic v3 renders.png` (front, side, back, top and the game-ish camera, toon cut + ink hull,
+headless Blender; not the game renderer).
+
+Audit (headless Blender, `heretic_audit.py` style; script kept in the lane's scratchpad):
+
+| | v3 | Note |
+|---|---|---|
+| Tris | 12,644, one mesh, one material | Inside the 16-22k the current hero runs at; room for the weapons. |
+| Texture | one 2048 base colour, flat colour regions, 900-odd small UV islands | n1 painted from the concept: already flat and on-model, eyes cyan, arm magenta. No retexture needed. |
+| Parts | 1 body shell (5,837 welded verts) + 5 chain links | Horns, scarf, arm and tentacles are fused into the body shell; 8 non-manifold edges after a weld, otherwise closed. |
+| Size | 0.84 x 0.38 x 0.95 (Meshy units) | Rescaled to 2.2 m for the renders. |
+| Symmetry | x-mirror median 7 cm, p90 19 cm | Symmetric body; the asymmetry is the arm and the shackle, as designed. |
+| Tentacle arm | a distinct mass: trunk from the shoulder, five tips with clear gaps | The best tentacle result so far (round 28 lost the arm, round 29 made it a hand on an arm). |
+| Head | about 41% of his height | Over the audit's 37%: scale in the port. |
+| **Side** | **the arm is on his LEFT** | The concept puts it on the viewer's right, i.e. his left. Mirror the mesh in x before rigging (the game's limb is `hand.r`). |
+
+Verdict: **portable.** Geometry, texture and silhouette match the design; the problems are a mirror, a head scale
+and two texture tweaks, none needing a new generation. No second generation was spent (the T2.5 tentacles held).
+
+From the game-ish camera the horns, scarf ring and arm read; the horns are dark on the floor (paint the tips) and the
+hood is warm cream (cool it), both texture edits.
+
+## 11. Port plan (for the next lane; nothing rigged here)
+
+Not done in this lane. The rig contract is the hero-fix audit's section 4 (`heretic_chibi.glb`: one skinned mesh +
+eleven weapon meshes on 93 joints, bind = rest, the checks listed there must stay green).
+
+**Chosen chain: put the v3 mesh on the existing rig (the round-44 `glb_swap.py` route), not a new Meshy auto-rig.**
+Reasons: the clips are hand-keyed and cannot be rebuilt (the baked blend is gone, audit section 4), so the only way
+to keep all 62 clips, contact frames and checks is to keep the skeleton and skin a new mesh to it; `glb_swap.py`
+already writes a GLB that changes only the `heretic` mesh, the weapons and the palette. A Meshy auto-rig (5 credits)
+would give a 24-bone human rig with no tentacle, skirt or weapon bones and no clips, i.e. the round-29 rebuild again.
+
+Steps:
+1. **Mirror** in x (`chibi_decimate.py` already mirrors), weld 0.1 mm, recentre, face +Z.
+2. **Fit to the rig's rest pose**, by region, in headless Blender: scale to the skeleton (crown at the audit's
+   head-group height, 1.55 m rest; feet on the floor; hips at 0.69 m), then move per-region so joints land inside the
+   mesh: head group (hood, horns, face) scaled about the neck to 37%; the left arm (glove + shackle) and boots onto
+   `upperarm.l`..`hand.l` and the leg chains; the tentacle trunk onto `upperarm.r`/`lowerarm.r`/`hand.r` and its five
+   tips onto `tent.main`, `tent.up`, `tent.out`, `tent.mid`, `tent.low` (five tips, five chains: trace each tip back
+   along the surface as `heretic_rig.py` does, `TIPS` by eye). The v3 arm hangs down-and-out; the rig's rest arm may
+   not, so bend the trunk vertices to the rest pose with a temporary armature deform before weighting (Blender: pose
+   the old rig to v3's arm, apply the inverse as a mesh deform).
+3. **Weights**: `hero_v2.py`'s scheme (inverse distance to allowed bones per part, top 4, smoothed), with parts found
+   by texture colour (magenta = arm, crimson = scarf on `scarf.*`, cream = head, dark skirt hem on `skirt.*`,
+   slate = boots and glove), and surface distance on the tentacles (`heretic_rig.py`, so tips never take a
+   neighbour's weight across a gap). Chain links rigid on `hand.l`.
+4. **Face**: v3's face is painted black with cyan eyes, not a cavity. Either keep the painted eyes (no blink/grin) or,
+   better, cut a shallow face plate as `hero_v2.py` does and lay the existing eye and grin nodes on it (`face.txt` ->
+   `heretic_rig.FACE["chibi"]`), so blink, squint and the grin still work.
+5. **Texture**: keep n1's texture as the `paint` texture (`ComicLook.PAINTED`, `brush` 0.12). Two texel edits: horn
+   tips crimson, hood cooler (section 4). Do not run `flatten_texture.py` (it is already flat and would eat the eyes).
+6. **Weapons**: keep the round-44 weapon meshes; they grow from `hand.r`, which will now sit in the trunk.
+7. `glb_swap.py` into `heretic_chibi.glb` behind a model flag first (`ComicLook.HERETIC_MODELS`, e.g. `--hero=v3`),
+   then the audit's checks (`contact_frames`, `comic_check`, `hero_stride_check`, `hero_head_check`, `heretic_shots`,
+   `void_arm_check`, `lean_spike_check`) and a windowed look before making it the default.
+
+Risks: the arm's rest pose differs from the clips' (the clips may cross the trunk through the body; `heretic_rig.gd`
+`ARM_FREE_TIME` blends it back at idle); one fused shell means the scarf and skirt flex with the body rather than
+swing free (the skirt chains will stretch it, as on every Meshy model); the face, painted, does not blink until step 4.

@@ -457,6 +457,14 @@ fast-forward, so no agent edits another's files or index.
   heredoc of Python with many quotes fails as "unexpected EOF": write the script with the Write tool and run it.
 - **A background `land` prints other lanes' landings too** (it fast-forwards dev over whatever landed meanwhile): read
   `git log dev` for your own subjects before re-landing.
+- **Design a character on paper before paying for 3D** (2026-11-07, heretic-design): 4 concept directions
+  (nano-banana-2, 6 each) shrunk to 90 px on the indigo floor in one contact sheet picked the design in one look; one
+  image-to-image multi-view (6) gave a front / side / back sheet; T2.5 smart topology from the front view (15) gave a
+  usable 12.6k-tri hero first time. 45 credits for the whole design, against 60 for two unusable models in round 29.
+  Meshy multi-view parts are RGBA with transparent backgrounds: composite onto a light grey, or they look black.
+- **In a bpy script, never compare nodes with `is`:** each access makes a new Python wrapper, so `n is not tex` is
+  always true and deletes the node you meant to keep (the render came out black / white with no error). Compare
+  `n.name`.
 
 - **"It triggers by accident" can be the press buffer, not the move** (2026-11-07, ice-staff). A headless probe that
   feeds `press()` at fixed gaps (60-300 ms) through each string and prints the moves started (`tests/spear_intent_check.gd
