@@ -352,7 +352,8 @@ const HELD_CUT := 0.4  # s the stagger a cut windup turns into
 var held_cuts := 0  # windups a hold has cut (spar_check, the film's INDEX)
 ## Spar pass two: a hold's own first touch (the grab's hit, Harpoon's spear) staggers the foe a frame before the hold
 ## takes it, so the windup was already gone when held() came true and nothing was counted (`cuts=0` in every autotest).
-## A windup broken by a hit and held within HOLD_CUT_GRACE game s counts as cut by that hold too.
+## A windup broken by a hit and held within HOLD_CUT_GRACE game s counts as cut by that hold too, and so does the
+## tentacle's grab (right click: it staggers and keeps what it holds staggered rather than holding it, `_grabbed()`).
 const HOLD_CUT_GRACE := 0.2
 var _windup_broke_t := INF  # game s since a windup was broken by anything but its strike
 
@@ -360,6 +361,13 @@ var _windup_broke_t := INF  # game s since a windup was broken by anything but i
 ## Backlash (counter.gd) has this foe: its stagger and lift are the counter's, not a hold's.
 func _countered() -> bool:
 	return is_instance_valid(_player) and "_counter" in _player and _player._counter.get("foe") == self
+
+
+## The tentacle's grab (void_grab.gd) has this foe.
+func _grabbed() -> bool:
+	if not is_instance_valid(_player) or not "_void" in _player or _player._void == null:
+		return false
+	return _player._void.get("_target") == self
 
 
 func _physics_process(delta: float) -> void:
@@ -403,7 +411,7 @@ func _physics_process(delta: float) -> void:
 		held_cuts += 1
 		stagger(HELD_CUT)
 		_windup_broke_t = INF
-	elif _windup_broke_t <= HOLD_CUT_GRACE and held():  # (the hold's own hit broke it a moment ago)
+	elif _windup_broke_t <= HOLD_CUT_GRACE and (held() or _grabbed()):  # (the hold's own hit broke it a moment ago)
 		if not _countered():  # (Backlash's lift holds it too, but the counter cut that strike, not a hold)
 			held_cuts += 1
 		_windup_broke_t = INF

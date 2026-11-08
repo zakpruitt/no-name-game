@@ -10,6 +10,11 @@ const KINDS := ["minion", "rogue", "shield", "warrior", "archer", "mage"]
 const RANGED := ["archer", "mage"]  # (their bolts parry back: counter.gd)
 const FLAG := "--spar="
 const DAMAGE_SCALE := 1.0 / 3.0
+## Spar pass two: its hp is HP_SCALE times its kind's (`--spar-hp=N` for one run). At 1x the warrior (75) died in 37 of
+## 49 strings, mostly to the string's first breaker; a Ricochet onto the gallows (146) killed it on the splat, so the
+## hang, the Snap and Galvanize's latch on it were never seen, and a hold string often met a foe with 6 hp left.
+const HP_SCALE := 3.0
+const HP_FLAG := "--spar-hp="
 const SPOT := Vector3(0.0, 0.0, -6.0)  # from the hero, beyond the dummies (8 m: it walked in for 2 s after each respawn)
 const RESPAWN := 0.8  # s (1.5: with the 1 s spawn and the walk in, the foe was away for 40-56% of a film)
 const WALL_GAP := 2.5  # m: it spawns at least this far inside the room's walls (SPOT from him by the back wall was outside)
@@ -77,6 +82,8 @@ func spot() -> Vector3:
 func spawn() -> void:
 	foe = _main._spawn(kind, false, spot())
 	foe.attack_damage *= DAMAGE_SCALE
+	foe.max_hp *= hp_scale()
+	foe.hp = foe.max_hp
 	foe.blast_enemy_damage *= DAMAGE_SCALE
 	foe.set_meta("spar", true)
 	foe.died.connect(_on_died)
@@ -105,6 +112,14 @@ func _physics_process(_delta: float) -> void:
 		strays += 1
 		foe.global_position = spot()
 		foe.velocity = Vector3.ZERO
+
+
+## HP_SCALE, or `--spar-hp=N` from the command line.
+static func hp_scale(args := OS.get_cmdline_user_args()) -> float:
+	for arg in args:
+		if arg.begins_with(HP_FLAG):
+			return maxf(float(arg.substr(HP_FLAG.length())), 0.1)
+	return HP_SCALE
 
 
 ## Hits on the live foe plus every one before it.

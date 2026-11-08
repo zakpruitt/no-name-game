@@ -154,18 +154,21 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"spar": "ranged", "slot": "counter", "tokens": ["foe", "C", "C"]},
 	# The gallows on a live foe (room with pieces): Ricochet hangs it on the east pillar's hook, then Galvanize latches
 	# a tentacle on it where it hangs (and on the dummies) and the current runs down them.
-	{"spar": "melee", "room": "pieces", "slot": ["counter", "cross_dark_storm"], "tokens": ["hook", "foe", "CP", "wait", "H", "L", "L"]}]
+	# ("settle": the next press waits until Ricochet's throw has landed it, or the grab plucks it out of the air.)
+	{"spar": "melee", "room": "pieces", "slot": ["counter", "cross_dark_storm"], "tokens": ["hook", "foe", "CP", "settle", "H", "L", "L"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
 const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide", "foe"]
 ## Spar pass two: the tokens that wait on the live foe ("C" / "CP" its counter window, "W" its windup), up to
 ## BOT_FOE_WAIT s each (then the token is skipped and counted in `[spar_bot] missed=`). "C" dashes once the strike is
 ## BOT_C_AT s off (inside counter.WINDOW, before its PERFECT); "W" lets the next press go once it is BOT_W_AT s off (the
 ## telegraph has shown ~0.2 s on the warrior). Between, he walks at it when it is past BOT_FOE_NEAR m.
-const BOT_FOE_TOKENS := ["C", "CP", "W"]
+const BOT_FOE_TOKENS := ["C", "CP", "W", "settle"]
 const BOT_FOE_WAIT := 6.0
 const BOT_C_AT := 0.2
 const BOT_W_AT := 0.6
 const BOT_FOE_NEAR := 2.4
+const BOT_SETTLE_HANG := 0.5  # s "settle" lets the hang (or the landing) read before the next press
+var _foe_down_t := 0.0
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
 const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide"]
 ## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
@@ -563,6 +566,13 @@ func _foe_token(tok: String, idle: bool, dt: float) -> void:
 		_bot_step += 1
 		_bot_foe_t = 0.0
 		return
+	if tok == "settle":  # (not a press: the live foe is down, hung or gone, BOT_SETTLE_HANG s, and he stands)
+		_foe_down_t = _foe_down_t + dt if foe == null or not foe.has_meta("thrown_foe_flying") else 0.0
+		if _foe_down_t >= BOT_SETTLE_HANG and idle:
+			_bot_step += 1
+			_bot_foe_t = 0.0
+			_foe_down_t = 0.0
+		return
 	if foe == null or foe.state == foe.State.SPAWN:
 		return
 	var to: Vector3 = foe.global_position - player.global_position
@@ -715,6 +725,9 @@ func kit_report() -> Dictionary:
 
 
 func _reset_spots() -> void:
+	var live: Node3D = _spar_foe()
+	if live != null and "foe" in strings[_bot_string]:  # (a "foe" string meets it fresh: the last string's leftovers were 6-11 hp)
+		live.hp = live.max_hp
 	for d: Node in _homes:  # (back from a "line" string)
 		if is_instance_valid(d):
 			d.home = _homes[d]
