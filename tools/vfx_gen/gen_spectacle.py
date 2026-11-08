@@ -21,7 +21,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, SS, Frame, ellipse_mask, grow, jag_path,  # noqa: E402
-                    pack, poly_mask, preview, rng, save, star, stroke, wobble_ring)
+                    pack, poly_mask, preview, rng, save, star, stroke, wobble_ring,
+                    cluster_angles)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
 
@@ -170,25 +171,62 @@ def slam_ink(i, n, size):
 # reach with a hot inner third, then the inner ends race out and the lines thin away.
 
 def slam_rays(i, n, size):
+    """fx-language rule 7: three uneven fans of speed lines with clear gaps (vfxlib.cluster_angles), never the even
+    ring of 26 carrots it was (a sawblade on Grounded, an urchin on Abyss). Each fan's middle line is the longest and
+    fattest; the ends of a fan are short. Frame 0 they start short at the hole, 1 the peak at full reach with a hot inner
+    third, 2 still hot, then the inner ends race out and the lines thin away tail last."""
     f = Frame(size)
     c = f.c
-    g = rng(3501)
-    k_l = 26
+    g = rng(3502)
     t = i / (n - 1)
-    for j in range(k_l):
-        a = math.tau * j / k_l + g.uniform(-0.08, 0.08)
-        ln = g.uniform(0.75, 1.0)
-        back = lerp(0.3, 0.86, ease_out(t) ** 1.2) if i > 0 else 0.28
-        front = min(0.995, (0.6 if i == 0 else lerp(0.98, 1.0, t)) * ln + (0.0 if i == 0 else 0.02))
+    for j, (a, wt) in enumerate(cluster_angles(13, 3507, clusters=3, spread=0.5)):
+        ln = lerp(0.62, 1.0, wt) * g.uniform(0.94, 1.04)
+        back = lerp(0.3, 0.8, ease_out(t) ** 1.2) if i > 0 else 0.27
+        front = min(0.995, (0.55 if i == 0 else lerp(0.97, 1.0, t)) * ln + (0.0 if i == 0 else 0.02))
         if front - back < 0.05:
             continue
-        w = f.u(lerp(0.07, 0.02, t)) * g.uniform(0.7, 1.25)
+        w = f.u(lerp(0.085, 0.026, t)) * lerp(0.6, 1.15, wt)
         path = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0, 1, 12)]
-        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.85 + 0.5, cap=True)], f.S)
-        f.fill(m, LIGHT, ink=2.2)
+        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.8 + 0.5, cap=True)], f.S)
+        f.fill(m, LIGHT, ink=2.6)
         if i <= 2:
-            core = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0.03, 0.4, 6)]
-            f.fill(poly_mask([stroke(core, [w * 0.45, w * 0.2, 0.0], cap=False)], f.S) * m, HOT)
+            core = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0.03, 0.42, 6)]
+            f.fill(poly_mask([stroke(core, [w * 0.5, w * 0.22, 0.0], cap=False)], f.S) * m, HOT)
+    return f.finish()
+
+
+# --- war_cry: the roar as a breaker's window opens (breaker_quake.war_cry) ----------------------------------------
+# fx-language: the hang's roar round him, drawn. Three uneven fans (cluster_angles) of slightly bowed strokes, fat and
+# round at the inner end round a clear middle (he stands in it: never over him), needle-thin outward; each fan has a
+# short echo stroke beside its longest. Frame 0 the anticipation: short fat stubs pulled in at the hole's edge; 1 the
+# peak, thrown out with a hot inner third; 2-3 they stretch and thin; 4-5 they snap off from the inside and break.
+
+def war_cry(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(3601)
+    t = i / (n - 1)
+    hole = 0.4
+    for j, (a, wt) in enumerate(cluster_angles(10, 3607, clusters=3, spread=0.45)):
+        ln = lerp(0.5, 1.0, wt) * g.uniform(0.92, 1.05)
+        bow = (0.025 if j % 2 else -0.02) * g.uniform(0.6, 1.2)
+        if i == 0:
+            back, front = hole * 0.92, hole + 0.12 * ln
+        else:
+            back = hole + lerp(0.0, 0.36, ease_out(t) ** 1.4) + g.uniform(0.0, 0.03)
+            front = min(0.985, hole + lerp(0.48, 0.58, ease_out(t)) * ln)
+        if front - back < 0.04:
+            continue
+        w = f.u(lerp(0.1, 0.04, t) if i > 0 else 0.1) * lerp(0.6, 1.15, wt)
+        path = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0, 1, 14)]
+        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.85 + 0.5, cap=True)], f.S)
+        f.fill(m, BODY, ink=2.6)
+        if i <= 2:
+            core = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0.04, 0.45, 8)]
+            f.fill(poly_mask([stroke(core, [w * 0.45, w * 0.22, 0.0], cap=False)], f.S) * m, HOT if i <= 1 else LIGHT)
+        elif i <= 3:
+            lit = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0.04, 0.5, 8)]
+            f.fill(poly_mask([stroke(lit, [w * 0.35, w * 0.15, 0.0], cap=False)], f.S) * m, LIGHT)
     return f.finish()
 
 
@@ -420,6 +458,7 @@ SHEETS = {
     "floor_cracks": (floor_cracks, 512, 3, 6, "earth", "edge", 0.5),
     "floor_arcs": (floor_arcs, 512, 3, 6, "boltA", "edge", 0.5),
     "floor_splat": (floor_splat, 512, 3, 6, "void", "edge", 0.5),
+    "war_cry": (war_cry, 384, 3, 6, "void", "edge", 0.4),
     "wall_star": (wall_star, 320, 3, 6, "hit", "center", 0.45),
     "smoke_curl": (smoke_curl, 192, 4, 8, "dust", "edge", 0.5),
     "hang_focus": (hang_focus, 512, 2, 4, "gold", "edge", 0.3),
