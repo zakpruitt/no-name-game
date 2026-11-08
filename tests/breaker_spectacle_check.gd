@@ -103,8 +103,96 @@ func _initialize() -> void:
 	foe.set_meta(bk.WALL_META, Time.get_ticks_msec())
 	await create_timer(0.5, true, false, true).timeout
 	_ok(sc.banner.position.y > top_y + vp.y * 0.4, "a wall-splatted foe under the banner sends it to the bottom (%.0f -> %.0f)" % [top_y, sc.banner.position.y])
+	await create_timer(sc.CALL_MAX_S + sc.CALL_OUT_S + 0.2, true, false, true).timeout
+	await _impact_lane(main, p, sc, bk, num)
 
 	_finish()
+
+
+## Impact lane (docs/feel-audit-2026-11-07d.md items 1-3).
+func _impact_lane(main: Node, p: CharacterBody3D, sc: CanvasLayer, bk: GDScript, num: GDScript) -> void:
+	var game: Node = get_root().get_node("Game")
+	var impact: Node = game.impact
+	var cfx: GDScript = load("res://scripts/comic_fx.gd")
+	var bars: GDScript = load("res://scripts/enemy_bars.gd")
+	# 1. A living foe's bar never reads empty; a dead one's does.
+	_ok(bars.fill_px(0.4, 75.0) >= bars.SLIVER_PX, "a foe at 0.4 / 75 hp shows a sliver of bar (%.1f px)" % bars.fill_px(0.4, 75.0))
+	_ok(bars.fill_px(0.0, 75.0) == 0.0 and is_equal_approx(bars.fill_px(75.0, 75.0), bars.SIZE.x), "an empty bar only for a dead foe, a full one at full hp")
+	# 1. A kill under an impact frame: the kill word on the frame, the kill star again once the frame clears.
+	await create_timer(impact.IMPACT_GAP_MS / 1000.0 + 0.1, true, false, true).timeout
+	var foe: Node3D = main._spawn("warrior", false, p.global_position + Vector3(0.0, 0.0, 3.0))
+	await create_timer(1.6, true, false, true).timeout  # (out of SPAWN)
+	var words0: int = cfx.kill_words
+	var stars0: int = cfx.kill_stars
+	_ok(impact.slam(true, p), "a breaker's impact frame flashes")
+	foe.take_hit(foe.hp + 5.0, Vector3(0.0, 0.0, 2.0), 0.0, true)
+	_ok(foe.state == foe.State.DEAD, "the foe dies under the frame")
+	_ok(cfx.kill_words == words0 + 1, "the kill word goes up on the frame itself (%d)" % (cfx.kill_words - words0))
+	await process_frame
+	_ok(impact.current() > 0.0 and cfx.kill_stars == stars0, "the kill star waits while the frame shows")
+	await create_timer(0.35, true, false, true).timeout
+	_ok(impact.current() == 0.0 and cfx.kill_stars == stars0 + 1, "and pops once it clears (%d)" % (cfx.kill_stars - stars0))
+	var words1: int = cfx.kill_words
+	var foe2: Node3D = main._spawn("warrior", false, p.global_position + Vector3(1.5, 0.0, 3.0))
+	await create_timer(1.6, true, false, true).timeout
+	var reduced0: bool = game.reduce_flashing
+	game.reduce_flashing = true  # (a kill flashes no frame then)
+	foe2.take_hit(foe2.hp + 5.0, Vector3.ZERO, 0.0, false)
+	game.reduce_flashing = reduced0
+	_ok(impact.current() == 0.0 and cfx.kill_words == words1, "a kill with no frame up keeps its own star (no kill word)")
+	# 2. The banner waits out the landing's impact frame, then goes up with the name.
+	await create_timer(impact.IMPACT_GAP_MS / 1000.0 + 0.1, true, false, true).timeout
+	var waited0: int = sc.waited
+	_ok(impact.slam(false, p), "a second landing's frame flashes")
+	sc.callout("Cataclysm", "earth", false)
+	num.add(main, p.global_position, 120.0, true, null)
+	var empty_frames := 0
+	var frames := 0
+	while impact.current() > 0.0 and frames < 60:
+		await process_frame
+		frames += 1
+		if sc.banner.visible and sc._call_t < sc.CALL_IN_S * 0.5:
+			empty_frames += 1
+	_ok(empty_frames == 0, "no empty banner on the impact frame (%d of %d frames)" % [empty_frames, frames])
+	_ok(not sc.banner.visible or impact.current() == 0.0, "the banner is not drawn while the frame shows")
+	await create_timer(0.15, true, false, true).timeout
+	_ok(sc.banner.visible and sc.waited == waited0 + 1 and sc.call_name == "CATACLYSM", "then it slashes in with the name (waited %d)" % (sc.waited - waited0))
+	# 3. A word under the banner (said before it opened) moves off it.
+	var inst: Variant = cfx.get("_inst")
+	_ok(inst != null, "the comic text layer exists")
+	if inst == null:
+		return
+	var relaid0: int = cfx.relaid
+	cfx.say("KRUNCH!", p.global_position, 0.5)
+	var i: int = (inst._next + inst.POOL - 1) % inst.POOL
+	var br: Rect2 = num.banner_rect
+	var w: Label = inst._words[i]
+	w.position = br.get_center() - w.size * 0.5
+	w.set_meta("y", w.position.y)
+	await process_frame
+	await process_frame
+	_ok(num.banner_open and not inst.word_rect(i).intersects(num.banner_rect), "a word on the open banner moves off it (%s vs %s)" % [inst.word_rect(i), num.banner_rect])
+	_ok(cfx.relaid == relaid0 + 1, "and is counted once (%d)" % (cfx.relaid - relaid0))
+	# 3. ... and off the hero's name callout (FAULT LINE over KRUNCH!).
+	await create_timer(sc.CALL_COUNT_MAX_S + sc.CALL_OUT_S + 0.2, true, false, true).timeout
+	var label: Label3D = p._callout
+	label.text = "FAULT LINE"
+	label.modulate.a = 1.0
+	label.show()
+	label.global_position = p.global_position + Vector3.UP * 3.0
+	await process_frame
+	var cam: Camera3D = p.get_viewport().get_camera_3d()
+	var name_rect: Rect2 = inst._callout_rect(cam, p)
+	cfx.say("KRUNCH!", p.global_position, 0.5)
+	i = (inst._next + inst.POOL - 1) % inst.POOL
+	w = inst._words[i]
+	w.position = name_rect.get_center() - w.size * 0.5
+	w.set_meta("y", w.position.y)
+	await process_frame
+	await process_frame
+	name_rect = inst._callout_rect(cam, p)
+	_ok(name_rect.size.x > 0.0 and not inst.word_rect(i).intersects(name_rect), "a word on the name callout moves off it (%s vs %s)" % [inst.word_rect(i), name_rect])
+	label.hide()
 
 
 func _finish() -> void:
