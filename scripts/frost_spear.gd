@@ -9,7 +9,7 @@ const GROUP := "frost_spear"
 const RADIUS := 6.0  # m the frost reaches
 const GROW := 0.6  # s to get there
 const LIFE := 5.0  # s it stands, unless he sets it off
-const MELT := 0.3  # s to go
+const MELT := 0.0  # s to go (ice-staff lane: was 0.3 s of sinking; melt() pops it at once)
 const TICK := 0.15  # s between slows
 const SLOW := 0.45  # what foes' speed drops to
 const SLOW_TIME := 0.5  # s the slow outlasts the last tick
@@ -50,6 +50,16 @@ const STAMP_MARK := 1.5  # frost_mark size (its tile is 1.7 m at 1: the cracks r
 const ENV_PIECE := preload("res://scripts/env_piece.gd")
 const FROST_WALL := preload("res://scripts/frost_wall.gd")
 const SPENT_INTO_WALL := 0.35  # s the spear stands before it melts into the Frost Wall it raised
+## Ice-staff lane (2026-11-07): the way out. He walks (or dashes) off more than LEASH m from it for LEASH_S s and it
+## shatters, so a spear he's done with doesn't stand its 5 s waiting to turn a press into a vault. LEASH is past the
+## plant's own reach (void_element.SPEAR_PICK_REACH 7.5), so watching the frost spread never loses it.
+const LEASH := 9.0
+const LEASH_S := 1.0
+## Ice-staff lane: a spear that ends (its LIFE, a new one, the leash, a Frost Wall, Anvil / Pinwheel) goes at once in a
+## small frost pop (POP_SIZE of Deep Freeze's shatter), not the old 0.3 s melt: a standing or sinking spear after its
+## string read as a weapon lying on the floor in the next string's frames (feel audit 2026-11-07d item 6).
+const POP_SIZE := 0.45
+var _away := 0.0  # s he has been past LEASH
 
 var _t := 0.0
 var _next_tick := 0.0
@@ -304,7 +314,12 @@ func _physics_process(delta: float) -> void:
 		_next_pulse += PULSE_EVERY
 		if not _cleared and not _designed:  # (designed: the drawn frost's glints carry it; one ring at a time)
 			frost_ring(get_parent(), global_position, RADIUS, PULSE_TIME)
-	if _t >= LIFE:
+	var hero: Node3D = get_tree().get_first_node_in_group("player")
+	if hero != null and Vector2(hero.global_position.x - global_position.x, hero.global_position.z - global_position.z).length() > LEASH:
+		_away += delta
+	else:
+		_away = 0.0
+	if _t >= LIFE or _away >= LEASH_S:
 		melt()
 
 
@@ -346,15 +361,19 @@ func clear_standing() -> void:
 	tw.tween_method(func(a: float) -> void: _zone.set_instance_shader_parameter("alpha", a), 1.0, 0.0, STANDING.CLEAR_S)
 
 
-## Gone quietly: time's up, or another took its place.
+## Gone without being used: time's up, another took its place, he walked off, or it went into a wall. A small frost
+## pop and it's gone the same frame (POP_SIZE).
 func melt() -> void:
 	if _gone:
 		return
 	_gone = true
 	remove_from_group(GROUP)
-	var tw := create_tween()
-	tw.tween_property(self, "scale", Vector3(1.0, 0.01, 1.0), MELT)
-	tw.tween_callback(queue_free)
+	if is_inside_tree():
+		if _designed:
+			DESIGNED_EL.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.9, POP_SIZE)
+		else:
+			Fx.shards(get_parent(), global_position + Vector3.UP * 0.8, ICE_LIGHT, 8, Vector3.UP, 6.0, 0.12, 0.4)
+	queue_free()
 
 
 ## Gone in pieces: he slammed onto it.

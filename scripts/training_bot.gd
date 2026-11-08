@@ -31,9 +31,9 @@ var _max_combo := 0
 ## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
 ## click (Overwhelm), "alt" (anywhere in it) makes the breaker press L, its `alt` ending. Each runs into its breaker where it has one (player presses it at
 ## the sweet spot for the bot), so the autotest walks every element and the dark. Frost Spear (L L H)
-## only plays inside L L H L H, which sets the spear off: while it stands (5 s) any L or H press vaults onto
-## it (void_element.vaults), and a lone L L H sent the next strings up the spear (Collapse and Grounded
-## never played).
+## only plays inside L L H L H, which sets the spear off: while it stood (5 s) any L or H press vaulted onto
+## it, and a lone L L H sent the next strings up the spear (Collapse and Grounded never played). Since the ice-staff
+## lane only a fresh press facing it close by vaults (void_element.vaults), but the spear strings still come last.
 ## Round 49 (kit slots): each entry names the kit slot it plays (`slot`: a KitSlots.SLOTS id, or several, "step" for
 ## a route step) or the demoted upgrade (`upgrade`: a Kit id; it plays only with that upgrade on, `--kit=full`), and `tokens`
 ## the presses. `strings` is the list this run plays; the autotest's `[kit]` line counts the slots and windows
@@ -797,7 +797,7 @@ func _reset_spots() -> void:
 		if key in strings[_bot_string]:
 			var lay: Dictionary = BOT_PIECE_LAYOUTS[key]
 			var spear: Node3D = load("res://scripts/frost_spear.gd").current(get_tree())
-			if spear != null:  # (the last plain string, Impale, leaves one up: any press would vault onto it)
+			if spear != null:  # (the last plain string, Impale, leaves one up: a press facing it would vault onto it)
 				spear.melt()
 			player.global_position = Vector3(lay.at.x, player.global_position.y, lay.at.z)
 			player._face(lay.face)

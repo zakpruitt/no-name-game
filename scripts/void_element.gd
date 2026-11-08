@@ -744,12 +744,29 @@ static func heavy_after(from: String, attacking: bool) -> String:
 	return AFTER.get(from, NEUTRAL) if attacking else NEUTRAL
 
 
-## While the spear stands, either button takes him up over it, however long he's watched the frost spread:
-## the plant's own animation is over well before the frost is. Not once he's on his way down onto it.
-static func vaults(tree: SceneTree, from: String, attacking: bool, post_dash: bool) -> bool:
-	if post_dash or from == "IS" or (from == "IJ" and attacking) or (attacking and from in NO_VAULT):
+## Whether this press vaults onto the standing spear (IJ). Ice-staff lane (2026-11-07): the spear is an option, not a
+## trap. Until then every press while it stood vaulted, so he bounced on it until it broke (and a vault that came down
+## without Deep Freeze vaulted again on the next press). Now:
+## - off the plant itself (L L H L / L L H H), either button vaults, as the route says;
+## - mid-string off any other move, the string goes on (L near it is Chop, not the vault);
+## - a fresh press vaults only facing it (within VAULT_ARC deg) and near it (VAULT_REACH m; off his own plant, however
+##   long he watched the frost spread, the plant's reach, since the plant throws it in at the group);
+## - never off a dash, a vault or Deep Freeze, nor off Tow Line's string (NO_VAULT: Impale, Backdraft).
+## Walking off leaves it behind: frost_spear.LEASH.
+const VAULT_REACH := 3.5  # m from him to the spear for a fresh press
+const VAULT_ARC := 60.0  # deg either side of his facing
+static func vaults(hero: CharacterBody3D, from: String, attacking: bool, post_dash: bool) -> bool:
+	if post_dash or from == "IS" or from == "IJ" or (attacking and from in NO_VAULT):
 		return false
-	return SPEAR.current(tree) != null
+	var s: Node3D = SPEAR.current(hero.get_tree())
+	if s == null:
+		return false
+	if attacking:
+		return from == "IP"
+	var to := _flat(s.global_position - hero.global_position)
+	if to.length() > (SPEAR_PICK_REACH + 1.0 if from == "IP" else VAULT_REACH):
+		return false
+	return to.length() < 0.3 or rad_to_deg(hero._facing().angle_to(to.normalized())) <= VAULT_ARC
 
 
 static func is_element_move(id: String) -> bool:
