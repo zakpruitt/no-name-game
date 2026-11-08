@@ -413,33 +413,75 @@ def echo_axe(i, n, size):
     return f.finish()
 
 
-# --- rock_boulder: Rockslide's boulder (comic_boulder.gd, designed) -------------------------------------------
-# One fat faceted boulder: frame 0 it drops in stretched under three fall streaks, 1 lands squashed over a spiky hot
-# star, 2 settles with hot cracks running across it, 3 the cracks open (hot light in the gaps), 4-6 four chunks fly
-# out and up, turning and shrinking, pebbles with them, 7 a few crumbs. Earth row: dark rock with a lit facet.
+# --- rock_boulder: Rockslide's boulder (mid_beats.boulder_drop, comic_boulder.gd; redrawn fx-queue-a) ---------------
+# Played through the "rock" palette row: the dust row's stone tones with magma only as the hot tone, so the rock is
+# stone and only its cracks glow (fx-language: rock is stone, magma is only what glows). Was a flat orange blob under
+# three straight bars, landing on an orange spiky star. Now one chunky faceted stone (straight-sided, a flat bottom,
+# a lit top facet and a shadow facet: flat cel cuts, no gradient), fat ink.
+# Frame 0 (held over the fall): the stone stretched a touch, three tapered speed lines trailing up off it, uneven.
+# 1 the landing: squashed, three hot cracks run from one point to its rim (the one hot area), stone lumps of dust
+# kicked out low on both sides (round lumps, flat bottoms; no star). 2 settles, the cracks wider. 3 it splits along
+# the cracks into three chunks a little apart, hot light in the gaps. 4-6 the chunks tumble out and down, the
+# broken faces cooling (hot only on 4), chunky pebbles with them, the dust lumps lifting and thinning. 7 crumbs.
 
-def _rock(f, cx, cy, r, seed, sx=1.0, sy=1.0, rot=0.0, cracks=0, hot_cracks=False):
-    ring = wobble_ring(cx, cy, r, seed, amp=0.1, lumps=(3, 5, 7), n=40, rot=rot)
-    ring = [(cx + (x - cx) * sx, cy + (y - cy) * sy) for x, y in ring]
-    m = poly_mask([ring], f.S)
-    f.fill(m, BODY, ink=3.0)
-    # shadow side (bottom right) and a lit facet (top left): a flat cel cut, not a gradient
-    shade = poly_mask([[(cx - r * 2, cy + r * 0.15), (cx + r * 2, cy - r * 0.55), (cx + r * 2, cy + r * 2), (cx - r * 2, cy + r * 2)]], f.S)
-    f.fill(shade * m, DEEP)
-    facet = wobble_ring(cx - r * 0.3 * sx, cy - r * 0.32 * sy, r * 0.42, seed + 3, amp=0.12, lumps=(3, 4), n=24, rot=rot)
-    f.fill(poly_mask([facet], f.S) * m, LIGHT)
-    g = rng(seed)
-    for k in range(cracks):
-        a = rot + k * 2.3 + g.uniform(-0.3, 0.3)
-        p0 = (cx + math.cos(a) * r * 1.05 * sx, cy + math.sin(a) * r * 1.05 * sy)
-        p1 = (cx + math.cos(a + 0.4) * r * 0.35, cy + math.sin(a + 0.4) * r * 0.35)
-        p2 = (cx + g.uniform(-0.1, 0.1) * r, cy + g.uniform(-0.1, 0.1) * r)
-        path = [p0, p1, p2]
-        if hot_cracks:
-            f.fill(poly_mask([stroke(path, [f.u(0.07), f.u(0.05), 0.0], cap=False)], f.S) * m, HOT, ink=2.0)
-        else:
-            f.fill(poly_mask([stroke(path, [f.u(0.03), f.u(0.025), 0.0], cap=False)], f.S) * m, INK)
+_ROCK = [(-0.95, 0.28), (-0.82, -0.42), (-0.32, -0.9), (0.36, -0.86), (0.9, -0.42), (1.0, 0.22), (0.76, 0.66),
+         (0.05, 0.74), (-0.66, 0.68)]
+_SPLIT = (2, 5, 8)  # the cracks run from the middle to these corners; the chunks are the three sectors between
+
+
+def _rock_mid():
+    return (0.06, -0.06)
+
+
+def _rock_pts(idx, cx, cy, r, sx, sy, rot=0.0, about=None):
+    """Outline points (unit coords) to frame px, squashed, turned `rot` round `about` (unit coords)."""
+    ax, ay = about if about is not None else (0.0, 0.0)
+    out = []
+    for p in idx:
+        x, y = p[0] - ax, p[1] - ay
+        x, y = x * math.cos(rot) - y * math.sin(rot), x * math.sin(rot) + y * math.cos(rot)
+        out.append((cx + (x + ax) * r * sx, cy + (y + ay) * r * sy))
+    return out
+
+
+def _stone(f, pts, r, ink=3.4, lit=True):
+    """A chunk of stone: body, a lit facet cut off its top-left, a shadow facet off its bottom-right, inked."""
+    m = poly_mask([pts], f.S)
+    f.fill(m, BODY, ink=ink)
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
+    S = f.S
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    if lit:
+        top = ((xx - cx) * 0.55 + (yy - cy) < -r * 0.22).astype(np.float32)
+        f.fill(top * m, LIGHT)
+    low = ((xx - cx) * 0.8 + (yy - cy) * 0.9 > r * 0.18).astype(np.float32)
+    f.fill(low * m, DEEP)
+    # two short ink facet lines where the planes meet (chunky stone, not a pebble)
+    if lit and r > f.u(0.1):
+        for (ax, ay), (bx, by) in (((-0.62, -0.05), (-0.1, -0.2)), ((0.25, 0.2), (0.62, 0.05))):
+            f.fill(poly_mask([stroke([(cx + ax * r, cy + ay * r), (cx + bx * r, cy + by * r)], [f.u(0.008), f.u(0.014), 1.0], cap=False)], f.S) * m, INK)
     return m
+
+
+def _dust_lumps(f, cx, base, r, u, seed, side_k=(1.0, 0.8)):
+    """Stone dust kicked out low on both sides of the landing: round lumps on a flat bottom, a lit top on each."""
+    g = rng(seed)
+    lumps = []
+    for side, k in ((-1, side_k[0]), (1, side_k[1])):
+        for j in range(3):
+            d = r * (0.9 + 0.42 * j) * lerp(0.9, 1.35, u) * k
+            rr = r * (0.34 - 0.07 * j) * lerp(1.0, 0.7, u) * g.uniform(0.85, 1.1)
+            lumps.append((cx + side * d, base - rr * 0.7 - r * 0.25 * u * (j + 1) * 0.5, rr))
+    polys = [wobble_ring(x, y, rr, seed + q, amp=0.08, lumps=(3, 5), n=28) for q, (x, y, rr) in enumerate(lumps)]
+    m = poly_mask(polys, f.S)
+    flat = (np.mgrid[0:f.S, 0:f.S][0] < base).astype(np.float32)  # the flat bottom
+    m = m * flat
+    f.fill(m, BODY, ink=2.6)
+    lit = poly_mask([wobble_ring(x - rr * 0.15, y - rr * 0.3, rr * 0.62, seed + 40 + q, amp=0.08, lumps=(3, 5), n=24)
+                     for q, (x, y, rr) in enumerate(lumps)], f.S)
+    f.fill(lit * m, LIGHT)
 
 
 def rock_boulder(i, n, size):
@@ -448,39 +490,86 @@ def rock_boulder(i, n, size):
     g = rng(1301)
     r = f.u(0.36)
     cy = c + f.u(0.1)
-    tips = [f.u(v) for v in g.uniform(0.62, 0.92, 9)]
-    if i == 0:
-        for k in range(3):
-            x = c + f.u((k - 1) * 0.28)
-            f.fill(poly_mask([stroke([(x, cy - f.u(0.95)), (x, cy - f.u(0.42))], [0.0, f.u(0.06)], cap=True)], f.S), LIGHT, ink=2.0)
-        _rock(f, c, cy - f.u(0.08), r * 0.92, 41, sx=0.86, sy=1.16)
-    elif i in (1, 2):
-        st = star(c, cy + f.u(0.12), tips if i == 1 else [t * 0.8 for t in tips], f.u(0.28), rot=0.2, bow=0.3)
-        m = poly_mask([st], f.S)
-        f.fill(m, LIGHT if i == 1 else BODY, ink=3.0)
-        f.fill(poly_mask([star(c, cy + f.u(0.12), [f.u(0.42)] * 9, f.u(0.2), rot=0.25, bow=0.3)], f.S) * m, HOT)
-        _rock(f, c, cy, r, 41, sx=1.22 if i == 1 else 1.08, sy=0.84 if i == 1 else 0.95, cracks=2 if i == 2 else 0, hot_cracks=True)
-    elif i == 3:
-        # the cracks open: four chunks a little apart, hot light in the gaps
-        f.fill(poly_mask([wobble_ring(c, cy, r * 1.02, 41)], f.S), HOT, ink=3.0)
-        for k in range(4):
-            a = math.pi * 0.25 + k * math.pi / 2
-            _rock(f, c + math.cos(a) * r * 0.48, cy + math.sin(a) * r * 0.48, r * 0.55, 50 + k, rot=a)
-    else:
-        u = (i - 3) / (n - 4)
-        for k in range(4):
-            a = math.pi * 0.25 + k * math.pi / 2 + g.uniform(-0.2, 0.2)
-            d = r * lerp(0.6, 2.0, ease_out(u))
-            rise = f.u(0.25) * math.sin(u * math.pi) - f.u(0.3) * u * u
-            rr = r * 0.55 * (1 - 0.45 * u)
-            if i == n - 1:
-                rr *= 0.5
-            _rock(f, c + math.cos(a) * d, cy + math.sin(a) * d * 0.6 - rise, rr, 50 + k, rot=a + u * 2.0 * (1 if k % 2 else -1))
-        for k in range(5):  # pebbles
-            a = g.uniform(0, math.tau)
-            d = r * lerp(0.8, 2.4, u) * g.uniform(0.7, 1.1)
-            pr = f.u(0.035) * (1 - 0.5 * u)
-            f.fill(ellipse_mask(c + math.cos(a) * d, cy + math.sin(a) * d * 0.6, pr, pr, f.S), LIGHT, ink=1.6)
+    base = cy + r * 0.74  # the floor line under it when landed
+    mid = _rock_mid()
+    if i == 0:  # in the air: stretched, three tapered speed lines trailing up, uneven lengths and gaps
+        sx, sy = 0.9, 1.1
+        for x_off, L, w, st in ((-0.25, 0.26, 0.04, 0.12), (-0.06, 0.44, 0.048, 0.02), (0.12, 0.3, 0.044, 0.2), (0.28, 0.18, 0.036, 0.08)):
+            x = c + f.u(x_off)
+            y0 = cy - r * 1.02 - f.u(st)
+            top = y0 - f.u(L)
+            f.poly(stroke([(x, y0), (x, top)], [f.u(w) * 0.7, f.u(w), f.u(w) * 0.7], cap=True), LIGHT, ink=2.6)
+        _stone(f, _rock_pts(_ROCK, c, cy - f.u(0.06), r, sx, sy), r)
+        return f.finish()
+    if i in (1, 2):
+        sx, sy = (1.16, 0.86) if i == 1 else (1.06, 0.95)
+        rcy = base - r * 0.74 * sy
+        _dust_lumps(f, c, base, r, 0.0 if i == 1 else 0.35, 1310)
+        pts = _rock_pts(_ROCK, c, rcy, r, sx, sy)
+        m = _stone(f, pts, r)
+        mx, my = c + mid[0] * r * sx, rcy + mid[1] * r * sy
+        w = f.u(0.05 if i == 1 else 0.062)
+        for k, q in enumerate(_SPLIT):  # hot cracks from one point to three corners, kinked once
+            ex, ey = pts[q]
+            kx = mx + (ex - mx) * 0.5 + f.u(0.03) * (1 if k % 2 else -1)
+            ky = my + (ey - my) * 0.5 + f.u(0.025)
+            path = [(mx, my), (kx, ky), (ex, ey)]
+            f.fill(poly_mask([stroke(path, [w, w * 0.75, w * 0.35], cap=False)], f.S) * m, HOT, ink=2.0)
+        return f.finish()
+    # 3+: the chunks (the sectors between the cracks)
+    chunks = []
+    for k in range(3):
+        a, b = _SPLIT[k], _SPLIT[(k + 1) % 3]
+        idx = [a]
+        q = a
+        while q != b:
+            q = (q + 1) % len(_ROCK)
+            idx.append(q)
+        chunks.append([mid] + [_ROCK[j] for j in idx])
+    rcy = base - r * 0.74 * 0.95
+    if i == 3:  # split: a little apart, hot light in the gaps
+        f.fill(poly_mask([_rock_pts(_ROCK, c, rcy, r * 0.97, 1.04, 0.95)], f.S), HOT, ink=3.4)
+        _dust_lumps(f, c, base, r, 0.6, 1310)
+        for k, ch in enumerate(chunks):
+            ccx = sum(p[0] for p in ch[1:]) / (len(ch) - 1)
+            ccy = sum(p[1] for p in ch[1:]) / (len(ch) - 1)
+            push = 0.16
+            pts = _rock_pts(ch, c + ccx * r * push, rcy + ccy * r * push, r, 1.04, 0.95)
+            _stone(f, pts, r * 0.6)
+        return f.finish()
+    u = (i - 3) / (n - 4)  # 0.25 .. 1
+    if i <= 5:
+        _dust_lumps(f, c, base, r, min(1.0, 0.6 + u * 0.6), 1310, side_k=(1.0 + u * 0.3, 0.85 + u * 0.2))
+        if i == 5:  # the dust thins: holes eaten into it
+            for k in range(5):
+                x = c + f.u(g.uniform(-0.8, 0.8))
+                f.cut(ellipse_mask(x, base - r * 0.25, r * 0.16, r * 0.14, f.S))
+    flyd = [(-1.0, 0.55), (0.25, 1.0), (1.0, 0.45)]  # chunk k flies along: out and up, unevenly
+    for k, ch in enumerate(chunks):
+        if i == n - 1 and k == 1:
+            continue
+        ccx = sum(p[0] for p in ch[1:]) / (len(ch) - 1)
+        ccy = sum(p[1] for p in ch[1:]) / (len(ch) - 1)
+        dx, dy = flyd[k]
+        out = ease_out(u)
+        x = c + ccx * r + dx * r * 1.5 * out
+        y = rcy + ccy * r - r * 0.9 * dy * math.sin(u * math.pi) + r * 0.7 * u * u
+        scl = lerp(0.95, 0.55, u) * (0.6 if i == n - 1 else 1.0)
+        spin = (0.9 if k % 2 else -0.75) * u * 2.2
+        loc = [(p[0] - ccx, p[1] - ccy) for p in ch]
+        pts = _rock_pts(loc, x, y, r * scl, 1.0, 1.0, rot=spin)
+        _stone(f, pts, r * scl * 0.6, ink=3.0)
+        if i == 4:  # the broken face still hot: the first edge (the crack side) glows
+            f.fill(poly_mask([stroke([pts[0], pts[1]], [f.u(0.03), f.u(0.012)], cap=False)], f.S), HOT, ink=1.6)
+    for k in range(5 if i < n - 1 else 3):  # chunky pebbles, not dots
+        a = -math.pi * g.uniform(0.1, 0.9)
+        d = r * lerp(0.9, 2.2, u) * g.uniform(0.7, 1.1)
+        px, py = c + math.cos(a) * d, rcy + math.sin(a) * d * 0.55 + r * u * u * 0.6
+        pr = f.u(0.04) * (1 - 0.45 * u) * g.uniform(0.8, 1.2)
+        rot = g.uniform(0, math.tau)
+        peb = [(px + math.cos(rot + q * 2.1 + 0.3 * (q % 2)) * pr, py + math.sin(rot + q * 2.1 + 0.3 * (q % 2)) * pr * 0.8)
+               for q in range(3)] + [(px + math.cos(rot + 5.4) * pr * 0.9, py + math.sin(rot + 5.4) * pr * 0.7)]
+        f.poly(peb, BODY if k % 2 else LIGHT, ink=2.0)
     return f.finish()
 
 
@@ -547,7 +636,7 @@ SHEETS = {
     "daze_star": (daze_star, 96, 4, 4, "gold", "edge", 0.4),
     "combo_burst": (combo_burst, 256, 3, 6, "void", "edge", 0.45),
     "echo_axe": (echo_axe, 192, 4, 4, "void", "edge", 0.4),
-    "rock_boulder": (rock_boulder, 256, 4, 8, "earth", "edge", 0.45),
+    "rock_boulder": (rock_boulder, 320, 4, 8, "rock", "edge", 0.45),
     "steam_cloud": (steam_cloud, 320, 3, 6, "water", "edge", 0.5),
 }
 

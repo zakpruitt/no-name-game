@@ -13,6 +13,7 @@ extends Node3D
 
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const SELF := preload("res://scripts/designed_finish.gd")
+const FX_BEAT := preload("res://scripts/fx_beat.gd")
 
 const SHEETS := {
 	"awaken_gather": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
@@ -313,8 +314,11 @@ static func form_burst(parent: Node, at: Vector3, form: String, dir: Vector3) ->
 ## the hit stars and the crater the foes make).
 static func boulder(parent: Node, at: Vector3, size: float) -> Node3D:
 	_register()
-	var fx := DESIGNED.spawn(parent, "rock_boulder", at, BOULDER_SIZE * size, "earth", BOULDER_TIMES, Vector2(0.55, 1.0))
-	fx.real_until = 1
+	# (fx-queue-a: stone in the rock row, magma only in its cracks; pooled)
+	var fx := FX_BEAT.stamp(parent, "rock_boulder", at, BOULDER_SIZE * size, "rock", BOULDER_TIMES,
+			{"erode": Vector2(0.55, 1.0), "vary": false, "pop": 0.0})
+	if fx == null:
+		return null
 	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 	DESIGNED.dust(parent, Vector3(at.x, 0.0, at.z), 1.3)
 	return fx

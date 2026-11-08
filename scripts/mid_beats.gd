@@ -53,7 +53,7 @@ const GALE_PULL := 0.22
 ## Round 55 cool pass 4: Rockslide's boulder drops out of the sky (rock_boulder, its first frame held over the fall)
 ## DROP_SIZE x the designed boulder's size; Meltdown's globs are the molten fireball at GLOB_SIZE of its size.
 const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
-const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
+const FX_BEAT := preload("res://scripts/fx_beat.gd")
 const DROP_SIZE := 2.4  # (round 56, feel-audit6: 1.6 read as a dummy-sized blob at the camera's 800x450)
 const DROP_HIGH := 1.05  # m: the boulder's middle over the floor where it lands (comic_boulder.HIGH x the size)
 const DROP_DUST := 2.4  # m: the landing's dust
@@ -294,7 +294,13 @@ static func boulder_drop(parent: Node, spot: Vector3, fall: float, high: float) 
 	var times: Array = [fall]
 	times.append_array(DESIGNED_FINISH.BOULDER_TIMES.slice(1))
 	var at := Vector3(spot.x, DROP_HIGH, spot.z)
-	var fx: Node3D = DESIGNED.spawn(parent, "rock_boulder", at + Vector3.UP * high, DESIGNED_FINISH.BOULDER_SIZE * DROP_SIZE, "earth", times, Vector2(0.55, 1.0))
+	# (fx-queue-a: stone in the rock row, magma only in its cracks; pooled. The fall frame runs on game time with the
+	# tween and the landing timer, so real_until goes back off after the stamp)
+	var fx: Node3D = FX_BEAT.stamp(parent, "rock_boulder", at + Vector3.UP * high, DESIGNED_FINISH.BOULDER_SIZE * DROP_SIZE,
+			"rock", times, {"erode": Vector2(0.55, 1.0), "vary": false, "pop": 0.0})
+	if fx == null:
+		return
+	fx.real_until = -1
 	fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 	fx.create_tween().tween_property(fx, "global_position", at, fall).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	parent.get_tree().create_timer(fall, false).timeout.connect(_boulder_land.bind(parent, spot))
@@ -303,10 +309,8 @@ static func boulder_drop(parent: Node, spot: Vector3, fall: float, high: float) 
 static func _boulder_land(parent: Variant, spot: Vector3) -> void:
 	if is_instance_valid(parent) and (parent as Node).is_inside_tree():
 		DESIGNED.dust(parent, Vector3(spot.x, 0.0, spot.z), DROP_DUST)
-		DESIGNED_INK.shock(parent, Vector3(spot.x, 0.0, spot.z), PAL_EARTH, 2.6, 0.3)
-
-
-const PAL_EARTH := Color(1.0, 0.5, 0.15)
+		# (fx-queue-a: the orange shock ring under it went: a closed ring in a hard-coded colour; the boulder's own sheet
+		# kicks its stone dust out on the landing frame)
 
 
 ## A molten glob from `from` to foe `e` arriving in `time` s (game time): the drawn fireball, small, following it.

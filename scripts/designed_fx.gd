@@ -21,7 +21,7 @@ const RIBBON := preload("res://shaders/designed_ribbon.gdshader")
 const RIBBON_DEPTH := preload("res://shaders/designed_ribbon_depth.gdshader")
 
 ## Palette rows, in the order of the palette texture.
-const ROWS := ["hit", "wind", "water", "earth", "void", "spirit", "gold", "dust", "air"]
+const ROWS := ["hit", "wind", "water", "earth", "void", "spirit", "gold", "dust", "air", "rock"]  # (rock: fx-queue-a, stone with a magma hot)
 
 ## name -> texture, grid (cols, rows), frame count, shader kind, anchor (the pivot in quad units: sheets drawn
 ## standing on a ground line pivot there), burn (1 = the erosion edge burns hot, magma).
