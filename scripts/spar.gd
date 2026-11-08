@@ -13,6 +13,7 @@ const DAMAGE_SCALE := 1.0 / 3.0
 ## Spar pass two: its hp is HP_SCALE times its kind's (`--spar-hp=N` for one run). At 1x the warrior (75) died in 37 of
 ## 49 strings, mostly to the string's first breaker; a Ricochet onto the gallows (146) killed it on the splat, so the
 ## hang, the Snap and Galvanize's latch on it were never seen, and a hold string often met a foe with 6 hp left.
+## Melee kinds only: a shooter at 3x lived to shoot him ~20 times a run and cost the autotest a breaker.
 const HP_SCALE := 3.0
 const HP_FLAG := "--spar-hp="
 const SPOT := Vector3(0.0, 0.0, -6.0)  # from the hero, beyond the dummies (8 m: it walked in for 2 s after each respawn)
@@ -30,10 +31,11 @@ var _hp := -1.0  # his hp last frame
 var cuts := 0  # its windups a hold cut (enemy.held_cuts)
 var hurts := 0  # times he lost hp while sparring (its strikes; nothing else hits him in training)
 var strays := 0  # times it fell out of the room and was put back
-## Spar pass two, his hurt measured in play: hurts that landed mid-string (his combo running, or a move or a breaker
-## under way: `mid=`), and the real ms he spent in State.HURT each time (`hurt_ms=` avg/max).
+## Spar pass two, his hurt measured in play: hurts that landed mid-string (a move, a hold or a breaker under way, or one
+## within MID_GAP s: `mid=`; the combo count runs on across the bot's strings, so it can't tell), and the real ms he spent in State.HURT each time (`hurt_ms=` avg/max).
 var hurts_mid := 0
-var _combo_prev := 0
+const MID_GAP := 0.6
+var _busy_ms := -100000  # last ms he was in a move, a hold or a breaker
 var _state_prev := -1
 var _hurt_from := -1  # ms he went into HURT, while he is in it
 var _hurt_ms: Array[int] = []
@@ -82,7 +84,8 @@ func spot() -> Vector3:
 func spawn() -> void:
 	foe = _main._spawn(kind, false, spot())
 	foe.attack_damage *= DAMAGE_SCALE
-	foe.max_hp *= hp_scale()
+	if not kind in RANGED or _hp_flag():
+		foe.max_hp *= hp_scale()
 	foe.hp = foe.max_hp
 	foe.blast_enemy_damage *= DAMAGE_SCALE
 	foe.set_meta("spar", true)
@@ -96,12 +99,12 @@ func _physics_process(_delta: float) -> void:
 	if is_instance_valid(hero):
 		if _hp >= 0.0 and hero.hp < _hp:
 			hurts += 1
-			var busy: bool = _state_prev in [hero.State.ATTACK, hero.State.LEAP, hero.State.CHARGE]
-			if _combo_prev > 0 or busy:
+			if Time.get_ticks_msec() - _busy_ms <= MID_GAP * 1000.0:
 				hurts_mid += 1
 		_hp = hero.hp
-		_combo_prev = Game.combo_count
 		var now := Time.get_ticks_msec()
+		if _state_prev in [hero.State.ATTACK, hero.State.LEAP, hero.State.CHARGE]:
+			_busy_ms = now
 		if hero.state == hero.State.HURT and _hurt_from < 0:
 			_hurt_from = now
 		elif hero.state != hero.State.HURT and _hurt_from >= 0:
@@ -112,6 +115,11 @@ func _physics_process(_delta: float) -> void:
 		strays += 1
 		foe.global_position = spot()
 		foe.velocity = Vector3.ZERO
+
+
+## `--spar-hp=N` is on the command line.
+static func _hp_flag(args := OS.get_cmdline_user_args()) -> bool:
+	return Array(args).any(func(a: String) -> bool: return a.begins_with(HP_FLAG))
 
 
 ## HP_SCALE, or `--spar-hp=N` from the command line.

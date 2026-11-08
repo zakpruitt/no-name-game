@@ -63,7 +63,9 @@ Details in [env-pieces.md](env-pieces.md).
   swing", saved under `[training]` only when on), `scripts/menu_screen.gd` the row.
 - `scripts/move_list.gd`: Backlash and Ricochet rows (DARK). `scripts/comic_fx.gd`: Ricochet's word.
 - `scripts/training_bot.gd`: the `counter` token and the `["counter", "D"]` string; `[counter] counters= perfect=
-  ricochet=` at the end.
+  ricochet=` at the end. Spar pass two: `C` / `CP` counter the live `--spar=` foe in play (Backlash early in the window, or
+  the perfect and Ricochet; a bolt from a shooter), in the strings `foe C L L L H`, `foe CP`, `foe C C` (ranged) and the
+  gallows `hook foe CP settle H L L` (training.md "The bot on the live foe"); `spar_check` plays them headless.
 
 ## The swinging dummy
 

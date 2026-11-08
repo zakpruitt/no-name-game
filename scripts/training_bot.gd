@@ -17,6 +17,11 @@ const AUTOTEST_MAX := 195.0  # (round 56: 180 -> 195 for the stab and tide strin
 # string, Lava Leash, pushed the counter string, the last, past it; 140 until round 51's room with pieces, whose
 # strings come last, ran its 41st past it. The plain room finishes on its strings well before)
 
+## Spar pass two: with `--spar=` the live foe's strings (and the foe in the others' way) need this much longer: the room
+## with pieces and a warrior ran 55 of 58 strings in AUTOTEST_MAX.
+const AUTOTEST_SPAR := 60.0
+var _spar_on := spar_kind() != ""
+
 var main: Node  # the training room
 var player: CharacterBody3D
 var hud: CanvasLayer
@@ -317,7 +322,7 @@ func _process(delta: float) -> void:
 		_cast_shot_taken = true
 		await get_tree().create_timer(0.1, true, false, true).timeout
 		_snap("user://autotest_cast.png")
-	if _autotest_t >= AUTOTEST_MAX or (_autotest_t >= AUTOTEST_TIME and _bot_strings_done.size() >= strings.size()):
+	if _autotest_t >= AUTOTEST_MAX + (AUTOTEST_SPAR if _spar_on else 0.0) or (_autotest_t >= AUTOTEST_TIME and _bot_strings_done.size() >= strings.size()):
 		_autotest_finish()
 
 
