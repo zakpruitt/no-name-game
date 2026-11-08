@@ -89,8 +89,8 @@ const FACE := {"chibi": {
 	## The Meshy v3 model (tools/hero_build/hero_v3.py face.txt): its painted void flattened onto a plate tipped up
 	## to the game camera; the decals' size "k" from HERO_V3_FACE_K.
 	"v3": {
-	"eyes": [[Vector3(-0.0691, 1.0877, 0.1174), Vector3(-0.0025, 0.5749, 0.8182)],
-		[Vector3(0.1164, 1.0880, 0.1178), Vector3(-0.0025, 0.5749, 0.8182)]],
+	"eyes": [[Vector3(-0.0505, 1.0878, 0.1175), Vector3(-0.0025, 0.5749, 0.8182)],
+		[Vector3(0.0979, 1.0880, 0.1178), Vector3(-0.0025, 0.5749, 0.8182)]],
 	"grin": [Vector3(0.0237, 1.0258, 0.1612), Vector3(-0.0025, 0.5749, 0.8182)],
 	"normal": Vector3(-0.0025, 0.5749, 0.8182),
 	"up": Vector3(-0.0000, 0.8182, -0.5749),

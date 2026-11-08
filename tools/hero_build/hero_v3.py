@@ -434,7 +434,7 @@ ARM_T = np.array([H("upperarm.r"), T("upperarm.r"), T("lowerarm.r"), T("wrist.r"
 ARM_A = arc(ARM_T)
 _k = arc(TRUNK)[-1] / (ARM_A[-1] - A0)   # v3 units per rig metre along the trunk
 TRUNK_ACROSS = S                         # the trunk keeps its girth
-TIP_ACROSS = S * float(os.environ.get("HERO_V3_TIP_GIRTH", "1.0"))
+TIP_ACROSS = S * float(os.environ.get("HERO_V3_TIP_GIRTH", "1.4"))   # the concept's tips are chunky: 1.0 read thin at the game camera
 SEGS = {}   # bone -> (SegMap, source segment p0, p1)
 for i, b in enumerate(ARM_R):
     p0 = at_arc(TRUNK, (ARM_A[i] - A0) * _k)
@@ -820,10 +820,11 @@ else:
 # decals go EYE_H of the way up the plate instead, square about the void's middle, the grin GRIN_H up
 EYE_H = float(os.environ.get("HERO_V3_EYE_H", "0.35"))
 GRIN_H = float(os.environ.get("HERO_V3_GRIN_H", "0.08"))
+EYE_GAP = float(os.environ.get("HERO_V3_EYE_GAP", "0.8"))   # of the painted eyes' spacing
 _h = (FIT[FACEV] - PLATE_O) @ FUP
 _w = (FIT[FACEV] - PLATE_O) @ FRIGHT
 _mid = PLATE_O + FRIGHT * (_w.min() + _w.max()) / 2
-_half = abs(np.dot(_ec[1] - _ec[0], FRIGHT)) / 2
+_half = abs(np.dot(_ec[1] - _ec[0], FRIGHT)) / 2 * EYE_GAP   # the hood's cheek hides an eye at the painted gap
 log("face void: %.3f m tall, %.3f wide; painted eyes %.2f up it" % (_h.max() - _h.min(), _w.max() - _w.min(),
     (np.mean([np.dot(e - PLATE_O, FUP) for e in _ec]) - _h.min()) / (_h.max() - _h.min())))
 _up = lambda k: FUP * (_h.min() + k * (_h.max() - _h.min()))
