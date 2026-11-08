@@ -25,7 +25,7 @@ const POSE_MOVES := {"Ab_GR": "GR", "Ab_VS": "VS"}
 ## the face (depth-tested, not camera-facing: hero v2, round 44); windowed, the Idle game shot's pixels: at
 ## least FACE_PX of near-black face between the eyes and the grin and EYE_PX of cyan glow round each eye.
 const FACE_DOT_MIN := 0.7
-const FACE_PX := 250
+const FACE_PX := 180  # (250 before the hero fix took the head to 0.86: the plate is 0.74x the area)
 const EYE_PX := 25
 
 var _game: Node

@@ -77,12 +77,15 @@ const LEAN_SUBSTEP := 1.0 / 120.0  # s per spring step
 ## shapes lying on that plate a few mm off its surface, depth-tested like the rest of him, so the hood's rim
 ## and a claw in front cover them and nothing floats. Per Game.hero_model, skeleton rest space: each spot with
 ## the plate's surface normal there, and the face's up.
+## Hero fix (2026-11-07): the head group is built at hero_v2.py HEAD_K (0.86) about the neck joint, so "k" scales
+## the eye and grin shapes with it (the spots below already carry it).
 const FACE := {"chibi": {
-	"eyes": [[Vector3(-0.0568, 1.4104, 0.3243), Vector3(-0.1483, 0.6346, 0.7585)],
-		[Vector3(0.1479, 1.4104, 0.3243), Vector3(0.1483, 0.6346, 0.7585)]],
-	"grin": [Vector3(0.0456, 1.3092, 0.3953), Vector3(0.0, 0.3945, 0.9189)],
+	"eyes": [[Vector3(-0.0437, 1.3523, 0.2717), Vector3(-0.1483, 0.6346, 0.7585)],
+		[Vector3(0.1323, 1.3523, 0.2717), Vector3(0.1483, 0.6346, 0.7585)]],
+	"grin": [Vector3(0.0443, 1.2653, 0.3327), Vector3(0.0, 0.3945, 0.9189)],
 	"normal": Vector3(0.0, 0.5736, 0.8192),
-	"up": Vector3(0.0, 0.8192, -0.5736)}}
+	"up": Vector3(0.0, 0.8192, -0.5736),
+	"k": 0.86}}
 ## Hero pass 3 (round 40): his whole model drawn this much bigger in the game (the rig node under
 ## player.model: Awakening tweens player.model's own scale), so he stands as tall as the warrior at the
 ## game camera. Collision, hit ranges and the hit areas are unchanged. tools/meshy_rig/chibi_keys.py reads

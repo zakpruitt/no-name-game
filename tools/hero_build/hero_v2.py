@@ -23,7 +23,14 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 RIG_GLB, OUT = argv[0], argv[1]
 VARIANT = argv[2] if len(argv) > 2 else "hook"
 RENDER = "render" in argv[3:]
-TIP = os.environ.get("HERO_TIP", "crimson")  # horn tips: crimson (picked by film: violet merged into the claw) or violet
+TIP = os.environ.get("HERO_TIP", "crimson")
+# Hero fix (2026-11-07, docs/hero-audit-2026-11-07.md): the whole head group (hood, horns, stripe, rim, face plate,
+# eyes and grin) is scaled HEAD_K about the neck joint at export, and the hood's back point runs BACK_K of its
+# length. Round 44 built the head at 42% of his height (art-direction.md asks about a third); from the game camera
+# it covered the whole body. Both default to the new proportions; HERO_HEAD_K=1 HERO_BACK_K=1 rebuilds round 44.
+HEAD_K = float(os.environ.get("HERO_HEAD_K", "0.86"))
+BACK_K = float(os.environ.get("HERO_BACK_K", "0.7"))
+HEAD_PARTS = ("hood", "horns", "stripe", "face", "rim")  # horn tips: crimson (picked by film: violet merged into the claw) or violet
 os.makedirs(OUT, exist_ok=True)
 
 # ---------------------------------------------------------------- palette (sRGB 0..1, flat swatches)
@@ -288,8 +295,14 @@ def build_head(bm):
                  lambda t: 0.17 * (1 - t) ** 1.2 + 0.012, n=26, seg=14)
 
 
-BACK_POINT = [HEAD_C + Vector((0, 0.12, 0.17)), HEAD_C + Vector((0, 0.34, 0.28)),
-              HEAD_C + Vector((-0.03, 0.58, 0.22)), HEAD_C + Vector((-0.09, 0.8, 0.04))]
+BACK_POINT = [HEAD_C + Vector((0, 0.12, 0.17)), HEAD_C + Vector((0, 0.12 + 0.22 * BACK_K, 0.17 + 0.11 * BACK_K)),
+              HEAD_C + Vector((-0.03 * BACK_K, 0.12 + 0.46 * BACK_K, 0.17 + 0.05 * BACK_K)),
+              HEAD_C + Vector((-0.09 * BACK_K, 0.12 + 0.68 * BACK_K, 0.17 - 0.13 * BACK_K))]
+
+
+def head_k(co):
+    """A head-group point at export: HEAD_K about the neck joint."""
+    return NECK + (Vector(co) - NECK) * HEAD_K
 
 
 def horn_points(s):
@@ -870,6 +883,8 @@ for part, ob in parts.items():
             if key not in keymap:
                 keymap[key] = len(P)
                 co = me.vertices[vi].co
+                if part in HEAD_PARTS:
+                    co = head_k(co)
                 n = me.vertices[vi].normal
                 P.append((co.x, co.z, -co.y))
                 N.append((n.x, n.z, -n.y))
@@ -893,6 +908,9 @@ for part, ob in parts.items():
         for i in range(len(me.vertices)):
             if W[i][k] > 1e-4:
                 g.add([i], float(W[i][k]), "REPLACE")
+    if part in HEAD_PARTS:  # the Blender object too (renders, .blend), now regions and weights are read
+        for v in me.vertices:
+            v.co = head_k(v.co)
     ob.parent = ARM
     ob.matrix_parent_inverse = ARM.matrix_world.inverted()
     m = ob.modifiers.new("arm", "ARMATURE")
@@ -933,7 +951,7 @@ def face_point(x, z):
     n = Vector((x / a ** 2, -yy / b ** 2, z / c ** 2)).normalized()
     p = FACE_C + FACE_ROT @ local
     nn = (FACE_ROT @ n).normalized()
-    return p + nn * FACE_LIFT, nn
+    return head_k(p + nn * FACE_LIFT), nn
 
 
 def godot(v, scale=True):
@@ -946,7 +964,7 @@ with open(os.path.join(OUT, "face.txt"), "w") as f:
         p, n = face_point(x, z)
         f.write("%s %s %s\n" % (nm, godot(p), godot(n, False)))
     f.write("up %s\nright %s\n" % (godot(FACE_UP, False), godot(-FACE_U, False)))
-print("[hero_v2] variant %s tris %d %s" % (VARIANT, len(idx_all), tri_counts))
+print("[hero_v2] variant %s head x%.2f back point x%.2f tris %d %s" % (VARIANT, HEAD_K, BACK_K, len(idx_all), tri_counts))
 print("[hero_v2] verts %d bones %d" % (len(pos_all), len(all_names)))
 top = max(p[1] for p in pos_all)
 print("[hero_v2] height %.3f m" % top)
