@@ -12,6 +12,7 @@ signal air_combo_changed(count: int)
 signal enemy_killed(enemy: Node)
 signal hint_shown(text: String)
 
+const ROOMS := preload("res://scripts/rooms.gd")  # round 57: the training rooms as data (Settings "Room", --room=)
 const COMBO_TIMEOUT := 2.2
 const STYLE_DECAY := 6.0  # style points lost per second while not hitting
 const AWAKEN_MAX := 100.0
@@ -105,9 +106,10 @@ var combo_guide := true
 ## Dummies swing (Settings, or `--swing` for one run): a training dummy he stands in front of for a beat winds up and
 ## swings at him, for practising the dash counter (training_dummy.gd, docs/features/counter.md).
 var dummies_swing := false
-## Room (Settings, saved; `--room=plain|pieces` for one run): the training room as it has always been ("plain"), or
-## with one of each environment piece by the dummies ("pieces", scripts/rooms.gd, docs/features/env-pieces.md).
-## Takes effect on the next Restart training. The autotest plays the plain room unless `--room=pieces` is given.
+## Room (Settings, saved; `--room=<name>` for one run, rooms.gd ORDER): the training room as it has always been
+## ("plain"), with one of each environment piece by the dummies ("pieces", docs/features/env-pieces.md), the flooded
+## cistern or the forge hall (round 57, docs/features/rooms.md). Takes effect on the next Restart training. The
+## autotest plays the plain room unless `--room=` is given.
 var room_setting := "plain"
 var room := "plain"
 ## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
@@ -155,7 +157,7 @@ func _ready() -> void:
 	hero_model = hero_setting
 	room = room_setting if not "--autotest" in OS.get_cmdline_user_args() else "plain"
 	for a in OS.get_cmdline_user_args() + OS.get_cmdline_args():
-		if a.begins_with("--room=") and a.trim_prefix("--room=") in ["plain", "pieces"]:
+		if a.begins_with("--room=") and ROOMS.known(a.trim_prefix("--room=")):
 			room = a.trim_prefix("--room=")
 		if a.begins_with("--hero=") and HERO_MODELS.has(a.trim_prefix("--hero=")):
 			hero_model = a.trim_prefix("--hero=")
@@ -472,15 +474,16 @@ func swing_label() -> String:
 	return "Dummies swing: %s" % ("On" if dummies_swing else "Off")
 
 
-## Settings: the training room plain or with pieces, saved; takes effect on the next Restart training.
+## Settings: the next training room (plain, with pieces, flooded cistern, forge hall), saved; takes effect on the next
+## Restart training.
 func toggle_room() -> void:
-	room_setting = "pieces" if room_setting == "plain" else "plain"
+	room_setting = ROOMS.next_room(room_setting)
 	room = room_setting
 	_save_settings()
 
 
 func room_label() -> String:
-	return "Room (on restart): %s" % ("with pieces" if room_setting == "pieces" else "plain")
+	return "Room (on restart): %s" % ROOMS.label(room_setting)
 
 
 ## Settings: heretic <-> chibi heretic, saved; takes effect on the next Restart training.
@@ -516,7 +519,7 @@ func _load_settings() -> void:
 		combo_guide = cfg.get_value("video", "combo_guide", true)
 		dummies_swing = cfg.get_value("training", "dummies_swing", false)
 		room_setting = cfg.get_value("training", "room", "plain")
-		if not room_setting in ["plain", "pieces"]:
+		if not ROOMS.known(room_setting):
 			room_setting = "plain"
 		hero_setting = cfg.get_value("video", "hero_model", HERO_DEFAULT)
 		if not HERO_MODELS.has(hero_setting):

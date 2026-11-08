@@ -49,17 +49,42 @@ static func read_input(hero: CharacterBody3D) -> void:
 	if hero.state == hero.State.DEAD:
 		return
 	if Input.is_action_just_pressed("attack_light"):
-		hero._buffered = "light"
-		hero._buffer_t = hero.input_buffer
-	elif Input.is_action_just_pressed("attack_heavy"):
-		hero._buffered = "heavy"
-		hero._buffer_t = hero.input_buffer
+		press(hero, "light")
+	if Input.is_action_just_pressed("attack_heavy"):
+		press(hero, "heavy")
 	if Input.is_action_just_pressed("traverse"):
 		hero._swing_buffer_t = hero.input_buffer
 	if Input.is_action_just_pressed("dash"):
 		hero._dash_buffer_t = hero.input_buffer
 	if Input.is_action_just_pressed("awaken"):
 		HERO_AWAKEN.try_awaken(hero)
+
+
+## One press of L ("light") or right click ("heavy") into the buffer. Ice-staff lane (2026-11-07): two slots in press
+## order. A press while one is already waiting queues behind it (`_queued`) instead of replacing it, and moves up with a
+## buffer when the waiting one starts its move (player._start_attack, promote()). With one slot the last press won: a quick
+## L L L H (90-150 ms apart) had its H overwrite the third L still waiting on L2's cancel, so the H came off L2 and
+## planted the Frost Spear (tests/spear_intent_check.gd). A third press while both wait only replaces the queued one,
+## so a mash still spills at most two moves.
+static func press(hero: CharacterBody3D, kind: String) -> void:
+	if hero._buffered == "":
+		hero._buffered = kind
+		hero._buffer_t = hero.input_buffer
+	elif hero._queued == "":
+		hero._queued = kind
+	else:
+		hero._queued = kind
+
+
+## The waiting press started its move (called at the end of player._start_attack): the one queued behind it (if any)
+## waits for this move, held until its whiff cancel point plus BUFFER_MS (it was pressed before the move began, so a
+## plain BUFFER_MS lapsed before Slice's or Chop's cancel and the ender of a fast L L L H was lost).
+static func promote(hero: CharacterBody3D, queued: String) -> void:
+	if queued == "":
+		return
+	hero._buffered = queued
+	var to_cancel: float = float(hero._move.get("cancel", 0.0)) * hero._move_len / maxf(hero.anim_speed * hero._anim_mult, 0.001)
+	hero._buffer_t = to_cancel + hero.input_buffer
 
 
 ## The last device touched decides, so a gamepad goes back to facing the way he runs.

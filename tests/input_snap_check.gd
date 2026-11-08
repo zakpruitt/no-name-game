@@ -79,7 +79,7 @@ func _reset() -> void:
 	hero.model.position = Vector3.ZERO
 	hero._face(Vector3(0, 0, 1))
 	var spear: GDScript = load("res://scripts/frost_spear.gd")
-	for s: Node in get_nodes_in_group(spear.GROUP):  # (Frost Spear's plant: while it stands every press vaults)
+	for s: Node in get_nodes_in_group(spear.GROUP):  # (Frost Spear's plant: a fresh press facing it vaults)
 		s.remove_from_group(spear.GROUP)
 		s.queue_free()
 

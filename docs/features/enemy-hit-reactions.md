@@ -43,6 +43,16 @@ little; it never leans, tumbles or leaves the floor.
   - `_reaction_kind()` picks the `SQUASH` key: `kill` (hp already down),
     `juggle` (hit while `AIRBORNE`), `launch`, `none` (poise held mid-windup:
     still flashes, no squash or lean), `big`, `tap`.
+  - Poise (`_poise_holds`, spar audit 2026-11-07): a windup holds through a
+    light hit (knockback under `poise`), never a `big` one, and not the
+    `POISE_HITS` (3rd) hit of the same windup (`_poise_hits`, cleared by
+    `_set_state`). Before, the warrior's poise 8 held through every
+    zero-knockback element hit, big heavies too.
+  - Held foes (`held()`): carried or thrown (`thrown_foe.FLYING`), bound
+    (`floor_bind.BOUND`, small foes) or frozen. A windup under way is cut into a
+    `HELD_CUT` stagger (`held_cuts`), none starts, and `_strike` refuses a held
+    foe or one over `STRIKE_MAX_Y` off the floor: a gather, a hang or a cube
+    never lets a live foe strike from the air. `tests/spar_check.gd`.
   - `_react()` does the flash (`Fx.flash_tint`), the squash and the lean, or a
     `_kick_tumble` for launches. `_wave_slot()` counts hits per physics frame;
     `_hit_reaction` delays `_react` by `slot * WAVE_STEP` on a tween and

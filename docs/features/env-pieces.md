@@ -17,10 +17,12 @@ aspects only they can use". This builds items 0-4 of the proposal's build order
   `--room=pieces` is given. With pieces, the training room adds one of each piece the heretic or everyone uses, each
   by a dummy and makes the banners live. Both training rooms rebuild every used-up piece `REBUILD_S` 6 s later with
   a dust pop (so a pillar Uproot tore out of the plain room comes back too).
-- **Rebuild is per room** (round 52): `rooms.gd` `ROOM_RULES` holds each room's rules beside its entries
-  (`{"plain": {"rebuild": true}, "pieces": {"rebuild": true}}`); any other room is a real room (`REAL_ROOM`,
+- **Rebuild is per room** (round 52): each room's rules sit beside its entries (round 57: `rooms.gd` `ROOM_DEFS`,
+  which folded in round 52's `ROOM_RULES`; every training room rebuilds); any other room is a real room (`REAL_ROOM`,
   `rebuild: false`): what is used up stays gone for the fight, so Uproot costs the pillar and its swing anchor.
   `rooms.rebuild(room)` is what `main._build_arena` passes to `EnvPiece.begin()`. No run builds real rooms yet.
+- **More rooms** (round 57, rooms lane): the flooded cistern and the forge hall, Settings and `--room=cistern|forge`,
+  each with a combo only it makes possible; rooms are wholly data now. See [rooms.md](rooms.md).
 
 ### The pieces
 
@@ -311,7 +313,8 @@ Uproot's pillar (`UPROOT_CUE_MS` 2.2 s from the dive), a hook with a foe hung on
 - `scripts/env_piece.gd` torches conduct (round 52): `CONDUCT_*`, `_conduct()`, `torch_chain()`, `_relay()`, `_flare()`,
   `_conduct_tick()`, `conducting_torches()`, `conduct_near()`; Live Floor's `_live_rim()`; the keg's `_keg_word()`.
 - `scripts/env_target.gd`: CTX `conduct`, `_conduct_ctx()`, mode `torch` in `resolve()`, the torch bracket in `_draw()`.
-- `scripts/rooms.gd`: `ROOM_RULES`, `REAL_ROOM`, `rule()`, `rebuild()`; `count_in_pieces` on the middle torch.
+- `scripts/rooms.gd`: `ROOM_DEFS` (round 57; round 52's `ROOM_RULES`), `REAL_ROOM`, `rule()`, `rebuild()`;
+  `count_in_pieces` on the middle torch (counted where a room has `count_marked`).
 - `scripts/game.gd`: `room_setting` (saved under `training/room`), `room` (this run), `toggle_room()`,
   `room_label()`; `scripts/menu_screen.gd` Settings row.
 - `scripts/env_flourish.gd` (round 53): `on()`, gallows (`hook_point()`, `hooks()`, `gallows_hook()`, `hang()`,

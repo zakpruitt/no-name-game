@@ -127,7 +127,7 @@ What it keeps, by slot. Everything listed exists today.
 |---|---|---|
 | 1 Light string | Chop, Chop, Chop (axe storm, spear ice, hammer magma) | Already teaches the three colours in order. |
 | 2 Light enders | Updraft Lash (L H, storm), Frost Spear (L L H, ice), Molten Palm (L L L H, magma) | Launch, slow, carry. Exactly the three roles. |
-| 3 Big moves | Live Wire (L H H: Grounded / Short Circuit), Deep Freeze (L L H L H: Avalanche), Undertow (L L L H H: Meteor Fall / Meteor Shower) | The spear vault (L L H L) is a route step. |
+| 3 Big moves | Live Wire (L H H: Grounded / Short Circuit), Deep Freeze (L L H L H: Avalanche), Undertow (L L L H H: Meteor Fall / Meteor Shower) | The spear vault (L L H L) is a route step: off the plant either button, later only a fresh press facing the spear close by (ice-staff lane, `void_element.vaults`). |
 | 4 Air route | Air Slash -> Live Wire air (L H L H: Worldbreaker / Cold Front) | Keep. |
 | 5 Signature | Reap (H), Singularity (H H: Collapse), Black Tide (H L H: Maw / Black Ice), Overwhelm (hold H: Abyss) | Mark, gather, drag, pin. Exactly the four roles. |
 | 6 Dash moves | Dash Stab (Dash L), Tow Line (Dash H) | Lunge, snare. |

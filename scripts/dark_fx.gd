@@ -258,6 +258,22 @@ class Pool extends Node3D:
 	func clear_standing() -> void:
 		time = minf(time, _t)
 
+	## Round 56 (feel-audit6): the pool goes see-through to `to` over `down` s, stays `hold` s, and comes back over `up` s
+	## (Overwhelm's haul: the slam read as one more purple shape on the busy pool). Designed pools only.
+	func thin(to: float, down: float, hold: float, up: float) -> void:
+		if _loop == null or not is_instance_valid(_loop):
+			return
+		var tw := create_tween()
+		tw.tween_interval(maxf(OPEN_S - _t, 0.0))  # (past its own opening tween on the scale)
+		tw.tween_method(_loop.set_alpha, 1.0, to, down)
+		tw.parallel().tween_property(self, "scale", Vector3(r * POOL_THIN_SIZE, 1.0, r * POOL_THIN_SIZE), down)
+		tw.tween_interval(hold)
+		tw.tween_method(_loop.set_alpha, to, 1.0, up)
+		tw.parallel().tween_property(self, "scale", Vector3(r, 1.0, r), up)
+
+	const POOL_THIN_SIZE := 0.7  # of its size while thin (it draws in under the slam)
+	const OPEN_S := 0.15  # s its opening tween takes (0.14)
+
 	func _process(delta: float) -> void:
 		_t += delta
 		if _t >= time or _t >= SELF.POOL_SHOW:

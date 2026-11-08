@@ -318,6 +318,10 @@ class FloorLoop extends Node3D:
 		rotation.y = randf() * TAU
 		_last_us = Time.get_ticks_usec()
 
+	## Its see-through (round 56: Overwhelm's pool thins under the haul).
+	func set_alpha(a: float) -> void:
+		_mi.set_instance_shader_parameter("alpha", a)
+
 	## Eat it away over `time` s (real time), then free it.
 	func erode_out(time := 0.25) -> void:
 		if _erode_t < 0.0:

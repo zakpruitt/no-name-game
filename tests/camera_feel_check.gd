@@ -296,6 +296,10 @@ const ENDING_NDC := 0.9
 ## camera_rig.HANG_CAP_WIDE (1.55), so its cube lands at 0.89-0.96 for the landing's first frames. On screen is the bar.
 const ENDING_NDC_OVER := {"Cold Front": 1.0}
 const LAND_MS := 150
+## Round 56 (feel-audit6): these endings sat wide at the landing (x1.37-1.40 of the rest view, and widening): the view
+## must punch in to PUNCH_BAR of the landing frame's within LAND_MS. (The others' actors fill the screen: no room.)
+const PUNCH_ENDINGS := ["Maw", "Black Ice", "Eruption", "Ricochet"]
+const PUNCH_BAR := 0.95
 const PAYOFF_MS := 1400
 const NEAR_R := 5.0  # m round the landing: the pile
 var _hp: CharacterBody3D
@@ -386,12 +390,22 @@ func _one_ending(bot: Node, ending: String) -> void:
 		for n: Node in get_nodes_in_group("env"):
 			if n is Node3D and int(n.get_meta(&"frame_cue_ms", 0)) > now:
 				f[4].append((n as Node3D).global_position + Vector3.UP)
+		f.append(rig.camera.position.length() * tan(deg_to_rad(cam.fov * 0.5)))  # [7]: the view's size
 		frames.append(f)
 		if land_ms > 0 and (now - land_ms > PAYOFF_MS or bot._bot_step == 0 and not bot._reset_done):
 			break
 	if land_ms < 0:
 		_check(false, "%s lands (%s)" % [ending, ENDING_STRINGS[ending]])
 		return
+	var view_land := 0.0
+	var view_in := INF
+	for f: Array in frames:
+		if f[0] <= land_ms:
+			view_land = f[7]
+		elif f[0] - land_ms <= LAND_MS:
+			view_in = minf(view_in, f[7])
+	if ending in PUNCH_ENDINGS:
+		_check(view_in <= view_land * PUNCH_BAR, "%s: the landing punches in (view x%.2f of the landing frame's)" % [ending, view_in / maxf(view_land, 0.001)])
 	var first := true
 	for f: Array in frames:
 		if f[0] <= land_ms:  # (from the frame after: the landing's own frame has the camera from before it)

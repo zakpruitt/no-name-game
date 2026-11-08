@@ -265,9 +265,9 @@ static func void_route(kind: String, from: String, attacking: bool, chain: int, 
 	return id if KitSlots.open(id) else VOID_ELEMENT.NEUTRAL
 
 
-## void_route(), plus the vault: while his frost spear stands, either press takes him up over it.
+## void_route(), plus the vault: off the plant, or a fresh press facing the standing spear near it (VOID_ELEMENT.vaults).
 static func routed(hero: CharacterBody3D, kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
-	if VOID_ELEMENT.vaults(hero.get_tree(), from, attacking, post_dash):
+	if VOID_ELEMENT.vaults(hero, from, attacking, post_dash):
 		return "IJ"
 	return void_route(kind, from, attacking, chain, post_dash)
 

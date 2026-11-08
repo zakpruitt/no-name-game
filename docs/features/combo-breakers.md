@@ -784,7 +784,7 @@ camera only through `camera_rig.punch()`.
 - **Rockslide** (`XR`, 3/4). Three beats: the gale drags everyone airborne within `ROCKSLIDE_GALE_R` 6 m in to
   `ROCKSLIDE_RING` 0.9 m round the `rockslide` pick (default `rockslide_auto`: the most others round it, the airborne
   counting double; `ROCKSLIDE_PICK_REACH` 7 m), gusts drawn; a boulder (`MID_BEATS.boulder_drop`, `rock_boulder` frame 0,
-  `DROP_SIZE` 1.6) falls from `ROCKSLIDE_DROP_Y` 3.2 m over `ROCKSLIDE_FALL` 0.18 s; the landing (`_rockslide_land`):
+  `DROP_SIZE` 1.6, 2.4 since round 56) falls from `ROCKSLIDE_DROP_Y` 3.2 m (2.7 since round 56) over `ROCKSLIDE_FALL` 0.18 s; the landing (`_rockslide_land`):
   the hit, x`ROCKSLIDE_AIR_MULT` 2 on those the gale brought, buried, `ROCKSLIDE_STOP` 0.06, dust, a ring and the word.
   Best: a pair the air slash lifted and one standing where you want the pile.
 - **Meltdown** (`XM`, 3/4). The molten hammer picks its block (`meltdown` pick, default `meltdown_auto`: the most others
@@ -799,7 +799,7 @@ camera only through `camera_rig.punch()`.
   then has them together. Heavy foes are not hauled (they slow as before).
 - **Black Tide** (`VD`, 4/4 with spread marks). The tentacles do the drag: each marked one is tethered out of the pool
   (`thrown_foe` `rope_from`, the reaped first) and arrives staggered (`TIDE_FIRST` 0.55 + `TIDE_STEP` 0.15 a foe of
-  `TIDE_ARRIVE`); each arrival knocks the pile (`_tide_knock`: `TIDE_KNOCK` 4 x (1 + `TIDE_KNOCK_PER` 0.5 per one
+  `TIDE_ARRIVE`); each arrival knocks the pile (`_tide_knock`: `TIDE_KNOCK` 1.2 x (1 + `TIDE_KNOCK_PER` 0.5 per one
   already there)); the last gets a `TIDE_GULP_STOP` 0.06 stop, a burst, the word and a ring. The bot's dummies stand
   close, so its drag is short (3/4 there).
 - **Dash Stab** (`DL`, 3/4 with a straggler). The claw's lash aims (`claw_lash._aim_catch`: the furthest light foe
@@ -830,3 +830,34 @@ far pair, the spear goes in there), `reap` (the hook's bracket switched to the r
 
 Endings unchanged at 4/4; Maw's knock now reads as its own beat. Next: Overwhelm's pool reads busy behind the slam;
 Rockslide's boulder is small at the camera's distance; the 3/4 mids want a best situation the bot film shows.
+
+## Round 56 feel audit 7 (feel-audit6 lane)
+
+Audit: `docs/feel-audit-2026-11-07c.md`. Clips: `awaken-combo-clips/46 Audit6 *`. Slots, inputs, windows and hang
+lengths are unchanged (kit_check 23/23, 15/15; rhythm_check, input_snap_check, hitstop_check PASS).
+
+- **The landing punches in** for every ending whose scene has room (`camera_rig._land_punch`, camera.md "Landing
+  punch"): Maw, Black Ice, Eruption, Ricochet, Tempest, Cold Front, Anvil.
+- **Cold Front's dive** lands by the middle of the hoisted cubes (`hero_leap._cold_zone`, `COLD_DIVE_TOWARD` 1.0): the
+  four cubes stay on screen and the banner, low, is clear of them.
+- **The banner dodges the pile.** `designed_breaker.Screen._foe_under` counts every foe in the camera's hang scene
+  (feet to `ACTOR_HEAD` 1.8 m), not only cued ones, and the banner only drops when the low spot is clearer. Keg Meteor
+  Fall's KA-BLOOOM! now reads at the top.
+- **The banner counts again** after an earlier ending in the same string (`comic_number.add` restarts the total when a
+  new breaker opens); Eruption counts 484 -> 624 -> 796.
+- **Words and numbers keep off the banner**: the open banner (plus `BANNER_TAG_H` 0.6 of its height for PERFECT) is a
+  text block in `comic_fx._text_blocks` (`comic_number.banner_rect`).
+- **Deep Freeze's leftover blocks pop as a wave** when Avalanche opens: `deep_freeze_flush` pops each pending block
+  `DF_FLUSH_STEP` 0.035 s apart on real-time timers (the hitstops had stretched the wave's game-time timers past the
+  leap, so the rest popped on one frame); no stop of their own; Avalanche takes them without encasing again.
+- **Overwhelm's pool thins during the haul** (`dark_fx` pool `thin()`): alpha `OW_POOL_THIN` 0.2, scale
+  `POOL_THIN_SIZE` 0.7, back over `OW_POOL_BACK` 0.3 s after `OW_POOL_AFTER` 0.15 s.
+- **Rockslide's boulder is bigger**: `DROP_SIZE` 1.6 -> 2.4, `DROP_HIGH` 0.75 -> 1.05, dust `DROP_DUST` 2.4, and
+  `ROCKSLIDE_DROP_Y` 3.2 -> 2.7 m so it starts on screen.
+- **Bot strings with spread foes**: `stab D L` (slot `dash_l`, a foe 4 m behind) and `tide H L H` (slot `sig_drag`,
+  foes 5-9 m out), `training_bot.BOT_SPOT_LAYOUTS`; `AUTOTEST_MAX` 195 s for the room with pieces' 53 strings.
+- `tests/cool4_check.gd` adds the flush wave and the pool's thinning; `tests/camera_feel_check.gd` the landing punch.
+
+Open (Zak): the wide endings' punch (Avalanche, Slapshot, Meteor Shower, Pinwheel, Short Circuit, Uproot would crop
+part of the pile for 0.3 s); the mid name callout stacked over its beat word (FAULT LINE + KRUNCH!, BLACK TIDE +
+SPLOOSH!).

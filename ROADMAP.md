@@ -1170,3 +1170,86 @@ control makes sense". See `docs/features/combo-breakers.md` "Round 55 cool pass 
   Line, Rockslide, Deep Freeze, Dash Stab, Short Circuit)
 - [ ] Open: Overwhelm's pool reads busy behind the slam; Rockslide's boulder small at the camera's distance; Dash
   Stab's catch and Black Tide's drag need foes spread out (the bot's dummies stand close)
+
+## Round 56 spar-feel (combat against live foes: every string filmed on each spar foe)
+
+Zak's loop: "increasing combat fluidity, ensure everything is snappy and very fun"; nothing had been filmed against a
+foe that fights back since the kit grammar. Audit: `docs/spar-audit-2026-11-07.md`.
+- [x] Every string filmed on the warrior, rogue, shield and minion (`string_film -- --spar=<kind>`, the INDEX lines
+  carry the live foe's state); ranked top 10
+- [x] A foe held by a control move never strikes (`enemy.held()`: carried, thrown, bound, frozen; Collapse, Abyss and
+  Avalanche held foes that kept their windup)
+- [x] Poise breaks on a big hit or the third of a windup (`_poise_holds`, `POISE_HITS`)
+- [x] Rogue windup 0.45 to 0.5 s: 0.25 s of telegraph before the counter window on the shortest foe
+- [x] Spar respawns inside the room (it fell out by the back wall), 0.8 s, 6 m; `--spar=archer|mage`; `[spar]` adds
+  `hurts= blocks= cuts= strays=`
+- [x] `tests/spar_check.gd` (in `agent.sh check`, ~50 s); windowed `tests/spar_film.gd` for one scripted beat
+- [x] Clips: `awaken-combo-clips/47 Spar *` (Collapse, Poise, Respawn, Rogue counter before / after; the counter on
+  every foe; his hurt)
+- [ ] Open (Zak): his hurt's dash-out at 0.12 s; a bot token to counter a live foe; the shield letting control moves
+  through; the live foe in the string films' gather; a kill hidden under a breaker's impact frame
+
+## Round 56 feel-audit6 (feel audit 7: the landing punch, the banner over piles, round 55's leftovers)
+
+Zak's brief: film both rooms windowed, rank the top 10, fix the top in batches plus six decided items, perf, hand-feel,
+clips. Audit: `docs/feel-audit-2026-11-07c.md`.
+- [x] The landing punches in (x0.85 of the landing's view, 50 ms hold, eased out to the scene by 330 ms) wherever the
+  scene has room: Maw, Black Ice, Eruption, Ricochet, Tempest, Cold Front; `camera_feel_check` proves it
+- [x] Cold Front's dive lands by the middle of the hoisted cubes; the banner is clear of them
+- [x] The banner dodges any foe in the hang scene; it counts again after an earlier ending; words and numbers keep off it
+- [x] Deep Freeze's leftover blocks pop as a 0.035 s wave when Avalanche opens (they popped on one frame)
+- [x] Overwhelm's pool thins during the haul; Rockslide's boulder 1.6 -> 2.4 and on screen
+- [x] Bot strings `stab D L` and `tide H L H` against spread foes (Dash Stab's catch, Black Tide's long haul)
+- [x] Perf windowed in both rooms unchanged (one CPU spike, the first L1); `--collect-shaders` found nothing new
+- [x] Clips: `awaken-combo-clips/46 Audit6 *`
+- [ ] Zak's call: punch the wide endings too (Avalanche, Slapshot, Meteor Shower, Pinwheel, Short Circuit, Uproot)
+  even if it crops the pile for 0.3 s
+- [ ] Open: mid name callouts stacked over their beat words; Cataclysm's pile under the top banner for ~0.5 s; the
+  parried cleaver lying ~2 s; Collapse's stray pebbles
+
+## Round 57 rooms (rooms as data: the flooded cistern and the forge hall)
+
+Zak: the environment should be a big part of what you can do, and later be shaped by items. Doc:
+`docs/features/rooms.md`; world: `docs/design/environment-lore.md`.
+- [x] A room is pure data (`rooms.gd` `ROOM_DEFS`: label, size, layers of placements with yaw, `make_live`, `rebuild`,
+  its own `flourishes`, `links`, lore, showcase strings); plain and with pieces build the same entries as before
+- [x] The flooded cistern (ice, dark): a channel of four linked pools and a sluice grate on the back wall, hooks over
+  it. Down the channel: Harpoon by it freezes it all, Slapshot carries the row ~21 m into the east wall (one pool: ~17)
+- [x] The forge hall (magma, storm): three kegs between two lit braziers, three bonded plates. Powder line: one magma
+  hit bursts all three kegs and spills both braziers; bonded plates: storm on one makes all three live
+- [x] Rules, no-ops in the old rooms: linked floor tiles (`env_piece.linked`), `RINK_EXTRA` per frozen pool crossed,
+  a keg burst tips a lit brazier (`env_flourish.keg_spill`), flourishes per room. Hazards stay hero-safe
+- [x] Settings room picker (plain / with pieces / flooded cistern / forge hall), `--room=<name>`; `string_film --room=
+  --showcase [--overview]`, `piece_shots` overview
+- [x] `tests/rooms_check.gd` (in `agent.sh check`): every room loads, fits, doesn't overlap; each showcase reaches its
+  state; the hero unhurt
+- [x] Clips and stills: `awaken-combo-clips/49 Rooms *`
+- [ ] Zak's call: hazards that hurt the hero in harder rooms; the item kinds that write to a room (lore doc); whether
+  the new rooms' showcases join the autotest (a `BOT_STRINGS` entry with `room`, training_bot's lane)
+
+## Round 57 spar2 (spar pass two: the counter and the holds in real play)
+
+The first spar pass left the bot blind to the live foe, `cuts=0`, the foe gathered into every film's fan, and the
+gallows never filmed on a live foe. Audit: `docs/spar-audit-2026-11-07b.md`.
+- [x] Bot tokens on the live foe (`training_bot.gd`, strings with `spar: melee|ranged`): `C` Backlash, `CP` the
+  perfect and Ricochet, `W` waits for its windup so the next press is a hold, `settle`; strings `foe C L L L H`,
+  `foe CP`, `foe W H H`, `foe W D L H`, `foe C C` (shooters), `hook foe CP settle H L L` (room with pieces)
+- [x] `cuts` count in play: a hold whose own hit broke the windup a frame earlier (`enemy.HOLD_CUT_GRACE`), the
+  tentacle's grab; not Backlash. Warrior autotest `cuts=0` -> 3-6
+- [x] `string_film` leaves the live foe out of the gather (hurts at string start 4 of 5 -> 0 of 2; away 31% -> 21%)
+- [x] Melee spar foes 3x hp (`spar.HP_SCALE`, `--spar-hp=N`), refilled for their own strings: the gallows now hangs a
+  live warrior and Galvanize latches on it (at 1x the splat killed it every time)
+- [x] `[spar]` adds `mid=` and `hurt_ms=`; `[spar_bot]`; `AUTOTEST_SPAR` +60 s with a live foe
+- [x] `spar_check` plays the spar strings in play on a warrior and an archer (the gate; a `--spar=warrior` autotest
+  stays out of `agent.sh check`)
+- [x] Clips: `awaken-combo-clips/50 Spar2 *`
+- [ ] Zak's call: the gallows splat kills any real foe (cap it to hang alive?); grabbing a foe out of Ricochet's
+  throw; the spar foe's 3x hp; his hurt kept at 0.35 / 0.12 (a mid-string hurt still resets the string)
+
+## Ice-staff (Frost Spear on purpose only, 2026-11-07)
+- [x] Accidental plant: a quick L L L H (90-150 ms gaps) planted the spear, its H overwriting the third L in the one-slot
+  buffer. Two press slots in order (`hero_input.press` / `promote`); `tests/spear_intent_check.gd`
+- [x] The vault is an option: off the plant either button; later only a fresh press facing it within 3.5 m
+  (`void_element.vaults`); off a vault the next press is the string; walking 9 m off for 1 s pops it (`frost_spear.LEASH`)
+- [x] A spear that ends pops at once (no 0.3 s sink lying about in the next string)
+- [ ] Zak's call: a dash through the spear shattering it (left out: Tow Line's dash runs through it on the Impale route)

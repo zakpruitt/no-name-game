@@ -113,6 +113,7 @@ var _chain_reset_t := 0.0
 
 # Presses and aim (hero_input.gd).
 var _buffered := ""
+var _queued := ""  # a second press behind _buffered, in press order (hero_input.press / promote)
 var _buffer_t := 0.0
 var _dash_buffer_t := 0.0
 var _swing_buffer_t := 0.0  # s left on a press of R
@@ -330,6 +331,8 @@ func _tick_timers(delta: float) -> void:
 	_chain_reset_t -= delta
 	if _buffer_t <= 0.0:
 		_buffered = ""
+	if _buffered == "":
+		_queued = ""  # (cleared with the one ahead of it: a lapse, a leap or a charge took that press)
 	if _chain_reset_t <= 0.0 and state != State.ATTACK:
 		_chain_i = 0
 	HERO_AWAKEN.tick(self, delta)
@@ -516,7 +519,9 @@ func _set_state(s: State) -> void:
 # --- Actions -----------------------------------------------------------------
 
 func _start_attack(id: String) -> void:
+	var queued := _queued  # (the press this move came from is spent; one queued behind it waits for this move's cancel)
 	_buffered = ""
+	_queued = ""
 	_ready_t = ComicLook.READY_HOLD
 	if id == "GR" and _void.begin():
 		return
@@ -544,6 +549,7 @@ func _start_attack(id: String) -> void:
 	attack_started.emit(id)
 	Game.sfx("swing", -3.0, 0.12)
 	_play(_move.anim, 0.05, true)
+	HERO_INPUT.promote(self, queued)
 
 
 func _next_move(kind: String) -> String:

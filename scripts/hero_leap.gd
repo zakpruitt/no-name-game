@@ -242,6 +242,8 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 	if b.has("press"):
 		void_grab.aim_crush()
 	_aim(hero)
+	if b.has("cubes"):
+		_cold_zone(hero)
 	if b.has("uproot"):  # Uproot (round 51): no sink; the tentacle tears the pillar out as he dives
 		VOID_ELEMENT.uproot_dive(hero)
 	if b.has("pinwheel"):  # Pinwheel: the twister he whirls the kebab round in
@@ -258,6 +260,28 @@ static func _start_dive(hero: CharacterBody3D) -> void:
 		Game.hitstop(BREAKER_PERFECT_STOP, 0.05)
 		Game.sfx("perfect", -4.0, 0.0)
 	_dive(hero)
+
+
+## Round 56 (feel-audit6, item a): Cold Front's dive comes down in the middle of the cubes it holds (the middle of
+## their spread, COLD_DIVE_TOWARD of the way from the window's zone), not on the zone ahead of him: the cube the
+## tentacles hoisted 8 m down-screen needed the scene at x1.7, past the camera's widest tier, and rose under the banner.
+const COLD_DIVE_TOWARD := 1.0
+static func _cold_zone(hero: CharacterBody3D) -> void:
+	var held: Array = hero._void.held_foes()
+	if held.is_empty():
+		return
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for e: Node3D in held:
+		lo = lo.min(Vector2(e.global_position.x, e.global_position.z))
+		hi = hi.max(Vector2(e.global_position.x, e.global_position.z))
+	var mid := (lo + hi) * 0.5
+	hero._brk_zone = (hero._brk_zone as Vector3).lerp(Vector3(mid.x, 0.0, mid.y), COLD_DIVE_TOWARD)
+	var to: Vector3 = hero._brk_zone - Vector3(hero.global_position.x, 0.0, hero.global_position.z)
+	if to.length() > 0.1:
+		hero._brk_dir = to.normalized()
+	if is_instance_valid(hero._brk_cue):
+		hero._brk_cue.global_position = hero._brk_zone
 
 
 ## The dive itself: down onto the zone in `dive` s (phase 1), as the meteor where the breaker is one.

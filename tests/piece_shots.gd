@@ -2,7 +2,8 @@ extends SceneTree
 ## The env-art pieces (brazier, pool, hook, ledge) beside the hero, for judging scale and whether they read as the
 ## comic dungeon kit (windowed only; headless saves nothing):
 ##   godot --path . -s tests/piece_shots.gd -- --room=pieces [--tag=x]
-## Saves user://piece_shots/<tag>_room.png (the room with pieces as it opens), <tag>_<piece>.png (the hero stood by
+## Saves user://piece_shots/<tag>_room.png (the room with pieces as it opens), <tag>_overview.png (the whole room from
+## high up; round 57: any room, `--room=cistern|forge`), <tag>_<piece>.png (the hero stood by
 ## each placed piece, from the game camera's angle and distance) and <tag>_lineup_game.png / _lineup_close.png /
 ## _lineup_front.png (every new model in a row with the hero and kit pieces: the barrel, a crate, a torch on a wall).
 ## Every shot is also written at 800x450 (<name>_800.png), the size the art is judged at.
@@ -45,13 +46,20 @@ func _initialize() -> void:
 	var rig: Camera3D = get_root().get_viewport().get_camera_3d()
 	cam.fov = rig.fov if rig != null else 37.0
 	cam.make_current()
+	# round 57 (rooms lane): the whole room from high over the near edge, game-camera side (<tag>_overview)
+	cam.fov = 50.0
+	cam.global_position = Vector3(0, 30, 17)
+	cam.look_at(Vector3(0, 0, -3))
+	await create_timer(0.3).timeout
+	await _save("%s/%s_overview" % [dir, tag])
+	cam.fov = rig.fov if rig != null else 37.0
 	# the hero beside each placed piece, from the game camera (its offset, its fov)
 	var EP: GDScript = load("res://scripts/env_piece.gd")
 	var beside := {"brazier": Vector3(1.8, 0, 1.2), "pool": Vector3(1.0, 0, 2.6), "hook": Vector3(2.2, 0, 1.0), "ledge": Vector3(-1.4, 0, 2.2)}
 	for tag_p: String in beside:
 		var ns: Array = get_nodes_in_group("env_" + tag_p)
 		if ns.is_empty():
-			print("[piece_shots] no ", tag_p, " placed (run with --room=pieces)")
+			print("[piece_shots] no ", tag_p, " placed (run with --room=pieces, cistern or forge)")
 			continue
 		var n: Node3D = ns[0]
 		var at := Vector3(n.global_position.x, 0.0, n.global_position.z)

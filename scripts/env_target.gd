@@ -120,7 +120,12 @@ const CHUNKS := 3  # pieces a pillar sheds per hit
 const CHUNK_SIZE := 0.55
 const CHUNK_SPEED := 5.5  # m/s out
 const CHUNK_LIFT := 4.5  # m/s up
-const CHUNK_LIFE := 1.1  # s
+## Impact lane (feel audit 7 item 10, Collapse's "stray pebbles"): the chunks ran on game time, so the next string's
+## hitstops held them, and lay 0.3 s then eroded over 0.55 s: Collapse spits four foes into a pillar (twelve chunks)
+## and they were still on the floor 1.7 s into the next string. They fly in real time, at most CHUNK_FLY_MAX s, and
+## erode over CHUNK_FADE s as they come down (gone at the touchdown or soon after).
+const CHUNK_FLY_MAX := 0.7
+const CHUNK_FADE := 0.25
 const TORCH_REACH := 3.5  # m along the wall from a hit that knocks a torch
 const TORCH_SWING := 0.55  # radians
 const TORCH_SWING_S := 1.4
@@ -144,6 +149,15 @@ var torch_swings := 0
 var marks: Array = []  # MeshInstance3D, oldest first
 
 var _bracket: MeshInstance3D
+## Impact lane (feel audit 7 item 10): a structure at the screen's edge (the corner pillar in Maw's and Cold Front's
+## hang) had its bracket drawn half off the top-left corner, under the HP band. The bracket's middle is kept inside
+## SAFE (fractions of the screen: left, top, right, bottom) less its own half size, at the structure's depth, and an
+## inked pointer on its edge (POINTER_PX) points at where the structure really is.
+const SAFE := Vector4(0.08, 0.16, 0.92, 0.88)
+const POINTER_PX := 20.0
+const POINTER_MIN_PX := 24.0  # a structure this little past the safe box gets no pointer (the bracket is on it)
+var clamped := 0  # frames the bracket was kept on screen (env_target_check)
+var _pointer: Pointer
 var _ring: MeshInstance3D
 var _chevs: Array = []
 var _t := 0.0
@@ -181,6 +195,11 @@ func _ready() -> void:
 	register()
 	top_level = true
 	_bracket = _piece("env_bracket", QuadMesh.new())
+	var layer := CanvasLayer.new()
+	layer.layer = 1
+	add_child(layer)
+	_pointer = Pointer.new()
+	layer.add_child(_pointer)
 	_ring = _piece("env_ring", _plane())
 	for i in CHEV_MAX:
 		_chevs.append(_piece("env_chevron", _plane()))
@@ -844,6 +863,7 @@ func _clear() -> void:
 	_last_key = ""
 	_lock_t = -1.0
 	_bracket.visible = false
+	_pointer.visible = false
 	_ring.visible = false
 	for c: MeshInstance3D in _chevs:
 		c.visible = false
@@ -897,6 +917,7 @@ func _draw(frame: int) -> void:
 		_bracket.global_position = at + n * WALL_OUT + Vector3.UP * BRACKET_Y
 		_bracket.scale = Vector3.ONE * BRACKET_SIZE
 	_tone(_bracket, frame, row, alpha)
+	keep_on_screen(row, alpha)
 	_ring.visible = (pillar and frame <= 3 or (pillar and current.state == "far")) and s.kind != "torch"
 	if _ring.visible:
 		var rf := 3 if current.state == "far" else (frame - 1 if frame >= 1 else 0)
@@ -939,6 +960,7 @@ func _draw_foe(s: Dictionary, frame: int) -> void:
 	_bracket.global_position = Vector3(s.at.x, y, s.at.z)
 	_bracket.scale = Vector3.ONE * FOE_BRACKET_SIZE * grow * lift
 	_tone(_bracket, frame, current.el, 1.0)
+	keep_on_screen(current.el, 1.0)
 	_ring.visible = frame <= 3
 	if _ring.visible:
 		_ring.global_position = Vector3(s.at.x, DESIGNED.GROUND_LIFT + 0.01, s.at.z)
@@ -956,6 +978,64 @@ func _draw_foe(s: Dictionary, frame: int) -> void:
 		if c.visible:
 			c.global_transform = Transform3D(basis, from + dir * (0.9 + CHEV_STEP * i) + Vector3.UP * (DESIGNED.GROUND_LIFT + 0.02))
 			_tone(c, [0, 1, 2, 1][posmod(i - int(_t / 0.08), 4)], current.el, 0.6 + 0.4 * float(i + 1) / float(maxi(count, 1)))
+
+
+## Keeps the bracket placed this frame inside SAFE and points the pointer at the structure when it had to move.
+func keep_on_screen(row: String, alpha: float) -> void:
+	_pointer.visible = false
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null or not _bracket.visible:
+		return
+	var at := _bracket.global_position
+	var vp := get_viewport().get_visible_rect().size
+	var depth := (at - cam.global_position).dot(-cam.global_basis.z)
+	if depth < 0.5:
+		return
+	var mid := cam.unproject_position(at)
+	var half := absf(cam.unproject_position(at + cam.global_basis.x * _bracket.scale.x * 0.5).x - mid.x)
+	var lo := Vector2(SAFE.x, SAFE.y) * vp + Vector2.ONE * half
+	var hi := Vector2(SAFE.z, SAFE.w) * vp - Vector2.ONE * half
+	var c := Vector2(clampf(mid.x, lo.x, maxf(lo.x, hi.x)), clampf(mid.y, lo.y, maxf(lo.y, hi.y)))
+	if lo.x > hi.x:
+		c.x = vp.x * 0.5
+	if lo.y > hi.y:
+		c.y = vp.y * 0.5
+	if c.distance_to(mid) < 0.5:
+		return
+	clamped += 1
+	_bracket.global_position = cam.project_position(c, depth)
+	var off := mid - c
+	if off.length() < POINTER_MIN_PX:
+		return
+	var pal: Dictionary = load("res://scripts/fx_palette.gd").of(row)
+	_pointer.show_at(c + off.normalized() * half * 0.92, off.normalized(), pal.body, pal.ink, alpha)
+
+
+## The pointer: an inked wedge on the clamped bracket's edge, pointing at the structure.
+class Pointer extends Control:
+	var dir := Vector2.RIGHT
+	var fill := Color.WHITE
+	var ink := Color.BLACK
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		visible = false
+
+	func show_at(at: Vector2, d: Vector2, body: Color, ink_: Color, alpha: float) -> void:
+		position = at
+		dir = d
+		fill = Color(body, alpha)
+		ink = Color(ink_, alpha)
+		visible = true
+		queue_redraw()
+
+	func _draw() -> void:
+		var side := dir.orthogonal()
+		var k := POINTER_PX
+		var pts := PackedVector2Array([dir * k, -dir * k * 0.35 + side * k * 0.6, -dir * k * 0.35 - side * k * 0.6])
+		draw_colored_polygon(pts, fill)
+		pts.append(pts[0])
+		draw_polyline(pts, ink, 3.0, true)
 
 
 func _tone(mi: MeshInstance3D, frame: int, row: String, alpha: float) -> void:
@@ -1023,11 +1103,13 @@ func _chunk(start: Vector3, v: Vector3, i: int) -> void:
 	mi.set_instance_shader_parameter("erode", 0.0)
 	mi.set_instance_shader_parameter("spin", randf_range(-PI, PI))
 	var land_t := (v.y + sqrt(v.y * v.y + 2.0 * 9.8 * maxf(start.y - 0.25, 0.0))) / 9.8
-	var tw := mi.create_tween()
+	var fly_t := minf(land_t, CHUNK_FLY_MAX)
+	var tw := mi.create_tween().set_ignore_time_scale(true)
 	tw.tween_method(func(t: float) -> void:
 		mi.global_position = Vector3(start.x + v.x * t, maxf(start.y + v.y * t - 4.9 * t * t, 0.25), start.z + v.z * t)
-		mi.set_instance_shader_parameter("spin", t * 9.0 * (1.0 if i % 2 == 0 else -1.0)), 0.0, land_t, land_t)
-	tw.tween_method(func(e: float) -> void: mi.set_instance_shader_parameter("erode", e), 0.0, 0.98, CHUNK_LIFE * 0.5).set_delay(CHUNK_LIFE * 0.3)
+		mi.set_instance_shader_parameter("spin", t * 9.0 * (1.0 if i % 2 == 0 else -1.0)), 0.0, fly_t, fly_t)
+	tw.parallel().tween_method(func(e: float) -> void: mi.set_instance_shader_parameter("erode", e), 0.0, 0.98, CHUNK_FADE) \
+		.set_delay(maxf(fly_t - CHUNK_FADE * 0.5, 0.0))
 	tw.tween_callback(mi.queue_free)
 
 

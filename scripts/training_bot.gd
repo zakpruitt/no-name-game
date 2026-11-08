@@ -12,10 +12,15 @@ extends Node
 const AUTOTEST_TIME := 16.0
 ## The autotest runs on past AUTOTEST_TIME until the bot has played every BOT_STRINGS entry once (each prints
 ## its `[rhythm]` line), up to AUTOTEST_MAX s.
-const AUTOTEST_MAX := 180.0  # (round 52: 170 -> 180 for the torch string; was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
+const AUTOTEST_MAX := 195.0  # (round 56: 180 -> 195 for the stab and tide strings; round 52: 170 -> 180 for the torch string; was 60, then 80, then 100: 24 strings with round 4's two hand-feel cells; round 47's two
 # Harpoon strings and the pause leaps off the strings that end on Harpoon ran 32 past 100; 125 until round 49's 38th
 # string, Lava Leash, pushed the counter string, the last, past it; 140 until round 51's room with pieces, whose
 # strings come last, ran its 41st past it. The plain room finishes on its strings well before)
+
+## Spar pass two: with `--spar=` the live foe's strings (and the foe in the others' way) need this much longer: the room
+## with pieces and a warrior ran 55 of 58 strings in AUTOTEST_MAX.
+const AUTOTEST_SPAR := 60.0
+var _spar_on := spar_kind() != ""
 
 var main: Node  # the training room
 var player: CharacterBody3D
@@ -26,9 +31,9 @@ var _max_combo := 0
 ## The bot's strings, in turn: "L" light, "H" right click, "D" dash, "hold" holds right
 ## click (Overwhelm), "alt" (anywhere in it) makes the breaker press L, its `alt` ending. Each runs into its breaker where it has one (player presses it at
 ## the sweet spot for the bot), so the autotest walks every element and the dark. Frost Spear (L L H)
-## only plays inside L L H L H, which sets the spear off: while it stands (5 s) any L or H press vaults onto
-## it (void_element.vaults), and a lone L L H sent the next strings up the spear (Collapse and Grounded
-## never played).
+## only plays inside L L H L H, which sets the spear off: while it stood (5 s) any L or H press vaulted onto
+## it, and a lone L L H sent the next strings up the spear (Collapse and Grounded never played). Since the ice-staff
+## lane only a fresh press facing it close by vaults (void_element.vaults), but the spear strings still come last.
 ## Round 49 (kit slots): each entry names the kit slot it plays (`slot`: a KitSlots.SLOTS id, or several, "step" for
 ## a route step) or the demoted upgrade (`upgrade`: a Kit id; it plays only with that upgrade on, `--kit=full`), and `tokens`
 ## the presses. `strings` is the list this run plays; the autotest's `[kit]` line counts the slots and windows
@@ -109,6 +114,12 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"slot": "cross_ice_storm", "tokens": ["wall", "D", "L", "H", "H", "H", "L"]},
 	# Round 54 cool pass 3: Cold Front by the wall, its best (the tentacles bowl the cubes along the floor into it).
 	{"slot": "air_route", "tokens": ["wall", "alt", "L", "H", "L", "H"]},
+	# Round 56 (feel-audit6): the round 55 mids' best situations, which the close fan never showed. "stab": Dash Stab
+	# lunges at the one ahead and the lash's barb catches the one 4 m behind it and reels it in. "tide": the grab on the
+	# one ahead, Reap's crescent marks the two out on his flanks (~6 m) and its hook yanks the far one in; Black Tide's
+	# tentacles then haul the flanks 5-6 m across the floor into the pool, and Maw takes the pile.
+	{"slot": "dash_l", "tokens": ["stab", "D", "L"]},
+	{"slot": "sig_drag", "tokens": ["tide", "H", "L", "H"]},
 	# Round 51 (env-pieces): strings that play only in the room with pieces (`room`: Game.room, `--room=pieces`), each
 	# on a BOT_PIECE_LAYOUTS layout by its piece. "keg": Powder Keg: Molten Palm carries the dummies over the spikes into
 	# the barrel (it catches) and the crate; Undertow pins them, and Meteor Fall dives on the splatted pile as it bursts.
@@ -130,11 +141,41 @@ const BOT_STRINGS := [{"slot": "ender_1", "tokens": ["L", "H"]}, {"slot": "big_1
 	{"room": "pieces", "slot": "dash_ender_l", "tokens": ["pool", "alt", "D", "L", "H"]},
 	# "brazier": Brazier Spill: Molten Palm carries the dummies past the lit brazier and Lava Leash drags them back
 	# over it: the seam tips it, the coals run on and Hellseam erupts from them too.
-	{"room": "pieces", "slot": "cross_dark_magma", "tokens": ["brazier", "L", "L", "L", "H", "L"]}]
+	{"room": "pieces", "slot": "cross_dark_magma", "tokens": ["brazier", "L", "L", "L", "H", "L"]},
+	# Spar pass two (`spar`: only with `--spar=<kind>`, "melee" for the four that strike, "ranged" for the archer and
+	# mage; spar_kind()). "foe": the string is played on the live foe (the bot aims at it, not the dummies). "C" waits for
+	# its strike and dashes at it early in the counter window (Backlash, no perfect); "CP" waits for the perfect
+	# (Backlash, then Ricochet in the window); against a shooter "C" parries its bolt. "W" waits until it is mid-windup
+	# (strike_in() <= BOT_W_AT) and the next press is a hold that catches it there (the `cuts=` of `[spar]`).
+	# Backlash slams it down in front of him, staggered: the hammer string follows up on it (L L L H, Molten Palm).
+	{"spar": "melee", "slot": "ender_3", "tokens": ["foe", "C", "L", "L", "L", "H"]},
+	# The perfect: Ricochet hurls it into the dummies (the crowd it wants).
+	{"spar": "melee", "slot": "counter", "tokens": ["foe", "CP"]},
+	# Hold-cuts: the grab seizes it mid-windup, Siphon Slam heaves it overhead and Collapse takes the hole.
+	{"spar": "melee", "slot": "sig_gather", "tokens": ["foe", "W", "H", "H"]},
+	# Harpoon mid-windup: the dash takes him past its strike and the tentacle sets it down frozen in the row.
+	{"spar": "melee", "slot": "dash_ender_l", "tokens": ["foe", "W", "D", "L", "H"]},
+	# A shooter: two bolts parried back at it.
+	{"spar": "ranged", "slot": "counter", "tokens": ["foe", "C", "C"]},
+	# The gallows on a live foe (room with pieces): Ricochet hangs it on the east pillar's hook, then Galvanize latches
+	# a tentacle on it where it hangs (and on the dummies) and the current runs down them.
+	# ("settle": the next press waits until Ricochet's throw has landed it, or the grab plucks it out of the air.)
+	{"spar": "melee", "room": "pieces", "slot": ["counter", "cross_dark_storm"], "tokens": ["hook", "foe", "CP", "settle", "H", "L", "L"]}]
 ## Tokens that aren't presses (each sets something up for the whole string).
-const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier"]
+const BOT_SETUP := ["alt", "line", "out", "face", "spread", "far", "ring", "wall", "counter", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide", "foe"]
+## Spar pass two: the tokens that wait on the live foe ("C" / "CP" its counter window, "W" its windup), up to
+## BOT_FOE_WAIT s each (then the token is skipped and counted in `[spar_bot] missed=`). "C" dashes once the strike is
+## BOT_C_AT s off (inside counter.WINDOW, before its PERFECT); "W" lets the next press go once it is BOT_W_AT s off (the
+## telegraph has shown ~0.2 s on the warrior). Between, he walks at it when it is past BOT_FOE_NEAR m.
+const BOT_FOE_TOKENS := ["C", "CP", "W", "settle"]
+const BOT_FOE_WAIT := 6.0
+const BOT_C_AT := 0.2
+const BOT_W_AT := 0.6
+const BOT_FOE_NEAR := 2.4
+const BOT_SETTLE_HANG := 0.5  # s "settle" lets the hang (or the landing) read before the next press
+var _foe_down_t := 0.0
 ## Layout tokens: the dummies are stood somewhere for the string (and he doesn't walk up to them first).
-const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier"]
+const BOT_LAYOUTS := ["line", "spread", "ring", "wall", "pillar", "keg", "grate", "torch", "hook", "pool", "brazier", "stab", "tide"]
 ## Round 51: layouts by a piece of the room with pieces (rooms.gd training_pieces), in room coordinates: where he
 ## stands, which way he faces, and the dummies' spots. "keg": east of the barrel at (-11.2, -2), three dummies in
 ## Molten Palm's line toward it and one lined up on the crate at (-11, 1). "grate": west of the grate at (6, -2), the
@@ -168,6 +209,11 @@ const BOT_PILLAR_RING := [Vector3(0.0, 0.0, 1.7), Vector3(-2.3, 0.0, 2.4), Vecto
 ## A "ring" string's dummies, from where he starts (x across his aim, z along it): one ahead for Dash Stab, the others
 ## off his line round where the dash leaves him (~1.7 m on), one behind. A "wall" string starts BOT_WALL_GAP m from the
 ## back wall (up the screen), facing it, with the same ring.
+## Round 56: the "stab" and "tide" strings' dummies, from where he starts (x across his aim, z along it), as BOT_RING.
+const BOT_SPOT_LAYOUTS := {
+	"stab": [Vector3(0.0, 0.0, 3.4), Vector3(0.4, 0.0, 7.4), Vector3(-7.0, 0.0, -2.0), Vector3(7.0, 0.0, -2.0)],
+	"tide": [Vector3(0.0, 0.0, 3.6), Vector3(-5.2, 0.0, 3.0), Vector3(5.4, 0.0, 2.6), Vector3(0.6, 0.0, 9.0)],
+}
 const BOT_RING := [Vector3(0.0, 0.0, 4.5), Vector3(-3.4, 0.0, 2.4), Vector3(3.0, 0.0, 0.4), Vector3(0.8, 0.0, -1.8)]
 const BOT_WALL_GAP := 10.5
 ## With "far", a "spread" string's last dummy stands this far out instead: past the tentacles (void_grab.SEIZE_RANGE).
@@ -196,6 +242,10 @@ var _settle_t := 0.0
 var _press_frame := -1  # physics frame of the bot's last press
 var _bot_string := 0  # BOT_STRINGS index playing
 var _bot_face := false  # this string aims at the nearest foe ("face")
+var _bot_foe := false  # this string is played on the live spar foe ("foe")
+var _bot_foe_t := 0.0  # s the current foe token has waited
+## Spar pass two's foe tokens: counters / perfects / bolts pressed, windups caught ("W"), tokens that timed out.
+var foe_stats := {"c": 0, "cp": 0, "bolt": 0, "w": 0, "missed": 0}
 var _homes := {}  # dummy -> its home, while a "line" string has it standing elsewhere
 var _bot_step := 0  # next token in it
 var _bot_wait := 1.0  # s before the next string starts
@@ -272,7 +322,7 @@ func _process(delta: float) -> void:
 		_cast_shot_taken = true
 		await get_tree().create_timer(0.1, true, false, true).timeout
 		_snap("user://autotest_cast.png")
-	if _autotest_t >= AUTOTEST_MAX or (_autotest_t >= AUTOTEST_TIME and _bot_strings_done.size() >= strings.size()):
+	if _autotest_t >= AUTOTEST_MAX + (AUTOTEST_SPAR if _spar_on else 0.0) or (_autotest_t >= AUTOTEST_TIME and _bot_strings_done.size() >= strings.size()):
 		_autotest_finish()
 
 
@@ -358,6 +408,8 @@ func _autotest_finish() -> void:
 	if main._spar != null:
 		main._spar.report()
 	print("[counter] counters=%d perfect=%d ricochet=%s" % [player.counters, player.counter_perfects, player.COUNTER.last_ricochet])
+	if main._spar != null:
+		print("[spar_bot] c=%d cp=%d bolt=%d w=%d missed=%d" % [foe_stats.c, foe_stats.cp, foe_stats.bolt, foe_stats.w, foe_stats.missed])
 	Game.stop_all_sfx()
 	# Give the audio thread a moment to release playbacks, or they leak at exit.
 	await get_tree().create_timer(0.2, true, false, true).timeout
@@ -393,7 +445,13 @@ func _drive_bot() -> void:
 		_bot_landed[player._move_id] = true  # (a breaker's ender: its leap can start the frame after the hit)
 	var nearest: Node3D = null
 	var nd := INF
+	var live: Node3D = _spar_foe()
+	_bot_foe = "foe" in strings[_bot_string]
 	for e in get_tree().get_nodes_in_group("enemies"):
+		if e.has_meta("spar") and not _bot_foe:
+			continue  # (spar pass two: the dummies' strings walk up to and aim at the dummies; the live foe joins in)
+		if _bot_foe and live != null and e != live:
+			continue  # ("foe": the live foe's strings aim at it)
 		var d: float = e.global_position.distance_to(player.global_position)
 		if d < nd:
 			nd = d
@@ -419,7 +477,8 @@ func _drive_bot() -> void:
 	to.y = 0.0
 	var string: Array = strings[_bot_string]
 	var idle: bool = player.state == player.State.MOVE and player._post_dash_t <= 0.0
-	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not _placed(string) else Vector3.ZERO
+	var stay: bool = _placed(string) or (_bot_foe and live != null and live.is_ranged())  # (a shooter keeps its range)
+	player.bot_move = to.normalized() if nd > 2.2 and idle and _bot_step == 0 and not stay else Vector3.ZERO
 	if _bot_face and _bot_step > 0 and to.length() > 0.3:
 		player.bot_move = to.normalized()  # (aims every press at the nearest foe; he jogs at it between them)
 	if Game.awakening >= Game.AWAKEN_MAX and idle:
@@ -454,7 +513,7 @@ func _drive_bot() -> void:
 		_reset_spots()
 		_reset_done = true
 		return  # (the next frame starts the string from there)
-	if _bot_step == 0 and (not idle or (nd > 3.0 and not _placed(string))):
+	if _bot_step == 0 and (not idle or (nd > 3.0 and not stay)):
 		return  # walk up first (not to a "line": the dash takes him there)
 	if _bot_step == 0:
 		_bot_rhythm.clear()
@@ -462,6 +521,7 @@ func _drive_bot() -> void:
 		player.bot_alt = "alt" in string
 		player.bot_out = "out" in string
 		_bot_face = "face" in string
+		_bot_foe_t = 0.0
 	if string[_bot_step] in BOT_SETUP:  # (not a press: bot_alt / the line is set for the whole string)
 		_bot_step += 1
 		return
@@ -469,7 +529,10 @@ func _drive_bot() -> void:
 		if player.state == player.State.MOVE and player._post_dash_t <= 0.0:
 			_bot_step += 1
 		return
-	var ready: bool = idle or player.state == player.State.DASH or player._post_dash_t > 0.0
+	var ready: bool = idle or ((player.state == player.State.DASH or player._post_dash_t > 0.0) and player._counter.is_empty())
+	if string[_bot_step] in BOT_FOE_TOKENS:
+		_foe_token(string[_bot_step], idle, dt)
+		return
 	if player.state == player.State.ATTACK:  # (BOT_LEAD before the cancel point, so the buffered press can't lapse)
 		var left: float = (player.cancel_point() - player.HERO_MOVES.progress(player)) * player._move_len / (player.anim_speed * player._anim_mult)
 		ready = left <= BOT_LEAD and player._hits_done > 0  # (pressed before the hit, the hit's stop could outlast the buffer)
@@ -495,6 +558,75 @@ func _drive_bot() -> void:
 	_bot_pending_t = 0.0
 	_bot_starts_at = _bot_starts
 	_bot_step += 1
+
+
+## Spar pass two: "C" / "CP" / "W" on the live foe (BOT_FOE_TOKENS). He walks at it while it is past BOT_FOE_NEAR;
+## "C" / "CP" press the dash at it when counter.find() has its strike (or bolt) at BOT_C_AT s / inside the perfect,
+## "W" steps on once its windup is BOT_W_AT s from the strike, so the next press (a hold) catches it mid-windup.
+func _foe_token(tok: String, idle: bool, dt: float) -> void:
+	var foe: Node3D = _spar_foe()
+	_bot_foe_t += dt
+	if _bot_foe_t > BOT_FOE_WAIT:
+		foe_stats.missed += 1
+		_bot_step += 1
+		_bot_foe_t = 0.0
+		return
+	if tok == "settle":  # (not a press: the live foe is down, hung or gone, BOT_SETTLE_HANG s, and he stands)
+		_foe_down_t = _foe_down_t + dt if foe == null or not foe.has_meta("thrown_foe_flying") else 0.0
+		if _foe_down_t >= BOT_SETTLE_HANG and idle:
+			_bot_step += 1
+			_bot_foe_t = 0.0
+			_foe_down_t = 0.0
+		return
+	if foe == null or foe.state == foe.State.SPAWN:
+		return
+	var to: Vector3 = foe.global_position - player.global_position
+	to.y = 0.0
+	if idle:
+		player.bot_move = to.normalized() if to.length() > BOT_FOE_NEAR and not foe.is_ranged() else Vector3.ZERO
+	if not idle and not (player.state == player.State.ATTACK and player._hits_done > 0):
+		return  # (from a stand, or a move already past its hit: a dash cancels it)
+	if tok == "W":
+		var si: float = foe.strike_in()
+		if si < 0.0 or si > BOT_W_AT or not idle:
+			return
+		player.bot_move = Vector3.ZERO
+		player._face(to)
+		foe_stats.w += 1
+		_bot_step += 1
+		_bot_foe_t = 0.0
+		return
+	var c: Dictionary = player.COUNTER.find(player, to.normalized())
+	if c.is_empty():
+		return
+	if c.bolt == null and (c.foe != foe or (tok == "CP" and not c.perfect) or (tok == "C" and c.t > BOT_C_AT)):
+		return
+	if c.bolt != null:
+		var bolt_to: Vector3 = (c.bolt as Node3D).global_position - player.global_position
+		bolt_to.y = 0.0
+		to = bolt_to
+	player.bot_move = to.normalized()  # (the dash is aimed at it: counter.ARC)
+	Input.action_press("dash")
+	foe_stats["bolt" if c.bolt != null else ("cp" if c.perfect else "c")] += 1
+	_press_frame = Engine.get_physics_frames()
+	_bot_pending = "D"
+	_bot_pending_t = 0.0
+	_bot_starts_at = _bot_starts
+	_bot_step += 1
+	_bot_foe_t = 0.0
+
+
+## The live spar foe (spar.gd), alive, or null.
+func _spar_foe() -> Node3D:
+	var s: Node = main.get("_spar") if main != null else null
+	if s == null or not is_instance_valid(s.foe) or not s.foe.is_alive():
+		return null
+	return s.foe
+
+
+## `--spar=<kind>` on the command line ("" without), for the `spar` strings (BOT_STRINGS).
+static func spar_kind() -> String:
+	return load("res://scripts/spar.gd").kind_from(OS.get_cmdline_user_args())
 
 
 ## A "counter" string has the first dummy swing at him (training_dummy.swings); every other string, none.
@@ -533,7 +665,17 @@ func _all_endings() -> Array:
 ## BOT_STRINGS entries this run plays: an `upgrade` string only with its Kit upgrade on.
 static func active() -> Array:
 	return BOT_STRINGS.filter(func(b: Dictionary) -> bool:
-		return (not b.has("upgrade") or Kit.has(b.upgrade)) and b.get("room", Game.room) == Game.room)
+		return (not b.has("upgrade") or Kit.has(b.upgrade)) and b.get("room", Game.room) == Game.room and _spar_ok(b))
+
+
+## A `spar` string plays only against a live foe of its sort: "melee" (it strikes) or "ranged" (it shoots).
+static func _spar_ok(b: Dictionary) -> bool:
+	if not b.has("spar"):
+		return true
+	var k := spar_kind()
+	if k == "":
+		return false
+	return (k in load("res://scripts/spar.gd").RANGED) == (b.spar == "ranged")
 
 
 ## A BOT_STRINGS entry's labels: its slot id(s), or its upgrade.
@@ -588,6 +730,9 @@ func kit_report() -> Dictionary:
 
 
 func _reset_spots() -> void:
+	var live: Node3D = _spar_foe()
+	if live != null and "foe" in strings[_bot_string]:  # (a "foe" string meets it fresh: the last string's leftovers were 6-11 hp)
+		live.hp = live.max_hp
 	for d: Node in _homes:  # (back from a "line" string)
 		if is_instance_valid(d):
 			d.home = _homes[d]
@@ -652,7 +797,7 @@ func _reset_spots() -> void:
 		if key in strings[_bot_string]:
 			var lay: Dictionary = BOT_PIECE_LAYOUTS[key]
 			var spear: Node3D = load("res://scripts/frost_spear.gd").current(get_tree())
-			if spear != null:  # (the last plain string, Impale, leaves one up: any press would vault onto it)
+			if spear != null:  # (the last plain string, Impale, leaves one up: a press facing it would vault onto it)
 				spear.melt()
 			player.global_position = Vector3(lay.at.x, player.global_position.y, lay.at.z)
 			player._face(lay.face)
@@ -662,6 +807,18 @@ func _reset_spots() -> void:
 				if is_instance_valid(d):
 					_homes[d] = d.home
 					d.home = lay.dummies[i % lay.dummies.size()] + Vector3(0.0, target.y, 0.0)
+					d.global_position = d.home
+	for key: String in BOT_SPOT_LAYOUTS:  # round 56: "stab", "tide"
+		if key in strings[_bot_string]:
+			var fwd: Vector3 = player._facing()
+			var side := fwd.cross(Vector3.UP).normalized()
+			for i in main._dummies.size():
+				var d: Node = main._dummies[i]
+				if is_instance_valid(d):
+					_homes[d] = d.home
+					var o: Vector3 = BOT_SPOT_LAYOUTS[key][i % BOT_SPOT_LAYOUTS[key].size()]
+					d.home = player.global_position + side * o.x + fwd * o.z
+					d.home.y = target.y
 					d.global_position = d.home
 	if "spread" in strings[_bot_string]:  # apart on a wide arc ahead (homes too; with "wall", ahead toward it)
 		var fwd: Vector3 = player._facing() if "wall" in strings[_bot_string] else target - player.global_position

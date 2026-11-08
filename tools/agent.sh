@@ -36,12 +36,14 @@ godot_run() { timeout "$1" godot --headless --path "$(root)" "${@:2}" < /dev/nul
 # before failing. A real regression fails both runs.
 # ice_block_check: the dummy's hit-freeze shudder put 4-16 body vertices 0.05-0.08 m past its block in 3 of 9 runs
 # (round 51; 0 of 6 run alone).
-RETRY="rhythm_check ice_block_check"
+# cool_pass_check: its open-vs-wall damage pairs sit near their margins and vary run to run (2026-11-08 hero-fix:
+# Collapse 448 vs 384 failed 1 in 3 on dev alone; Eruption open 310-324 against Flash Freeze 378 at a 1.2x bar).
+RETRY="rhythm_check ice_block_check cool_pass_check"
 
 check() {
 	local quick=${1:-}
 	local fail=0 out
-	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check kit_check lava_leash_check cool_pass_check cool3_check cool4_check env_target_check env_piece_check env_breaker_check wiki_check input_snap_check)
+	local tests=(void_arm_check guide_check training_check prompt_follow_check move_list_check comic_check hitstop_check camera_feel_check impact_frame_check trail_check rhythm_check fx_free_check foe_stride_check hero_stride_check hero_head_check fx_sleek_check lean_spike_check prince_check ice_block_check breaker_spectacle_check counter_check spar_check kit_check lava_leash_check cool_pass_check cool3_check cool4_check env_target_check env_piece_check env_breaker_check rooms_check wiki_check input_snap_check spear_intent_check)
 	[ "$quick" = "--quick" ] && tests=()
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue

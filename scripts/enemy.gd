@@ -336,6 +336,40 @@ func is_airborne() -> bool:
 	return state == State.AIRBORNE
 
 
+## Held by a control move: carried or thrown (thrown_foe.FLYING: a tentacle carry, a gather, Collapse, Abyss,
+## Avalanche, the counter's lift), bound (floor_bind.BOUND: tendrils, a gallows hook; big foes are only slowed, so
+## not them) or frozen in a cube. A held foe never strikes: a windup under way is cut (HELD_CUT) and none starts
+## (spar audit 2026-11-07: a carried foe kept winding up and hit him from mid-air).
+func held() -> bool:
+	if has_meta(HELD_FLYING) or frozen_t > 0.0:
+		return true
+	return has_meta(HELD_BOUND) and not (has_method("is_boss") or elite or radius >= 0.9)
+
+
+const HELD_FLYING := "thrown_foe_flying"  # (thrown_foe.FLYING)
+const HELD_BOUND := "x_bound"  # (floor_bind.BOUND)
+const HELD_CUT := 0.4  # s the stagger a cut windup turns into
+var held_cuts := 0  # windups a hold has cut (spar_check, the film's INDEX)
+## Spar pass two: a hold's own first touch (the grab's hit, Harpoon's spear) staggers the foe a frame before the hold
+## takes it, so the windup was already gone when held() came true and nothing was counted (`cuts=0` in every autotest).
+## A windup broken by a hit and held within HOLD_CUT_GRACE game s counts as cut by that hold too, and so does the
+## tentacle's grab (right click: it staggers and keeps what it holds staggered rather than holding it, `_grabbed()`).
+const HOLD_CUT_GRACE := 0.2
+var _windup_broke_t := INF  # game s since a windup was broken by anything but its strike
+
+
+## Backlash (counter.gd) has this foe: its stagger and lift are the counter's, not a hold's.
+func _countered() -> bool:
+	return is_instance_valid(_player) and "_counter" in _player and _player._counter.get("foe") == self
+
+
+## The tentacle's grab (void_grab.gd) has this foe.
+func _grabbed() -> bool:
+	if not is_instance_valid(_player) or not "_void" in _player or _player._void == null:
+		return false
+	return _player._void.get("_target") == self
+
+
 func _physics_process(delta: float) -> void:
 	STATE_TELL.sync(self)  # (a crossover state's tell: buried / molten / skewered, comic_state_tell.gd)
 	if _telegraph.visible:
@@ -372,6 +406,15 @@ func _physics_process(delta: float) -> void:
 	else:
 		_fall_vy = velocity.y
 
+	_windup_broke_t += delta
+	if state == State.WINDUP and held():  # caught mid-windup: the strike is off
+		held_cuts += 1
+		stagger(HELD_CUT)
+		_windup_broke_t = INF
+	elif _windup_broke_t <= HOLD_CUT_GRACE and (held() or _grabbed()):  # (the hold's own hit broke it a moment ago)
+		if not _countered():  # (Backlash's lift holds it too, but the counter cut that strike, not a hold)
+			held_cuts += 1
+		_windup_broke_t = INF
 	match state:
 		State.SPAWN:
 			if _state_t >= 1.0:
@@ -426,7 +469,7 @@ func _state_chase(delta: float) -> void:
 	if attack_kind == "bomb":
 		if d <= attack_range and _fuse < 0.0:
 			_light_fuse()
-	elif d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()):
+	elif d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()) and not held():
 		_set_state(State.WINDUP)
 		_aim_dir = to / maxf(d, 0.001)
 		_raising = attack_kind == "raise" and can_raise.is_valid() and can_raise.call(self)
@@ -565,10 +608,11 @@ func strike_reach() -> float:
 
 
 const STRIKE_PAD := 0.6
+const STRIKE_MAX_Y := 0.8  # m off the floor past which a strike can't land (lifted by something that isn't a hold)
 
 
 func _strike() -> void:
-	if not is_instance_valid(_player):
+	if not is_instance_valid(_player) or held() or global_position.y > STRIKE_MAX_Y:
 		return
 	var to := _player.global_position - global_position
 	to.y = 0.0
@@ -775,7 +819,8 @@ func take_hit(damage: float, knockback: Vector3, launch: float, big: bool) -> vo
 		_set_state(State.AIRBORNE)
 		_play("Hit_B", 0.05, 1.5, true)
 		return
-	if knockback.length() < poise and state == State.WINDUP:
+	if _poise_holds(knockback, big):
+		_poise_hits += 1
 		return  # poise held: flinch-free, the attack still lands
 	velocity.x = knockback.x
 	velocity.z = knockback.z
@@ -797,7 +842,7 @@ func _reaction_kind(knockback: Vector3, launch: float, big: bool) -> String:
 		return "launch" if launch >= RELAUNCH_MIN else "juggle"  # from below: a fresh launch
 	if launch > 0.0:
 		return "launch"
-	if knockback.length() < poise and state == State.WINDUP:
+	if _poise_holds(knockback, big):
 		return "none"
 	return "big" if big else "tap"
 
@@ -1255,9 +1300,23 @@ func _friction(delta: float, amount: float) -> void:
 	velocity.z = move_toward(velocity.z, 0.0, amount * delta)
 
 
+## Poise holds a windup through a hit: a light one (knockback under `poise`), not a big one, and not the
+## POISE_HITS-th of this windup (spar audit 2026-11-07: the warrior's poise 8 held through every zero-knockback element
+## hit, big ones too, so a whole string landed on it and its strike still hit him).
+func _poise_holds(knockback: Vector3, big: bool) -> bool:
+	return state == State.WINDUP and knockback.length() < poise and not big and _poise_hits + 1 < POISE_HITS
+
+
+const POISE_HITS := 3  # the hit of one windup that breaks poise
+var _poise_hits := 0  # hits poise held through in this windup
+
+
 func _set_state(s: State) -> void:
+	if state == State.WINDUP and s != State.RECOVER and s != State.WINDUP:
+		_windup_broke_t = 0.0  # (HOLD_CUT_GRACE)
 	state = s
 	_state_t = 0.0
+	_poise_hits = 0
 	_spiked = false  # the crater paths set it again after their _knock_down
 
 

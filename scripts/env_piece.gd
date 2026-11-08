@@ -150,6 +150,7 @@ const LIVE_CRAWLS := 4  # arc_crawl loops over the tile
 const LIVE_CRAWL_SIZE := 1.7
 
 static var _live_ticking := false  # (the grate's own charge doesn't make it live again)
+static var _linking := false  # (round 57: a linked plate's spread doesn't spread back)
 
 ## Live Floor's look (round 52, env-pieces2): the crawls sit on the tile's edge, bigger, and a lime bolt runs round its
 ## rim every tick, so a live grate reads under the pile standing on it.
@@ -378,9 +379,16 @@ static func _verb(n: Node3D, verb_id: String, _el: String, by: Node, _how: Strin
 	return ""
 
 
-## Live Floor: the grate goes live (or stays live LIVE_S longer).
+## Live Floor: the grate goes live (or stays live LIVE_S longer). Round 57: in a room whose `links` hold "grate" (the
+## forge's bonded plates), every grate touching it goes live with it (linked()).
 static func _live(n: Node3D) -> String:
 	n.set_meta(&"live_until", Time.get_ticks_msec() + int(LIVE_S * 1000.0 / maxf(Game.slow, 0.01)))
+	if not _linking:
+		_linking = true
+		for g: Node3D in linked(n):
+			_live(g)
+			touched[g.get_instance_id()] = "live"
+		_linking = false
 	if state(n) == "live":
 		return "live"
 	n.set_meta(STATE_META, "live")
@@ -436,6 +444,32 @@ static func _live_rim(n: Node3D) -> void:
 	for k: Vector3 in [Vector3(-e, 0, -e), Vector3(e, 0, -e), Vector3(e, 0, e), Vector3(-e, 0, e), Vector3(-e, 0, -e)]:
 		pts.append(c + k)
 	DESIGNED.bolt_path(n.get_parent(), pts, LIVE_RIM_W)
+
+
+## Round 57 (rooms lane): the floor pieces of `n`'s tag that are one piece with it in this room (rooms.gd `links`):
+## every live tile reached from it through tiles sharing an edge, `n` left out. Empty where the room doesn't link the
+## tag (the plain room, the room with pieces) or for a piece that isn't a floor tile.
+static func linked(n: Node3D) -> Array:
+	var tag := tag_of(n)
+	if tag == "" or not PIECES[tag].get("floor", false) or not load("res://scripts/rooms.gd").links(Game.room, tag):
+		return []
+	var size: float = float(PIECES[tag].size.x)
+	var all: Array = n.get_tree().get_nodes_in_group("env_" + tag).filter(func(o: Node) -> bool: return live(o))
+	var seen: Array = [n]
+	var todo: Array = [n]
+	while not todo.is_empty():
+		var a: Node3D = todo.pop_back()
+		for o: Node3D in all:
+			if o in seen:
+				continue
+			var d := o.global_position - a.global_position
+			var dx := absf(d.x)
+			var dz := absf(d.z)
+			if (absf(dx - size) < 0.05 and dz < 0.05) or (absf(dz - size) < 0.05 and dx < 0.05):
+				seen.append(o)
+				todo.append(o)
+	seen.erase(n)
+	return seen
 
 
 ## The living foes standing on floor piece `n` (its square).
@@ -636,6 +670,7 @@ static func _keg_burst(n: Variant, by: Variant) -> void:
 		hit(c, "earth", hero, "burst")
 	for b: Node3D in near(tree, "barrel", at, KEG_R):
 		hit(b, "earth", hero, "element")  # (a chain: the next keg catches)
+	load(FLOURISH_PATH).keg_spill(tree, at, hero)  # round 57: a lit brazier in reach tips (the forge's powder line)
 
 
 ## "KA-BLOOOM!" over the burst, once no other word or breaker leap holds the page (KEG_WORD_*).

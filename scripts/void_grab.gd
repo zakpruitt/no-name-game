@@ -457,10 +457,11 @@ func seize(b := {}) -> void:
 				_seized.append({"foe": e, "from": (e as Node3D).global_position, "tendril": held, "land": Vector3.ZERO, "stagger_at": INF, "anchored": true, "harpoon": true})
 		return
 	if b.has("press"):
-		VOID_ELEMENT.deep_freeze_flush()  # (round 55: Deep Freeze's wave, the blocks still to pop, before the hold takes the cubes)
+		var wave: Array = VOID_ELEMENT.deep_freeze_flush()  # (round 55: Deep Freeze's wave, the blocks still to pop, before the hold takes the cubes; round 56: they pop as a fast wave, so take them before their cubes are on)
 		for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, VOID_ELEMENT.PRESS_REACH):
-			if VOID_ELEMENT.in_cube(e) and not VOID_ELEMENT.THROWN.flying(e):
-				VOID_ELEMENT.encase(e)  # (they stay frozen for the whole window)
+			if (VOID_ELEMENT.in_cube(e) or e in wave) and not VOID_ELEMENT.THROWN.flying(e):
+				if not e in wave:
+					VOID_ELEMENT.encase(e)  # (they stay frozen for the whole window)
 				var cord: Node3D = _spare.pop_back() if not _spare.is_empty() else null
 				if cord == null:
 					cord = TENDRIL.new()

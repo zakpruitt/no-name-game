@@ -122,7 +122,7 @@ footer { color: var(--paper-dim); font-size: 13px; border-top: 1px solid var(--l
   <nav class="rail" aria-label="Pages">
     <div class="mark">Awaken!</div>
     <a href="#home">Home</a>
-    <small><a href="#play">How to play</a><a href="#next">Where it's going</a></small>
+    <small><a href="#play">How to play</a><a href="#rooms">The rooms</a><a href="#next">Where it's going</a></small>
     <a href="#grammar">The kit grammar</a>
     <a href="#heretic">The heretic</a>
     <a href="#characters">Characters</a>
@@ -181,6 +181,24 @@ footer { color: var(--paper-dim); font-size: 13px; border-top: 1px solid var(--l
         </div>
       </div>
       <p class="lede">The training room: four dummies that never die and walk home when knocked away, four pillars <kbd>R</kbd> swings round, and a damage readout for the current, last and best string. Each dummy shows a <b>LAST</b> tag of what its last string did. Turn on Settings &rarr; <b>Dummies swing</b> (or launch with <code>--swing</code>) and a dummy you stand in front of winds up and swings at you, so the counter has something to catch.</p>
+
+      <h3 id="rooms">The rooms</h3>
+      <p>Four training rooms, picked in Settings &rarr; <b>Room (on restart)</b> or with <code>--room=plain|pieces|cistern|forge</code>. Each room is data: its pieces, which of them are live, and the rules it adds. The environment is part of the kit: the heretic's elements have their own verbs on a room's pieces, and each new room has a combo that only works there. Hazards (kegs, live plates, spilled coals) hurt foes only.</p>
+      <div class="grid3">
+        <div class="panel card">
+          <h3>Plain</h3>
+          <p>The church's drill hall, swept bare: four pillars to swing on and torches on the wall. Walls and pillars still count: <b>Pinwheel</b>, <b>Slapshot</b> and <b>Ricochet</b> splat foes on them, and the bracket shows which one (put the cursor on another to switch).</p>
+        </div>
+        <div class="panel card">
+          <h3>With pieces</h3>
+          <p>One of everything the prison was built from, each by a dummy: rubble, spikes, a powder barrel, a crate, a grate, a pool, a lit brazier, hooks. <b>Powder Keg</b> (Molten Palm into the barrel), <b>Frost Wall</b> (the spear on the grate), <b>Live Floor</b>, <b>Uproot</b> (a pillar torn out), and the flourishes: <b>Gallows</b> (Ricochet hangs a foe on a hook), <b>Ice Rink</b>, <b>Brazier Spill</b>. Used-up pieces come back 6 s later.</p>
+        </div>
+        <div class="panel card">
+          <h3>Flooded cistern &amp; forge hall</h3>
+          <p><b>Cistern</b> (ice and dark): a channel of four pools along the back wall that freezes as one. <span class="inp">Dash L H</span>, pause, <span class="btn l">LMB</span> by the west pool sends the cube row the whole channel, ~21 m, into the east wall. <b>Forge</b> (magma and storm): a powder line of three kegs between two braziers, where <span class="inp">L L L H H</span> bursts all three and tips both braziers; and bonded iron plates that go live together under Live Wire, for <b>Short Circuit</b> from every plate.</p>
+        </div>
+      </div>
+      <p>For live practice, <code>--spar=minion|rogue|shield|warrior|archer|mage</code> adds one real foe at a third of its damage that comes back when it dies: something to counter, block-break and parry bolts from.</p>
 
       <h3 id="next">Where it is going</h3>
       <p>Awaken is headed for <b>roguelike runs</b>: fights, rewards, a build that changes run to run. The heretic's kit was rebuilt (round 49) so that a run has stable things to upgrade, and so a second character can be picked up and played on the first try:</p>
@@ -358,6 +376,7 @@ Best situations:     one line per window: "L wins when ..., H wins when ..."</pr
     <section id="changelog">
       <h2>Changelog</h2>
       <div class="log panel">
+        <div><b>Rounds 50-57</b><p><b>The room joins the fight.</b> Combos pick a wall or pillar with a bracket you can move (round 50). The room became data with pieces and the heretic's verbs on them: Powder Keg, Frost Wall, Live Floor, Uproot, then Gallows, Ice Rink and Brazier Spill (rounds 51-53). Two new rooms, the <b>flooded cistern</b> and the <b>forge hall</b>, each with a combo only it allows (round 57). Four cool passes rebuilt every mid and ending so each has a best situation, and live <b>spar</b> foes to counter.</p></div>
         <div><b>Round 49</b><p><b>The kit grammar.</b> The heretic's moves were laid onto a fixed card of ten slot groups, the same for every future character; the MOVES panel and combo guide show each move's slot. New: the <b>dash counter</b> (Backlash, and Ricochet on a perfect) and dummies that swing so you can practise it. New crossover <b>Lava Leash</b> (L L L H L) with its breaker <b>Hellseam</b>, filling the last colour pair. The element matrix became <b>six states, one rule each</b>; the old cells and Storm Pitch became upgrades for later runs.</p></div>
         <div><b>Round 48</b><p><b>Breakers got flashy.</b> Three windows gained a second ending where it's truly better somewhere: <b>Meteor Shower</b> (scattered foes), <b>Pinwheel</b> (a wall nearby), <b>Tempest</b> (a crowd). Every ending now lands as one comic beat: an element-coloured impact frame, a burst behind the pile, floor cracks, pillars shaking dust, and one name-and-total banner.</p></div>
         <div><b>Round 47</b><p><b>Harpoon</b> (Dash L H) now gathers everyone round you into a frozen row, with two endings: <b>Shatterstorm</b> anywhere, <b>Slapshot</b> into a wall. Ice crystals gone: ice blocks fitted to each foe. Feel polish on the vault, the frost spear and Meteor Fall's wall splat.</p></div>

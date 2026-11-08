@@ -18,6 +18,9 @@ const BACK_COLOR := Color(0.05, 0.03, 0.08, 0.8)
 const TOP_MARGIN := 96.0
 ## Likewise kept above the controls line along the bottom edge.
 const BOTTOM_MARGIN := 48.0
+## A living foe never shows an empty bar (spar audit 2026-11-07 item 10: the warrior lived on under 1 hp of 75 for a
+## second with a bar that read 0): the fill is at least SLIVER_PX wide while hp > 0.
+const SLIVER_PX := 4.0
 
 var _trail := {}  # enemy instance id -> trailing hp fraction
 
@@ -61,7 +64,14 @@ func _draw() -> void:
 		draw_rect(Rect2(at - Vector2.ONE, SIZE + Vector2.ONE * 2.0), Color(BACK_COLOR, BACK_COLOR.a * alpha))
 		draw_rect(Rect2(at, Vector2(SIZE.x * trail, SIZE.y)), Color(TRAIL_COLOR, 0.8 * alpha))
 		var fill := ELITE_COLOR if e.elite else FILL_COLOR
-		draw_rect(Rect2(at, Vector2(SIZE.x * ratio, SIZE.y)), Color(fill, alpha))
+		draw_rect(Rect2(at, Vector2(fill_px(e.hp, e.max_hp), SIZE.y)), Color(fill, alpha))
+
+
+## The fill's width for `hp` of `max_hp`: SLIVER_PX at least while it lives, 0 only when dead.
+static func fill_px(hp: float, max_hp: float) -> float:
+	if hp <= 0.0:
+		return 0.0
+	return clampf(SIZE.x * hp / maxf(max_hp, 0.001), SLIVER_PX, SIZE.x)
 
 
 ## Bar height above the feet before model_scale: the kind's `bar_height` (enemy_types.gd), else HEAD_HEIGHT.

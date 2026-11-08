@@ -24,6 +24,10 @@ as a strike is about to land, cancels it and answers harder.
   tendrils). Neither in reach: it flies 7 m along his aim and lands. The landing is a breaker landing like the
   others: `breakers_landed` goes up, so `impact_frame` fires the breaker spectacle (dark family) and a wall splat in
   the next second gets its drawn wall star.
+- **Every spar foe's windup is counterable** (spar audit 2026-11-07, `tests/spar_check.gd`): the telegraph shows
+  before the window opens for minion 0.35 s, rogue 0.25 s (its windup 0.45 to 0.5 s for this), shield 0.45 s, warrior
+  0.55 s; `WINDOW` stays one 0.25 s for all of them. `--spar=archer|mage` shoot bolts to parry. A foe a hold has (a
+  carry, a bind, a cube, a hook) never strikes (`enemy.held()`), so nothing needs countering mid-hold.
 - **Bolts** (`projectile.gd`) count too: a bolt inside the window and in his way, the dash aimed at it, is parried
   back at its shooter (x1.6 speed, x2 damage, hits foes only). No Backlash or window: the shooter is far off.
 
@@ -59,7 +63,9 @@ Details in [env-pieces.md](env-pieces.md).
   swing", saved under `[training]` only when on), `scripts/menu_screen.gd` the row.
 - `scripts/move_list.gd`: Backlash and Ricochet rows (DARK). `scripts/comic_fx.gd`: Ricochet's word.
 - `scripts/training_bot.gd`: the `counter` token and the `["counter", "D"]` string; `[counter] counters= perfect=
-  ricochet=` at the end.
+  ricochet=` at the end. Spar pass two: `C` / `CP` counter the live `--spar=` foe in play (Backlash early in the window, or
+  the perfect and Ricochet; a bolt from a shooter), in the strings `foe C L L L H`, `foe CP`, `foe C C` (ranged) and the
+  gallows `hook foe CP settle H L L` (training.md "The bot on the live foe"); `spar_check` plays them headless.
 
 ## The swinging dummy
 

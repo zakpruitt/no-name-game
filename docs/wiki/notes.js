@@ -33,7 +33,7 @@ window.NOTES =
     "XT": {"state": "charged", "best": "Upgrade. Tow Line's bunch hurled along your aim, lightning jumping off them at everyone they pass."},
     "GR": {"state": "", "best": "Route step. Yanks a foe to him; something too big drags him to it."},
     "AL1": {"state": "airborne", "best": "Route step. Up after the launched foes with the axe."},
-    "IJ": {"state": "", "best": "Route step. Vaults over the planted spear, any time while it stands."},
+    "IJ": {"state": "", "best": "Route step. Vaults over the planted spear: straight off the plant, or a fresh press facing it from close by. Turn away and L is a Slice; walk off and it shatters."},
     "XR": {"state": "buried", "best": "Route step. The hammer drives everyone into the floor together, double on those the gale had up."},
     "EA": {"state": "frozen", "best": "Route step. Freezes the nearest and bowls it; everyone it passes freezes too."}
   },
