@@ -37,6 +37,7 @@ const SHEETS := {
 	"war_cry": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"floor_cracks": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
 	"floor_arcs": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
+	"floor_frost": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
 	"floor_splat": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
 	"wall_star": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"smoke_curl": {"grid": Vector2(4, 2), "frames": 8, "kind": "sprite_depth", "anchor": Vector2(0.0, -0.35)},
@@ -47,7 +48,7 @@ const FAMILY := {"wind": "storm", "water": "ice", "earth": "magma", "void": "dar
 const LOOK := {
 	"storm": {"burst": "slam_star", "floor": "floor_arcs", "after": "crackle"},
 	"magma": {"burst": "slam_magma", "floor": "floor_cracks", "after": "smoke"},
-	"ice": {"burst": "slam_frost", "floor": "floor_cracks", "after": "mist", "rays": false},  # (pale tapered rays read as ice crystals)
+	"ice": {"burst": "slam_frost", "floor": "floor_frost", "after": "mist", "rays": false},  # (pale tapered rays read as ice crystals; fx-queue-a: its own fractured sheet, not the magma cracks)
 	"dark": {"burst": "slam_ink", "floor": "floor_splat", "after": "wisp", "floor_size": 0.72, "rays": false},  # (fx-modern: its splat has arms; rays round them read as an urchin)
 }
 ## jolt: camera_rig.jolt metres (at REF_DIST), hz, decay /s, axis (screen x, y); fov: x camera_rig.FOV_ENDER;
@@ -263,9 +264,11 @@ static func spread(parent: Node, at: Vector3, element: String, size := 1.0) -> N
 	_register()
 	var look: Dictionary = LOOK[family(element)]
 	size *= look.get("floor_size", 1.0)  # (the splat is a solid pool, not lines: 0.72 keeps a Maw under the coverage budget)
-	var fx := DESIGNED.spawn(parent, look.floor, Vector3(at.x, DESIGNED.GROUND_LIFT, at.z), FLOOR_SIZE * size, element, FLOOR_TIMES, Vector2(0.55, 1.0))
-	fx.real_until = 1
-	fx.rotation.y = randf() * TAU
+	# fx-queue-a: pooled (FX_BEAT.stamp), one per landing; the anticipation in real time, the rest on game time
+	var fx := FX_BEAT.stamp(parent, look.floor, Vector3(at.x, DESIGNED.GROUND_LIFT, at.z), FLOOR_SIZE * size, element,
+			FLOOR_TIMES, {"erode": Vector2(0.55, 1.0), "vary": false, "pop": 0.0})
+	if fx != null:
+		fx.rotation.y = randf() * TAU
 	return fx
 
 

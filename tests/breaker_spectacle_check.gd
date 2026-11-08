@@ -59,7 +59,9 @@ func _initialize() -> void:
 	await process_frame
 	_ok(main.get_child_count() >= n0 + 3, "burst, speed lines and floor spread spawn (%d)" % (main.get_child_count() - n0))
 	await create_timer(bk.LIFE_S + 0.6, true, false, true).timeout
-	_ok(main.get_child_count() <= n0, "and free themselves (%d left)" % (main.get_child_count() - n0))
+	# (fx-queue-a: the floor spread is pooled by FX_BEAT.stamp, so it ends hidden and idle rather than freed)
+	var live_n := main.get_children().filter(func(c: Node) -> bool: return not (c is Node3D) or (c as Node3D).visible).size()
+	_ok(live_n <= n0, "and end: freed or back in the pool (%d left)" % (live_n - n0))
 	_ok(bk.LOOK.ice.get("rays", true) == false, "ice lands without speed lines (they read as crystals)")
 
 	# The callout banner.
