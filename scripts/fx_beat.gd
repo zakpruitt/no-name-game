@@ -60,6 +60,27 @@ static func px_m(px: float) -> float:
 	return px / PAL.PX_PER_M
 
 
+## fx-language rule 7 at runtime (tools/vfx_gen/vfxlib.py `cluster_angles`, the same layout): `n` radial angles in
+## `clusters` uneven fans with clear gaps, never an even ring. Returns [Vector2(angle, weight)], weight 1 in a fan's
+## middle (its longest stroke) falling to ~0.45 at its edges. `spread` is each fan's width as a share of its slot.
+static func cluster_angles(n: int, rng: RandomNumberGenerator, clusters := 3, spread := 0.55) -> Array:
+	var out: Array = []
+	if n <= 0:
+		return out
+	clusters = clampi(clusters, 1, n)
+	var a0 := rng.randf() * TAU
+	var slot := TAU / clusters
+	for k in clusters:
+		var m := n / clusters + (1 if k < n % clusters else 0)
+		var mid := a0 + slot * k + rng.randf_range(-0.18, 0.18) * slot
+		var width := slot * spread * rng.randf_range(0.75, 1.15)
+		for j in m:
+			var u := 0.0 if m == 1 else float(j) / (m - 1) * 2.0 - 1.0
+			out.append(Vector2(mid + u * width * 0.5 + rng.randf_range(-0.04, 0.04),
+					1.0 - 0.55 * pow(absf(u), 1.3) * rng.randf_range(0.8, 1.1)))
+	return out
+
+
 ## A frame-time array stretched to `life` seconds (keeps the anticipation and the peak, scales the tail).
 static func times_for(base: Array, life: float) -> Array:
 	var head: float = base[0] + base[1]

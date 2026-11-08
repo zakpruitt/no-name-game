@@ -457,6 +457,14 @@ fast-forward, so no agent edits another's files or index.
   heredoc of Python with many quotes fails as "unexpected EOF": write the script with the Write tool and run it.
 - **A background `land` prints other lanes' landings too** (it fast-forwards dev over whatever landed meanwhile): read
   `git log dev` for your own subjects before re-landing.
+- **Design a character on paper before paying for 3D** (2026-11-07, heretic-design): 4 concept directions
+  (nano-banana-2, 6 each) shrunk to 90 px on the indigo floor in one contact sheet picked the design in one look; one
+  image-to-image multi-view (6) gave a front / side / back sheet; T2.5 smart topology from the front view (15) gave a
+  usable 12.6k-tri hero first time. 45 credits for the whole design, against 60 for two unusable models in round 29.
+  Meshy multi-view parts are RGBA with transparent backgrounds: composite onto a light grey, or they look black.
+- **In a bpy script, never compare nodes with `is`:** each access makes a new Python wrapper, so `n is not tex` is
+  always true and deletes the node you meant to keep (the render came out black / white with no error). Compare
+  `n.name`.
 
 - **"It triggers by accident" can be the press buffer, not the move** (2026-11-07, ice-staff). A headless probe that
   feeds `press()` at fixed gaps (60-300 ms) through each string and prints the moves started (`tests/spear_intent_check.gd
@@ -467,6 +475,17 @@ fast-forward, so no agent edits another's files or index.
   (`hero_input.promote`).
 - **A standing object the routing reads is a trap if every press reads it.** Gate it on intent the player shows
   (facing, distance, "his last move made it"), never on "it exists"; and give it a leash so walking away ends it.
+- **A lock check that does not block is no lock** (2026-11-08, heretic-port): take `land.lock` atomically and wait in
+  the same loop, `until ( set -o noclobber; echo <lane> > ../land.lock ) 2>/dev/null; do sleep 60; done`; a separate
+  `ls` then `echo >` races. The same goes for "don't film while it exists": one windowed run started on a stale check
+  while another lane held it. Wrap every film in `while [ -e ../land.lock ]; do sleep 60; done` right before it.
+- **A second hero model on the same rig keeps every clip** (2026-11-08, heretic-port): fit the mesh to the rest pose
+  (`tools/hero_build/hero_v3.py`), and when a limb is far shorter than the rig's chains move those bones' rest instead
+  of stretching the mesh (only for bones no clip keys a translation on; `glb_swap.py` rewrites the inverse binds).
+  Prove it with `contact_frames` (it loops every `HERETIC_MODELS` entry) and the autotest with `--hero=<id>`: the
+  `strings=`, `breakers=` and `endings_n=` counts must equal the plain run's.
+- **Skeleton-only checks can't tell two bodies apart:** `hero_head_check` measures the crown as head joint + 0.55 m,
+  so v3 and the chibi print the same numbers. Judge a new body's look from windowed `heretic_shots` / `string_film`.
 
 ## The harness (`tools/agent.sh`)
 
@@ -539,3 +558,11 @@ the worktree, and deletes the branch once it has been merged.
   tracks; the game's Skeleton3D restores modifier poses each frame), so a probe that edits an unkeyed bone must restore
   it per frame or its offsets integrate. Bone-local axes are not world axes: work in skeleton space and convert into the
   parent's frame (`parent_global.basis.inverse() * v`).
+
+- **Effects are held to `docs/features/fx-language.md`** (fx-modern): read its checklist before an fx change, use
+  `scripts/fx_beat.gd` numbers and `stamp()` (pooled) rather than new timing constants, and add a row to its audit
+  table when you convert or add an effect.
+- **A sheet redraw can be previewed without touching the worktree:** every `tools/vfx_gen/gen_*.py` takes
+  `--out=<dir> --preview=<dir>`; run it from a scratch copy while a land runs on your worktree, then copy the PNG in.
+- **The land lock** (`Desktop/dev/land.lock`, the lane name inside): wait for it before a land and before filming;
+  delete it after the land passes or fails. Don't chain several foreground waits on it: one background wait is enough.

@@ -30,6 +30,9 @@ var _bow_side := 1.0
 
 
 static func blast(parent: Node, spot: Vector3) -> Node3D:
+	if DESIGNED.on():  # fx-modern: the air language's burst (floor swirl + gusts over the heads), not 8 ink wedges in a ring
+		DESIGNED.wind_burst(parent, spot)
+		return null
 	var b: Node3D = SELF.new()
 	b.mode = "blast"
 	b.life = 0.3

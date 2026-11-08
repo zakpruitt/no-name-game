@@ -21,7 +21,7 @@ const RIBBON := preload("res://shaders/designed_ribbon.gdshader")
 const RIBBON_DEPTH := preload("res://shaders/designed_ribbon_depth.gdshader")
 
 ## Palette rows, in the order of the palette texture.
-const ROWS := ["hit", "wind", "water", "earth", "void", "spirit", "gold", "dust", "air"]
+const ROWS := ["hit", "wind", "water", "earth", "void", "spirit", "gold", "dust", "air", "rock"]  # (rock: fx-queue-a, stone with a magma hot)
 
 ## name -> texture, grid (cols, rows), frame count, shader kind, anchor (the pivot in quad units: sheets drawn
 ## standing on a ground line pivot there), burn (1 = the erosion edge burns hot, magma).
@@ -98,6 +98,7 @@ static var _plane: PlaneMesh
 ## Sheets other modules register (designed_ink.gd, round 44), in the SHEETS format.
 static var extra_sheets := {}
 static var _strike: GDScript
+static var _ink: GDScript  # designed_ink (the crowd merge)
 
 
 static func sheet_of(name_: String) -> Dictionary:
@@ -431,6 +432,10 @@ static func wall_splat(parent: Node, at: Vector3, element := "earth") -> Node3D:
 ## crystals"; the faceted shards of the `ice_shatter` sheet burst on every latched, thawed or thrown foe): the ice
 ## pop's ring opening round a glint, at ICE_BREAK_POP of the old size, in a puff of cold mist.
 static func ice_shatter(parent: Node, at: Vector3, size := 1.0) -> Node3D:
+	if _ink == null:  # (loaded once and held: designed_ink preloads this script)
+		_ink = load("res://scripts/designed_ink.gd")
+	if _ink.merge(at, "water"):  # fx-queue-b: a crowd breaking at once is one bigger pop, never a stack of glints
+		return null
 	if not extra_sheets.has("pop_ice"):  # (designed_ink registers it with the other pops; it may not have yet)
 		extra_sheets["pop_ice"] = {"tex": load("res://assets/vfx/designed/pop_ice.png"), "grid": Vector2(3, 2),
 			"frames": 6, "kind": "sprite"}
@@ -440,6 +445,7 @@ static func ice_shatter(parent: Node, at: Vector3, size := 1.0) -> Node3D:
 	mist.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 	var fx := spawn(parent, "pop_ice", at, ICE_SIZE * size * ICE_BREAK_POP, "water", ICE_BREAK_TIMES, Vector2(0.45, 1.0))
 	fx.real_until = 1
+	_ink.join(fx, at, "water")
 	return fx.vary(PI, true)
 
 

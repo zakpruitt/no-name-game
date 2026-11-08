@@ -18,10 +18,12 @@ import os
 import sys
 
 import numpy as np
+from scipy import ndimage
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vfxlib import (BODY, DEEP, HOT, INK, LIGHT, SS, Frame, ellipse_mask, grow, jag_path,  # noqa: E402
-                    pack, poly_mask, preview, rng, save, star, stroke, wobble_ring)
+                    pack, poly_mask, preview, rng, save, star, stroke, wobble_ring,
+                    cluster_angles)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "vfx", "designed")
 
@@ -170,25 +172,62 @@ def slam_ink(i, n, size):
 # reach with a hot inner third, then the inner ends race out and the lines thin away.
 
 def slam_rays(i, n, size):
+    """fx-language rule 7: three uneven fans of speed lines with clear gaps (vfxlib.cluster_angles), never the even
+    ring of 26 carrots it was (a sawblade on Grounded, an urchin on Abyss). Each fan's middle line is the longest and
+    fattest; the ends of a fan are short. Frame 0 they start short at the hole, 1 the peak at full reach with a hot inner
+    third, 2 still hot, then the inner ends race out and the lines thin away tail last."""
     f = Frame(size)
     c = f.c
-    g = rng(3501)
-    k_l = 26
+    g = rng(3502)
     t = i / (n - 1)
-    for j in range(k_l):
-        a = math.tau * j / k_l + g.uniform(-0.08, 0.08)
-        ln = g.uniform(0.75, 1.0)
-        back = lerp(0.3, 0.86, ease_out(t) ** 1.2) if i > 0 else 0.28
-        front = min(0.995, (0.6 if i == 0 else lerp(0.98, 1.0, t)) * ln + (0.0 if i == 0 else 0.02))
+    for j, (a, wt) in enumerate(cluster_angles(13, 3507, clusters=3, spread=0.5)):
+        ln = lerp(0.62, 1.0, wt) * g.uniform(0.94, 1.04)
+        back = lerp(0.3, 0.8, ease_out(t) ** 1.2) if i > 0 else 0.27
+        front = min(0.995, (0.55 if i == 0 else lerp(0.97, 1.0, t)) * ln + (0.0 if i == 0 else 0.02))
         if front - back < 0.05:
             continue
-        w = f.u(lerp(0.07, 0.02, t)) * g.uniform(0.7, 1.25)
+        w = f.u(lerp(0.085, 0.026, t)) * lerp(0.6, 1.15, wt)
         path = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0, 1, 12)]
-        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.85 + 0.5, cap=True)], f.S)
-        f.fill(m, LIGHT, ink=2.2)
+        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.8 + 0.5, cap=True)], f.S)
+        f.fill(m, LIGHT, ink=2.6)
         if i <= 2:
-            core = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0.03, 0.4, 6)]
-            f.fill(poly_mask([stroke(core, [w * 0.45, w * 0.2, 0.0], cap=False)], f.S) * m, HOT)
+            core = [polar(c, f.u(lerp(back, front, u)), a) for u in np.linspace(0.03, 0.42, 6)]
+            f.fill(poly_mask([stroke(core, [w * 0.5, w * 0.22, 0.0], cap=False)], f.S) * m, HOT)
+    return f.finish()
+
+
+# --- war_cry: the roar as a breaker's window opens (breaker_quake.war_cry) ----------------------------------------
+# fx-language: the hang's roar round him, drawn. Three uneven fans (cluster_angles) of slightly bowed strokes, fat and
+# round at the inner end round a clear middle (he stands in it: never over him), needle-thin outward; each fan has a
+# short echo stroke beside its longest. Frame 0 the anticipation: short fat stubs pulled in at the hole's edge; 1 the
+# peak, thrown out with a hot inner third; 2-3 they stretch and thin; 4-5 they snap off from the inside and break.
+
+def war_cry(i, n, size):
+    f = Frame(size)
+    c = f.c
+    g = rng(3601)
+    t = i / (n - 1)
+    hole = 0.4
+    for j, (a, wt) in enumerate(cluster_angles(10, 3607, clusters=3, spread=0.45)):
+        ln = lerp(0.5, 1.0, wt) * g.uniform(0.92, 1.05)
+        bow = (0.025 if j % 2 else -0.02) * g.uniform(0.6, 1.2)
+        if i == 0:
+            back, front = hole * 0.92, hole + 0.12 * ln
+        else:
+            back = hole + lerp(0.0, 0.36, ease_out(t) ** 1.4) + g.uniform(0.0, 0.03)
+            front = min(0.985, hole + lerp(0.48, 0.58, ease_out(t)) * ln)
+        if front - back < 0.04:
+            continue
+        w = f.u(lerp(0.1, 0.04, t) if i > 0 else 0.1) * lerp(0.6, 1.15, wt)
+        path = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0, 1, 14)]
+        m = poly_mask([stroke(path, lambda u: w * (1 - u) ** 0.85 + 0.5, cap=True)], f.S)
+        f.fill(m, BODY, ink=2.6)
+        if i <= 2:
+            core = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0.04, 0.45, 8)]
+            f.fill(poly_mask([stroke(core, [w * 0.45, w * 0.22, 0.0], cap=False)], f.S) * m, HOT if i <= 1 else LIGHT)
+        elif i <= 3:
+            lit = [polar(c, f.u(lerp(back, front, u)), a + bow * math.sin(u * math.pi)) for u in np.linspace(0.04, 0.5, 8)]
+            f.fill(poly_mask([stroke(lit, [w * 0.35, w * 0.15, 0.0], cap=False)], f.S) * m, LIGHT)
     return f.finish()
 
 
@@ -269,12 +308,160 @@ def floor_cracks(i, n, size):
     return _spread(i, n, size, "cracks", 3601)
 
 
-def floor_arcs(i, n, size):
-    return _spread(i, n, size, "arcs", 3701)
-
-
 def floor_splat(i, n, size):
     return _spread(i, n, size, "splat", 3801)
+
+
+# --- floor_arcs (fx-queue-a, the lightning language): the storm landing's floor spread ---------------------------
+# Was eleven thin zigzags plus forks that cooled to deep green: a dark scribble web under the pile. Now six fat lime
+# bolts in three uneven fans (cluster_angles, clear gaps), uneven segments, one short fork on some, a white-hot core
+# down each at the peak. Frame 0 the leaders (short, hot, thin: the anticipation), 1 the strike at full length (white
+# core, the one hot area), 2 the same bolts re-drawn (they crawl on twos) with a light core, 3 the afterimage (body,
+# no core, thinner), 4-5 they break into pieces from the tips in (tail first) and the stubs fade. Never deep green.
+
+def floor_arcs(i, n, size):
+    f = Frame(size)
+    c = f.c
+    seed = 3701
+    angs = cluster_angles(6, seed, clusters=3, spread=0.42)
+    reach = [0.34, 0.95, 0.97, 0.97, 0.9, 0.8][i]
+    width = [0.55, 1.0, 0.95, 0.72, 0.6, 0.5][i]
+    boil = 0 if i <= 1 else (1 if i == 2 else 2)  # the zigzag re-drawn (crawls) from frame 2 on
+    tone = HOT if i == 0 else (BODY if i <= 3 else LIGHT)
+    ink = 4.0 if i <= 2 else 3.0
+    g = rng(seed + 11)
+    lens = [g.uniform(0.75, 1.0) for _ in angs]
+    for k, (a, wt) in enumerate(angs):
+        L = f.u(reach * lerp(0.62, 1.0, wt) * lens[k])
+        r0 = f.u(0.1)
+        if L <= r0 * 1.4:
+            continue
+        p = jag_path(polar(c, r0, a), polar(c, L, a + 0.06 * (1 if k % 2 else -1)), f.u(0.13), 0.62, seed + k * 7 + boil * 101)
+        w0 = f.u(0.078) * lerp(0.75, 1.0, wt) * width
+        wf = lambda q, w0=w0: w0 * (1 - 0.62 * q) + 1.0
+        if i >= 4:  # tail first: the outer end goes, the rest breaks into two or three pieces
+            keep = 0.75 if i == 4 else 0.5
+            m = max(2, int(len(p) * keep))
+            p = p[:m]
+            pieces = [p[:max(2, m // 2 + 1)], p[m // 2 + (1 if i == 5 else 0):]]
+        else:
+            pieces = [p]
+        for pc in pieces:
+            if len(pc) < 2:
+                continue
+            f.poly(stroke(pc, wf, cap=False), tone, ink=ink)
+            if i in (1, 2):  # the core down the bolt: white-hot at the strike, light after
+                f.poly(stroke(pc, lambda q, w0=w0: w0 * 0.4 * (1 - 0.7 * q), cap=False), HOT if i == 1 else LIGHT)
+        if 1 <= i <= 3 and k % 2 == 0:  # one short zigzag fork off the middle
+            j = len(p) // 2
+            x0, y0 = p[j]
+            fa = a + (0.55 if k % 4 else -0.55)
+            fl = L * 0.3
+            fp = jag_path((x0, y0), (x0 + math.cos(fa) * fl, y0 + math.sin(fa) * fl), f.u(0.07), 0.55, seed + 50 + k + boil * 13)
+            f.poly(stroke(fp, lambda q, w0=w0: w0 * 0.55 * (1 - 0.6 * q) + 1.0, cap=False), tone, ink=ink - 1.0)
+            if i == 1:
+                f.poly(stroke(fp, lambda q, w0=w0: w0 * 0.2 * (1 - q), cap=False), HOT)
+    # the strike point: a small lopsided straight star where it grounded (hot at the peak, lime after)
+    if i <= 3:
+        R = f.u([0.07, 0.12, 0.11, 0.09][i])
+        tips = [R * b for b in (1.0, 0.55, 0.8, 0.5, 0.92, 0.6, 0.75)]
+        f.poly(star(c, c, tips, R * 0.42, rot=0.4, bow=0.0, n_edge=2), HOT if i <= 1 else (LIGHT if i == 2 else BODY), ink=ink)
+    # tail first: the outer ends go first, in clumps
+    S = f.S
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    f.order = 1.0 - np.clip(np.hypot(xx - c, yy - c) / (S * 0.5), 0, 1)
+    return f.finish()
+
+
+# --- floor_frost (fx-queue-a, the ice language): the ice landing's floor spread (Black Ice, Flash Freeze, Avalanche)
+# Was the magma cracks sheet in the water row: eleven hairline blue rays round a flat star. Now a sheet of ice set
+# on the floor, the frost_mark language at landing size: an uneven straight-edged rime patch (see-through) cut into
+# plates by four straight fractures that run across it chord to chord (none from one middle: that read as a
+# snowflake), fat, kinked once or twice, lit on one edge, past the patch's rim; a broken lit rim. The one hot area is
+# the fractures' heart round the landing at the peak. Frame 0 the first fracture running across (anticipation), 1 the
+# patch out with the hot heart, 2 settled (light core), 3 the plates part (the gaps widen), 4-5 the plates drop one by
+# one (whole plates cut, outer first) and the fractures go from their ends. No crystals, no spikes, no rays.
+
+def _frost_rim(f, reach, g, turn):
+    c = f.c
+    rim = []
+    sides = 13
+    for q in range(sides):
+        a = turn + math.tau * (q + g.uniform(-0.25, 0.25)) / sides
+        rr = f.u(reach * g.uniform(0.82, 1.0) * (1.0 + 0.16 * math.cos(a - turn)))
+        rim.append(polar(c, rr, a))
+    return rim
+
+
+def floor_frost(i, n, size):
+    f = Frame(size)
+    S, c = f.S, f.c
+    g = rng(3651)
+    turn = g.uniform(0, math.tau)
+    patch = [0.24, 0.5, 0.52, 0.53, 0.53, 0.53][i]
+    rim = _frost_rim(f, patch, g, turn)
+    whole = poly_mask([rim], S)
+    # three fractures: kinked straight chords across the patch, off its middle (none radiate from one point), so the
+    # sheet breaks into five or six big plates
+    picks = [(0, 7, 0.08), (4, 10, -0.1), (9, 2, 0.05)]
+    lines = []
+    for k, (qa, qb, off) in enumerate(picks):
+        a = np.asarray(rim[qa], float)
+        b = np.asarray(rim[qb], float)
+        d = b - a
+        nd = np.array([-d[1], d[0]]) / max(1e-6, np.linalg.norm(d))
+        a = a - d * 0.04 + nd * f.u(off)
+        b = b + d * 0.04 + nd * f.u(off)
+        pts = [a]
+        for q in ((0.45,) if k % 2 else (0.32, 0.7)):
+            pts.append(a + d * 1.08 * q + nd * f.u(g.uniform(-0.045, 0.045)))
+        pts.append(b)
+        lines.append(np.array(pts))
+    if i == 0:  # anticipation: the first fracture half across a small hot patch
+        lines = [np.array([lines[0][0], lines[0][1]])]
+    gap = f.u([0.012, 0.014, 0.016, 0.026, 0.034, 0.04][i])
+    gaps = poly_mask([stroke(ln, [gap] * len(ln), cap=False) for ln in lines], S)
+    plates = whole * (1.0 - gaps)
+    lab, nl = ndimage.label(plates > 0.5)
+    # plates drop outer first (4: a third, 5: two thirds)
+    if i >= 4 and nl > 1:
+        cen = ndimage.center_of_mass(np.ones_like(plates), lab, range(1, nl + 1))
+        far = sorted(range(nl), key=lambda j: -math.hypot(cen[j][0] - c, cen[j][1] - c))
+        drop = far[:max(1, nl // 3)] if i == 4 else far[:max(2, (2 * nl) // 3)]
+        for j in drop:
+            plates = plates * (lab != j + 1)
+        lab, nl = ndimage.label(plates > 0.5)
+    # the ink round every plate (3 px on screen: breaker size), then each plate see-through, one cel tone a plate
+    ink_w = 4.0 * SS
+    rim_ink = np.clip(grow(plates, ink_w) - plates, 0, 1)
+    f.fill(rim_ink, INK)
+    for j in range(1, nl + 1):
+        m = (lab == j).astype(np.float32) * plates
+        f.fill(m, LIGHT if j % 3 == 1 else BODY, alpha=0.34 if i else 0.6)
+        # the lit edge: a solid band on each plate's up-left side (where the light catches the broken edge)
+        sh = int(f.u(0.022))
+        band = m * (1.0 - np.roll(np.roll(m, sh, 0), sh, 1))
+        f.fill(band, HOT if i == 0 else LIGHT)
+    # one specular stripe across the biggest plate
+    if 1 <= i <= 3 and nl:
+        sizes = ndimage.sum(np.ones_like(plates), lab, range(1, nl + 1))
+        big = int(np.argmax(sizes)) + 1
+        cy, cx = ndimage.center_of_mass(np.ones_like(plates), lab, big)
+        L = f.u(0.12)
+        spec = poly_mask([stroke([(cx - L, cy + L * 0.45), (cx + L, cy - L * 0.45)], [1.0, f.u(0.034), f.u(0.03), 1.0], cap=False)], S)
+        f.fill(spec * (lab == big), LIGHT)
+    # the heart: the fractures glow hot round the landing at the peak (the one hot area), a light core after
+    if i in (1, 2):
+        yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+        near = (np.hypot(xx - c, yy - c) < f.u(0.24)).astype(np.float32)
+        f.fill(gaps * whole * near, HOT if i == 1 else LIGHT)
+    # plate by plate: erosion order per plate, outer plates first
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    rad = np.clip(np.hypot(xx - c, yy - c) / (S * 0.5), 0, 1)
+    lab2, nl2 = ndimage.label(whole * (1.0 - gaps) > 0.5)
+    pv = rng(3659).random(max(1, nl2 + 1)).astype(np.float32)
+    f.order = (1.0 - rad) * 0.55 + pv[lab2] * 0.45
+    return f.finish()
 
 
 # --- wall_star: a foe slammed into a wall or pillar -------------------------------------------------------------
@@ -418,8 +605,10 @@ SHEETS = {
     "slam_ink": (slam_ink, 384, 3, 6, "void", "center", 0.45),
     "slam_rays": (slam_rays, 512, 3, 6, "gold", "edge", 0.4),
     "floor_cracks": (floor_cracks, 512, 3, 6, "earth", "edge", 0.5),
-    "floor_arcs": (floor_arcs, 512, 3, 6, "boltA", "edge", 0.5),
+    "floor_arcs": (floor_arcs, 512, 3, 6, "boltA", "edge", 0.4),
+    "floor_frost": (floor_frost, 512, 3, 6, "water", "edge", 0.35),
     "floor_splat": (floor_splat, 512, 3, 6, "void", "edge", 0.5),
+    "war_cry": (war_cry, 384, 3, 6, "void", "edge", 0.4),
     "wall_star": (wall_star, 320, 3, 6, "hit", "center", 0.45),
     "smoke_curl": (smoke_curl, 192, 4, 8, "dust", "edge", 0.5),
     "hang_focus": (hang_focus, 512, 2, 4, "gold", "edge", 0.3),

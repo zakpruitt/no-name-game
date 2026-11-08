@@ -85,13 +85,22 @@ const FACE := {"chibi": {
 	"grin": [Vector3(0.0443, 1.2653, 0.3327), Vector3(0.0, 0.3945, 0.9189)],
 	"normal": Vector3(0.0, 0.5736, 0.8192),
 	"up": Vector3(0.0, 0.8192, -0.5736),
-	"k": 0.86}}
+	"k": 0.86},
+	## The Meshy v3 model (tools/hero_build/hero_v3.py face.txt): its painted void flattened onto a plate tipped up
+	## to the game camera; the decals' size "k" from HERO_V3_FACE_K.
+	"v3": {
+	"eyes": [[Vector3(-0.0505, 1.0878, 0.1175), Vector3(-0.0025, 0.5749, 0.8182)],
+		[Vector3(0.0979, 1.0880, 0.1178), Vector3(-0.0025, 0.5749, 0.8182)]],
+	"grin": [Vector3(0.0237, 1.0258, 0.1612), Vector3(-0.0025, 0.5749, 0.8182)],
+	"normal": Vector3(-0.0025, 0.5749, 0.8182),
+	"up": Vector3(-0.0000, 0.8182, -0.5749),
+	"k": 0.85}}
 ## Hero pass 3 (round 40): his whole model drawn this much bigger in the game (the rig node under
 ## player.model: Awakening tweens player.model's own scale), so he stands as tall as the warrior at the
 ## game camera. Collision, hit ranges and the hit areas are unchanged. tools/meshy_rig/chibi_keys.py reads
 ## this line and shortens the run strides by it, so his feet still hold the floor (hero_stride_check
 ## scales the model by it too).
-const MODEL_SCALE := {"chibi": 1.15}
+const MODEL_SCALE := {"chibi": 1.15, "v3": 1.15}  # v3 is on the same rig and keys
 const EYE_SIZE := Vector2(0.15, 0.085)  # m: an almond, wide and narrow
 const EYE_LID := 0.7  # of the half height above the middle: a flatter top scowls
 const EYE_TILT := 16.0  # degrees: inner corners down, a scowl

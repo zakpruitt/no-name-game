@@ -51,6 +51,11 @@ const ELEMENTS := {
 ## a warm paper puff in a soft brown ink (soot or black vanish on the indigo floor).
 const DUST := {"ink": Color(0.08, 0.04, 0.06), "deep": Color(0.55, 0.47, 0.42), "body": Color(0.78, 0.7, 0.6),
 	"light": Color(0.95, 0.9, 0.8), "hot": Color(1.0, 0.98, 0.92)}
+## Rock (fx-queue-a): stone that glows only in its cracks (Rockslide's boulder). The dust row's warm stone, a band
+## heavier (the dust's paper tones read as a pale blob at boulder size on film), with a magma hot, so the drawing is
+## stone and only the hot tone (its cracks, the gaps it splits along) is molten.
+const ROCK := {"ink": Color(0.08, 0.04, 0.06), "deep": Color(0.36, 0.3, 0.3), "body": Color(0.6, 0.53, 0.47),
+	"light": Color(0.86, 0.8, 0.68), "hot": Color(1.0, 0.62, 0.16)}
 ## Air (fx-air lane): the LOOK of moving wind, split from the storm element's lightning. "wind" stays the gameplay
 ## element id and keeps the electric row above (bolts, storm hit stars); wind ribbons, gales, gusts, wisps and the
 ## twister take this one: pale white-mint with one soft cool shadow tone and a slate ink, so moving air reads light
@@ -66,6 +71,8 @@ const ALIAS := {"storm": "wind", "ice": "water", "frost": "water", "magma": "ear
 static func of(element: String) -> Dictionary:
 	if element == "air":
 		return AIR
+	if element == "rock":
+		return ROCK
 	var e: String = ALIAS.get(element, element)
 	return ELEMENTS.get(e, ELEMENTS.hit)
 

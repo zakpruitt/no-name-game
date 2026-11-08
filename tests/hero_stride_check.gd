@@ -1,6 +1,6 @@
 extends SceneTree
 ## The hero's feet against the floor on his four run clips (headless, PASS/FAIL):
-##   godot --headless --path . -s tests/hero_stride_check.gd [-- --trace]
+##   godot --headless --path . -s tests/hero_stride_check.gd [-- --trace] [--hero=v3]
 ## The same measure as foe_stride_check: sample both foot bones over each clip at 1x; while a foot
 ## is planted (in the lower half of its height range and moving against the way he travels, faster
 ## than MOVING) take its mean speed along that way. player.gd plays every loop at LOOP_SPEED, so at move_speed the
@@ -29,9 +29,13 @@ func _initialize() -> void:
 	var consts := player_script.get_script_constant_map()
 	var loop_speed: float = consts.get("LOOP_SPEED", 1.1)
 	var awake_clip: float = consts.get("AWAKENED_RUN_CLIP", 1.0)  # before round 35 b: none, the feet skated 1.2x
-	var model: Node3D = load("res://assets/comic/heretic_chibi.glb").instantiate()
+	var hero := "chibi"
+	for a: String in OS.get_cmdline_user_args():
+		if a.begins_with("--hero="):
+			hero = a.trim_prefix("--hero=")
+	var model: Node3D = load("res://assets/comic/%s.glb" % load("res://scripts/comic_look.gd").get_script_constant_map()["HERETIC_MODELS"][hero]).instantiate()
 	# the game draws him heretic_rig.MODEL_SCALE bigger (hero pass 3): his feet cover that much more floor
-	var game_k: float = load("res://scripts/heretic_rig.gd").get_script_constant_map()["MODEL_SCALE"].get("chibi", 1.0)
+	var game_k: float = load("res://scripts/heretic_rig.gd").get_script_constant_map()["MODEL_SCALE"].get(hero, 1.0)
 	model.scale = Vector3.ONE * game_k
 	get_root().add_child(model)
 	var anim: AnimationPlayer = model.find_children("*", "AnimationPlayer", true, false)[0]

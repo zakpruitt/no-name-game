@@ -21,6 +21,7 @@ extends Node3D
 ##   DESIGNED_BREAKER.wall_star(parent, at, "earth")
 
 const DESIGNED := preload("res://scripts/designed_fx.gd")
+const FX_BEAT := preload("res://scripts/fx_beat.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
 const SELF := preload("res://scripts/designed_breaker.gd")
 const CANVAS := preload("res://shaders/designed_canvas.gdshader")
@@ -33,8 +34,10 @@ const SHEETS := {
 	"slam_frost": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite_depth"},
 	"slam_ink": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite_depth"},
 	"slam_rays": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
+	"war_cry": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"floor_cracks": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
 	"floor_arcs": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
+	"floor_frost": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
 	"floor_splat": {"grid": Vector2(3, 2), "frames": 6, "kind": "ground"},
 	"wall_star": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"smoke_curl": {"grid": Vector2(4, 2), "frames": 8, "kind": "sprite_depth", "anchor": Vector2(0.0, -0.35)},
@@ -45,8 +48,8 @@ const FAMILY := {"wind": "storm", "water": "ice", "earth": "magma", "void": "dar
 const LOOK := {
 	"storm": {"burst": "slam_star", "floor": "floor_arcs", "after": "crackle"},
 	"magma": {"burst": "slam_magma", "floor": "floor_cracks", "after": "smoke"},
-	"ice": {"burst": "slam_frost", "floor": "floor_cracks", "after": "mist", "rays": false},  # (pale tapered rays read as ice crystals)
-	"dark": {"burst": "slam_ink", "floor": "floor_splat", "after": "wisp", "floor_size": 0.72},
+	"ice": {"burst": "slam_frost", "floor": "floor_frost", "after": "mist", "rays": false},  # (pale tapered rays read as ice crystals; fx-queue-a: its own fractured sheet, not the magma cracks)
+	"dark": {"burst": "slam_ink", "floor": "floor_splat", "after": "wisp", "floor_size": 0.72, "rays": false},  # (fx-modern: its splat has arms; rays round them read as an urchin)
 }
 ## jolt: camera_rig.jolt metres (at REF_DIST), hz, decay /s, axis (screen x, y); fov: x camera_rig.FOV_ENDER;
 ## crunch: real s of the landing's freeze at CRUNCH_SCALE, then tail real s at tail_scale (Game.slam_stop).
@@ -242,14 +245,30 @@ static func rays(parent: Node, at: Vector3, element: String, size := 1.0) -> Nod
 	return fx.vary(PI, true)
 
 
+## The war cry as a breaker's window opens (breaker_quake.war_cry, fx-modern): three uneven fans of drawn strokes round
+## a clear middle he stands in, in real time (the hang's slow motion must not hold it), pooled.
+const WAR_CRY_SIZE := 4.0  # m: the quad (the clear middle is ~0.8 m round his chest, the strokes reach ~1.9 m)
+const WAR_CRY_TIMES := [0.04, 0.09, 0.07, 0.07, 0.08, 0.09]
+static var war_cries := 0  # (checks)
+
+
+static func war_cry(parent: Node, at: Vector3, element: String) -> Node3D:
+	_register()
+	war_cries += 1
+	return FX_BEAT.stamp(parent, "war_cry", at, WAR_CRY_SIZE, element, WAR_CRY_TIMES,
+			{"real_time": true, "erode": Vector2(0.5, 1.0)})
+
+
 ## The floor-wide spread: arcs racing over it (storm), cracks (magma hot, ice cold), an ink splash (dark).
 static func spread(parent: Node, at: Vector3, element: String, size := 1.0) -> Node3D:
 	_register()
 	var look: Dictionary = LOOK[family(element)]
 	size *= look.get("floor_size", 1.0)  # (the splat is a solid pool, not lines: 0.72 keeps a Maw under the coverage budget)
-	var fx := DESIGNED.spawn(parent, look.floor, Vector3(at.x, DESIGNED.GROUND_LIFT, at.z), FLOOR_SIZE * size, element, FLOOR_TIMES, Vector2(0.55, 1.0))
-	fx.real_until = 1
-	fx.rotation.y = randf() * TAU
+	# fx-queue-a: pooled (FX_BEAT.stamp), one per landing; the anticipation in real time, the rest on game time
+	var fx := FX_BEAT.stamp(parent, look.floor, Vector3(at.x, DESIGNED.GROUND_LIFT, at.z), FLOOR_SIZE * size, element,
+			FLOOR_TIMES, {"erode": Vector2(0.55, 1.0), "vary": false, "pop": 0.0})
+	if fx != null:
+		fx.rotation.y = randf() * TAU
 	return fx
 
 

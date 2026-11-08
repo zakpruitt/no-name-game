@@ -18,6 +18,7 @@ const ERUPT_STEP := 0.035  # s between strikes as the ring sweeps round
 const VENT_DELAY := 0.1  # s after the impact the cracks vent (they've split out by then)
 const VENT_STAR := 0.34  # m: a vent's inked star in the comic style
 const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED := preload("res://scripts/designed_fx.gd")
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
 const SCORCH_COMIC := 1.15  # of the radius: with no box cracks the inked mark carries the crater, out past the pile
 
@@ -46,6 +47,10 @@ const WAR_CRY_RING_W := 0.08  # m of colour band (Fx.ring's is 0.2)
 ## (pebbles and embers jump, frost blows out, lightning cracks down on him,
 ## wisps rise).
 static func war_cry(parent: Node, pos: Vector3, c: Color, el := "spirit", bubble := true) -> void:
+	if Game.comic_style and DESIGNED.on():  # fx-modern: the drawn roar (three fans of strokes) and the ink stamp hoop
+		load("res://scripts/designed_breaker.gd").war_cry(parent, pos, el)
+		Fx.COMIC_POP.spawn(parent, Vector3(pos.x, 0.0, pos.z), {"ring": WAR_CRY_RING, "ring_color": c, "ring_w": WAR_CRY_RING_W, "steps": 4})
+		return
 	if Game.comic_style:  # strokes bursting out round him and one inked hoop under him; no glow
 		Fx.COMIC_POP.spawn(parent, pos, {"strokes": 12, "radial": true, "gap": 1.1, "stroke_len": 0.75,
 			"stroke_w": 0.22, "stroke_color": c.lightened(0.3), "hold": 2, "steps": 3})

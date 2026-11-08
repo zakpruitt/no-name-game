@@ -694,3 +694,11 @@ block (`glob`, `GLOB_SIZE` 0.7) and its first block `designed_finish.erupt`; Dee
 `designed_elements.fissure(..., "water")` block to block plus `frost_mark`; Overwhelm's slam and Black Tide's tethers are
 the tentacle (`tentacle_haul`, `thrown_foe` tether from the pool), `DARK.burst` and `designed_ink.shock`; Maw's knock
 `DESIGNED.hit` at the height they meet. No crystals. fx_coverage max 0.312 per HIT frame (budget 0.40).
+
+## fx-modern: the effects language pilot (2026-11-07)
+
+Every effect is now held to [fx-language.md](fx-language.md) (beat, stepping, ink, shapes, the cohesion checklist and
+the audit / conversion queue). Pilot conversions: the breaker landing rays (`slam_rays`) are three uneven fans
+(`vfxlib.cluster_angles`) and dark landings have none (`LOOK.dark.rays` false); the war cry is the drawn `war_cry`
+sheet (`designed_breaker.war_cry`, `FX_BEAT.stamp`, real time); Backdraft's blast is `DESIGNED.wind_burst`. Sheets:
+`python tools/vfx_gen/gen_spectacle.py slam_rays war_cry`.

@@ -609,8 +609,7 @@ static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> vo
 		if not _once_in_breaker(parent, "impact"):
 			return
 		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks), once a frame
-			if DESIGNED_INK.streaks_ok():
-				DESIGNED.streaks(parent, at, dir, _blow_element(parent), big)
+			DESIGNED_INK.streaks(parent, at, dir, _blow_element(parent), big)  # (none on a crowd hit: designed_ink.pop's merge)
 			return
 		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
 			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,

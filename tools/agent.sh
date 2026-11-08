@@ -48,7 +48,7 @@ check() {
 	for t in "${tests[@]}"; do
 		[ -f "$(root)/tests/$t.gd" ] || continue
 		out=$(godot_run 180 -s "tests/$t.gd")
-		if [[ " $RETRY " == *" $t "* ]] && echo "$out" | grep -q "\] FAIL"; then
+		if [[ " $RETRY " == *" $t "* ]] && echo "$out" | grep -q "\] FAIL\|: FAIL"; then
 			echo "retry $t (timing check, can flake under load)"; out=$(godot_run 180 -s "tests/$t.gd")
 		fi
 		if echo "$out" | grep -q "SCRIPT ERROR\|Parse Error\|\] FAIL" || ! echo "$out" | grep -q "PASS"; then

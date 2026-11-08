@@ -4,7 +4,8 @@ extends SceneTree
 ##   godot --path . -s tests/heretic_shots.gd                also user://heretic_shots/*.png
 ## Sets the flags for this process only. Windowed, it opens a window for about 30 s.
 ## Checks the default model (the chibi, pictures in user://heretic_shots_chibi/); -- --hero=heretic
-## checks the round-28 heretic instead, its pictures in user://heretic_shots/.
+## checks the round-28 heretic instead, its pictures in user://heretic_shots/, -- --hero=v3 the Meshy v3 model
+## (user://heretic_shots_v3/). The face checks run on every model with a heretic_rig.FACE entry.
 
 var DIR := "user://heretic_shots"
 const CLOSE := Vector3(0.0, 1.5, 4.2)
@@ -340,9 +341,9 @@ func _initialize() -> void:
 	_check(rig.grip().y < 0.05, "and lets the claw go after (%.2f)" % rig.grip().y)
 	_check(not rig.keyed or anim.get_animation("Idle").find_track(NodePath("%s:tent.up.01" % p.model.get_path_to(skel)), Animation.TYPE_ROTATION_3D) >= 0,
 		"the keyed model's Idle keys the claws")
-	if _game.hero_model == "chibi":
-		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the chibi has glowing eyes")
-		_check(rig.grin != null and rig.grin.get_child_count() == 1, "the chibi grins under them")
+	if rig.FACE.has(_game.hero_model):
+		_check(rig.eyes != null and rig.eyes.get_child_count() == 2, "the %s has glowing eyes" % _game.hero_model)
+		_check(rig.grin != null and rig.grin.get_child_count() == 1, "the %s grins under them" % _game.hero_model)
 		# hero v2: eyes and grin are drawn on the face plate, so the hood and the claw cover them by depth and
 		# nothing turns to the camera off the head (the floating face of round 40)
 		var flat := true
@@ -352,7 +353,7 @@ func _initialize() -> void:
 		_check(flat, "eyes and grin lie on the face, depth-tested, not turned to the camera")
 		var head_at: Vector3 = skel.get_bone_global_rest(skel.find_bone("head")).origin
 		var near := true
-		for spot: Array in rig.FACE.chibi.eyes + [rig.FACE.chibi.grin]:
+		for spot: Array in rig.FACE[_game.hero_model].eyes + [rig.FACE[_game.hero_model].grin]:
 			near = near and (spot[0] as Vector3).distance_to(head_at) < 0.75
 		_check(near and rig.eyes.get_child(0).position.length() < 0.75, "the face spots sit on his head (%.2f m from the neck)" % rig.eyes.get_child(0).position.length())
 		# the face opening is tilted up to the game camera, so in Idle facing it the face points within
@@ -376,10 +377,11 @@ func _initialize() -> void:
 		await create_timer(0.3).timeout
 		await skel.skeleton_updated
 		_check(hurt_squint > 0.8 and rig.squint < 0.2, "eyes squeeze shut when hit, open after (%.2f, %.2f)" % [hurt_squint, rig.squint])
-		# the scarf tail (round 40, hero pass 2): its own chain on its own spring, waving while he stands
+		# the scarf tail (round 40, hero pass 2): its own chain on its own spring, waving while he stands (v3's
+		# scarf is part of his shell: the bones are there, nothing is weighted to them)
 		var tail := skel.find_bone("scarf.04")
-		_check(rig._scarf.size() == 4 and skel.get_node_or_null("ScarfSprings") != null, "the chibi has a scarf tail on its own spring")
-		if tail >= 0:
+		_check(rig._scarf.size() == 4 and skel.get_node_or_null("ScarfSprings") != null, "the scarf chain is on its own spring")
+		if tail >= 0 and _game.hero_model == "chibi":
 			await skel.skeleton_updated
 			var t0 := skel.get_bone_global_pose(tail).origin
 			await create_timer(0.3).timeout
