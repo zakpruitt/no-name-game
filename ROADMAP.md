@@ -1188,3 +1188,21 @@ foe that fights back since the kit grammar. Audit: `docs/spar-audit-2026-11-07.m
   every foe; his hurt)
 - [ ] Open (Zak): his hurt's dash-out at 0.12 s; a bot token to counter a live foe; the shield letting control moves
   through; the live foe in the string films' gather; a kill hidden under a breaker's impact frame
+
+## Round 56 feel-audit6 (feel audit 7: the landing punch, the banner over piles, round 55's leftovers)
+
+Zak's brief: film both rooms windowed, rank the top 10, fix the top in batches plus six decided items, perf, hand-feel,
+clips. Audit: `docs/feel-audit-2026-11-07c.md`.
+- [x] The landing punches in (x0.85 of the landing's view, 50 ms hold, eased out to the scene by 330 ms) wherever the
+  scene has room: Maw, Black Ice, Eruption, Ricochet, Tempest, Cold Front; `camera_feel_check` proves it
+- [x] Cold Front's dive lands by the middle of the hoisted cubes; the banner is clear of them
+- [x] The banner dodges any foe in the hang scene; it counts again after an earlier ending; words and numbers keep off it
+- [x] Deep Freeze's leftover blocks pop as a 0.035 s wave when Avalanche opens (they popped on one frame)
+- [x] Overwhelm's pool thins during the haul; Rockslide's boulder 1.6 -> 2.4 and on screen
+- [x] Bot strings `stab D L` and `tide H L H` against spread foes (Dash Stab's catch, Black Tide's long haul)
+- [x] Perf windowed in both rooms unchanged (one CPU spike, the first L1); `--collect-shaders` found nothing new
+- [x] Clips: `awaken-combo-clips/46 Audit6 *`
+- [ ] Zak's call: punch the wide endings too (Avalanche, Slapshot, Meteor Shower, Pinwheel, Short Circuit, Uproot)
+  even if it crops the pile for 0.3 s
+- [ ] Open: mid name callouts stacked over their beat words; Cataclysm's pile under the top banner for ~0.5 s; the
+  parried cleaver lying ~2 s; Collapse's stray pebbles

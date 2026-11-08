@@ -245,3 +245,35 @@ cued endings only).
 | `HANG_LAND_HIT_MS` | (60, 200) | a foe hit this long before / after the landing counts |
 | `HANG_AFTER_MS`, `HANG_AFTER_MAX_MS` | 1300, 2600 | how long a scene runs past the landing, with cues |
 | `HANG_LEAN_STEPS`, `HANG_LEAN_MAX` | 7, 6 m | lean binary search steps, the lean's reach |
+
+## Landing punch (round 56, feel-audit6 lane)
+
+Feel audit 2026-11-07c item 1: half the endings never punched in at the landing. The hang scene had zoomed out to fit
+the pile (x1.4-1.55), and the scene's framing held the view there or widened it (Maw 1.40 -> 1.47, Eruption 1.37 ->
+1.41, Cold Front 1.49 -> 1.53). Only the close endings, whose own push is tighter, punched (x0.78-0.89).
+
+**The punch** (`_land_punch()`, called from `_frame_scene()` once the hang is over).
+- At the landing (`_scene_tick`, `breakers_landed` going up) the rig notes the view it had: `_land_from`, the camera
+  distance over the offset's.
+- For `LAND_EASE_MS` 330 after the landing, the scene's need is lowered to at most `LAND_PUNCH` x0.85 of that view. It
+  holds `LAND_HOLD_MS` 50, then eases (smoothstep) back to the scene's own need.
+- It never goes tighter than the scene's actors allow in `LAND_SAFE` (0.86 sideways, 0.62 up, 0.86 down), a looser box
+  than `HANG_SAFE`. The box is checked against the lean, the lean it is heading to and the follow point, so the punch
+  never crops the pile.
+- A scene that already asks for less than the punch (the close endings) is left alone.
+
+Numbers (view size over rest at +30 ms, before -> after): Maw 1.40 -> 1.23, Black Ice 1.40 -> 1.23, Eruption 1.40 ->
+1.20, Ricochet 1.25 -> 1.17, Tempest 1.39 -> 1.30, Cold Front 1.52 -> 1.13 (at +100 ms). Each is back on the scene's
+framing by +300-450 ms.
+
+Still wide (their actors fill `LAND_SAFE`): Avalanche, Slapshot, Meteor Shower, Pinwheel, Short Circuit, Uproot.
+Punching them would crop part of the pile for 0.3 s; that is Zak's call.
+
+`tests/camera_feel_check.gd` (`PUNCH_ENDINGS`): Maw, Black Ice, Ricochet and Eruption. The view in the landing's first
+150 ms must be at most `PUNCH_BAR` x0.95 of the landing frame's. Now x0.88-0.89; the old rig gave x0.94-1.01.
+
+| Constant | Value | What |
+|---|---|---|
+| `LAND_PUNCH` | 0.85 | the punch, as a share of the view at the landing |
+| `LAND_SAFE` | (0.86, 0.62, 0.86) | the box the actors must stay in through the punch |
+| `LAND_HOLD_MS`, `LAND_EASE_MS` | 50, 330 | hold, then ease out to the scene by |
