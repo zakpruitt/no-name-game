@@ -18,6 +18,13 @@ extends RefCounted
 const ENV := preload("res://scripts/env_target.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const FOES := preload("res://scripts/foes.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
+const ROOMS := preload("res://scripts/rooms.gd")
+## void_element, thrown_foe and env_flourish preload this file (env_target.gd has the whole order), so a preload of
+## them here would close a cycle: each is loaded once, on first use, and held.
+static var _ve_s: GDScript
+static var _thrown_s: GDScript
+static var _flourish_s: GDScript
 
 const GROUP := "env"
 const STATE_META := &"env_state"
@@ -89,8 +96,7 @@ const PIECES := {
 }
 
 ## Exclusive verbs by element (the proposal's open question 1 picked element): element -> piece -> verb ids. The
-## structure indicator marks a piece for a verb only when the hero has the element (usable()), so the room reads
-## differently per character: a grate glows under the heretic's indicator and is plain floor under the prince's.
+## structure indicator marks a piece for a verb only when the hero has the element (usable()).
 const EXCLUSIVE := {
 	"void": {"pillar": ["uproot"], "hook": ["gallows"]},
 	"earth": {"barrel": ["keg"], "brazier": ["brazier_spill"]},
@@ -99,11 +105,8 @@ const EXCLUSIVE := {
 }
 ## Which verbs are in the game (the rest of EXCLUSIVE is the proposal's, still to build).
 const BUILT := ["uproot", "keg", "frost_wall", "live_floor", "conduct", "gallows", "ice_rink", "brazier_spill"]
-## Round 53 (env-flourish): the heretic's flourishes on the hook, the pool and the brazier (env_flourish.gd), each a
-## Kit upgrade, on in a room with the `flourishes` rule (rooms.gd).
-const FLOURISH_PATH := "res://scripts/env_flourish.gd"
-## The elements each hero hits with (the heretic's four colours; the prince's from his draft card).
-const HERO_ELEMENTS := {"heretic": ["void", "wind", "water", "earth"], "prince": ["dragonfire", "radiance", "steel"]}
+## The elements the heretic hits with (his four colours).
+const HERO_ELEMENTS := ["void", "wind", "water", "earth"]
 ## The element verbs a hit can trigger: element -> piece -> the verb hit() plays.
 const RULES_BY_ELEMENT := {
 	"earth": {"barrel": "keg"},
@@ -180,6 +183,26 @@ static var verbs := {}  # verb id -> times
 static var keg_words := 0  # (round 52: the keg's words that went up, after their wait)
 
 
+static func _ve() -> GDScript:
+	if _ve_s == null:
+		_ve_s = load("res://scripts/void_element.gd")
+	return _ve_s
+
+
+static func _thrown() -> GDScript:
+	if _thrown_s == null:
+		_thrown_s = load("res://scripts/thrown_foe.gd")
+	return _thrown_s
+
+
+## The heretic's flourishes on the hook, the pool and the brazier (env_flourish.gd), each a Kit upgrade, on in a room
+## with the `flourishes` rule (rooms.gd).
+static func _flourish() -> GDScript:
+	if _flourish_s == null:
+		_flourish_s = load("res://scripts/env_flourish.gd")
+	return _flourish_s
+
+
 # --- placing ------------------------------------------------------------------------------------------------------
 
 ## A fresh room: forget the last one's counters.
@@ -217,8 +240,8 @@ static func place(room: Node, tag: String, at: Vector3, yaw := 0.0, state := "",
 	if tag == "pillar":
 		n.add_to_group("grab_anchors")  # the void arm swings on them (void_grab.gd)
 	_register(n)
-	if tag in ["pool", "brazier"]:  # round 53: the pool's watch (ice_rink), the brazier's lit look
-		load(FLOURISH_PATH).placed(n)
+	if tag in ["pool", "brazier"]:  # the pool's watch (ice_rink), the brazier's lit look
+		_flourish().placed(n)
 	if opts.get("count", false):
 		counted.append(n)
 	return n
@@ -307,7 +330,7 @@ static func near(tree: SceneTree, tag: String, at: Vector3, r: float) -> Array:
 
 ## How far `at` is from piece `n`'s footprint (0 on it): a floor tile's square, else its radius round its middle.
 static func gap(n: Node3D, at: Vector3) -> float:
-	var d := Vector3(at.x - n.global_position.x, 0.0, at.z - n.global_position.z)
+	var d := _flat(at - n.global_position)
 	var spec: Dictionary = PIECES[tag_of(n)]
 	if spec.get("floor", false):
 		var h: float = float(spec.size.x) * 0.5
@@ -323,11 +346,11 @@ static func under(tree: SceneTree, tag: String, at: Vector3) -> Node3D:
 	return null
 
 
-## Whether this hero (Game.hero) has the element for `verb` on `tag`: the indicator marks only what he can use.
+## Whether the hero has the element for `verb` on `tag`: the indicator marks only what he can use.
 static func usable(tag: String, verb: String) -> bool:
 	if not verb in BUILT:
 		return false
-	for el: String in HERO_ELEMENTS.get(Game.hero, []):
+	for el: String in HERO_ELEMENTS:
 		if EXCLUSIVE.get(el, {}).get(tag, []).has(verb):
 			return true
 	return false
@@ -379,8 +402,8 @@ static func _verb(n: Node3D, verb_id: String, _el: String, by: Node, _how: Strin
 	return ""
 
 
-## Live Floor: the grate goes live (or stays live LIVE_S longer). Round 57: in a room whose `links` hold "grate" (the
-## forge's bonded plates), every grate touching it goes live with it (linked()).
+## Live Floor: the grate goes live (or stays live LIVE_S longer). In a room whose `links` hold "grate" (the forge's
+## bonded plates), every grate touching it goes live with it (linked()).
 static func _live(n: Node3D) -> String:
 	n.set_meta(&"live_until", Time.get_ticks_msec() + int(LIVE_S * 1000.0 / maxf(Game.slow, 0.01)))
 	if not _linking:
@@ -394,19 +417,17 @@ static func _live(n: Node3D) -> String:
 	n.set_meta(STATE_META, "live")
 	played("live_floor")
 	var crawls := []
-	if DESIGNED.on():
-		var POLISH: GDScript = load("res://scripts/designed_polish.gd")
-		var h: float = float(PIECES.grate.size.x) * 0.25
-		for i in LIVE_CRAWLS:
-			var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_CRAWL_SIZE, "wind", 6)
-			c.position = Vector3((float(i % 2) - 0.5) * 2.0 * h, 0.35, (float(i >> 1) - 0.5) * 2.0 * h)
-			crawls.append(c)
-		var edge: float = float(PIECES.grate.size.x) * 0.5 - 0.15  # round 52: bigger crawls on the edge, out from under the pile
-		for i in LIVE_EDGE_CRAWLS:
-			var a := TAU * i / LIVE_EDGE_CRAWLS
-			var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_EDGE_SIZE, "wind", 6)
-			c.position = Vector3(clampf(cos(a) * 1.5, -1.0, 1.0) * edge, 0.5, clampf(sin(a) * 1.5, -1.0, 1.0) * edge)
-			crawls.append(c)
+	var h: float = float(PIECES.grate.size.x) * 0.25
+	for i in LIVE_CRAWLS:
+		var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_CRAWL_SIZE, "wind", 6)
+		c.position = Vector3((float(i % 2) - 0.5) * 2.0 * h, 0.35, (float(i >> 1) - 0.5) * 2.0 * h)
+		crawls.append(c)
+	var edge: float = float(PIECES.grate.size.x) * 0.5 - 0.15  # bigger crawls on the edge, out from under the pile
+	for i in LIVE_EDGE_CRAWLS:
+		var a := TAU * i / LIVE_EDGE_CRAWLS
+		var c: Node3D = POLISH.loop(n, "arc_crawl", LIVE_EDGE_SIZE, "wind", 6)
+		c.position = Vector3(clampf(cos(a) * 1.5, -1.0, 1.0) * edge, 0.5, clampf(sin(a) * 1.5, -1.0, 1.0) * edge)
+		crawls.append(c)
 	n.set_meta(&"env_tell", crawls)
 	ComicFx.say("BZZZT!", n.global_position + Vector3.UP * 1.2, 0.5)
 	Game.sfx("cast_wind", -6.0, 0.1)
@@ -426,7 +447,7 @@ static func _live_tick(n: Variant) -> void:
 		p.remove_meta(&"env_tell")
 		return
 	_live_rim(p)
-	var VE: GDScript = load("res://scripts/void_element.gd")
+	var VE: GDScript = _ve()
 	_live_ticking = true
 	for e: Node3D in on_tile(p):
 		VE.mark(e, "charged")
@@ -434,10 +455,8 @@ static func _live_tick(n: Variant) -> void:
 	p.get_tree().create_timer(LIVE_TICK, false).timeout.connect(_live_tick.bind(p))
 
 
-## The live grate's lime rim (round 52): a bolt along each of the tile's four edges, drawn again every tick.
+## The live grate's lime rim: a bolt along each of the tile's four edges, drawn again every tick.
 static func _live_rim(n: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	var e: float = float(PIECES.grate.size.x) * 0.5
 	var c := Vector3(n.global_position.x, 0.12, n.global_position.z)
 	var pts := PackedVector3Array()
@@ -446,12 +465,12 @@ static func _live_rim(n: Node3D) -> void:
 	DESIGNED.bolt_path(n.get_parent(), pts, LIVE_RIM_W)
 
 
-## Round 57 (rooms lane): the floor pieces of `n`'s tag that are one piece with it in this room (rooms.gd `links`):
-## every live tile reached from it through tiles sharing an edge, `n` left out. Empty where the room doesn't link the
-## tag (the plain room, the room with pieces) or for a piece that isn't a floor tile.
+## The floor pieces of `n`'s tag that are one piece with it in this room (rooms.gd `links`): every live tile reached
+## from it through tiles sharing an edge, `n` left out. Empty where the room doesn't link the tag (the plain room, the
+## room with pieces) or for a piece that isn't a floor tile.
 static func linked(n: Node3D) -> Array:
 	var tag := tag_of(n)
-	if tag == "" or not PIECES[tag].get("floor", false) or not load("res://scripts/rooms.gd").links(Game.room, tag):
+	if tag == "" or not PIECES[tag].get("floor", false) or not ROOMS.links(Game.room, tag):
 		return []
 	var size: float = float(PIECES[tag].size.x)
 	var all: Array = n.get_tree().get_nodes_in_group("env_" + tag).filter(func(o: Node) -> bool: return live(o))
@@ -530,16 +549,15 @@ static func _relay(chain: Array, by: Node) -> void:
 	var parent := first.get_parent()
 	var hero: Node = tree.get_first_node_in_group("player")
 	var mult: float = float(hero.get("_dmg_mult")) if hero != null and hero.get("_dmg_mult") != null else 1.0
-	var VE: GDScript = load("res://scripts/void_element.gd")
-	var THROWN: GDScript = load("res://scripts/thrown_foe.gd")
-	if DESIGNED.on():
-		var path := PackedVector3Array()
-		if is_instance_valid(by) and by is Node3D:
-			path.append((by as Node3D).global_position + Vector3.UP * 1.0)
-		for t: Node3D in chain:
-			path.append(_flame(t))
-		if path.size() >= 2:
-			DESIGNED.bolt_path(parent, path, 0.3)
+	var VE: GDScript = _ve()
+	var THROWN: GDScript = _thrown()
+	var path := PackedVector3Array()
+	if is_instance_valid(by) and by is Node3D:
+		path.append((by as Node3D).global_position + Vector3.UP * 1.0)
+	for t: Node3D in chain:
+		path.append(_flame(t))
+	if path.size() >= 2:
+		DESIGNED.bolt_path(parent, path, 0.3)
 	_relaying = true
 	var zapped := {}
 	if is_instance_valid(by):
@@ -549,8 +567,7 @@ static func _relay(chain: Array, by: Node) -> void:
 			if zapped.has(e) or THROWN.flying(e):
 				continue
 			zapped[e] = true
-			if DESIGNED.on():
-				DESIGNED.bolt(parent, _flame(t), e.global_position + Vector3.UP * 1.0, 0.26, 0.6)
+			DESIGNED.bolt(parent, _flame(t), e.global_position + Vector3.UP * 1.0, 0.26, 0.6)
 			VE.zap_hit(e, CONDUCT_DAMAGE * mult)
 			VE.mark(e, "charged")
 			Game.register_hit("cast")
@@ -561,11 +578,10 @@ static func _relay(chain: Array, by: Node) -> void:
 
 ## A torch takes the current: its flame flares (a storm star on it, arcs crawling round it while it conducts), the word.
 static func _flare(t: Node3D) -> void:
-	if DESIGNED.on():
-		DESIGNED.hit(t.get_parent(), _flame(t), "wind", 1.1)
-		var c: Node3D = load("res://scripts/designed_polish.gd").loop(t, "arc_crawl", 1.6, "wind", 6)
-		c.position = Vector3.UP * CONDUCT_FLAME
-		t.set_meta(&"env_tell", c)
+	DESIGNED.hit(t.get_parent(), _flame(t), "wind", 1.1)
+	var c: Node3D = POLISH.loop(t, "arc_crawl", 1.6, "wind", 6)
+	c.position = Vector3.UP * CONDUCT_FLAME
+	t.set_meta(&"env_tell", c)
 	var tw := t.create_tween()
 	var home := t.scale
 	tw.tween_property(t, "scale", home * 1.25, 0.06)
@@ -623,10 +639,9 @@ static func _keg(n: Node3D, by: Node) -> String:
 		return "burning"  # (a second foe into it feeds the fire)
 	n.set_meta(STATE_META, "burning")
 	played("keg")
-	if DESIGNED.on():
-		var tell: Node3D = load("res://scripts/designed_polish.gd").loop(n, "tell_molten", KEG_TELL, "earth")
-		tell.position.y = 0.4
-		n.set_meta(&"env_tell", tell)
+	var tell: Node3D = POLISH.loop(n, "tell_molten", KEG_TELL, "earth")
+	tell.position.y = 0.4
+	n.set_meta(&"env_tell", tell)
 	ComicFx.say("FSSSS!", n.global_position + Vector3.UP * 2.2, 0.45)
 	Game.sfx("cast_earth", -8.0, 0.1)
 	var tw := n.create_tween()
@@ -640,7 +655,7 @@ static func _keg_burst(n: Variant, by: Variant) -> void:
 		return
 	var p := n as Node3D
 	var tree := p.get_tree()
-	var at := Vector3(p.global_position.x, 0.0, p.global_position.z)
+	var at := _flat(p.global_position)
 	var parent := p.get_parent()
 	var tell: Variant = p.get_meta(&"env_tell") if p.has_meta(&"env_tell") else null
 	if is_instance_valid(tell):
@@ -648,18 +663,17 @@ static func _keg_burst(n: Variant, by: Variant) -> void:
 	p.remove_meta(&"env_tell")
 	var hero: Node = tree.get_first_node_in_group("player")
 	var mult: float = float(hero.get("_dmg_mult")) if hero != null and hero.get("_dmg_mult") != null else 1.0
-	var VE: GDScript = load("res://scripts/void_element.gd")
+	var VE: GDScript = _ve()
 	var hit_n := 0
 	for e: Node3D in FOES.near(tree, at, KEG_R):
-		var away := Vector3(e.global_position.x - at.x, 0.0, e.global_position.z - at.z)
+		var away := _flat(e.global_position) - at
 		e.take_hit(KEG_DAMAGE * mult, (away.normalized() if away.length() > 0.05 else Vector3.ZERO) * 5.0, 0.0, true)
 		VE.mark(e, "molten")
 		Game.register_hit("breaker")
 		hit_n += 1
 	p.set_meta(&"keg_hits", hit_n)
-	if DESIGNED.on():
-		DESIGNED.meteor(parent, at, KEG_R * 0.8)
-		load("res://scripts/designed_polish.gd").chips(parent, at + Vector3.UP * 1.0, Color(0.55, 0.36, 0.2), STAVES, 8.0, Vector3.UP, true)
+	DESIGNED.meteor(parent, at, KEG_R * 0.8)
+	POLISH.chips(parent, at + Vector3.UP * 1.0, Color(0.55, 0.36, 0.2), STAVES, 8.0, Vector3.UP, true)
 	_keg_word(tree, at, 0.0)
 	Game.hitstop(0.06)
 	Game.shake(0.7)
@@ -670,7 +684,7 @@ static func _keg_burst(n: Variant, by: Variant) -> void:
 		hit(c, "earth", hero, "burst")
 	for b: Node3D in near(tree, "barrel", at, KEG_R):
 		hit(b, "earth", hero, "element")  # (a chain: the next keg catches)
-	load(FLOURISH_PATH).keg_spill(tree, at, hero)  # round 57: a lit brazier in reach tips (the forge's powder line)
+	_flourish().keg_spill(tree, at, hero)  # a lit brazier in reach tips (the forge's powder line)
 
 
 ## "KA-BLOOOM!" over the burst, once no other word or breaker leap holds the page (KEG_WORD_*).
@@ -694,12 +708,12 @@ static func marked(e: Variant, st: String) -> void:
 		return
 	if st == "molten":
 		molten_near(e)
-		load(FLOURISH_PATH).molten_near(e)  # round 53: magma lights an out brazier
+		_flourish().molten_near(e)  # magma lights an out brazier
 	elif st == "charged" and not _live_ticking:  # Live Floor: storm on a foe standing on a grate
 		var g := under((e as Node).get_tree(), "grate", (e as Node3D).global_position)
 		if g != null:
 			hit(g, "wind", e, "element")
-		if not _relaying:  # round 52: torches conduct
+		if not _relaying:  # torches conduct
 			conduct_near(e)
 
 
@@ -752,9 +766,8 @@ static func use_up(n: Node3D, to_state := "gone") -> void:
 static func _break(n: Node3D) -> void:
 	var parent := n.get_parent()
 	var at := n.global_position
-	if DESIGNED.on():
-		DESIGNED.dust(parent, at, 1.3)
-		load("res://scripts/designed_polish.gd").chips(parent, at + Vector3.UP * 0.9, Color(0.55, 0.36, 0.2), STAVES, 6.5, Vector3.UP, true)
+	DESIGNED.dust(parent, at, 1.3)
+	POLISH.chips(parent, at + Vector3.UP * 0.9, Color(0.55, 0.36, 0.2), STAVES, 6.5, Vector3.UP, true)
 	ComicFx.say("KRAK!", at + Vector3.UP * 1.6, 0.55)
 	Game.sfx("hit_big", -6.0, 0.15)
 	n.visible = false
@@ -770,8 +783,7 @@ static func _tear(n: Node3D) -> void:
 	tw.tween_callback(func() -> void:
 		n.visible = false
 		n.transform = home)
-	if DESIGNED.on():
-		DESIGNED.dust(n.get_parent(), n.global_position, 0.9)
+	DESIGNED.dust(n.get_parent(), n.global_position, 0.9)
 	_rebuild_later(n)
 
 
@@ -826,8 +838,7 @@ static func _erode(n: Node3D, heaps: Array, base: Vector3, dir: Vector3) -> void
 		for p: Variant in parts:
 			if is_instance_valid(p):
 				y0[(p as Node).get_instance_id()] = (p as Node3D).position.y
-				if DESIGNED.on():
-					DESIGNED.dust((p as Node).get_parent(), (p as Node3D).global_position, RUBBLE_PUFF)
+				DESIGNED.dust((p as Node).get_parent(), (p as Node3D).global_position, RUBBLE_PUFF)
 		if keep and is_instance_valid(room):
 			var decal := ComicLook.piece(RUBBLE_DECAL)
 			var length: float = PIECES.pillar.size.y
@@ -841,7 +852,7 @@ static func _erode(n: Node3D, heaps: Array, base: Vector3, dir: Vector3) -> void
 			if is_instance_valid(p) and y0.has((p as Node).get_instance_id()):
 				(p as Node3D).position.y = float(y0[(p as Node).get_instance_id()]) - RUBBLE_SINK * k * k, 0.0, 0.5, RUBBLE_ERODE_S * 0.5)
 	tw.tween_callback(func() -> void:
-		if DESIGNED.on() and is_instance_valid(n):
+		if is_instance_valid(n):
 			DESIGNED.dust(n.get_parent(), n.global_position, RUBBLE_PUFF * 0.8))
 	tw.tween_method(func(k: float) -> void:
 		for p: Variant in parts:
@@ -872,7 +883,7 @@ static func landing(by: Node3D, at: Vector3) -> void:
 ## A thrown foe stopped against something at `spot` flying along `dir` (thrown_foe._burst): the piece it hit, if it
 ## was one (the nearest within reach of a point just past the foe), else null.
 static func struck(tree: SceneTree, spot: Vector3, dir: Vector3, foe_r: float) -> Node3D:
-	var probe := Vector3(spot.x, 0.0, spot.z) + Vector3(dir.x, 0.0, dir.z).normalized() * (foe_r + 0.6)
+	var probe := _flat(spot) + _flat(dir).normalized() * (foe_r + 0.6)
 	var best: Node3D = null
 	var best_d := 0.9
 	for n: Node in tree.get_nodes_in_group(GROUP):
@@ -921,7 +932,7 @@ static func rebuild(n: Variant) -> void:
 		return
 	var erode: Variant = p.get_meta(ERODE_META, null) if p.has_meta(ERODE_META) else null
 	if erode is Tween and (erode as Tween).is_valid():
-		(erode as Tween).kill()  # (round 54: back mid-erosion: stand it up as placed)
+		(erode as Tween).kill()  # (back mid-erosion: stand it up as placed)
 	if p.has_meta(ERODE_META):
 		p.remove_meta(ERODE_META)
 	p.position = home.at
@@ -939,10 +950,9 @@ static func rebuild(n: Variant) -> void:
 	p.remove_meta(&"env_leftovers")
 	if not p.has_meta(ID_META):
 		_register(p)
-	if tag_of(p) in ["hook", "brazier", "pool"]:  # round 53: the flourishes' pieces as placed (env_flourish.restore)
-		load(FLOURISH_PATH).restore(p)
-	if DESIGNED.on():
-		DESIGNED.dust(p.get_parent(), p.global_position, POP_SIZE)
+	if tag_of(p) in ["hook", "brazier", "pool"]:  # the flourishes' pieces as placed (env_flourish.restore)
+		_flourish().restore(p)
+	DESIGNED.dust(p.get_parent(), p.global_position, POP_SIZE)
 
 
 # --- the run's report ---------------------------------------------------------------------------------------------

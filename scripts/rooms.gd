@@ -94,9 +94,6 @@ const ROOMS := {
 		{"tag": "grate", "at": Vector3(6, 0, -2), "count": true},
 	],
 }
-## Pieces the plain room has as looks that "with pieces" makes live (the banners tear).
-const LIVE_IN_PIECES := ["banner"]
-
 ## The Settings picker's order (Game.toggle_room cycles it; `--room=<name>` takes any of them).
 const ORDER := ["plain", "pieces", "cistern", "forge"]
 
@@ -216,10 +213,17 @@ static func layout(room: String) -> Array:
 	return out
 
 
+## env_piece.gd preloads this file (for `links`), so it is loaded once here, on first use, instead of preloaded.
+static var _piece_s: GDScript
+
+
 ## Floor tiles a room's floor pieces cover (main skips its own tile there): tile centres.
 static func floor_spots(room: String) -> Array:
+	if _piece_s == null:
+		_piece_s = load("res://scripts/env_piece.gd")
+	var pieces: Dictionary = _piece_s.PIECES
 	var out := []
 	for e: Dictionary in layout(room):
-		if e.get("live", true) and load("res://scripts/env_piece.gd").PIECES[e.tag].get("floor", false):
+		if e.get("live", true) and pieces[e.tag].get("floor", false):
 			out.append(Vector3(e.at.x, 0.0, e.at.z))
 	return out

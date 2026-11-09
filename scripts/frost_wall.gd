@@ -43,10 +43,10 @@ static func raise(parent: Node, g: Node3D, from: Vector3) -> Node3D:
 		old.melt()
 	var w: Node3D = new()
 	w.grate = g
-	var c := Vector3(g.global_position.x, 0.0, g.global_position.z)
-	var to := Vector3(c.x - from.x, 0.0, c.z - from.z)
-	# the far side from him, square to his line (round 52: it follows his angle, so a row he gathers on the diagonal
-	# meets it face on; it was the grate's edge along the axis he was most along)
+	var c := _flat(g.global_position)
+	var to := c - _flat(from)
+	# the far side from him, square to his line (it follows his angle, so a row he gathers on the diagonal meets it
+	# face on; the grate's own edge left a diagonal row's ends in the open)
 	var out := to.normalized() if to.length() > 0.05 else Vector3.FORWARD
 	var half: float = float(ENV_PIECE.PIECES.grate.size.x) * 0.5
 	w.normal = -out
@@ -54,6 +54,10 @@ static func raise(parent: Node, g: Node3D, from: Vector3) -> Node3D:
 	w.yaw = atan2(out.x, out.z)
 	parent.add_child(w)
 	return w
+
+
+static func _flat(v: Vector3) -> Vector3:
+	return Vector3(v.x, 0.0, v.z)
 
 
 ## The one standing, or null.
@@ -98,9 +102,8 @@ func _ready() -> void:
 		_id = env.add_wall_id(face - side, face + side, normal, ID)
 	if is_instance_valid(grate):
 		grate.set_meta(ENV_PIECE.STATE_META, "frosted")
-	if DESIGNED.on():
-		DESIGNED_EL.frost_mark(get_parent(), global_position, 2.2, 0.8)
-		DESIGNED.dust(get_parent(), global_position, 1.4)
+	DESIGNED_EL.frost_mark(get_parent(), global_position, 2.2, 0.8)
+	DESIGNED.dust(get_parent(), global_position, 1.4)
 	ComicFx.say("KRRSSHK!", global_position + Vector3.UP * (HIGH + 0.4), 0.55)
 	Game.shake(0.35)
 	Game.sfx("cast_water", -4.0, 0.1)
@@ -128,9 +131,8 @@ func splat() -> void:
 func shatter() -> void:
 	if _gone:
 		return
-	if DESIGNED.on():
-		for i in BLOCKS:
-			DESIGNED.ice_shatter(get_parent(), global_transform * Vector3((i - (BLOCKS - 1) * 0.5) * WIDTH / BLOCKS, HIGH * 0.5, 0.0), 1.3)
+	for i in BLOCKS:
+		DESIGNED.ice_shatter(get_parent(), global_transform * Vector3((i - (BLOCKS - 1) * 0.5) * WIDTH / BLOCKS, HIGH * 0.5, 0.0), 1.3)
 	Game.sfx("hit_big", -4.0, 0.1)
 	_go(0.08)
 
@@ -160,6 +162,6 @@ static func struck(tree: SceneTree, spot: Vector3, dir: Vector3) -> Node3D:
 	var w := current(tree)
 	if w == null:
 		return null
-	var probe := Vector3(spot.x, 0.0, spot.z) + Vector3(dir.x, 0.0, dir.z).normalized() * 1.2
+	var probe := _flat(spot) + _flat(dir).normalized() * 1.2
 	var local: Vector3 = w.global_transform.affine_inverse() * probe
 	return w if absf(local.x) <= WIDTH * 0.5 + 0.6 and absf(local.z) <= THICK * 0.5 + 1.2 else null

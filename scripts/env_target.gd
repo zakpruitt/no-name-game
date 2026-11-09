@@ -20,8 +20,17 @@ extends Node3D
 ## cracks and sheds drawn chunks, a wall keeps a drawn mark per element for the room's life (MARK_CAP), a torch near
 ## the hit swings.
 
-const SELF := preload("res://scripts/env_target.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
+const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED_BREAKER := preload("res://scripts/designed_breaker.gd")
+## Preload order of the environment scripts: env_flourish -> env_piece -> env_target -> designed_fx; counter ->
+## env_flourish and env_target; frost_spear -> frost_wall -> env_piece / env_target; void_element -> env_target,
+## env_piece, frost_spear. Every one of those preloads this file, so a preload of them here would close a cycle:
+## each is loaded once, on first use, and held.
+static var _piece_s: GDScript
+static var _flourish_s: GDScript
+static var _counter_s: GDScript
+static var _spear_s: GDScript
 
 const GROUP := "env_target"
 const PICK_META := &"env_pick"
@@ -72,6 +81,10 @@ const CTX := {
 	"meltdown": {"el": "earth", "choose": true, "far": false},
 	"tow": {"el": "void", "choose": true, "far": false},  # Tow Line (Dash H) before its hit: a foe, the one they're yanked into  # Steam Burst's window: a foe, the shell that breaks first
 }
+## The attack moves whose start-up opens a pick (plus void_element.DASH_MOVE): context() looks no further for any
+## other move. GR / L2 / AL1 / IJ / XG open the next move's pick once its press is buffered (_mid_ctx); GR and VS
+## carry the pillar slam's (holds_for_slam).
+const PICK_MOVES := ["EM", "GR", "L2", "AL1", "IJ", "XG", "VR", "VS", "IP", "XR", "IS", "XM", "EE", "XC", "XL"]
 const FOE_BRACKET_SIZE := 2.1  # m, for a foe of radius 0.5 (grows with it)
 const FOE_BRACKET_Y := 1.0  # m over its feet (its chest)
 ## Round 53 (feel audit 5): in a breaker window a picked foe standing in the prompt's circle (where he lands: Abyss's
@@ -169,6 +182,30 @@ var _made := 0  # structures ever added (ids stay unique after a remove)
 
 static func of(tree: SceneTree) -> Node:
 	return tree.get_first_node_in_group(GROUP) if tree != null else null
+
+
+static func _piece_script() -> GDScript:
+	if _piece_s == null:
+		_piece_s = load("res://scripts/env_piece.gd")
+	return _piece_s
+
+
+static func _flourish() -> GDScript:
+	if _flourish_s == null:
+		_flourish_s = load("res://scripts/env_flourish.gd")
+	return _flourish_s
+
+
+static func _counter() -> GDScript:
+	if _counter_s == null:
+		_counter_s = load("res://scripts/counter.gd")
+	return _counter_s
+
+
+static func _spear() -> GDScript:
+	if _spear_s == null:
+		_spear_s = load("res://scripts/frost_spear.gd")
+	return _spear_s
 
 
 static func register() -> void:
@@ -496,17 +533,17 @@ func context(h: CharacterBody3D) -> Dictionary:
 			return {"ctx": "slapshot", "from": mid, "reach": ve.SLIDE_REACH, "mode": "along", "dir": h._brk_dir, "key": key}
 		if b.has("counter"):
 			var foe: Variant = b.get("only")
-			var fl: GDScript = load("res://scripts/env_flourish.gd")  # round 53: gallows, a hook in reach
+			var fl: GDScript = _flourish()  # gallows: an empty hook in reach takes the counter window over Ricochet's wall
 			if is_instance_valid(foe) and fl.on("gallows") and not fl.hooks(get_tree(), _flat((foe as Node3D).global_position), fl.GALLOWS_REACH).is_empty():
 				return {"ctx": "gallows", "from": _flat((foe as Node3D).global_position), "reach": fl.GALLOWS_REACH, "mode": "hook",
 					"key": key, "foe": foe}
 			if is_instance_valid(foe):
-				return {"ctx": "ricochet", "from": _flat((foe as Node3D).global_position), "reach": load("res://scripts/counter.gd").RICOCHET_REACH,
+				return {"ctx": "ricochet", "from": _flat((foe as Node3D).global_position), "reach": _counter().RICOCHET_REACH,
 					"mode": "near", "key": key, "foe": foe}
 			return {}
-		# Round 51: which pinned foe Abyss gives back first, unless Uproot (its LMB) has a pillar in reach to mark: then
-		# the bracket is the pillar's (below), one pick per window.
-		var ep: GDScript = load("res://scripts/env_piece.gd")
+		# Which pinned foe Abyss gives back first, unless Uproot (its LMB) has a pillar in reach to mark: then the
+		# bracket is the pillar's (below), one pick per window.
+		var ep: GDScript = _piece_script()
 		var uproot_near: bool = (alt.has("uproot") and ep.usable("pillar", "uproot")
 			and not ep.near(h.get_tree(), "pillar", _flat(h._void.dark_spot), ve.UPROOT_REACH).is_empty())
 		if b.has("abyss") and is_instance_valid(h._void.dark_bind) and not uproot_near:
@@ -517,73 +554,73 @@ func context(h: CharacterBody3D) -> Dictionary:
 			if held.size() >= 2:
 				return {"ctx": "abyss", "from": me, "reach": ve.ABYSS_RADIUS * 3.0, "mode": "foe", "foes": held,
 					"auto": ve.abyss_first(h, held), "key": key}
-		if b.has("eruption"):  # round 52: the structure the geysers hurl the burning pile at
+		if b.has("eruption"):  # the structure the geysers hurl the burning pile at
 			return {"ctx": "eruption", "from": _flat(h._brk_zone), "reach": ve.ERUPT_REACH, "mode": "near", "key": key}
-		if b.has("refreeze"):  # round 52: with two or more in the steam's reach, who breaks first
-			var steamed: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
-				return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(_flat(h._brk_zone)) <= ve.FF_CLOUD_R)
+		if b.has("refreeze"):  # with two or more in the steam's reach, who breaks first
+			var zone := _flat(h._brk_zone)
+			var steamed := _living_within(zone, ve.FF_CLOUD_R)
 			if steamed.size() >= 2:
-				var zone := _flat(h._brk_zone)
 				steamed.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(zone) < _flat(c.global_position).distance_to(zone))
 				return {"ctx": "flash_freeze", "from": zone, "reach": ve.FF_CLOUD_R, "mode": "foe", "foes": steamed, "auto": steamed[0], "key": key}
 			return {}
-		if alt.has("black_ice"):  # round 52: the structure Black Ice's blocks skid into (Maw, its RMB, picks nothing)
+		if alt.has("black_ice"):  # the structure Black Ice's blocks skid into (Maw, its RMB, picks nothing)
 			return {"ctx": "black_ice", "from": _flat(h._void.dark_spot), "reach": ve.BLACK_ICE_REACH, "mode": "near", "key": key}
 		if b.has("collapse"):
 			return {"ctx": "collapse", "from": _flat(h._void.dark_spot), "reach": COLLAPSE_REACH, "mode": "near", "key": key}
-		if alt.has("uproot") and load("res://scripts/env_piece.gd").usable("pillar", "uproot"):  # round 51
+		if alt.has("uproot") and ep.usable("pillar", "uproot"):
 			return {"ctx": "uproot", "from": _flat(h._void.dark_spot), "reach": ve.UPROOT_REACH, "mode": "near", "key": key}
-		if b.has("press"):  # Avalanche (round 51): the cubes' pile, where the tower stands
+		if b.has("press"):  # Avalanche: the cubes' pile, where the tower stands
 			return {"ctx": "avalanche", "from": _flat(h._void.dark_spot), "reach": ve.AVALANCHE_REACH, "mode": "near", "key": key}
-		if b.get("wire", false) or alt.has("short_circuit"):  # round 52: the storm windows bracket a conducting torch
+		if b.get("wire", false) or alt.has("short_circuit"):  # the storm windows bracket a conducting torch
 			var conducting := _conduct_ctx(h, me, key)
 			if not conducting.is_empty():
 				return conducting
-		if alt.has("cubes"):  # round 54 cool pass 3: the wall or pillar Cold Front's cubes bowl into
+		if alt.has("cubes"):  # the wall or pillar Cold Front's cubes bowl into
 			return {"ctx": "cold_front", "from": me, "reach": ve.COLD_REACH, "mode": "near", "key": key}
 		if b.has("meteor"):
 			var spot: Dictionary = ve.meteor_spot(h, false)
 			if spot.found:
 				var palm: Array = ve.meteor_candidates(h)
-				if ve.meteor_piles(palm) >= 2:  # round 52: two piles or more, the bracket on the pile he dives on
+				if ve.meteor_piles(palm) >= 2:  # two piles or more: the bracket is on the pile he dives on
 					var mid := _flat(spot.at)
 					palm.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(mid) < _flat(c.global_position).distance_to(mid))
 					return {"ctx": "meteor", "from": me, "reach": ve.METEOR_SPLAT_REACH, "mode": "foe", "foes": palm, "auto": palm[0], "key": key}
 				return {"ctx": "meteor", "from": _flat(spot.at), "reach": METEOR_NEAR, "mode": "near", "key": key}
 		return {}
-	if h.state == h.State.CHARGE and h._charged:  # round 51: the charged hold aims Overwhelm
-		var near: Array = h.get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
-			return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(me) <= ve.OVERWHELM_REACH)
+	if h.state == h.State.CHARGE and h._charged:  # the charged hold aims Overwhelm
+		var near := _living_within(me, ve.OVERWHELM_REACH)
 		var aim: Variant = ve.overwhelm_aim(h, me, h._facing())
 		if is_instance_valid(aim):
 			return {"ctx": "overwhelm", "from": me, "reach": ve.OVERWHELM_REACH, "mode": "foe", "foes": near, "auto": aim,
 				"key": "charge:%d" % h.get_instance_id()}
 		return {}
-	if h.state == h.State.DASH:  # round 53 (feel audit 5): Tow Line's pick opens in the dash it comes out of
+	if h.state == h.State.DASH:  # Tow Line's pick opens in the dash it comes out of
 		return _tow_dash_ctx(h, me)
 	if h.state != h.State.ATTACK:
 		return {}
+	if not h._move_id in PICK_MOVES and h._move_id != ve.DASH_MOVE:
+		return {}  # (a move with no pick: nothing below applies, so no candidate search)
 	var mkey := "move:%s:%d" % [h._move_id, h.get_instance_id()]
 	if h._move_id == "EM" and h._hits_done == 0:
 		var keg_reach: float = ve.PALM_LENGTH * 0.6 + ve.PALM_WALL_REACH
-		if load("res://scripts/env_piece.gd").usable("barrel", "keg") and along(structures, me, h._facing(), keg_reach, ["barrel"]).get("in_reach", false):
-			return {"ctx": "keg", "from": me, "reach": keg_reach, "mode": "along", "dir": h._facing(), "key": mkey}  # (round 51: Powder Keg)
+		if _piece_script().usable("barrel", "keg") and along(structures, me, h._facing(), keg_reach, ["barrel"]).get("in_reach", false):
+			return {"ctx": "keg", "from": me, "reach": keg_reach, "mode": "along", "dir": h._facing(), "key": mkey}  # (Powder Keg)
 		return {"ctx": "palm", "from": me, "reach": ve.PALM_LENGTH * 0.6 + ve.PALM_WALL_REACH, "mode": "along", "dir": h._facing(), "key": mkey}
-	if h._move_id == ve.DASH_MOVE and h._hits_done == 0:  # round 52: Tow Line's snare, who the line is yanked into
+	if h._move_id == ve.DASH_MOVE and h._hits_done == 0:  # Tow Line's snare: who the line is yanked into
 		var snare: Array = ve.tow_candidates(h, me)
 		if snare.size() >= 2:
 			return {"ctx": "tow", "from": me, "reach": ve.TOW_PICK_REACH, "mode": "foe", "foes": snare, "auto": ve.tow_auto(h, me, snare),
 				"key": "tow:%d" % h.get_instance_id()}
 		return {}
-	var mid_pick := _mid_ctx(h, me)  # round 54 cool pass 3: Reap's hook, Singularity's hole, Frost Spear's plant
+	var mid_pick := _mid_ctx(h, me)  # Reap's hook, Singularity's hole, Frost Spear's plant, Rockslide, Deep Freeze, Meltdown
 	if not mid_pick.is_empty():
 		return mid_pick
-	if h._move_id in ["EE", "XC"]:  # round 52: Live Wire and Galvanize bracket a conducting torch
+	if h._move_id in ["EE", "XC"]:  # Live Wire and Galvanize bracket a conducting torch
 		var conducting := _conduct_ctx(h, me, mkey)
 		if not conducting.is_empty():
 			return conducting
-	if h._move_id == "XL":  # round 53 (brazier_spill): the lit brazier the seams will tip, through the reach beat
-		var br: Node3D = load("res://scripts/env_flourish.gd").leash_brazier(h)
+	if h._move_id == "XL":  # brazier_spill: the lit brazier the seams will tip, through the reach beat
+		var br: Node3D = _flourish().leash_brazier(h)
 		if br != null:
 			return {"ctx": "brazier", "from": _flat(br.global_position), "reach": 1.0, "mode": "near", "key": mkey}
 	if h._move_id == "XL" and h._hits_done == 0:
@@ -596,12 +633,12 @@ func context(h: CharacterBody3D) -> Dictionary:
 	return {}
 
 
-## Round 54 cool pass 3 (combo-cool3): the mids' foe picks, {} when none is live. Each opens in the move's start-up
-## (before its hit) and, like Tow Line's, already in the move before it once its press is buffered or the cursor is on
-## a foe (`need_choice`): Reap off the grab (H, then L), Frost Spear off Hurl (L L, then H). Singularity's opens in its
-## own start-up only (the grab held next to a pillar is the pillar slam's). Two or more foes in reach, or nothing.
-## Round 55 (combo-cool4): Frost Spear's default is the nearest group (`spear_auto`, the bracket from the start-up);
-## Rockslide (off the air slash), Deep Freeze (off the vault, round the spear) and Meltdown (off Hailstorm) take one too.
+## The mids' foe picks, {} when none is live. Each opens in the move's start-up (before its hit) and, like Tow Line's,
+## already in the move before it once its press is buffered (Reap off the grab, Frost Spear off Hurl, Rockslide off the
+## air slash, Deep Freeze off the vault, Meltdown off Hailstorm), so the bracket has time to read. Singularity's opens
+## in its own start-up only and only for a cursor choice (`need_choice`; the grab held next to a pillar is the pillar
+## slam's). Each wants two or more foes in reach (Singularity one), else nothing; the default (`auto`) is the move's
+## own target: Frost Spear's the nearest group (`spear_auto`), Deep Freeze's the block nearest the spear.
 func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 	var ve: GDScript = h.VOID_ELEMENT
 	var id: String = h._move_id
@@ -609,11 +646,11 @@ func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 		id = "VR"
 	elif id == "L2" and h._buffered == "heavy":
 		id = "IP"
-	elif id == "AL1" and h._buffered == "light":  # round 55: Rockslide off the air slash
+	elif id == "AL1" and h._buffered == "light":  # Rockslide off the air slash
 		id = "XR"
-	elif id == "IJ" and h._buffered == "heavy":  # round 55: Deep Freeze off the vault
+	elif id == "IJ" and h._buffered == "heavy":  # Deep Freeze off the vault
 		id = "IS"
-	elif id == "XG" and h._buffered == "light":  # round 55: Meltdown off Hailstorm
+	elif id == "XG" and h._buffered == "light":  # Meltdown off Hailstorm
 		id = "XM"
 	elif h._hits_done > 0:
 		return {}
@@ -633,7 +670,7 @@ func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 		"IP":
 			var near: Array = ve.spear_candidates(h, me)
 			if near.size() >= 2:
-				# (round 55: the bracket shows the default plant, the nearest group, from the start-up; the cursor moves it)
+				# (the bracket shows the default plant, the nearest group, from the start-up; the cursor moves it)
 				return {"ctx": "spear", "from": me, "reach": ve.SPEAR_PICK_REACH, "mode": "foe", "foes": near,
 					"auto": ve.spear_auto(h, me), "key": key}
 		"XR":
@@ -642,10 +679,9 @@ func _mid_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 				return {"ctx": "rockslide", "from": me, "reach": ve.ROCKSLIDE_PICK_REACH, "mode": "foe", "foes": near,
 					"auto": ve.rockslide_auto(h, me), "key": key}
 		"IS":
-			var s: Node3D = load("res://scripts/frost_spear.gd").current(get_tree())
+			var s: Node3D = _spear().current(get_tree())
 			var at: Vector3 = _flat(s.global_position) if s != null else me
-			var near: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
-				return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(at) <= ve.DEEP_FREEZE_RADIUS)
+			var near := _living_within(at, ve.DEEP_FREEZE_RADIUS)
 			if near.size() >= 2:
 				return {"ctx": "deep_freeze", "from": at, "reach": ve.DEEP_FREEZE_RADIUS, "mode": "foe", "foes": near,
 					"auto": ve.deep_freeze_auto(h, at), "key": key}
@@ -670,16 +706,23 @@ func _tow_dash_ctx(h: CharacterBody3D, me: Vector3) -> Dictionary:
 		"key": "tow:%d" % h.get_instance_id(), "need_choice": h._buffered != "heavy"}
 
 
-## Round 52 (torches conduct, env_piece.gd): the conducting torches as structures of kind "torch" (`node` the torch),
-## for a "torch" mode context; {} when none conducts.
+## Torches conduct (env_piece.gd): the conducting torches as structures of kind "torch" (`node` the torch), for a
+## "torch" mode context; {} when none conducts.
 func _conduct_ctx(h: CharacterBody3D, me: Vector3, key: String) -> Dictionary:
-	var lit: Array = load("res://scripts/env_piece.gd").conducting_torches(h.get_tree())
+	var lit: Array = _piece_script().conducting_torches(h.get_tree())
 	if lit.is_empty():
 		return {}
 	var structs := []
 	for t: Node3D in lit:
 		structs.append({"id": "torch%d" % t.get_instance_id(), "kind": "torch", "at": _flat(t.global_position), "r": 0.5, "node": t})
 	return {"ctx": "conduct", "from": me, "reach": 40.0, "mode": "torch", "torches": structs, "key": key}
+
+
+## The living foes whose centre is within `r` (flat) of `at`. (FOES.near counts a foe's radius too; the picks measure
+## centres, so they keep their own.)
+func _living_within(at: Vector3, r: float) -> Array:
+	return get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+		return e is Node3D and e.has_method("is_alive") and e.is_alive() and _flat((e as Node3D).global_position).distance_to(at) <= r)
 
 
 static func _middle(foes: Array, fallback: Vector3) -> Vector3:
@@ -699,12 +742,12 @@ func resolve(h: CharacterBody3D, c: Dictionary) -> Dictionary:
 	var r: Dictionary
 	if c.mode == "foe":
 		return _resolve_foe(h, c)
-	if c.mode == "torch":  # round 52: the conducting torch nearest him
+	if c.mode == "torch":  # the conducting torch nearest him
 		var t := nearest(c.torches, c.from, c.reach, ["torch"])
 		t.chosen = false
 		return t
-	if c.mode == "hook":  # round 53 (gallows): the nearest empty hook's point in reach, over any nearer wall
-		var fl: GDScript = load("res://scripts/env_flourish.gd")
+	if c.mode == "hook":  # gallows: the nearest empty hook's point in reach, over any nearer wall
+		var fl: GDScript = _flourish()
 		var hk: Array = fl.hooks(get_tree(), c.from, c.reach)
 		r = {"found": false}
 		if not hk.is_empty() and hk[0].has_meta(&"env_id"):
@@ -811,9 +854,8 @@ func _physics_process(_delta: float) -> void:
 		return
 	var state := "target" if r.in_reach else "far"
 	if c.ctx == "ricochet" and state == "target" and not r.chosen:
-		var counter: GDScript = load("res://scripts/counter.gd")
 		hero.set_meta(PICK_META, {"ctx": c.ctx, "id": r.s.id, "chosen": false, "ms": Time.get_ticks_msec()})
-		if counter.ricochet_target(hero, c.foe).kind == "foe":
+		if _counter().ricochet_target(hero, c.foe).kind == "foe":
 			state = "available"  # (the foe it would hit is nearer: the wall is there for the click)
 	if not CTX[c.ctx].far and state == "far":
 		_end(hero)
@@ -1007,7 +1049,7 @@ func keep_on_screen(row: String, alpha: float) -> void:
 	var off := mid - c
 	if off.length() < POINTER_MIN_PX:
 		return
-	var pal: Dictionary = load("res://scripts/fx_palette.gd").of(row)
+	var pal: Dictionary = PAL.of(row)
 	_pointer.show_at(c + off.normalized() * half * 0.92, off.normalized(), pal.body, pal.ink, alpha)
 
 
@@ -1074,8 +1116,7 @@ func _pillar_hit(s: Dictionary, f: Dictionary, el: String) -> void:
 	var face: Vector3 = f.at + n * 0.08
 	# a tall crack up its face (stays), drawn stone chunks thrown off it
 	_mark(face + Vector3.UP * 1.6, n, 5, "dust", PILLAR_CRACK_SIZE)
-	if DESIGNED.on():
-		DESIGNED.dust(get_parent(), _flat(face), 1.0)
+	DESIGNED.dust(get_parent(), _flat(face), 1.0)
 	var side := n.cross(Vector3.UP)
 	for i in CHUNKS:
 		var out := (n + side * randf_range(-0.9, 0.9)).normalized()
@@ -1083,7 +1124,7 @@ func _pillar_hit(s: Dictionary, f: Dictionary, el: String) -> void:
 		_chunk(start, out * CHUNK_SPEED * randf_range(0.7, 1.15) + Vector3.UP * CHUNK_LIFT * randf_range(0.6, 1.1), i)
 	var node: Variant = s.get("node")
 	if is_instance_valid(node) and (node as Node3D).is_inside_tree():
-		load("res://scripts/designed_breaker.gd").shake_pillars(get_tree(), (node as Node3D).global_position)
+		DESIGNED_BREAKER.shake_pillars(get_tree(), (node as Node3D).global_position)
 	Game.sfx("quake", -8.0, 0.1)
 
 
@@ -1114,7 +1155,7 @@ func _chunk(start: Vector3, v: Vector3, i: int) -> void:
 
 
 func _wall_hit(s: Dictionary, f: Dictionary, el: String) -> void:
-	var e: String = load("res://scripts/fx_palette.gd").ALIAS.get(el, el)
+	var e: String = PAL.ALIAS.get(el, el)
 	var frame: int = MARK_FRAME.get(e, 0)
 	_mark(f.at + Vector3(s.n) * 0.06 + Vector3.UP * MARK_Y, s.n, frame, MARK_ROW.get(e, e), MARK_SIZE * randf_range(0.9, 1.15))
 	for t: Dictionary in torches:
@@ -1170,6 +1211,5 @@ func _swing_torch(t: Node3D, s: Dictionary, at: Vector3) -> void:
 	tw.tween_callback(func() -> void:
 		t.transform = home
 		t.remove_meta("env_swinging"))
-	if DESIGNED.on():
-		DESIGNED.hit(get_parent(), t.global_position + Vector3.UP * 0.5, "earth", 0.45)
+	DESIGNED.hit(get_parent(), t.global_position + Vector3.UP * 0.5, "earth", 0.45)
 	Game.sfx("hit", -12.0, 0.15)
