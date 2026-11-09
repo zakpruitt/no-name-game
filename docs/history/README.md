@@ -10,3 +10,4 @@ Reports of finished lanes, kept for the record. Nothing here is live: open items
 - `cleanup-audit.md`: the round-28-era KEEP / TANGLED / DROP classification that stripped the game to the heretic.
 - `overnight-2026-11-04.md`, `round2-2026-11-05.md`, `round3-2026-11-06.md`: Zak's wake-up pages for three multi-lane nights.
 - `demo-2026-11-07.md`: the demo presets `tools/demo.bat` launches.
+- **Git history:** on 2026-11-09 the branch's 900 commits were condensed into 20 milestone commits (each one the real tree at that point). The full commit-by-commit history is the tag `archive/full-history` (`git log archive/full-history`); short hashes quoted in these pages and in `roadmap-rounds.md` resolve there.
