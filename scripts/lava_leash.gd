@@ -85,8 +85,6 @@ static func register() -> void:
 
 ## Draw every material once at real size (elements.prewarm).
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	var burst := MeshInstance3D.new()
 	burst.mesh = QuadMesh.new()
@@ -167,7 +165,7 @@ func _ready() -> void:
 	for one: Dictionary in grabs:
 		one.tendril = TENDRIL.new()
 		add_child(one.tendril)
-	if DisplayServer.get_name() != "headless" and DESIGNED.on():
+	if DisplayServer.get_name() != "headless":
 		_seam_mesh = ImmediateMesh.new()
 		_seam_mi = MeshInstance3D.new()
 		_seam_mi.mesh = _seam_mesh
@@ -272,7 +270,7 @@ func _latch(one: Dictionary) -> void:
 		return
 	e.set_meta(FLYING, true)
 	_seam_add(one, one.from)
-	if DESIGNED.on() and Game.comic_style and float(one.metres) > 2.0:  # torn away: lava spurts where it stood
+	if float(one.metres) > 2.0:  # torn away: lava spurts where it stood
 		DESIGNED_EL.spikes(get_parent(), one.from, "earth", SPURT_FROM, 1, 0.5)
 
 
@@ -294,7 +292,7 @@ func _erupt() -> void:
 	var foes := piled()
 	if on_erupt.is_valid() and not foes.is_empty():
 		on_erupt.call(foes)
-	if not Game.comic_style or not DESIGNED.on() or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	register()
 	var parent := get_parent()

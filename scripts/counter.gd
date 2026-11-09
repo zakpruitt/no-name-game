@@ -280,7 +280,7 @@ static func _slam(hero: CharacterBody3D, foe: Node3D, fwd: Vector3) -> void:
 ## A perfect counter's breaker window: the leap with the tentacle on the attacker alone (void_grab.seize `only`).
 static func _window(hero: CharacterBody3D, foe: Node3D) -> void:
 	_clear(hero)
-	var entry: Dictionary = VOID_ELEMENT.entry(BREAKER)
+	var entry: Dictionary = VOID_ELEMENT.entry(BREAKER).duplicate()  # (entry() is shared)
 	entry["only"] = foe
 	HERO_LEAP.start(hero, BREAKER, entry)
 
@@ -345,15 +345,11 @@ static func ricochet_target(hero: CharacterBody3D, e: Node3D) -> Dictionary:
 		var f: Dictionary = ENV.surface(over, from)
 		var to_wall: Vector3 = f.at - from
 		return {"kind": "wall", "to": from + to_wall.normalized() * (to_wall.length() + 1.5)}
-	var foe: Node3D = null
-	var foe_d := RICOCHET_REACH
-	for o: Node3D in VOID_ELEMENT.FOES.near(hero.get_tree(), from, RICOCHET_REACH):
-		if o == e or VOID_ELEMENT.THROWN.flying(o):
-			continue
-		var d := Vector3(o.global_position.x - from.x, 0.0, o.global_position.z - from.z).length()
-		if d < foe_d:
-			foe_d = d
-			foe = o
+	var foe: Node3D = VOID_ELEMENT.FOES.nearest(hero.get_tree(), from, RICOCHET_REACH, func(o: Node3D) -> bool:
+		return o != e and not VOID_ELEMENT.THROWN.flying(o))
+	var foe_d: float = VOID_ELEMENT.FOES.flat(foe.global_position - from).length() if foe != null else INF
+	if foe_d >= RICOCHET_REACH:  # (near() pads by the foe's radius; the throw wants its middle within reach)
+		foe = null
 	# (round 50: the room's walls and pillars, env_target.gd; a structure the cursor was on at the press wins outright)
 	var wall: Dictionary = VOID_ELEMENT.pinwheel_target(hero, from, "ricochet", RICOCHET_REACH)
 	var wall_d: float = wall.dist if wall.found and float(wall.dist) <= RICOCHET_REACH + 0.5 else INF

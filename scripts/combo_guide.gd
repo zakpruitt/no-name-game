@@ -107,9 +107,8 @@ func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var dt := minf((now - _last_us) / 1000000.0, 0.1)
 	_last_us = now
-	var rows: Array = [] if not Game.combo_guide or not is_instance_valid(player) else (player.guide_rows()
-		if player.has_method("guide_rows") else player.HERO_MOVES.combo_options(player))  # (guide_rows: the prince)
-	if Game.combo_guide and is_instance_valid(player) and "_counter" in player:
+	var rows: Array = [] if not Game.combo_guide or not is_instance_valid(player) else player.HERO_MOVES.combo_options(player)
+	if Game.combo_guide and is_instance_valid(player):
 		rows = COUNTER_HINT.hint(player, rows)  # a strike is coming: SPACE Backlash on top (counter.gd)
 	if not rows.is_empty():
 		var sig := ",".join(rows.map(func(r: Dictionary) -> String: return "%s:%s:%s:%s" % [r.kind, r.id, r.next.get("id", ""), r.get("pay", "")]))

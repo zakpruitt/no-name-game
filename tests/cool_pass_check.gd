@@ -13,7 +13,6 @@ var hero: CharacterBody3D
 class Foe extends CharacterBody3D:
 	var radius := 0.5
 	var hp := 500.0
-	var elite := false
 	var hits := 0
 	var last_big := false
 	var frozen := false
@@ -37,7 +36,6 @@ class Foe extends CharacterBody3D:
 func _initialize() -> void:
 	await process_frame
 	var game: Node = root.get_node("Game")
-	game.comic_style = true
 	world = Node3D.new()
 	root.add_child(world)
 	var floor_body := StaticBody3D.new()
@@ -137,7 +135,7 @@ func _cool_pass() -> void:
 		var foes: Array = []
 		if case.ends_with("big"):
 			var b: Foe = _foe(Vector3(0, 0, 4))
-			b.elite = true
+			b.radius = 1.0  # (heavy: void_grab.is_heavy, radius 0.9+)
 			foes.append(b)
 		else:
 			for p: Vector3 in [Vector3(0, 0, 4), Vector3(1.3, 0, 4.4), Vector3(-1.2, 0, 4.6), Vector3(0.3, 0, 5.6)]:

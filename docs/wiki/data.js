@@ -283,61 +283,6 @@ window.WIKI = {
      "note": "Tow Line hurls the bunch, lightning off them: an upgrade to Tow Line."
     }
    }
-  },
-  "prince": {
-   "elements": [
-    "fire",
-    "",
-    ""
-   ],
-   "fill": {
-    "air_route": {},
-    "awakening": {},
-    "big_1": {},
-    "big_2": {
-     "P_SMASH": "L L H H"
-    },
-    "big_3": {},
-    "counter": {},
-    "cross_dark_ice": {},
-    "cross_dark_magma": {},
-    "cross_dark_storm": {},
-    "cross_ice_magma": {},
-    "cross_ice_storm": {},
-    "cross_storm_magma": {},
-    "dash_ender_h": {},
-    "dash_ender_l": {},
-    "dash_h": {},
-    "dash_l": {},
-    "ender_1": {
-     "P_FLICK": "L H"
-    },
-    "ender_2": {
-     "P_JAVELIN": "L L H"
-    },
-    "ender_3": {
-     "P_BREATH": "L L L H"
-    },
-    "light_string": {
-     "P_CLEAVE": "L L L",
-     "P_RIPOSTE": "L L",
-     "P_SLASH": "L"
-    },
-    "sig_drag": {},
-    "sig_gather": {},
-    "sig_mark": {},
-    "sig_pin": {}
-   },
-   "name": "Prince Aurex",
-   "route": {
-    "P_RECALL": "hold L",
-    "P_TALON1": "L",
-    "P_TALON2": "L L",
-    "P_TALON3": "L L L"
-   },
-   "signature": "crown",
-   "todo": true,
-   "upgrades": {}
   }
  },
  "counter": {
@@ -1451,19 +1396,6 @@ window.WIKI = {
    "name": "Backdraft",
    "tier": 2
   }
- },
- "prince_names": {
-  "P_BREATH": "Dragon Breath",
-  "P_CLEAVE": "Royal Chain",
-  "P_FLICK": "Ember Flick",
-  "P_JAVELIN": "Javelin",
-  "P_RECALL": "Rightful Return",
-  "P_RIPOSTE": "Riposte",
-  "P_SLASH": "Slash",
-  "P_SMASH": "Skyfall",
-  "P_TALON1": "Talon",
-  "P_TALON2": "Talon",
-  "P_TALON3": "Talon Fury"
  },
  "ranks": [
   [

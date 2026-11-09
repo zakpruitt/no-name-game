@@ -1,16 +1,19 @@
 extends RefCounted
 ## The dash counter's look (docs/features/counter.md): Backlash's parry flash (the tentacle catching the weapon, a
-## clash star in the signature's violet) and the whip-crack arc of its slam. Sheets: tools/vfx_gen/gen_counter.py,
-## registered here through DESIGNED.extra_sheets and played in the `void` palette row. Every effect branches on
-## DESIGNED.on() and keeps a classic path (--fx=classic).
+## clash star in the signature's violet), the glint and the weapon knocked flying, and the whip-crack arc of its
+## slam. Sheets: tools/vfx_gen/gen_counter.py and gen_cool3.py, registered here through DESIGNED.extra_sheets and
+## played in the `void` palette row.
 
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const INK := preload("res://scripts/designed_ink.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const DESIGNED_BREAKER := preload("res://scripts/designed_breaker.gd")  # the perfect's speed lines
 
 const SHEETS := {
 	"parry_flash": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
 	"snap_arc": {"grid": Vector2(3, 2), "frames": 6, "kind": "sprite"},
+	"parry_glint": {"grid": Vector2(2, 2), "frames": 4, "kind": "sprite"},  # (round 54 cool pass 3)
+	"parry_blade": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite"},
 }
 ## The parry flash: PARRY_SIZE m (PERFECT_SIZE x on a perfect) at chest height between them. Frame 0 flicks in real
 ## time; the peak holds through the parry's hitstop (game time), then the clash breaks up.
@@ -42,8 +45,6 @@ static func register() -> void:
 
 ## Draw every material once at real size (elements.prewarm).
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()
@@ -51,7 +52,6 @@ static func prewarm(root: Node3D) -> void:
 		mi.material_override = DESIGNED.material(n)
 		root.add_child(mi)
 		mi.scale = Vector3.ONE * 20.0
-	prewarm_cool3(root)
 
 
 ## The parry: the clash between him (`from`) and the attacker (`to`), on the frame the counter lands.
@@ -59,10 +59,6 @@ static func parry(parent: Node, from: Vector3, to: Vector3, perfect: bool) -> vo
 	parries += 1
 	var at := from.lerp(to, 0.55) + Vector3.UP * PARRY_UP
 	var floor_at := Vector3(at.x, 0.0, at.z)
-	if not DESIGNED.on():
-		Fx.flare(parent, at, PAL.of("void").body, 5.0 if perfect else 3.6, 0.3, "flare")
-		Fx.ring(parent, floor_at, Color(PAL.of("void").hot, 0.9), 2.6, 0.3)
-		return
 	register()
 	var fx := DESIGNED.spawn(parent, "parry_flash", at, PARRY_SIZE * (PERFECT_SIZE if perfect else 1.0), "void", PARRY_TIMES, Vector2(0.5, 1.0))
 	fx.real_until = 1
@@ -75,17 +71,13 @@ static func parry(parent: Node, from: Vector3, to: Vector3, perfect: bool) -> vo
 	fx.set_spin(randf_range(-0.2, 0.2), mirror)
 	INK.shock(parent, floor_at, PAL.of("void").body, SHOCK_R, 0.3)
 	if perfect:
-		load("res://scripts/designed_breaker.gd").rays(parent, floor_at, "void", RAYS_SIZE)
+		DESIGNED_BREAKER.rays(parent, floor_at, "void", RAYS_SIZE)
 	glint(parent, at, perfect)
 	blade_off(parent, from, to, perfect)
 
 
 # --- Round 54 cool pass 3 (combo-cool3): the parry sharper, the weapon knocked flying ------------------------------
 
-const COOL3_SHEETS := {
-	"parry_glint": {"grid": Vector2(2, 2), "frames": 4, "kind": "sprite"},
-	"parry_blade": {"grid": Vector2(4, 1), "frames": 4, "kind": "sprite"},
-}
 ## The glint: a hard four-point flick of light over the clash, GLINT_SIZE m (x GLINT_PERFECT on a perfect), in real time
 ## (the parry's hitstop must not hold it: it is the "tink" before the flash).
 const GLINT_SIZE := 2.4
@@ -98,44 +90,20 @@ const BLADE_UP := 2.6
 const BLADE_OUT := 3.4
 const BLADE_FLIGHT := 0.55
 const BLADE_SPIN := 22.0
-## Impact lane (feel audit 7 item 10): it clatters down and skids BLADE_SKID m on along its throw over BLADE_SKID_S
-## real s, eroding from the touchdown, so it is off the floor 0.3 s after it lands (it lay whole a beat, then eroded).
-## (The "cleaver lying 2 s" in counter_D 032-052 of that audit was the previous string's Frost Spear, standing its 5 s.)
+## It clatters down and skids BLADE_SKID m on along its throw over BLADE_SKID_S real s, eroding from the touchdown,
+## so it is off the floor 0.3 s after it lands.
 const BLADE_SKID := 0.7
 const BLADE_SKID_S := 0.3
-static var _cool3_registered := false
 static var glints := 0  # (counter_check)
 static var blades := 0
-
-
-static func _cool3_register() -> void:
-	if _cool3_registered:
-		return
-	_cool3_registered = true
-	for n: String in COOL3_SHEETS:
-		var s: Dictionary = COOL3_SHEETS[n].duplicate()
-		s["tex"] = load("res://assets/vfx/designed/%s.png" % n)
-		DESIGNED.extra_sheets[n] = s
-
-
-static func prewarm_cool3(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
-	_cool3_register()
-	for n: String in COOL3_SHEETS:
-		var mi := MeshInstance3D.new()
-		mi.mesh = QuadMesh.new()
-		mi.material_override = DESIGNED.material(n)
-		root.add_child(mi)
-		mi.scale = Vector3.ONE * 20.0
 
 
 ## The glint over the clash at `at`.
 static func glint(parent: Node, at: Vector3, perfect: bool) -> void:
 	glints += 1
-	if not DESIGNED.on() or not parent.is_inside_tree():
+	if not parent.is_inside_tree():
 		return
-	_cool3_register()
+	register()
 	var fx := DESIGNED.spawn(parent, "parry_glint", at + Vector3.UP * 0.1, GLINT_SIZE * (GLINT_PERFECT if perfect else 1.0), "void",
 		GLINT_TIMES, Vector2(0.5, 1.0))
 	fx.real_time = true
@@ -146,9 +114,9 @@ static func glint(parent: Node, at: Vector3, perfect: bool) -> void:
 ## The attacker's weapon (from `to`'s side, away from him at `from`) spins up and off and clatters down.
 static func blade_off(parent: Node, from: Vector3, to: Vector3, perfect: bool) -> void:
 	blades += 1
-	if not DESIGNED.on() or not parent.is_inside_tree():
+	if not parent.is_inside_tree():
 		return
-	_cool3_register()
+	register()
 	var away := Vector3(to.x - from.x, 0.0, to.z - from.z)
 	away = away.normalized() if away.length() > 0.01 else Vector3.BACK
 	var side := away.cross(Vector3.UP).normalized() * (0.6 if randf() < 0.5 else -0.6)
@@ -183,9 +151,6 @@ static func blade_off(parent: Node, from: Vector3, to: Vector3, perfect: bool) -
 static func snap(parent: Node, at: Vector3, dir: Vector3) -> void:
 	snaps += 1
 	var floor_at := Vector3(at.x, 0.0, at.z)
-	if not DESIGNED.on():
-		Fx.ring(parent, floor_at, Color(PAL.of("void").body, 0.9), 2.2, 0.25)
-		return
 	register()
 	var fx := DESIGNED.spawn(parent, "snap_arc", floor_at + Vector3.UP * SNAP_UP, SNAP_SIZE, "void", SNAP_TIMES, Vector2(0.5, 1.0))
 	fx.real_until = 1

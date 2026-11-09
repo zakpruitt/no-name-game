@@ -1,7 +1,7 @@
 extends RefCounted
 ## Round 46 (fx-elements, docs/features/designed-fx.md "Round 46"): the ice and magma base moves as designed effects.
 ## Sheets: tools/vfx_gen/gen_elements.py (registered here through DESIGNED.extra_sheets); the timeline node, palette
-## and shaders are designed_fx.gd's. Every caller branches on DESIGNED.on() and keeps its old path (--fx=classic).
+## and shaders are designed_fx.gd's.
 ##   magma: Molten Palm's fist (comic_fist.gd draws `magma_fist` on its node), the fissure (`fissure`: a crack
 ##          decal a step and a lava spurt every other one), every earth `elements.spikes` (`spikes`: `magma_spurt`).
 ##   ice:   every water `elements.spikes` (`frost_mark`: Harpoon's line, the nova, Deep Freeze, Worldbreaker's ice: a
@@ -42,8 +42,6 @@ static func register() -> void:
 
 ## Draw every material once at real size (elements.prewarm), so nothing compiles mid-fight.
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()
@@ -390,7 +388,7 @@ static var _bone_boxes := {}  # "mesh id:skin id" -> {bind index: PackedVector3A
 ## spawn. Windowed, `surface_get_arrays` pulls the mesh back off the GPU: the first ice block of the session (Harpoon's,
 ## the first freeze) cost 44 ms in that frame (the autotest's worst cpu spike, 48 ms). enemy._ready calls it deferred.
 static func prime_fit(foe: Node3D) -> void:
-	if is_instance_valid(foe) and foe.is_inside_tree() and Game.comic_style and DESIGNED.on():
+	if is_instance_valid(foe) and foe.is_inside_tree():
 		model_points(foe)
 
 
@@ -524,9 +522,8 @@ static func fit_block(foe: Node3D, ice: MeshInstance3D) -> Dictionary:
 
 
 ## The frost spear (frost_spear.gd): a faceted shaft in the tentacle's violet driven into the floor with a clean
-## faceted ice point on it. Built along +Y from the floor, in its own node. fx-ice2: no ring of crystals round its
-## foot and no crystal head (`crystals`, `crystal_high`, `out` kept for the callers, unused).
-static func spear(node: Node3D, high: float, shaft_r: float, _crystals := 0, _crystal_high := 0.0, _out := 0.0) -> void:
+## faceted ice point on it. Built along +Y from the floor, in its own node. No ring of crystals round its foot.
+static func spear(node: Node3D, high: float, shaft_r: float) -> void:
 	var shaft := Facets.new()
 	shaft.prism(Vector3.ZERO, 6, shaft_r * 0.7, shaft_r, -0.1, high * 0.82, 0.3)
 	var mi := MeshInstance3D.new()

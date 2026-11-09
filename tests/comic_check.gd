@@ -1,18 +1,16 @@
 extends SceneTree
 ## Headless PASS/FAIL for the comic models (docs/features/comic-style.md): every clip
 ## each enemy type asks for resolves in its GLB after ComicLook.clip, every material
-## has tones, `g` survived the import, and an absent GLB falls back to KayKit.
+## has tones, `g` survived the import, and an absent GLB or piece comes back null.
 ## Run: godot --headless --path . -s tests/comic_check.gd
 
-# What each behaviour plays. A clip enemy.gd or boss.gd asks for that isn't listed
+# What each behaviour plays. A clip enemy.gd asks for that isn't listed
 # here fails the scan below, so a new clip can't slip past this test.
 const COMMON := ["Idle_Combat", "Spawn_Ground_Skeletons", "Hit_A", "Hit_B", "Lie_StandUp", "Death_A"]
 const BY_ROLE := {
 	"melee": ["1H_Melee_Attack_Chop"],
 	"ranged": ["Spellcasting", "Spellcast_Shoot"],
-	"raise": ["Spellcasting", "Spellcast_Shoot", "Spellcast_Summon"],
 	"line": ["2H_Ranged_Aiming", "2H_Ranged_Shoot"],
-	"bomb": ["Bomb_Windup"],
 	"dodge": ["Dodge_Backward"],
 	"shield": ["Block_Hit", "1H_Melee_Attack_Chop"],
 }
@@ -20,6 +18,7 @@ const BY_ROLE := {
 const RUN_ONESHOTS := ["Run_Start", "Run_Stop"]
 const RUN_ONESHOT_KINDS := ["rogue", "minion"]
 const PIECE_SIZE_SLACK := 0.5  # m, summed over the axes: ragged edges differ a little
+const KAYKIT_PIECE_PATH := "res://assets/kaykit/dungeon/%s.glb"  # the comic pieces were built as drop-ins for these
 ## Comic pieces with no KayKit twin (env-art lane, tools/comic_art/env_*.py): their size (Godot axes, the merged
 ## mesh bounds as _bounds() measures them) and the nodes the game reaches for (a state swap hides or re-skins them).
 const COMIC_ONLY := {
@@ -31,12 +30,10 @@ const COMIC_ONLY := {
 }
 const AXE_AHEAD_MAX := 0.45  # m in front of him, axe head, in anything he holds
 const MOVE_TAIL_FROM := 0.75  # abilities.into_guard: from here a move's arms ease into the guard
-const BOSS_ONLY := ["Enrage", "Jump_Idle", "Jump_Land", "Spellcast_Shoot"]
 
 # Loaded at run time: a preload here compiles them before the Game autoload exists.
 var Look: GDScript
 var MAIN: GDScript
-var BOSS: GDScript
 var _fails := 0
 var _checks := 0
 
@@ -44,10 +41,8 @@ var _checks := 0
 func _initialize() -> void:
 	Look = load("res://scripts/comic_look.gd")
 	MAIN = load("res://scripts/main.gd")
-	BOSS = load("res://scripts/boss.gd")
 	var game: Node = get_root().get_node("Game")
-	_expect(game.comic_style, "comic style is always on")
-	_expect(Look.scene("no_such_enemy") == null, "absent GLB: null, caller keeps KayKit")
+	_expect(Look.scene("no_such_enemy") == null, "absent GLB: null")
 	_scan_sources()
 	var with_glb := []
 	var absent := []
@@ -58,14 +53,6 @@ func _initialize() -> void:
 			with_glb.append(kind)
 		else:
 			absent.append(kind)
-	var boss_asks: Array = COMMON + BOSS_ONLY + [MAIN.BOSS_SPEC.run_anim]
-	for attack: String in BOSS.ATTACKS:
-		_expect(BOSS.COMIC_ATTACKS.has(attack), "boss attack %s has a comic clip" % attack)
-		boss_asks.append(BOSS.COMIC_ATTACKS[attack][0])
-	if _check_model("warden", boss_asks):
-		with_glb.append("warden")
-	else:
-		absent.append("warden")
 	# the training dummy: what enemy.gd plays on it, plus its own daze (training_dummy._shake_off)
 	var dummy_asks: Array = COMMON + ["Running_A", load("res://scripts/training_dummy.gd").DAZE_CLIP]
 	if _check_model("dummy", dummy_asks):
@@ -76,16 +63,15 @@ func _initialize() -> void:
 	_check_floors_face_up()
 	await _check_fx(game)
 	await _check_hero(game)
-	game.comic_style = false
 	Look.release()
-	print("[comic_check] models=", with_glb, " kaykit_fallback=", absent)
+	_expect(absent.is_empty(), "every kind has a comic GLB, missing %s" % [absent])
+	print("[comic_check] models=", with_glb)
 	print("[comic_check] %s %d checks, %d failed" % ["PASS" if _fails == 0 else "FAIL", _checks, _fails])
 	quit(1 if _fails > 0 else 0)
 
 
 ## The hero model (the heretic), the Ab_ overlay's numbers, then a real player.
 func _check_hero(game: Node) -> void:
-	game.comic_style = true
 	var hero_script: GDScript = load("res://scripts/player.gd")
 	var packed: PackedScene = Look.scene(Look.HERETIC)
 	_expect(packed != null, "hero GLB present")
@@ -151,8 +137,6 @@ func _check_hero_bones(model: Node3D) -> void:
 
 ## The numbers: hit = frame / length, and the time after the hit unchanged.
 func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
-	var kaykit: Node = load(hero_script.HERO_FX.AXE_SOURCE).instantiate()  # the old timings are its clips
-	var old_rig: AnimationPlayer = kaykit.find_child("AnimationPlayer", true, false)
 	_expect(Look.HERO_MOVES.size() == 5, "five Ab_ clips routed")
 	var CONTACT: GDScript = load("res://tests/contact_frames.gd")
 	var _contact_models := {}
@@ -170,8 +154,6 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 			var contact: int = CONTACT.contact_frame(other, clip, h.frames, Look.HERO_CLIP_FPS, Look.HERO_CONTACT_SPEED)
 			_expect(h.hit == contact, "%s %s: hit frame %d is the swing's contact frame %d (tests/contact_frames.gd)" % [model_id, id, h.hit, contact])
 		var base: Dictionary = hero_script.MOVES[id]
-		var old_len: float = old_rig.get_animation(base.anim).length
-		_expect(absf(old_len - h.old) < 0.001, "%s: old length is %s's %.4f" % [id, base.anim, old_len])
 		var leap: float = load("res://scripts/void_element.gd").BREAKERS.get(id, {}).get("leap", -1.0)
 		var before := base.hash()
 		var m: Dictionary = base.duplicate(true)
@@ -203,7 +185,6 @@ func _check_overlay(hero_script: GDScript, rig: AnimationPlayer) -> void:
 		_expect(absf(mv.hits[0] * frames - contact) < 0.01, "%s hits on %s's contact frame %d/%d (%.2f; tests/contact_frames.gd)" % [id, mv.anim, contact, frames, mv.hits[0] * frames])
 		void_moves += 1
 	_expect(void_moves >= 14, "the tentacle moves are checked against their clips (%d)" % void_moves)
-	kaykit.free()
 	for m: Node3D in _contact_models.values():
 		m.free()
 
@@ -221,7 +202,6 @@ func _check_hero_in_play(game: Node, hero_script: GDScript, _have_rig: bool) -> 
 	_expect(comic.model.find_child("AwakenEyes", true, false) == null, "no added eyes")
 	_expect(comic.model.find_children("Coat", "Node3D", true, false).is_empty(), "no axe coats")
 	_expect(comic._trails.size() == Look.HERO_AXES.size(), "a trail per axe")
-	_expect(comic.HERO_FX.axe_mesh() != null, "spirit casts have an axe")
 	_check_run_clips(comic)
 	_check_stances(comic)
 	_check_drag(comic)
@@ -340,26 +320,7 @@ func _check_axe_auras(comic: CharacterBody3D) -> void:
 		var auras: Array = Look.infuse_axes(comic.model, el)
 		_expect(auras.size() == Look.HERO_AXES.size(), "%s: an aura per axe" % el)
 		for aura: Node in auras:
-			_expect(aura.tongues.size() == aura.look.count, "%s: its tongues" % el)
-			_expect(aura.drip != null, "%s: sheds motes" % el)
-			var blade: float = aura._centre.length()
-			for t: MeshInstance3D in aura.tongues:
-				_expect(t.position.length() > blade * 0.4, "%s: a tongue sits out on the blade" % el)
-			if load("res://scripts/designed_fx.gd").on():  # round 46: designed, the tongues and motes are off
-				_expect(aura.tongues.all(func(m: MeshInstance3D) -> bool: return not m.visible) and not aura.drip.emitting,
-					"%s: designed, no polygon tongues or motes" % el)
-				aura.free()
-				continue
-			aura._process(0.1)
-			aura._process(0.1)
-			if aura.look.mode == "rise":
-				var t: MeshInstance3D = aura.tongues[0]
-				_expect(t.global_basis.y.normalized().y > 0.9, "%s: a still blade's flame stands up" % el)
-			var small: float = aura.tongues[0].global_basis.y.length()
-			aura.charge(true)
-			aura._process(0.1)
-			_expect(aura.tongues[0].global_basis.y.length() > small, "%s: bigger while Awakened" % el)
-			aura.charge(false)
+			_expect(aura.mark != null, "%s: a drag mark on the blade" % el)
 			aura.free()
 
 
@@ -383,8 +344,7 @@ func _check_model(kind: String, asks: Array) -> bool:
 	_expect(player != null, "%s has an AnimationPlayer" % kind)
 	for wanted: String in asks:
 		var got: String = Look.clip(player, kind, wanted)
-		# "" = deliberately keep the running clip (only the Warden's slam/nova/cage beats).
-		_expect(got == "" or player.has_animation(got), "%s: %s -> %s" % [kind, wanted, got])
+		_expect(player.has_animation(got), "%s: %s -> %s" % [kind, wanted, got])
 	for mat: String in Look.material_names(model):
 		_expect(Look.known_material(mat), "%s: material %s has tones" % [kind, mat])
 	_expect(_has_g(model), "%s: `g` imported into COLOR (run tools/comic_glb.py)" % kind)
@@ -449,7 +409,7 @@ func _check_dungeon() -> void:
 			for node: String in COMIC_ONLY[piece].nodes:
 				_expect(comic.find_child(node, true, false) != null, "%s: has node %s" % [piece, node])
 		else:
-			var kaykit: Node3D = load(Look.KAYKIT_PIECE_PATH % piece).instantiate()
+			var kaykit: Node3D = load(KAYKIT_PIECE_PATH % piece).instantiate()
 			var b: Vector3 = _bounds(kaykit).size
 			_expect(a.distance_to(b) < PIECE_SIZE_SLACK, "%s: size %s vs KayKit %s" % [piece, a, b])
 			kaykit.free()
@@ -462,7 +422,7 @@ func _check_dungeon() -> void:
 	_expect(missing.is_empty(), "comic set has every dungeon piece, missing %s" % [missing])
 	for piece: String in COMIC_ONLY:
 		_expect(piece in pieces, "comic-only piece %s is named by env_piece.gd / rooms.gd" % piece)
-	_expect(Look.comic_piece("no_such_piece") == null, "absent piece: null, caller keeps KayKit")
+	_expect(Look.piece("no_such_piece") == null, "absent piece: null")
 
 
 ## Piece names from every script that loads one.
@@ -568,7 +528,7 @@ func _check_fx(game: Node) -> void:
 
 ## Every clip name the scripts ask for must be classified above.
 func _scan_sources() -> void:
-	var known: Array = COMMON + BOSS_ONLY + RUN_ONESHOTS + ["Running_A", "Running_C", "Walking_D_Skeletons"]
+	var known: Array = COMMON + RUN_ONESHOTS + ["Running_A", "Running_C", "Walking_D_Skeletons"]
 	for kind: String in RUN_ONESHOT_KINDS:
 		var scene: PackedScene = Look.scene(kind)
 		if scene == null:
@@ -581,7 +541,7 @@ func _scan_sources() -> void:
 	for clips: Array in BY_ROLE.values():
 		known += clips
 	var re := RegEx.create_from_string("(?:_play|_hold_clip|get_animation)\\(\"([A-Za-z0-9_]+)\"")
-	for path in ["res://scripts/enemy.gd", "res://scripts/boss.gd"]:
+	for path in ["res://scripts/enemy.gd"]:
 		for m in re.search_all(FileAccess.get_file_as_string(path)):
 			_expect(m.get_string(1) in known, "%s asks for %s, unknown to this test" % [path.get_file(), m.get_string(1)])
 

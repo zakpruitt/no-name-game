@@ -1,5 +1,5 @@
 @echo off
-rem Demo launch presets (docs/demo-2026-11-07.md). Usage: tools\demo.bat N [bot]
+rem Demo launch presets (docs/history/demo-2026-11-07.md). Usage: tools\demo.bat N [bot]
 rem   1  plain room, full kit              (strings, elements, states, breakers)
 rem   2  room with pieces, full kit, warrior spar   (counter, Pinwheel on a pillar, Anvil, Powder Keg, Frost Wall, gallows)
 rem   3  flooded cistern, full kit         (down the channel: Dash L H, pause, L)

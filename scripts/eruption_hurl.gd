@@ -80,8 +80,6 @@ static func fuse_material() -> ShaderMaterial:
 
 
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	var mi := MeshInstance3D.new()
 	mi.mesh = QuadMesh.new()
@@ -113,7 +111,7 @@ static func start(by: CharacterBody3D, spot: Vector3, foes: Array, is_walled: bo
 func _ready() -> void:
 	top_level = true
 	global_transform = Transform3D.IDENTITY
-	if DisplayServer.get_name() != "headless" and DESIGNED.on():
+	if DisplayServer.get_name() != "headless":
 		_mesh = ImmediateMesh.new()
 		_mi = MeshInstance3D.new()
 		_mi.mesh = _mesh
@@ -137,7 +135,7 @@ func slide(e: Node3D, n: Vector3) -> void:
 	e.global_position = from
 	e.set_meta(FLYING, true)
 	slides.append({"foe": e, "i": i, "t": 0.0, "from": from, "n": n})
-	if DESIGNED.on() and Game.comic_style and is_inside_tree():
+	if is_inside_tree():
 		register()
 		var foot := Vector3(from.x, 0.0, from.z) - n * DRIP_OUT
 		var fx: Node3D = DESIGNED.spawn(get_parent(), "erupt_drip", foot, DRIP_SIZE, "earth", DRIP_TIMES, Vector2(0.62, 1.0))
@@ -166,7 +164,7 @@ func _physics_process(delta: float) -> void:
 			one.from = foe.global_position
 			if not one.heavy:
 				foe.set_meta(FLYING, true)
-			if DESIGNED.on() and Game.comic_style and is_inside_tree():
+			if is_inside_tree():
 				DESIGNED_EL.geyser(get_parent(), foe.global_position, GEYSER_HIGH)
 			if on_heave.is_valid():
 				on_heave.call(foe, int(one.i))

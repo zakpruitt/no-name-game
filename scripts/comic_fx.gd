@@ -1,6 +1,6 @@
 class_name ComicFx
 extends CanvasLayer
-## Comic combat text (Game.comic_style only, added by main): onomatopoeia on hits that
+## Comic combat text (added by main): onomatopoeia on hits that
 ## escalate with the chain tier (Fx.CHAIN_TIERS). The port of comic_poc/comic_vfx.py `word`.
 ## Everything steps on twos at 24 fps and runs on real time, so hitstop doesn't hold it.
 ## Sits under the HUD (layer 0) so words never cover health or the combo count.
@@ -392,14 +392,11 @@ func _kill_tick() -> void:
 		var at: Vector3 = (foe as Node3D).global_position if alive else k[2]
 		kill_stars += 1
 		var designed: GDScript = load("res://scripts/designed_fx.gd")
-		if designed.on():
-			var star: Node3D = designed.spawn(parent, "hit_spark", at + Vector3.UP * KILL_STAR_UP, designed.HIT_SIZE * KILL_STAR_SIZE,
-				"hit", load("res://scripts/designed_ink.gd").KILL_TIMES, Vector2(0.55, 1.0))
-			star.real_time = true
-			star.pop = 0.25
-			star.vary(PI, true)
-		else:
-			Fx.death(parent, at, Vector3.ZERO, true)
+		var star: Node3D = designed.spawn(parent, "hit_spark", at + Vector3.UP * KILL_STAR_UP, designed.HIT_SIZE * KILL_STAR_SIZE,
+			"hit", load("res://scripts/designed_ink.gd").KILL_TIMES, Vector2(0.55, 1.0))
+		star.real_time = true
+		star.pop = 0.25
+		star.vary(PI, true)
 	_kills = left
 
 

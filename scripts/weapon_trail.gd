@@ -1,15 +1,11 @@
 extends MeshInstance3D
 ## Ribbon trail that follows a weapon mesh while `emitting` is true.
 ## Samples the weapon's base and tip each frame, smooths the curve between
-## samples (Catmull-Rom) and draws it with shaders/weapon_trail.gdshader:
-## a crescent with a bright leading edge whose tail erodes with noise.
+## samples (Catmull-Rom) and draws it with shaders/weapon_trail_designed.gdshader: the authored brush stroke
+## (slash_strip) along it in the colour's nearest element palette.
 
-const SHADER := preload("res://shaders/weapon_trail.gdshader")
-## Round 44 (fx-cohesion): designed, the ribbon is the pilot's authored brush stroke (slash_strip) along it in the
-## colour's nearest element palette, not a soft gradient crescent. `--fx=classic` keeps SHADER.
 const DESIGNED_SHADER := preload("res://shaders/weapon_trail_designed.gdshader")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
-const NOISE := preload("res://assets/vfx/noise_soft.png")
 const SUBDIV := 3  # interpolated steps between frame samples (fast swings stay round)
 const REACH := 1.2  # trail tip past the blade tip, as a fraction of blade length
 # The ribbon swells with the hit: each Fx.CHAIN_TIERS tier the chain passes and
@@ -25,10 +21,6 @@ const LIFE_GROW := 0.6  # extra lifetime per unit of swell (x1.33 at the most)
 const SWELL_MAX := 0.35
 const AWAKEN_SWELL_MAX := 0.12
 const AWAKEN_ALPHA := 0.6  # times the ribbon's alpha while Awakened
-# Round 33 (sleek): the ribbon is a see-through gradient with a light line on its tip (shader `body_alpha`),
-# and while Awakened it is nearly only that line.
-const BODY_ALPHA := 0.5
-const AWAKEN_BODY_ALPHA := 0.18
 
 @export var lifetime := 0.2
 ## Body colour (alpha = opacity); the leading edge is this lightened toward white.
@@ -36,8 +28,7 @@ const AWAKEN_BODY_ALPHA := 0.18
 	set(c):
 		color = c
 		_mat.set_shader_parameter("edge_color", c.lerp(Color.WHITE, 0.7))
-		if _designed:
-			set_instance_shader_parameter("pal_row", DESIGNED.row(DESIGNED.PAL.nearest(c)))
+		set_instance_shader_parameter("pal_row", DESIGNED.row(DESIGNED.PAL.nearest(c)))
 
 var weapon: MeshInstance3D
 var emitting := false
@@ -48,7 +39,7 @@ var _points: Array[Array] = []  # [base: Vector3, tip: Vector3, age: float, life
 var _imesh := ImmediateMesh.new()
 var _mat := ShaderMaterial.new()
 var _gold := false  # Awakened this frame (_vertex_pair thins the ribbon)
-var _designed := false
+var _hero: Node  # the player, looked up once (re-looked-up if it is freed)
 
 
 func setup(weapon_mesh: MeshInstance3D) -> void:
@@ -67,16 +58,11 @@ func setup(weapon_mesh: MeshInstance3D) -> void:
 
 
 func _init() -> void:
-	_designed = DESIGNED.on()
-	if _designed:
-		_mat.shader = DESIGNED_SHADER
-		_mat.set_shader_parameter("sheet", DESIGNED.SHEETS.slash_strip.tex)
-		_mat.set_shader_parameter("palette", DESIGNED.palette())
-		_mat.set_shader_parameter("palette_rows", float(DESIGNED.ROWS.size()))
-		_mat.set_shader_parameter("rows", 4.0)
-	else:
-		_mat.shader = SHADER
-		_mat.set_shader_parameter("noise", NOISE)
+	_mat.shader = DESIGNED_SHADER
+	_mat.set_shader_parameter("sheet", DESIGNED.SHEETS.slash_strip.tex)
+	_mat.set_shader_parameter("palette", DESIGNED.palette())
+	_mat.set_shader_parameter("palette_rows", float(DESIGNED.ROWS.size()))
+	_mat.set_shader_parameter("rows", 4.0)
 	color = color
 
 
@@ -102,8 +88,6 @@ func _process(delta: float) -> void:
 
 	_imesh.clear_surfaces()
 	_gold = _awakened()
-	if not _designed:
-		_mat.set_shader_parameter("body_alpha", AWAKEN_BODY_ALPHA if _gold else BODY_ALPHA)
 	var n := _points.size()
 	if n < 2:
 		return
@@ -132,10 +116,11 @@ func swell() -> float:
 	return minf(s, AWAKEN_SWELL_MAX if _awakened() else SWELL_MAX)
 
 
-## The hero this trail belongs to is Awakened (read only).
+## The hero this trail belongs to is Awakened (read only). The player is looked up once and kept.
 func _awakened() -> bool:
-	var hero := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
-	return hero != null and hero.get("awakened") == true
+	if not is_instance_valid(_hero):
+		_hero = get_tree().get_first_node_in_group("player") if is_inside_tree() else null
+	return _hero != null and _hero.get("awakened") == true
 
 
 func _vertex_pair(base: Vector3, tip: Vector3, age: float, life: float, grow: float) -> void:

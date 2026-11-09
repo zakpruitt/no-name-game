@@ -44,50 +44,6 @@ static func part(parent: Node3D, mesh: Mesh, mat: Material, at := Vector3.ZERO) 
 	return m
 
 
-static var _discs := {}  # radius (cm) -> mesh: shared, each built once (a fresh mesh per effect rebuilt its arrays)
-static var _hoops := {}  # thinness (per mille) -> mesh
-
-
-static func disc(r: float) -> CylinderMesh:
-	var key := roundi(r * 100.0)
-	if _discs.has(key):
-		return _discs[key]
-	var d := CylinderMesh.new()
-	d.top_radius = r
-	d.bottom_radius = r
-	d.height = 0.02
-	d.radial_segments = 28
-	_discs[key] = d
-	return d
-
-
-static func hoop(thin: float) -> TorusMesh:
-	var key := roundi(thin * 1000.0)
-	if _hoops.has(key):
-		return _hoops[key]
-	var t := TorusMesh.new()
-	t.inner_radius = 1.0 - thin
-	t.outer_radius = 1.0
-	t.rings = 32
-	t.ring_segments = 3
-	_hoops[key] = t
-	return t
-
-
-## A flat band round part of a circle, tapering to points: a crescent lying on the floor, facing +Z.
-static func arc_mesh(r: float, half_angle: float, width: float) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-	var steps := 16
-	for i in steps + 1:
-		var k := float(i) / steps
-		var a := lerpf(-half_angle, half_angle, k)
-		var w := width * sin(k * PI)
-		st.add_vertex(Vector3(sin(a), 0.0, cos(a)) * r)
-		st.add_vertex(Vector3(sin(a), 0.0, cos(a)) * (r - w))
-	return st.commit()
-
-
 ## Churning ink for the floor: goes on floor_ink().
 static func ink_mat(spin := 0.9, flow := 1.6) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
@@ -108,21 +64,9 @@ static func floor_ink() -> PlaneMesh:
 	return plane
 
 
-## A hard-edged ring on the floor that runs from one size to another and goes.
-static func hoop_run(parent: Node, spot: Vector3, from: float, to: float, time: float, color := VIOLET, thin := 0.08) -> void:
-	if INK_FX.DESIGNED.on():  # round 44: a designed ground stamp (inked brush shock line), not a flat torus
-		INK_FX.shock(parent, spot, color, to, time + 0.08, clampf(thin * to * 1.6, INK_FX.SHOCK_THIN_W, 0.36))
-		return
-	var mat := flat_mat(color)
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.global_position = Vector3(spot.x, 0.09, spot.z)
-	root.scale = Vector3(from, 0.05, from)
-	part(root, hoop(thin), mat)
-	var tw := root.create_tween().set_parallel()
-	tw.tween_property(root, "scale", Vector3(to, 0.05, to), time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.4).set_delay(time * 0.6)
-	tw.chain().tween_callback(root.queue_free)
+## A hard-edged ring on the floor that runs out to `to` and goes: a designed ground stamp (inked brush shock line).
+static func hoop_run(parent: Node, spot: Vector3, _from: float, to: float, time: float, color := VIOLET, thin := 0.08) -> void:
+	INK_FX.shock(parent, spot, color, to, time + 0.08, clampf(thin * to * 1.6, INK_FX.SHOCK_THIN_W, 0.36))
 
 
 ## An inky pop at a spot.
@@ -134,28 +78,10 @@ static func burst(parent: Node, at: Vector3, size := 1.0) -> void:
 
 const REAP_DRAWN := 0.6
 
-## A crescent of darkness flying out in front of him.
+## A crescent of darkness flying out in front of him: the authored brush crescent in the dark palette, drawn at
+## REAP_DRAWN of the reach (the full 6.5 m arc's band was a 2 m slab).
 static func reap(parent: Node, at: Vector3, fwd: Vector3, reach: float, half_angle: float) -> void:
-	if INK_FX.DESIGNED.on():  # round 45: the authored brush crescent in the dark palette, not three flat arcs
-		# (drawn at REAP_DRAWN of the reach: the full 6.5 m arc's band was a 2 m slab)
-		INK_FX.DESIGNED.slash(parent, Vector3(at.x, 0.0, at.z), fwd, reach * REAP_DRAWN, rad_to_deg(half_angle) * 2.0, "void", false, 0.24, 0.8)
-		return
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.global_position = Vector3(at.x, 0.8, at.z)
-	root.rotation.y = atan2(fwd.x, fwd.z)
-	root.scale = Vector3(0.25, 1.0, 0.25)
-	var ink := flat_mat(INK)
-	var edge := flat_mat(HOT)
-	var rim := flat_mat(VIOLET)
-	part(root, arc_mesh(reach, half_angle, reach * 0.34), ink)
-	part(root, arc_mesh(reach, half_angle * 0.95, reach * 0.1), rim, Vector3.UP * 0.01)
-	part(root, arc_mesh(reach, half_angle * 0.9, reach * 0.035), edge, Vector3.UP * 0.02)
-	var tw := root.create_tween().set_parallel()
-	tw.tween_property(root, "scale", Vector3.ONE, 0.13).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	for mat: Material in [ink, edge, rim]:
-		tw.tween_property(mat, "albedo_color:a", 0.0, 0.1).set_delay(0.13)
-	tw.chain().tween_callback(root.queue_free)
+	INK_FX.DESIGNED.slash(parent, Vector3(at.x, 0.0, at.z), fwd, reach * REAP_DRAWN, rad_to_deg(half_angle) * 2.0, "void", false, 0.24, 0.8)
 
 
 ## Puts a mark on a foe (or renews it). Black Tide comes for the marked.
@@ -191,13 +117,7 @@ class Mark extends Node3D:
 		_spin = Node3D.new()
 		add_child(_spin)
 		STANDING.add(self)
-		if INK_FX.DESIGNED.on():  # fx-polygons: three drawn ink claw strokes round its feet, spinning (no flat arcs)
-			load("res://scripts/designed_polish.gd").loop(_spin, "tell_marked", r * MARK_DRAWN, "void")
-			return
-		var mesh := SELF.arc_mesh(r, PI * 0.28, r * 0.3)
-		var mat := SELF.flat_mat(HOT)
-		for i in 3:
-			SELF.part(_spin, mesh, mat).rotation.y = TAU * i / 3.0
+		load("res://scripts/designed_polish.gd").loop(_spin, "tell_marked", r * MARK_DRAWN, "void")  # three drawn ink claw strokes round its feet, spinning
 
 	## The next string's first hit landed (standing_fx.gd): the arcs go, the mark stays for Black Tide.
 	func clear_standing() -> void:
@@ -231,27 +151,19 @@ static func pool(parent: Node, spot: Vector3, r: float, time: float) -> Node3D:
 
 
 class Pool extends Node3D:
+	const OPEN_S := 0.14  # s its opening tween takes
+	const POOL_THIN_SIZE := 0.7  # of its size while thin (it draws in under the slam)
 	var r := 3.0
 	var time := 2.0
 	var _t := 0.0
-	var _ink: ShaderMaterial
 
 	var _loop: Node3D
 
 	func _ready() -> void:
 		add_to_group("dark_pool")
-		if INK_FX.DESIGNED.on():  # round 45: an authored ink pool (curling arms, holes, a light rim), boiling on twos
-			_loop = INK_FX.floor_loop(self, "dark_pool", 2.0 * SELF.POOL_DRAWN)
-			scale = Vector3(r * 0.3, 1.0, r * 0.3)
-			create_tween().tween_property(self, "scale", Vector3(r, 1.0, r), 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-			STANDING.add(self)
-			return
-		_ink = SELF.ink_mat()
-		SELF.part(self, SELF.floor_ink(), _ink)
-		scale = Vector3(r, 1.0, r)
-		_ink.set_shader_parameter("open", 0.05)
-		var tw := create_tween()
-		tw.tween_method(SELF.set_param.bind(_ink, "open"), 0.05, 1.0, 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		_loop = INK_FX.floor_loop(self, "dark_pool", 2.0 * SELF.POOL_DRAWN)  # an authored ink pool (curling arms, holes, a light rim), boiling on twos
+		scale = Vector3(r * 0.3, 1.0, r * 0.3)
+		create_tween().tween_property(self, "scale", Vector3(r, 1.0, r), OPEN_S).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 		STANDING.add(self)
 
 	## The next string's first hit landed (standing_fx.gd): the ink erodes now.
@@ -271,20 +183,13 @@ class Pool extends Node3D:
 		tw.tween_method(_loop.set_alpha, to, 1.0, up)
 		tw.parallel().tween_property(self, "scale", Vector3(r, 1.0, r), up)
 
-	const POOL_THIN_SIZE := 0.7  # of its size while thin (it draws in under the slam)
-	const OPEN_S := 0.15  # s its opening tween takes (0.14)
 
 	func _process(delta: float) -> void:
 		_t += delta
 		if _t >= time or _t >= SELF.POOL_SHOW:
 			set_process(false)
-			if _loop:
-				_loop.erode_out(0.25)
-				get_tree().create_timer(0.27, true, false, true).timeout.connect(queue_free)
-				return
-			var tw := create_tween().set_ignore_time_scale(true)  # (a landing's hitstop held the erode 5 s)
-			tw.tween_method(SELF.set_param.bind(_ink, "erode"), 0.0, 1.0, 0.25)
-			tw.tween_callback(queue_free)
+			_loop.erode_out(0.25)
+			get_tree().create_timer(0.27, true, false, true).timeout.connect(queue_free)
 
 
 ## The black hole. It drags small foes to it and slows big ones, burning all of them.
@@ -299,16 +204,7 @@ class Hole extends Node3D:
 	const STAGGER := 0.9
 	const STAGGER_EVERY := 0.25  # s
 	const VIEW_R := 2.6  # m the ink shows out to (the look only; the pull is RADIUS)
-	const HOLE_SPIN := 2.2  # the ink churns faster than a pool's
-	const HOLE_FLOW := 2.6
 	const COLLAPSE_SPLAT := 2.2  # m: the ink burst as it falls in (thin; sleek 6: 2.8 full-width)
-	## Round 33, sleek 6: Collapse and the hole were a wall of pink and violet hoops over the pile (two 0.5 / 0.2 m
-	## arcs a third, an inward hoop every 0.3 s, a hot and a white hoop and a 2.8 m splat at the collapse). One thin
-	## hoop per beat now: lines, not bands.
-	const ARC_RIM_W := 0.16  # m (0.5)
-	const ARC_HOT_W := 0.07  # m (0.2)
-	const RING_EVERY := 0.45  # s between the inward hoops (0.3)
-	const RING_THIN := 0.02  # of the hoop's radius: 0.13 m at 6.5 m (0.05: a 0.3 m band)
 	const FLYING := "thrown_foe_flying"
 
 	var hero: CharacterBody3D
@@ -316,48 +212,25 @@ class Hole extends Node3D:
 	var _t := 0.0
 	var _next_tick := 0.0
 	var _next_stagger := 0.0
-	var _next_ring := 0.0
 	var _gone := false
 	var _spin: Node3D
-	var _designed := false
 
 	func _ready() -> void:
 		add_to_group("dark_hole")
 		_spin = Node3D.new()
 		add_child(_spin)
-		if INK_FX.DESIGNED.on():  # round 45: an authored vortex decal (curling arms into an ink hole), spun; no hoops
-			_designed = true
-			INK_FX.floor_loop(_spin, "dark_vortex", VIEW_R * 2.3)
-		else:
-			_classic_look()
+		INK_FX.floor_loop(_spin, "dark_vortex", VIEW_R * 2.3)  # an authored vortex decal (curling arms into an ink hole), spun
 		scale = Vector3(0.05, 1.0, 0.05)
 		create_tween().tween_property(self, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 		SELF.splat(get_parent(), global_position + Vector3.UP * 0.9, 1.6, true)
 		Fx.shards(get_parent(), global_position + Vector3.UP * 0.5, INK, 8, Vector3.UP, 7.0, 0.16, 0.5)
 		Game.shake(0.3)
 
-	func _classic_look() -> void:
-		# Churning ink as wide as the pile it pulls in: a 1.3 m disc was hidden under the foes on it.
-		var ink := SELF.ink_mat(HOLE_SPIN, HOLE_FLOW)
-		SELF.part(self, SELF.floor_ink(), ink).scale = Vector3(VIEW_R, 1.0, VIEW_R)
-		var hot := SELF.flat_mat(HOT)
-		var rim := SELF.flat_mat(VIOLET)
-		for i in 3:
-			var a := TAU * i / 3.0
-			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 1.2, 1.0, ARC_RIM_W), rim, Vector3.UP * 0.03).rotation.y = a
-			SELF.part(_spin, SELF.arc_mesh(VIEW_R * 0.95, 0.85, ARC_HOT_W), hot, Vector3.UP * 0.05).rotation.y = a + 1.0
-		var edge := SELF.part(self, SELF.hoop(0.05), hot, Vector3.UP * 0.06)
-		edge.scale = Vector3(VIEW_R, 0.05, VIEW_R)
-
 	func _physics_process(delta: float) -> void:
 		if _gone:
 			return
 		_t += delta
 		_spin.rotate_y(-7.0 * delta)
-		if _t >= _next_ring:
-			_next_ring += RING_EVERY
-			if not _designed:
-				SELF.hoop_run(get_parent(), global_position, RADIUS, VIEW_R, 0.3, VIOLET, RING_THIN)
 		var tick := _t >= _next_tick
 		if tick:
 			_next_tick += TICK
@@ -369,7 +242,7 @@ class Hole extends Node3D:
 				continue
 			var to := global_position - e.global_position
 			to.y = 0.0
-			if float(e.get("radius")) >= 0.9 or e.has_method("is_boss") or e.get("elite") == true:
+			if float(e.get("radius")) >= 0.9:  # (no foe in play is this heavy)
 				if e.has_method("chill"):
 					e.chill(0.4, BIG_SLOW)
 			else:

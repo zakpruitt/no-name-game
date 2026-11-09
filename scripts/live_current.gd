@@ -104,7 +104,7 @@ func _ready() -> void:
 		return
 	_cam = get_viewport().get_camera_3d()
 	_trail_mi = _mesh_instance(_trail)
-	_trail_mi.material_override = DESIGNED.material("bolt_strip") if DESIGNED.on() else null
+	_trail_mi.material_override = DESIGNED.material("bolt_strip")
 	_trail_mi.set_instance_shader_parameter("pal_row", DESIGNED.row("wind"))
 	_trail_mi.set_instance_shader_parameter("tiles", 1.0)
 	_flat_mi = _mesh_instance(_flat)
@@ -372,8 +372,6 @@ func _draw(hand: Vector3) -> void:
 	arrays[Mesh.ARRAY_TEX_UV] = tu
 	arrays[Mesh.ARRAY_INDEX] = ti
 	_trail.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	if not DESIGNED.on():
-		_trail.surface_set_material(0, FORM_FX.material())
 	_trail_mi.set_instance_shader_parameter("frame", float(step % 4))
 	_trail_mi.set_instance_shader_parameter("scroll", float(step) * 0.37)
 	_trail_mi.set_instance_shader_parameter("erode", 0.0)
@@ -474,8 +472,7 @@ func _pop(e: Node3D) -> void:
 		var a := turn + PI * i + _rng.randf_range(-0.4, 0.4)
 		var length := POP_LEN * (1.0 if together > 0.0 else 0.6)
 		COMIC_BOLT.spawn(get_parent(), at, at + (right * cos(a) + up * sin(a)) * length, 0.14 * (fat if together > 0.0 else 0.85))
-	if DESIGNED.on():  # fx-air: arcs crawl over it for a few frames, riding it (designed_fx.crawl; smaller on a quiet jolt)
-		DESIGNED.crawl(get_parent(), e, 0.85 if together > 0.0 else 0.65)
+	DESIGNED.crawl(get_parent(), e, 0.85 if together > 0.0 else 0.65)  # fx-air: arcs crawl over it for a few frames, riding it (smaller on a quiet jolt)
 
 
 func _star(at: Vector3, r: float, inner: float, turn: float, right: Vector3, up: Vector3, c: Color) -> void:

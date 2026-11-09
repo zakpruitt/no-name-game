@@ -145,7 +145,7 @@ func _process(delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var real := float(now - _last_us) / 1000000.0
 	_last_us = now
-	tick(real if _t < ANTIC and not DESIGNED.game_time_only else delta)  # the pull-in runs through the hitstop
+	tick(real if _t < ANTIC else delta)  # the pull-in runs through the hitstop
 
 
 ## Public so a test can step it.

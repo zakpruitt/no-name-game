@@ -6,8 +6,8 @@ extends SceneTree
 ## saves user://enemy_feel.png. Run: godot --path . -s tests/enemy_feel_preview.gd
 ## `-- --bag`: three training dummies instead (just tapped, swinging back past
 ## upright, shaking off a daze under stars) -> user://enemy_feel_bag.png; a fourth shows its last-string tag.
-## `-- --slams`: Deep Freeze, Meteor Fall and Maw run for real on a minion each (each craters), then the
-## Warden taking a big hit (flash, ink, small squash), one at a time -> user://enemy_feel_slams_<move>.png.
+## `-- --slams`: Deep Freeze, Meteor Fall and Maw run for real on a minion each (each craters), one at a
+## time -> user://enemy_feel_slams_<move>.png.
 
 
 func _initialize() -> void:
@@ -74,7 +74,7 @@ func _bag(main: Node) -> void:
 	var bags: Array = []
 	for i in 4:
 		var d: Node = load("res://scripts/training_dummy.gd").new()
-		main._set_model(d, "dummy", "Skeleton_Warrior")  # the comic bag, as main._start_training
+		main._set_model(d, "dummy")  # the comic bag, as main._start_training
 		main.add_child(d)
 		d.home = row + Vector3(i * 2.4 - 3.6, 0.0, 0.0)
 		d.global_position = d.home
@@ -109,13 +109,11 @@ func _slams(main: Node) -> void:
 	var at: Vector3 = hero.global_position + Vector3(0.0, 0.0, 3.5)
 	await create_timer(2.0).timeout  # past the TRAINING banner
 	var out := []
-	for move in ["deep_freeze", "meteor", "maw", "warden"]:
-		var e: Node = main._spawn_boss() if move == "warden" else main._spawn("minion", false, at)
-		e.global_position = at + (Vector3(0.0, 0.0, 2.0) if move == "warden" else Vector3.ZERO)
+	for move in ["deep_freeze", "meteor", "maw"]:
+		var e: Node = main._spawn("minion", false, at)
+		e.global_position = at
 		e.max_hp = 50000.0
 		e.hp = 50000.0
-		if move == "warden":
-			e.break_damage = 1e6
 		await create_timer(1.2).timeout
 		e.move_speed = 0.0
 		e.attack_damage = 0.0
@@ -128,8 +126,6 @@ func _slams(main: Node) -> void:
 			"maw":
 				hero._void.dark_spot = at
 				ve._maw(hero, {"damage": 1.0}, 1.0)
-			"warden":
-				e.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 9.0, true)
 		await create_timer(0.1).timeout
 		var shot := "user://enemy_feel_slams_%s.png" % move
 		if DisplayServer.get_name() != "headless":

@@ -70,7 +70,7 @@ const FORM_ELEMENT := {"axe": "wind", "spear": "water", "hammer": "earth", "hand
 const FORM_SIZE := 1.1  # m: the pop's quad (designed_ink.POP_SIZE is a hit's 1.5)
 const FORM_UP := 0.45  # m up the haft from the hand
 
-## Rockslide's boulder (comic_boulder.gd, designed): one drawn boulder slamming down and splitting, a dust puff.
+## Rockslide's boulder (Rockslide, `boulder`): one drawn boulder slamming down and splitting, a dust puff.
 const BOULDER_SIZE := 2.6  # m per boulder size 1 (the rock is ~0.95 m across in it)
 const BOULDER_TIMES := [0.05, 0.09, 0.08, 0.06, 0.06, 0.07, 0.08, 0.1]
 ## Steam Burst's cloud (comic_steam.gd, designed).
@@ -79,11 +79,11 @@ const STEAM_UP := 1.25  # m: the cloud's middle over the floor
 const STEAM_BACK := 0.55  # m behind the foe, away from the camera (depth tested: the foe reads in front of it)
 const STEAM_TIMES := [0.04, 0.09, 0.08, 0.09, 0.1, 0.12]
 
-## Eruption's landing (comic_erupt.gd, designed): the meteor's magma crown, small, up under each foe nearest first.
+## Eruption's landing (`erupt`): the meteor's magma crown, small, up under each foe nearest first.
 const ERUPT_SIZE := 2.3  # m: magma_burst's square (its tongues stand ~0.8 m); molten foes x ERUPT_HOT
 const ERUPT_HOT := 1.3
 const ERUPT_BACK := 0.35  # m behind the foe (depth tested: the foe reads in front of its tongues)
-const ERUPT_STAGGER := 0.05  # game s, nearest first (comic_erupt.STAGGER)
+const ERUPT_STAGGER := 0.05  # game s, nearest first
 ## Anvil's landing (comic_anvil.gd, designed): a drawn scorched crater star under each foe, a dust puff, staggered.
 const ANVIL_SIZE := 2.6  # m: strike_scorch's square in the earth row
 const ANVIL_STAGGER := 0.04
@@ -111,8 +111,6 @@ static func _register() -> void:
 
 ## Draw every material once at real size (elements.prewarm).
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	_register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()
@@ -153,7 +151,7 @@ func _process(delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var real := float(now - _last_us) / 1000000.0
 	_last_us = now
-	_t += delta if DESIGNED.game_time_only else real
+	_t += real
 	if _peaked:
 		return
 	var due := 0.0
@@ -311,7 +309,7 @@ static func form_burst(parent: Node, at: Vector3, form: String, dir: Vector3) ->
 	return fx.vary(PI, true)
 
 
-## comic_boulder.spawn (designed): the drawn boulder at the slam, a dust puff under it (the floor dents are left to
+## Rockslide's boulder: the drawn boulder at the slam, a dust puff under it (the floor dents are left to
 ## the hit stars and the crater the foes make).
 static func boulder(parent: Node, at: Vector3, size: float) -> Node3D:
 	_register()
@@ -338,7 +336,7 @@ static func steam(parent: Node, spot: Vector3) -> Node3D:
 	return fx.vary(0.15, true)
 
 
-## comic_erupt.spawn (designed): spots nearest `from` first, ERUPT_STAGGER apart on game time (the landing's hit stop
+## Eruption's landing: spots nearest `from` first, ERUPT_STAGGER apart on game time (the landing's hit stop
 ## holds them until its impact frame has gone, as the flat version did).
 static func erupt(parent: Node, from: Vector3, spots: Array, molten: Array) -> void:
 	var order := range(spots.size())

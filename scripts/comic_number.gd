@@ -1,5 +1,5 @@
 extends Node3D
-## A comic damage number (Game.comic_style, from Fx.damage_number): one per foe, not one per hit. Hits on
+## A comic damage number (from Fx.damage_number): one per foe, not one per hit. Hits on
 ## the same foe inside MERGE_S add into the number already up, which grows and pops again (overshoot,
 ## then settle) on each add, so a crowd being shredded shows a few chunky numbers instead of a cloud.
 ## Bangers, inked, with a red print-offset shadow like ComicFx's words; a big hit's number is larger,

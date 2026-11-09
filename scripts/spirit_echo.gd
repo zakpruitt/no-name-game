@@ -1,19 +1,10 @@
 extends Node3D
-## Spirit echo: the bound ancestor in the axe finishes the swing. A giant
-## spectral copy of the hero's axe sweeps the same arc a beat after the real
-## hit, laid flat so its silhouette reads from the top-down camera, hitting
-## each enemy in its arc once and leaving a swoosh. Spawned by hero_fx.cast
-## for casts of kind "echo" (elements.CASTS).
-## Round 33 (sleek): a thin ink line round a see-through halftone fill (about FILL alpha) in the element's
-## palette (fx_palette: teal spirit, gold Awakened), not a 60% slab under an additive rim. It sweeps in
-## `time` and is gone FADE_OUT later.
+## Spirit echo: the bound ancestor in the axe finishes the swing. A drawn axe head flies the same arc a beat
+## after the real hit over a thin ink line (designed_finish.echo_axe / echo_line), hitting each enemy in its
+## arc once. Spawned by hero_fx.cast for casts of kind "echo" (elements.CASTS). It sweeps in `time` and is
+## gone FADE_OUT later.
 
-const FADE_IN := 0.04
 const FADE_OUT := 0.06  # (round 33, sleek: 0.14; sleek 5: 0.1 hung it into L3's wind-up)
-## Round 33, sleek 5: the ghost blade is drawn to VISUAL_REACH of `radius` (the hit reach, unchanged: _hit_swept
-## still reads `radius`, and the swoosh's thin line still marks it). The full-reach 3-3.5 m blade on L2 covered
-## about a third of the middle of the frame, over his own swing.
-const VISUAL_REACH := 0.7
 const HEIGHT := 1.0  # sweep height above the floor
 const PAL := preload("res://scripts/fx_palette.gd")
 const FILL_SHADER := preload("res://shaders/ghost_halftone.gdshader")
@@ -21,21 +12,14 @@ const INK_SHADER := preload("res://shaders/ghost_ink.gdshader")
 const FILL := 0.3  # mean alpha of the halftone fill (the slab was 0.6 solid)
 const INK_PX := 3.2  # px at 1080p, the ink line's outer edge (ink alone vanished on the indigo floor)
 const EDGE_PX := 1.7  # px at 1080p: a crisp light-tone line inside the ink, so the edge reads on the floor
-## Round 33, part 3: the fill fades along the haft toward the hand (axe-local Y: the KayKit 1H_Axe's grip end is
-## at -0.27, the blade starts about 0.22), so the 3 m ghost reads as a blade sweeping, not a teal slab.
-## ghost_halftone `local_fade`: clear at x, full from y (the blade's middle). The ink line keeps 45% down the haft.
-## (-0.2, 0.32) faded only the grip and read the same as no fade at the game camera.
-## Round 33, part 3: per-palette fill tones where body + light at FILL sank into the indigo floor. Earth's orange
-## body tint between the dots read as brown on indigo at 0.3 alpha (a light body under hot dots read as khaki);
-## clean dots only (`base` 0.04, the share of the fill between the dots) at 0.42 read as printed orange.
-## Unlisted palettes: body under light dots at FILL.
+## Per-palette fill tones for ghost_mat (the see-through halftone that the ice cube, comic_column and the Awakening
+## column share): earth's orange body tint between the dots read as brown on indigo at 0.3 alpha, so earth and
+## water draw clean dots only (`base` is the share of the fill between the dots). Unlisted palettes: body under
+## light dots at FILL.
 const GHOST_TONES := {"earth": {"body": "body", "dot": "light", "fill": 0.42, "base": 0.04},
 	"water": {"body": "body", "dot": "light", "fill": 0.4, "base": 0.12}}
-const HAFT_FADE := Vector2(0.1, 0.6)
-const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 
-var axe_mesh: Mesh
 var color := Color(0.3, 0.95, 0.85)
 var fwd := Vector3.FORWARD
 var flip := false  # sweep right-to-left (follows the swing's swoosh)
@@ -45,13 +29,11 @@ var damage := 5.0
 var delay := 0.05
 var time := 0.18
 var on_hit := Callable()
-var el := "spirit"  # element of the hit debris (Fx.element_hit)
+var el := "spirit"  # the cast's element (set by hero_fx.cast)
 
 var _pivot: Node3D
-var _axe: MeshInstance3D
 var _hit: Array[Node] = []
-var _scale := 1.0
-var _drawn: Node3D  # round 46 (designed): the drawn axe head instead of the halftone axe mesh
+var _drawn: Node3D  # the drawn axe head
 
 
 func _ready() -> void:
@@ -59,29 +41,12 @@ func _ready() -> void:
 	_pivot = Node3D.new()
 	_pivot.position.y = HEIGHT
 	add_child(_pivot)
-	var axe := ghost(axe_mesh, color)
-	axe.set_instance_shader_parameter("local_fade", HAFT_FADE)
-	_axe = axe
-	# Axe-local: handle +Y, blade toward -X, thin in Z. Lay it flat: handle points
-	# out from the hero (+Z), blade leads the sweep, flat side faces the camera.
-	var side := -1.0 if flip else 1.0
-	var basis := Basis(Vector3(-side, 0, 0), Vector3(0, 0, 1), Vector3(0, side, 0))
-	_scale = maxf(radius * VISUAL_REACH - 0.4, 0.5) / 0.95  # blade tip at VISUAL_REACH of the arc's edge
-	axe.transform = Transform3D(basis.scaled(Vector3.ONE * _scale), Vector3(0, 0, 0.4))
-	if DESIGNED.on():  # round 46: no 3 m ghost mesh over his swing; a drawn axe head flies the arc (_start)
-		axe.free()
-		_axe = null
-	else:
-		_pivot.add_child(axe)
 	pose(0.0)
 	var tw := create_tween()
 	tw.tween_interval(delay)
 	tw.tween_callback(_start)
 	tw.tween_method(pose, 0.0, 1.0, time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	if _axe != null:
-		tw.tween_method(set_alpha.bind(_axe), 1.0, 0.0, FADE_OUT)
-	else:
-		tw.tween_interval(FADE_OUT)
+	tw.tween_interval(FADE_OUT)
 	tw.tween_callback(queue_free)
 
 
@@ -149,15 +114,14 @@ const CAST_STOP := 0.03  # s, at the freeze scale
 const CAST_STOP_GAP_MS := 90  # ms since the last stop ended (150 skipped L2's cast after L1's on the wall_alt film, 118 ms apart)
 
 
-## One foe struck by a spirit cast: the hit, the combo counter, element debris
-## at the foe (`debris_dir`, `big`) under `fx_parent`, then the caller's hook.
+## One foe struck by a spirit cast: the hit, the combo counter, then the caller's hook (`fx_parent`, `el`,
+## `debris_dir` and `big` are kept for the callers: the debris went with Fx.element_hit).
 static func strike(e: Node, damage: float, knockback: Vector3, launch: float, heavy: bool,
-		fx_parent: Node, el: String, debris_dir: Vector3, big: bool, on_hit: Callable) -> void:
+		_fx_parent: Node, _el: String, _debris_dir: Vector3, _big: bool, on_hit: Callable) -> void:
 	e.take_hit(damage, knockback, launch, heavy)
 	Game.register_hit("cast")
 	if Time.get_ticks_msec() - Game._hitstop_end_ms > CAST_STOP_GAP_MS:
 		Game.hitstop(CAST_STOP)
-	Fx.element_hit(fx_parent, e.global_position, el, debris_dir, big)
 	if on_hit.is_valid():
 		on_hit.call(e)
 
@@ -168,22 +132,17 @@ func pose(t: float) -> void:
 	var side := -1.0 if flip else 1.0
 	_pivot.rotation.y = lerpf(-half, half, t) * side
 	_pivot.scale = Vector3.ONE * lerpf(0.75, 1.0, minf(t * 3.0, 1.0))  # swells as it comes through
-	if _axe != null and t > 0.0:
-		set_alpha(minf(t / (FADE_IN / time), 1.0), _axe)
 	if t > 0.0 and is_inside_tree():
 		_hit_swept(_pivot.rotation.y)
 
 
+## A small drawn axe head and a thin ink line, in real time (designed_finish).
 func _start() -> void:
-	if DESIGNED.on():  # feel audit 3 item 9: a small axe head and a thin ink line, in real time (designed_finish)
-		_drawn = DESIGNED_FINISH.echo_axe(get_parent(), global_position + Vector3.UP * HEIGHT, color, DESIGNED_FINISH.ECHO_REAL)
-		DESIGNED_FINISH.echo_line(get_parent(), global_position, fwd, radius, arc_deg, flip, HEIGHT)
-		_pose_drawn(0.0)
-		create_tween().set_ignore_time_scale().tween_method(_pose_drawn, 0.0, 1.0, DESIGNED_FINISH.ECHO_REAL).set_ease(
-			Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		return
-	# Lines only at the real reach: the ghost blade is the body, and a 3.9 m teal crescent under it was the fan.
-	Fx.swoosh(get_parent(), global_position, fwd, radius, arc_deg, Color(color, 0.9), flip, time * 1.4, HEIGHT, true)
+	_drawn = DESIGNED_FINISH.echo_axe(get_parent(), global_position + Vector3.UP * HEIGHT, color, DESIGNED_FINISH.ECHO_REAL)
+	DESIGNED_FINISH.echo_line(get_parent(), global_position, fwd, radius, arc_deg, flip, HEIGHT)
+	_pose_drawn(0.0)
+	create_tween().set_ignore_time_scale().tween_method(_pose_drawn, 0.0, 1.0, DESIGNED_FINISH.ECHO_REAL).set_ease(
+		Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
 ## The drawn axe head at sweep `t` on the drawn arc (designed_finish.ECHO_DRAW of the reach), on real time.

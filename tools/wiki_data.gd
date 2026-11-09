@@ -46,12 +46,6 @@ static func _data() -> Dictionary:
 	for id: String in moves_s.MOVE_NAMES:
 		names[id] = {"name": moves_s.MOVE_NAMES[id], "tier": 0}
 
-	var prince_s: GDScript = load("res://scripts/prince/prince_moves.gd")
-	var prince_names := {}
-	for id: String in prince_s.COMBOS:
-		prince_names[id] = prince_s.COMBOS[id].name
-	prince_names.merge(prince_s.MOVE_NAMES)
-
 	var sections := []
 	for s: Dictionary in list_s.SECTIONS:
 		var h: Array = list_s.heading(s)
@@ -95,10 +89,9 @@ static func _data() -> Dictionary:
 	return {
 		"groups": KitSlots.GROUPS,
 		"slots": KitSlots.SLOTS,
-		"cards": {"heretic": KitSlots.HERETIC, "prince": KitSlots.PRINCE},
+		"cards": {"heretic": KitSlots.HERETIC},
 		"kit_upgrades": Kit.UPGRADES,
 		"names": names,
-		"prince_names": prince_names,
 		"elements": elements,
 		"element_words": moves_s.ELEMENT_WORDS,
 		"move_words": fx_s.MOVE_WORDS,

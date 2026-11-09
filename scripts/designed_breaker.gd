@@ -121,8 +121,6 @@ static func _register() -> void:
 
 ## Draw every material once at real size (elements.prewarm).
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	_register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()
@@ -152,10 +150,10 @@ static func info(hero: Node) -> Dictionary:
 	return out
 
 
-## A breaker landed (impact_frame._watch_hero): the whole beat. Returns the timeline node (null when designed
-## effects are off or there is no world to draw in).
+## A breaker landed (impact_frame._watch_hero): the whole beat. Returns the timeline node (null when there is
+## no world to draw in).
 static func landing(hero: Node) -> Node3D:
-	if not DESIGNED.on() or not hero is Node3D or not hero.is_inside_tree() or hero.get_parent() == null:
+	if not hero is Node3D or not hero.is_inside_tree() or hero.get_parent() == null:
 		return null
 	_register()
 	landings += 1
@@ -284,6 +282,7 @@ static func after_beat(parent: Node, foe: Node3D, element: String, i := 0) -> No
 	fx.follow = foe
 	fx.follow_off = off
 	fx.standing = true
+	DESIGNED.STANDING.add(fx)  # (fades when the next string's first hit lands)
 	return fx.set_spin(randf_range(-0.15, 0.15), -1.0 if i % 2 else 1.0)
 
 
@@ -416,14 +415,8 @@ class Screen extends CanvasLayer:
 	var _call_low := false  # moved to the bottom, off a cued / wall-splatted foe
 	var _call_y := 0.135
 	const CALL_TOTAL_MS := 400  # a breaker total that starts up to this long before the callout is the landing's
-	## Round 54 (camera-hang lane): how the banner leaves the top for the bottom when it must dodge. "cut" (round 53:
-	## it jumps there with a pop) or "slide" (CALL_SLIDE_STEPS frames on twos down the screen, faded, then whole at the
-	## bottom; never resting on the middle). `--banner=slide` plays the other one (Zak's call: see camera.md).
-	const CALL_MOVE := "cut"
-	const CALL_SLIDE_STEPS := [Vector2(0.2, 0.4), Vector2(0.8, 0.65)]  # (of the way down, alpha) per frame
-	const CALL_STEP_S := 1.0 / 12.0
-	var move_mode := CALL_MOVE
-	var _move_t := -1.0  # real s into the move down (-1: none)
+	## When the banner must dodge a cued / wall-splatted foe it cuts to the bottom with a pop (a slide down crossed
+	## the middle of the screen, over the pile, for ~0.2 s).
 	var dodged := 0  # callouts that had to dodge (checks, the camera-hang probe)
 	## Round 54 (feel audit 6 item 10: Eruption's banner showed no total, its damage lands over the beats): while the
 	## banner is up and not fading it counts every hit into its total (comic_number.banner_open), as Live Wire's
@@ -438,9 +431,6 @@ class Screen extends CanvasLayer:
 
 	func _ready() -> void:
 		layer = 2
-		for arg: String in OS.get_cmdline_user_args():
-			if arg.begins_with("--banner="):
-				move_mode = arg.get_slice("=", 1)
 		_font = load("res://assets/fonts/Bangers-Regular.ttf")
 		_last_us = Time.get_ticks_usec()
 		vignette = ColorRect.new()
@@ -490,7 +480,6 @@ class Screen extends CanvasLayer:
 		_call_since = 0.0
 		_call_ms = Time.get_ticks_msec()
 		_call_from_ms = _call_ms - CALL_TOTAL_MS
-		_move_t = -1.0
 		# a total already counting (the hang's chain hits: Live Wire's shocks) is the ending's too: the banner
 		# takes it over from there
 		var live: Node3D = SELF.NUMBER._breaker
@@ -590,23 +579,8 @@ class Screen extends CanvasLayer:
 		if not _call_low and _foe_under(top) and not _foe_under(low, true):
 			_call_low = true  # (once a callout: it never flips back)
 			dodged += 1
-			_pop = 1.0  # round 53 (feel audit 5): it cuts to the bottom with a pop; the slide crossed the middle of the
-			# screen, over the pile, for ~0.2 s (Flash Freeze, Abyss, Shatterstorm, Avalanche, Uproot films)
-			if move_mode == "slide":
-				_move_t = 0.0
-				_pop = 0.0
+			_pop = 1.0
 		_call_y = CALL_Y_LOW if _call_low else CALL_Y
-		var move_a := 1.0
-		if _move_t >= 0.0:  # the slide-fade: a step down the screen a frame, faded, then whole at the bottom
-			var k := int(_move_t / CALL_STEP_S)
-			_move_t += dt
-			if k < CALL_SLIDE_STEPS.size():
-				var st: Vector2 = CALL_SLIDE_STEPS[k]
-				_call_y = lerpf(CALL_Y, CALL_Y_LOW, st.x)
-				move_a = st.y
-			else:
-				_move_t = -1.0
-				_pop = 1.0
 		banner.position = Vector2(vp.x * 0.5 - w * 0.5, vp.y * _call_y - h * 0.5)
 		banner.visible = true
 		var tag_h := h * BANNER_TAG_H
@@ -614,8 +588,7 @@ class Screen extends CanvasLayer:
 		var fr := 0.0 if _call_t < CALL_IN_S else 1.0 + float(int(_call_t * 12.0) % 3)
 		_banner_mat.set_shader_parameter("frame", minf(fr, 3.0))
 		_banner_mat.set_shader_parameter("erode", clampf((_call_t - end) / CALL_OUT_S, 0.0, 1.0) * 0.98)
-		_banner_mat.set_shader_parameter("alpha", move_a)
-		_move_a = move_a
+		_banner_mat.set_shader_parameter("alpha", 1.0)
 		text.queue_redraw()
 
 	const BANNER_TAG_H := 0.6  # of the banner's height: the PERFECT tag under it (round 56: words keep off both)
@@ -626,7 +599,6 @@ class Screen extends CanvasLayer:
 	const CALL_WAIT_MAX_S := 0.3
 	var _call_wait := -1.0  # real s waited for the frame (-1: not waiting)
 	var waited := 0  # callouts that waited out a frame (breaker_spectacle_check)
-	var _move_a := 1.0  # the slide-fade's alpha this frame (the words follow it)
 
 	## When the banner starts to go: held CALL_HOLD_S at least, CALL_AFTER_ADD_S past the total's last add, at most
 	## CALL_MAX_S, or CALL_COUNT_MAX_S once a beat after the landing's own total has counted in (round 54).
@@ -713,7 +685,7 @@ class Screen extends CanvasLayer:
 			return
 		var vp := get_viewport().get_visible_rect().size
 		var end := _end_s()
-		var a := (1.0 - clampf((_call_t - end) / (CALL_OUT_S * 0.7), 0.0, 1.0)) * _move_a
+		var a := (1.0 - clampf((_call_t - end) / (CALL_OUT_S * 0.7), 0.0, 1.0))
 		var settle := clampf((_call_t - CALL_IN_S) / 0.1, 0.0, 1.0)
 		var r := banner.get_rect()
 		var mid_y := r.position.y + r.size.y * 0.5
@@ -745,8 +717,6 @@ class Screen extends CanvasLayer:
 	## A foe splatted on a wall (thrown_foe sets WALL_META): a drawn impact star on the wall behind it, the pillars
 	## near it shake. Read only, so no gameplay file changes.
 	func _watch_walls(hero: Node) -> void:
-		if not DESIGNED.on():
-			return
 		for e: Node in get_tree().get_nodes_in_group("enemies"):
 			if not e.has_meta(SELF.WALL_META):
 				continue

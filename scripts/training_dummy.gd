@@ -106,7 +106,6 @@ static var _flags_said := false
 
 func _ready() -> void:
 	max_hp = 1000.0
-	body_tint = Color(0.85, 0.7, 0.5)
 	super()
 	var knobs := bag_overrides(OS.get_cmdline_user_args())
 	for key: String in knobs:

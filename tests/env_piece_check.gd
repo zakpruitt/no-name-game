@@ -4,7 +4,7 @@ extends SceneTree
 ##   the room with pieces (Game.room "pieces"): every counted piece placed, live and registered; a thrown foe breaks a
 ##   crate and a barrel (a splat at half the wall's), comes down on the spikes for x1.5; a breaker landing breaks a crate
 ##   and throws rubble chunks; a foe splatted through a banner tears it; used-up pieces rebuild after REBUILD_S;
-##   usable() by element (the prince has no verb on a grate).
+##   usable() by element and piece.
 ## Later items add their cases (Uproot's topple, the Powder Keg, the Frost Wall, the Live Floor).
 ## Prints [env_piece] PASS/FAIL.  Run: godot --headless --path . -s tests/env_piece_check.gd
 
@@ -180,9 +180,7 @@ func _rebuild() -> void:
 func _usable() -> void:
 	_check(EP.usable("pillar", "uproot") and EP.usable("barrel", "keg") and EP.usable("grate", "frost_wall") and EP.usable("grate", "live_floor"),
 		"the heretic has every built verb")
-	game.hero = "prince"
-	_check(not EP.usable("grate", "live_floor") and not EP.usable("barrel", "keg"), "the prince has no storm or magma verb: a grate is floor to him")
-	game.hero = "heretic"
+	_check(not EP.usable("grate", "keg") and not EP.usable("torch", "no_such_verb"), "a verb off its piece, or unbuilt, is not usable")
 
 
 ## Each build-order item's own cases (the lanes add theirs here).
@@ -267,7 +265,7 @@ func _frost_shatter() -> void:
 ## Round 52, torches conduct: storm on a foe within CONDUCT_REACH of the back wall's middle torch makes it conduct;
 ## the current runs along the wall to the torch 8 m on and zaps the foe under it (CONDUCT_DAMAGE, charged), who no
 ## tentacle or arc reached; the torches are conducting for Short Circuit, lit again after CONDUCT_S. With the torches
-## out, nothing relays; storm far from any torch, nothing; the prince has no storm.
+## out, nothing relays; storm far from any torch, nothing.
 func _conduct() -> void:
 	var VE: GDScript = load("res://scripts/void_element.gd")
 	var torches: Array = get_nodes_in_group("env_torch")
@@ -314,9 +312,6 @@ func _conduct() -> void:
 	_check(got[0] == 0.0 and EP.conducting_torches(self).is_empty(), "an out torch doesn't conduct (%.1f)" % got[0])
 	for t: Node3D in torches:
 		t.set_meta(EP.STATE_META, "lit")
-	game.hero = "prince"
-	_check(not EP.usable("torch", "conduct"), "the prince has no storm: a torch is light to him")
-	game.hero = "heretic"
 	far.hit_taken.disconnect(on_hit)
 
 

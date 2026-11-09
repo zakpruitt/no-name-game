@@ -20,6 +20,7 @@ signal combo_found(id: String)  # a named combo landed for the first time this r
 
 enum State { MOVE, ATTACK, DASH, HURT, CHARGE, DEAD, LEAP, SWING }
 
+const FOES := preload("res://scripts/foes.gd")
 const HERO_MOVES := preload("res://scripts/hero_moves.gd")
 const HERO_INPUT := preload("res://scripts/hero_input.gd")
 const HERO_LEAP := preload("res://scripts/hero_leap.gd")
@@ -58,7 +59,6 @@ const RUN_ONESHOTS := ["Run_Start", "Run_Start_B", "Run_Start_L", "Run_Start_R",
 const RUN_START_BELOW := 0.3
 const RUN_STOP_ABOVE := 0.6
 const ENDER_HITSTOP := 0.025  # extra hitstop per tier when a named combo's ender lands
-const PULL_INVULN := 0.8  # s, on the tentacle (void_grab.gd)
 const SWING_COOLDOWN := 1.5  # s between presses of R
 const FLING_ACCEL_MULT := 0.2  # how much grip he has flying off a swing
 # Charging (hold right click from neutral): release before CHARGE_TIME for the
@@ -308,7 +308,7 @@ func _physics_process(delta: float) -> void:
 	var swinging: bool = state == State.ATTACK and HERO_MOVES.progress(self) < _move.cancel
 	if swinging and VOID_ELEMENT.is_element_move(_move_id):
 		swinging = false  # the element is the swing (void_element.gd)
-	if swinging and _move.get("thrust", false) and TRAIL.DESIGNED.on():
+	if swinging and _move.get("thrust", false):
 		swinging = false  # fx-ice3: a thrust drags the brush ribbon into long cyan blades (Zak: no crystals)
 	for trail in _trails:
 		trail.emitting = swinging
@@ -618,10 +618,7 @@ func _do_hit() -> void:
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		var d := to.length()
-		if _move.has("width"):
-			if not _in_strip(to, fwd, _move.range, _move.width, e.radius):
-				continue
-		elif d > _move.range + e.radius:
+		if d > _move.range + e.radius:
 			continue
 		if _move.arc < 360.0 and d > 0.4 and rad_to_deg(fwd.angle_to(to / d)) > _move.arc * 0.5:
 			continue
@@ -629,9 +626,7 @@ func _do_hit() -> void:
 		var was_airborne: bool = e.is_airborne()
 		any_airborne = any_airborne or was_airborne
 		var dmg: float = _move.damage * _dmg_mult * HERO_MOVES.plunge_mult(self)
-		e.take_hit(dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false))
-		Fx.element_hit(get_parent(), e.global_position, element(), kb_dir, _move.get("big", false))
-		Game.register_hit(_move_id + ("_air" if was_airborne else ""))
+		FOES.hit(e, dmg, kb_dir * _move.knockback, _move.launch, _move.get("big", false), _move_id, was_airborne)
 		hit_any = true
 		_connected = true
 	# Slot effects that fire on the move's first active frame, hit or miss.
@@ -683,13 +678,6 @@ func _clear_ahead(dir: Vector3, length: float) -> float:
 	return maxf(from.distance_to(hit.position) - 0.6, 0.0)
 
 
-## True if offset `to` (flat) lies in the strip `length` ahead along `fwd`.
-static func _in_strip(to: Vector3, fwd: Vector3, length: float, half_width: float, pad: float) -> bool:
-	var ahead := to.dot(fwd)
-	var side := (to - fwd * ahead).length()
-	return ahead > -0.5 and ahead <= length + pad and side <= half_width + pad
-
-
 # --- Casts and the look ------------------------------------------------------
 
 ## The hero's element for his own casts and trails: spirit. (Each void move
@@ -718,12 +706,9 @@ func _on_combo_changed(_count: int, rank: String) -> void:
 	_rank_i = i
 
 
-## Nothing left to fight: no enemy alive and no reinforcements queued (main._queue).
+## Nothing left to fight: no enemy alive (the room never queues more).
 func _is_last_kill() -> bool:
-	if not get_tree().get_nodes_in_group("enemies").is_empty():
-		return false
-	var queue = get_parent().get("_queue")
-	return queue is Array and queue.is_empty()
+	return get_tree().get_nodes_in_group("enemies").is_empty()
 
 
 # --- Taking hits -------------------------------------------------------------

@@ -61,6 +61,7 @@ void fragment() {
 	COLOR = vec4(c, 1.0);
 }
 """
+const PAL := preload("res://scripts/fx_palette.gd")
 const IMPACT_STOP := 0.3  # hitstops this long (real s) or longer flash a frame: above every ender's stop
 const IMPACT_FULL_STOP := 0.5  # a stop this long flashes at full strength (shorter ones scale down)
 const IMPACT_MIN := 0.45  # strength of the lightest big-hit frame (an IMPACT_STOP stop)
@@ -182,7 +183,7 @@ func _print_plain() -> void:
 func print_element(element: String, spot: Vector2) -> void:
 	if _reduced:
 		return
-	var p: Dictionary = load("res://scripts/fx_palette.gd").of(element)
+	var p: Dictionary = PAL.of(element)
 	styled = true
 	_hold = SLAM_HOLD
 	_fade = SLAM_FADE
@@ -199,7 +200,7 @@ func print_element(element: String, spot: Vector2) -> void:
 func slam(perfect: bool, hero: Node = null) -> bool:
 	if not flash(IMPACT_SLAM_PERFECT if perfect else IMPACT_SLAM, false, Game.hit_dir_screen(), Game.hero_hit_color()):
 		return false
-	if hero != null and _breaker_fx != null and _breaker_fx.DESIGNED.on():  # (classic keeps the cream negative)
+	if hero != null and _breaker_fx != null:
 		var inf: Dictionary = _breaker_fx.info(hero)
 		var spot := Vector2(0.5, 0.5)
 		var cam := get_viewport().get_camera_3d()

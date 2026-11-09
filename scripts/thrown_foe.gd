@@ -13,6 +13,7 @@ const DESIGNED_EL := preload("res://scripts/designed_elements.gd")  # round 46: 
 const ENV := preload("res://scripts/env_target.gd")  # round 50: the wall or pillar it hit plays its beat
 const ENV_PIECE := preload("res://scripts/env_piece.gd")  # round 51: a barrel, crate or chest it stops on, spikes it lands on
 const FLOURISH := preload("res://scripts/env_flourish.gd")  # round 53: ice_rink (a cube's slide over a frozen pool)
+const FROST_WALL := preload("res://scripts/frost_wall.gd")  # round 52: a splat on the Frost Wall shatters it
 
 const SPEED := 20.0  # m/s
 const LAND_Y := 0.4  # m it comes down to
@@ -27,15 +28,8 @@ const CUBE_NAME := "ThrownCube"
 const CUBE_COLOR := Color(0.62, 0.9, 1.0)
 const CUBE_HIGH := 1.5  # m
 const CUBE_SPIN := 9.0  # radians/s
-# The comic cube: see-through halftone ice (comic_cube) with the ink edge, clear enough to show the foe inside.
-# The old 55% cyan box hid the foe and was the loudest thing in every ice frame.
-const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
-const CUBE_GLINT := Color(1.0, 1.0, 1.0, 0.85)
-
-static var _cube_mat: StandardMaterial3D
-static var _cube_meshes := {}  # (radius, height) in cm -> mesh
 const WALL_MARGIN := 0.5  # m short of a wall
-const FLYING := "thrown_foe_flying"  # meta on a foe in flight: nothing else may move it
+const FLYING := FOES.FLYING  # meta on a foe in flight: nothing else may move it
 const WALL_META := "last_wall_ms"  # meta: Time.get_ticks_msec() of its last wall splat (Meteor Fall goes for these)
 const GROUP := "thrown_foes"  # every flight in progress (cut())
 const ZAP_STEP := 0.08  # s between a `zap` flight's jolts
@@ -95,7 +89,7 @@ static func launch(by: Variant, e: Variant, to: Vector3, dmg: float, opts := {})
 	by.get_parent().add_child(t)
 	t.add_to_group(GROUP)
 	e.set_meta(FLYING, true)
-	if float(e.get("frozen_t") if e.get("frozen_t") != null else 0.0) <= 0.0 and e.has_method("stagger"):
+	if VOID_ELEMENT.frozen_left(e) <= 0.0 and e.has_method("stagger"):
 		e.stagger(STUN)
 	t._aim(to)
 	if t.tether:
@@ -129,86 +123,25 @@ static func cube_on(e: Node3D) -> void:
 		ice.visible = false  # (freezing again shows it again)
 	if e.get_node_or_null(CUBE_NAME) != null:
 		return
-	var r: float = float(e.get("radius")) + 0.1
 	var cube := MeshInstance3D.new()
 	cube.name = CUBE_NAME
-	if Game.comic_style:
-		cube.mesh = comic_cube(r)  # (its surfaces carry their materials)
-	else:
-		var box := BoxMesh.new()
-		box.size = Vector3(r * 2.0, CUBE_HIGH, r * 2.0)
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.albedo_color = Color(CUBE_COLOR, 0.55)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		if DisplayServer.get_name() != "headless":
-			mat.next_pass = Fx.ink_material()
-		cube.mesh = box
-		cube.material_override = mat
+	cube.mesh = comic_cube(float(e.radius) + 0.1)  # (its surfaces carry their materials)
 	cube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	e.add_child(cube)
 	cube.position.y = CUBE_HIGH * 0.5
-	if Game.comic_style and DESIGNED.on():  # fx-ice2: sized to and centred on the model inside (designed_elements)
-		DESIGNED_EL.fit_block(e, cube)
+	DESIGNED_EL.fit_block(e, cube)  # fx-ice2: sized to and centred on the model inside
 
 
-## One shared material for the cube's glint: unshaded vertex colour (the block itself is spirit_echo.ghost_mat).
-static func cube_material() -> StandardMaterial3D:
-	if _cube_mat == null:
-		_cube_mat = StandardMaterial3D.new()
-		_cube_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_cube_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_cube_mat.vertex_color_use_as_albedo = true
-		_cube_mat.vertex_color_is_srgb = true
-		_cube_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return _cube_mat
-
-
-## A frozen foe's ice (enemy.freeze, comic style): the same halftone block, `r` round and `high` tall.
+## A frozen foe's ice (enemy.freeze): the same faceted block, `r` round and `high` tall.
 static func comic_ice(ice: MeshInstance3D, r: float, high: float) -> void:
 	ice.mesh = comic_cube(r, high)
-	ice.material_override = null  # (the mesh's surfaces carry the ghost block and the glint)
+	ice.material_override = null  # (the mesh's surfaces carry their materials)
 	ice.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## Round 33, part 3: a block `r` round and `high` tall in the see-through halftone ice of the spikes (the water
-## palette's spirit_echo.ghost_mat: dots, a thin ink line and a light edge; the round-29 flat two-tone box was
-## the last opaque-looking ice), with a white glint across the top on its own surface. Corner normals point out
-## of the corner, so the ink hull (pushed out along them) closes round the box instead of splitting at its edges.
+## The ice block a frozen foe stands in: a hexagonal block of drawn facets (designed_elements.ice_block).
 static func comic_cube(r: float, high := CUBE_HIGH) -> ArrayMesh:
-	if DESIGNED.on():  # round 46: a hexagonal block of drawn facets (designed_elements.ice_block)
-		return DESIGNED_EL.ice_block(r, high)
-	var key := Vector2i(roundi(r * 100.0), roundi(high * 100.0))
-	if _cube_meshes.has(key):
-		return _cube_meshes[key]
-	var h := high * 0.5
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var quad := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
-		for v: Vector3 in [a, b, c, a, c, d]:
-			st.set_normal(Vector3(v.x / r, v.y / h, v.z / r).normalized())
-			st.add_vertex(v)
-	var top := [Vector3(-r, h, -r), Vector3(r, h, -r), Vector3(r, h, r), Vector3(-r, h, r)]
-	var bot := [Vector3(-r, -h, -r), Vector3(r, -h, -r), Vector3(r, -h, r), Vector3(-r, -h, r)]
-	quad.call(top[0], top[1], top[2], top[3])
-	quad.call(bot[3], bot[2], bot[1], bot[0])
-	for i in 4:
-		var j := (i + 1) % 4
-		quad.call(bot[i], bot[j], top[j], top[i])
-	var mesh := st.commit()
-	mesh.surface_set_material(0, SPIRIT_ECHO.ghost_mat(CUBE_COLOR))
-	# A glint: a fat white stroke across a corner of the top, just above it.
-	var gl := SurfaceTool.new()
-	gl.begin(Mesh.PRIMITIVE_TRIANGLES)
-	gl.set_color(CUBE_GLINT)
-	var g := h + 0.01
-	for v: Vector3 in [Vector3(-r * 0.75, g, r * 0.15), Vector3(-r * 0.15, g, r * 0.75), Vector3(0.0, g, r * 0.6),
-			Vector3(-r * 0.75, g, r * 0.15), Vector3(0.0, g, r * 0.6), Vector3(-r * 0.6, g, 0.0)]:
-		gl.add_vertex(v)
-	gl.commit(mesh)
-	mesh.surface_set_material(1, cube_material())
-	_cube_meshes[key] = mesh
-	return mesh
+	return DESIGNED_EL.ice_block(r, high)
 
 
 static func remove_cube(e: Variant) -> void:
@@ -232,7 +165,7 @@ func _aim(to: Vector3) -> void:
 	_walled = clear < want
 	_length = minf(want, clear)
 	if _walled:  # (found now: the first of a crowd to arrive may break it before the rest get there)
-		_piece = ENV_PIECE.struck(foe.get_tree(), _from + _dir * _length, _dir, float(foe.get("radius")))
+		_piece = ENV_PIECE.struck(foe.get_tree(), _from + _dir * _length, _dir, float(foe.radius))
 
 
 ## How far it can fly before a wall.
@@ -244,15 +177,22 @@ func _clear(length: float) -> float:
 
 
 ## How far `e` can fly from `from` along `dir` before a wall (`length` if none that close). Molten Palm asks it
-## first, to carry them on to a wall in reach.
-static func clear_from(by: Node3D, e: Node3D, from: Vector3, dir: Vector3, length: float) -> float:
+## first, to carry them on to a wall in reach; asking for a crowd, it passes `skip` (exclude_rids) built once.
+static func clear_from(by: Node3D, e: Node3D, from: Vector3, dir: Vector3, length: float, skip: Array[RID] = []) -> float:
 	var start := Vector3(from.x, 0.9, from.z)
 	var q := PhysicsRayQueryParameters3D.create(start, start + dir * (length + WALL_MARGIN), by.collision_mask)
-	q.exclude = [e.get_rid(), by.get_rid()]
-	for o: Node in e.get_tree().get_nodes_in_group("enemies"):
-		q.exclude.append(o.get_rid())
+	q.exclude = skip if not skip.is_empty() else exclude_rids(by)
 	var hit := e.get_world_3d().direct_space_state.intersect_ray(q)
 	return length if hit.is_empty() else maxf(start.distance_to(hit.position) - WALL_MARGIN, 0.0)
+
+
+## The bodies a wall ray flies past: the hero and every foe (a flight stops on walls and pillars, not on them).
+static func exclude_rids(by: Node3D) -> Array[RID]:
+	var skip: Array[RID] = [by.get_rid()]
+	for o: Node in by.get_tree().get_nodes_in_group("enemies"):
+		if o is CollisionObject3D:
+			skip.append((o as CollisionObject3D).get_rid())
+	return skip
 
 
 func _physics_process(delta: float) -> void:
@@ -275,9 +215,9 @@ func _physics_process(delta: float) -> void:
 	if cube != null:
 		cube.rotate_y(spin * delta)
 	if _rope != null and rope_from != Vector3.INF:
-		_rope.draw(rope_from, at + Vector3.UP * 0.9, 1.0, 0.05, float(foe.get("radius")) + 0.05, _time)
+		_rope.draw(rope_from, at + Vector3.UP * 0.9, 1.0, 0.05, float(foe.radius) + 0.05, _time)
 	elif _rope != null and hero._void != null:
-		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.get("radius")) + 0.05, _time)
+		_rope.draw(hero._void._hand_pos(), at + Vector3.UP * 0.9, 1.0, 0.03, float(foe.radius) + 0.05, _time)
 	if zap and _zaps < ZAP_MAX and _time >= _next_zap:
 		_zap(at)
 	if solid:
@@ -315,7 +255,7 @@ func _zap(at: Vector3) -> void:
 	_zaps += 1
 	_next_zap = _time + ZAP_STEP
 	VOID_ELEMENT.COMIC_ARC.jump(hero.get_parent(), at + Vector3.UP, best.global_position + Vector3.UP)
-	best.take_hit(VOID_ELEMENT.WIRE_DAMAGE * float(hero.get("_dmg_mult")), Vector3.ZERO, 0.0, false)
+	best.take_hit(VOID_ELEMENT.WIRE_DAMAGE * float(hero._dmg_mult), Vector3.ZERO, 0.0, false)
 	VOID_ELEMENT.mark(best, "charged")
 	Game.register_hit("cast")
 
@@ -325,7 +265,7 @@ func _first_in_the_way() -> Node3D:
 		if o == foe or not o.is_alive() or _struck.has(o):
 			continue
 		var gap := Vector3(o.global_position.x - foe.global_position.x, 0.0, o.global_position.z - foe.global_position.z)
-		if gap.length() <= float(o.radius) + float(foe.get("radius")) + HIT_GAP and absf(o.global_position.y - foe.global_position.y) < 2.0:
+		if gap.length() <= float(o.radius) + float(foe.radius) + HIT_GAP and absf(o.global_position.y - foe.global_position.y) < 2.0:
 			return o
 	return null
 
@@ -353,11 +293,11 @@ func _burst(other: Node3D) -> void:
 	if _walled and other == null:
 		foe.set_meta(WALL_META, Time.get_ticks_msec())
 		ENV.impact(hero, spot, _dir, el)  # (a pillar sheds chunks, a wall keeps a mark, a torch near it swings)
-		if DESIGNED.on() and el == "earth":  # round 43: Molten Palm's splat on the wall (designed_fx.wall_splat)
-			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.get("radius")) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
-	if DESIGNED.on() and el == "wind":  # fx-air: Storm Pitch lands in a burst of wind (designed_fx.wind_burst)
+		if el == "earth":  # Molten Palm's splat on the wall (designed_fx.wall_splat)
+			DESIGNED.wall_splat(parent, spot + _dir * (float(foe.radius) + WALL_MARGIN * 0.8) + Vector3.UP * 1.05)
+	if el == "wind":  # a storm flight lands in a burst of wind (designed_fx.wind_burst)
 		DESIGNED.wind_burst(parent, spot, _dir)
-	if DESIGNED.on() and el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
+	if el == "water":  # the ice cube bursting (designed_fx.ice_shatter)
 		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9)
 	if on_burst.is_valid():
 		on_burst.call(foe, _walled and other == null, _dir)
@@ -367,7 +307,7 @@ func _burst(other: Node3D) -> void:
 			mult = ENV_PIECE.splat_mult(_piece, wall_mult)
 			ENV_PIECE.hit(_piece, "earth" if VOID_ELEMENT.marked(foe, "molten") else el, hero, "throw")  # (molten: magma)
 		ENV_PIECE.wall_splat(foe.get_tree(), spot, hero)
-		var ice: Node3D = load("res://scripts/frost_wall.gd").struck(foe.get_tree(), spot, _dir)
+		var ice: Node3D = FROST_WALL.struck(foe.get_tree(), spot, _dir)
 		if ice != null:  # (the Frost Wall: one splat and it shatters, a beat later)
 			ice.splat()
 			if cubed:  # round 52: ice on ice, the proposal's Shatter: x1.6 on the wall's mult

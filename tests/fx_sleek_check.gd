@@ -77,7 +77,7 @@ func _initialize() -> void:
 	_ok(not crack.is_in_group(standing.GROUP) and not pool.is_in_group(standing.GROUP) and not spear.is_in_group(standing.GROUP),
 		"crack, pool and frost cleared on the first hit")
 	_ok(own.is_in_group(standing.GROUP), "an effect the string made itself stays")
-	_ok(spear._cleared and spear.is_in_group(spear.GROUP), "the spear itself stays for the breaker")
+	_ok(spear.is_in_group(spear.GROUP), "the spear itself stays for the breaker")
 	await create_timer(0.4).timeout
 	_ok(not is_instance_valid(crack), "the old crack is gone")
 	_ok(not is_instance_valid(pool), "the pool is gone")
@@ -136,8 +136,7 @@ func _initialize() -> void:
 	await create_timer(0.2, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the callout fades when the next string starts")
-	# Round 33, sleek 6: a breaker's name goes to the top band (off the pile) and holds BREAKER_HOLD_S real s; the
-	# combo-name callout stays over him.
+	# A breaker's name is left to the ending's banner (hidden at once, counted); the combo name stays over him.
 	p.state = p.State.MOVE
 	p._chain_i = 0
 	standing.watch(p)
@@ -155,9 +154,7 @@ func _initialize() -> void:
 	cap.watch(p)
 	await process_frame
 	cap.watch(p)
-	var brk_y: float = cam.unproject_position(p._callout.global_position).y
-	_ok(cap.breakers_placed == placed0 + 1 and absf(brk_y - vh * cap.BREAKER_Y) < vh * 0.03,
-		"a breaker name sits in the top band (%.0f px of %.0f)" % [brk_y, vh])
+	_ok(cap.breakers_placed == placed0 + 1 and p._callout.modulate.a == 0.0, "a breaker name is left to the banner")
 	await create_timer(cap.BREAKER_HOLD_S + cap.FADE_S + 0.15, true, false, true).timeout
 	cap.watch(p)
 	_ok(not p._callout.visible, "the breaker name is gone after its short hold")
@@ -234,7 +231,7 @@ func _initialize() -> void:
 	els.rim_geyser(rim_root, Vector3(0, 0, -6), 0.9, 3.2, false)
 	var rim: Array = rim_root.get_children()
 	_ok(rim.size() == 1 and rim[0].is_in_group("comic_geyser")
-		and rim[0].get_meta("width", rim[0].get("width")) < 0.9 * els.GEYSER_WIDTH,  # (designed: a meta)
+		and rim[0].get_meta("width", rim[0].get("width")) < 0.9 * 0.75,  # (a meta; 0.75 of the radius was the full geyser's column)
 		"a rim geyser is one thin column (%d nodes)" % rim.size())
 	await _sleek5(main, p)
 	await _audit2(main, p)
@@ -270,19 +267,13 @@ func _audit2(main: Node, p: CharacterBody3D) -> void:
 	var fin: GDScript = load("res://scripts/designed_finish.gd")
 	var fin0: int = fin.drawn
 	await create_timer(fl.AFTER_BREAKER_S * 0.5 + 0.08, true, false, true).timeout
-	if load("res://scripts/designed_fx.gd").on():  # round 46: the designed event (designed_finish.awaken)
-		var dfx: GDScript = load("res://scripts/designed_fx.gd")
-		var live := func() -> Array: return main.get_children().filter(func(c: Node) -> bool:
-			return c.get_script() == fin or (c.get_script() == dfx and str(c.sheet).begins_with("awaken_")))
-		_ok(fin.drawn == fin0 + 1 and not live.call().is_empty(), "then the designed Awakening (%d nodes)" % live.call().size())
-		await create_timer(1.3, true, false, true).timeout
-		_ok(live.call().is_empty() and mine.call().is_empty(), "the Awakening is gone in about a second")
-	else:
-		var col: Variant = f[0].get_child(0) if is_instance_valid(f[0]) and f[0].get_child_count() > 0 else null
-		_ok(col is MeshInstance3D and col.mesh.bottom_radius <= 0.3 and col.mesh.height <= 6.0,
-			"then one thin column (r %s)" % (str(col.mesh.bottom_radius) if col is MeshInstance3D else "-"))
-		await create_timer(0.5, true, false, true).timeout
-		_ok(mine.call().is_empty(), "the column is gone in half a second")
+	# the designed Awakening event (designed_finish.awaken)
+	var dfx: GDScript = load("res://scripts/designed_fx.gd")
+	var live := func() -> Array: return main.get_children().filter(func(c: Node) -> bool:
+		return c.get_script() == fin or (c.get_script() == dfx and str(c.sheet).begins_with("awaken_")))
+	_ok(fin.drawn == fin0 + 1 and not live.call().is_empty(), "then the designed Awakening (%d nodes)" % live.call().size())
+	await create_timer(1.3, true, false, true).timeout
+	_ok(live.call().is_empty() and mine.call().is_empty(), "the Awakening is gone in about a second")
 	var drawn0: int = fl.drawn
 	fxs.awaken_burst(main, p.global_position, Color(1.0, 0.78, 0.3))
 	_ok(fl.drawn == drawn0 + 1, "away from a breaker it shows at once")
@@ -348,15 +339,6 @@ func _sleek5(main: Node, _p: CharacterBody3D) -> void:
 		t.queue_free()
 	_ok(spans[1][0] < spans[0][0] and spans[1][1] < spans[0][1] * 0.6,  # (the sag is in both)
 		"a pinning cord is one thin line (%s)" % str(spans))
-	# The spirit echo's ghost blade draws short of its reach; the reach (the hit) is the cast's radius.
-	var echo_s: GDScript = load("res://scripts/spirit_echo.gd")
-	var echo: Node3D = echo_s.new()
-	echo.axe_mesh = BoxMesh.new()
-	echo.radius = 3.9
-	echo.delay = 5.0  # (never sweeps here)
-	main.add_child(echo)
-	_ok(echo.radius == 3.9 and echo._scale < (3.9 - 0.4) / 0.95 * 0.8, "the echo's blade is drawn short of its reach (%.2f)" % echo._scale)
-	echo.queue_free()
 	# Undertow's lava well (comic): no glowing pool or crust chunks (they lit the tile grout as a web for 4 s); it still
 	# burns for WELL_TIME.
 	var els: GDScript = load("res://scripts/elements.gd")

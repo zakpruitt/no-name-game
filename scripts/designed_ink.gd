@@ -10,8 +10,6 @@ const SELF := preload("res://scripts/designed_ink.gd")
 
 ## Draw every material this file uses once at real size (elements.prewarm), so nothing compiles mid-fight.
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	var at := root.global_position
 	var t: Node3D = load("res://scripts/void_tendril.gd").new()
 	root.add_child(t)

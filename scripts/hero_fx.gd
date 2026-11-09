@@ -11,7 +11,6 @@ const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
 const CLAW_LASH := preload("res://scripts/claw_lash.gd")
 const RANK_COLORS: Dictionary = preload("res://scripts/hud.gd").RANK_COLORS
 
-const AXE_SOURCE := "res://assets/kaykit/characters/Barbarian.glb"  # the 1H_Axe spirit casts ghost (axe_mesh)
 const CAST_GROW := 0.15  # spirit cast size per chain tier (cast_grow)
 const CAST_POWER := 0.12  # spirit cast damage per chain tier
 const CAST_SFX_DB := -11.0  # the element's cast sound under the swing
@@ -20,8 +19,6 @@ const COMBO_TIER_SFX := ["combo_1", "combo_2", "combo_3"]
 const COMBO_SFX_DB := -9.0  # the tier sound under the hit
 const ENDER_ZOOM := 0.035  # camera push-in per tier on a combo ender
 const LAST_KILL_SLOWMO := 0.55  # real seconds of slow motion on the fight's final blow
-
-static var _kaykit_axe: Mesh  # the spirit casts' axe (see axe_mesh)
 
 
 ## The combo-name callout over his head (combo_callout, hero_leap._callout); hidden until a combo lands.
@@ -38,29 +35,17 @@ static func make_callout(hero: CharacterBody3D) -> Label3D:
 	return callout
 
 
-## The mesh spirit casts ghost. His axes are skinned in place, far from any
-## usable origin, so his spirits throw KayKit's axe (AXE_SOURCE).
-static func axe_mesh() -> Mesh:
-	if _kaykit_axe == null:
-		var kaykit: Node3D = load(AXE_SOURCE).instantiate()
-		_kaykit_axe = (kaykit.find_child("1H_Axe", true, false) as MeshInstance3D).mesh
-		kaykit.free()
-	return _kaykit_axe
-
-
 ## Swing trail colour outside Awakening: the current element's.
 static func trail_rest_color(hero: CharacterBody3D) -> Color:
 	return Color(ELEMENTS.color(hero.element()), 0.85)
 
 
-## The swing's arc (Fx.swoosh) out to the move's reach, in the trail's colour.
-## Strip moves (`width`) thrust instead of sweep and get none.
+## The swing's arc (Fx.swoosh) out to the move's reach, in the trail's colour. A thrust (Dash Stab) has none: in
+## water's palette its two arcs read as ice blades.
 static func swoosh(hero: CharacterBody3D, fwd: Vector3) -> void:
 	var move: Dictionary = hero._move
-	if move.has("width"):
+	if move.get("thrust", false):
 		return
-	if move.get("thrust", false) and Fx.DESIGNED.on():
-		return  # fx-ice3: a thrust (Dash Stab) has no arc; in water's palette its two arcs read as ice blades
 	hero._swoosh_flip = not hero._swoosh_flip
 	var trails: Array = hero._trails
 	var c: Color = trails[0].color if not trails.is_empty() else trail_rest_color(hero)
@@ -95,7 +80,7 @@ static func cast(hero: CharacterBody3D, fwd: Vector3) -> void:
 	var g := cast_grow()  # spirit weapons swell with the chain
 	match c.kind:
 		"echo":
-			var echo = spirit(hero, SPIRIT_ECHO.new(), c, el)
+			var echo: Node3D = spirit(hero, SPIRIT_ECHO.new(), c, el)
 			echo.fwd = fwd
 			echo.flip = hero._swoosh_flip  # follows the swing's own swoosh
 			echo.arc_deg = c.arc
@@ -105,7 +90,7 @@ static func cast(hero: CharacterBody3D, fwd: Vector3) -> void:
 			parent.add_child(echo)
 			echo.global_position = Vector3(hero.global_position.x, model.position.y, hero.global_position.z)  # (air slashes: in the air)
 		"lash":  # Dash Stab: the claw whips its ribbon out ahead and back (claw_lash.gd)
-			var lash = spirit(hero, CLAW_LASH.new(), c, el)
+			var lash: Node3D = spirit(hero, CLAW_LASH.new(), c, el)
 			lash.dir = fwd
 			lash.hero = hero
 			lash.size = c.size * g
@@ -115,11 +100,9 @@ static func cast(hero: CharacterBody3D, fwd: Vector3) -> void:
 			lash.global_position = Vector3(hero.global_position.x, 0.0, hero.global_position.z) + lash.dir * 0.6
 
 
-## The common setup of a spirit cast node (spirit_*.gd): the hero's axe,
-## colour, element, damage (scaled by the chain) and hit callback.
+## The common setup of a spirit cast node (spirit_echo.gd, claw_lash.gd): the hero's colour, element and damage
+## (scaled by the chain).
 static func spirit(hero: CharacterBody3D, node: Node3D, c: Dictionary, el: String) -> Node3D:
-	if "axe_mesh" in node:
-		node.axe_mesh = axe_mesh()
 	node.color = hero._fx_color()
 	node.el = el
 	var dmg_mult: float = hero._dmg_mult
@@ -183,11 +166,8 @@ static func combo_callout(hero: CharacterBody3D, id: String) -> void:
 static func rank_up(hero: CharacterBody3D, i: int, rank: String) -> void:
 	var c: Color = RANK_COLORS.get(rank, Color.WHITE)
 	var at := hero.global_position + Vector3.UP * 1.1
-	# Thin and hard: a soft ring and star sat on him and fought his effects.
-	# (round 44: designed, no floor hoop: a rank-up ring round him on every climb was one more flat circle
-	# under every fight, held by the hitstop; the HUD's rank and the burst carry it)
-	if not Fx.DESIGNED.on():
-		VOID_ELEMENT.DARK.hoop_run(hero.get_parent(), hero.global_position, 0.6, 1.8 + i * 0.45, 0.22, c, 0.06)
+	# Thin and hard, no floor hoop: a soft ring and star sat on him and fought his effects; the HUD's rank and the
+	# burst carry the climb.
 	Fx.burst(hero.get_parent(), at, c, 6 + i * 4, 9.0, 0.14, 0.35, Vector3.UP, 120.0, -6.0, 0.3, "spark")
 	if i >= 4 and Game.camera_rig != null:  # S and up
 		Game.camera_rig.punch(0.94, 0.15)
@@ -206,8 +186,5 @@ static func last_kill(hero: CharacterBody3D, e: Node) -> void:
 	var parent := hero.get_parent()
 	Fx.ring(parent, at, Color(gold, 0.95), 5.0, 0.5)
 	Fx.ring(parent, at, Color(1, 1, 1, 0.8), 2.5, 0.3)
-	if Game.comic_style and Fx.DESIGNED.on():  # fx-polygons: the drawn gold star, not a soft flare
-		Fx.DESIGNED_POLISH.last_kill(parent, at)
-	else:
-		Fx.flare(parent, at + Vector3.UP * 1.1, gold, 6.0, 0.3, "star8")
+	Fx.DESIGNED_POLISH.last_kill(parent, at)  # the drawn gold star
 	Fx.burst(parent, at + Vector3.UP * 0.8, gold, 30, 12.0, 0.16, 0.6, Vector3.UP, 120.0, -10.0, 0.2, "spark")

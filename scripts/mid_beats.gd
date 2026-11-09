@@ -55,7 +55,7 @@ const GALE_PULL := 0.22
 const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 const FX_BEAT := preload("res://scripts/fx_beat.gd")
 const DROP_SIZE := 2.4  # (round 56, feel-audit6: 1.6 read as a dummy-sized blob at the camera's 800x450)
-const DROP_HIGH := 1.05  # m: the boulder's middle over the floor where it lands (comic_boulder.HIGH x the size)
+const DROP_HIGH := 1.05  # m: the boulder's middle over the floor where it lands
 const DROP_DUST := 2.4  # m: the landing's dust
 const GLOB_SIZE := 0.7
 
@@ -92,8 +92,6 @@ static func register() -> void:
 
 
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()
@@ -104,7 +102,7 @@ static func prewarm(root: Node3D) -> void:
 
 
 static func _draws() -> bool:
-	return DisplayServer.get_name() != "headless" and DESIGNED.on() and Game.comic_style
+	return DisplayServer.get_name() != "headless"
 
 
 static func _flat(v: Vector3) -> Vector3:

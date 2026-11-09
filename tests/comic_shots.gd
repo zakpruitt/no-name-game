@@ -1,5 +1,5 @@
 extends SceneTree
-## The one command that captures everything about Game.comic_style never yet seen:
+## The one command that captures everything about the comic look never yet seen:
 ##   godot --path . -s tests/comic_shots.gd
 ## About a minute. Opens a window. Saves user://comic_shots/NN_name.png and INDEX.txt,
 ## which says what each shot should show. Read the console too: a shader that fails to
@@ -19,8 +19,6 @@ const CLIP_FPS := 24.0
 const POSES := {
 	"minion": [["1H_Melee_Attack_Chop", 13]],
 	"shield": [["Block_Hit", 2], ["1H_Melee_Attack_Chop", 16]],
-	"bomber": [["Bomb_Windup", 22]],
-	"necromancer": [["Spellcast_Summon", 12]],
 }
 
 # Loaded at run time: naming the classes here compiles them before the Game autoload exists.
@@ -59,7 +57,6 @@ func _initialize() -> void:
 	await _pieces()
 	await _lineup()
 	await _each_enemy()
-	await _boss()
 	await _hero()
 	await _dots()
 	await _ink_and_flash()
@@ -136,33 +133,6 @@ func _each_enemy() -> void:
 				_hold(e, pose[0], pose[1])
 				await create_timer(SETTLE).timeout
 				_shot("enemy_%s_%s" % [kind, pose[0]], "%s at frame %d. Pose reads, weapon or prop stays in the hand." % [pose[0], pose[1]])
-
-
-func _boss() -> void:
-	_clear_enemies()
-	_main._spawn_boss()
-	await create_timer(RISE).timeout
-	var boss: Node3D = null
-	for e: Node3D in _main.get_tree().get_nodes_in_group("enemies"):
-		if e.has_method("is_boss"):
-			boss = e
-		else:
-			e.queue_free()
-	boss.set_physics_process(false)
-	boss.global_position = _at(Vector3(0.0, 0.0, -6.0))
-	_hold(boss, "Idle_Combat", 8)
-	_look(boss.global_position + Vector3.UP * 1.5, game_view * 0.75)
-	await create_timer(SETTLE).timeout
-	_shot("boss_idle", "Compare comic_poc/out/enemies/warden_game.png. 3.2 m tall, about twice the hero. Heart in three flat greens.")
-	if boss.comic_kind != "":
-		for attack: String in boss.COMIC_ATTACKS:
-			var c: Array = boss.COMIC_ATTACKS[attack]
-			_hold(boss, c[0], int(c[1]))
-			await create_timer(SETTLE).timeout
-			_shot("boss_%s" % attack, "%s on its hit frame." % c[0])
-		_hold(boss, "Enrage", 20)
-		await create_timer(SETTLE).timeout
-		_shot("boss_enrage", "Enrage: arms wide, heart blazing.")
 
 
 ## Him (the heretic), every Ab_ clip on its hit frame.

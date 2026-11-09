@@ -32,7 +32,6 @@ func _initialize() -> void:
 	await process_frame
 	probe = "--probe" in OS.get_cmdline_user_args()
 	game = root.get_node("Game")
-	game.comic_style = true
 	SPEAR = load("res://scripts/frost_spear.gd")
 	EL = load("res://scripts/void_element.gd")
 	world = Node3D.new()

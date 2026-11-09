@@ -98,7 +98,7 @@ func _process(delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var real := float(now - _last_us) / 1000000.0
 	_last_us = now
-	tick(delta, delta if DESIGNED.game_time_only else real)
+	tick(delta, real)
 
 
 ## Public so a test can step it: `delta` game seconds, `real` real ones.

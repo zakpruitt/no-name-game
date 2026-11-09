@@ -7,61 +7,47 @@ extends RefCounted
 
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
 const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
-const MOVE_LIST := preload("res://scripts/move_list.gd")
-## Round 34, fourth pass (combo guide): the element each weapon move swings, beside the void moves' ELEMENT_OF, and
-## the words the guide uses for them (the move list's and the element matrix's).
+const FOES := preload("res://scripts/foes.gd")
+## The element each weapon move swings (beside the void moves' ELEMENT_OF) and the words the guide uses for them
+## (the move list's and the element matrix's).
 const WEAPON_ELEMENT := {"L1": "wind", "AL1": "wind", "L2": "water", "DL": "water", "L3": "earth", "GR": "void"}
 const ELEMENT_WORDS := {"wind": "storm", "water": "ice", "earth": "magma", "void": "dark"}
 
-## String pacing (round 30; the ms are real time at anim_speed 1.7, printed by tests/rhythm_check.gd).
-const L1_SPEED := 1.1  # opener: hit 216 -> 196 ms, so the first beat comes quickly
-const L3_SPEED := 1.6  # ender: wind-up 471 -> 362 -> 294 ms (round 51 fluidity, was 1.3: L2's hit to L3's was 436 ms, the
-# mid-to-ender target is 380; it still winds up ~90 ms longer than L2)
-const L3_CANCEL := 0.7  # (was 0.645 at 1.3) keeps ~140 ms from L3's hit to its whiff cancel at L3_SPEED
-const L3_END := 1.02  # (was 0.975 at 1.3; a fraction of the old clip, retimed) keeps ~290 ms of recovery after the hammer
-const L3_CONFIRM := 0.8  # round 51: its hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5): of L3 -> Molten
-# Palm's 535 ms, 70 ms was the hammer waiting out its confirm after the stop
-const EM_SPEED := 2.8  # Molten Palm and Steam Burst (was 1.6, then 2.1): its palm landed 619, then 467 ms in; L3 -> EM
-# beats were 539-655 ms and EA -> XS 612 (flow audit, round 34 third pass); now 350 ms in, just under the hammer's 362
-const XF_SPEED := 1.5  # Fault Line (was 1.2): Rockslide's hit to Fault Line's was 454-510 ms, slower than any other
-# hand-over in the strings; its rake now lands 183 ms in (was 229)
-# Round 34, third pass (flow audit off the bot's [rhythm] beats, first hit to first hit; shape 196 / 235 / 362 ms):
+## String pacing: each move's clip speed (`speed`), where its whiff cancel and hit-confirm come, and its freeze, set so
+## the bot's [rhythm] beats (first hit to first hit) run opener ~196 ms / mid ~235 / ender ~362 (tests/rhythm_check.gd
+## prints them; the numbers' history is in docs/features/combo-breakers.md "String pacing history").
+const L1_SPEED := 1.1  # the opener's hit comes quickly (196 ms in)
+const L3_SPEED := 1.6  # the ender winds up a beat longer than a mid (294 ms), still ~90 ms longer than L2
+const L3_CANCEL := 0.7  # ~140 ms from L3's hit to its whiff cancel at L3_SPEED
+const L3_END := 1.02  # ~290 ms of recovery after the hammer (a fraction of the old clip, retimed)
+const L3_CONFIRM := 0.8  # its hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5): the hammer doesn't wait out its stop
+const EM_SPEED := 2.8  # Molten Palm and Steam Burst: the palm lands 350 ms in, just under the hammer's 362
+const XF_SPEED := 1.5  # Fault Line's rake lands 183 ms in, in step with the other hand-overs
 const EM_CANCEL := 0.17 * VOID_ELEMENT.AF_K  # Molten Palm / Steam Burst: the whiff cancel after the palm (118 ms)
-const EM_END := VOID_ELEMENT.AF_HIT + 0.43 * VOID_ELEMENT.AF_K  # (was + 0.34) keeps ~300 ms of recovery after the palm at the new pace
-const LLH_SPEED := 1.6  # (round 51 tried 1.75 for 8 ms off Dash Stab -> Harpoon: Harpoon then set the row down without ice blocks, ice_block_check) Harpoon and Frost Spear (was 1.2): the spear drove in 327 ms in, the slowest mid wind-up (DL ->
-# EF beats 418-514 ms); now 245 ms in
-const MELT_SPEED := 1.65  # Meltdown (was 1.2, then 1.5): XG -> XM beat 467, then 434 ms; the slam lands 202 ms in
-const ICE_CUBE_CONFIRM := 0.8  # round 51 batch 2: Ice Cube hands over to Hailstorm / Deep Freeze this far back to its hit (EA -> XG beat 367)
-const HAIL_SPEED := 1.35  # round 51 batch 2 (was 1.2): Hailstorm's rake comes in sooner off Ice Cube
-const REAP_SPEED := 1.35  # round 51 batch 2 (was 1.2): Reap off a grab (GR -> VR beat 337)
-const HAIL_CONFIRM := 0.8  # round 51: Hailstorm's hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5)
-const ROCKSLIDE_SPEED := 1.35  # round 51 (was 1.2): the boulder lands 247 ms in (was 278); AL1 -> XR beats were 297-366
-const DASH_STAB_SPEED := 1.15  # round 51 (was 1.0): the stab lands 204 ms in (235); a dash out of a move into Dash Stab
-# was 435 ms hit to hit (Rockslide -> dash -> stab), the dash cancel's next press
-const VAULT_CANCEL := 0.25  # round 51 (was 0.3): the vault hands over to Deep Freeze 46 ms sooner (IJ -> IS beat 453 ms)
-const DEEP_FREEZE_SPEED := 1.35  # round 51 (was 1.2): Deep Freeze's dive lands 260 ms in (293)
-const ROCKSLIDE_STOP := 0.07  # (was 0.1) Rockslide's hitstop: with its tier-2 ender stop it was 150 ms of the 393 ms
-# beat to Fault Line's hit; the weight moves into the boulder's held frames, the blow keeps its contact frame
-const ROCKSLIDE_CONFIRM := 0.8  # its hit-confirm cancel comes this far back to the hit (CANCEL_ON_HIT is 0.5)
-# Round 34, fourth pass: the three still-long beats (bot [rhythm], unawakened; contact frames unchanged).
-const AL1_SPEED := 1.25  # Air Slash (was 1.0): its cut landed 216 ms in; EC -> AL1 beats were 344-385 ms
-const EC_CONFIRM := 0.8  # Updraft Lash's hit-confirm comes this far back to the hit (was CANCEL_ON_HIT 0.5): of the
-# EC -> AL1 beat, ~170 ms was the lash's stop and hit-confirm before Air Slash even started
-const L2_SPEED := 1.15  # the spear (was 1.0): its throw landed 235 ms in, L1 -> L2 beats ~311 ms; at 204 ms it still
-# winds up longer than L1's 196 (rhythm_check: opener quickest)
-const DASH_STAB_CANCEL := 0.4  # of dash_time: a dash out of a move hands over to a buffered light (Dash Stab) this
-# early (hero_input.dash_hands_over). Dash Stab off a dash out of a move was 475-536 ms after the move's hit (the
-# whole 160 ms dash, then its wind-up), 405-421 at 0.5. 0.4 is 64 ms, ~1.5 m plus the carry; Dash Stab's own lunge
-# (16 m/s) covers the rest of the ground. (Tow Line off a dash keeps the whole dash: handing it over too took
-# EF -> TW 457 -> 411 ms but its line got short and the bot's frozen x dark cell went 3 -> 0.)
-const DASH_STAB_STOP := 0.06  # (was 0.07) a light's freeze (L1 0.045, L2 0.05): with its tier-1 ENDER_HITSTOP it's 85 ms
-const DASH_STAB_CONFIRM := 0.8  # its hit-confirm comes this far back to the hit (CANCEL_ON_HIT 0.5): once the stab
-# connected (the brake below), its stop plus the 0.5 confirm made Dash Stab -> Harpoon 424-435 ms
+const EM_END := VOID_ELEMENT.AF_HIT + 0.43 * VOID_ELEMENT.AF_K  # ~300 ms of recovery after the palm
+const LLH_SPEED := 1.6  # Harpoon and Frost Spear: the spear drives in 245 ms in (1.75 lost Harpoon's ice blocks: ice_block_check)
+const MELT_SPEED := 1.65  # Meltdown's slam lands 202 ms in
+const ICE_CUBE_CONFIRM := 0.8  # Ice Cube hands over to Hailstorm / Deep Freeze this far back to its hit
+const HAIL_SPEED := 1.35  # Hailstorm's rake comes in sooner off Ice Cube
+const REAP_SPEED := 1.35  # Reap off a grab
+const HAIL_CONFIRM := 0.8  # Hailstorm's hit-confirm comes this far back to the hit
+const ROCKSLIDE_SPEED := 1.35  # the boulder lands 247 ms in
+const DASH_STAB_SPEED := 1.15  # the stab lands 204 ms in (a dash out of a move into Dash Stab is the dash cancel's next press)
+const VAULT_CANCEL := 0.25  # the vault hands over to Deep Freeze
+const DEEP_FREEZE_SPEED := 1.35  # Deep Freeze's dive lands 260 ms in
+const ROCKSLIDE_STOP := 0.07  # Rockslide's hitstop: the weight is in the boulder's held frames, not a long stop before Fault Line
+const ROCKSLIDE_CONFIRM := 0.8  # its hit-confirm cancel comes this far back to the hit
+const AL1_SPEED := 1.25  # Air Slash's cut comes sooner off Updraft Lash
+const EC_CONFIRM := 0.8  # Updraft Lash's hit-confirm comes this far back to the hit: Air Slash starts sooner
+const L2_SPEED := 1.15  # the spear's throw lands 204 ms in, still longer than L1's 196 (rhythm_check: opener quickest)
+const DASH_STAB_CANCEL := 0.4  # of dash_time: a dash out of a move hands over to a buffered light (Dash Stab) this early
+# (hero_input.dash_hands_over): 64 ms, ~1.5 m plus the carry; the stab's own lunge covers the rest. (Tow Line keeps
+# the whole dash: a short one lost its line.)
+const DASH_STAB_STOP := 0.06  # a light's freeze (L1 0.045, L2 0.05); with its tier-1 ENDER_HITSTOP 85 ms
+const DASH_STAB_CONFIRM := 0.8  # its hit-confirm comes this far back to the hit, once the stab connected (the brake)
 const HARPOON_STOP := 0.07  # a mid's freeze (EC 0.07), plus its tier-1 ENDER_HITSTOP: the catch, once it has foes
-# Round 41 (feel audit 2 item 5): Dash Stab and Harpoon landed soft (x1.00 on their HIT frames). Not a missing stop:
-# their blows whiffed. At 16 m/s the stab carried him ~2.7 m by its hit, through a foe 2-3 m ahead (outside its 90 deg
-# arc once behind him), and Harpoon then fired at nobody. The stab now brakes on the foe it aims at, so it lands in
-# front of him and gets the stop, kick and star every connected hit has.
+## Dash Stab's brake: at 16 m/s the stab carried him through a foe 2-3 m ahead and whiffed, so it brakes on the foe it
+## aims at and lands in front of it (the stop, kick and star every connected hit has).
 const DASH_STAB_BRAKE := 0.6  # of the stab's range: where the foe it aims at stands by the hit (centre to centre)
 const DASH_STAB_BRAKE_ARC := 50.0  # deg either side of his aim: the foes it brakes for
 const DASH_STAB_MIN_LUNGE := 3.0  # m/s: braked, it still steps in
@@ -70,16 +56,14 @@ const DASH_STAB_MIN_LUNGE := 3.0  # m/s: braked, it still steps in
 # anim_speed keeps everything in sync.
 #   hits: when damage is dealt   cancel: when the next input is accepted
 #   end: when control returns    lunge: forward burst speed at start
-#   width: (optional) hits a straight strip `range` long and 2x`width` wide
-#          instead of the `arc` cone
 #   decay: (optional, default 3) how fast the lunge dies: it's gone at 1/decay
 #          of the move, so a low decay keeps the hero travelling
 #   speed: (optional, default 1) plays the animation this much faster (or,
 #          below 1, slower), for anims whose natural length doesn't fit
 #   hop: (optional) [start, end, height]: the hero leaves the ground in an arc
 #        between those fractions (the model lifts, the body stays). A move
-#        started in the air (out of a hop) comes down by its first hit
-#        (`land` overrides), so L H's rise carries into L H H's drop.
+#        started in the air (out of a hop) comes down by its first hit,
+#        so L H's rise carries into L H H's drop.
 #   air: (optional) holds the height the move started at; `climb` adds this
 #        many metres by its first hit (the air string goes up cut by cut)
 # String rhythm (round 30, tests/rhythm_check.gd prints the ms): the opener is quick (L1 `speed`
@@ -331,7 +315,7 @@ static func cam_tier(id: String, tier: int) -> int:
 # --- Hops, the air string, plunges ----------------------------------------------
 
 ## The move's height off the floor at progress `t`: comes down from where it
-## started by `land` (first hit), plus its own `hop` arc.
+## started by its first hit, plus its own `hop` arc.
 static func hop(hero: CharacterBody3D, t: float) -> void:
 	var move: Dictionary = hero._move
 	var y0: float = hero._hop_y0
@@ -343,8 +327,7 @@ static func hop(hero: CharacterBody3D, t: float) -> void:
 		var up: float = climb * smoothstep(0.0, move.hits[0], t)
 		y = minf(y0 + up + sin(t * PI) * 0.15, cap + 0.15)
 	elif y0 > 0.0:
-		var land: float = move.get("land", move.hits[0])
-		var k := clampf(t / maxf(land, 0.01), 0.0, 1.0)
+		var k := clampf(t / maxf(move.hits[0], 0.01), 0.0, 1.0)
 		y = y0 * (1.0 - k * k)  # accelerating down onto the hit
 	if move.has("hop"):
 		var h: Array = move.hop
@@ -369,15 +352,10 @@ static func plunge_mult(hero: CharacterBody3D) -> float:
 	return 1.0 + PLUNGE_PER_M * maxf(0.0, hero._hop_y0 - 0.4)
 
 
-## Landing from a hop: dust, a ring in the hero's colour and a shake, all
-## bigger the further he fell (an air-string Triple Chop lands hardest).
+## Landing from a hop: dust and a shake, both bigger the further he fell (an air-string Triple Chop lands hardest).
 static func land_slam(hero: CharacterBody3D, peak: float) -> void:
 	var k := 1.0 + (SLAM_SCALE - 1.0) * clampf((peak - 0.4) / (SLAM_FULL_HEIGHT - 0.4), 0.0, 1.0)
-	var parent := hero.get_parent()
-	Fx.dust(parent, hero.global_position, int(6 * k), 0.5 * k)
-	# (his tentacle moves land on him: it hid them; round 44, designed: the landing's dust puff carries it)
-	if not VOID_ELEMENT.is_element_move(hero._move_id) and not Fx.DESIGNED.on():
-		Fx.ring(parent, hero.global_position + hero._facing() * 0.8, Color(hero._fx_color(), 0.8), 2.2 * k, 0.22)
+	Fx.dust(hero.get_parent(), hero.global_position, int(6 * k), 0.5 * k)
 	Game.shake(0.12 * k)
 
 
@@ -387,18 +365,16 @@ static func land_slam(hero: CharacterBody3D, peak: float) -> void:
 static func air_home(hero: CharacterBody3D) -> void:
 	var best: Node3D = null
 	var best_d := AIR_HOME_RANGE
-	for e in hero.get_tree().get_nodes_in_group("enemies"):
+	for e: Node3D in hero.get_tree().get_nodes_in_group("enemies"):
 		if not e.is_alive() or not e.is_airborne():
 			continue
-		var to: Vector3 = e.global_position - hero.global_position
-		to.y = 0.0
-		if to.length() < best_d:
-			best_d = to.length()
+		var d := FOES.to_flat(hero, e).length()
+		if d < best_d:
+			best_d = d
 			best = e
 	if best == null:
 		return
-	var to := best.global_position - hero.global_position
-	to.y = 0.0
+	var to := FOES.to_flat(hero, best)
 	if to.length() > 0.05:
 		hero._face(to)
 		hero.model.rotation.y = hero._facing_yaw
@@ -418,10 +394,9 @@ static func air_home(hero: CharacterBody3D) -> void:
 static func brake(hero: CharacterBody3D) -> void:
 	var move: Dictionary = hero._move
 	var foe: Variant = hero._aim_lock
-	if not move.get("brake", false) or not is_instance_valid(foe) or not foe.is_alive():
+	if not move.get("brake", false) or not FOES.alive(foe):
 		return
-	var to: Vector3 = foe.global_position - hero.global_position
-	to.y = 0.0
+	var to: Vector3 = FOES.flat(foe.global_position - hero.global_position)
 	if to.length() < 0.01 or rad_to_deg(hero._facing().angle_to(to.normalized())) > DASH_STAB_BRAKE_ARC:
 		return
 	var length: float = hero._move_len / maxf(hero.anim_speed * hero._anim_mult, 0.01)

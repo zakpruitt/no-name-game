@@ -39,7 +39,6 @@ class Foe extends CharacterBody3D:
 func _initialize() -> void:
 	await process_frame
 	var game: Node = root.get_node("Game")
-	game.comic_style = true
 	world = Node3D.new()
 	root.add_child(world)
 	var floor_body := StaticBody3D.new()
@@ -127,7 +126,7 @@ func _live_floor_short_circuit() -> void:
 		grate.set_meta(EP.STATE_META, case)
 		var near := _foe(Vector3(0, 0, 2.5))
 		var far := _foe(Vector3(0, 0, 20.0))
-		far.elite = true
+		far.radius = 1.0  # (a heavy foe: nothing can pick it up)
 		hero.bot_enabled = true
 		hero.bot_alt = true
 		hero._start_attack("EE")

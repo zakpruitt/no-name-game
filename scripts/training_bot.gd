@@ -689,7 +689,7 @@ static func labels_of(b: Dictionary) -> Array:
 ## filling it connected; a window when one of its endings landed; an upgrade (on this run) when its moves connected.
 ## Pending slots (no move yet) and the meter (Awakening) aren't counted. `missing` names what didn't land.
 func kit_report() -> Dictionary:
-	var card: Dictionary = KitSlots.of(Game.hero)
+	var card: Dictionary = KitSlots.of()
 	var r := {"slots": 0, "slots_n": 0, "windows": 0, "windows_n": 0, "upgrades": 0, "upgrades_n": 0, "missing": []}
 	var labelled := {}
 	for i: int in _bot_strings_done:

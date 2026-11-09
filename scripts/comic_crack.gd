@@ -1,5 +1,5 @@
 extends Node3D
-## A comic burn mark on the floor (Fx.scorch with Game.comic_style): a flat inked splat with jagged
+## A comic burn mark on the floor (Fx.scorch): a flat inked splat with jagged
 ## cracks running out of it, hot in the middle on the first steps, cooling to a dark tone of its colour on twos,
 ## then shrinking away. Replaces the soft glowing scorch texture, which read as an orange haze under
 ## Molten Palm's line and the geysers. Depth tested, so foes standing on it stay in front.
