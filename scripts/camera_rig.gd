@@ -16,11 +16,20 @@ const FOV := 37.0  # degrees, vertical
 const REF_DIST := 12.5  # the distance the metre-sized nudges (kicks, shake offset) were tuned at (round 32)
 const CAM_FLAGS := {"--cam-dist=": "dist", "--cam-fov=": "fov", "--cam-frame=": "frame_max"}
 
-@export var target: Node3D
-@export var follow_speed := 8.0
-@export var max_shake_offset := 0.6  # metres at REF_DIST; scaled with the distance so shake reads the same
-@export var max_shake_roll := 2.5
-@export var trauma_decay := 1.8
+# (The rig is built in code, main.gd's `CAMERA.new()`: these are set by it and the checks, never from a scene.)
+var target: Node3D
+var follow_speed := 8.0
+var max_shake_offset := 0.6  # metres at REF_DIST; scaled with the distance so shake reads the same
+var max_shake_roll := 2.5
+var trauma_decay := 1.8
+## The hero's fields the rig reads (player.gd): as StringNames, so a `get()` a frame costs no String conversion. They
+## go through `get()` because camera_feel_check drives the rig with bare Node3D stand-ins that lack most of them.
+const P_MODEL := &"model"
+const P_STATE := &"state"
+const P_LANDED := &"breakers_landed"
+const P_VOID := &"_void"
+const P_ZONE := &"_brk_zone"
+const P_LAST_HIT := &"last_hit_ms"
 
 var dist := DIST  # after any --cam-dist= flag
 var fov := FOV  # after any --cam-fov= flag
@@ -171,8 +180,19 @@ const LAND_SAFE := Vector3(0.86, 0.62, 0.86)  # of the half-screen: sides, up, d
 const LAND_HOLD_MS := 50
 const LAND_EASE_MS := 330
 var _land_from := 0.0  # the view's distance (x the rest offset) on the landing's frame
-var scene_structs := 0  # structure points the scene framed this frame (checks)
 var _scene_need := 0.0  # how far out the actors need the view (x DIST, uncapped, no floor; 0: no scene), _squeeze()
+## Per-frame scratch, kept so the framing allocates nothing a frame: the lens (_need's tangents, from the FOV and the
+## viewport once a frame in _lens()), the point lists, and the indicator node.
+const FWD := Vector3(0.0, -0.8, -0.6)  # -VIEW_DIR: camera forward
+const SCREEN_UP := Vector3(0.0, 0.6, -0.8)  # VIEW_DIR x RIGHT: screen up
+const HEAD := Vector3(0.0, FRAME_HEAD, 0.0)
+var _tx := 0.0  # tan(half fov) x the aspect
+var _ty := 0.0  # tan(half fov)
+var _fight_pts: Array[Vector3] = []
+var _scene_pts: Array[Vector3] = []
+var _scene_structs: Array[Vector3] = []
+var _scene_all: Array[Vector3] = []
+var _env: Node  # the structure indicator (group env_target), found once
 
 
 func _ready() -> void:
@@ -296,8 +316,9 @@ func _process(delta: float) -> void:
 	var hanging := target != null and _hanging(target)
 	_hang = lerpf(_hang, 1.0 if hanging else 0.0, 1.0 - exp(-(HANG_IN if hanging else HANG_OUT) * real_delta))
 	if target:
+		_lens()
 		var goal := target.global_position
-		var body: Variant = target.get("model")  # (the leap lifts his model, not the body)
+		var body: Variant = target.get(P_MODEL)  # (the leap lifts his model, not the body)
 		var high: float = body.global_position.y if body is Node3D and is_instance_valid(body) else goal.y
 		var lift := clampf(high * LIFT_FOLLOW, 0.0, LIFT_MAX) if hanging else 0.0
 		_lift = lerpf(_lift, lift, 1.0 - exp(-(HANG_IN if lift > _lift else HANG_OUT) * real_delta))
@@ -333,7 +354,7 @@ func _process(delta: float) -> void:
 	_fov = lerpf(_fov, _fov_to, follow)
 	camera.fov = fov - _fov
 	var push := _squeeze() * (1.0 - _hit_zoom * (1.0 - _hang))
-	if _scene_need > 0.0:  # (round 54: a scene's actors stay inside its box through the hits' push-ins and FOV kicks)
+	if _scene_need > 0.0:  # (a scene's actors stay inside its box through the hits' push-ins and FOV kicks)
 		var narrow := tan(deg_to_rad(camera.fov * 0.5)) / tan(deg_to_rad(fov * 0.5))
 		push = maxf(push, minf(minf(_scene_need, _scene_cap) / maxf(_frame * narrow, 0.01), 1.0 / maxf(narrow, 0.01)))
 	camera.position = offset * _frame * push + _kick
@@ -363,7 +384,7 @@ func _squeeze() -> float:
 ## foes round him and frames HANG_AFTER_MS more, a cued actor longer; a leap that ends with no landing ends it.
 func _scene_tick(hanging: bool) -> bool:
 	var now := Time.get_ticks_msec()
-	var landed_v: Variant = target.get("breakers_landed")
+	var landed_v: Variant = target.get(P_LANDED)
 	var landed: int = int(landed_v) if landed_v != null else 0
 	var hero := target.global_position
 	if hanging and not _scene_hang:
@@ -372,12 +393,12 @@ func _scene_tick(hanging: bool) -> bool:
 	if hanging:
 		_scene_ms = now + HANG_AFTER_MS
 		_scene_until = now + HANG_AFTER_MAX_MS
-		var grab: Variant = target.get("_void")
+		var grab: Variant = target.get(P_VOID)
 		if grab is Object and is_instance_valid(grab) and (grab as Object).has_method("held_foes"):
 			for e: Variant in grab.held_foes():
 				if e is Node3D:
 					_actors[(e as Node3D).get_instance_id()] = e
-		var zone: Variant = target.get("_brk_zone")
+		var zone: Variant = target.get(P_ZONE)
 		if zone is Vector3:
 			_add_near(zone, HANG_ZONE_R)
 	if _scene_land >= 0 and landed > _scene_land:  # the landing
@@ -396,7 +417,7 @@ func _scene_tick(hanging: bool) -> bool:
 		return false
 	for e: Node in get_tree().get_nodes_in_group("enemies"):  # a cued foe joins, and keeps the scene on while cued
 		if not hanging and now - _land_ms <= HANG_LAND_HIT_MS.y and e is Node3D:  # (and one the landing hit, however
-			var hit: Variant = e.get("last_hit_ms")  # far: Short Circuit's arc, Ricochet's bounce, Cold Front's cube)
+			var hit: Variant = e.get(P_LAST_HIT)  # far: Short Circuit's arc, Ricochet's bounce, Cold Front's cube)
 			if hit is int and int(hit) >= _land_ms - HANG_LAND_HIT_MS.x:
 				_actors[e.get_instance_id()] = e
 		var cue: int = int(e.get_meta(FRAME_CUE, 0))
@@ -427,7 +448,8 @@ func _frame_scene(goal: Vector3, hanging: bool) -> void:
 	_cued = true  # (eases out at FRAME_CUE_OUT)
 	_scene_need = 0.0
 	var hero := target.global_position
-	var pts: Array[Vector3] = []
+	var pts := _scene_pts
+	pts.clear()
 	for id: int in _actors.keys():
 		var e: Variant = _actors[id]
 		if not is_instance_valid(e) or not (e as Node).is_inside_tree():
@@ -437,27 +459,29 @@ func _frame_scene(goal: Vector3, hanging: bool) -> void:
 		if at.distance_to(hero) <= FRAME_CUE_RANGE:
 			pts.append(at)
 	var now := Time.get_ticks_msec()
-	var structs: Array[Vector3] = []
-	var env: Node = get_tree().get_first_node_in_group(&"env_target") if hanging else null
+	var structs := _scene_structs
+	structs.clear()
+	var env: Node = _indicator() if hanging else null
 	if env != null and not env.current.is_empty() and env.current.get("state", "") == "target":
 		_scene_env = env.current.at + Vector3.UP * ENV_TARGET_Y
-	if _scene_env != Vector3.INF:  # (the pick the leap had stays the scene's: Collapse spits into it after the landing)
-		structs.append(_scene_env)
+	if _scene_env != Vector3.INF and _scene_env.distance_to(hero) <= FRAME_CUE_RANGE:
+		structs.append(_scene_env)  # (the pick the leap had stays the scene's: Collapse spits into it after the landing)
 	for n: Node in get_tree().get_nodes_in_group("env"):
 		if n is Node3D and int(n.get_meta(FRAME_CUE, 0)) > now:
-			structs.append((n as Node3D).global_position + Vector3.UP * ENV_TARGET_Y)
-	structs = structs.filter(func(at: Vector3) -> bool: return at.distance_to(hero) <= FRAME_CUE_RANGE)
-	scene_structs = structs.size()
+			var at: Vector3 = (n as Node3D).global_position + Vector3.UP * ENV_TARGET_Y
+			if at.distance_to(hero) <= FRAME_CUE_RANGE:
+				structs.append(at)
 	if (pts.is_empty() and structs.is_empty()) or frame_max <= 1.0:
 		return
 	pts.append(hero)
-	var zone: Variant = target.get("_brk_zone") if hanging else null
+	var zone: Variant = target.get(P_ZONE) if hanging else null
 	if zone is Vector3 and (zone as Vector3).distance_to(hero) <= FRAME_CUE_RANGE:
 		pts.append(zone)  # (where the dive lands: the zoom is out for it before he gets there, Cold Front's 8 m dive)
-	var body: Variant = target.get("model")
+	var body: Variant = target.get(P_MODEL)
 	if body is Node3D and is_instance_valid(body):
 		pts.append((body as Node3D).global_position)  # (his hang height)
-	var all := pts.duplicate()
+	var all := _scene_all
+	all.assign(pts)
 	all.append_array(structs)
 	_safe = HANG_SAFE
 	var need := _need(all, goal, _safe, 0.0)
@@ -508,7 +532,7 @@ func _land_punch(all: Array[Vector3], goal: Vector3, need: float, now: int) -> f
 ## The lean (within HANG_LEAN_MAX) that lets `pts` fit the nearest: two rounds along x, then z, each a coarse then a
 ## fine sweep, a tie going to the smaller lean. (A ternary search drifted to the cap on a tie: the pile 6 m sideways
 ## because nothing sideways mattered.)
-func _best_lean(pts: Array, goal: Vector3) -> Vector3:
+func _best_lean(pts: Array[Vector3], goal: Vector3) -> Vector3:
 	var lean := Vector3.ZERO
 	for round_i in 2:
 		for axis: Vector3 in [Vector3.RIGHT, Vector3.BACK]:
@@ -538,13 +562,14 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 		return  # (a hang: the rise, the window and the dive keep him centred in its push-in, cued foes aside)
 	var now := Time.get_ticks_msec()
 	var hero := target.global_position
-	var pts: Array[Vector3] = []
+	var pts := _fight_pts
+	pts.clear()
 	var lo := Vector2(hero.x, hero.z)
 	var hi := lo
 	for foe in get_tree().get_nodes_in_group("enemies"):
 		if not foe is Node3D or not is_instance_valid(foe) or foe == target:
 			continue
-		var hit_ms: Variant = foe.get("last_hit_ms")
+		var hit_ms: Variant = foe.get(P_LAST_HIT)
 		var cued: bool = int(foe.get_meta(FRAME_CUE, 0)) > now
 		if not cued and (hanging or not hit_ms is int or now - int(hit_ms) > FRAME_HIT_MS):
 			continue
@@ -555,9 +580,9 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 		_cued = _cued or cued
 		lo = lo.min(Vector2(at.x, at.z - (at.y + FRAME_HEAD) * VIEW_DIR.z / VIEW_DIR.y))  # (a head reads as
 		hi = hi.max(Vector2(at.x, at.z))  # floor that far up-screen)
-	# Round 50: in a hang, the wall or pillar the ending will use (env_target's structure indicator) counts as a cued
-	# foe, so its bracket is in view (Pinwheel's back wall sat on the top edge, the bracket half off it).
-	var env: Node = get_tree().get_first_node_in_group(&"env_target") if hanging else null
+	# In a hang, the wall or pillar the ending will use (env_target's structure indicator) counts as a cued foe, so its
+	# bracket is in view (Pinwheel's back wall sat on the top edge, the bracket half off it).
+	var env: Node = _indicator() if hanging else null
 	if env != null and not env.current.is_empty() and env.current.get("state", "") == "target":
 		var at: Vector3 = env.current.at + Vector3.UP * ENV_TARGET_Y
 		if at.distance_to(hero) <= FRAME_CUE_RANGE:
@@ -576,25 +601,42 @@ func _frame_fight(goal: Vector3, hanging: bool) -> void:
 	_frame_to = minf(_need(pts, goal + _lean_to), frame_max)
 
 
+## The lens this frame: the tangents _need() divides by, from the FOV and the viewport's aspect. Once a frame
+## (_process); _need() runs hundreds of times a frame in a breaker scene (_best_lean's sweeps).
+func _lens() -> void:
+	_ty = tan(deg_to_rad(fov * 0.5))
+	var size := get_viewport().get_visible_rect().size if get_viewport() else Vector2(16.0, 9.0)
+	_tx = _ty * (size.x / maxf(size.y, 1.0))
+
+
+## The structure indicator (env_target.gd), or null; looked up once and kept while it lives.
+func _indicator() -> Node:
+	if _env == null or not is_instance_valid(_env) or not _env.is_inside_tree():
+		_env = get_tree().get_first_node_in_group(&"env_target")
+	return _env
+
+
 ## How far out (x the rest distance) the camera must be for `pts` and their heads to fit FRAME_SAFE around `centre`
 ## (`safe`: x the sides, y up, z down, of the half-screen; `least`: the least it returns).
 func _need(pts: Array[Vector3], centre: Vector3, safe := Vector3(FRAME_SAFE.x, FRAME_SAFE.y, FRAME_SAFE.y), least := 1.0) -> float:
 	# Camera space at the rest distance: depth of a point = dist * f + d.fwd, so it fits |ndc| <= FRAME_SAFE
-	# from f = (|d.side| / (FRAME_SAFE * tan(half fov)) - d.fwd) / dist.
-	var fwd := -VIEW_DIR
-	var up := VIEW_DIR.cross(Vector3.RIGHT)  # screen up: (0, 0.6, -0.8)
-	var ty := tan(deg_to_rad(fov * 0.5))
-	var size := get_viewport().get_visible_rect().size if get_viewport() else Vector2(16.0, 9.0)
-	var tx := ty * (size.x / maxf(size.y, 1.0))
+	# from f = (|d.side| / (FRAME_SAFE * tan(half fov)) - d.fwd) / dist. Each point counts at its feet and FRAME_HEAD up.
+	if _ty == 0.0:
+		_lens()
 	var need := least
 	for p in pts:
-		for h in [0.0, FRAME_HEAD]:
-			var d: Vector3 = p + Vector3.UP * h - centre
-			var fx := (absf(d.dot(Vector3.RIGHT)) / (safe.x * tx) - d.dot(fwd)) / dist
-			var sy := d.dot(up)
-			var fy := (absf(sy) / ((safe.y if sy > 0.0 else safe.z) * ty) - d.dot(fwd)) / dist
-			need = maxf(need, maxf(fx, fy))
+		var d: Vector3 = p - centre
+		need = maxf(need, _fit(d, safe))
+		need = maxf(need, _fit(d + HEAD, safe))
 	return need
+
+
+## _need() for one camera-space offset `d` from the centre.
+func _fit(d: Vector3, safe: Vector3) -> float:
+	var fx := (absf(d.x) / (safe.x * _tx) - d.dot(FWD)) / dist
+	var sy := d.dot(SCREEN_UP)
+	var fy := (absf(sy) / ((safe.y if sy > 0.0 else safe.z) * _ty) - d.dot(FWD)) / dist
+	return maxf(fx, fy)
 
 
 ## True while `t` (the hero) is in his combo-breaker leap (player.State.LEAP).
@@ -602,4 +644,4 @@ func _hanging(t: Node3D) -> bool:
 	if _leap_state == -2:
 		var states: Variant = t.get_script().get_script_constant_map().get("State") if t.get_script() else null
 		_leap_state = int(states.get("LEAP", -1)) if states is Dictionary else -1
-	return _leap_state >= 0 and t.get("state") == _leap_state
+	return _leap_state >= 0 and t.get(P_STATE) == _leap_state

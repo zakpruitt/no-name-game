@@ -22,12 +22,18 @@ extends RefCounted
 ## the room with pieces, so they can be practised): on(). Static functions over env_piece.gd's pieces, plus two nodes
 ## (Hang on a hung foe, RinkWatch on each pool). No class_name: preload it.
 
+const SELF := preload("res://scripts/env_flourish.gd")  # (the inner classes Hang and RinkWatch reach the statics through it)
 const ENV_PIECE := preload("res://scripts/env_piece.gd")
 const ENV := preload("res://scripts/env_target.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_EL := preload("res://scripts/designed_elements.gd")
 const FOES := preload("res://scripts/foes.gd")
 const ROOMS := preload("res://scripts/rooms.gd")
+const SPEAR := preload("res://scripts/frost_spear.gd")
+const POLISH := preload("res://scripts/designed_polish.gd")
+## void_element preloads lava_leash, which preloads this file (env_target.gd has the whole order), so a preload of it
+## here would close a cycle: it is loaded once, on first use, and held.
+static var _ve_s: GDScript
 
 const IDS := ["gallows", "ice_rink", "brazier_spill"]
 const CAMERA_CUE := &"frame_cue_ms"  # (camera_rig.FRAME_CUE; designed_breaker's banner dodges a cued piece too)
@@ -104,6 +110,12 @@ static func on(id: String) -> bool:
 	return Kit.has(id) or ROOMS.flourish(Game.room, id)
 
 
+static func _ve() -> GDScript:
+	if _ve_s == null:
+		_ve_s = load("res://scripts/void_element.gd")
+	return _ve_s
+
+
 static func register() -> void:
 	if _registered:
 		return
@@ -116,8 +128,6 @@ static func register() -> void:
 
 ## Draw every material once at real size (elements.prewarm).
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()
@@ -166,14 +176,6 @@ static func _flat(v: Vector3) -> Vector3:
 
 static func _flat_d(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
-
-
-static func _hero_of(tree: SceneTree) -> Node:
-	return tree.get_first_node_in_group("player") if tree != null else null
-
-
-static func _power(by: Variant) -> float:
-	return float(by.get("_dmg_mult")) if is_instance_valid(by) and by.get("_dmg_mult") != null else 1.0
 
 
 # --- gallows --------------------------------------------------------------------------------------------------------
@@ -278,7 +280,6 @@ class Hang extends Node:
 
 	func _ready() -> void:
 		process_physics_priority = 60  # (after the foes' own move_and_slide: the hook holds it)
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		_from = foe.global_position
 		var side := hook.global_transform.basis.x
 		var came: Vector3 = _from - SELF.hook_point(hook)
@@ -294,9 +295,8 @@ class Hang extends Node:
 		ENV_PIECE.touch(hook, "gallows")
 		hung += 1
 		var p: Vector3 = SELF.hook_point(hook)
-		if DESIGNED.on():
-			DESIGNED.hit(hook.get_parent(), p + Vector3.UP * 0.1, "void", 1.1)
-			DESIGNED.dust(hook.get_parent(), Vector3(p.x, 0.0, p.z), 0.8)
+		DESIGNED.hit(hook.get_parent(), p + Vector3.UP * 0.1, "void", 1.1)
+		DESIGNED.dust(hook.get_parent(), SELF._flat(p), 0.8)
 		ComicFx.say(SELF.GALLOWS_WORD, p + Vector3.UP * 0.9, 0.62)
 		Game.hitstop(0.05)
 		Game.shake(0.45)
@@ -304,7 +304,6 @@ class Hang extends Node:
 		Game.sfx("swing_heavy", -6.0, 0.1)
 
 	func _physics_process(delta: float) -> void:
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		var sw: Node3D = SELF._swing(hook) if is_instance_valid(hook) else null
 		if _done:
 			_done_t += delta
@@ -350,7 +349,7 @@ class Hang extends Node:
 
 	## The bound rule's Snap, paid by a hit the matrix didn't pay (a melee swing, a dark move): void_element._pay.
 	func _snap() -> void:
-		var VE: GDScript = load("res://scripts/void_element.gd")
+		var VE: GDScript = SELF._ve()
 		if not is_instance_valid(hero) or not foe.has_meta("x_bound"):
 			return
 		snaps += 1
@@ -358,7 +357,6 @@ class Hang extends Node:
 		VE.improv_paid["bound"] = int(VE.improv_paid.get("bound", 0)) + 1
 
 	func _let_go(sw: Node3D) -> void:
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		_done = true
 		_swing_at = sw.rotation.z if sw != null else 0.0
 		if is_instance_valid(foe):
@@ -423,7 +421,6 @@ class RinkWatch extends Node:
 		process_physics_priority = -20  # (before the foes' friction: a slide keeps its speed)
 
 	func _physics_process(delta: float) -> void:
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		if not is_instance_valid(pool) or not SELF.on("ice_rink"):
 			return
 		if ENV_PIECE.state(pool) == "frozen":
@@ -439,7 +436,7 @@ class RinkWatch extends Node:
 		var tree := pool.get_tree()
 		var fresh := false
 		var seen := {}
-		var VE: GDScript = load("res://scripts/void_element.gd")
+		var VE: GDScript = SELF._ve()
 		for e: Node in tree.get_nodes_in_group("enemies"):
 			if not e.is_alive():
 				continue
@@ -448,7 +445,7 @@ class RinkWatch extends Node:
 			if cold and not _was.get(e, false) and ENV_PIECE.gap(pool, (e as Node3D).global_position) <= SELF.RINK_NEAR:
 				fresh = true
 		_was = seen
-		var spear: Node3D = load("res://scripts/frost_spear.gd").current(tree)
+		var spear: Node3D = SPEAR.current(tree)
 		var by_spear: bool = spear != null and ENV_PIECE.gap(pool, spear.global_position) <= SELF.RINK_NEAR
 		if by_spear and not _spear:
 			fresh = true
@@ -457,8 +454,7 @@ class RinkWatch extends Node:
 			freeze()
 
 	func _process(_delta: float) -> void:
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
-		if not is_instance_valid(pool) or ENV_PIECE.state(pool) != "frozen" or not DESIGNED.on():
+		if not is_instance_valid(pool) or ENV_PIECE.state(pool) != "frozen":
 			return
 		_glint -= get_process_delta_time() / maxf(Engine.time_scale, 0.05)
 		if _glint > 0.0:
@@ -474,7 +470,6 @@ class RinkWatch extends Node:
 	## Ice by the pool: frozen (or RINK_S more). Round 57: in a room whose `links` hold "pool", every pool touching this
 	## one is the same water and freezes with it (ENV_PIECE.linked).
 	func freeze() -> void:
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		_until = SELF.RINK_S
 		if not _linking:
 			_linking = true
@@ -501,12 +496,12 @@ class RinkWatch extends Node:
 			_ice.scale = Vector3(0.6, 1.0, 0.6)
 			tw.tween_property(_ice, "scale", Vector3.ONE, 0.16).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 		var parent := pool.get_parent()
-		var c := Vector3(pool.global_position.x, 0.0, pool.global_position.z)
-		if DESIGNED.on():  # the frost spreads out over it from the middle, corner to corner
-			DESIGNED_EL.frost_burst(parent, c, 2.2)
-			var h: float = float(ENV_PIECE.PIECES.pool.size.x) * 0.3
-			for k: Vector3 in [Vector3(-h, 0, -h), Vector3(h, 0, -h), Vector3(h, 0, h), Vector3(-h, 0, h)]:
-				DESIGNED_EL.frost_mark(parent, c + k, 1.05, 0.9, false)
+		var c: Vector3 = SELF._flat(pool.global_position)
+		# the frost spreads out over it from the middle, corner to corner
+		DESIGNED_EL.frost_burst(parent, c, 2.2)
+		var h: float = float(ENV_PIECE.PIECES.pool.size.x) * 0.3
+		for k: Vector3 in [Vector3(-h, 0, -h), Vector3(h, 0, -h), Vector3(h, 0, h), Vector3(-h, 0, h)]:
+			DESIGNED_EL.frost_mark(parent, c + k, 1.05, 0.9, false)
 		ComicFx.say(SELF.RINK_WORD, c + Vector3.UP * 1.3, 0.5)
 		Game.sfx("cast_water", -5.0, 0.1)
 
@@ -522,15 +517,13 @@ class RinkWatch extends Node:
 		if water != null:
 			water.visible = true
 		if _ice != null and _ice.visible:
-			if DESIGNED.on():
-				DESIGNED.dust(pool.get_parent(), pool.global_position, 1.1)
+			DESIGNED.dust(pool.get_parent(), pool.global_position, 1.1)
 			_ice.visible = false
 
 	## Foes knocked onto the frozen pool slide on across it, frozen.
 	func _slide() -> void:
-		var SELF: GDScript = load("res://scripts/env_flourish.gd")
 		var now := Time.get_ticks_msec()
-		var VE: GDScript = load("res://scripts/void_element.gd")
+		var VE: GDScript = SELF._ve()
 		for e: Variant in _sliding.keys():
 			if not is_instance_valid(e) or not e.is_alive() or e.has_meta(SELF.FLYING) or e.has_meta(SELF.BOUND) \
 					or ENV_PIECE.gap(pool, (e as Node3D).global_position) > 0.0:
@@ -551,8 +544,7 @@ class RinkWatch extends Node:
 			VE.encase(e)  # (the frozen rule's state: the next hit Shatters it)
 			_was[e] = true  # (the rink's own ice doesn't keep it frozen: only ice from a move does)
 			ComicFx.say(SELF.RINK_SLIDE_WORD, e.global_position + Vector3.UP * 1.6, 0.42)
-			if DESIGNED.on():
-				DESIGNED_EL.frost_mark(pool.get_parent(), Vector3(e.global_position.x, 0.0, e.global_position.z), 0.8, 0.6, true)
+			DESIGNED_EL.frost_mark(pool.get_parent(), SELF._flat(e.global_position), 0.8, 0.6, true)
 
 
 ## The frozen surface: RINK_PANES x RINK_PANES faceted ice panes over the water (designed_elements.facet_material, the
@@ -642,11 +634,10 @@ static func spill(n: Node3D, seam_at: Vector3, run: Vector3, by: Node) -> void:
 	ENV_PIECE.use_up(n, "spilled")
 	ENV_PIECE.played("brazier_spill")
 	ENV_PIECE.touch(n, "brazier_spill")
-	if Game.comic_style and DESIGNED.on():
-		DESIGNED_EL.fissure(parent, a, dir, SPILL_EXTEND, 3, "earth", 0.9)
-		DESIGNED_EL.pool(parent, b + dir * 1.0, SPILL_PATCH_R)
-		DESIGNED.dust(parent, b, 1.1)
-		load("res://scripts/designed_polish.gd").chips(parent, b + Vector3.UP * 0.9, Color(1.0, 0.45, 0.1), 8, 6.0, Vector3.UP, true)
+	DESIGNED_EL.fissure(parent, a, dir, SPILL_EXTEND, 3, "earth", 0.9)
+	DESIGNED_EL.pool(parent, b + dir * 1.0, SPILL_PATCH_R)
+	DESIGNED.dust(parent, b, 1.1)
+	POLISH.chips(parent, b + Vector3.UP * 0.9, Color(1.0, 0.45, 0.1), 8, 6.0, Vector3.UP, true)
 	ComicFx.say(SPILL_WORD, b + Vector3.UP * 2.0, 0.58)
 	Game.shake(0.35)
 	Game.sfx("hit_big", -4.0, 0.12)
@@ -673,7 +664,7 @@ static func _patch_tick(n: Variant, at: Vector3, left: float, _by: Variant) -> v
 	if not is_instance_valid(n) or not (n as Node).is_inside_tree() or left <= 0.0:
 		return
 	var tree := (n as Node).get_tree()
-	var VE: GDScript = load("res://scripts/void_element.gd")
+	var VE: GDScript = _ve()
 	for e: Node3D in FOES.near(tree, at, SPILL_PATCH_R):
 		if not VE.marked(e, "molten"):
 			VE.mark(e, "molten")
@@ -688,8 +679,7 @@ static func light(n: Node3D) -> void:
 	_brazier_look(n)
 	ENV_PIECE.played("brazier_light")
 	var flame := n.global_position + Vector3.UP * 1.15
-	if DESIGNED.on():
-		DESIGNED.hit(n.get_parent(), flame, "earth", 0.9)
+	DESIGNED.hit(n.get_parent(), flame, "earth", 0.9)
 	ComicFx.say(LIGHT_WORD, flame + Vector3.UP * 0.7, 0.42)
 	Game.sfx("cast_earth", -8.0, 0.1)
 
