@@ -28,9 +28,8 @@ spins all the way down; a crowd killed by one blow pops one after another.
 
 Round 3: the element slams that come down on a foe crater it: ice Deep Freeze
 (before the cube closes), magma Meteor Fall (the foe it lands on) and dark Maw
-(the jaws shutting). The Bone Warden gets a reduced set: a flash in the hero's
-colour on every hit, and on big hits its outline swells and it squashes a
-little; it never leans, tumbles or leaves the floor.
+(the jaws shutting). (The Bone Warden boss, which had a reduced set of
+reactions, was removed 2026-11-08.)
 
 ## Files
 
@@ -69,8 +68,6 @@ little; it never leans, tumbles or leaves the floor.
   one shared overlay material per colour (`_tint_mats`, cleared in `release`).
 - `scripts/training_dummy.gd`: caps its rise with `launch_speed_for` so the cap
   stays exact under the hang profile.
-- `scripts/boss.gd` overrides `take_hit` without calling super and keeps its
-  own plain `Fx.flash`: the Warden does not lean, squash per kind or tumble.
 
 - Round 2 in `enemy.gd`: `_is_spike(knockback, launch)` (static: `launch < 0`
   or `knockback.y < 0`); `_reaction_kind` adds `spike` / `crater` /
@@ -95,10 +92,6 @@ little; it never leans, tumbles or leaves the floor.
   untouched. `enemy.burn_hit(damage, big, knockback)`: a quiet hit that spikes
   still runs `_hit_reaction` (the crater), with no sparks or word. A kill from
   a slam calls `_die` with `knockback.y` clamped to 0, so the death pop goes up.
-- `scripts/boss.gd`: `_boss_reaction(big)` replaces its plain `Fx.flash`:
-  `Fx.flash_tint` in `_hit_color()` (FLASH_TAP / FLASH_BIG), and on big hits
-  `_ink_pulse(BOSS_INK)` + `_squash(BOSS_SQUASH)`. Its `take_hit` still never
-  calls super, so no lean, tumble, launch or crater.
 
 ## How it works
 
@@ -171,15 +164,15 @@ little; it never leans, tumbles or leaves the floor.
   5.2 rad; an air kill spins 3.5 rad before it lands.
 - Round 3: `void_element.DEEP_FREEZE_DOWN` / `METEOR_DOWN` / `MAW_DOWN` (6 m/s:
   only the sign matters to `_is_spike`; the size points the comic speed
-  strokes down), `boss.BOSS_SQUASH` (1.08, 0.9, 1.08), `boss.BOSS_INK` 1.6.
+  strokes down).
 
 ## Clips (round 38)
 
 Until round 38 Hit_B and Lie_StandUp were the kit's generic clips on the minion, shield, bomber and
-necromancer (and the kit's on the rest), and only the four spar foes shut their eyes. Now
-`tools/comic_art/foe_keys.py` keys them per body type (`foe_cycles.py` `hits(T)`, LIGHT / HEAVY plus
-per-foe arm shares and cloth whips) on every foe but the Warden (super armour maps Hit_B to Hit_A; it
-gets its own Death_A):
+necromancer (and the kit's on the rest), and only the four spar foes shut their eyes. Round 38 had
+`tools/comic_art/foe_keys.py` key them per body type (`foe_cycles.py` `hits(T)`, LIGHT / HEAVY plus
+per-foe arm shares and cloth whips) on every foe. (The bomber, necromancer and Warden models were
+removed 2026-11-08; the notes below that name them are kept as the record of that pass.)
 
 - **Hit_B** (the ground flinch half the time at 1.6x, every launch and juggle at 1.5x, the stagger at
   0.8x): squashed on frame 2 (16%), whipped back with the head snapped and the jaw open, arms flung
@@ -188,24 +181,23 @@ gets its own Death_A):
   of the whip and half the fling; the shield keeps its shield arm braced.
 - **Lie_StandUp** (played at 2x on a knockdown): flat on its back for the first quarter (the knockdown's
   lie), a twitch, sits up, a crouch on its feet squashed 12%, popped up stretched with the arms thrown
-  up, settled. Eyes shut until it is on its feet. The bomber falls onto its face instead, bomb up.
+  up, settled. Eyes shut until it is on its feet. (The bomber fell onto its face instead, bomb up.)
 - **Death_A** (1.4x): snapped back (eyes shut for good), thrown onto its back arms flung and legs kicked
   (heavies fall stiff as a plank, a beat later), a bounce off the floor, then limp with the head
-  lolled and the jaw hanging. The bomber face-plants with its legs kicking up.
-- **Eye squeeze on all nine foes**: archer (ember eyes), mage (arcane), bomber, necromancer and the
-  Warden now get the `eye.l` / `eye.r` bones too (`foe_keys.add_eyes`, chunk_pass's method), and every
-  clip not re-keyed carries their scale keys (Hit_A shut, the rest open).
+  lolled and the jaw hanging. (The bomber face-planted with its legs kicking up.)
+- **Eye squeeze on every foe**: the archer (ember eyes) and mage (arcane) got the `eye.l` / `eye.r`
+  bones too (`foe_keys.add_eyes`, chunk_pass's method; so did the bomber, necromancer and Warden before
+  their removal), and every clip not re-keyed carries their scale keys (Hit_A shut, the rest open).
 
 Judged from Blender side sheets (`out/enemies_keyed/<name>_keys.png`) and windowed game-camera films
 (`tests/foe_shots.gd -- --clip=Hit_B|Lie_StandUp|Death_A --frames=6 --only=...`), not yet played by hand.
 
 **Round 38 b** adds **Hit_A** (the light flinch, half the ground hits at 1.6x) per foe (`foe_cycles.hit_a`):
 the head snapped back on frame 1 with the eyes squeezed shut and the jaw dropped, shoulders flinched up,
-a 10% squash; an overshoot on 3, a recoil forward past the guard on 6, eyes open again by 10 of 14. The
-Warden gets a heavy one at half the amplitude (super armour plays it for every hit). And **Idle_Combat**
-per foe (`foe_cycles.idle`): two breaths a loop, one weight shift from foot to foot, the weapon arm
-bobbing, a glance, the jaw chattering, the eyes narrowing on the breath; upper body on twos; frame 0 is
-the guard pose every attack and hit starts and ends on (the rogue and bomber loop in 24 / 16 frames,
+a 10% squash; an overshoot on 3, a recoil forward past the guard on 6, eyes open again by 10 of 14.
+And **Idle_Combat** per foe (`foe_cycles.idle`): two breaths a loop, one weight shift from foot to foot,
+the weapon arm bobbing, a glance, the jaw chattering, the eyes narrowing on the breath; upper body on
+twos; frame 0 is the guard pose every attack and hit starts and ends on (the rogue loops in 24 frames,
 twitchier; the robed casters float).
 
 ## Testing
@@ -225,11 +217,10 @@ twitchier; the robed casters float).
   The preview row is six foes (adds a roll and a crater); `-- --bag` shows
   three dummies (tipped, swinging back, dazed) → `user://enemy_feel_bag.png`.
 - Round 3 adds to `enemy_feel_check`: Deep Freeze, Meteor Fall and Maw each run
-  for real on a minion and crater it; the Warden's tap only flashes, its big
-  hit squashes 0.90 and inks 1.6x with zero tilt; the bag's flags, a shake-off
-  cut by a hit, the last-string tag; `--spar`. Preview `-- --slams`: each slam
-  on its own minion, then the Warden → `user://enemy_feel_slams_<move>.png`;
-  `-- --bag` adds a fourth dummy with its `LAST n` tag.
+  for real on a minion and crater it; the bag's flags, a shake-off cut by a
+  hit, the last-string tag; `--spar`. Preview `-- --slams`: each slam on its
+  own minion → `user://enemy_feel_slams_<move>.png`; `-- --bag` adds a fourth
+  dummy with its `LAST n` tag.
 
 ## Gotchas
 

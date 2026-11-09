@@ -50,8 +50,9 @@ Details in [env-pieces.md](env-pieces.md).
   - `ricochet()` (from `void_element.breaker_impact` on `counter`), `ricochet_target()`, `_ricochet_hit()` (bind).
   - `hint()`: the combo guide's SPACE Backlash row (and Ricochet next on a perfect), from `combo_guide._process`; no rows
     while Backlash plays (it takes no input).
-- `scripts/counter_fx.gd`: `parry()` and `snap()`, the two designed sheets (`DESIGNED.extra_sheets`), prewarmed from
-  `elements.prewarm`; classic flares and rings under `--fx=classic`. A perfect adds designed_breaker's speed lines.
+- `scripts/counter_fx.gd`: `parry()` (with `glint()` and `blade_off()`) and `snap()`, the four designed sheets in one
+  `SHEETS` table (`DESIGNED.extra_sheets`, one `register()` / `prewarm()` from `elements.prewarm`). A perfect adds
+  designed_breaker's speed lines.
 - `tools/vfx_gen/gen_counter.py`: `parry_flash` (384 px, 3x2) and `snap_arc` (320 px, 3x2), void palette row.
 - `scripts/enemy.gd`: `strike_in()` (game s until a melee windup's strike, slowed by a chill; -1 when none),
   `strike_reach()`.

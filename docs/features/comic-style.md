@@ -2,18 +2,19 @@
 
 ## What it does
 
-The game's art style (always on: `Game.comic_style` stays true as the flag the art code reads), ported from the Blender kit in
+The game's art style (always on; since 2026-11-08 there is no `Game.comic_style` flag: the comic look is simply the look), ported from the Blender kit in
 `vendor_src/shaman_redesign/comic_poc`: comic hero and enemy models, cut-tone shading with
 halftone and hatching, ink lines, dark indigo hard-shadow lighting, onomatopoeia on
 hits. Combos keep the game's floating name label. The hero (the heretic, [heretic-hero.md](heretic-hero.md))
-also faces the mouse and has a run for each direction. Enemies and dungeon pieces still fall back to
-KayKit per model when their comic GLB is missing.
+also faces the mouse and has a run for each direction. Every foe kind and every dungeon piece has its comic
+GLB (the KayKit per-model fallback went 2026-11-08).
 
 **None of the rendering has ever been seen.** It was built with `--headless` only, and
 headless Godot neither compiles shaders nor draws. Run `tests/comic_shots.gd` first.
 
 There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Settings toggle are gone
-(ROADMAP round 28), and the old `video/comic_style` key in `settings.cfg` is ignored.
+(ROADMAP round 28), the old `video/comic_style` key in `settings.cfg` is ignored, and the `Game.comic_style` variable
+the art code used to read went with the classic effects path (2026-11-08).
 
 ## Files
 
@@ -24,9 +25,7 @@ There is no switch any more: `--comic`, `--heretic`, `--comic-moves` and the Set
 | `shaders/outline.gdshader` | The existing hull; `wobble` uniform |
 | `scripts/comic_look.gd` | `ComicLook`: `TONES`/`EMITS`/`KIND_TONES`, `apply()`, `scene()`, `clip()` + `CLIPS`, `fit()` + `RIG_SCALE`, `build_environment()` |
 | `scripts/comic_fx.gd` | `ComicFx` CanvasLayer: `hit()`, `combo()`, added by `main._ready` |
-| `scripts/game.gd` | `comic_style` (always true) |
 | `scripts/enemy.gd` | `comic_kind`, the mapping in `_play`, `_hold_clip`, `_clip_speed`, `_attach_comic_spark` |
-| `scripts/boss.gd` | `COMIC_ATTACKS`, `_windup_anim` |
 | `scripts/main.gd` | `_set_model`, the `_build_environment` branch, `_place` via `ComicLook.piece`, no torch `OmniLight3D` |
 | `scripts/player.gd` | the hero model in `_ready` (`ComicLook.scene(ComicLook.HERETIC)`), `_clip_name`, `hero_moves.effective_move`, `_turned`, `_play_locomotion` |
 | `scripts/hero_input.gd` | mouse aim: `mouse_aiming`, `mouse_dir`, `steer`, `aim`, `aim_want` |
@@ -56,7 +55,7 @@ keep their meaning; unlisted bones move rigidly with their parent; bones hanging
 (robe hems, tails) keep their spread and squash in Z. Vertices move by their weights' blend of the
 maps, everything drops until the feet are on z = 0 again, and root/hips location keys shrink by the
 hip-height ratio. The archer's arrow is re-aimed from the nock every frame. Per-kind tweaks are in
-`KIND` (mage hat, archer bow, shield, Warden cleaver and key chain, rogue and bomber legs).
+`KIND` (mage hat, archer bow, shield, rogue legs).
 
 | Kind | tris | height before -> after (m, weapon up) | hips (m) |
 |---|---|---|---|
@@ -66,9 +65,6 @@ hip-height ratio. The archer's arrow is re-aimed from the nock every frame. Per-
 | warrior | 8,250 | 2.07 -> 2.08 | 0.86 -> 0.63 |
 | mage | 9,164 | 2.34 -> 2.47 | 0.76 -> 0.57 |
 | archer | 8,188 | 1.94 -> 1.81 | 0.68 -> 0.51 |
-| bomber | 7,505 | 2.39 -> 2.30 | 0.44 -> 0.41 |
-| necromancer | 10,504 | 2.52 -> 2.99 (hood) | 0.82 (robe, no legs) |
-| warden | 19,792 | 3.20 -> 3.23 | 1.20 -> 0.93 |
 | dummy | 9,798 | 2.08 (built chibi) | 0.45 |
 
 Rebuild (headless, from the kit folder; the pass reads `out/enemies/<name>.blend` and writes
@@ -113,9 +109,6 @@ skeleton. Bone names, clips and the `g` attribute are kept.
 | warrior | 8,250 -> 11,026 | 2.08 | 2.4 | 0.96 (stride x1.5) |
 | mage | 9,164 -> 12,278 | 2.47 | 2.4 | 1.53 |
 | archer | 8,188 -> 10,860 | 1.81 | 2.0 | 1.29 |
-| bomber | 7,505 -> 10,877 | 2.30 | 2.3 (the bomb) | 1.73 (stride x1.25) |
-| necromancer | 10,504 -> 11,110 | 2.99 | 2.8 | no feet |
-| warden | 19,792 -> 22,264 | 3.23 | own HUD bar | - |
 
 ```
 blender -b out/enemies_chibi/minion.blend -P chunk_pass.py -- minion   # [stride=Running_A:1.4] to try a stride
@@ -123,7 +116,7 @@ python tools/comic_glb.py <kit>/out/enemies_chunky minion
 ```
 
 **Health bars** sit at each kind's `bar_height` (`enemy_types.gd`, metres before model_scale: head
-top in Idle_Combat + 0.3 m, measured on the chunky blends; the bomber clears its bomb), read by
+top in Idle_Combat + 0.3 m, measured on the chunky blends), read by
 `enemy_bars.bar_height()`; kinds without one keep `HEAD_HEIGHT` 2.4.
 
 **Shadow tint** `FOE_SHADE_MATCH` 0.8 (was 0.5), judged side-lit (`foe_shots.gd -- --side`): bone's
@@ -156,9 +149,6 @@ corrected) are keyed every frame; arms, head and torso turns are held on twos. L
 | rogue | Running_C | sneak-dash: 10 frames, low (10 cm drop) pitched 30 deg, long strides, daggers swept back | 2.18 -> 5.62 | 5.4 |
 | archer | Running_A | trot: 10 frames, upright and springy, bow arm steady, cape and loin trailing | 1.29 -> 3.21 | 3.2 |
 | mage | Running_A | float: 8 frames, 4.5 cm shuffle under the coat, body level (1 cm bob), coat flaring back | 1.53 -> 2.97 | 3.0 |
-| bomber | Running_C | waddle: 8 frames, feet wide, rolling 16 deg from foot to foot, short hops, squash 12% | 1.73 -> 4.53 | 4.67 |
-| necromancer | Walking_D_Skeletons | glide: 24 frames, no feet, a slow bob pitched 12 deg in, robe streaming back | no feet | - |
-| warden | Walking_D_Skeletons | heavy stomp: 20 frames, 20 cm lift, dropped 8 cm on contact; `boss._stomp_shake` shakes the floor (0.12) on each footfall | kit walk at 1x -> 1.68 | 1.67 |
 
 ```
 blender -b <kit>/out/enemies_chunky/<name>.blend -P tools/comic_art/foe_keys.py -- <name>   # writes out/enemies_keyed/
@@ -188,11 +178,8 @@ frame; `Spellcasting` left `enemy.LOOPING`).
 | rogue | Chop 23 | 3-9 both daggers raised over the shoulders pointing back, crouched | 9-10, hit 11 right stab, 13-14 left stab | skid back 19, guard 23 |
 | archer | 2H_Ranged_Aiming 24 / Shoot 32 | dip 6, rising into the draw leaning back, shaking 16-24 | shoot frame 0: kicked back 1-3, eyes shut | overshoot 7 |
 | mage | Spellcasting 36 / Spellcast_Shoot 18 | staff swung back over the right shoulder, palm out, creeping back to 36 | staff thrown forward 1-2, held to 4 | recoil 9, guard 18 |
-| necromancer | Spellcasting 36 / Summon 24 / Shoot 22 | low clawed gather, staff held upright (`keep`) | summon: arms ripped up 1-2, held shaking to 12; shoot: ember hand flung 1-2 | slump 17 / 10 |
-| bomber | Bomb_Windup 36 | hugs the bomb giggling, bomb swelling 1.05 -> 1.35 and shaking harder, crouch 31 | leap 32-33 arms up, bomb 1.5 (the blast is `_die`) | - |
-| warden | Attack_Slam 63 (the kit's, overlaid) | sink squashed 14-19% on 18-22, held on twos | take-off stretched 12% (24), landing squashed 20% (37) held to 40 | kit's |
 
-The archer's and the Warden's are overlays on the kit clips (`src`: each frame's base is the kit clip's
+The archer's is an overlay on the kit clips (`src`: each frame's base is the kit clip's
 own pose, so its keyed props move with it; `follow` carries the arrow with the hand). Every foe also
 gets its own `Idle_Combat` and `Hit_A` (`docs/features/enemy-hit-reactions.md` "Clips").
 
@@ -219,24 +206,23 @@ camera with `foe_shots.gd`, where a foe is 60-90 px tall:
   its bones) about the grip; `thick` pushes them out from the bone's axis. Minion cleaver 1.45 x 1.25 across,
   rogue daggers 1.2, shield 1.4 (and the skulls, arrows and bone clutter pinned to it dropped: a plain plank
   wall with an orange boss), warrior blade 1.35, mage hat 1.22 (its star patches removed), archer bow limbs
-  1.8 across and orange, bomber bomb 1.18 about its top, necromancer hood 1.3, Warden arms 1.15 across.
-- **Families, one accent each, the element's colour in `fx_palette.gd`:** legion (minion, shield, warrior,
-  archer, bomber) earth orange, cult (rogue, mage) void violet, grave (necromancer, Warden) wind green. The
+  1.8 across and orange.
+- **Families, one accent each, the element's colour in `fx_palette.gd`:** legion (minion, shield, warrior, archer) earth orange, cult (rogue, mage) void violet. The
   accent is the eyes and glows (`P_GlowEarth` / `P_GlowVoid` / `P_GlowWind` in `ComicLook.EMITS`) plus one
   region (`P_FoeEarth` / `P_FoeVoid` / `P_FoeWind` in `TONES`): the minion's cap and loincloth, the warrior's
-  horns and trim, the shield's boss, the archer's bow, the rogue's wrap, the Warden's tabard. Odd fourth
+  horns and trim, the shield's boss, the archer's bow, the rogue's wrap. Odd fourth
   colours went to a neighbour (the warrior's teal skirt to leather, the mage's gold trim to its lining).
 - **Faces.** Eyes x1.65 and sockets x1.3 about the eye bone's head, tipped back 30 degrees to face up the
   camera (from 54 degrees up a hunched skull shows its cranium, not its face); a slanted black brow over each
   eye, ray-cast onto the face and skinned to the eye bone, so the hit squint folds it into a shut-eye line;
-  the teeth widened 1.15 and bent down at the corners (scowl 0.6 of their height, the bomber 0.25).
+  the teeth widened 1.15 and bent down at the corners (scowl 0.6 of their height).
 - **Thicker ink on the outside only.** `ComicLook.silhouette()` gives each skinned foe mesh a child
   `Silhouette` drawing the same mesh and skin with `shaders/foe_silhouette.gdshader`: an inverted hull
   `SILHOUETTE_PX` 4 wide (Fx.outline is 1.6) pushed `SILHOUETTE_PUSH` 0.3 m back, so it only shows where
   nothing of the foe is behind the edge. A `material_override` on that child printed 36 "Parameter material is
   null" at exit (Fx.outline's surface copies under an override); surface overrides fixed it.
 - **Budget:** every foe stays under its round 38 triangle count +20% (brows 72 tris; the shield and mage lost
-  more than they gained). Health bars moved with the taller hats: mage 2.55, necromancer 3.05, bomber 2.45.
+  more than they gained). Health bars moved with the taller hats: mage 2.55.
 
 | Kind | tris before -> after | signature |
 |---|---|---|
@@ -246,9 +232,6 @@ camera with `foe_shots.gd`, where a foe is 60-90 px tall:
 | warrior | 11026 -> 11130 | horned helmet, longer blade |
 | mage | 12278 -> 12262 | tall hat |
 | archer | 10860 -> 10964 | thick orange bow |
-| bomber | 10877 -> 10981 | bigger bomb |
-| necromancer | 11110 -> 11110 | taller hood |
-| warden | 22264 -> 22368 | bulk, green tabard |
 
 ```
 blender -b <kit>/out/enemies_chunky/<name>.blend -P tools/comic_art/refine_pass.py -- <name>   # out/enemies_refined/
@@ -279,10 +262,9 @@ python tools/comic_glb.py <kit>/out/enemies_keyed <name>
   bent down at the corners (scowl 0.6), buck teeth kept. `dummy` joined `ComicLook.SILHOUETTE_KINDS`, so it
   gets the same heavy outer line. The sack, its bag bones and the punching-bag spring are untouched
   (`enemy_feel_check`, `training_check` pass). Tris 9798 -> 9798.
-- **Crowd read.** In the lineup from the game camera the families sorted, except two: the archer (legion,
-  orange) still wore `P_Forest` green, so it sorted with the grave pair, and the necromancer (grave, green)
-  wore a red shroud no family has. `KIND_TONES` turns the archer's cloth burnt orange under its orange bow and
-  the necromancer's shroud deep green under its green glow; the meshes are untouched. Spars
+- **Crowd read.** In the lineup from the game camera the families sorted, except the archer (legion,
+  orange), which still wore `P_Forest` green, so it sorted with the grave pair. `KIND_TONES` turns the archer's
+  cloth burnt orange under its orange bow; the meshes are untouched. Spars
   (`--spar=warrior|rogue|shield --autotest`, windowed) only cover legion and cult; there the rogue's violet
   reads at once, but it is also the hero's claw and void effect colour, so mid-string a cult foe is the
   hardest to pick out (a follow-up, not changed here).
@@ -341,15 +323,17 @@ hit lands on the clip's hit frame and the time after it stays as tuned. `MOVES` 
 
 ### The base hero's design: the void arm
 
-(Written for the shaman model the heretic replaced; the void arm's design carried over.)
+(Written for the shaman model the heretic replaced; the void arm's design carried over. The builder and POC scripts
+named below, `build_void.py`, `build_tainted.py` and `unfinished_poc/`, were removed from `tools/comic_art/`
+2026-11-08 and now exist only in `vendor_src/shaman_redesign/`.)
 
 One loud thing on him: his right arm is a purple void arm that shapes itself into his weapon. Earlier takes failed by
 having too much going on (a half-transformed lopsided body; two elemental arms plus two axes): keep him simple.
 
 - **Forms:** axe by default, dragged, with storm along it; hammer with lava and earth; spear with ice. They, E, and his
   smaller moveset are in [void-arm.md](void-arm.md). The hand for interacting with the world is still only a still:
-  `tools/comic_art/unfinished_poc/concept_void.py`.
-- **Body script:** `tools/comic_art/build_void.py` (the void arm, the left arm), on `build_tainted.py` (the shared body and its
+  `unfinished_poc/concept_void.py` (vendor_src).
+- **Body script:** `build_void.py` (the void arm, the left arm), on `build_tainted.py` (the shared body and its
   `K(mat, bones)` tags, read by the rig through `hint_of`: one bone pins, several bend as skin) and `build_comic.py`.
 - **Void arm:** `void_arm` skinned softly across the right arm's four bones, `void_surge` the green lightning on it. It has no
   extra bones yet, so it bends where an arm bends rather than whipping. Storm is green (`P_StormGreen`).
@@ -360,7 +344,7 @@ having too much going on (a half-transformed lopsided body; two elemental arms p
 - **The voice:** a thin vein from the rock ear to the lava eye (too small to see at game size), and `Idle_Listen`, which
   does the work: he tips his head to that ear, goes still, nods twice.
 - **Budget:** about 41k tris, from 67k.
-- **Look checks without Godot** (`tools/comic_art/unfinished_poc/`): `closeup_tight.py` each limb up close, at rest and
+- **Look checks without Godot** (`unfinished_poc/`, vendor_src only): `closeup_tight.py` each limb up close, at rest and
   mid-move (a broken arm doesn't show at 130 px, so always look here too); `clip_look.py` + `clip_sheet.py` one clip;
   `clearance.py` the axe against body and floor on every clip. They use stand-in materials, so only `comic_shots`
   confirms the real look.
@@ -374,19 +358,17 @@ having too much going on (a half-transformed lopsided body; two elemental arms p
 
 Time after the hit is the same by construction; **the wind-up isn't**.
 
-1. `main._set_model` asks `ComicLook.scene(kind)`: the GLB if present, else
-   null and the KayKit model, per kind. A comic model sets `enemy.comic_kind`.
+1. `main._set_model` asks `ComicLook.scene(kind)` for the kind's comic GLB. A comic model sets `enemy.comic_kind`.
 2. `enemy._ready`, for a comic model: `fit`, `apply`, and no KayKit shield, crossbow,
    bomb or tints, since the GLBs carry their own. Then `Fx.outline` as always.
 3. `_play` runs each clip name through `ComicLook.clip`: the model's own clip if it has
-   one, else `CLIPS`, where `""` means keep what's playing. The Warden's `Attack_Slam`
-   contains the leap and landing, so `Jump_Idle` and `Jump_Land` map to `""`.
-4. `_windup_anim` picks the Warden's clip per attack and sets its speed so the hit frame
-   lands on the windup's end. `Block_Hit`, `Enrage` and `Bomb_Windup` use `_hold_clip`,
+   one, else `CLIPS`, where `""` means keep what's playing.
+4. `_windup_anim` picks the clip per attack and sets its speed so the hit frame
+   lands on the windup's end. `Block_Hit` and `Enrage` use `_hold_clip`,
    since chase would otherwise replace them with run or idle next frame.
 
 Dungeon pieces (`assets/comic/dungeon/`, built by `env_kit.py` to KayKit's names, sizes and
-pivots) load through `ComicLook.piece`: comic if present, else KayKit, per piece.
+pivots) load through `ComicLook.piece`.
 `comic_*` materials set `tone_by_g`, so each stone's `g` multiplies its tone, and those in
 `PIECE_INK_PX` carry a thin hull as `next_pass`. Floors and seams have none: their ink is geometry.
 
@@ -409,7 +391,7 @@ not thick crayon.
   storm string's stars, chips and bolts are one green family. Words and numbers keep their hot red-yellow.
 - **Thin lines, not hulls.** Ink is a line of `PAL.LINE` (0.035 m, about 2 px at the game camera) round a
   shape, not a copy of it 1.2-2.1x its size. Applied in comic_pop (stars, chips, hoops), comic_bolt, comic_gale,
-  comic_geyser, comic_fist, comic_comet, comic_crack, dark_fx (splat, spout) and the frost spear's disc.
+  comic_fist, comic_comet, comic_crack, dark_fx (splat, spout) and the frost spear's disc.
 - **Gradients and transparency instead of opaque fills.** A hit star is one shape, its light core fading to
   its body colour at 85% alpha at the tips (was three opaque stars nested in ink). The swoosh and weapon trail
   shaders draw a clear-to-tinted body (`body_alpha` 0.55 / 0.5; Awakened 0 / 0.18) with one crisp light line
@@ -498,7 +480,7 @@ not thick crayon.
   to brown and stood 1.6 s); its `Fx.scorch` is 1.15 of the radius and each vent is a 0.34 m inked star in the
   element's palette (`VENT_STAR`) instead of soft flares and dots. `Fx.crater` (a foe driven into the floor) is a
   0.6 s inked dent in the dust's warm tone (`CRATER_COMIC*`).
-- **One hit grammar.** Every hit on a foe or the Warden: an inked star in the blow's palette (`Fx.HIT_STAR` 0.9 /
+- **One hit grammar.** Every hit on a foe: an inked star in the blow's palette (`Fx.HIT_STAR` 0.9 /
   `HIT_STAR_BIG` 1.3, star 0.45 / 0.65 m), at most one word on the beat (ComicFx's gap and replace), one number
   per foe. Words and numbers take `fx_palette.TEXT_INK_PX` (3 px at 1080p) on screen whatever their scale
   (`PAL.text_ink()`; `PX_PER_M` 48); a fixed font outline under the tier and total scales gave words 3.4-8.3 px
@@ -610,8 +592,8 @@ over the budget). Strings only, same bot run before / after: mean 0.090 -> 0.075
 ## Extending
 
 A new hero clip: add it to `HERO_MOVES` with its contact frame and length in 30 fps frames and the KayKit clip's length; `comic_check` proves all three (it measures the contact frame off the weapon hand's track). New dungeon piece: `python tools/comic_glb.py --env <src> <name>`, then as below. New enemy GLB: `python tools/comic_glb.py <src> <name>`, `godot --headless --import --path .`,
-add any new materials to `TONES`/`EMITS`, run `comic_check`. It's picked up by kind name;
-the boss is `warden`. New clip asked for in `enemy.gd`/`boss.gd`: add it to `comic_check`'s
+add any new materials to `TONES`/`EMITS`, run `comic_check`. It's picked up by kind name.
+New clip asked for in `enemy.gd`: add it to `comic_check`'s
 role lists (its source scan fails until you do), then to `CLIPS` for models lacking it.
 
 ## Testing
@@ -623,8 +605,8 @@ role lists (its source scan fails until you do), then to `CLIPS` for models lack
   materials or outline (both skip headless).
 - `godot --path . -s tests/comic_shots.gd`: **the one windowed run that checks the look, never yet
   run.** Saves `user://comic_shots/NN_*.png` and `INDEX.txt`, saying what each should show. Under
-  `--headless` its stages run without saving, which only proves they don't error.
-- `tests/comic_preview.gd`: the short version of the same, enemies and text only.
+  `--headless` its stages run without saving, which only proves they don't error. (Its short version,
+  `comic_preview.gd`, was removed 2026-11-08.)
 
 ## Gotchas / open questions
 
@@ -644,8 +626,8 @@ Lights and floor effects (read from the code, none of it seen):
 - Torch `OmniLight3D`s are off. Toon tones take only a light's brightness, so a torch
   could only step the wall's tone, not warm it, and six lights cost every wall and floor pixel.
   Dropped rather than judged. `env_room.py`'s drawn warm shapes round each torch are not ported.
-- Kept, can't judge headless: coloured lights from elites, projectiles, Awakening
-  and casts. On toon they become a stepped brighter pool with no tint; on KayKit they still tint.
+- Kept, can't judge headless: coloured lights from projectiles, the Awakening and casts (the elite
+  auras went with elite foes, 2026-11-08). On toon they become a stepped brighter pool with no tint.
 - The game has no `Decal` nodes. Scorch, telegraphs, rings and dust are unshaded alpha meshes, so
   they ignore the lights. Pieces match KayKit's floor height (y 0.05), so their offsets still clear
   it. Scorch's soot may vanish on the dark floor, and effects tuned for glow lose their bloom.
@@ -658,8 +640,9 @@ KayKit assumptions the comic hero runs into:
 - `tools/comic_glb.py` renames a mesh node sharing a joint's name: Godot gave the name to the mesh
   and imported the bone as `head_2`, so every `head` attachment would have silently landed at the
   origin. `comic_check` now resolves every attachment.
-- The spirit casts' `axe_mesh` stays the KayKit Barbarian's `1H_Axe`. His weapons are skinned in
-  place and can't be ghosted from an origin, hence `hero_fx.axe_mesh`.
+- The heretic's weapons are skinned in place and can't be ghosted from an origin, so the spirit echo never copies
+  his axe: it is a drawn axe head (`designed_finish.echo_axe`). (The KayKit Barbarian `1H_Axe` that stood in for it,
+  and `hero_fx.axe_mesh()`, were removed 2026-11-08.)
 - `weapon_trail.gd` follows a mesh's transform; skinned axes never move theirs, so
   `ComicLook.hero_blades` rides invisible boxes on the hands. Direction from the axe head's bounds.
 - `Fx.afterimage` bakes every skinned mesh. He's 67k tris in 29 meshes, so dash ghosts may
@@ -667,6 +650,37 @@ KayKit assumptions the comic hero runs into:
 
 Known gaps:
 
-- `Bomb_Windup` has planted feet but the bomber keeps chasing while lit, so it may skate.
 - Not ported: the POC's 8% element-light tint, the inked line weights from the `inkw` group
   (the `wobble` sine stands in), `iron_extra` crack veins, spot-black from fill-only areas.
+
+Gotchas from the lanes:
+
+- **Facing:** comic and KayKit models face +Z, towards the game camera; `model.rotation.y = PI` turns them away
+  (from above you can't tell, from the front you see their backs). Leave it at 0 to face the camera, and face a
+  scripted hero at a dummy (`hero._face(to)`) before a throw.
+- **Film foe attacks from the game camera, not only the Blender side sheet:** the warrior's overhead read fine from
+  the side and hid under its helmet in game (`tests/foe_shots.gd -- --clip=<clip> --frames=12 --only=warrior`;
+  `foe_keys.py ... sheet=a,b noexport` gives a side + game-angle sheet in ~20 s without touching the GLB). Moving a
+  melee foe's hit frame means changing `attack_hit` in `enemy_types.gd` with it (`enemy.chop_speed()`). A run's feet
+  barely read from the game camera; the lean, bob and arm swing do, so judge legs on the side sheet.
+- **Mesh-only passes keep the clips:** `refine_pass.py` scales parts by bone weights about a bone head and never
+  moves a bone, so `foe_keys` re-keys byte-identical clips; check once by comparing the GLB size with the committed
+  one. An eye scaled about the eye bone's head keeps the hit squint closing on it. Copy the kit from a worktree that
+  has it (`.gdignore` first); copy the foot speeds a stride check prints into `enemy_types` in one scratch parse.
+- **A second hull on a skinned mesh** (a child MeshInstance3D sharing `mesh` and `skin`) draws an extra pass at no GLB
+  cost. Give it surface overrides, not `material_override`: with an override `Fx.outline`'s per-surface copies print
+  "Parameter material is null" at exit. The same `material_override` on a primitive hides `Fx.outline`: put the
+  material on the mesh (`BoxMesh.material = m`) when a piece should be inked. An eye or decal that draws nothing is
+  usually face culling (`cull_mode = CULL_DISABLED`), not position.
+- **"Parameter material is null" (headless, ~10 lines) has one cause:** a MeshInstance3D freed with a flash overlay
+  still on it (`queue_free()` within a frame of hitting it). `Fx._overlay` takes it off on `tree_exiting`;
+  `fx_free_check` catches the rest. Count those lines in a windowed `foe_shots` run before and after a look change.
+- **Measuring presence:** lineups mix sizes with depth; a scratch measure (each kind alone on the hero's spot,
+  frozen camera, shadows off, diff against the empty frame) gives px height and area per kind in one 60 s run. The
+  floor tiles differ between runs (a grate under one foe): crop before / after pairs to the foe. `foe_shots --only=`
+  with one kind zooms closer than with three: keep the same set for before / after.
+- **Swapping a model the game spawns:** tests that build their own copy keep the old model silently; grep `tests/`
+  for the old model name. `comic_check` greps the source for `_play("clip")` lines: after a file split it must scan the
+  new files too.
+- The cult's void violet is also the hero's claw and effect colour (a rogue mid-string is the hardest foe to pick
+  out); the shield's black rim merges with its ink line on the dark floor. Both still open in ROADMAP.

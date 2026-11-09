@@ -65,7 +65,7 @@ Right click with no weapon first. Dark gathers foes and swallows them, and the t
 
 | Input | Id | Name | Effect |
 |---|---|---|---|
-| H | `GR` | Grab | Yanks a foe to him. Something too big drags him to it. Never goes for a pillar: that's R |
+| H | `GR` | Grab | Yanks a foe to him. Never goes for a pillar: that's R. (The pull to something too big to yank went with the boss: no foe in play is heavy, `void_grab.is_heavy` is radius 0.9+, and the checks' stand-ins set it to test the big branches) |
 | H H | `VS` | Singularity | Heaves what it holds overhead and slams it, and a black hole opens there (`dark_fx.Hole`). It drags small foes in and slows big ones, burning all of them. The window opens |
 | H L | `VR` | Reap | A crescent of darkness through everyone in front of him. It marks them (`dark_fx.mark`) |
 | H L H | `VD` | Black Tide | A pool opens ahead and everyone marked is dragged across the floor into it, however far off. With nobody marked it takes who's near. Big foes hold their ground. The window opens |
@@ -81,7 +81,7 @@ clip with its `*_HIT` contact frame, with the arm's shape in `VOID_ELEMENT.FORM_
 
 | Input | Id | Name | Elements | Payoff |
 |---|---|---|---|---|
-| L H L L | `XR` | Rockslide | storm into earth | Off the air slash he comes down with the hammer (plunge) and everyone within `ROCKSLIDE_RADIUS` of the blow is driven into the floor together (`ROCKSLIDE_DOWN`, pulled `ROCKSLIDE_IN` towards it: craters). Foes the gale had in the air take `ROCKSLIDE_AIR_MULT`; they go in `void_grab.buried` (Fault Line's) and are marked buried |
+| L H L L | `XR` | Rockslide | storm into earth | Off the air slash he comes down with the hammer (plunge) and everyone within `ROCKSLIDE_RADIUS` of the blow is driven into the floor together (`ROCKSLIDE_DOWN`: craters). Foes the gale had in the air take `ROCKSLIDE_AIR_MULT`; they go in `void_grab.buried` (Fault Line's) and are marked buried |
 | L H L L H | `XF` | Fault Line | earth into storm | Cracks run to everyone in `FAULT_REACH` and the gale comes up out of each, launching them; Rockslide's `buried` take `FAULT_BURIED_MULT`. The window opens |
 | L H L L H, H in window | `XF` | Cataclysm | storm + earth | Held in the hang (no `wire` since round 37's review: Live Wire's bolts on every foe made it a wall of effects; `damage` 46 for the lost jolts), then down into the floor: a crater (`CATACLYSM_DOWN`), a sky strike and the earth under each |
 | Dash L H H L | `XS` | Steam Burst | ice into magma | The molten fist goes at the frozen: every foe in a cube or frozen within `STEAM_REACH` goes off (the cube Ice Cube is still bowling too: `THROWN.cut`, so the bot's string steams every run) in steam (`STEAM_DAMAGE` times the ice's `FREEZE_BREAK`, launched), scalding anyone within `STEAM_SPLASH`. Nobody frozen: a small shove. The window opens |
@@ -104,7 +104,7 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 
 | Move | Look | Script, call |
 |---|---|---|
-| Rockslide | One boulder (7-sided, earth body to deep, a lit facet, two ink cracks) on the hammer's spot, squashed over a hot star with three fall strokes, holds 2 steps, splits into 4 chunks; a hot crack dent under each foe driven down. 0.55 s | `comic_boulder.gd` `spawn(parent, spot, foe_spots)` in `_rockslide` (with `Fx.scorch`) |
+| Rockslide | The designed boulder drop on the hammer's spot (`mid_beats.boulder_drop`, `ROCKSLIDE_FALL` / `ROCKSLIDE_DROP_Y`), a gust under the first three airborne foes blown out to the ring, then the landing's crater (`_rockslide_land`). (The polygon boulder, `comic_boulder.gd`, was deleted 2026-11-08) | `mid_beats.gd` `boulder_drop(parent, spot, fall, drop_y)` in `_rockslide` |
 | Fault Line | One jagged crack per foe from 0.55 m out of his feet, nearest first `STAGGER` 0.06 s apart at `RUN` 30 m/s on real time; ink edge, earth body, hot core line while it runs; a hot splat and `comic_gale` (2.4 m) where it arrives. No foes: one crack 4 m ahead | `comic_fault.gd` `spawn(parent, at, spots)` |
 | Cataclysm | `big`: the same cracks fatter (0.34 m) and slower (22 m/s, game time, so they wait out the impact frame) out of his landing, a `comic_bolt` sky strike (0.3 m, star 0.8) where each arrives. No per-foe geyser, spikes or hammer burst | `comic_fault.gd` `spawn(..., true)` in `_cataclysm` |
 | Steam Burst | Nine puffs, six in a ring round the frozen foe's body and three over its head, every puff's ink first then every fill (only the cloud's outer edge is inked), white to blue-grey, rising and swelling; a magma star and paper strokes on the first frame. 0.55 s | `comic_steam.gd` `spawn(parent, spot)` per frozen foe |
@@ -115,7 +115,7 @@ hangs, hit stops); `_follow()` runs every frame for an effect that rides somethi
 | Storm Pitch | Three inked zigzag forks crackle off each thrown foe's chest, new each step, with two pale speed strokes behind it, for its flight + 0.1 s; the jolts it throws (`thrown_foe._zap`) and the axe's chain at the throw are thin `comic_bolt`s (0.18 m, star 0.42) | `comic_arc.gd` `ride(parent, e, flight)` in `_pitch`, `jump(parent, a, b)` |
 | Hailstorm | A tight whirlwind under each frozen foe, four inked wind bands from the floor to its feet every step (so it stretches as the foe climbs), wider than the cube (1.05 m), three inked hail chips whirling round it; rides the foe, 0.5 s | `comic_hail.gd` `ride(parent, e)` in `_hailstorm` (was a full wind pillar each) |
 | Meltdown | One fat inked crescent (earth, hot leading edge) sweeping down round him, 0.25 s; per foe hit: the ice bursting off as four inked chips and a small star, three flame tongues streaming up off it while it falls, a hot splat with four cracks where it lands, cooling. Held in the hang (not down in `FALL_MAX` 0.3 s): no splat, it just goes | `comic_melt.gd` `swing(parent, at, fwd)`, `foe(parent, e, frozen)` in `_meltdown` (was shards, an earth burst and a scorch each) |
-| Eruption | Nearest first 0.05 s apart: a jagged hot break in the floor under each foe (bigger and with a hot star for the `molten`), three pointed rock slabs leaning out of it and three lava blobs off the top, sinking and cooling by 0.5 s; game time, so the hit stop holds it past the impact frame | `comic_erupt.gd` `spawn(parent, at, spots, hots)` in `_eruption` (was a geyser and five spikes each and a 3.5 m scorch) |
+| Eruption | Round 52: the fuse, heave and hurl choreography (`eruption_hurl.gd`, see the Eruption row in the matrix below), a designed pool where a foe slides down a wall burning, the hammer's `_pop` word. (The per-foe polygon floor break, `comic_erupt.gd`, was deleted 2026-11-08) | `eruption_hurl.gd` `start(hero, at, foes, found, is_heavy)` in `_eruption` |
 | Impale | Eight ice spikes race out of the spear's foot across the floor (0.35 s); each foe gets a crystal stake from the spear's foot up through its chest and out past it once its throw lands, an ice star where it goes in, 0.45 s | `comic_impale.gd` `burst(parent, spot, r)`, `stake(parent, spot, e, flight)` in `_impale` (was frost_ring's torus) |
 | Backdraft | Eight inked wind strokes burst off the spear round a small star (0.3 s); per foe a see-through wind ribbon towards his hand (at most `RIBBON_MAX` 2.6 m of it, bowed 0.12) with three speed strokes, and the ice cracking off the skewered; rides the foe, 0.45 s | `comic_backdraft.gd` `blast(parent, spot)`, `haul(parent, e, hand, skewered)` in `_backdraft` (was a wind pillar and a lightning arc each) |
 | Anvil | Per crater, nearest first 0.04 s apart: three fat down strokes over it on the first two steps, an inked dent (hot then deep earth) with five cracks, two rubble chips; 0.5 s, game time | `comic_anvil.gd` `spawn(parent, at, spots)` in `_anvil` (was three earth spikes each) |
@@ -207,7 +207,7 @@ Freeze Aloft, Meteor Spike, Torn Loose, Frozen in the Dark and the four charged 
 | L H L H, H in window | `EW` | Worldbreaker | Slammed down, with magma erupting under each |
 | L H L H, L in window | `EW`, its `alt` | Cold Front | Frozen solid and hurled at other foes as ice cubes |
 | L H L L H, L in window | `XF`, its `alt` | Tempest | Breaker pairs. He lands as for Cataclysm, and a twister (`breaker_alt_fx.twister`, the designed one, 5.5 m) goes up `TEMPEST_OUT` 1.4 m past the held pile's middle and takes everyone not big within `TEMPEST_REACH` 7 m (`tempest_riders()`, nearest first, `TEMPEST_MAX` 8) up its column: a game-time tween spirals each in to `TEMPEST_R` 1.1 m and up to `TEMPEST_HIGH` 2.4 m (+0.55 for every other, so they stack), FLYING meta on, after the landing's freeze. From `TEMPEST_FIRST` 0.42 s a bolt out of the sky blasts each out in turn (`TEMPEST_STEP` 0.09, `comic_bolt`), `TEMPEST_DAMAGE` 20 x (1 + `TEMPEST_PER` 0.5 per other foe in the column), charged, thrown clear and up (`TEMPEST_THROW`, `TEMPEST_LAUNCH`). Big ones stay down and take `TEMPEST_BIG` 0.6 of a blast. The best situation is a crowd: one foe 20 vs Cataclysm's 46, two 2 x 30 vs 92, four 4 x 50 = 200 vs 184, five 5 x 60 vs 230 |
-| L L H L H, H in window | `IS` | Avalanche | A tentacle on every cube (`seize`, `press`). The press lifts them all and slams them together in the middle of where they stood (`aim_crush`, `crush_point`), landing on the frame he does, and he lands `short` of the pile. One cube comes down where it was. Anyone else within `CRUSH_RADIUS` takes `PRESS_NO_CUBE` of it. Elites in cubes go too; bosses never get a cube. Dedicated shatter damage is still to come; for now each takes the breaker's damage |
+| L L H L H, H in window | `IS` | Avalanche | A tentacle on every cube (`seize`, `press`). The press lifts them all and slams them together in the middle of where they stood (`aim_crush`, `crush_point`), landing on the frame he does, and he lands `short` of the pile. One cube comes down where it was. Anyone else within `CRUSH_RADIUS` takes `PRESS_NO_CUBE` of it. (A heavy, `is_heavy()`, never gets a cube; no foe in play is heavy since 2026-11-08.) Dedicated shatter damage is still to come; for now each takes the breaker's damage |
 | H H, H in window | `VS` | Collapse | He comes down at the hole (`at_spot`, `short`), it falls in on itself, and everyone near is thrown clear |
 | H L H, H in window | `VD` | Maw | He lands short of the pool and jaws of darkness shut on everyone in it |
 | hold H, H in window | `OW` | Abyss | They sink through the floor (`ABYSS_SINK`) as he comes down, then black spikes throw them back up |
@@ -236,7 +236,7 @@ Freeze Aloft, Meteor Spike, Torn Loose, Frozen in the Dark and the four charged 
 | `spin` | Its cube's turn rate (`CUBE_SPIN` by default) |
 | `on_burst` | Told (foe, walled, dir) as it bursts: the wall hit's look |
 
-`VOID_ELEMENT.cube_target()` picks the spot for Cold Front: the nearest foe it wasn't holding, then another it was, then straight out. `cube_on()` is the look: a box for his throws, leaving the plain ice cylinder for other freezes (in the comic style both are `thrown_foe.comic_cube()`: flat two-tone ice, a pale 42% top and 15% blue sides with a white glint and the ink edge, so the foe shows inside; `enemy.freeze()` calls `thrown_foe.comic_ice()` for its cylinder). `encase()` freezes a foe and puts it in the box.
+`VOID_ELEMENT.cube_target()` picks the spot for Cold Front: the nearest foe it wasn't holding, then another it was, then straight out. `cube_on()` is the look: the faceted ice block (`thrown_foe.comic_cube()` = `designed_elements.ice_block`, fitted to the foe's posed model by `fit_block`); `enemy.freeze()` calls `thrown_foe.comic_ice()` for the same block. `encase()` freezes a foe and puts it in the block.
 
 On the bench: Puppet, Knot, Maw, Meat shield, Hanging up.
 
@@ -254,9 +254,9 @@ standing element effects outliving the string (pools, geysers, crack, frost disc
 | Effect | Script | Used by |
 |---|---|---|
 | Lightning bolt: a fat zigzag, new each step, with forks; an impact star when it comes from the sky | `scripts/comic_bolt.gd` | `element_rite.arc()` (Live Wire, the rite's thunder), `elements.storm_strike("wind")` (Grounded, wind thrown foes) |
-| Lava geyser: an overshooting column, a splash star, inked blobs off the top | `scripts/comic_geyser.gd` | `element_rite.geyser()` (Meteor Fall, Worldbreaker, Magma Burst) at 0.7 of the asked height and 0.75 of the radius wide |
+| Lava geyser: the drawn column falling back into a crusted mound | `scripts/designed_elements.gd` `geyser()` (`comic_geyser.gd` deleted 2026-11-08) | `elements.geyser()` (Meteor Fall, Worldbreaker, Magma Burst) at `GEYSER_SQUASH` 0.7 of the asked height, with three earth spikes; `rim_geyser()` lower (0.55) and batched |
 | Whirlwind: five fat wind bands round a funnel, spinning in held frames | `scripts/comic_gale.gd` | `elements.pillar("wind")` with the comic style (Updraft Lash) |
-| Frost: inked cracks, a ring of ice teeth and plates, bare floor between, depth tested | `frost_spear.frost_mesh()` | the Frost Spear |
+| Frost Spear's plant: a drawn faceted shaft, frost cracks and a brush ring where it goes in (no frost floor) | `designed_elements.spear()` / `frost_mark()`, `designed_ink.shock()` in `frost_spear._ready` | the Frost Spear |
 | Ice spikes: flat two-tone ice with the ink hull, 1.35x chunkier, overshooting, no dots or dust | `elements.comic_ice()` | `spikes()` and `nova()` with the comic style (Cold Front, Harpoon, Deep Freeze) |
 | The black hole: Black Tide's churning ink at `Hole.VIEW_R` 2.6 m, so the pile on it can't hide it; Collapse is a held-frame `Splat` | `dark_fx.Hole` | Singularity, Collapse; `dark_fx.burst()` is a small splat and ink debris |
 | Ink burst: 5-7 flat tentacles out of a blob, ink edge, violet body, hot core line, narrowing in 4 segments and curling, five held frames | `dark_fx.Splat` | `dark_fx.burst()` (Tow Line landing, GR, Overwhelm), Collapse, Maw |
@@ -266,7 +266,7 @@ standing element effects outliving the string (pools, geysers, crack, frost disc
 | Bursts and burns: `Fx.burst` is 2-6 two-tone chips (smoke draws nothing); `Fx.scorch` is an inked splat with jagged cracks out to 0.8 of its radius, hot for two steps, then a darker tone, shrinking at the end; depth tested | `comic_pop.gd`, `scripts/comic_crack.gd` | floor_bind ticks, wells, rites, Molten Palm, geysers |
 | Hit flourishes: a hot inked impact star, fat paper speed strokes along the blow, two-tone element chips, a halo in his colour behind the star from chain tier 1, radial strokes round him for a named combo, a held kill star with bone chips; no flares, dot sprays, smoke or soft rings | `scripts/comic_pop.gd` | `Fx.hit_spark`, `impact`, `chain_spark`, `element_hit`, `combo_pop`, `death`, `shards`, `ring` with the comic style; `Fx.dust` draws nothing |
 | Breaker dive: a fat inked comet streak with a hot core, ending in a held impact star; the cue is crisp inked bands | `scripts/comic_comet.gd`, `breaker_cue.gd` | `hero_leap._comet()`, every breaker (see combo-breakers.md) |
-| Molten Palm's fist: flat, wider than long, four fat knuckles glowing molten, stretched in flight, squashed with a star on arrival | `scripts/comic_fist.gd` | the one-line hook at the top of `void_element._fist()` |
+| Molten Palm's fist: flat, wider than long, four fat knuckles glowing molten, stretched in flight, squashed with a star on arrival | `scripts/comic_fist.gd` | `void_element._fist()` |
 | Abyss spikes: flat inked violet spikes round a hot core, 1.3x the asked height, coming up `SPOUT_DELAY` 0.12 s late so the impact frame doesn't swallow them; spouts asked for together keep `SPOUT_SPACING` 2 m apart, at most `SPOUT_MAX` 3 | `dark_fx.Spout` | `dark_fx.spout()` |
 | Dash Stab's lash: the claw whips the tentacle's inked ribbon out 8 m ahead and snaps it back (it replaced the shaman's spirit tomahawk, whose flat cyan axe was also the "cyan slab" over Ice Cube frames) | `scripts/claw_lash.gd` | `player._cast` ("lash") |
 | Words: each signature move says its own word on its first hit (`ComicFx.MOVE_WORDS`, sized by its combo tier), each breaker its own on landing (`BREAKER_WORDS`, `BREAKER_SCALE`); every word goes beside the hero towards the hit, in the direction with most room from the foes, the hero, the other words, his combo-name callout and the breaker prompt (`_place`, all as screen rects) | `scripts/comic_fx.gd` | it watches the hero's `_move_id`, `_hits_done`, `breakers_landed` (read only) |
@@ -281,11 +281,12 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 
 | File | Role |
 |---|---|
-| `scripts/void_element.gd` | Routing tables (`AFTER`, `AIR_FROM`, `CHAIN`), `BREAKERS`, `fire()`, `zap()`, `breaker_impact()`, `cube_target()`, all tuning |
-| `scripts/thrown_foe.gd` | A thrown foe, its cube |
+| `scripts/void_element.gd` | Routing tables (`AFTER`, `LIGHT_AFTER`, `CHAIN`), `BREAKERS`, `fire()`, `jolt()`, `breaker_impact()`, `cube_target()`, all tuning |
+| `scripts/foes.gd` | `FOES`: the foe picks every move shares. `near(tree, at, r)` (living foes whose body reaches `r`), `nearest(tree, at, r, pred)`, `sorted_near(tree, at, r, limit, skip_flying)` and `sorted_from(foes, at, limit)` (nearest first by flat distance), `densest(foes, r, at, weight, min_n)` (the foe with most others round it: Frost Spear's and Rockslide's auto picks), `live(arr)` / `alive(e)`, `flat(v)` / `to_flat(a, b)`, and `hit(e, dmg, kb, launch, big, tag, air)` = `take_hit` + `Game.register_hit` (the pair every element hit makes; `FLYING` is thrown_foe's meta) |
+| `scripts/thrown_foe.gd` | A thrown foe, its ice block; `clear_from()` / `exclude_rids()` (how far it can fly before a wall) |
 | `scripts/floor_bind.gd` | Tendrils out of the floor holding foes: Undertow and Overwhelm |
-| `scripts/frost_spear.gd` | The planted spear, its frost and `frost_ring()` |
-| `scripts/comic_bolt.gd`, `comic_geyser.gd`, `comic_gale.gd`, `comic_pop.gd`, `comic_comet.gd`, `comic_fist.gd` | The flat comic bolt, geyser, whirlwind, hit flourishes, dive comet and palm fist (see "Look") |
+| `scripts/frost_spear.gd` | The planted spear (its plant stamp, the slow, the leash) and `frost_ring()` (Deep Freeze's drawn frost burst) |
+| `scripts/comic_bolt.gd`, `comic_gale.gd`, `comic_pop.gd`, `comic_comet.gd`, `comic_fist.gd` | The flat comic bolt, whirlwind, hit flourishes, dive comet and palm fist (see "Look"; the geyser is `designed_elements.geyser`) |
 | `scripts/dark_fx.gd` | The dark element's things in the world: `Hole`, `Mark`, `Pool`, `Maw`, `Splat`, `ink_drops()`, `spout()`, `reap()`, `burst()` |
 | `shaders/dark_ink.gdshader` | Churning floor ink (spiral streaks, wobbling rim, stepped time, `open`, `erode`) |
 | `scripts/hero_moves.gd` | `MOVES` and `COMBOS` rows, `void_route()` |
@@ -298,7 +299,7 @@ thicket over a four-foe pile, so they stay at 0.32-0.5 m and last two steps.
 ## Invariants
 
 - `player._breaker_for()` (`hero_leap.entry_for()`) reads only `VOID_ELEMENT.BREAKERS`; the shared leap / window / dive machinery is in [combo-breakers.md](combo-breakers.md).
-- A breaker entry is `_WINDOW` merged with its row (`entry()`).
+- A breaker entry is `_WINDOW` merged with its row (`entry()`), built once per key and shared: a caller that writes to it (`hero_leap.start`'s `alt` merge, `counter._window`'s `only`) takes a `duplicate()` first. The keys a row may carry are listed above `BREAKERS`.
 - `leap` must be at or before the move's `cancel`.
 - Every exit from the hang lets go: no press, dash out and `_end_leap` all call `release_seized()`. The tendrils stay in `_spare` for the next one.
 - `_end_leap` clears `_buffered` for this hero, or the press that dove him would also start a move.
@@ -352,6 +353,37 @@ Damage: `CUTTER_DAMAGE`, `WIRE_DAMAGE`, each breaker's `damage` (times `perfect_
 - Still soft on this hero: the dive comet and breaker cue discs, the orange hit flares and chain dots on every foe, `Fx.shards` smoke, Molten Palm's fist, the Undertow smoke and the scorch decals (see "Look").
 - The storm, ice and magma strings and R have been played by hand. The dark string has not.
 - Molten Palm's fist is a rough lump until the VFX update.
+
+## Gotchas
+
+- **Find the dead ends first.** A new route hangs off a press that today only restarts the chain: walk
+  `void_route()` for every move and list the continuations that land on `L1` / `GR`. Nothing is reachable past a
+  breaker ender once it connects (the leap eats the press), so a long string ends in a new breaker rather than
+  passing through one.
+- **Make the payoff need the first element by reading state, not routing on it** (`void_route` stays pure):
+  Rockslide doubles on `is_airborne()`, Steam Burst only explodes `in_cube()` / `frozen_t` foes, Fault Line reads
+  `void_grab.buried`. A crossover marks its foes (`mark(e, "buried")`, metas with a real-time expiry of
+  `ELEMENT_HOLD`) and the paying element's base moves read the mark in `fire()` wrappers.
+- **A second ending is an `alt`:** one dict entry plus a branch; the bot plays it with the `alt` token.
+- **A tentacle clip plus `*_HIT` passes comic_check for free:** a new `X*` move on Ab_VS / Ab_LH / Ab_AF / Ab_H with
+  `hits: [*_HIT]` and the clip's usual `cancel` / `end` offsets needs no new keys. Tentacle moves play their clips
+  raw, so cancel / end / leap are written as `*_HIT + offset` and keep their time after the hit.
+- **`enemy.freeze()` staggers**, which takes a foe out of AIRBORNE: ice on a foe you just launched is set by hand
+  (`freeze_aloft()`). A hit on ice queues the old cube's free, so `cube_on()` sees it and adds none: rename the dying
+  cube first. A payoff that reads "frozen" must take a cube still in flight (`THROWN.cut` it first).
+- **A move that takes over a foe another move is flying:** `thrown_foe.launch()` refuses a foe with the FLYING meta;
+  `thrown_foe.cut(e)` ends the old flight first. Extra hits go before a move that throws.
+- **Void moves with `range` 0 still hit a foe inside his radius** (`_do_hit`'s `d > range + radius`): a 0-damage touch
+  thaws a frozen foe standing on him before `fire()` reads it. Payoffs that read the ice should not count on a foe at 0 m.
+- **A move's reach isn't "near him":** Tow Line takes whoever is on the dash he just made, often behind him. Reuse the
+  move's own set (`_tow_line()`), and `improv_reach()` duplicates each move's filter before it fires.
+- **The training room is wider than the camera:** a 14 m throw from the middle left the frame and read as the foes
+  vanishing; 10 m kept them at the edge. Film a throw distance before trusting it.
+- **A standing object the routing reads is a trap if every press reads it.** Gate it on intent (facing, distance,
+  "his last move made it"), give it a leash, and give a queued press its own clock (`hero_input.promote`).
+- A packed array inside a Dictionary is a copy on read (`one.ring.append(x)` appends to a temporary): fill a local
+  and assign it. A `comic_flat` subclass can't reuse a parent's member name or name a var after one of its own static
+  funcs; either is a parse error that breaks the autoload chain through this file's preloads.
 
 ## Checks
 

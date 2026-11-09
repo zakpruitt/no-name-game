@@ -5,7 +5,8 @@ them to actually be designs, still stylistic." Every effect before this round wa
 primitive shapes (fans, rings, quads, cones) in flat or gradient vertex colours. This round builds the pipeline a
 stylised action game uses instead (authored flipbooks with a hard peak frame and a dissolve, strip textures on
 shaped meshes, shader erosion, a palette ramp per element) and proves it on a pilot set. The rest of the game's
-effects stay on their old code paths until Zak has judged the look; the conversion list at the end orders them.
+effects were converted over the rounds below; since 2026-11-08 the designed effects are the only effects (the
+classic polygon path and `--fx=classic` are gone).
 
 ## What it does
 
@@ -59,9 +60,8 @@ effects stay on their old code paths until Zak has judged the look; the conversi
 - **Tentacle lightning** (`live_current.gd`, combo-lightning's; look only): the conducted strip is `TRAIL_W` 0.28 and
   flashes `TRAIL_HEAT` hotter every other step, so the bolt on the tentacle crackles white-hot.
 
-**Toggle:** on by default. `--fx=classic` (after `--`, e.g. `godot --path . -- --fx=classic`, or
-`tests/string_film.gd -- --fx=classic --dir=x`) plays the old polygon effects from the same build, for before /
-after films. In code, `DESIGNED.enabled = false`.
+**Toggle:** none. The designed effects are the only effects since 2026-11-08: `--fx=classic`, `DESIGNED.enabled` and
+every classic code path behind `DESIGNED.on()` were removed, and so was `on()` itself.
 
 ## Files
 
@@ -80,8 +80,8 @@ after films. In code, `DESIGNED.enabled = false`.
 | `shaders/designed_sprite_depth.gdshader` | The same with the depth test on (the meteor crown: foes in front of it stay in front) |
 | `shaders/designed_ground.gdshader` | Flipbook flat on the floor, depth tested (lava wave, crust) |
 | `shaders/designed_ribbon.gdshader` | A strip texture along a shaped mesh: `head` / `span` slide a stroke along it (slash), `tiles` / `scroll` repeat it (bolts); rows are boil frames |
-| `scripts/designed_fx.gd` | `DESIGNED.on()`, the palette texture, one cached `ShaderMaterial` per sheet, the timeline node (per-frame holds, erosion share, real-time anticipation), and the effects: `hit`, `streaks`, `slash`, `meteor`, `wall_splat`, `ice_shatter`, `bolt`, `dust`, `prewarm` |
-| Call sites | `fx.gd` (`hit_spark`, `_flush_crowd_stars`, `impact`, `swoosh`, `dust`), `void_element._meteor_landing`, `thrown_foe._burst`, `enemy._thaw`, `comic_bolt.spawn`, `elements.prewarm`. Each branches on `DESIGNED.on()` and keeps the old path |
+| `scripts/designed_fx.gd` | the palette texture, one cached `ShaderMaterial` per sheet, the timeline node (per-frame holds, erosion share, real-time anticipation), and the effects: `hit`, `streaks`, `slash`, `meteor`, `wall_splat`, `ice_shatter`, `bolt`, `dust`, `prewarm` |
+| Call sites | `fx.gd` (`hit_spark`, `_flush_crowd_stars`, `impact`, `swoosh`, `dust`), `void_element._meteor_landing`, `thrown_foe._burst`, `enemy._thaw`, `comic_bolt.spawn`, `elements.prewarm`. |
 
 ## How it works
 
@@ -141,7 +141,7 @@ resident from the first frame.
 4. **Import**: `godot --headless --import --path .`, then in the new `.png.import` set `mipmaps/generate=true` and
    `detect_3d/compress_to=0`, delete its `.godot/imported/my_fx.png-*` and import again.
 5. **Play it**: add the sheet to `designed_fx.SHEETS` (grid, frames, kind, anchor, burn), a timeline const and a
-   static function; call it from the effect's call site behind `if DESIGNED.on():`, keeping the old path.
+   static function; call it from the effect's call site.
 6. **Film it** windowed from the game camera (see Testing), read the frames, fix the worst thing, repeat (at least
    three rounds). Check coverage with `tests/fx_coverage.py` and that `fx_free_check` passes.
 
@@ -170,7 +170,7 @@ resident from the first frame.
 ## Testing
 
 - `tests/fx_free_check.gd` (in `agent.sh check`): the effects free cleanly mid-hit.
-- Film: `tests/string_film.gd -- --dir=<name>` (designed) and `-- --fx=classic --dir=<name>` (before), windowed;
+- Film: `tests/string_film.gd -- --dir=<name>`, windowed;
   `--from=11 --to=11 --layout=wall` puts the dummies by the back wall for Molten Palm's splat and Meteor Fall.
   Coverage: `python tests/fx_coverage.py <film> --per-string --max=0.40`.
 - Close look at one effect: a scratch SceneTree that loads `main.tscn`, holds a long hitstop stop at 0.06
@@ -198,7 +198,7 @@ resident from the first frame.
 - A billboard drawn without the depth test covers the pile; a big one (the meteor crown) uses the depth-tested
   variant, stood behind the pile.
 
-## Conversion list (remaining polygon effects, most seen first)
+## Conversion list (history: everything below is converted; the polygon paths were deleted 2026-11-08)
 
 Converted in the pilot: hit star, impact strokes, swing swoosh, Meteor Fall landing, Molten Palm wall splat, ice
 shatter / cube burst, every lightning bolt and arc (Grounded, Live Wire, Storm Pitch's zaps, Cataclysm's strikes,
@@ -213,32 +213,14 @@ spear's floor and Deep Freeze's burst, the ice block and frozen foe's ice and th
 
 Converted in round 46 (fx-finish): the Awakening (`awaken_flourish`, which `Fx.awaken_burst` calls in comic style),
 chain halos, daze stars, `Fx.combo_pop` strokes, the spirit echo's ghost axe, the weapon-change burst, the axe aura
-(off), `comic_boulder`, `comic_steam`, `comic_erupt`, `comic_anvil`. See "Round 46: the finish" below.
+(off), `comic_steam`, `comic_anvil` (and `comic_boulder`, `comic_erupt`: deleted 2026-11-08; Rockslide's boulder is
+`mid_beats.boulder_drop` and Eruption is `eruption_hurl.gd` now). See "Round 46: the finish" below.
 
 Converted in round 44 (fx-cohesion): the tentacle (every reach, grab, coil, lash), every floor hoop (`Fx.ring`,
 `thin_hoop`, `hoop_run`, the comic_pop ring; three deleted), the breaker cue's rings, the element chips (one pop a
 hit in the element's shape, crowd caps), the axe ribbon.
 
-Converted in fx-polygons (round 47 d): the breaker dive trails, `Fx.burst` chips (so `hero_fx.rank_up`), `comic_fault`'s ground, `comic_freeze_over`'s pool and break, `comic_melt`, `comic_rip`, the `comic_improv` payoffs, the state tells, Reap's mark, `Fx.soul`, the last-kill flare, `comic_drag_mark`, the claw lash's turn flare. See "fx-polygons" below; the numbered list is the older one, kept for history.
-
-1. Every hit: `Fx.chain_spark` halos past 10 / 20 / 35 hits (capped to one a frame, still polygons), the foe's
-   `daze` stars. (The element chips are done.)
-2. Every swing: (the axe ribbon is done) the axe's element aura (`comic_axe_aura.gd`), the floor drag line (`comic_drag_mark.gd`), the spirit
-   echo's ghost axes (`spirit_echo.gd`), Dash Stab's claw lash (`claw_lash.gd`).
-3. Every dash and step: `comic_dust.gd` (run start, skid, dodge puffs: reuse `dust_puff`), `Fx.dash_streak`, the
-   comic afterimage, the perfect-dodge flare.
-4. Every named combo: `Fx.combo_pop` strokes, the weapon-change burst (`heretic_form_fx.gd`), `callout_cap.gd`.
-5. Element moves (every right click): storm's Updraft Lash pillar / gale (`comic_gale.gd`, `elements.pillar`),
-   the dark element's splats and ink tendrils (`dark_fx.gd`), the floor bind (`floor_bind.gd`). (Ice and magma are
-   done: round 46.)
-6. Breakers: the dive trail (`comic_comet.gd`, every element), floor cracks (`comic_crack.gd`, also `Fx.scorch` in comic style), the war cry and crater
-   (`breaker_quake.gd`), `comic_hail`, `comic_rip`, `comic_anvil`, `comic_impale`,
-   `comic_erupt`.
-7. Crossovers: `comic_boulder`, `comic_fault` (its strikes are already designed bolts), `comic_steam`,
-   `comic_freeze_over`, `comic_melt`, `comic_backdraft`, `comic_arc` (its jumps are already designed bolts).
-8. Element-matrix payoffs (`comic_improv.gd`) and the state tells on foes (`comic_state_tell.gd`).
-9. Kills: `Fx.death` (flash, shock ring, shards), `Fx.soul`, `hero_fx.last_kill` rings.
-10. Awakening: `Fx.awaken_burst` (beam, shockwaves, motes), `awaken_flourish.gd`, `hero_fx.rank_up`.
+Converted in fx-polygons (round 47 d): the breaker dive trails, `Fx.burst` chips (so `hero_fx.rank_up`), `comic_fault`'s ground, `comic_freeze_over`'s pool and break, `comic_melt`, `comic_rip`, the `comic_improv` payoffs, the state tells, Reap's mark, `Fx.soul`, the last-kill flare, `comic_drag_mark`, the claw lash's turn flare. See "fx-polygons" below.
 
 ## Round 44: cohesion (fx-cohesion lane)
 
@@ -382,7 +364,7 @@ Zak: "the effects are not really effects, they're just polygons you're putting t
 clicks were the last runtime polygon assemblies in the element moves. Sheets: `python tools/vfx_gen/gen_elements.py
 [names] [--preview=<dir>]` (imports vfxlib; about 70 s for all eight). Runtime: `scripts/designed_elements.gd`,
 registered into `DESIGNED.extra_sheets` the first time anything spawns (`register()`), prewarmed from
-`elements.prewarm`. Every swap is behind `DESIGNED.on()`; `--fx=classic` plays the old polygons.
+`elements.prewarm`.
 
 | Sheet | Size, frames | Kind | Plays as |
 |---|---|---|---|
@@ -432,7 +414,7 @@ Zak, after playing round 46: "the ice is also a big improvement, but there are t
 awful. get rid of the crystals. i love the new ice block, ensure they're covering the whole character model tho. the
 dummies part of them clip out."
 
-**What went, what took its place** (designed mode; `--fx=classic` keeps its own polygons):
+**What went, what took its place**:
 
 | Was | Now |
 |---|---|
@@ -470,7 +452,7 @@ the only tell for Backdraft), Black Ice's floor plates and the axe aura's shards
 Measured (`tests/ice_block_check.gd`, every kind hit and encased, its CPU-skinned vertices checked against the prism
 for a second): the dummy's block is 1.05 m round and 2.2 m tall (it was 0.75 x 1.5, and the bag's arms, head and
 squash poked out); the spar kinds come out at 1.2-1.3 m with weapon tips 0.2-0.7 m out (warrior, rogue, archer,
-shield, necromancer). Every body vertex is in.
+shield; the necromancer, measured then, was removed 2026-11-08). Every body vertex is in.
 
 
 **fx-ice3 (follow-up, the crystals film still showed).** Clip 26 (Harpoon Slapshot) still had two crystal shapes:
@@ -496,7 +478,7 @@ Clips: `awaken-combo-clips/25 Ice fx-ice3 *` (strings 6, 7, 27, 28 before / afte
 Zak: the effects "look weird" and are "just polygons". This lane took the most-seen polygon effects outside the
 ICE / MAGMA base moves (fx-elements' lane) and made them authored sheets. Sheets: `python tools/vfx_gen/gen_finish.py
 [names] [--preview=<dir>]`; runtime: `scripts/designed_finish.gd` (registers its sheets in `DESIGNED.extra_sheets`,
-`prewarm()` from `elements.prewarm`). Everything is behind `DESIGNED.on()`; `--fx=classic` plays the old drawers.
+`prewarm()` from `elements.prewarm`).
 
 **The Awakening** (`awaken_flourish._show` -> `designed_finish.awaken`): an authored gold event, not a beam and rings.
 - Anticipation (`awaken_gather`, 0.27 s real): long straight ink focus lines pulled in to him, a gold ring tightening.
@@ -533,7 +515,7 @@ Eruption's landing (a `magma_burst` per foe, nearest first) and Anvil's (an eart
 | `daze_star` | 4x1 | sprite_depth | `Fx.daze` |
 | `combo_burst` | 3x2 | sprite | `Fx.combo_pop` |
 | `echo_axe` | 4x1 | sprite | `spirit_echo.gd` |
-| `rock_boulder` | 4x2 | sprite | `comic_boulder.gd` |
+| `rock_boulder` | 4x2 | sprite | `designed_finish.boulder` (Rockslide) |
 | `steam_cloud` | 3x2 | sprite_depth | `comic_steam.gd` |
 
 Lessons:
@@ -556,15 +538,14 @@ Dash Stab's claw lash.
 - Spirit echo: drawn at `designed_finish.ECHO_DRAW` 0.62 of the cast's reach (the hit reach is unchanged), the axe
   head `ECHO_SIZE` 1.4 m, the line `echo_line()` a thin void-ink `slash` (`ECHO_LINE_INNER` 0.94 of its radius in),
   both on real time for `ECHO_REAL` 0.2 s (`designed_fx.slash(..., real)`), so neither hangs through the hitstop into
-  the next move. See `docs/feel-audit-2026-11-06b.md`.
+  the next move. See `docs/history/feel-audit-2026-11-06b.md`.
 
 ## fx-polygons: the last runtime polygons (round 47 d)
 
 Zak, after fx-ice3: wind and electricity "phenomenal", the see-through ice block loved, no spiky crystals anywhere,
 "keep improving ... focus on improving effects". This lane drew the polygon assemblies still on film in the 32 bot
 strings. Sheets: `python tools/vfx_gen/gen_polygons.py` (previews with `--preview`); code: `scripts/designed_polish.gd`
-(registered as extra sheets, prewarmed in `elements.prewarm`). Every swap is behind `DESIGNED.on()`; `--fx=classic`
-plays the old look.
+(registered as extra sheets, prewarmed in `elements.prewarm`).
 
 | Effect | Was | Now |
 |---|---|---|
@@ -619,7 +600,7 @@ and `voronoi` it imports). Registered by `scripts/lava_leash.gd` (`SHEETS`, `reg
 | `leash_burst` | sprite_depth (4x2, 7 frames) | the eruption under the pile: a slit, a fan of five tongues, globs, a crust mound; tongues clamped above the ground line, `BURST_SIZE` 4.4 m, stood 0.5 m behind the pile from the camera so the foes read in front |
 
 The tentacles are `void_tendril` washed with `electrify(HEAT, LAVA)` as they drag; the pool under the pile and
-Hellseam's seam geysers are `designed_elements` (`pool`, `geyser`). No polygons, no crystals. Headless or `--fx=classic`
+Hellseam's seam geysers are `designed_elements` (`pool`, `geyser`). No polygons, no crystals. Headless
 draws no seam (the gameplay is the same).
 
 ## Round 51 cool pass (combo-cool lane)

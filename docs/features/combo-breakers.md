@@ -94,14 +94,17 @@ moves him) that ends, when `comet()` stops being called, in a held-frame impact 
 ## Invariants
 
 - `leap` must be at or before the move's `cancel`, or the next input wins first.
-- Every breaker is a tentacle breaker (`_WINDOW.tentacle`): `seize` / `seized_tick` / `release_seized` /
-  `slam_seized` in `void_grab.gd` must all see the same held set.
+- Every breaker is a tentacle breaker: `seize` / `seized_tick` / `release_seized` / `slam_seized` in `void_grab.gd`
+  must all see the same held set.
 - The autotest bot never dashes out of a hang (its dodge presses would throw the breakers away) and presses at `sweet`.
 
 ## Tuning
 
 - `VOID_ELEMENT._WINDOW`: `rise`, `height`, `back`, `zone`, `cue`, `open`, `sweet`, `close`, `perfect`, `dive`,
-  `perfect_mult`, `fall`. Per breaker overrides in `BREAKERS` (`damage`, `leap`, `awaken`, `awaken_perfect`, `height`, `short`, ...).
+  `radius`, `launch`, `perfect_mult`, `fall` (nothing else: the old `spikes` / `spread` / `spike_damage` / `detonate` /
+  `throw` / `tentacle` keys were read by nothing). Per breaker overrides in `BREAKERS` (`damage`, `leap`, `awaken`,
+  `awaken_perfect`, `height`, `short`, ...); every key a row may carry is listed in the comment above `BREAKERS`.
+  `entry(key)` builds the merged row once and shares it (player asks for it every attack frame): writers duplicate.
 - `player.BREAKER_FOCUS` (0.6), `BREAKER_FOCUS_ZOOM` (0.86), `BREAKER_PERFECT_STOP` (0.07), `BREAKER_SPILL` (0.12), `BREAKER_EARLY` (0.12; 0.08 before round 30).
 - **One window rhythm for every element** (round 30): `entry()` sets `open` = `rise` + `VOID_ELEMENT.BREAKER_HANG` (0.1),
   `sweet` = open + `BREAKER_TO_SWEET` (0.14), `close` = open + `BREAKER_TO_CLOSE` (0.32), unless a breaker sets `open`
@@ -137,6 +140,45 @@ so the autotest lands it.
 
 - Tuned headless and in stills; the window's length and the slam's weight still want a hand play-test.
 
+### Lessons from the lanes
+
+- **A breaker that "sometimes" drops out of the autotest can be the meter, not the string.** When an ending hits
+  harder the Awakening meter runs out mid-string and `set_awakened` resets `_anim_mult` mid-move, so a crossover
+  that needs its first hit before a state expires (Steam Burst on the cube) comes late and misses in 1 of 3 runs.
+  Anything that sets `_anim_mult` mid-move drops the move's own `speed`: leave a move in flight at the pace it
+  started at; the next `_start_attack` picks up the new base. Trace per frame (state, move, progress, `_anim_mult`,
+  `Engine.time_scale`, `awakened`, each dummy's spot and `frozen_t`) and diff against the old base.
+- **Set-up and payoff.** Zak's rule: every combo has a best situation. Before adding beats to a finisher, ask which
+  earlier move sets it up and make the finisher pay off that set-up (Molten Palm punches the group into the wall,
+  Meteor Fall dives on it). Let the set-up leave a mark the payoff reads (a meta with a timestamp, `last_wall_ms`),
+  weight it in the choice and the damage so the planned group wins ties but a clearly bigger group still wins. Make
+  the choice a pure function (`void_element.meteor_target`) tested with plain Vector3 arrays, and re-aim the cue every
+  frame of the hang so the player sees where the dive lands.
+- **A set-up has to be reachable where players practise.** A 6 m shove never reached the training room's back wall
+  (~10 m), so the wall splat never showed in training. Seek a wall in a capped reach (`PALM_WALL_REACH`) rather than
+  wait for the room; let the follow-up reach further only for the thing the set-up sent further
+  (`METEOR_SPLAT_REACH`). Film it with a layout made for it (`string_film --layout=wall|stray`).
+- **Decompose a long beat before tuning it:** move hit -> next hit = the hit's stop (plus the ender tier's) + its
+  hit-confirm + the next wind-up. `speed` is the cheap lever (fractions keep the contact frame and the leap in
+  sync); a per-move `confirm` next to a lower `stop` pays back what a stop adds. Fixing a whiff lengthens the beat
+  (a connected hit gets its stop): pay it back with `confirm` in the same change. L2's wind-up must stay over L1's
+  (rhythm_check "opener quickest").
+- **A HIT frame at x1.00 is a whiff, not a missing stop:** a connected `_do_hit` always freezes. A cast can count
+  hits the blade missed and set `_connected`, so a whiffed blade takes the confirm cancel without the stop.
+- **Dash -> Dash Stab costs the whole `dash_time`;** a dash that cancelled a move ends at `DASH_STAB_CANCEL` when a
+  light is buffered. Shortening a dash shortens Tow Line (its reach is the dash's line) and can drop an `[improv]`
+  cell: read `[improv]` after any dash-length change.
+- **A hold that hauls foes to one point piles them** (0.08 m apart): give each a slot across his aim sorted by
+  where it stands, and add `fan * SEIZE_IN` on the landing, since the dive's lerp shrinks any spread.
+- **The foe's hit freeze eats a breaker's set-up:** a pull-back knockback starts after `hit_freeze_big` plus the
+  move's hitstop, and the leap comes ~0.25 s after the hit, so the foes hadn't moved. Show the motion with the hold
+  instead (`reel` in the entry).
+- **Timing tests:** measure a clip's contact frame off its tracks (`tests/contact_frames.gd`; an AnimationPlayer
+  doesn't pose a skeleton from a `-s` script's `_initialize`). Every `cancel` / `end` keeps its time after the hit, so
+  moving a hit later moves the whole move later. Headless input is a frame or three late: a timing test sets
+  `_state_t` itself, then presses, and must fail with the old constant.
+- `Object.get_meta(key, null)` errors on a missing key (a null default is none): use `has_meta`.
+
 ## Round 34, fourth pass: the last long beats
 
 Bot `[rhythm]` beats (first hit to first hit), before -> after, contact frames unchanged:
@@ -168,7 +210,7 @@ combo count). Now:
 Tow Line off a dash still waits out the whole dash (EF -> TW 457-526, IP -> TW 479-482): handing it over at
 `DASH_STAB_CANCEL` too made it 371-411 ms but shortened its line, and the bot's frozen x dark cell went 3 -> 0.
 
-Round 51 (fluidity lane, `docs/feel-audit-2026-11-07.md`): Tow Line off a dash now hands over at
+Round 51 (fluidity lane, `docs/history/feel-audit-2026-11-07.md`): Tow Line off a dash now hands over at
 `hero_input.TOW_LINE_CANCEL` 0.7 of the dash, and a pause window holds an early press of its button.
 
 | Hand-over (bot beats, first hit to first hit, worst run) | Was | Now |
@@ -292,7 +334,7 @@ Two of eleven have a second ending. No ending, number or damage changed in this 
 
 ### Proposal: a second ending for each single-ending breaker (for Zak to pick)
 
-Following the design review's setup-vs-payoff pairing (`docs/design-review-2026-11-05.md`, section 2 and top-ten
+Following the design review's setup-vs-payoff pairing (`docs/history/design-review-2026-11-05.md`, section 2 and top-ten
 items 3 and 4): one ending of a pair is the **payoff** (ends the fight: big damage, a crater, a wall splat) and the
 other the **setup** (leaves the pile in a state the next string cashes in: frozen, stunned, up in the air, bound).
 A suggested convention: **RMB = payoff, LMB = setup**, which Maw / Black Ice already fit once Black Ice keeps them
@@ -384,6 +426,37 @@ that the seam is not up on the landing frame, that it catches the one on it 0.6 
 string: `wall spread L L L H L` (`spread` with `wall` now lays the arc toward the wall); the autotest's
 `endings_n=` counts it (20/20).
 
+### String pacing history
+
+The numbers behind `hero_moves.gd`'s pacing constants (each keeps a one-line "what it does" there). Beats are the
+bot's `[rhythm]` first hit to first hit, real ms, unawakened; the shape aimed at is opener ~196 / mid ~235 / ender ~362.
+
+| Constant | Value | Before | What it set |
+|---|---|---|---|
+| `L1_SPEED` | 1.1 | 1.0 | opener hit 216 -> 196 ms in |
+| `L2_SPEED` | 1.15 | 1.0 | throw 235 -> 204 ms in; L1 -> L2 ~311 -> 280-292 |
+| `L3_SPEED` | 1.6 | 1.3 (1.0) | wind-up 471 -> 362 -> 294 ms; L2 -> L3 was 436, target 380 (round 51) |
+| `L3_CANCEL` / `L3_END` | 0.7 / 1.02 | 0.645 / 0.975 | kept ~140 ms hit-to-cancel and ~290 ms recovery at 1.6 |
+| `L3_CONFIRM` | 0.8 | 0.5 | of L3 -> Molten Palm's 535 ms, 70 was the hammer waiting out its confirm |
+| `EM_SPEED` | 2.8 | 1.6, 2.1 | palm 619 -> 467 -> 350 ms in; L3 -> EM 539-655, EA -> XS 612 |
+| `EM_END` | `AF_HIT + 0.43 * AF_K` | + 0.34 | ~300 ms recovery after the palm |
+| `XF_SPEED` | 1.5 | 1.2 | rake 229 -> 183 ms in; XR -> XF was 454-510 |
+| `LLH_SPEED` | 1.6 | 1.2 (1.75 tried) | spear 327 -> 245 ms in; DL -> EF 418-514; 1.75 lost Harpoon's ice blocks (ice_block_check) |
+| `MELT_SPEED` | 1.65 | 1.2, 1.5 | XG -> XM 467 -> 434; slam 202 ms in |
+| `ICE_CUBE_CONFIRM` | 0.8 | 0.5 | EA -> XG beat 367 |
+| `HAIL_SPEED` / `REAP_SPEED` | 1.35 | 1.2 | GR -> VR beat 337 |
+| `ROCKSLIDE_SPEED` | 1.35 | 1.2 | boulder 278 -> 247 ms in; AL1 -> XR 297-366 |
+| `ROCKSLIDE_STOP` | 0.07 | 0.1 | 150 ms of the 393 ms beat to Fault Line was the stop |
+| `DASH_STAB_SPEED` | 1.15 | 1.0 | stab 235 -> 204 ms in; Rockslide -> dash -> stab was 435 |
+| `VAULT_CANCEL` | 0.25 | 0.3 | IJ -> IS 453 ms, 46 sooner |
+| `DEEP_FREEZE_SPEED` | 1.35 | 1.2 | dive 293 -> 260 ms in |
+| `AL1_SPEED` | 1.25 | 1.0 | cut 216 ms in; EC -> AL1 344-385 |
+| `EC_CONFIRM` | 0.8 | 0.5 | ~170 ms of EC -> AL1 was the lash's stop and confirm |
+| `DASH_STAB_CANCEL` | 0.4 | 0.5 | Dash Stab off a dash out of a move 475-536 -> 405-421 ms; Tow Line keeps the whole dash (EF -> TW 457 -> 411 shortened its line) |
+| `DASH_STAB_STOP` | 0.06 | 0.07 | 85 ms with its tier-1 ENDER_HITSTOP |
+| `DASH_STAB_CONFIRM` | 0.8 | 0.5 | Dash Stab -> Harpoon 424-435 ms once the stab connected |
+| `DASH_STAB_BRAKE*` | 0.6 / 50 deg / 3 m/s | - | round 41: the stab carried him through the foe and whiffed (x1.00 HIT frames) |
+
 ### Round 51 env-pieces: endings that use the room's pieces
 
 See [env-pieces.md](env-pieces.md). **Uproot** is Overwhelm's LMB ending (a pillar near the pinned foe: the tentacle
@@ -427,7 +500,7 @@ void_element) are the breaker-pairs lane's. The hang stays ~0.6 s real, and ever
   - The banner moves to the bottom (`CALL_Y_LOW` 0.86) when a foe the camera was cued to (`camera_rig.FRAME_CUE`) or one just splatted on a wall comes under it, so Pinwheel's and Meteor Fall's wall payoffs at the top edge stay in view. It moves once per callout and never flips back.
 
 Endings that want an extra beat can call `DESIGNED_BREAKER.burst()`, `spread()`, `after_beat()` or `wall_star()`
-themselves. All of it sits behind `DESIGNED.on()`; `--fx=classic` plays the old landing.
+themselves. (The old polygon landing behind `--fx=classic` is gone: designed is the only look.)
 
 ### Film (36 bot strings, `string_film -- --dir=spectacle_a|b|c`)
 
@@ -833,7 +906,7 @@ Rockslide's boulder is small at the camera's distance; the 3/4 mids want a best 
 
 ## Round 56 feel audit 7 (feel-audit6 lane)
 
-Audit: `docs/feel-audit-2026-11-07c.md`. Clips: `awaken-combo-clips/46 Audit6 *`. Slots, inputs, windows and hang
+Audit: `docs/history/feel-audit-2026-11-07c.md`. Clips: `awaken-combo-clips/46 Audit6 *`. Slots, inputs, windows and hang
 lengths are unchanged (kit_check 23/23, 15/15; rhythm_check, input_snap_check, hitstop_check PASS).
 
 - **The landing punches in** for every ending whose scene has room (`camera_rig._land_punch`, camera.md "Landing

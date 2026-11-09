@@ -32,9 +32,9 @@ invariants and the gotchas.
 | Impact feedback: hitstop shape, camera hit feel, impact frame, trail swell | [impact-feedback.md](impact-feedback.md) | `game.hitstop()`, `scripts/camera_rig.gd`, `scripts/impact_frame.gd`, `scripts/weapon_trail.gd` |
 | Camera: distance, aim, fight framing, `--cam-*=` flags | [camera.md](camera.md) | `scripts/camera_rig.gd` |
 | Enemy hit reactions (squash, lean, tinted flash, juggle hang/tumble/bounce/skid, crowd wave) | [enemy-hit-reactions.md](enemy-hit-reactions.md) | `enemy._hit_reaction()`, `enemy._gravity()`, `enemy._land_from_air()`, `Fx.flash_tint()` |
-| Designed effects: authored flipbooks, palette ramp and erosion shaders, the generator, `--fx=classic`, conversion list | [designed-fx.md](designed-fx.md) | `scripts/designed_fx.gd`, `tools/vfx_gen/gen_designed.py`, `shaders/designed_fx.gdshaderinc` |
+| Designed effects: authored flipbooks, palette ramp and erosion shaders, the generator, conversion list | [designed-fx.md](designed-fx.md) | `scripts/designed_fx.gd`, `tools/vfx_gen/gen_designed.py`, `shaders/designed_fx.gdshaderinc` |
 | The effects language (main fx effort, 2026-11-07): beat, on-twos stepping, palette / ink / glow rules, shapes per element, the 10-item cohesion checklist every effect must pass, the audit and conversion queue | [fx-language.md](fx-language.md) | `scripts/fx_beat.gd`, `tools/vfx_gen/vfxlib.py` `cluster_angles()`, `scripts/fx_palette.gd` |
-| Second hero, design draft (ideation only, no code): the dragon prince spellblade, thrown sword, dragon magic, Majesty | [../characters/dragon-prince.md](../characters/dragon-prince.md) | |
+| Second hero, design draft (design only; the code slice was removed 2026-11-08): the dragon prince spellblade, thrown sword, dragon magic, Majesty | [../characters/dragon-prince.md](../characters/dragon-prince.md) | |
 
 ## Writing one
 
@@ -53,5 +53,4 @@ to the index above. Use these sections, and skip any that don't apply:
 
 Name functions and constants rather than citing line numbers, because line
 numbers go stale. Update the doc in the same commit as the code it describes.
-
-- **Slow motion (training)**: `T` or the pause menu row cycles the game through full, 50% and 25% speed (`Game.slow`, `cycle_slow()`); hitstop and breaker slow motion multiply on top, and the real-ms windows (element states, Meteor Fall's palm and wall marks) stretch by `1 / Game.slow`. Effects that animate on real time still play at full speed.
+Lessons from a lane go in the feature's **Gotchas** section, not in `docs/agents.md`; finished lane reports go in `docs/history/`.

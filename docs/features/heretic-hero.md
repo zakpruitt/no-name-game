@@ -318,7 +318,7 @@ Body 21.9k tris, weapons 3.7k.
 ## Hero fix (2026-11-07): the head rides the torso
 
 Zak: "the head is bobbing and doesn't fit at all". Full diagnosis, numbers, mess catalogue and the hand-over for the
-redesign: [docs/hero-audit-2026-11-07.md](../hero-audit-2026-11-07.md); sheets 63 / 64 in `awaken-combo-clips`.
+redesign: [docs/history/hero-audit-2026-11-07.md](../history/hero-audit-2026-11-07.md); sheets 63 / 64 in `awaken-combo-clips`.
 
 - **Cause:** the clips were keyed for the Meshy hood; on v2's head the keyed neck / head turns, `hsq` and the run's
   root squash moved the crown 46 cm per Run_F step, the head tilting 14-39 degrees.
@@ -406,6 +406,52 @@ Rebuild as above (`chibi_keys.py` over the baked blend, `comic_glb.py`, `--impor
 - Element effects on the tentacle are missing.
 - The KayKit-era clip names and the Ab_ clips he can't reach yet are baked but unchecked by eye.
 
+## Gotchas from the lanes
+
+- **Prove the rebuild before editing a model.** Run the pipeline (`chibi_keys.py`, or `refine_pass` + `foe_keys` +
+  `comic_glb` for a foe) over the committed sources first and `cmp` the GLB byte for byte with the committed one; every
+  later diff is then the edit's alone. A chain on `set -e` + `grep` stops silently when a step prints nothing the grep
+  wants (a Blender `SystemExit`): print the step's last line unfiltered, or check the GLB's mtime, before shooting.
+- **A `.blend` anywhere under the project stops `godot --import` before your GLB** ("Blender path is invalid") and
+  the game keeps the old import. Put a `.gdignore` in every gitignored build folder (`vendor_src/`, `tools/comic_art/`)
+  before importing, and check `.godot/imported/<name>.glb-*.scn`'s mtime after a swap. Extracted textures are never
+  overwritten by a reimport: copy the new `<name>_<material>.png` over yourself, and write a GLB's embedded JPEG bytes
+  as they are (decoding and re-saving shows a binary change on every rebuild).
+- **GLB size is tracks, not keys:** each track costs ~280 bytes of JSON before any key, so claw tracks go only on the
+  clips the game plays (`PLAYED`; grep `scripts/*.gd` for the clip names after the Ab_ mapping) before thinning keys.
+- **Changing a clip's keys under another lane's timing:** keep each contact frame and run `tests/contact_frames.gd`
+  after every export; stepped keys make each drawing change a speed spike, so recovery steps stay small. A paused
+  AnimationPlayer reports `current_animation` "" (use `assigned_animation`), and re-seeking a paused player keeps the
+  old pose: measure clip content from its tracks, not from a posed skeleton.
+- **Feet vs speed: measure, don't guess.** Sample both foot bones over the run clip (seek + `force_update_all_bone_transforms`)
+  and take the mean backward speed while a foot moves back in the lower half of its height (`hero_stride_check`,
+  `foe_stride_check`; feet slower than 0.1 m/s are "planted" and drag the mean). A fast chibi needs the clip authored
+  for the speed (`chibi_keys.py` `RUN_GROUND`), mostly airborne, legs keyed every frame.
+- **Measure a bob from the skeleton, not from frames:** play the clip (`seek(t, true)`), read `get_bone_global_pose`,
+  split hips / whole-body squash / head-on-chest. A bone with no clip track keeps whatever a probe writes into it, so a
+  probe that edits an unkeyed bone must restore it per frame. Bone-local axes are not world axes: work in skeleton
+  space and convert into the parent's frame.
+- **A second model on the same rig keeps every clip:** load it through a file map (`ComicLook.HERETIC_MODELS`) under
+  the same kind name so tones, clips and `hero_kind()` checks work unchanged; fit the mesh to the rest pose
+  (`tools/hero_build/hero_v3.py`), and when a limb is far shorter than the rig's chain move those bones' rest (only
+  bones no clip keys a translation on; `glb_swap.py` rewrites the inverse binds). Prove it with `contact_frames` and
+  an autotest whose `strings=`, `breakers=`, `endings_n=` equal the plain run's. Skeleton-only checks (`hero_head_check`)
+  can't tell two bodies apart: judge a body's look from windowed film.
+- **Judge the hero in the play camera's film, not close-ups:** the camera sees the top and back of the hood, so
+  contrast goes on the top surface (dark horns, a stripe, a wide scarf); an additive fresnel tuned for a pale body
+  turns dark regions gold. A deterministic run blinks on the same frame every time: set `rig._blink_t = -100` before a face shot.
+- **`player._play` returns early on the clip already playing,** so a speed that changes mid-loop (Awakened starting
+  mid-run) must be set every frame by the caller (`_play_locomotion` sets `anim.speed_scale`).
+- **A stiff spring in a modifier needs a capped, sub-stepped delta** (`heretic_rig._lean_into_turns` went NaN on a
+  windowed frame spike and the hero vanished; headless never spikes): cap, sub-step, reset non-finite state,
+  `tests/lean_spike_check.gd`.
+- **Meshy from Blender:** retexture (10 credits) and auto-rig (5) take a GLB as a data URI or task id; call them from
+  the live Blender with `urllib` so the key stays there, decimate first (rigging caps at 380k tris), and read the
+  balance before and after each paid call (`docs/meshy-spend.md`). Design on paper first: concept sheets shrunk to
+  the game's hero size pick a design in one look (45 credits for a whole design against 60 for two unusable models).
+  Multi-view parts are RGBA on transparent: composite onto light grey or they look black. In bpy never compare nodes
+  with `is` (each access is a new wrapper): compare `n.name`.
+
 ## Checks
 
 `godot --headless --path . -s tests/heretic_shots.gd` (PASS/FAIL). Windowed, it also saves `user://heretic_shots/`, including `strip_<close|game>_<form>_<i>.png`: the change in 20 ms steps from a close camera and the game's, with the weights printed as `[strip]`. Playing: `godot --path .`.
@@ -426,7 +472,7 @@ Every MOVES fraction tied to the old length goes through `void_element.AF_HIT` /
 `--hero=v3` (or Settings: heretic -> chibi heretic -> heretic v3). **Not the default; Zak decides.** The model is the
 Meshy Image-to-3D result from the concept sheet (docs/characters/heretic.md, task 01a1ba0d, 12,644 tris, 2048 px
 painted texture), fitted onto the chibi's 93-joint rig at rest so all 62 clips, the contact frames, weapon forms and
-every bone lookup work unchanged. Verdict against the chibi: [hero audit, section 6](../hero-audit-2026-11-07.md).
+every bone lookup work unchanged. Verdict against the chibi: [hero audit, section 6](../history/hero-audit-2026-11-07.md).
 
 **Files.** `assets/comic/heretic_v3.glb` (+ `heretic_v3_paint.png`, the extracted texture), `tools/hero_build/hero_v3.py`
 (Meshy GLB in, build dir out), `tools/hero_build/glb_swap.py` (build dir + the chibi GLB in, game GLB out),

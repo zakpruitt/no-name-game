@@ -121,7 +121,7 @@ designed drawer in designed mode are scored as that drawer.
 | `comic_backdraft.gd` | Backdraft's blast (8 polygon wind strokes in a ring) and haul ribbon | L_L_H_D_H_H_L 039-040 (a cluster of sharp pale-blue spikes over the spear) | 1, 2, 6, 7. After fx-modern (blast = `DESIGNED.wind_burst`): - | 5 -> 9 |
 | `comic_hail.gd` | Hailstorm's lift: polygon helix bands + chips | line_D_L_H_H_H_L 035-038 (not isolated: under the twister) | 1, 2 | 7 |
 | `comic_arc.gd` | Storm Pitch's forks riding the thrown foe | D_H_L 024-028 | 1, 2 (flat polygon zigzags; the jumps are designed bolts) | 7 |
-| `comic_anvil.gd`, `comic_erupt.gd`, `comic_boulder.gd`, `comic_steam.gd` | crossover drawers handed to `designed_finish` | L_L_H_D_H_H_L 052, line_D_L_H_H_H_L 056 | as designed_finish | 7 |
+| `comic_anvil.gd`, `comic_steam.gd` (`comic_erupt.gd`, `comic_boulder.gd`: deleted 2026-11-08) | crossover drawers handed to `designed_finish` | L_L_H_D_H_H_L 052, line_D_L_H_H_H_L 056 | as designed_finish | 7 |
 | `comic_fault.gd` | Fault Line ground and gales (designed twister + bolts) | L_H_L_L_H 018-022 | - | 9 |
 | `comic_freeze_over.gd`, `comic_melt.gd`, `comic_rip.gd`, `comic_impale.gd` | designed in fx-polygons | L_L_H_D_H_H_L 034-035, line 039 | 7 (Impale's floor plates + frost shell + hit stars stack busy) | 8 |
 | `comic_improv.gd`, `comic_state_tell.gd` | payoffs and state tells (designed_polish sheets) | face_L_H_L_L_D_L_H, face_L_H_D_L_H | - | 9 |
@@ -129,7 +129,7 @@ designed drawer in designed mode are scored as that drawer.
 | `comic_comet.gd` | dive trails (designed_polish) + a landing star | L_H_H 024 | - | 9 |
 | `comic_crack.gd` | `Fx.scorch` floor cracks (crater, lava well) | L_L_L_H_H 050 (not isolated) | 1 | 8 |
 | `comic_dust.gd`, `comic_drag_mark.gd` | locomotion puffs, drag line (designed sheets) | every sheet | - | 10 |
-| `comic_fist.gd`, `comic_gale.gd`, `comic_geyser.gd` | handed to designed_elements / twister | L_L_L_H_H 042 | - | 10 |
+| `comic_fist.gd`, `comic_gale.gd` (`comic_geyser.gd`: deleted 2026-11-08) | handed to designed_elements / twister | L_L_L_H_H 042 | - | 10 |
 | `comic_axe_aura.gd` | off (no subject) | - | - | n/a |
 | `dark_fx.gd` | dark element: pools, vortex, claw strokes, Reap crescent, spouts | H_H 011, hold 039 | 7 (Overwhelm's pool + reel + vortex overlap) | 9 |
 | `frost_spear.gd`, `frost_shell.gd`, `frost_wall.gd` | the spear, shells, wall (faceted meshes, frost marks) | L_L_H_D_H_H_L 024-027 | - | 10 |
@@ -185,3 +185,35 @@ use a gust or skip, as ice already does); the combo burst's even ring (`combo_bu
 - Rock is stone (dust row), not magma; magma is only what glows.
 - The breaker cue's closed ring stays: it is a timing cue (UI), quiet by design (round 45), not an effect.
 - `FX_BEAT.stamp` pools by sheet and parent (12 spare nodes a sheet); standing effects are not pooled.
+
+## 7. Gotchas
+
+- **Effects on a breaker's landing frame are hidden by the impact frame** (two inked flash frames). Delay what must
+  be seen (Short Circuit's arcs: `create_timer` 0.12 s) past it; a kill under a breaker's impact frame is invisible too.
+- **An anticipation shorter than ~0.09 s never lands on a 12 fps film frame**, so it is never seen: hold it longer or
+  show it with motion that lasts (debris dragging in).
+- **An effect's tween on scaled time outlives its string.** Hitstop and breaker slow motion stretch any
+  `create_tween()` on a node (the combo callout hung 1-1.5 s into the next string): `set_ignore_time_scale(true)`
+  for UI, or cut it when the next string starts (`standing_fx.watch` sees a string's first move as "no chain and not
+  attacking last frame, attacking now").
+- **Ink drawn into a strip texture must be sized for the screen, not the sheet:** a strip seen at ~48 px/m needs ~13 px
+  of ink in the sheet (`gen_cohesion.INK_PX`) or it vanishes; ink that must hold at any width goes in the shader, in
+  metres. A hoop of many dashes reads as a gizmo; 3-5 broken brush arcs read as a drawn stamp.
+- **A "white-hot" shift that lifts every tone burns the shape flat white:** lift one band and a bit (`heat` 0.35) so a
+  saturated rim stays. The soft VFX textures (`Fx.TEX` dot / scorch / star) fill under half their quad: a decal sized
+  "radius" reads half that; a cartoony hard shape wants a flat mesh.
+- **Floor stamps under a foe hide behind it from the high camera:** test them by a foe, not on open floor. Density is
+  judged on film (`python tests/fx_coverage.py --per-string`), and every HIT frame over 0.2 so far was a breaker
+  landing with the Awakening column: compare with and without it.
+- **A smear built from the last pose draws a slab when the pose jumps** (coil to lash): guard on tip speed, a still
+  root and a same-direction middle (`void_tendril._lashing`). Route a new look by shape (a bolt falling > 3 m is a sky
+  strike) inside your own function, not by editing every caller; register a lane's sheets through
+  `DESIGNED.extra_sheets`; per-frame caps key on `Engine.get_process_frames()`.
+- **A gameplay check that counts an old drawer's nodes fails when the designed look replaces it** (fx_sleek_check's
+  geyser `.width`): put the designed node in the group and give it the value as a meta
+  (`get_meta("width", get("width"))`), so the check still guards the size.
+- `billboard_mode` drops a node's scale unless `billboard_keep_scale = true`; a hand-wound fan can be back-facing
+  (set `cull_mode = CULL_DISABLED`); `_ready` runs inside `add_child`, before the caller sets `global_position`, so
+  anything spawned at "its own position" there lands at the origin (`call_deferred` or position first).
+- A sheet redraw previews without touching the worktree: every `tools/vfx_gen/gen_*.py` takes `--out=<dir> --preview=<dir>`;
+  a regenerated sheet is not in the game until `godot --headless --import --path .` runs.

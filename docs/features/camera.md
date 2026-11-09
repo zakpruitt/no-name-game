@@ -89,6 +89,27 @@ off). The rig prints `[camera] dist= fov= frame_max=` when a flag is given.
 - Look: `timeout 300 godot --path . -s tests/string_film.gd` and compare a string's sheet before / after (the
   film folders keep stale frames past the current count: read only the frames INDEX.txt lists).
 
+## Gotchas
+
+- Dial by hand with `--cam-dist=` / `--cam-fov=` / `--cam-frame=` before changing a constant, and keep
+  `camera_feel_check`'s hero-px and floor bounds in step.
+- The fight framing reads `last_hit_ms` on the `"enemies"` group: a new foe type gets framed only if it sets that on a hit.
+- Breaker beats get the pull-out for free in phase 3 (`_brk_phase`): a breaker that throws foes between press and
+  dive runs those beats in phase 3 rather than adding camera calls. Size a throw against the cap, not the rest view:
+  a throw to both side walls wants ~x3.5 and will leave one at the edge; throw to one side (along `_brk_dir`) or shorter.
+- **A multiplier stack hides the cap.** A hang push-in under a focus punch under the frame cap left the view at
+  x1.4: put the cap on the distance seen (`min(need, cap) / squeeze`), not on one factor.
+- `delta / Engine.time_scale` is not real time around a hitstop (a return jumped x1.92 -> x1.24 in one 50 ms
+  sample): use a measured `Time.get_ticks_usec()` delta. The jump never reproduced headless, so no check covers it.
+- A box test at the pushed-in distance trips for a foe 2 m ahead (its head leaves the 72% band), so "respect the box
+  in the window" undoes ordinary push-ins too. Probe `_frame_to` per breaker in the autotest before changing the window.
+- A camera aimed at the feet puts a top-down fight under the HUD; raising the aim also widens the floor in frame like a
+  longer distance does, so re-measure the footprint after moving it.
+- The hero's state field is `state` and his leap lifts `model`, not the body: a rig that read `_state` or followed
+  `global_position.y` never saw the leap. Print the fields you read before tuning a camera that "doesn't work".
+- Probe before filming: a headless SceneTree with the root at 1920x1080 printing `_frame` / `_frame_to` and the worst
+  foe's NDC every 3 frames gives the cap and the ease in one 20 s run (`film-and-judge` skill).
+
 ## Calm pass (2026-11-05)
 
 Zak, after playing: "the camera is all messed up, especially during the special moves; weird how it frames the
@@ -164,6 +185,10 @@ payoff.
   landing, the lagging follow point. Without that, a lean still on its way home put the pile off the bottom while the
   zoom came in.
 - The scene's lean comes home at `HANG_SETTLE`.
+- Cost: `_best_lean()` runs `_need()` ~150 times, so `_need()` takes the lens (`_lens()`: tan(half fov) and the aspect)
+  once a frame and allocates nothing (a point's feet and `FRAME_HEAD` are two `_fit()` calls); the point lists are
+  kept arrays, and the indicator node is looked up once. The lean search runs again only when the first lean does
+  not fit under `HANG_CAP` (the fallbacks below), so a normal scene searches once a frame.
 - **Push-ins are clamped.** `_squeeze()` and the per-hit push-in and FOV kick can't go deeper than the scene's actors
   allow (`camera.position` takes `max(push, need / (frame * narrow))`). The landing's punch still plays when the scene
   has room.

@@ -27,7 +27,7 @@ Read `docs/features/combo-breakers.md` (the shared leap / window / dive) and the
 1. **Pick an ender.** It must have no follow-up the press would steal: right click in the window must not also be a live route.
 2. **Add the entry** to `VOID_ELEMENT.BREAKERS`; `leap` at or before the move's `cancel`. Prefer existing slam keys over new code.
 3. **New slam:** add its branch to `VOID_ELEMENT.breaker_impact()` (and any set-up to `player._start_dive()`).
-4. **List it:** a breaker row in `scripts/move_list.gd`, and a string reaching it in `main.BOT_STRINGS` so the autotest lands it.
+4. **List it:** a breaker row in `scripts/move_list.gd`, its window on the card (`kit_slots.gd`), and a string reaching it in `training_bot.BOT_STRINGS` so the autotest lands it (`bot-strings` skill).
 5. **Test it:** extend `tests/void_arm_check.gd`'s breaker checks; look at it windowed with `tests/element_shots.gd -- --only=<name>`.
 
 ```
@@ -36,7 +36,7 @@ timeout 120 godot --headless --path . -s tests/move_list_check.gd  # [moves] PAS
 timeout 120 godot --headless --path . -- --autotest                # combo_breaker #N <id> perfect=true, then done
 ```
 
-Then `bash tools/agent.sh check`, update the feature docs, commit and land.
+Then `bash tools/agent.sh check`, update the feature docs, commit on your agent branch and land with `agent.sh` (`docs/agents.md`).
 
 ## Lessons
 - **A second ending (`alt`) shows itself.** `hero_leap.options()` reads `BREAKERS[...].alt`, and the prompt draws one

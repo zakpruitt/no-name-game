@@ -1,7 +1,7 @@
 # Feel audit 2026-11-07d: impact lane (feel audit 7 follow-up)
 
 Lane `impact` (agent/impact). Fixes for the impact-frame, banner, word and leftover-debris items in
-`docs/feel-audit-2026-11-07c.md` and `docs/spar-audit-2026-11-07.md`. The camera is untouched: the six wide endings
+`docs/history/feel-audit-2026-11-07c.md` and `docs/history/spar-audit-2026-11-07.md`. The camera is untouched: the six wide endings
 (Avalanche, Slapshot, Meteor Shower, Pinwheel, Short Circuit, Uproot) do not get the landing punch, as already decided.
 
 Films (12 fps, `user://` copied out): before `imp_b1` / `imp_b2` / `imp_kill_b2`, after `imp_a1`..`imp_a3` / `imp_kill_a3`.
