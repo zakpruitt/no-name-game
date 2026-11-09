@@ -125,7 +125,9 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
 ## How it works
 
 1. Each physics frame (the node runs before the player), `context(hero)` reads the hero's state: a breaker leap in
-   phase 0 with a ctx's ending on offer, or an attack before its hit. It returns {ctx, from, reach} or nothing.
+   phase 0 with a ctx's ending on offer, or an attack before its hit. It returns {ctx, from, reach} or nothing. In an
+   attack it looks no further unless the move is one of `PICK_MOVES` (or Tow Line): any other move has no pick, so
+   no candidate search runs for it.
 2. `resolve()` takes the auto pick (`nearest`, or `along` for Slapshot and the palm), then `_choice()`: the test
    override (`test_cursor`, `test_stick`), the right stick when the mouse is not active, or the mouse ray through
    the camera (sampled at `CURSOR_HEIGHTS`, within `CURSOR_SNAP` of a structure in reach).
@@ -148,6 +150,13 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   the target, and only to a structure within the move's reach.
 - Impale's window is one of the 15 the grammar allows (`kit_check`). `pause` means a press before XK's cancel is
   still Backdraft (L), so the old strings keep working.
+- **Preload order.** `env_flourish` -> `env_piece` -> `env_target` -> `designed_fx`; `counter` -> `env_flourish` and
+  `env_target`; `frost_spear` -> `frost_wall` -> `env_piece` / `env_target`; `void_element` -> `env_target`,
+  `env_piece`, `frost_spear`; `thrown_foe` and `lava_leash` -> the env files. A file must not `preload` one that
+  already reaches it (a cyclic reference): env_target reaches env_piece, env_flourish, counter and frost_spear through
+  `static var`s filled on first use (`_piece()`, `_flourish()`, `_counter()`, `_spear()`), env_piece reaches
+  void_element, thrown_foe and env_flourish the same way (`_ve()`, `_thrown()`, `_flourish()`), env_flourish reaches
+  void_element (`_ve()`), and rooms reaches env_piece (`floor_spots`). Nothing `load()`s a script per frame.
 
 ## Tuning
 
@@ -184,8 +193,8 @@ auto) and keeps its own default when it's null (bare test rooms, no env):
   aim line, Impale's window offering Anvil / Pinwheel, the beats (chunks, marks capped, torch swing), the pillar
   slam held and not held, and the foe picks (`_foe_picks`: the charged hold's bracket on the foe ahead, drawn on it,
   the cursor switching it, Overwhelm pinning the chosen one; Abyss's window, the cursor picking who comes up first).
-- Film the foe picks: windowed `tests/target_film.gd [-- --dir=name --fps=24]` (the cursor stand-in moves mid-hold
-  and mid-window) to `user://<dir>/target/`.
+- Film the foe picks: windowed `tests/pick_film.gd` (target_film was removed 2026-11-08; pick_film is the one
+  film of the picks).
 - The autotest prints `[env] shown= switches= locks= pillar_slams= pillar_hits= chunks= marks= torch_swings=`.
 - Film: `tests/string_film.gd -- --from=N --to=N` on the strings `wall alt D H H` and `pillar H hold`.
 

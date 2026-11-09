@@ -436,6 +436,11 @@ Draw), recall and the Talon claws from 3, and Dragon Breath from 4 (no kindled).
 
 ## 10. Built: the first slice (round 42 d)
 
+> **Removed 2026-11-08.** The code described below (`scripts/prince/`, `tests/prince_check.gd`, `prince_film.gd`,
+> the `--hero=prince` flag and the hooks in shared files) was cut in the cleanup pass (`docs/cleanup-2026-11-08.md`);
+> it lives in git history before that date. This section stays as the record of how the slice was built, so a
+> second attempt starts from it rather than from nothing.
+
 Launch: `godot --path . -- --hero=prince` (training room, the dummies). Without the flag the game is exactly the
 heretic as before (`Game.hero` defaults to `"heretic"`; main.gd loads the prince script only when asked).
 Check: `godot --headless --path . -s tests/prince_check.gd` (in `agent.sh check`). Film: windowed

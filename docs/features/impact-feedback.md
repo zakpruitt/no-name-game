@@ -37,7 +37,7 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 - **The trail swells.** Deep in a chain and right after a heavy hit the
   weapon ribbon reaches further, lives longer and fills out.
 
-- **Comic hit readouts** (round 29, `Game.comic_style`). Damage numbers are
+- **Comic hit readouts** (round 29). Damage numbers are
   one inked number per foe (`scripts/comic_number.gd`): a hit within
   `MERGE_S` of that foe's last adds into it, and it pops again. It steps
   aside off the combo-name callout (and its PERFECT line), live words and the
@@ -59,12 +59,11 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
 - `scripts/impact_frame.gd`: the CanvasLayer (layer -1, under every HUD
   layer) with one screen-reading ColorRect; `flash()`, `on_hitstop()`,
   `current()`.
-- `scripts/weapon_trail.gd` + `shaders/weapon_trail.gdshader`: `swell()`,
-  per-sample life and swell, `UV2.x` in the shader.
+- `scripts/weapon_trail.gd`: `swell()`, per-sample life and swell (the designed
+  trail material from `designed_ink.gd`).
 - `tests/hitstop_check.gd`, `tests/camera_feel_check.gd`,
-  `tests/impact_frame_check.gd`, `tests/trail_check.gd` (headless PASS/FAIL);
-  `tests/impact_preview.gd` and `tests/trail_preview.gd -- --swell`
-  (windowed looks).
+  `tests/impact_frame_check.gd`, `tests/trail_check.gd` (headless PASS/FAIL)
+  (trail_preview was removed 2026-11-08; judge the trail in string_film).
 
 ## How it works
 
@@ -149,9 +148,7 @@ touch `player.gd` or `enemy.gd`: they hang off the calls those already make
   and tint (and plain centred ink without them).
 - `godot --headless --path . -s tests/trail_check.gd`: reach and life by
   tier and weight, old samples kept, weight decay.
-- Looks (windowed): `godot --path . -s tests/impact_preview.gd` ->
-  `user://impact_preview.png` (plain / full / mid-fade / reduced);
-  `godot --path . -s tests/trail_preview.gd -- --swell` -> `user://trail_preview.png`.
+- Look (windowed): `tests/string_film.gd -- --dir=<name>` (trail_preview was removed 2026-11-08; judge the trail in string_film).
 - `-- --autotest` runs all of it under the bot.
 
 ## Gotchas / open questions
@@ -189,7 +186,7 @@ punch is tier 1 at most; an ender (`is_ender`: a BREAKERS leap, `CHAIN_ENDERS` L
 `ENDER_STOP_MIN` 0.11 with its full tier punch. Before, Rockslide / Hailstorm / Molten Palm froze 0.12-0.145 s,
 longer than the breaker leaps. A spirit echo cast landing more than `CAST_STOP_GAP_MS` 90 ms after the last stop
 takes `spirit_echo.CAST_STOP` 0.03 s, so a whiffed blade's cast is not a contact at x1.00. See
-`docs/feel-audit-2026-11-07.md`.
+`docs/history/feel-audit-2026-11-07.md`.
 
 ## Round 54: pile columns and the counting banner (camera-hang lane)
 

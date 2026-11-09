@@ -27,22 +27,21 @@ The KayKit hero's moves (`LH`, `LHH`, `AL2`, `AH`, `AL3`, `LLH`, `LPL`, `H`, `CH
 `void_grab.pick()` scores everything in a `CONE` by angle plus distance. Right click passes it no pillars.
 
 - **Foe:** `GR` plays. The tentacle arrives at `hits[0]`, then drags the foe to `YANK_TO` in front of him. The move cancels at `cancel` into anything; H is the slam, which keeps hold of the same foe.
-- **Heavy** (`is_heavy()`: boss, elite, or radius 0.9+), further than a short reach: State.SWING, kind "pull". He flies to it and arrives in `L1`. A heavy already in reach just takes the `GR` hit.
+- **Heavy** (`is_heavy()`: radius 0.9+; no foe in play is, since the boss and elites went 2026-11-08): takes the `GR` hit where it stands. (The right-click pull that flew him to a far heavy was removed with them.)
 - **Nothing:** `GR` whips to `WHIP_REACH` and plays out.
 
 ## R: the swing
 
-`player._try_swing()` takes the press from `State.MOVE`, or from an attack once it has hit, on `SWING_COOLDOWN`. `void_grab.traverse()` looks where he's aiming, at big foes and pillars only, and runs State.SWING. Unlike the dash, none of these have invulnerability frames, except a right-click pull.
+`player._try_swing()` takes the press from `State.MOVE`, or from an attack once it has hit, on `SWING_COOLDOWN`. `void_grab.traverse()` looks where he's aiming, at pillars only, and runs State.SWING. Unlike the dash, none of these have invulnerability frames.
 
 - **Pillar** (group `grab_anchors`, added in `main.gd`): kind "swing". He circles at `SWING_R` with lift, raking what he passes once each. A tap runs `SWING_MIN_ARC`; holding R runs to `SWING_MAX_ARC`.
-- **Big foe, out of reach:** kind "pull", as above.
 - **Nothing:** kind "sky". The tentacle shoots to `_pivot`, `SKY_HIGH` up and off the top of the screen, as if gripping an unseen ceiling. He runs along `_dir`, steering at `SKY_TURN`, for `SKY_MIN` on a tap and up to `SKY_MAX` holding R. A wall ends it.
 
 Any press releases early. Release flings him: `_fling_t` lowers his grip in `_state_move`, and `_post_dash_t` makes L off the fling the `DL` lunge. Dash cancels every travel state (`travel_tick`).
 
 ## The slam (`VS`)
 
-`attack_tick` carries the foe by hand: tentacle out by `SLAM_SHOOT_END`, overhead by `SLAM_TOP_AT`, down at `hits[0]`. `slam_lands()` puts it on the floor just before `_do_hit`, so the ordinary hit loop strikes it and whatever stands near it. `slam_landed()` then adds the crater and ring. A heavy stays put and the tentacle alone comes down on it (`_move.range` grows to reach it).
+`attack_tick` carries the foe by hand: tentacle out by `SLAM_SHOOT_END`, overhead by `SLAM_TOP_AT`, down at `hits[0]`. `slam_lands()` puts it on the floor just before `_do_hit`, so the ordinary hit loop strikes it and whatever stands near it. `slam_landed()` then adds the crater and ring. (The heavy variant, where the foe stayed put and the tentacle alone came down on it, was removed 2026-11-08 with the heavy foes.)
 
 ## Shapes
 
@@ -70,6 +69,6 @@ A reach this long can't be baked, so `void_tendril.gd` rebuilds a tube each fram
 
 ## Checks
 
-`godot --headless --path . -s tests/void_arm_check.gd` (PASS/FAIL, in `agent.sh check`): routing, picking, shapes, yank, pull, every kind of swing and fling, dash out, slam, whiff. Stand-in foes, no pixels: only playing it shows how it feels.
+`godot --headless --path . -s tests/void_arm_check.gd` (PASS/FAIL, in `agent.sh check`): routing, picking, shapes, yank, every kind of swing and fling, dash out, slam, whiff. Stand-in foes, no pixels: only playing it shows how it feels.
 
 `vendor_src/.../unfinished_poc/form_look.py` renders each form in its clip at the game's angle, with stand-in materials.

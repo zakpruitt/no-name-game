@@ -6,7 +6,7 @@ The game boots straight into the training room: one room with four training dumm
 
 Under the room title, the HUD shows the current string's damage and hits, the last string's, and the best string so far. A string ends when the combo drops. Each dummy also carries a comic `LAST n` tag over its head: the damage that dummy took in the last string (feel audit 2, item 2: it pops when that dummy's string ends, small, `TAG_SIZE` 40 in a `TAG_INK_PX` 1.5 px ink line, and fades out `TAG_SHOW_S` 1.5 real s later; the next hit on it takes it down).
 
-`--spar=minion|rogue|shield|warrior|archer|mage` adds one live foe of that type beyond the dummies, for trying strings on something that moves, dodges, blocks or shoots. It hits at 1/3 damage, has 3x its kind's hp if it fights hand to hand (`spar.HP_SCALE`, `--spar-hp=N` for any kind; spar pass two: at 1x the warrior died to most strings' first breaker and to every Ricochet onto the gallows, so holds and the hang were never seen on it) and comes back 0.8 s after it dies, 6 m up the room from him, kept inside the walls and at least 4 m from him. Off by default. Its strikes can be dash-countered and its bolts parried ([counter.md](counter.md)). A foe held by a control move never strikes (`enemy.held()`, [enemy-hit-reactions.md](enemy-hit-reactions.md)). Audit: [docs/spar-audit-2026-11-07.md](../spar-audit-2026-11-07.md), pass two [docs/spar-audit-2026-11-07b.md](../spar-audit-2026-11-07b.md).
+`--spar=minion|rogue|shield|warrior|archer|mage` adds one live foe of that type beyond the dummies, for trying strings on something that moves, dodges, blocks or shoots. It hits at 1/3 damage, has 3x its kind's hp if it fights hand to hand (`spar.HP_SCALE`, `--spar-hp=N` for any kind; spar pass two: at 1x the warrior died to most strings' first breaker and to every Ricochet onto the gallows, so holds and the hang were never seen on it) and comes back 0.8 s after it dies, 6 m up the room from him, kept inside the walls and at least 4 m from him. Off by default. Its strikes can be dash-countered and its bolts parried ([counter.md](counter.md)). A foe held by a control move never strikes (`enemy.held()`, [enemy-hit-reactions.md](enemy-hit-reactions.md)). Audit: [docs/history/spar-audit-2026-11-07.md](../history/spar-audit-2026-11-07.md), pass two [docs/history/spar-audit-2026-11-07b.md](../history/spar-audit-2026-11-07b.md).
 
 **The bot on the live foe** (spar pass two, `training_bot.gd`): `BOT_STRINGS` entries with `spar: "melee"|"ranged"` play only with a `--spar=` foe of that sort (`_spar_ok()`), and their `foe` token aims the string at it (the live foe's hp is refilled as the string starts). `C` waits (up to `BOT_FOE_WAIT` 6 s) for its strike and dashes into it `BOT_C_AT` 0.2 s out (Backlash, no perfect; against a shooter, a bolt parry); `CP` waits for the perfect (Backlash, then Ricochet in the window); `W` waits until its windup is `BOT_W_AT` 0.6 s from the strike, so the next press (the grab, Harpoon) cuts it; `settle` waits until a thrown foe has landed or hung for `BOT_SETTLE_HANG` 0.5 s. Strings: `foe C L L L H` (Backlash into the hammer string), `foe CP` (Ricochet into the dummies), `foe W H H` (the grab cuts it, Siphon Slam, Collapse), `foe W D L H` (Harpoon freezes it mid-windup), `foe C C` vs a shooter, and in the room with pieces `hook foe CP settle H L L` (the gallows hang, then Galvanize latches on it). The autotest prints `[spar_bot] c= cp= bolt= w= missed=`. Every other string ignores the live foe (it walks up to and aims at the dummies); the foe joins in on its own.
 
@@ -22,6 +22,8 @@ Esc opens the pause menu:
 - **Settings**, **Restart training** (reloads the scene) and **Quit game**.
 
 The MOVES panel beside it lists every input (`scripts/move_list.gd`), by kit slot group (round 49, `docs/features/kit-slots.md`).
+
+**Slow motion:** `T` or the pause menu row cycles the game through full, 50% and 25% speed (`Game.slow`, `cycle_slow()`); hitstop and breaker slow motion multiply on top, and the real-ms windows (element states, Meteor Fall's palm and wall marks) stretch by `1 / Game.slow`. Effects that animate on real time still play at full speed.
 
 ## Files
 
@@ -46,7 +48,7 @@ The MOVES panel beside it lists every input (`scripts/move_list.gd`), by kit slo
 
 ## How it works
 
-`main._ready` builds the room, then calls `_start_training()`. Nothing else spawns foes (`enemy.gd`, `boss.gd` and `enemy_types.gd` stay as code and data for tests and later rounds).
+`main._ready` builds the room, then calls `_start_training()`. Nothing else spawns foes but `--spar=` (`enemy.gd` and `enemy_types.gd` carry the six spar kinds).
 
 The dummies are not counted as a fight and their `died` signal is never connected, so the room is never cleared. Hits on them still go through the normal combo, style, Awakening and cast code.
 
@@ -68,4 +70,13 @@ The dummies are not counted as a fight and their `died` signal is never connecte
 - `tests/enemy_feel_check.gd` covers the bag knobs, the cut shake-off, the tag and `--spar`; look: `tests/enemy_feel_preview.gd -- --bag`.
 - `tests/spar_check.gd` (in `agent.sh check`, ~50 s): every spar foe counterable on its own windup (0.2 s of telegraph before the window at least), each control move's hold mid-windup cuts the strike and reaches its state, held foes start no windup, bolts parry back, the warrior's poise, his hurt's dash-out, the spawn inside the room. Prints a `[spar_check] <kind> ...` row each.
 - `spar_check` also plays the bot's `spar` strings in a fresh room on a live warrior and archer (~45 s): Backlash, the perfect, Ricochet, a hold cut, a parried bolt must land in play.
-- Films with a live foe: `tests/string_film.gd -- --spar=<kind>` (the live foe is not gathered into the dummies' fan: it stays where it is, put back on his flank only past `SPAR_NEAR` 7 m) (the INDEX lines add ` | spar <STATE> hp y si <flags> d | hero hp`), and windowed `tests/spar_film.gd -- --kind=<kind> --case=counter|hurt|collapse|poise|respawn` for one scripted beat at 30 fps.
+- Films with a live foe: `tests/string_film.gd -- --spar=<kind>` (the live foe is not gathered into the dummies' fan: it stays where it is, put back on his flank only past `SPAR_NEAR` 7 m) (the INDEX lines add ` | spar <STATE> hp y si <flags> d | hero hp`).
+
+## Gotchas
+
+- **Bot strings share the room, and the frost spear strands the bot.** The spear stands 5 s and a fresh press facing it vaults (`void_element.vaults()`): a lone `L L H` sent the next strings up the spear and two breakers never played while the autotest stayed green. Spear strings go last or inside a string that blows the spear apart; check `breakers=` / `moves=` against what the strings should reach, not only that the run finished (the `bot-strings` skill).
+- **The bot is repeatable only from fixed spots** (`training_bot.BOT_SPOT`, dummies reset home); before that breakers varied 5-7 a run from where the last string threw the foes. A gathered pile changes the moves (at 2.2 m Dash Stab lunges through the foes and D L H never reached Harpoon): say which setup a number comes from.
+- **Dummies hide a real foe's arc**: they launch at `LAUNCH_SCALE` 0.55 under `MAX_HEIGHT` 3. Tune air timing on real foes (`enemy.launch_speed_for()`), then check the dummy still reads.
+- The dummies' `LAST n` tag and the `[training]` line read a string's end from the combo drop: a standing effect that keeps ticking (a lava well) keeps the string alive and the hits counting while he stands.
+- `--spar` takes only the legion and cult kinds (`spar.KINDS`); the spar foe in a `string_film` stays where it is and joins in on its own, so a film with it is not the same frame as the dummies' fan.
+- `training_check` spends most of its time in `create_timer` waits: step the thing you test by hand where you can (`godot-headless-test` skill).

@@ -103,7 +103,7 @@ No suckers, no veins, a single specular gloss band at most.
 ## 7. Proportions (in head-heights, head = hood without horns)
 
 - Total height about 2.7 heads: the head (neck joint to hood crown) at most 37% of his crown height, the limit the
-  hero-fix audit measured at the game camera ([../hero-audit-2026-11-07.md](../hero-audit-2026-11-07.md) section 4).
+  hero-fix audit measured at the game camera ([../history/hero-audit-2026-11-07.md](../history/hero-audit-2026-11-07.md) section 4).
   The concept sheet and the v3 mesh are at about 41%; the port scales the head group down about the neck to fit.
 - No hood point or tail more than 0.55 m behind the head (the audit's cone limit). v3's hood has a short soft back.
 - Hood: 1 head tall, 1.1 heads wide; horns add 0.35 heads per side.

@@ -67,14 +67,14 @@ Each rule has **one** tell keyed by the state, tinted by the element that hit (`
 (`ComicFx.IMPROV_WORDS` by state). Real time, gone by 0.35-0.45 s. The upgrade cells keep their own looks and words
 (the table in round 37's notes below).
 
-| Rule | Look (designed, the default) | Classic (`--fx=classic`) borrows | Word |
-|---|---|---|---|
-| Shatter | the ice shattering, a pop in the hitter's colour | frozen x dark's tear and plates | SHA-KRASH! |
-| Arc | a pop in the hitter's colour, the current crawling on it; the lime bolt path on through the charged | charged x storm's bands and crackles | ZZAK-ZAK! |
-| Burst | magma spurting up under it, a pop and a shock line in the hitter's colour out to the burn | molten x magma's splat and tongues | FWOOMPH! |
-| Snap | a violet pop at its feet (the hold), a hit star in the hitter's colour | bound x storm's snapping ropes | SNAP! |
-| Juggle | a hit star and speed strokes up, in the hitter's colour | airborne x ice's spikes, in the hitter's colour | WHAP-UP! |
-| Crater | the crater heaving, a shock line in the hitter's colour | buried x magma's shock rings and cracks | KA-THOOM! |
+| Rule | Look | Word |
+|---|---|---|
+| Shatter | the ice shattering, a pop in the hitter's colour | SHA-KRASH! |
+| Arc | a pop in the hitter's colour, the current crawling on it; the lime bolt path on through the charged | ZZAK-ZAK! |
+| Burst | magma spurting up under it, a pop and a shock line in the hitter's colour out to the burn | FWOOMPH! |
+| Snap | a violet pop at its feet (the hold), a hit star in the hitter's colour | SNAP! |
+| Juggle | a hit star and speed strokes up, in the hitter's colour | WHAP-UP! |
+| Crater | the crater heaving, a shock line in the hitter's colour | KA-THOOM! |
 
 Upgrade cells' looks (round 37 / 44, unchanged): Gale Lift FWISSH! (wind bands round the cube), Shard Cut SHA-KRAK!
 (violet tear, plates, one at the foe it cuts), Frozen In KRRIK!, Swallowed GULP!, Firestorm FWAAASH!, Quench HSSSSK!,
@@ -135,9 +135,11 @@ numbers):
 | Singularity (VS) | the hole where the slam lands (`dark_fx.Hole.RADIUS`) |
 | Reap (VR) | the crescent: `REAP_REACH`, `REAP_HALF_ANGLE` either side of his aim |
 | Black Tide (VD) | the marked within `TIDE_REACH`, else `TIDE_NEAR` round him |
-| Overwhelm (OW) | the pool on whoever he aims at (`_overwhelm_spot()`, `OVERWHELM_RADIUS`) |
+| Overwhelm (OW) | the pool on whoever he aims at (`_overwhelm_spot()` = `overwhelm_aim()`'s foe, `OVERWHELM_RADIUS`) |
 | Tow Line (TW) | the line he just dashed along (`_tow_line()`) |
-| anything else | its MOVES `range` / `arc` / `width`, else `IMPROV_REACH` round him |
+
+Every base id has its arm (`improvise()` returns first for the `X*` ids and anything not in `ELEMENT_OF`), so there
+is no fallback shape.
 
 The arc rule and the upgrade cells' chains go on past the move's shape (that is their point); only the payer must
 be in it. Breakers don't improvise (they read their own states in `breaker_impact()`).
@@ -158,7 +160,7 @@ be in it. Breakers don't improvise (they read their own states in `breaker_impac
 
 Rules: `RULE_SHATTER_MULT` (1.6), `RULE_ARC_R` (6 m), `RULE_BURST_R` (2.2 m), `RULE_JUGGLE_LAUNCH` (7 m/s),
 `IMPROV_DAMAGE` (8), `IMPROV_MULT` (1.5: Burst, Snap, Crater), `IMPROV_CHAIN_DAMAGE` (5: each arc link and burn),
-`IMPROV_DOWN` (6 m/s). Cells: `IMPROV_REACH` (5 m), `IMPROV_ROLL_HALF_WIDTH` (1 m), `IMPROV_LAUNCH` (8 m/s),
+`IMPROV_DOWN` (6 m/s). Cells: `IMPROV_ROLL_HALF_WIDTH` (1 m), `IMPROV_LAUNCH` (8 m/s),
 `IMPROV_CHAIN_R` (2.6 m), `IMPROV_PULL` (6 m/s), `IMPROV_STEAM_MULT` (1.6), `IMPROV_HOLD` (0.6 s); charged cells
 `CONDUCT_*`, `SUPER_*`, `FLASH_*`, `OVERLOAD_*` (the upgrades table).
 
@@ -198,3 +200,16 @@ Rules: `RULE_SHATTER_MULT` (1.6), `RULE_ARC_R` (6 m), `RULE_BURST_R` (2.2 m), `R
 - `Kit.set_on(id, false)` can't turn one off under `--kit=full` (it reads `_all`): the tests run without `--kit`.
 - Meteor Spike's falling line hides under Molten Palm's stars when the move plays; its word and dent carry it.
 - Coverage per crop (round 37 numbers, cells): 0.04-0.15 alone, at most 0.27 with the move's own hit.
+- **Read every state before paying any.** A chain that marks the neighbour `molten` / `skewered` made it pay in the
+  same move and chain back ("spent once" failed): collect `[foe, state]` first, then pay. Leave out the cells a move
+  already pays itself, and have the check assert `improvise()` returns 0 on those.
+- **A payoff's reach is the move's own shape** (`improv_reach()`): a test that puts a foe behind him inside the old
+  radius must fail on the old code. Zero `Game.combo_count` in such a test: the chain's `hero_fx.cast_grow()` swells
+  Updraft Lash's gale circle until it reaches behind him.
+- **Dummies launch at 0.55** (`training_dummy.LAUNCH_SCALE`, `MAX_HEIGHT` 3) and hide a real foe's arc: tune air
+  timing on `enemy.launch_speed_for()` and `AIR_GRAVITY` / `HANG_*`, then check the dummy still reads (Hailstorm
+  12 m/s was 5.3 m on a foe and 1.7 m on a dummy).
+- **A shape change can silently drop a bot cell** (`buried_x_water` 1 -> 0 when the dash carried him past the buried):
+  read `[improv]` after any reach or dash change, not only `breakers=`. The bot's `line` / `face` tokens exist for this.
+- **Guide tags that read state are not routes:** `mix` / `pay` ride on a real row (guide_check compares the row's id
+  and next), never as a row of their own.

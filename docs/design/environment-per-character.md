@@ -249,8 +249,9 @@ section to `docs/features/environment.md`. The prince's lanes wait for his card 
 | 7 | **ice_rink** (upgrade) | `thrown_foe.gd` (slide on a frozen pool), `env_piece.gd` (pool states), `rooms.gd` | `void_arm_check`: Slapshot across a frozen pool keeps its speed and reaches 16 m | **new**: pool piece (kit) |
 | 8 | **brazier_spill** (upgrade) | `lava_leash.gd`, `void_element.gd` (`_hellseam`), `env_piece.gd` (spilled) | `lava_leash_check`: with a brazier 4 m off the seam, Hellseam is x1.25 and the seam lives 50% longer | **new**: brazier piece (kit), which the prince's Kindle also needs |
 
-Later, once the prince's card is re-cut: High Ground (needs the **ledge** piece, kit, with a wall collider), Felling
-(reuse), Kindle (the brazier from lane 8), each with a `prince_check` case.
+Later, if the prince comes back (his code slice and `prince_check` were removed 2026-11-08; the design doc stays):
+High Ground (needs the **ledge** piece, kit, with a wall collider), Felling (reuse), Kindle (the brazier from lane 8),
+each with its own check case.
 
 The new art is one `comic-asset-kit` lane: hook-and-chain wall, pool, brazier (lit / out / spilled), ledge, fallen
 column, in env_kit.py, ported with `python tools/comic_glb.py --env`. Chibi but badass holds for props: chunky, few

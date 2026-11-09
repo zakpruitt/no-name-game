@@ -23,7 +23,7 @@ Zak, round 29: "chibi-esque, cartoony, not taking itself too seriously, but stil
 - A few thick inked masses, not many thin parts: a skeleton's bones are merged per limb group
   (`tools/comic_art/chunk_pass.py`), so the outline runs round the silhouette like the hero's. Keep a
   hint of ribs in the torso's shading; never a hull on every rib or finger again.
-- Props already huge (shield, Warden cleaver, the archer's floor-length bow) are not grown again.
+- Props already huge (shield, the archer's floor-length bow) are not grown again.
 - The training dummy is a character, not a prop: a cartoon punching bag with a face, which squeezes
   its eyes shut on a hit and spins its pupils when dazed.
 
@@ -88,7 +88,8 @@ chibi pass 2"):
 
 - **Faces read only if they face the camera.** From 54 degrees up a hunched skull shows its cranium: eyes 1.65x
   tipped back 30 degrees, plus a slanted black brow over each, turned blank skulls into angry faces at 70 px.
-  A big open grin (the bomber) needs no scowl; a bent-down teeth line reads only from the front.
+  A big open grin (the bomber; the bomber model was removed 2026-11-08, the lesson stands) needs no scowl; a
+  bent-down teeth line reads only from the front.
 - **One prop per foe, in its family's accent where it is the read:** the archer's bow went from thin bone to
   thick orange and now reads at a glance; the shield read as a wall only after its clutter (skulls, arrows,
   bones pinned to it) was deleted, not when it grew.
@@ -97,7 +98,8 @@ chibi pass 2"):
 - **A prop can grow too far:** the minion's cleaver at 1.6 x 1.8 across became an orange slab hiding the
   whole minion from the game camera; 1.45 x 1.25 in the body's rust reads as a weapon.
 - **Heavier ink on the outer silhouette** (`ComicLook.silhouette`, 4 px pushed 0.3 m back) separates a dark
-  prop (the bomber's bomb) from the indigo floor without thickening the lines inside the body.
+  prop (the bomber's bomb; the bomber model was removed 2026-11-08, the lesson stands) from the indigo floor
+  without thickening the lines inside the body.
 
 ## The hero, chibi pass 2 (round 40)
 
