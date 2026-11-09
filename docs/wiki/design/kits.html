@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simple kits</title>
+<meta name="description" content="Awaken design draft: the heretic's base kit pruned to eight slots, and how Attunements and Techniques grow it back during a run.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html" class="on">Simple kits</a>
+    <small>
+      <a href="#summary">In 30 seconds</a>
+      <a href="#verdict">The verdict</a>
+      <a href="#base">The base kit</a>
+      <a href="#attunements">Attunements</a>
+      <a href="#builds">Three runs</a>
+      <a href="#techniques">Techniques</a>
+      <a href="#template">The template</a>
+      <a href="#polish">Polish budget</a>
+      <a href="#cost">What it costs in code</a>
+      <a href="#build-order">Build order</a>
+      <a href="#decisions">Decisions</a>
+      <a href="#risks">Risks</a>
+      <a href="#not-yet">Not yet</a>
+    </small>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>Simple kits</h1>
+    <p class="lede">The heretic starts every run as the dark alone: eight slots, three presses at most. The run gives him back his storm, ice and magma, one element at a time, and the moves he has today become what a run can earn.</p>
+
+    <!-- ============================== SUMMARY ============================== -->
+    <section id="summary">
+      <div class="summary">
+        <ul class="plain">
+          <li><b>The base kit is the tentacle.</b> The light string, Reap, Singularity, Overwhelm, Dash Stab, Tow Line, the counter and the Awakening. Eight slots. No input is longer than three presses. Three breaker windows, each with one ending.</li>
+          <li><b>With no element yet, H after the string is the grab.</b> The code already does this when a move is gated. So <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> is Slice, grab, Singularity. The string feeds the tentacle until a run gives it a colour.</li>
+          <li><b>An Attunement is taking one element for this run.</b> It recolours its weapon and lights that element's ender and its big move, with the H ending. A run holds <b>two</b> of the three.</li>
+          <li><b>Techniques are the rest of today's kit, as picks.</b> The six crossovers, Black Tide, the air route, Deep Freeze, Storm Pitch and the eight second endings on breakers. A crossover is offered once you hold both its elements, and it is always in the next Technique offer. A run takes about <span class="ph">5</span> (<a href="run.html#cadence">run.html</a>'s number), three of them its crossovers.</li>
+          <li><b>Nothing is deleted.</b> All of it is already behind <code>Kit.has()</code> or can be, through data in <code>kit_slots.gd</code>. The end of a run is about <span class="ph">16</span> slots, not 24, and it is a different 16 each time. The 18 richer element cells are Boons, on <a href="loot.html#boons">loot.html</a>.</li>
+          <li><b>What it buys:</b> the part every minute of every run touches drops to 8 slots, 3 windows and 3 endings. That is the polish target. Everything else can wait its turn.</li>
+        </ul>
+      </div>
+      <ol class="flow">
+        <li><b>Base kit</b><br>the dark: 8 slots</li>
+        <li><b>1st Attunement</b><br>+ ender and big move; its dark crossover is offered next</li>
+        <li><b>2nd Attunement</b><br>+ ender and big move; its dark crossover and the pair's are offered next</li>
+        <li><b>Techniques</b><br>about <span class="ph">5</span> picks, three of them crossovers</li>
+      </ol>
+    </section>
+
+    <!-- ============================== VERDICT ============================== -->
+    <section id="verdict">
+      <h2>The verdict, slot by slot</h2>
+      <p>The heretic's card in <code>kit_slots.gd</code> has 24 slots in 10 groups. Each one gets one of five verdicts:</p>
+      <ul class="plain">
+        <li><b>Base</b>: in the starting kit of every run.</li>
+        <li><b>Attunement</b>: lit when the run takes its element.</li>
+        <li><b>Crossover</b>: a Technique whose prerequisite is holding both its elements. Once that is met, it is always in the next Technique offer. Dark is always held, so each dark crossover is offered right after the Attunement of its colour.</li>
+        <li><b>Technique</b>: a pick during the run, with a prerequisite.</li>
+        <li><b>Merged or parked</b>: stays in the code behind its gate, not offered in runs for now.</li>
+      </ul>
+
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Slot</th><th>Move (input)</th><th>Verdict</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Light string</td><td>Slice, Hurl, Triple Chop (<kbd>L</kbd> / <kbd>L</kbd> <kbd>L</kbd> / <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd>)</td><td><b>Base</b></td><td>The hack and slash. The hits never set states today, so the string works the same with no element.</td></tr>
+          <tr><td>2</td><td>Ender 1</td><td>Updraft Lash (<kbd>L</kbd> <kbd>H</kbd>)</td><td><span class="el-storm">Attunement: storm</span></td><td>The storm's launcher. Without storm, <kbd>L</kbd> <kbd>H</kbd> is Slice then the grab.</td></tr>
+          <tr><td>3</td><td>Ender 2</td><td>Frost Spear (<kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>)</td><td><span class="el-ice">Attunement: ice</span></td><td>The ice's plant. Without ice, Hurl then the grab.</td></tr>
+          <tr><td>4</td><td>Ender 3</td><td>Molten Palm (<kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>)</td><td><span class="el-magma">Attunement: magma</span></td><td>The magma's carry to the wall. Without magma, Triple Chop then the grab.</td></tr>
+          <tr><td>5</td><td>Big move 1</td><td>Live Wire (<kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd>): Grounded / Short Circuit</td><td><span class="el-storm">Attunement: storm</span> (Grounded). Short Circuit is a Technique.</td><td>Storm's payoff, three presses. The H ending comes with it; the L ending is earned.</td></tr>
+          <tr><td>6</td><td>Big move 2</td><td>Deep Freeze (<kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd>, through the vault): Avalanche</td><td><span class="el-ice">Technique (ice)</span></td><td>Five presses and it needs the spear standing. Harpoon takes its place in the ice Attunement (option below).</td></tr>
+          <tr><td>7</td><td>Big move 3</td><td>Undertow (<kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd>): Meteor Fall / Meteor Shower</td><td><span class="el-magma">Attunement: magma</span> (Meteor Fall). Meteor Shower is a Technique.</td><td>Magma's payoff. It is five presses, but it is the string the player already knows plus two H.</td></tr>
+          <tr><td>8</td><td>Air route</td><td>Live Wire air (<kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd>): Worldbreaker / Cold Front</td><td><span class="el-storm">Technique (storm)</span>. Cold Front needs ice too.</td><td>A second storm payoff. Great as a reward, too much on day one.</td></tr>
+          <tr><td>9</td><td>Mark</td><td>Reap (<kbd>H</kbd> <kbd>L</kbd>)</td><td><b>Base</b></td><td>The hook. It is the hub for Black Tide and Galvanize, and the counter's mark is the same mark.</td></tr>
+          <tr><td>10</td><td>Gather</td><td>Singularity (<kbd>H</kbd> <kbd>H</kbd>): Collapse</td><td><b>Base</b></td><td>The first window a new player meets. Two presses, one ending.</td></tr>
+          <tr><td>11</td><td>Drag</td><td>Black Tide (<kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd>): Maw / Black Ice</td><td><span class="el-dark">Technique (dark)</span>. Black Ice needs ice.</td><td>The fourth tentacle verb is the one a new player misses least. It keeps the base at eight.</td></tr>
+          <tr><td>12</td><td>Pin</td><td>Overwhelm (<kbd>hold H</kbd>): Abyss / Uproot</td><td><b>Base</b> (Abyss). Uproot is a Technique.</td><td>The only answer to a big foe. One held press.</td></tr>
+          <tr><td>13</td><td>Dash light</td><td>Dash Stab (<kbd>Dash</kbd> <kbd>L</kbd>)</td><td><b>Base</b></td><td>The gap closer.</td></tr>
+          <tr><td>14</td><td>Dash heavy</td><td>Tow Line (<kbd>Dash</kbd> <kbd>H</kbd>)</td><td><b>Base</b>. Storm Pitch (<kbd>Dash</kbd> <kbd>H</kbd> <kbd>L</kbd>) stays a Technique (storm).</td><td>The snare. It is also the start of Impale, so the dark-ice crossover needs it.</td></tr>
+          <tr><td>15</td><td>Dash ender L</td><td>Harpoon (<kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd>): Shatterstorm / Slapshot</td><td><span class="el-ice">Attunement: ice</span> (Shatterstorm). Slapshot is a Technique and needs magma.</td><td>Ice's big move in a run: three presses, works anywhere, and it is the doorway to two crossovers.</td></tr>
+          <tr><td>16</td><td>Dash ender H</td><td>Impale (<kbd>Dash</kbd> <kbd>H</kbd> <kbd>H</kbd>): Anvil / Pinwheel</td><td><b>Merges</b> into the dark-ice crossover, a Technique (needs ice). Pinwheel is a Technique and needs storm.</td><td>Impale is already Tow Line's dark onto the spear's ice, and it shares Backdraft's window and both endings.</td></tr>
+          <tr><td>17</td><td>Storm x magma</td><td>Fault Line (<kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>): Cataclysm / Tempest</td><td><b>Crossover</b> Technique (needs storm + magma). Tempest is a Technique.</td><td>Rockslide and Air Slash come with it as route steps.</td></tr>
+          <tr><td>18</td><td>Ice x magma</td><td>Steam Burst (<kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>L</kbd>): Flash Freeze</td><td><b>Crossover</b> Technique (needs ice + magma)</td><td>Off Harpoon, which the ice Attunement gives.</td></tr>
+          <tr><td>19</td><td>Dark x storm</td><td>Galvanize (<kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd>)</td><td><b>Crossover</b> Technique (needs storm)</td><td>Off Reap, three presses.</td></tr>
+          <tr><td>20</td><td>Ice x storm</td><td>Hailstorm (<kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>H</kbd>), then Meltdown (+ <kbd>L</kbd>): Eruption</td><td><b>Crossover</b> Technique (needs ice + storm): Hailstorm only. Meltdown and Eruption are <b>parked</b>.</td><td>Meltdown is a magma slam. It needs all three colours, and a run holds two.</td></tr>
+          <tr><td>21</td><td>Dark x ice</td><td>Backdraft (<kbd>Dash</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>L</kbd>): Anvil / Pinwheel</td><td><b>Merged</b> into Impale; parked</td><td>Same window, same two endings, one press longer. Impale reaches them by pausing.</td></tr>
+          <tr><td>22</td><td>Dark x magma</td><td>Lava Leash (<kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd>): Hellseam</td><td><b>Crossover</b> Technique (needs magma)</td><td>Off Molten Palm.</td></tr>
+          <tr><td>23</td><td>Counter</td><td>Backlash (<kbd>Dash</kbd> into a strike): Ricochet</td><td><b>Base</b></td><td>Zak asked for it, it costs no new button, and pressing Dash with nothing coming is free.</td></tr>
+          <tr><td>24</td><td>Awakening</td><td>The meter (<kbd>Q</kbd>)</td><td><b>Base</b></td><td>One press and no new inputs. The windows fill it, so it is how the base kit says "windows pay".</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>The hard parts, dealt with</h3>
+
+      <h4>The light string and its enders, with no Attunement</h4>
+      <p>Today the string swings the axe (storm), then the spear (ice), then the hammer (magma). The tint is only a colour: the plain hits Slice, Hurl and Triple Chop set no state. Only the enders do. So the string itself does not need to change.</p>
+      <p>The ender is the real question. Each H off the string belongs to one element. With that element not held, <code>void_route()</code> already falls back: when <code>KitSlots.open()</code> says no, the press plays <code>NEUTRAL</code>, the grab. So with no Attunement:</p>
+      <ul class="plain">
+        <li><kbd>L</kbd> <kbd>H</kbd>, <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> and <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> are the string, then the grab. The grab reaches 9 m all round.</li>
+        <li>One more <kbd>H</kbd> is Singularity, and the window is Collapse. One more <kbd>L</kbd> is Reap.</li>
+        <li>The rule a new player learns is short: <b>L is the weapon, H is the tentacle.</b> Taking storm later changes what <kbd>L</kbd> <kbd>H</kbd> does, and the player sees it change.</li>
+      </ul>
+      <p>The tint has three options:</p>
+      <div class="grid2">
+        <div class="option">
+          <h4>A. Keep the colours</h4>
+          <p>Axe green, spear cyan, hammer orange from room one. Cost: none. The colours promise elements the player does not hold yet.</p>
+        </div>
+        <div class="option pick">
+          <h4>B. Weapons form in the void until attuned</h4>
+          <p>An un-attuned weapon grows from the arm in its magenta and violet-black. Taking storm turns the axe green for the rest of the run. Cost: a palette switch per weapon form, plus Zak's eye on three recolours. It makes the Attunement something the player <b>sees</b> on every swing (spine rule 4). Build it after the gate works with option A.</p>
+        </div>
+        <div class="option">
+          <h4>C. One weapon until attuned</h4>
+          <p>The string is three tentacle lashes. Cost: new clips and new pacing for the most-played input in the game. Rejected.</p>
+        </div>
+      </div>
+
+      <h4>Route steps</h4>
+      <p>The grab (<kbd>H</kbd>), Air Slash (<kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd>), Rockslide (<kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd>), Ice Cube (<kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd>) and the vault (<kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd>) are not slots and never Techniques. They come with whatever route needs them. The grab is base. Air Slash comes with storm. Rockslide's buried payoff stays with Fault Line, which needs it. Ice Cube comes with Harpoon.</p>
+      <p>One needs care: the vault is not routed through <code>void_route()</code> but through <code>VOID_ELEMENT.vaults()</code>. With Deep Freeze not taken, the vault would still fire off Frost Spear and lead nowhere. It needs one more condition there (a few lines, new behaviour).</p>
+
+      <h4>The 15 breaker windows</h4>
+      <p>A new player meets <b>three</b>, one at a time, each with one ending on H:</p>
+      <ol>
+        <li><b>Collapse</b> (<kbd>H</kbd> <kbd>H</kbd>, then <kbd>H</kbd>) in the first room. This is where the window is taught.</li>
+        <li><b>Abyss</b> (<kbd>hold H</kbd>, then <kbd>H</kbd>) at the first big foe.</li>
+        <li><b>Ricochet</b> (a perfect counter, then <kbd>H</kbd>) at the first foe that swings.</li>
+      </ol>
+      <p>Where the other twelve go:</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Layer</th><th>Windows</th><th>Count</th></tr></thead>
+        <tbody>
+          <tr><td>Base</td><td>Collapse, Abyss, Ricochet</td><td>3</td></tr>
+          <tr><td>Attunements</td><td>Grounded (storm), Shatterstorm (ice), Meteor Fall (magma)</td><td>3</td></tr>
+          <tr><td>Crossover Techniques</td><td>Anvil (Impale), Hellseam, Cataclysm, Flash Freeze</td><td>4</td></tr>
+          <tr><td>Other Techniques</td><td>Maw, Worldbreaker, Avalanche</td><td>3</td></tr>
+          <tr><td>Parked</td><td>Eruption (Meltdown), Backdraft's (same endings as Impale's)</td><td>2</td></tr>
+        </tbody>
+      </table></div>
+      <p>A run that holds two elements reaches about <span class="ph">7 to 10</span> windows by its end. Galvanize and Hailstorm have no window, which is fine: not every crossover needs one.</p>
+
+      <h4>Second endings on breakers</h4>
+      <p>Nine windows have two endings today. In the base kit every window has <b>one</b>, the H. Every L ending becomes a Technique: Short Circuit, Cold Front, Meteor Shower, Black Ice, Uproot, Tempest, Pinwheel, Slapshot (Backdraft's Pinwheel is parked with it). The rule for their prerequisite is simple: <b>an L ending in a third colour needs that colour held.</b> Cold Front is ice on a storm window, so it needs ice. Uproot is dark on a dark window, so it needs only Overwhelm.</p>
+      <p>Today L in a window with no <code>alt</code> does nothing (<code>hero_leap.gd</code> only reads L when the row has one). So gating an ending is two checks there plus a Kit id per ending. Small new behaviour, and the window then plays exactly like Collapse does today.</p>
+
+      <h4>The counter</h4>
+      <p>Base, as it is. The risk is teaching it too early: it needs a foe that swings, and the training dummies do not. The first room should hold one striking foe, near the end (that is <a href="run.html">run.html</a>'s call). The Gallows flourish on Ricochet bends a room rule, so it belongs with Boons on <a href="loot.html">loot.html</a>, not here.</p>
+
+      <h4>The Awakening</h4>
+      <p>Base. It adds no inputs, and the three base windows fill its meter, so it rewards the thing the base kit teaches. Do not mention it until the meter is full the first time. One note for run slice 3: Awakening charges the axe's element today; check that it reads right on a void axe.</p>
+
+      <h4>The swing round a pillar</h4>
+      <p><kbd>R</kbd> and Snatch (<kbd>R</kbd>, then <kbd>H</kbd>) are not slots. They are room verbs. They stay as they are and are taught where the first pillar is, not in the first minute.</p>
+    </section>
+
+    <!-- ============================== BASE KIT ============================== -->
+    <section id="base">
+      <h2>The base kit, as the player meets it</h2>
+      <p class="big">Eight slots. One signature. Every input is three presses or fewer.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Slot</th><th>Move</th><th>Input</th><th>What it does</th><th>Window</th></tr></thead>
+        <tbody>
+          <tr><td>String</td><td>Slice, Hurl, Triple Chop</td><td><kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd></td><td>Axe, spear, hammer from the arm. The hammer hits hardest and knocks back.</td><td></td></tr>
+          <tr><td>Mark</td><td><span class="el-dark">Reap</span></td><td><kbd>H</kbd> <kbd>L</kbd></td><td>The grab, then the hook: it bites and yanks, and marks what it hits.</td><td></td></tr>
+          <tr><td>Gather</td><td><span class="el-dark">Singularity</span></td><td><kbd>H</kbd> <kbd>H</kbd></td><td>Pulls the grabbed into one spot and lifts them.</td><td>Collapse</td></tr>
+          <tr><td>Pin</td><td><span class="el-dark">Overwhelm</span></td><td><kbd>hold H</kbd></td><td>Tendrils hold one big foe down (bound).</td><td>Abyss</td></tr>
+          <tr><td>Lunge</td><td>Dash Stab</td><td><kbd>Dash</kbd> <kbd>L</kbd></td><td>A long pouncing stab that brakes on the foe it aims at.</td><td></td></tr>
+          <tr><td>Snare</td><td><span class="el-dark">Tow Line</span></td><td><kbd>Dash</kbd> <kbd>H</kbd></td><td>The tentacle lassoes and hauls.</td><td></td></tr>
+          <tr><td>Counter</td><td><span class="el-dark">Backlash</span></td><td><kbd>Dash</kbd> into a strike</td><td>Parry, wrap, slam. A perfect opens the window.</td><td>Ricochet</td></tr>
+          <tr><td>Awakening</td><td>The meter</td><td><kbd>Q</kbd></td><td>Faster, harder, armoured, gold, for <span class="ph">8</span> s.</td><td></td></tr>
+        </tbody>
+      </table></div>
+      <p>Two states and two rules live in the base kit: <b>bound</b> (Overwhelm) pays <b>Snap</b>, and <b>airborne</b> (Singularity's lift) pays <b>Juggle</b>. That is enough to show the idea "a state, then a hit, pays" before any element arrives.</p>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>What the first room teaches</h3>
+          <ol>
+            <li><b>L is the weapon.</b> <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> on a group of minions.</li>
+            <li><b>H is the tentacle.</b> <kbd>H</kbd> grabs everything near. <kbd>H</kbd> <kbd>H</kbd> pulls them together.</li>
+            <li><b>The window.</b> After <kbd>H</kbd> <kbd>H</kbd> he leaps, time slows, and <kbd>H</kbd> on the rings is Collapse. This is the moment the room is built around.</li>
+            <li><b>Dash.</b> <kbd>Dash</kbd> <kbd>L</kbd> to close, <kbd>Dash</kbd> <kbd>H</kbd> to pull one in.</li>
+          </ol>
+          <p>Reap, Overwhelm and the counter wait for the foes that ask for them (a runner, a big foe, a swinger). The room's layout and foes are <a href="run.html">run.html</a>'s.</p>
+        </div>
+        <div class="panel">
+          <h3>What the player can hold in their head</h3>
+          <p>"Light is the weapon. Heavy is the tentacle. Heavy twice is the gather. Hold heavy for the big one. Dash, then either button. Dash into a hit to counter. Press heavy when you leap."</p>
+          <p>Seven sentences. Compare today: 24 slots, 15 windows, 24 endings, inputs up to six presses.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== ATTUNEMENTS ============================== -->
+    <section id="attunements">
+      <h2>Attunements</h2>
+      <p class="big">An Attunement is taking one element for this run. It is the biggest single reward a run gives, and it changes the character in a way the player sees on the next swing.</p>
+
+      <h3>What one Attunement gives</h3>
+      <p>The same three things for every element:</p>
+      <ol>
+        <li><b>The tint.</b> Its weapon in the string takes its colour (option B above).</li>
+        <li><b>The ender.</b> The H off its string position stops being the grab and becomes the element's move. It leaves the element's state.</li>
+        <li><b>The big move.</b> One move with one window, H ending only. Where the grammar allows, it is the ender plus one more H, so the player learns the two as one idea.</li>
+      </ol>
+      <p>The crossovers do not come with it. Each is a Technique whose prerequisite is holding both its elements, and once that is met it is always in the next Technique offer (<a href="run.html#cadence">run.html</a>). Dark is always held, so the element's dark crossover is offered in the very next Technique pick. The kit still grows one idea at a time.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Attunement</th><th>Tint</th><th>Ender (state)</th><th>Big move (window)</th><th>Dark crossover (a Technique, offered next)</th><th>Rule it feeds</th></tr></thead>
+        <tbody>
+          <tr><td><span class="el-storm">Storm</span></td><td>the axe (Slice)</td><td>Updraft Lash <kbd>L</kbd> <kbd>H</kbd> (airborne)</td><td>Live Wire <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> (Grounded): leaves charged</td><td>Galvanize <kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd></td><td>Arc</td></tr>
+          <tr><td><span class="el-ice">Ice</span></td><td>the spear (Hurl, Dash Stab)</td><td>Frost Spear <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> (planted spear, slowed)</td><td>Harpoon <kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> (Shatterstorm): leaves frozen</td><td>Impale <kbd>Dash</kbd> <kbd>H</kbd> <kbd>H</kbd> (Anvil)</td><td>Shatter</td></tr>
+          <tr><td><span class="el-magma">Magma</span></td><td>the hammer (Triple Chop)</td><td>Molten Palm <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> (carried, wall-splat)</td><td>Undertow <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> (Meteor Fall): leaves bound</td><td>Lava Leash <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> (Hellseam)</td><td>Burst</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">Two honest gaps. <b>Magma barely leaves molten today.</b> Its core moves leave bound and wall-splat; molten comes from Lava Leash, Hellseam, Meteor Shower, Meltdown and Eruption, and none of those is in the magma Attunement. Recommend Molten Palm's seam leave molten for <span class="ph">2</span> s on the foes it carries (small new behaviour), so the magma Attunement feeds its own rule. <b>Ice's big move breaks the pattern.</b> Storm's big move is the ender plus H, and so is magma's. Ice's is not quite, either way: Deep Freeze puts the vault step between the ender and the H (<kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd>, five presses), and Harpoon is off the dash. See the choice below.</p>
+
+      <h3>Ice: Harpoon or Deep Freeze</h3>
+      <div class="grid2">
+        <div class="option pick">
+          <h4>A. Harpoon is ice's big move</h4>
+          <p>Three presses, works anywhere, freezes up to five into a row, and Shatterstorm is reliable. It is also where Steam Burst and Hailstorm start, so the ice crossovers need it. Deep Freeze becomes an ice Technique called "the vault". Cost: data, plus the vault gate.</p>
+        </div>
+        <div class="option">
+          <h4>B. Deep Freeze is ice's big move</h4>
+          <p>Matches the grammar (ender, then H). But it is five presses, needs the spear standing and a vault, and Harpoon becomes a Technique that two crossovers depend on. The ice Attunement would feel the hardest to use of the three.</p>
+        </div>
+      </div>
+
+      <h3>How many a run can hold</h3>
+      <div class="grid2">
+        <div class="option">
+          <h4>One</h4>
+          <p>Simplest. Only three kinds of run, and only the three dark crossovers are ever seen. Fault Line, Steam Burst and Hailstorm never play. Too little change between runs.</p>
+        </div>
+        <div class="option pick">
+          <h4>Two</h4>
+          <p>Three pairs, and order matters for the early rooms. Each run sees three crossovers: two dark ones and the pair's. Every run is missing one colour, which is what makes runs feel different. The end kit stays near 16 slots.</p>
+        </div>
+        <div class="option">
+          <h4>Up to three</h4>
+          <p>The third late. Every full run ends as today's heretic, so runs converge and the end of a run is the 24-slot kit this page exists to avoid. Keep it as a "Not yet".</p>
+        </div>
+      </div>
+      <p>When and how often an Attunement is offered is <a href="run.html">run.html</a>'s cadence. This page asks for one thing: the first Attunement should come <b>soon after the first room</b>, because the base kit has no colour and the colours are the fun.</p>
+
+      <h3>Crossovers exist only while both are held</h3>
+      <p>Each crossover slot already names its pair in <code>KitSlots.SLOTS</code> (<code>"pair": ["wind", "earth"]</code>). The gate reads it: a crossover can be offered only when both elements are held. Dark always is. Each crossover is a <b>Technique</b>: once its pair is held, it is always in the next Technique offer, so the player meets it one room later, as one new thing to press.</p>
+      <p class="lede">This page first proposed giving the crossovers free with the Attunement, all at once. The hub rules the other way, so the kit grows one idea per room; the free version is kept as the alternative in the <a href="index.html#decisions">hub's decisions</a>.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Pair</th><th>Crossover</th><th>Input</th><th>Window</th><th>Offered once you hold</th></tr></thead>
+        <tbody>
+          <tr><td><span class="el-dark">dark</span> x <span class="el-storm">storm</span></td><td>Galvanize</td><td><kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd></td><td>none</td><td>storm</td></tr>
+          <tr><td><span class="el-dark">dark</span> x <span class="el-ice">ice</span></td><td>Impale (absorbs Backdraft)</td><td><kbd>Dash</kbd> <kbd>H</kbd> <kbd>H</kbd></td><td>Anvil</td><td>ice</td></tr>
+          <tr><td><span class="el-dark">dark</span> x <span class="el-magma">magma</span></td><td>Lava Leash</td><td><kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd></td><td>Hellseam</td><td>magma</td></tr>
+          <tr><td><span class="el-storm">storm</span> x <span class="el-magma">magma</span></td><td>Fault Line</td><td><kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd></td><td>Cataclysm</td><td>storm and magma</td></tr>
+          <tr><td><span class="el-ice">ice</span> x <span class="el-magma">magma</span></td><td>Steam Burst</td><td><kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>L</kbd></td><td>Flash Freeze</td><td>ice and magma</td></tr>
+          <tr><td><span class="el-ice">ice</span> x <span class="el-storm">storm</span></td><td>Hailstorm</td><td><kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>H</kbd></td><td>none (Meltdown's Eruption is parked)</td><td>ice and storm</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note gold">Storm and ice is the weakest pair: its own crossover has no window. Cold Front (a Technique, below) and the Boons Superconduct and Gale Lift (<a href="loot.html#boons">loot.html</a>) make up for it. If playing it shows the pair is flat, Meltdown can come back for that pair alone, as a Technique, since its route is already the pair's.</p>
+    </section>
+
+    <!-- ============================== BUILDS ============================== -->
+    <section id="builds">
+      <h2>Three runs of the heretic</h2>
+      <p>Three worked builds at a run's end. Each lists every move it has. Gear and Boons are left out; they are <a href="loot.html">loot.html</a>'s. Each takes <a href="run.html#cadence">run.html</a>'s <span class="ph">5</span> Techniques: its three crossovers, plus two more as examples.</p>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>The squall: <span class="el-storm">storm</span>, then <span class="el-ice">ice</span></h3>
+          <p><b>Base</b>: Slice / Hurl / Triple Chop, Reap, Singularity (Collapse), Overwhelm (Abyss), Dash Stab, Tow Line, Backlash (Ricochet), Awakening.</p>
+          <p><b>Storm</b>: Updraft Lash, Live Wire (Grounded).</p>
+          <p><b>Ice</b>: Frost Spear, Harpoon (Shatterstorm).</p>
+          <p><b>Techniques (5)</b>: Galvanize, Impale (Anvil), Hailstorm, Live Wire air (Worldbreaker), Cold Front.</p>
+          <p><b>How it plays</b>: up. Launch, air string, freeze them where they hang, the charge running through the ice. Fights happen at head height.</p>
+          <p><b>What it cannot do</b>: carry to a wall. No Molten Palm, no Lava Leash.</p>
+          <p>16 slots, 7 windows.</p>
+        </div>
+        <div class="panel">
+          <h3>The kiln: <span class="el-magma">magma</span>, then <span class="el-ice">ice</span></h3>
+          <p><b>Base</b>: as above.</p>
+          <p><b>Magma</b>: Molten Palm, Undertow (Meteor Fall).</p>
+          <p><b>Ice</b>: Frost Spear, Harpoon (Shatterstorm).</p>
+          <p><b>Techniques (5)</b>: Lava Leash (Hellseam), Impale (Anvil), Steam Burst (Flash Freeze), Slapshot, Deep Freeze (Avalanche).</p>
+          <p><b>How it plays</b>: walls. Shove them to the wall, freeze a row, punch the row into it. Fights happen on the floor and at the edges.</p>
+          <p><b>What it cannot do</b>: launch. No Updraft Lash, no air string, no Galvanize.</p>
+          <p>16 slots, 9 windows.</p>
+        </div>
+        <div class="panel">
+          <h3>The quake: <span class="el-storm">storm</span>, then <span class="el-magma">magma</span></h3>
+          <p><b>Base</b>: as above.</p>
+          <p><b>Storm</b>: Updraft Lash, Live Wire (Grounded).</p>
+          <p><b>Magma</b>: Molten Palm, Undertow (Meteor Fall).</p>
+          <p><b>Techniques (5)</b>: Galvanize, Lava Leash (Hellseam), Fault Line (Cataclysm, with Rockslide's buried as its step), Tempest, Storm Pitch.</p>
+          <p><b>How it plays</b>: up and down. Lift, bury, blow apart. The buried state and the Crater rule only exist in this run.</p>
+          <p><b>What it cannot do</b>: freeze. No Harpoon, no Impale, no cubes.</p>
+          <p>16 slots, 7 windows (more endings).</p>
+        </div>
+        <div class="panel">
+          <h3>Why these read as three characters</h3>
+          <ul class="plain">
+            <li>The <b>weapons</b> differ: in the squall the hammer stays void all run; in the kiln it is the axe.</li>
+            <li><kbd>L</kbd> <kbd>H</kbd> is a launcher in two runs and the grab in the third.</li>
+            <li><kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> freezes a row in two runs and is Dash Stab then the grab in the third.</li>
+            <li>Each run has a state the others do not: charged and frozen, frozen and molten, charged and buried.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== TECHNIQUES ============================== -->
+    <section id="techniques">
+      <h2>Techniques</h2>
+      <p class="big">A Technique is one demoted piece of today's kit, offered back as a pick. It always adds something you press: a new input, or a new ending in a breaker window. Each one has a prerequisite: a slot it hangs off, and sometimes an element held.</p>
+      <p>Two kinds. <b>New inputs</b> add a press to the kit (the crossovers, Black Tide, the air route, Deep Freeze, Storm Pitch). <b>Second endings</b> add an L press in a window the player already has. Most of the non-crossover pool is second endings on purpose. They make a run different without making it harder to hold.</p>
+
+      <h3>The pool, as ladders</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Group</th><th>Ladder (each step needs the one before)</th><th>Also needs</th><th>Kind</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="2"><span class="el-dark">Signature</span></td><td>Reap (base) &rarr; <b>Black Tide</b> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd> (Maw) &rarr; <b>Black Ice</b> (L ending)</td><td>Black Ice: ice</td><td>input, then ending</td></tr>
+          <tr><td>Overwhelm (base) &rarr; <b>Uproot</b> (L ending: tear a pillar, club the foe)</td><td>a pillar in the room</td><td>ending</td></tr>
+          <tr><td rowspan="3"><span class="el-storm">Storm</span></td><td>Live Wire &rarr; <b>Short Circuit</b> (L ending)</td><td>storm</td><td>ending</td></tr>
+          <tr><td>Updraft Lash &rarr; <b>Live Wire air</b> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd> (Worldbreaker) &rarr; <b>Cold Front</b> (L ending)</td><td>storm; Cold Front: ice</td><td>input, then ending</td></tr>
+          <tr><td>Tow Line (base) &rarr; <b>Storm Pitch</b> <kbd>Dash</kbd> <kbd>H</kbd> <kbd>L</kbd></td><td>storm</td><td>input (gate already built)</td></tr>
+          <tr><td rowspan="3"><span class="el-ice">Ice</span></td><td>Frost Spear &rarr; <b>Deep Freeze</b> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd> (Avalanche)</td><td>ice</td><td>input</td></tr>
+          <tr><td>Harpoon &rarr; <b>Slapshot</b> (L ending: the molten fist punches the row)</td><td>magma</td><td>ending</td></tr>
+          <tr><td>Impale &rarr; <b>Pinwheel</b> (L ending: whirl, hurl at a wall)</td><td>storm</td><td>ending</td></tr>
+          <tr><td><span class="el-magma">Magma</span></td><td>Undertow &rarr; <b>Meteor Shower</b> (L ending)</td><td>magma</td><td>ending</td></tr>
+          <tr><td>Crossover</td><td>Fault Line &rarr; <b>Tempest</b> (L ending)</td><td>storm and magma</td><td>ending</td></tr>
+        </tbody>
+      </table></div>
+      <p>That is <b>12</b> cards: 4 new inputs, 8 second endings. Add the six crossovers (<a href="#attunements">above</a>), which are Techniques too: <b>18</b> in all. Every one already exists and has had cool passes. A run sees only the ones its two elements allow: its 3 crossovers and about <span class="ph">8 to 10</span> others.</p>
+
+      <h3>Sample cards</h3>
+      <div class="grid2">
+        <div class="item t-technique">
+          <h4>Black Tide</h4>
+          <p><b>Needs</b>: Reap. <b>Adds</b>: <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd>. The tentacles drag every marked foe to one place, wherever they stand.</p>
+          <p><b>Window</b>: Maw, <span class="ph">52</span> on landing.</p>
+          <p>Changes what you do: Reap stops being a hook and becomes a setup.</p>
+        </div>
+        <div class="item t-technique">
+          <h4>Storm Pitch</h4>
+          <p><b>Needs</b>: Tow Line, storm. <b>Adds</b>: <kbd>Dash</kbd> <kbd>H</kbd> <kbd>L</kbd>. Tow Line hurls the bunch and lightning comes off them (charged).</p>
+          <p>Already gated in code: <code>Kit.has("storm_pitch")</code>.</p>
+        </div>
+        <div class="item t-technique">
+          <h4>Slapshot</h4>
+          <p><b>Needs</b>: Harpoon, magma. <b>Adds</b>: L in Harpoon's window. The molten fist punches the row of cubes along your aim. A cube that reaches a wall shatters for <span class="ph">63</span>; one that does not slides and bursts for <span class="ph">14</span>.</p>
+          <p>Changes what you see: the room's walls become the target.</p>
+        </div>
+        <div class="item t-technique">
+          <h4>Cold Front</h4>
+          <p><b>Needs</b>: Live Wire air, ice. <b>Adds</b>: L in Worldbreaker's window. The foes freeze where they hang and come down as cubes, <span class="ph">40</span>.</p>
+          <p>The squall's best card: it ties storm's air to ice's cubes.</p>
+        </div>
+      </div>
+
+      <h3>Element cells are Boons, not Techniques</h3>
+      <p>The matrix collapse (round 49) left one rule per state and moved 18 richer cells behind <code>IMPROV_UPGRADE</code>. Off, the rule plays. On, the cell plays instead. A cell adds no press: it changes what a state pays. So the cells are <b>Boons</b>, and they are <a href="loot.html#boons">loot.html</a>'s first boon pool (Shard Cut, Gale Lift, Overload, Superconduct and the rest). This page does not offer them.</p>
+
+      <h3>How many a run should take</h3>
+      <p>About <span class="ph">5</span>, the number <a href="run.html#cadence">run.html</a> sets. Three of them are the run's crossovers. The arithmetic:</p>
+      <div class="tbl"><table>
+        <thead><tr><th></th><th>Slots</th></tr></thead>
+        <tbody>
+          <tr><td>Base kit</td><td>8</td></tr>
+          <tr><td>Two Attunements (ender + big move each)</td><td>4</td></tr>
+          <tr><td>Techniques: <span class="ph">5</span>. The three crossovers, and two more, of which about <span class="ph">1</span> is a new input and the other a second ending</td><td><span class="ph">3 + 1</span></td></tr>
+          <tr><td><b>End of run</b></td><td><b><span class="ph">16</span></b> (today: 24)</td></tr>
+        </tbody>
+      </table></div>
+      <p>Why stop there: the end-of-run kit should still be one the player built and can name. Every slot in it was a choice or the result of one. And a run that ends at 16 has 8 slots it did not take, which is what makes the next run different.</p>
+    </section>
+
+    <!-- ============================== TEMPLATE ============================== -->
+    <section id="template">
+      <h2>The simple-kit template</h2>
+      <p class="big">The rules a future character must fit. Written so an agent can design character two from this section alone.</p>
+
+      <div class="panel">
+        <h3>Rules</h3>
+        <ol>
+          <li><b>One signature, three elements.</b> Unchanged from the grammar. The signature's state is marked / bound. Each element maps to one of the six states; no new states.</li>
+          <li><b>The full card is the grammar's 24 slots.</b> It is the ceiling and the map. No character has more.</li>
+          <li><b>The base kit is exactly 8 slots</b>: the light string; three signature verbs (mark, gather, pin); Dash L; Dash H; the counter; the Awakening. The fourth signature verb (drag) is a Technique.</li>
+          <li><b>Base inputs: 3 presses at most</b>, a hold counts as one. The string's H with no element is the signature's neutral H.</li>
+          <li><b>Base windows: 3</b> (gather, pin, counter), <b>one ending each</b>, the H.</li>
+          <li><b>Each element is an Attunement</b> of the same size: its string tint, its ender, and one big move with one window (H ending only). Big move: 5 presses at most, ender then H where possible, so the two are learned as one idea.</li>
+          <li><b>A run holds 2 Attunements.</b></li>
+          <li><b>Six crossovers, one per colour pair</b>: three signature x element, three element x element. Each 5 presses at most. Each is a Technique, offered once both its elements are held and always in the next offer. At least 4 of the 6 have a window.</li>
+          <li><b>Technique pool: 10 to 14 cards</b> per character, plus the six crossovers. 3 to 4 new inputs (the drag, the air route, a second big move per element where one exists) and up to one second ending per window (only where both endings have a clear best situation). The element cells are Boons (<a href="loot.html">loot.html</a>).</li>
+          <li><b>Every Technique states its prerequisite</b> as a slot plus elements. An L ending in a third colour needs that colour.</li>
+          <li><b>Every Technique changes what the player does or sees.</b> No Technique is only a number. Numbers are for Gear (<a href="loot.html">loot.html</a>).</li>
+          <li><b>Route steps are never Techniques</b> and come with whatever route reaches through them.</li>
+          <li><b>Input caps across the run</b>: base 3, Attunement and crossover 5, Technique 5. A 6-press input is parked.</li>
+        </ol>
+      </div>
+
+      <h3>The kit grammar against the template</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Grammar group</th><th>Survives as</th><th>What changes</th></tr></thead>
+        <tbody>
+          <tr><td>1 Light string</td><td>Base</td><td>The tint becomes an Attunement's. The string's inputs do not change.</td></tr>
+          <tr><td>2 Light enders</td><td>Attunements, one each</td><td>With no element, the ender is the signature's neutral H. "L H always launches" becomes "L H launches once you hold element 1".</td></tr>
+          <tr><td>3 Big moves</td><td>Attunements, one each (or a Technique)</td><td>H ending only until a Technique adds the L ending. The big move may be off the dash when ender + H is a route step (the heretic's ice).</td></tr>
+          <tr><td>4 Air route</td><td>Technique (element 1)</td><td>Out of the base.</td></tr>
+          <tr><td>5 Signature</td><td>Base (3 of 4)</td><td>The drag is a Technique.</td></tr>
+          <tr><td>6 Dash moves</td><td>Base</td><td>None.</td></tr>
+          <tr><td>7 Dash enders</td><td>Attunement or crossover</td><td>No longer generic. The crowd ender may be an element's big move; the pin ender may be a signature crossover (Impale). The rule "Dash L H collects a crowd" holds only once lit.</td></tr>
+          <tr><td>8 Crossovers</td><td>Techniques, offered by pairs</td><td>Same six pairs. A run sees three.</td></tr>
+          <tr><td>9 Counter</td><td>Base</td><td>None.</td></tr>
+          <tr><td>10 Awakening</td><td>Base</td><td>None.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Also surviving untouched: the six states and their rules, the 15-window and two-ending caps, section 7's "upgrades target a slot or a window, never a route step", and <code>kit_check</code>'s shape rules. What is new is one more layer of data on each card: which slots are base, which belong to which Attunement, and the Technique list with prerequisites.</p>
+
+      <h3>Sketch: the Dragon Prince on the template</h3>
+      <p class="note">Hypothetical. The prince is paused, and two of his three elements are still open in <code>dragon-prince.md</code>. This only shows that the template can hold him.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Template slot</th><th>Prince (hypothetical)</th></tr></thead>
+        <tbody>
+          <tr><td>Signature</td><td>The thrown sword, Sunbrand: where it is decides what the buttons do. Mark = brand a foe with it; gather = recall it through them; pin = Sword in the Stone.</td></tr>
+          <tr><td>String</td><td>Slash, Riposte, Cleave (<code>P_SLASH</code> / <code>P_RIPOSTE</code> / <code>P_CLEAVE</code>)</td></tr>
+          <tr><td>Base H with no element</td><td>The throw (his neutral H), so the string feeds the sword the way the heretic's feeds the grab.</td></tr>
+          <tr><td>Attunement 1: fire</td><td>Ember Flick (<kbd>L</kbd> <kbd>H</kbd>), Dragon Breath as the big move; crossover with the sword: an exploding Sunbrand.</td></tr>
+          <tr><td>Attunements 2, 3</td><td>Open. Javelin (<kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>) and Skyfall wait for element 2.</td></tr>
+          <tr><td>Counter</td><td>On the dash, as the grammar says. His design draft's held-L parry (Royal Flourish) would be a Technique, not a second counter.</td></tr>
+        </tbody>
+      </table></div>
+      <p>The one strain: his signature is a state machine (sword in hand, out, shattered), so his "neutral H" changes with the sword. The template allows it as long as each state's neutral H is three presses or fewer.</p>
+    </section>
+
+    <!-- ============================== POLISH ============================== -->
+    <section id="polish">
+      <h2>Polish budget</h2>
+      <p class="big">Zak's fear is polish spread thin. The answer is an order, and a smaller first ring.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Ring</th><th>Content</th><th>Slots</th><th>Windows / endings</th><th>Played</th></tr></thead>
+        <tbody>
+          <tr><td><b>1. Now</b></td><td>The base kit, and the string-to-grab flow it creates (Slice, grab, Singularity). Snap and Juggle.</td><td>8</td><td>3 / 3</td><td>every minute of every run</td></tr>
+          <tr><td><b>2. Next</b></td><td>The three Attunements, their weapon tints and the dark crossovers. Arc, Shatter, Burst.</td><td>9</td><td>5 / 5</td><td>most of every run</td></tr>
+          <tr><td><b>3. Then</b></td><td>The three pair crossovers. The 12 Techniques.</td><td>3 + 4</td><td>5 / 13</td><td>some runs, part of the time</td></tr>
+          <tr><td><b>4. Wait</b></td><td>Meltdown, Eruption, Backdraft. (The 18 element cells and the room flourishes are Boons, polished on <a href="loot.html">loot.html</a>'s schedule.)</td><td>0</td><td>2 / 3</td><td>not in runs yet</td></tr>
+        </tbody>
+      </table></div>
+      <p>Most of this content is built and has had cool passes. The polish in rings 1 and 2 is mostly <b>re-judging in a new context</b>: does Triple Chop into the grab into Singularity feel like a combo? Does a void axe read? Does Collapse carry the first room alone? That is a short list, and it is the list that matters.</p>
+      <div class="grid2">
+        <div class="panel">
+          <h3>What the pruning buys</h3>
+          <ul class="plain">
+            <li><b>A third of the surface is the whole first impression.</b> 8 of 24 slots, 3 of 15 windows, 3 of 24 endings.</li>
+            <li><b>Feedback lands where it counts.</b> A rough edge in Hailstorm is seen in one run in three. A rough edge in Singularity is seen every minute.</li>
+            <li><b>The run has something to give.</b> The 16 slots and 21 endings outside the base are the rewards, and they are already built.</li>
+            <li><b>Character two costs less.</b> Its first playable is 8 slots, not 24.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>What it does not buy</h3>
+          <ul class="plain">
+            <li>It does not remove code. The gated moves still need their autotest strings to stay green, with <code>--kit=full</code>.</li>
+            <li>It adds a little new judging: the void weapons, the Attunement moment, and the L press in windows that lost their second ending.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== COST ============================== -->
+    <section id="cost">
+      <h2>What it costs in code</h2>
+      <p>The gate (<code>Kit.has()</code>, <code>KitSlots.open()</code>) and the <code>upgrades</code> table already exist. Here is each recommendation by cost.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Change</th><th>Where</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Mark which slots are base, which belong to each Attunement, and list the Techniques with prerequisites</td><td><code>KitSlots.HERETIC</code>: new keys <code>base</code>, <code>attune</code>, <code>techniques</code>; <code>fill</code> stays the full card</td><td>data</td></tr>
+          <tr><td>A slot's moves route only when it is lit</td><td><code>KitSlots.open()</code> reads those keys and a held-elements list. A few lines.</td><td>small code</td></tr>
+          <tr><td>Un-attuned enders fall back to the grab</td><td><code>void_route()</code> already returns <code>NEUTRAL</code> when <code>open()</code> says no</td><td>none</td></tr>
+          <tr><td>Crossovers offered only when both elements are held</td><td><code>open()</code> and the offer read the <code>pair</code> each crossover slot already has</td><td>small code</td></tr>
+          <tr><td>Impale absorbs Backdraft</td><td>move Impale's id to <code>cross_dark_ice</code>; Backdraft into <code>upgrades</code> as parked</td><td>data, plus <code>kit_check</code></td></tr>
+          <tr><td>Meltdown parked</td><td>an upgrade entry gating <code>XM</code> by route</td><td>data</td></tr>
+          <tr><td>The vault only with Deep Freeze</td><td>one condition in <code>VOID_ELEMENT.vaults()</code></td><td>small code</td></tr>
+          <tr><td>Second endings gated</td><td>a Kit id per ending; <code>hero_leap.gd</code> checks it where it reads <code>alt</code> (two places)</td><td>small code</td></tr>
+          <tr><td>Element cells (Boons, <a href="loot.html">loot.html</a>)</td><td>already gated by <code>IMPROV_UPGRADE</code>; a run calls <code>Kit.set_on()</code></td><td>none</td></tr>
+          <tr><td><code>kit_check</code> and the bot's <code>[kit]</code> line learn base and run modes</td><td><code>tests/kit_check.gd</code>, <code>training_bot.gd</code>: check the base kit alone, each Attunement, each pair</td><td>test code</td></tr>
+          <tr><td>Molten Palm leaves molten</td><td>Molten Palm's seam</td><td>new behaviour, small</td></tr>
+          <tr><td>Void-coloured weapons until attuned</td><td>the weapon forms' palette</td><td>new behaviour plus art judgement</td></tr>
+          <tr><td>A debug way to attune in the training room</td><td><code>--attune=wind,earth</code>, like <code>--kit=</code></td><td>small code</td></tr>
+        </tbody>
+      </table></div>
+      <p>One thing to watch: <code>Kit</code> is static, global state. That suits a run (set on pickup, clear at run end), but a run must clear it, or the next run starts with the last one's kit.</p>
+    </section>
+
+    <!-- ============================== BUILD ORDER ============================== -->
+    <section id="build-order">
+      <h2>Build order</h2>
+      <p>The master order is <a href="run.html#slices">run.html</a>'s ten slices. These steps are the kit's detail inside two of them: run slice 2 (the small kit and Techniques) and run slice 3 (Attunements). Each is also playable in the training room with a flag, so it can be judged before the run's rooms exist.</p>
+      <div class="slice" data-in="2"><h4>The base kit alone</h4><p>Base, Attunement and Technique data in <code>kit_slots.gd</code>; <code>open()</code> honours it; <code>--kit=base</code>. Play the training room and the spar foes with eight slots. <b>Judge</b>: is five minutes of the dark alone fun? Does <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> (string, grab, Singularity, Collapse) feel like one combo?</p></div>
+      <div class="slice" data-in="2"><h4>Techniques</h4><p>The second-ending gate and the vault gate. <code>--tech=black_tide,slapshot</code> to turn cards on; run slice 2's offers call <code>Kit.set_on()</code> on the same ids. <b>Judge</b>: does each of the 12 change what you do? Cut any that does not.</p></div>
+      <div class="slice" data-in="3"><h4>One Attunement</h4><p><code>--attune=wind</code> lights storm: Updraft Lash and Live Wire. Galvanize comes as the next Technique offer. <b>Judge</b>: does taking storm feel like a change? Is <kbd>L</kbd> <kbd>H</kbd> turning into Updraft Lash a good surprise or a confusing one?</p></div>
+      <div class="slice" data-in="3"><h4>Pairs</h4><p>All three Attunements and the pair gate on crossover offers, Impale absorbing Backdraft, Meltdown parked. Play the three pairs. <b>Judge</b>: do the squall, the kiln and the quake feel like three characters? Is storm and ice too thin?</p></div>
+      <div class="slice" data-in="3"><h4>See it</h4><p>Void weapons until attuned. Molten Palm leaves molten. <b>Judge</b>: can a viewer tell which run it is from a screenshot?</p></div>
+    </section>
+
+    <!-- ============================== DECISIONS ============================== -->
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <div class="decision"><b>Does every run start with no element, the dark alone?</b> <span class="pick">Yes. The elements are the run's biggest reward, and the base kit is then truly simple.</span></div>
+      <div class="decision"><b>Is the base kit the string, Reap, Singularity, Overwhelm, Dash Stab, Tow Line, the counter and the Awakening?</b> <span class="pick">Yes. Black Tide is the one tentacle verb that goes to Techniques.</span></div>
+      <div class="decision"><b>With no element, is H after the string the grab?</b> <span class="pick">Yes. It is what the code already does, and it teaches "H is the tentacle".</span></div>
+      <div class="decision"><b>Ice's big move in a run: Harpoon or Deep Freeze?</b> <span class="pick">Harpoon. Deep Freeze becomes a Technique.</span></div>
+      <div class="decision"><b>How many Attunements can a run hold?</b> <span class="pick">Two.</span></div>
+      <div class="decision"><b>Is a crossover a Technique, always in the next offer once both its elements are held?</b> <span class="pick">Yes (the hub's ruling). The alternative, this page's first draft, gives every crossover free with the Attunement.</span></div>
+      <div class="decision"><b>Does Impale become the dark-ice crossover and absorb Backdraft?</b> <span class="pick">Yes. Same window, same endings, one press shorter.</span></div>
+      <div class="decision"><b>Are Meltdown and Eruption parked while a run holds two elements?</b> <span class="pick">Yes, unless the storm-and-ice runs feel thin; then Meltdown returns for that pair only.</span></div>
+      <div class="decision"><b>Do the 18 element cells go to Boons on loot.html?</b> <span class="pick">Yes (the hub's ruling). They add no press; they change what a state pays.</span></div>
+      <div class="decision"><b>Un-attuned weapons drawn in the void's colours?</b> <span class="pick">Yes, in run slice 3, after the gate is judged with today's colours.</span></div>
+      <div class="decision"><b>About five Techniques per run, three of them the crossovers?</b> <span class="pick">Yes, run.html's number, as a starting target to tune.</span></div>
+      <div class="decision"><b>Should Molten Palm leave molten?</b> <span class="pick">Yes, briefly, so magma feeds its own rule.</span></div>
+    </section>
+
+    <!-- ============================== RISKS ============================== -->
+    <section id="risks">
+      <h2>Risks</h2>
+      <div class="risk"><b>The first room may feel grey.</b> The colours and the state payoffs are the heretic's joy, and the base kit has none of them. If run slice 2 shows room 1 is dull, the fix is a fast first Attunement (run.html), not a bigger base kit.</div>
+      <div class="risk"><b>The string-to-grab flow is untested as a combo.</b> Triple Chop's knockback may push foes out of the grab's moment, or the grab may feel like a dead press after the hammer. Run slice 2 finds out.</div>
+      <div class="risk"><b>The same input changes meaning between runs.</b> <kbd>L</kbd> <kbd>H</kbd> launches in one run and grabs in another. That is the point, but muscle memory from the last run will misfire for a room. The weapon tint is the main defence.</div>
+      <div class="risk"><b>Storm and ice is the weakest pair.</b> Its own crossover has no window. Watch it in run slice 3.</div>
+      <div class="risk"><b>Moves were tuned assuming the full kit.</b> Harpoon's pause, Impale's pause and the vault rules were shaped around neighbours that may not be there. Expect small retiming.</div>
+      <div class="risk"><b>The test harness doubles.</b> <code>kit_check</code> and the autotest now check a full card. They must also check the base kit, each Attunement and each pair, or a gate will quietly break a route.</div>
+      <div class="risk"><b>This repeats an old shape.</b> The earlier game had an Ascendancy (pick Wind, Earth or Water) and two-colour fusion cards. The difference: those were numbers on top of a thin combat; these are moves already built and polished. Keep it that way: no Technique that is only a number.</div>
+    </section>
+
+    <!-- ============================== NOT YET ============================== -->
+    <section id="not-yet">
+      <h2>Not yet</h2>
+      <div class="later"><b>A third Attunement.</b> It makes runs converge on today's kit. Revisit only if two-element runs feel small after many plays.</div>
+      <div class="later"><b>Technique levels.</b> No card upgrades itself with numbers. Numbers are Gear's.</div>
+      <div class="later"><b>New moves.</b> The pool is today's kit. Do not invent a Technique until the 12 have been judged in runs.</div>
+            <div class="later"><b>A run-mode MOVES panel.</b> Today's panel shows gated rows dim. That may be fine; a panel that hides unlit groups is only worth building if dim rows confuse.</div>
+      <div class="later"><b>Character two.</b> The template is ready, but the heretic's runs come first.</div>
+      <div class="later"><b>Room flourishes as run rewards</b> (Gallows, Ice Rink, Brazier Spill). They are Boons, and wait on <a href="loot.html#later">loot.html</a>'s Not yet until the run's rooms carry their pieces.</div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Run</title>
+<meta name="description" content="Design draft: Awaken's roguelike run. Rooms, pacing, when Techniques, Gear and Boons are offered, fights that need the kit, economy, between runs, and the thinnest playable slice.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html" class="on">The run</a>
+    <small>
+      <a href="#postmortem">The run we had</a>
+      <a href="#shape">One run</a>
+      <a href="#cadence">Reward cadence</a>
+      <a href="#fights">Fights</a>
+      <a href="#economy">Currency</a>
+      <a href="#between">Between runs</a>
+      <a href="#variety">Variety and seeds</a>
+      <a href="#slices">Thinnest slice</a>
+      <a href="#grow">How it grows</a>
+      <a href="#risks">Risks</a>
+      <a href="#notyet">Not yet</a>
+      <a href="#decisions">Decisions</a>
+      <a href="#deps">Assumptions</a>
+    </small>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>The run</h1>
+    <p class="lede">How one roguelike run of Awaken goes: its rooms, its pace, when each layer of a build is offered, what the fights must ask of the kit, and what carries over. Most of all: the smallest run you can play this week, and the order to grow it in.</p>
+
+    <div class="summary">
+      <p><b>Build the run in thin slices, and judge each one by playing ten runs.</b> The first slice is three rooms of the foes we already have, with one pick between rooms from upgrades that already exist behind <code>Kit.has()</code>. No map, no currency, no meta, no Gear. It answers one question: is the heretic fun against a live crowd?</p>
+      <p><b>The finished run:</b> three floors of four rooms plus a warden fight, about <span class="ph">25</span> minutes. Two doors after every room, each showing the reward behind it. The first reward of a run is always an <b>Attunement</b>. A run holds <span class="ph">2</span> of the 3 elements, so it has 3 of the 6 crossovers. The kit gains at most one new idea per room, and nothing a run adds is longer than 5 presses.</p>
+      <p><b>Fights must keep foes alive long enough for a string to finish.</b> Today a 75 hp warrior dies to the first breaker of most strings. So: crowds of 4 to 6, mixed roles, and core foes that survive one full string. Difficulty rises by mix and pressure, not by health.</p>
+      <p><b>No currency until late, and maybe never. Between runs, unlock items into the pools; no permanent stat boosts.</b> The bone altar does not return. No map, no daily runs, no second character until the run is good.</p>
+    </div>
+
+    <!-- ============================== POST-MORTEM ============================== -->
+    <section id="postmortem">
+      <h2>The run we had, and why it went</h2>
+      <p>Rounds 1 to 23 (<code>docs/history/roadmap-rounds.md</code>) built a whole roguelike in about five days, on the old KayKit shaman. Round 28 deleted it on Zak's call: "remove the roguelike layer, keep the training ground." The cleanup audit's deletion plan counts about 2,900 lines for the run flow and 1,300 for the powers.</p>
+      <div class="grid2">
+        <div class="panel">
+          <h3>What it had</h3>
+          <ul class="plain">
+            <li>8 rooms, then an 8-column map with 3 lanes and the boss at the end.</li>
+            <li>Room kinds: fight, elite, rest, shrine, vault, trial, unknown. Seven kinds, plus a boss.</li>
+            <li>Elite twists (Hasted, Armored, Volatile, Splitting), two at once from room 6.</li>
+            <li>About 25 powers in 5 colour paths, with masteries, fusions, 7 synergy tags, levels to III and rerolls.</li>
+            <li>Bones as currency, spent at camp, shrine and reroll, banked at a bone altar for permanent boosts.</li>
+            <li>Hero levels and XP, and an Ascendancy (Wind, Earth, Water) at level 6.</li>
+            <li>Seeded runs, daily runs, run records, recent-run replay. One boss, the Bone Warden.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>What it got right</h3>
+          <ul class="plain">
+            <li><b>Pick 1 of 3 on a steady beat.</b> Easy to read, easy to tune.</li>
+            <li><b>Choosing the next room by its reward.</b> Vaults let you route toward a build. That is real steering.</li>
+            <li><b>Elites as risk for reward,</b> priced in plain words on the door.</li>
+            <li><b>Measuring pace.</b> <code>--pace</code> found a plain room took the bot 16 s and an elite about 23 s, and caught Volatile being a free wipe.</li>
+            <li><b>A run seed kept apart from combat randomness</b> (<code>run_rng</code>), so two runs could be compared.</li>
+            <li><b>Counting procs.</b> It found four powers that never fired at all.</li>
+          </ul>
+        </div>
+      </div>
+      <h3>What made it worth stripping</h3>
+      <ul class="plain">
+        <li><b>It was built on a hero that went away.</b> Powers hooked the shaman's moves (L1, Ground Breaker, Charged Slam) inside <code>_do_hit</code>. When the heretic replaced him, every hook pointed at nothing.</li>
+        <li><b>It was wide before the combat was good.</b> Every "feel pass by hand" line stayed unchecked: powers, map, Ascendancy. The bot verified that things ran. Nobody judged whether they were fun.</li>
+        <li><b>Seven overlapping ways to grow.</b> Powers, paths, masteries, synergies, fusions, levels and the Ascendancy all stacked on one hero. No single one could be felt.</li>
+        <li><b>The complexity needed explaining.</b> Round 23 spent about ten items on panels that explain choices: mystery odds, "4 to 6 powers from here to the boss", vault contents, trial payouts. When a choice needs a panel, the choice is too complicated.</li>
+      </ul>
+      <div class="note gold"><p><b>What must be different this time.</b> The run grows the combat that is already polished: its rewards are the heretic's own moves and states, not a new pile of powers. Rewards target the kit grammar's stable slots and states (<code>docs/characters/kit-grammar.md</code> section 7), so a move change never orphans them. Each layer has one way to grow. One layer is added per slice, and Zak plays it ten times before the next. If a choice needs a panel to explain it, cut the choice.</p></div>
+    </section>
+
+    <!-- ============================== ONE RUN ============================== -->
+    <section id="shape">
+      <h2>One run, start to finish</h2>
+      <ol class="flow">
+        <li><b>Training hall</b>The hub. A door out starts a run.</li>
+        <li><b>Floor 1</b>Four rooms.</li>
+        <li><b>Warden</b>The Turnkey.</li>
+        <li><b>Floor 2</b>Four rooms.</li>
+        <li><b>Warden</b>The Turnkey, harder escorts.</li>
+        <li><b>Floor 3</b>Four rooms.</li>
+        <li><b>Final warden</b>The one real boss.</li>
+        <li><b>Back to the hall</b>Win or die.</li>
+      </ol>
+      <p>Inside a floor, every room is the same loop:</p>
+      <ol class="flow">
+        <li><b>Room</b>A fight.</li>
+        <li><b>Reward</b>The one its door showed.</li>
+        <li><b>Two doors</b>Each shows its reward.</li>
+        <li><b>Next room</b>Pick one.</li>
+      </ol>
+
+      <h3>Length: about <span class="ph">25</span> minutes, 15 fights</h3>
+      <p>Start from how long a string takes. The autotest plays about 46 to 49 strings in about 3 minutes, so a string with its breaker is roughly <span class="ph">4</span> s including the walk up. A room of <span class="ph">8 to 12</span> foes, where fodder dies inside one string and core foes take two, is about <span class="ph">15 to 20</span> strings plus dodging: <span class="ph">60 to 90</span> s. The old game's bot cleared a plain room in 16 s with a far simpler hero. Ours should be slower, because the strings are the point.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Part</th><th>Count</th><th>Each</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr><td>Rooms</td><td>12</td><td><span class="ph">75</span> s</td><td><span class="ph">15</span> min</td></tr>
+          <tr><td>Wardens</td><td>3</td><td><span class="ph">2 to 3</span> min</td><td><span class="ph">7</span> min</td></tr>
+          <tr><td>Picks and doors</td><td>15</td><td><span class="ph">15</span> s</td><td><span class="ph">4</span> min</td></tr>
+        </tbody></table></div>
+      <p>Why not longer: every room Zak adds is a room he polishes, and a 45-minute run makes each slice slow to judge. Why not shorter: the kit needs about a dozen rewards to grow visibly (see the example run below). One floor is a <span class="ph">9</span>-minute session on its own, which is what slice 7 ships.</p>
+
+      <h3>Room kinds: four</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Kind</th><th>What it is</th><th>Reward</th></tr></thead>
+        <tbody>
+          <tr><td><b>Fight</b></td><td>Two or three waves, 8 to 12 foes. Most rooms.</td><td>The layer its door showed: a <span class="t-technique">Technique</span>, a <span class="t-boon">Boon</span> or a <span class="t-gear">Gear</span> drop.</td></tr>
+          <tr><td><b>Elite</b></td><td>A fight with one elite foe (one trait) and escorts. At most one per floor.</td><td>Gear, one rarity up: Iron to Hallowed, Hallowed to Profane (<a href="loot.html#gear">loot.html</a>'s rarities).</td></tr>
+          <tr><td><b>Rest</b></td><td>No fight. Only ever behind the floor's last door.</td><td>Heal <span class="ph">40%</span>, or take a Boon. Not both.</td></tr>
+          <tr><td><b>Warden</b></td><td>The floor's set piece: one big foe and escort waves.</td><td>A Boon (1 of 3), and the next floor. Boons have no rarity.</td></tr>
+        </tbody></table></div>
+      <p>That is half the old list. No shrine, vault, trial or unknown room: each of them was another way of offering a reward, and the door already does that job.</p>
+
+      <h3>A floor</h3>
+      <p>A floor is four rooms, then its warden. Rooms 1 to 3 offer two fight doors (one may be the floor's elite). Room 4's doors are always rest or elite. Floors differ by foe mix, room layouts and pressure (see <a href="#fights">Fights</a>), not by art. One biome, the church's prison, for the whole first game. The rooms already say where they are: the drill hall, the flooded cistern, the forge hall (<code>docs/design/environment-lore.md</code>).</p>
+
+      <h3>The boss question</h3>
+      <p>There is no boss today. The Bone Warden (443 lines, the shaman era) was deleted in round 28. A real boss is the single most expensive thing on this page: its own model, attacks, telegraphs and phases, all tuned by hand.</p>
+      <div class="grid2">
+        <div class="option pick"><h3>Wardens from parts, one real boss later</h3><p>Floors 1 and 2 end with <b>the Turnkey</b>: an outsized skeleton warrior (scale <span class="ph">1.6</span>, poise <span class="ph">30</span>, hp <span class="ph">x8</span>) that a launcher does not lift, with escort waves. That costs data, not a model. It tests the pin slot (<kbd>hold H</kbd>, Overwhelm), Impale and the counter, which the dummies never test because nothing on the training floor is big. The final warden is one real boss, built in slice 8 once a floor plays well.</p></div>
+        <div class="option"><h3>A real boss per floor now</h3><p>Three bosses before we know a floor is fun is the old mistake again. Cost: three models, three attack sets.</p></div>
+        <div class="option"><h3>No bosses</h3><p>The run ends after the last room. Cheapest. A run with no climax feels like a practice set.</p></div>
+      </div>
+
+      <h3>How a run ends, and what death costs</h3>
+      <p>A run ends when the hero dies or the final warden falls. Either way he is back in the training hall, which becomes the hub: it already exists, it already has the moves panel, and a door out of it is the start button. Death costs the whole build: every Technique, Attunement, Gear and Boon. Nothing else is lost, because nothing else is kept (see <a href="#between">Between runs</a>). There is no consolation reward for dying.</p>
+    </section>
+
+    <!-- ============================== CADENCE ============================== -->
+    <section id="cadence">
+      <h2>The reward cadence</h2>
+      <p>A run build has three layers: <span class="t-technique">Techniques</span> (including <b>Attunements</b>), <span class="t-gear">Gear</span> and <span class="t-boon">Boons</span>. What each one is lives on <a href="kits.html">kits.html</a> and <a href="loot.html">loot.html</a>. This page says when and how each is offered.</p>
+
+      <div class="tbl"><table>
+        <thead><tr><th>Layer</th><th>Where it comes from</th><th>Choice</th><th>New presses</th><th>Per run</th></tr></thead>
+        <tbody>
+          <tr><td><b>Attunement</b></td><td>Forced: floor 1 room 1 and floor 2 room 1</td><td>1 of the elements not held</td><td>2, taught as one idea: the ender, and its big move (the ender plus H)</td><td><span class="ph">2</span></td></tr>
+          <tr><td><b>Technique</b></td><td>Fight doors that show it</td><td>1 of <span class="ph">2</span>, or skip. A crossover whose elements you hold is always in the offer.</td><td>1 (an input, or an ending in a window)</td><td><span class="ph">5</span>, three of them the crossovers</td></tr>
+          <tr><td><b>Boon</b></td><td>Fight doors, Rest, floor wardens</td><td>1 of <span class="ph">3</span></td><td>0</td><td><span class="ph">5</span> (a Rest's heal can take the place of one)</td></tr>
+          <tr><td><b>Gear</b></td><td>Fight doors that show it; elites, one rarity up</td><td>One drop: wear it or leave it</td><td>0</td><td><span class="ph">2 to 3</span></td></tr>
+        </tbody></table></div>
+
+      <h3>The rules of the cadence</h3>
+      <ul class="plain">
+        <li><b>One new idea per room, at most.</b> Only Attunements and Techniques add presses. Boons and Gear never do, so they can stack freely. An Attunement's ender and big move count as one idea, because the big move is the ender plus one more H (ice is the exception: its big move, Harpoon, is off the dash; see <a href="kits.html#attunements">kits.html</a>).</li>
+        <li><b>Techniques are 1 of 2, and skippable.</b> Small, because each is a whole move to learn. Skipping gives a small heal (<span class="ph">15%</span>), so a player who is not ready for a new input is not punished for it.</li>
+        <li><b>Boons are 1 of 3.</b> They are read, not learned, so a wider choice is cheap.</li>
+        <li><b>Gear is a drop, not a menu.</b> It falls in the room, you see it beside what you wear, you keep one. That is the loot moment, kept to one comparison.</li>
+        <li><b>The first Attunement comes first.</b> It is the reward of room 1, before anything else pays out. It is what makes the kit grow, and it decides which crossovers this run can ever have.</li>
+        <li><b>Fourteen rewards a run</b> (twelve rooms and two floor wardens; the final warden ends it). The base kit of <span class="ph">8</span> slots ends a run at about <span class="ph">16</span>: still well under today's 24.</li>
+        <li><b>Input length.</b> The base kit caps at 3 presses. Anything a run adds caps at 5. The 6-press Hailstorm into Meltdown stays parked (<a href="kits.html#verdict">kits.html</a>).</li>
+      </ul>
+
+      <h3>Steering: choose the next room by its reward</h3>
+      <p>After each room, two doors. Each door shows one icon: Technique, Boon, Gear, Elite (Gear, one rarity up) or Rest. The two doors never show the same layer. That is all the steering there is, and it is enough: a player who wants more ice moves walks through Technique doors after attuning ice. No map. The old run went from two doors to a map in one round, then spent a round explaining the map.</p>
+      <p>Techniques are drawn only from moves whose elements you hold, so a Technique door after an ice Attunement is a door toward an ice build. A crossover enters the Technique pool the moment you hold both of its elements, and it is always in the next Technique offer.</p>
+
+      <h3>Example run: storm, then ice</h3>
+      <p>Every name here is real: the moves are <a href="kits.html">kits.html</a>'s, the Gear and Boons <a href="loot.html">loot.html</a>'s samples. The Boons are old matrix cells and new rule bends, because Boons bend rules by nature. "Slots" counts the kit as kits.html does.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>Doors</th><th>Took</th><th>Slots</th><th>What he does differently</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R1 fight</td><td>(forced)</td><td>Attune <span class="el-storm">storm</span>: Updraft Lash <kbd>L</kbd> <kbd>H</kbd>, and Live Wire <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> (Grounded)</td><td><span class="ph">10</span></td><td>Launches. One more H is his first element breaker. Foes come down charged; the Arc rule starts paying.</td></tr>
+          <tr><td>F1 R2 fight</td><td>Technique / Boon</td><td>Technique: Galvanize <kbd>H</kbd> <kbd>L</kbd> <kbd>L</kbd> (dark x storm, always in this offer)</td><td>11</td><td>Reap's hook now charges the crowd it marks.</td></tr>
+          <tr><td>F1 R3 fight</td><td>Boon / Gear</td><td>Boon: Overload</td><td>11</td><td>A storm hit sets off every charged foe within 8 m at once. Crowds become the plan.</td></tr>
+          <tr><td>F1 R4 elite</td><td>Elite (Gear) / Rest</td><td>Gear, one rarity up: Prison Weight (Shackle, Hallowed)</td><td>11</td><td>A wider counter window, and Ricochet hits harder. He starts waiting for the swing.</td></tr>
+          <tr><td>F1 warden</td><td></td><td>Boon: Long Thaw</td><td>11</td><td>Every state lasts longer, so charged foes are still charged when he dashes back in.</td></tr>
+          <tr><td>F2 R1 fight</td><td>(forced)</td><td>Attune <span class="el-ice">ice</span>: Frost Spear <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>, and Harpoon <kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> (Shatterstorm)</td><td><span class="ph">13</span></td><td>Freezes and plants, and collects a crowd into a row of cubes. Shatter pays. Impale and Hailstorm enter the pool.</td></tr>
+          <tr><td>F2 R2 fight</td><td>Technique / Gear</td><td>Technique: Hailstorm <kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>H</kbd> (ice x storm; offered beside Impale)</td><td><span class="ph">14</span></td><td>His pair's crossover: the cubes go up into the storm.</td></tr>
+          <tr><td>F2 R3 fight</td><td>Technique / Boon</td><td>Technique: Impale <kbd>Dash</kbd> <kbd>H</kbd> <kbd>H</kbd> (dark x ice, Anvil)</td><td><span class="ph">15</span></td><td>Tow Line now skewers one foe for a window.</td></tr>
+          <tr><td>F2 R4 rest</td><td>Rest / Elite</td><td>Heal</td><td>15</td><td></td></tr>
+          <tr><td>F2 warden</td><td></td><td>Boon: Superconduct</td><td>15</td><td>Ice on a charged foe freezes it and runs the charge through every frozen foe near. Storm and ice now feed each other.</td></tr>
+          <tr><td>F3 R1 fight</td><td>Gear / Boon</td><td>Gear: Knotted Cuff (Graft, Iron)</td><td>15</td><td>Dash Stab leaves the foe frozen: his lunge sets up a Shatter.</td></tr>
+          <tr><td>F3 R2 fight</td><td>Technique / Boon</td><td>Technique: Live Wire air <kbd>L</kbd> <kbd>H</kbd> <kbd>L</kbd> <kbd>H</kbd> (Worldbreaker)</td><td><span class="ph">16</span></td><td>He follows the launch up and ends in the air.</td></tr>
+          <tr><td>F3 R3 fight</td><td>Technique / Gear</td><td>Technique: Cold Front (L in Worldbreaker's window)</td><td>16</td><td>The foes freeze where they hang and come down as cubes.</td></tr>
+          <tr><td>F3 R4 rest</td><td>Rest / Elite</td><td>Boon instead of the heal: Gale Lift</td><td>16</td><td>Storm on a cube takes it up, still in its ice.</td></tr>
+          <tr><td>Final warden</td><td></td><td>Run won</td><td>16</td><td>He launches, freezes, runs current through ice and juggles the cubes. None of that was in room 1.</td></tr>
+        </tbody></table></div>
+      <p class="lede">The tally: 2 Attunements, 5 Techniques (three of them crossovers), 4 Boons and a heal, 2 Gear. One new idea per room throughout.</p>
+      <div class="grid2">
+        <div class="item t-gear r-2"><b>Prison Weight</b><p><small>Shackle, Hallowed</small></p><p>Wide Watch: Backlash window <span class="ph">0.3 s</span>. Hurled: Ricochet +<span class="ph">25%</span>. (<a href="loot.html#gear">loot.html</a>'s sample.)</p></div>
+        <div class="item t-boon"><b>Overload</b><p>Charged sign. Exists today as the charged x storm cell: every charged foe within 8 m of a storm hit goes off at once, chained.</p></div>
+      </div>
+      <p>The next run attunes magma first and never touches ice: no Shatter and no cubes, but Molten Palm and Undertow, kegs and braziers instead of pools. That is the "visibly different from the last run" target, carried mostly by the element pair.</p>
+    </section>
+
+    <!-- ============================== FIGHTS ============================== -->
+    <section id="fights">
+      <h2>Fights that need the kit</h2>
+      <p>The combat was tuned on four dummies in a fan that never die, and on one spar foe at a time. A run is crowds of live foes that die. Two facts from the spar audits frame everything: at 1x hp the warrior (75) died in 37 of 49 strings, mostly to the string's first breaker, and a Ricochet onto the gallows (146 to 234) killed it on the splat. So in a real fight the holds, the hang and the Snap only happen to something big. The fights must fix that.</p>
+
+      <h3>Crowd size and time to kill</h3>
+      <ul class="plain">
+        <li><b>4 to 6 alive at once</b> (cap <span class="ph">6</span>; the old run allowed 8). The kit was tuned on a fan of four, and Gather, Harpoon and the Arc rule's 6 m want a cluster. Past six, the camera and the strings both lose him.</li>
+        <li><b>8 to 12 per room, in 2 or 3 waves.</b> The next wave steps in as the last one thins, so there is always someone to carry a state to.</li>
+        <li><b>Fodder dies inside one string.</b> That is the crowd: it makes Arc, Burst and Gather worth doing.</li>
+        <li><b>Core foes survive one full string and die to the second.</b> That makes a breaker land on something alive and a hold matter. The spar's <code>HP_SCALE</code> 3 on melee kinds already found this number; the run adopts it.</li>
+        <li><b>At most 2 melee windups at once</b> (today's <code>max_melee_attackers</code>), so a string is broken by a telegraph he could have countered, not by a pile.</li>
+      </ul>
+
+      <h3>Foe roles, from <code>enemy_types.gd</code></h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Kind</th><th>hp today</th><th>hp in a run</th><th>Job in the fight</th><th>What in the kit answers it</th></tr></thead>
+        <tbody>
+          <tr><td>minion</td><td>30</td><td><span class="ph">30</span></td><td>Fodder. The crowd.</td><td>Gather (<kbd>H</kbd> <kbd>H</kbd>), Harpoon, the Arc and Burst rules.</td></tr>
+          <tr><td>rogue</td><td>28</td><td><span class="ph">45</span></td><td>Flanker. Circles behind, hops away from attacks half the time.</td><td>A snare: Tow Line, bound (Undertow, Overwhelm), frozen.</td></tr>
+          <tr><td>shield</td><td>40</td><td><span class="ph">120</span></td><td>Blocks frontal hits. Forces an angle.</td><td>A launch breaks guard; the grab; Snap has no knockback, so no shield turns it.</td></tr>
+          <tr><td>warrior</td><td>75</td><td><span class="ph">225</span></td><td>The core melee threat. Poise 8, slow, hard windups.</td><td>The counter (Backlash, Ricochet), the pin, holds, a full string with its breaker.</td></tr>
+          <tr><td>archer</td><td>22</td><td><span class="ph">22</span></td><td>Line shot from 10 to 13 m. Makes him move.</td><td>Bolt parry, Black Tide's drag, Tow Line.</td></tr>
+          <tr><td>mage</td><td>24</td><td><span class="ph">24</span></td><td>Slow bolts from 7 m.</td><td>Bolt parry, the drag. Shooters stay at 1x: at 3x the spar archer shot him about 20 times a run.</td></tr>
+          <tr><td>elite</td><td>-</td><td>its kind <span class="ph">x2</span></td><td>One trait (below).</td><td>A different answer than usual.</td></tr>
+        </tbody></table></div>
+
+      <h3>How difficulty rises without only inflating health</h3>
+      <ol>
+        <li><b>The mix.</b> Floor 1: minions plus one core kind. Floor 2: two core kinds plus a shooter. Floor 3: flankers and a shooter screen together, so standing still to finish a string is a choice with a price.</li>
+        <li><b>Pressure.</b> Melee windups at once: 2, 2, <span class="ph">3</span> by floor. Windup time <span class="ph">x1.0</span>, <span class="ph">x0.92</span>, <span class="ph">x0.85</span>. Always counterable: <code>spar_check</code>'s 0.2 s of telegraph before the counter window stays a floor.</li>
+        <li><b>Elite traits that switch off one easy answer.</b> One trait per elite, never two. Each points at another tool in the kit: <i>Rooted*</i> (a launcher does not lift it: pin it, bind it), <i>Skittish*</i> (dodges like a rogue: snare it), <i>Warded*</i> (blocks from every side until launched or grabbed). A trait never makes a state impossible, because that would make a whole build dead for a room.</li>
+        <li><b>Health last.</b> At most <span class="ph">x1.0</span>, <span class="ph">x1.2</span>, <span class="ph">x1.4</span> by floor, so a late string still feels like the same string.</li>
+      </ol>
+
+      <h3>The environment and the two data rooms</h3>
+      <p>Rooms are already data (<code>rooms.gd</code> <code>ROOM_DEFS</code>). A run room is a <code>ROOM_DEFS</code> entry with <code>rebuild</code> false, which the code already calls a real room: what Uproot tears out stays out for the fight. Hazards stay hero-safe, as decided in round 57.</p>
+      <ul class="plain">
+        <li><b>The pool of layouts:</b> plain, with pieces, the flooded cistern, the forge hall, plus <span class="ph">4</span> new layouts made from the same fourteen pieces. A new layout is a placement list, no code.</li>
+        <li><b>Floor 1</b> draws the plain and with-pieces layouts. <b>Floors 2 and 3</b> add the cistern and the forge. Their showcases ("down the channel", "powder line", "bonded plates") become the run's discoveries: combos only that room allows.</li>
+        <li><b>A room favours a pair.</b> The cistern rewards ice and dark, the forge magma and storm. Later a door can show its room's piece family, so a storm build walks toward the forge (the lore page's "room modifiers on doors"). Not before slice 6 has shown that doors steer.</li>
+        <li><b>Flourishes are Boons, later.</b> Gallows, Ice Rink and Brazier Spill are <code>Kit.has()</code> ids today. In a run they are Boons, but they wait in <a href="loot.html#later">loot.html</a>'s Not yet until the run's rooms carry their pieces reliably. The training hall keeps playing them for practice.</li>
+      </ul>
+
+      <div class="note"><p><b>Unproven, and only learnable by playing:</b></p>
+        <ul class="plain">
+          <li>Whether the strings hold up with 4 to 6 live foes attacking. Every string was filmed on a fan of four dummies.</li>
+          <li>What a hit mid-string should do. The spar audit's open question (does a hurt reset the chain?) becomes the run's most important rule.</li>
+          <li>Whether the camera frames a crowd plus a breaker hang. Meteor Fall already pulls out to 26 m for one throw.</li>
+          <li>Every hp number above. They come from one spar foe, not a wave.</li>
+          <li>Frame cost with six foes and the heaviest crossovers at once. The old <code>[perf]</code> line had 17 foes on a much lighter hero.</li>
+          <li>Whether the counter gets used when four foes swing, or players just dash away.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================== ECONOMY ============================== -->
+    <section id="economy">
+      <h2>Currencies and economy</h2>
+      <div class="grid2">
+        <div class="option pick"><h3>None at first, then at most one</h3><p>Every reward through slice 8 is a door and a pick. If a currency is added, it is <b>tithe</b>, the church's coin: dropped by elites and wardens, and paid out for Gear you leave behind. It lives only inside a run and is spent only in Rest rooms, on a stall of <span class="ph">3</span> things (a Boon, a Gear, a reroll of the stall). Cost: one HUD counter, one drop, one stall screen.</p></div>
+        <div class="option"><h3>One currency from the start</h3><p>Every room then pays out coin as well as its reward, and every price is one more number to tune before we know the run is fun.</p></div>
+        <div class="option"><h3>Two currencies</h3><p>One per run and one banked between runs: the old bones and altar. That is the meta tree below, and it doubles every balance question.</p></div>
+      </div>
+      <p><b>Shops:</b> no shop room. The Rest room's stall is the shop, and it competes with the heal, so spending is a choice and not a chore. Add tithe only if ten runs of slice 8 show that leaving Gear behind feels pointless, or that nothing rewards playing a room well. If neither happens, ship with no currency at all.</p>
+    </section>
+
+    <!-- ============================== BETWEEN RUNS ============================== -->
+    <section id="between">
+      <h2>Between runs</h2>
+      <div class="grid2">
+        <div class="option"><h3>A. Nothing but knowledge</h3><p>Every run starts the same. Cost: nothing. Risk: a new player who cannot clear floor 1 has nothing to show for a lost run, and every pool is open from run one, which is a lot to read.</p></div>
+        <div class="option pick"><h3>B. Unlock items into the pools</h3><p>No permanent stats. Pools start at about <span class="ph">60%</span> and grow by deeds: "clear floor 1" adds a Boon set, "land Avalanche in a run" adds a Technique, "beat the Turnkey with ice attuned" adds a Gear base. Cost: an unlock list (data), a save file, one board in the training hall. It also onboards: the first runs offer fewer, simpler things.</p></div>
+        <div class="option"><h3>C. A full meta tree</h3><p>A banked currency buys permanent hp, damage, rerolls. Cost: a second economy, every fight balanced with and without the tree, and grinding in place of getting better at the strings. Wrong for a game whose point is the strings.</p></div>
+      </div>
+      <ul class="plain">
+        <li><b>The bone altar does not return.</b> Permanent stat boosts make the game easier by playing longer, not by playing better. If new players need help, give them a difficulty setting once the game is complete, not a currency.</li>
+        <li><b>When unlocks arrive:</b> slice 10, after a full run exists. Until then every pool is fully open, so Zak sees everything while tuning.</li>
+        <li><b>New Techniques, Gear and Boons</b> enter by the same list. A new item ships locked behind a deed that makes the player meet it on purpose.</li>
+        <li><b>Future characters</b> unlock the same way ("win a run") and each brings its own Technique pool. Boons keyed to states ("+20% frozen payoffs") work for every character. A second character is far down the build order (see <a href="#grow">How it grows</a>).</li>
+      </ul>
+    </section>
+
+    <!-- ============================== VARIETY ============================== -->
+    <section id="variety">
+      <h2>Variety and seeds</h2>
+      <p>With small pools, run two must differ from run one by its choices, not by its content count. The arithmetic, with the pool sizes assumed in <a href="#deps">Assumptions</a>:</p>
+      <ul class="plain">
+        <li><b>The element pair.</b> 2 of 3 elements in some order: 6 element paths, 3 distinct pairs. Each pair has exactly 3 of the 6 crossovers: dark with each held element, plus the pair's own. <span class="el-storm">Storm</span> and <span class="el-ice">ice</span> get Galvanize, the dark x ice crossover and the ice x storm crossover. <span class="el-magma">Magma</span> and <span class="el-storm">storm</span> get Galvanize, Lava Leash and Fault Line. This is the biggest difference between runs, and it costs nothing new: the moves exist.</li>
+        <li><b>Techniques.</b> <span class="ph">5</span> picks of 1 of 2: the pair's 3 crossovers, and 2 from the <span class="ph">8 to 10</span> others the held elements allow. Two runs on the same pair still end with different moves about half the time.</li>
+        <li><b>Boons.</b> <span class="ph">5</span> picks of 1 of 3 from <a href="loot.html#pools">loot.html</a>'s first pool of <span class="ph">16</span>. Two runs share fewer than two Boons on average.</li>
+        <li><b>Room order.</b> Layouts from <span class="ph">8</span>, foe mixes from the six kinds by floor. Cheap variety, but texture, not identity.</li>
+      </ul>
+      <p>The rule: a run is different because the player chose differently, and the doors let them. Random rolls alone give noise, not builds.</p>
+      <h3>Seeds and daily runs</h3>
+      <div class="grid2">
+        <div class="option pick"><h3>A seed from slice 1, no daily runs</h3><p>One <code>run_rng</code> for doors, offers, layouts and spawns, apart from combat randomness, exactly as the old run did it. A <code>--seed=</code> flag makes a run repeatable for the bot and for comparing tuning. Cost: one RNG and one flag.</p></div>
+        <div class="option"><h3>Daily runs now</h3><p>They need content worth replaying every day and somewhere to compare scores. Neither exists. The old game had them by round 11, which says more about its pace than its needs.</p></div>
+      </div>
+    </section>
+
+    <!-- ============================== SLICES ============================== -->
+    <section id="slices">
+      <h2>The thinnest playable slice, and the build order after it</h2>
+      <p>Each slice adds one thing. Each is judged by Zak playing it ten times, not by the bot. The bot keeps its job (nothing crashed, the strings still land), but it cannot say whether a run is fun. Each slice names the question it answers and the result that should change course.</p>
+      <ol>
+        <li class="slice">
+          <h3>Three rooms (this week)</h3>
+          <p><b>What:</b> a <code>--run</code> flag, no menu. From the training hall into three real rooms in a row: with pieces, the forge, the cistern, each with <code>rebuild</code> false. Each room is two waves of existing foes: minions and one core kind, then a mixed wave with a shooter. Melee core kinds at the spar's 3x hp. Today's full kit. Between rooms, pick 1 of 2 from the 19 ids already behind <code>Kit.has()</code>: Storm Pitch and the 18 matrix cells. (The 3 flourishes wait for rooms that carry their pieces.) Death, or room 3 cleared, returns to the hall. A seed. Nothing else: no doors, no Gear, no currency, no meta, no warden.</p>
+          <p><b>Question:</b> is the heretic fun against a live crowd, and does one pick change how room 3 plays?</p>
+          <p><b>Change course if:</b> across ten runs he mostly mashes the light string or dashes away; a hit mid-string breaks more than about one string in three; the camera loses him in a crowd; or the picks go unnoticed. Then the next work is combat against crowds (foe pressure, the hurt rule, the camera), not slice 2.</p>
+          <p><b>Measure:</b> room time, strings and breakers per room, hurts mid-string, deaths per room. One <code>[run]</code> line, like the old <code>--pace</code>.</p>
+        </li>
+        <li class="slice">
+          <h3>The small kit and Techniques</h3>
+          <p><b>What:</b> start from <a href="kits.html#base">kits.html</a>'s base kit of 8 slots. The picks become Techniques: 1 of 2, one per room, skippable. Until slice 3 adds Attunements, a debug flag holds two elements (kits.html's <code>--attune=</code>) so the element Techniques can be offered.</p>
+          <p><b>Question:</b> does room 1 feel complete with the small kit, and does one new idea per room feel like growth?</p>
+          <p><b>Change course if:</b> room 1 feels empty (put a slot back into the base), or new Techniques go unused in the next room (fewer, louder Techniques).</p>
+        </li>
+        <li class="slice">
+          <h3>Attunements</h3>
+          <p><b>What:</b> room 1's reward is always an Attunement. A run holds 2 elements. An Attunement gives the ender and its big move; each crossover is a Technique, offered once both its elements are held. Five rooms.</p>
+          <p><b>Question:</b> do two runs with different pairs feel like two different characters?</p>
+          <p><b>Change course if:</b> Zak always picks the same element (it is stronger, or the others read worse), or the unattuned room 1 is dull (then start each run with one element held).</p>
+        </li>
+        <li class="slice">
+          <h3>Boons</h3>
+          <p><b>What:</b> <a href="loot.html#order">loot.html</a>'s first Boon steps (six of the old cells, then the signs, then four rule bends), bending the states, the breaker window, the counter, the dash, the Awakening. Picks alternate Technique and Boon.</p>
+          <p><b>Question:</b> does a Boon change what he does, or only a number on screen?</p>
+          <p><b>Change course if:</b> Boons are taken and forgotten. They are too quiet: cut to the loudest five, each with its own visible effect.</p>
+        </li>
+        <li class="slice">
+          <h3>Gear</h3>
+          <p><b>What:</b> Gear drops from fights, with <a href="loot.html">loot.html</a>'s few slots and short affix lists. Wear it or leave it.</p>
+          <p><b>Question:</b> does Gear give something Boons do not: the "a drop!" moment and a comparison worth making?</p>
+          <p><b>Change course if:</b> taking Gear feels the same as taking a Boon. Then merge the two layers (decision 10).</p>
+        </li>
+        <li class="slice">
+          <h3>Two doors</h3>
+          <p><b>What:</b> after each room, two doors, each showing its reward layer. Elite doors.</p>
+          <p><b>Question:</b> does the player steer toward a build?</p>
+          <p><b>Change course if:</b> door picks look random. Then the layers are not different enough to want one over another. That is a pool problem, not a door problem.</p>
+        </li>
+        <li class="slice">
+          <h3>One floor and the Turnkey</h3>
+          <p><b>What:</b> four rooms, the rest-or-elite last door, the Turnkey from parts, the difficulty rules above. About <span class="ph">9</span> minutes.</p>
+          <p><b>Question:</b> is one floor a satisfying session, and does the Turnkey make the pin, Impale and the counter matter?</p>
+          <p><b>Change course if:</b> the Turnkey dies to the same string as everything else. Then the warden needs its own answer before any real boss is built.</p>
+        </li>
+        <li class="slice">
+          <h3>Three floors and one real boss</h3>
+          <p><b>What:</b> the full run. Floors 2 and 3 with their mixes, the cistern and forge in the pool, one final boss with its own model and attacks.</p>
+          <p><b>Question:</b> does the build carry the whole run, and is the end a climax?</p>
+          <p><b>Change course if:</b> floor 3 feels like floor 1 with more hp (the mix and pressure are not working), or runs are decided by floor 1's picks.</p>
+        </li>
+        <li class="slice">
+          <h3>Tithe and the stall (only if needed)</h3>
+          <p><b>Question:</b> does a currency make leaving Gear behind and playing well feel rewarded? <b>Change course if:</b> the stall goes unvisited. Remove it and ship with none.</p>
+        </li>
+        <li class="slice">
+          <h3>Unlocks between runs</h3>
+          <p><b>Question:</b> do the first runs feel simpler, and does a deed make a player try a new item? <b>Change course if:</b> players ignore the deeds. Unlock by floors cleared instead.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============================== GROW ============================== -->
+    <section id="grow">
+      <h2>How the game grows from here</h2>
+      <p>After slice 10 there is a small complete game: one character, one biome, three floors, one boss, small pools. What it costs to grow, cheapest first:</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Addition</th><th>What it multiplies</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td>Room layouts</td><td>Nothing. A placement list each.</td><td>Any time.</td></tr>
+          <tr><td>Boons, Gear bases</td><td>A little: each one is a feel pass.</td><td>A few per release, behind unlocks.</td></tr>
+          <tr><td>A foe kind</td><td>Model, clips, AI, telegraph, hit reactions; every string checked against it.</td><td>When a floor needs a role the six cannot fill. A big target for the pin slot is the likely first.</td></tr>
+          <tr><td>A boss</td><td>Large but single: model, attacks, phases. Multiplies nothing else.</td><td>One per floor, replacing the Turnkeys, one at a time.</td></tr>
+          <tr><td>A biome</td><td>Art kit, pieces and their verbs, layouts, lore, maybe foes.</td><td>After three bosses. The prison has room for several looks first.</td></tr>
+          <tr><td>A character</td><td>Everything: a kit, its Techniques, animations, effects, every bot string, and a check that every room and Boon works for him.</td><td>Last. The Dragon Prince is in design; build him once the heretic's run is good.</td></tr>
+        </tbody></table></div>
+      <p>The order is the table's order. A second character is the biggest multiplier and the most tempting. It is also exactly the "wide before good" trap, one level up.</p>
+    </section>
+
+    <!-- ============================== RISKS ============================== -->
+    <section id="risks">
+      <h2>Risks</h2>
+      <div class="risk"><b>The kit may not survive a crowd.</b> It was built against still dummies. If slice 1 says no, the run waits and combat work comes first. That is the slice doing its job, not a failure.</div>
+      <div class="risk"><b>The run outgrows the combat again.</b> Agents can build a slice a day; Zak can judge one every few days. The build order only works if each slice waits for its ten runs.</div>
+      <div class="risk"><b>A pruned base kit may feel thin in room 1.</b> The Attunement in room 1 is the hedge; slice 3's fallback is to start with one element.</div>
+      <div class="risk"><b>Small pools repeat.</b> By run ten Zak will have seen every Boon. That is fine for judging feel. It is not fine for players, which is what unlocks and later pool growth are for.</div>
+      <div class="risk"><b>Gear and Boons may blur.</b> Both are passive and add no inputs. If players cannot tell them apart, one layer is wasted polish.</div>
+      <div class="risk"><b>The bot will say everything passes.</b> It always did. Feel is judged by hand, and every number here is a placeholder until then.</div>
+    </section>
+
+    <!-- ============================== NOT YET ============================== -->
+    <section id="notyet">
+      <h2>Not yet</h2>
+      <div class="later"><b>A run map.</b> Two doors steer. Last time a map needed a round of panels to explain itself.</div>
+      <div class="later"><b>Shrine, vault, trial and unknown rooms.</b> Each is another way to offer a reward. Doors already do that.</div>
+      <div class="later"><b>A meta tree or an altar.</b> Stat boosts reward time, not skill. Unlocks only, and only at slice 10.</div>
+      <div class="later"><b>Daily runs and run records.</b> Nothing to compare yet. Keep the seed.</div>
+      <div class="later"><b>Hero levels, XP, an Ascendancy.</b> Attunements are the run's element choice now; a second system for it is the old pile.</div>
+      <div class="later"><b>Synergy tags, masteries, fusions, power levels.</b> Crossovers already are the fusions, and they come from the kit.</div>
+      <div class="later"><b>Two elite traits at once, rerolls, curses.</b> One trait per elite until one trait is tuned.</div>
+      <div class="later"><b>More bosses, biomes or characters</b> before the first full run is good.</div>
+      <div class="later"><b>Run summary screens, reward-card art, icons.</b> Plain text cards until slice 8. Polish what is staying.</div>
+    </section>
+
+    <!-- ============================== DECISIONS ============================== -->
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <ol>
+        <li class="decision"><b>Is slice 1 (three rooms, today's kit, picks from the 19 existing <code>Kit.has()</code> ids) the next thing to build?</b> <span class="pick">Yes. It is buildable from what the repo has, and it tests the combat against crowds before any run layer exists.</span></li>
+        <li class="decision"><b>How long is a full run?</b> <span class="pick">Three floors of four rooms plus a warden, about 25 minutes. One floor first.</span></li>
+        <li class="decision"><b>How many elements does a run hold?</b> <span class="pick">Two of the three, plus the dark signature, so a run has 3 of the 6 crossovers.</span></li>
+        <li class="decision"><b>Is the first reward of every run an Attunement?</b> <span class="pick">Yes, in room 1. If the unattuned room 1 is dull, start with one element instead.</span></li>
+        <li class="decision"><b>Map or doors?</b> <span class="pick">Two doors, each showing its reward layer. No map.</span></li>
+        <li class="decision"><b>Do core foes get the spar's extra hp in a run?</b> <span class="pick">Yes: warrior and shield 3x, rogue 1.5x. Fodder and shooters stay at today's hp.</span></li>
+        <li class="decision"><b>Boss?</b> <span class="pick">Floors end with the Turnkey, a warden from parts. One real boss at the end, built in slice 8.</span></li>
+        <li class="decision"><b>Currency?</b> <span class="pick">None through slice 8. Then at most one (tithe), spent only in Rest rooms, and only if playing shows a need.</span></li>
+        <li class="decision"><b>Between runs?</b> <span class="pick">Unlock items into the pools by deeds. No permanent stat boosts. The bone altar does not come back.</span></li>
+        <li class="decision"><b>If Gear and Boons feel the same in slice 5, merge them?</b> <span class="pick">Yes. Two layers that feel alike are one layer polished twice.</span></li>
+        <li class="decision"><b>Does the training hall become the run's hub?</b> <span class="pick">Yes. It exists, it has the moves panel, and a door out of it is the start button.</span></li>
+      </ol>
+    </section>
+
+    <!-- ============================== DEPENDENCIES ============================== -->
+    <section id="deps">
+      <h2>Assumptions to reconcile</h2>
+      <p>These are numbers and rules other pages own. This page assumes them; where they differ, theirs win and the arithmetic here changes.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Assumed here</th><th>Owner</th><th>If it is different</th></tr></thead>
+        <tbody>
+          <tr><td>Base kit about 8 inputs: dark signature, no element held at the start</td><td><a href="kits.html">kits.html</a></td><td>If one element is in the base, the first Attunement is the second element, and a run may hold all three.</td></tr>
+          <tr><td>An Attunement adds the ender and its big move, taught as one idea; everything else, crossovers included, is a Technique</td><td>kits.html, ruled on the <a href="index.html#disagreed">hub</a></td><td>Settled. If Zak picks the free-crossover alternative, the second Attunement adds up to three new inputs at once.</td></tr>
+          <tr><td>A run holds 2 of the 3 elements</td><td>kits.html</td><td>With 3, every run has every crossover, and variety falls to Techniques and Boons.</td></tr>
+          <tr><td>Crossovers are Techniques, always in the next offer once both elements are held</td><td>kits.html, ruled on the hub</td><td>Settled, as above.</td></tr>
+          <tr><td>A Technique pool of 8 to 10 per element pair</td><td>kits.html</td><td>Smaller pools make same-pair runs alike.</td></tr>
+          <tr><td>A first pool of 16 Boons, offered 1 of 3; the 18 matrix cells are the first Boons; the 3 flourishes wait</td><td><a href="loot.html">loot.html</a></td><td>Settled.</td></tr>
+          <tr><td>Gear: two slots (Graft, Shackle) and three rarities (Iron, Hallowed, Profane); elites give Gear one rarity up</td><td>loot.html</td><td>Settled. Boons have no rarity, so wardens give a plain Boon offer.</td></tr>
+        </tbody></table></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

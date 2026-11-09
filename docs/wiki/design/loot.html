@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gear and Boons</title>
+<meta name="description" content="Design draft: the heretic's two in-run power layers, Gear (what the arm becomes) and Boons (what the fight's rules become).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html" class="on">Gear and boons</a>
+    <small>
+      <a href="#layers">Two layers</a>
+      <a href="#gear">Gear</a>
+      <a href="#boons">Boons</a>
+      <a href="#builds">Builds</a>
+      <a href="#stacking">Stacking</a>
+      <a href="#pools">Pools and cost</a>
+      <a href="#reading">Reading it</a>
+      <a href="#decisions">Decisions</a>
+      <a href="#risks">Risks</a>
+      <a href="#later">Not yet</a>
+      <a href="#order">Build order</a>
+    </small>
+    <a href="run.html">The run</a>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>Gear and boons</h1>
+    <p class="lede">The two things a run gives you besides new moves. <span class="t-gear">Gear</span> is what the
+    arm becomes. <span class="t-boon">Boons</span> are what the fight's rules become.</p>
+
+    <section id="summary">
+      <div class="summary">
+        <ul>
+          <li><span class="t-gear">Gear</span> is two slots you can see on him: the <b>Graft</b> (the tentacle arm)
+            and the <b>Shackle</b> (the iron on his left wrist). Each piece names one move or weapon form and changes
+            how it works: reach, speed, damage, or which state it leaves. You wear one piece per slot. A drop is a
+            pick-up-or-leave choice you make standing on it, in a few seconds. Gear is lost when the run ends.</li>
+          <li>Three rarities: <b>Iron</b> (1 line), <b>Hallowed</b> (2 lines), <b>Profane</b> (1 line plus a rite
+            that changes what a move does). No item levels, no inventory, no stash.</li>
+          <li><span class="t-boon">Boons</span>: you pick 1 of 3 and keep it for the run. You never swap one or
+            lose one. Each boon names a state, a window or a system (the breaker, the counter, the dash, the
+            Awakening). It changes that rule for every move that touches it.</li>
+          <li>The first boon pool is nearly free. The game already has 18 stronger state payoffs (the old element
+            cells, <code>IMPROV_UPGRADE</code>), switched off behind <code>Kit.has()</code>. Each one is a finished,
+            judged boon. Turning one on is a data flip.</li>
+          <li>The test that keeps the layers apart (the <a href="index.html#layers">hub's</a>): <b>if it adds something you press, it is a
+            Technique. If it names a move or a weapon form, it is Gear. If it names a state, a window or a system, it is
+            a Boon.</b></li>
+          <li>Build Boons first and Gear second. If time runs out, Boons alone still make a roguelike. Gear alone
+            does not.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="layers">
+      <h2>1. What each layer is for, and why two</h2>
+      <p>A run already changes the heretic through <a href="kits.html"><span class="t-technique">Techniques</span>
+      and Attunements</a>: which moves he has and which elements. Gear and Boons must not repeat that, and must not
+      repeat each other. Each layer gets one job and one test.</p>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Gear: how a move works</h3>
+          <ul class="plain">
+            <li><b>Job:</b> the find. Something drops, you look, you decide. The Diablo moment, kept to seconds.</li>
+            <li><b>Names:</b> one move (Reap, Molten Palm, Backlash) or one weapon form (axe, spear, hammer, the
+              bare arm).</li>
+            <li><b>Changes:</b> how far, how fast, how hard, which state the hit leaves. At Profane, what the move
+              does.</li>
+            <li><b>Lasts:</b> until something better drops. You can swap it, so it is how you change course.</li>
+            <li><b>Shows:</b> on the arm and the wrist, all the time.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Boons: the rules of the fight</h3>
+          <ul class="plain">
+            <li><b>Job:</b> the commitment. You pick 1 of 3 and keep it. It is the backbone of the build.</li>
+            <li><b>Names:</b> one of the six states, the breaker window, the counter, the dash or the Awakening.</li>
+            <li><b>Changes:</b> what happens after a hit, for every move that touches that rule.</li>
+            <li><b>Lasts:</b> the whole run. Never swapped, never lost.</li>
+            <li><b>Shows:</b> in what happens: a different payoff, a different word.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>Why not split it as "Gear is numbers, Boons are rules"? With only numbers on Gear, every drop becomes a
+      spreadsheet. Letting Gear change the state a move leaves (Dash Stab leaves <i>frozen</i>) turns a drop into a
+      question about play: "do I want my lunge to freeze?" You can answer that in a second. It also feeds the Boons:
+      a Graft that makes a move leave <i>molten</i> is worth more if you hold a molten boon. That is how the two
+      layers work together without doing the same job.</p>
+
+      <h3>One layer or two?</h3>
+      <div class="grid2">
+        <div class="option">
+          <h4>A. Boons only</h4>
+          <p>Cheapest. The first 18 are already built. Every reward is a choice of three. Cost: nothing drops, he
+          looks the same in room 1 and room 12, and it is not what Zak asked for ("Diablo weapon/looting").</p>
+        </div>
+        <div class="option">
+          <h4>B. Gear only, with rule-bending lines</h4>
+          <p>One system to build. Cost: you can swap anything, so nothing is ever a commitment and builds never
+          settle. Random rule bends are harder to balance than chosen ones. The compare grows, because every line
+          matters.</p>
+        </div>
+        <div class="option pick">
+          <h4>C. Both, Boons first</h4>
+          <p>Each does what the other cannot. Boons give a build that settles. Gear gives a find, a way to change
+          course and a look. The extra cost is about a week on top of Boons: the floor card, two slots, a drop.
+          Built in that order, Boons alone can ship if Gear runs late, and Gear is judged in a game that already has
+          builds.</p>
+        </div>
+      </div>
+      <p class="note gold">Lesson from the old run (<code>docs/history/roadmap-rounds.md</code>): its powers were
+      sorted by button, levelled to 3, fused in pairs, boosted by synergy tags and rerolled at shrines. It added
+      breadth and numbers before the combat was good. This page keeps one rule per boon, two ranks at most and only
+      on number boons, no fusions (the crossovers in <a href="kits.html">Techniques</a> already are the pairs), and
+      no rerolls.</p>
+    </section>
+
+    <section id="gear">
+      <h2>2. Gear: the small loot game</h2>
+
+      <h3>Slots: two, both on the model</h3>
+      <p>The heretic's design (<code>docs/characters/heretic.md</code>) bans ornaments: no buckles, no jewellery, no
+      pouches. Only two things on him can change without breaking the silhouette. One is the arm (the brightest
+      thing on him; "the arm is the character"). The other is the broken shackle on his left wrist. Those are the
+      slots.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Slot</th><th>Where on him</th><th>What it changes</th><th>How it shows</th></tr></thead>
+        <tbody>
+          <tr><td><b>Graft</b></td><td>The tentacle arm and the weapons it grows</td><td>The light string, the
+          enders and big moves, the signature moves (Reap, Singularity, Black Tide, Overwhelm), by move or by form
+          (axe, spear, hammer, bare)</td><td>A band on the arm's deep purple cuff in the rarity's colour. Profane
+          also tints the weapon head it names.</td></tr>
+          <tr><td><b>Shackle</b></td><td>The iron band and two links on the left wrist</td><td>The dash, Dash Stab,
+          Tow Line, Backlash, Ricochet, the air dash, how fast the Awakening meter fills</td><td>The band's metal
+          changes: iron grey, then pale bone, then black iron with a crimson link.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="grid2">
+        <div class="option pick"><h4>Two slots</h4><p>Both are already modelled. Two cards compare in one glance.
+        Every drop is for one of two things you already know.</p></div>
+        <div class="option"><h4>Three slots (add Horns, for the Awakening)</h4><p>More drops matter. Cost: a third
+        change on the hood, the part the design says must stay clean, and a third card to compare. Keep for
+        later.</p></div>
+      </div>
+
+      <h3>Rarities: three, no item levels</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Rarity</th><th>Lines</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td><b>Iron</b> (<code>r-1</code>)</td><td>1 affix</td><td>One plain change to one move or form.</td></tr>
+          <tr><td><b>Hallowed</b> (<code>r-2</code>)</td><td>2 affixes</td><td>Two changes, usually two moves that
+          work together.</td></tr>
+          <tr><td><b>Profane</b> (<code>r-3</code>)</td><td>1 affix + 1 rite</td><td>A rite is fixed per item and
+          changes what a move does outright. Each Profane is hand-made and named.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Items do not scale with depth. A room-10 Iron is the same as a room-1 Iron. Later rooms drop rarer pieces
+      more often; how often is <a href="run.html">the run</a>'s call. This removes the worst spreadsheet in loot
+      games: comparing a bigger number against a better effect.</p>
+
+      <h3>Affixes</h3>
+      <p>An affix is one line. It names a move or a form and changes one thing about it. Iron and Hallowed lines
+      are drawn from the slot's pool, and a Hallowed never draws the same line twice. Each line has one fixed value
+      ("+15%", never "+11 to 19%"), so two Hallowed with the same lines are the same item. A piece has at most three
+      lines, counting a rite.</p>
+
+      <div class="grid2">
+        <div class="panel">
+          <h4>Graft pool (8)</h4>
+          <ul class="plain">
+            <li><b>Long Reach</b>: Reap, Black Tide and Overwhelm reach +<span class="ph">15%</span>. <i>C1</i></li>
+            <li><b>Quick Form</b>: the light string (<kbd>L</kbd>, <kbd>L</kbd> <kbd>L</kbd>, <kbd>L</kbd> <kbd>L</kbd>
+              <kbd>L</kbd>) plays <span class="ph">10%</span> faster. <i>C1</i></li>
+            <li><b>Heavy Head</b>: hammer moves (Triple Chop, Molten Palm, Undertow) +<span class="ph">15%</span>
+              damage. <i>C1</i></li>
+            <li><b>Keen Leaf</b>: spear moves (Frost Spear, Dash Stab) reach +<span class="ph">20%</span>. <i>C1</i></li>
+            <li><b>Wide Crescent</b>: Updraft Lash's gale radius +<span class="ph">20%</span>. <i>C1</i></li>
+            <li><b>Many Tips</b>: Harpoon takes <span class="ph">1</span> more foe (<code>HARPOON_MAX</code> 5 to
+              6). <i>C1</i></li>
+            <li><b>Hard Landing</b>: breaker landings off the big moves +<span class="ph">15%</span> damage. <i>C1</i></li>
+            <li><b>Frost Edge</b>: Dash Stab leaves the foe <i>frozen</i> for <span class="ph">1 s</span>. <i>C2</i></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h4>Shackle pool (8)</h4>
+          <ul class="plain">
+            <li><b>Quick Step</b>: dash cooldown <span class="ph">0.3 to 0.25 s</span>. <i>C1</i></li>
+            <li><b>Long Step</b>: dash distance +<span class="ph">15%</span>. <i>C1</i></li>
+            <li><b>Iron Answer</b>: Backlash damage +<span class="ph">25%</span> (18 to 22). <i>C1</i></li>
+            <li><b>Wide Watch</b>: Backlash's window <span class="ph">0.25 to 0.3 s</span>; the perfect stays
+              0.1 s. <i>C1</i></li>
+            <li><b>Hurled</b>: Ricochet +<span class="ph">25%</span> damage. <i>C1</i></li>
+            <li><b>Sky Grip</b>: <span class="ph">1</span> more air dash per trip up (<code>AIR_DASHES</code> 1 to
+              2). <i>C1</i></li>
+            <li><b>Tow Weight</b>: Tow Line drags <span class="ph">1 m</span> further. <i>C1</i></li>
+            <li><b>Kindling</b>: breaker landings give +<span class="ph">20%</span> Awakening. <i>C1</i></li>
+          </ul>
+        </div>
+      </div>
+      <p>Fifteen of the sixteen lines are one constant each. That is on purpose. The cheap lines carry the rarity
+      system; the expensive work goes into a few Profane rites. (Cost classes C0 to C4 are in
+      <a href="#pools">section 5</a>.)</p>
+
+      <h3>Sample items</h3>
+      <div class="grid2">
+        <div class="item t-gear r-1"><h4>Hooked Barb</h4><p><small>Graft, Iron</small></p>
+          <p>Long Reach: Reap, Black Tide and Overwhelm reach +<span class="ph">15%</span>.</p></div>
+        <div class="item t-gear r-1"><h4>Loose Link</h4><p><small>Shackle, Iron</small></p>
+          <p>Quick Step: dash cooldown <span class="ph">0.25 s</span>.</p></div>
+        <div class="item t-gear r-1"><h4>Knotted Cuff</h4><p><small>Graft, Iron</small></p>
+          <p>Frost Edge: Dash Stab leaves the foe <i>frozen</i> for <span class="ph">1 s</span>. A lunge that sets
+          up Shatter for whatever comes next.</p></div>
+        <div class="item t-gear r-2"><h4>Censer Chain</h4><p><small>Graft, Hallowed</small></p>
+          <p>Many Tips: Harpoon takes <span class="ph">6</span>. Wide Crescent: Updraft Lash's gale
+          +<span class="ph">20%</span>. An arm for gathering crowds.</p></div>
+        <div class="item t-gear r-2"><h4>Prison Weight</h4><p><small>Shackle, Hallowed</small></p>
+          <p>Wide Watch: Backlash window <span class="ph">0.3 s</span>. Hurled: Ricochet
+          +<span class="ph">25%</span>. Iron for a player who lives on the counter.</p></div>
+        <div class="item t-gear r-2"><h4>Bellrope Link</h4><p><small>Shackle, Hallowed</small></p>
+          <p>Sky Grip: <span class="ph">2</span> air dashes. Kindling: breakers give +<span class="ph">20%</span>
+          Awakening.</p></div>
+        <div class="item t-gear r-3"><h4>Tithe Blade</h4><p><small>Graft, Profane. Rite: C3</small></p>
+          <p><b>Rite:</b> the axe grows a hooked edge. Triple Chop (the third light) pays the state its foe is in,
+          as an element move does. Today <code>improvise()</code> skips the light string, so the plain string
+          becomes a payoff tool. Affix: Quick Form.</p></div>
+        <div class="item t-gear r-3"><h4>Unconsecrated Hammer</h4><p><small>Graft, Profane. Rite: C2</small></p>
+          <p><b>Rite:</b> Molten Palm leaves <i>molten</i> on every foe its lava line touches. Today molten comes only
+          from Lava Leash, Hellseam, Meteor Shower, Meltdown and Eruption, none of them in the magma Attunement, so
+          Burst is a late, rare payoff. This brings it to <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>.
+          Affix: Heavy Head. If Zak takes <a href="kits.html#attunements">kits.html</a>'s proposal that Molten Palm
+          leaves molten in the base behaviour, this rite needs a new job (for example: the molten lasts the whole
+          fight).</p></div>
+        <div class="item t-gear r-3"><h4>Gaoler's Knot</h4><p><small>Graft, Profane. Rite: C2</small></p>
+          <p><b>Rite:</b> Singularity (<kbd>H</kbd> <kbd>H</kbd>) leaves everyone in its hole <i>bound</i> for
+          <span class="ph">1.2 s</span> (the floor tendrils, <code>floor_bind</code>). Every gather sets up a Snap.
+          Affix: Long Reach.</p></div>
+        <div class="item t-gear r-3"><h4>Gallows Chain</h4><p><small>Shackle, Profane. Rite: C3</small></p>
+          <p><b>Rite:</b> Ricochet hangs the attacker where it lands, as if a hook were there (the gallows flourish
+          without the hook piece): bound <span class="ph">1.5 s</span>, every hit on it a Snap. Affix: Hurled.</p></div>
+        <div class="item t-gear r-3"><h4>Cuff of the Unshriven</h4><p><small>Shackle, Profane. Rite: C2</small></p>
+          <p><b>Rite:</b> Backlash's slam leaves the state of the form the arm last held: axe <i>charged</i>, spear
+          <i>frozen</i>, hammer <i>buried</i>, bare <i>bound</i>. The counter starts a combo instead of ending one.
+          Affix: Iron Answer.</p></div>
+      </div>
+
+      <h3>Drops and the compare</h3>
+      <ul class="plain">
+        <li><b>Where:</b> the chest piece (already in <code>env_piece.gd</code>: heavy, shut or open) and, rarely, a
+          foe. How many per room is <a href="run.html">the run</a>'s call.</li>
+        <li><b>On the floor:</b> a Graft is a glowing knot of tentacle, a Shackle a dropped iron band, in the
+          rarity's colour. It does not fly to you.</li>
+        <li><b>The compare:</b> walk onto it and a floor card opens beside it. The new piece is on the left, what you
+          wear in that slot on the right, three lines each at most. Lines that match are grey. A rite is in bold.
+          Nothing else: no totals, no damage-per-second.</li>
+        <li><b>The choice:</b> <kbd>E</kbd> swaps (the key is free since the old E move was removed). Your old piece
+          drops where you stand, so <kbd>E</kbd> again undoes a wrong swap. Walk away to leave it. Whatever is on the
+          floor is gone when you leave the room.</li>
+        <li><b>No inventory.</b> You carry only what you wear. No salvage, no selling, no stash.</li>
+        <li><b>In a fight:</b> the card stays shut while a foe near you winds up or while you are in a string. The
+          piece waits.</li>
+        <li><b>Run end:</b> all gear is lost. Whether a first Profane find is recorded anywhere is
+          <a href="run.html">the run</a>'s call. This page recommends nothing carries over.</li>
+      </ul>
+    </section>
+
+    <section id="boons">
+      <h2>3. Boons: the power buffs</h2>
+
+      <h3>Signs: how boons are grouped</h3>
+      <p>Every boon belongs to one <b>sign</b>. There are ten: the six states (bound, molten, buried, frozen,
+      airborne, charged) and four systems (breaker, counter, dash, Awakening). The six state signs use the marks
+      foes already carry (<code>comic_state_tell.gd</code>), so the icon on a boon is the mark you see on a foe.</p>
+      <div class="grid2">
+        <div class="option pick"><h4>By sign: states and systems</h4><p>Matches how the fight is already read. You
+        learn a frozen boon from frozen foes. Lets the offer show only what you can use.</p></div>
+        <div class="option"><h4>By element</h4><p>Overlaps <a href="kits.html">Attunements</a>, which already sort
+        by element. Two layers would say the same thing.</p></div>
+        <div class="option"><h4>By button</h4><p>The old run's paths (Light, Heavy, Dash, Awaken). Pushes toward
+        numbers on presses, not rule bends.</p></div>
+      </div>
+
+      <h3>The offer</h3>
+      <ul class="plain">
+        <li><b>Three cards, take one.</b> When and how often is <a href="run.html">the run</a>'s call. No reroll.</li>
+        <li><b>Three different signs</b> in each offer.</li>
+        <li><b>Only what you can use now.</b> A state boon is offered only if your current kit can leave that state.
+          A payoff boon for an element (Gale Lift needs storm) is offered only while you hold that
+          <a href="kits.html">Attunement</a>. A dark-and-magma run never sees a card it cannot trigger.</li>
+        <li><b>Lean in.</b> Once you hold boons, at least one card in each offer is from a sign you already hold.
+          Builds grow deep, not scattered.</li>
+      </ul>
+
+      <h3>Ranks and caps</h3>
+      <ul class="plain">
+        <li><b>Rule bends have one rank.</b> You have it or you do not.</li>
+        <li><b>Number boons have two ranks.</b> Taking one again makes it rank II, which doubles its step. After
+          that it is not offered again. No rank III.</li>
+        <li><b>At most three boons per sign.</b> A full sign stops being offered. Three deep in two or three signs is
+          a build.</li>
+        <li><b>One payoff per state per element.</b> This is already how the code works: <code>improv_cell()</code>
+          picks one payoff for a state and the element that hits it. Two frozen boons for different elements both
+          work. Two for the same element cannot exist.</li>
+      </ul>
+
+      <h3>Sample boons</h3>
+      <p><b>Data-only</b> means the behaviour, look and word are already in the game behind a <code>Kit.has()</code>
+      id; the boon is an offer card that calls <code>Kit.set_on()</code>. <b>New</b> means code to write.</p>
+
+      <h4>State boons, data-only (the old cells)</h4>
+      <div class="grid2">
+        <div class="item t-boon"><h4>Shard Cut</h4><p><small>Frozen sign. <span class="el-dark">Dark</span>.
+          Data-only, <code>shard_cut</code>. C0</small></p>
+          <p>Dark on a frozen foe crushes the ice, and the shards cut the foe beside it. Plays instead of
+          Shatter.</p></div>
+        <div class="item t-boon"><h4>Gale Lift</h4><p><small>Frozen sign. <span class="el-storm">Storm</span>.
+          Data-only, <code>gale_lift</code>. C0</small></p>
+          <p>Storm on a frozen foe takes the cube up, still in its ice: a juggle you can Shatter later.</p></div>
+        <div class="item t-boon"><h4>Overload</h4><p><small>Charged sign. <span class="el-storm">Storm</span>.
+          Data-only, <code>overload</code>. C0</small></p>
+          <p>Any storm hit sets off every charged foe within <span class="ph">8 m</span> at once, each harder for
+          every other charged foe.</p></div>
+        <div class="item t-boon"><h4>Superconduct</h4><p><small>Charged sign. <span class="el-ice">Ice</span>.
+          Data-only, <code>superconduct</code>. C0</small></p>
+          <p>Ice on a charged foe freezes it and runs the charge through every frozen foe within
+          <span class="ph">7 m</span>, charging them.</p></div>
+        <div class="item t-boon"><h4>Conduct</h4><p><small>Charged sign. <span class="el-dark">Dark</span>.
+          Data-only, <code>conduct</code>. C0</small></p>
+          <p>Dark on a charged foe keeps it charged and passes the charge to up to <span class="ph">4</span>
+          uncharged foes near it.</p></div>
+        <div class="item t-boon"><h4>Meteor Spike</h4><p><small>Airborne sign. <span class="el-magma">Magma</span>.
+          Data-only, <code>meteor_spike</code>. C0</small></p>
+          <p>Magma on an airborne foe drives it down into a crater, x<span class="ph">1.5</span>.</p></div>
+        <div class="item t-boon"><h4>Torn Loose</h4><p><small>Bound sign. <span class="el-storm">Storm</span>.
+          Data-only, <code>torn_loose</code>. C0</small></p>
+          <p>Storm on a bound foe tears it out of the bind and launches it.</p></div>
+        <div class="item t-boon"><h4>Smother</h4><p><small>Molten sign. <span class="el-dark">Dark</span>.
+          Data-only, <code>smother</code>. C0</small></p>
+          <p>Dark on a molten foe drives it into the floor, x<span class="ph">1.5</span>.</p></div>
+        <div class="item t-boon"><h4>Torn Off</h4><p><small>Frozen sign (skewered). <span class="el-dark">Dark</span>.
+          Data-only, <code>torn_off</code>. C0</small></p>
+          <p>Dark on a skewered foe rips it off the spear towards him, x<span class="ph">1.5</span>.</p></div>
+      </div>
+
+      <h4>State boons, new</h4>
+      <div class="grid2">
+        <div class="item t-boon"><h4>Long Thaw</h4><p><small>Frozen sign (see the note). New, one constant. C1.
+          Two ranks.</small></p>
+          <p>Every state lasts <span class="ph">+0.5 s</span> (rank II <span class="ph">+1 s</span>) over
+          <code>ELEMENT_HOLD</code> 2 s and <code>CHARGED_HOLD</code> 3 s. More time to dash into the other
+          element.</p></div>
+        <div class="item t-boon"><h4>Brittle Crowd</h4><p><small>Frozen sign. New, rule bend. C2</small></p>
+          <p>A Shatter freezes the nearest unfrozen foe within <span class="ph">2.6 m</span>. Reuses the cells'
+          chain (<code>_chain</code>) and the freeze.</p></div>
+        <div class="item t-boon"><h4>Deep Grave</h4><p><small>Buried sign. New, rule bend. C2</small></p>
+          <p>Crater no longer spends the buried state. The foe stays buried and can pay Crater again, once per
+          <span class="ph">1.5 s</span>.</p></div>
+        <div class="item t-boon"><h4>Wildfire</h4><p><small>Molten sign. New, rule bend. C2</small></p>
+          <p>Burst's burn leaves the foes it catches <i>molten</i>. One burst sets up the next. Once per foe per
+          <span class="ph">1.5 s</span>.</p></div>
+        <div class="item t-boon"><h4>Hang Time</h4><p><small>Airborne sign. New, one constant. C1. Two ranks.</small></p>
+          <p>Juggle keeps them up longer: <code>RULE_JUGGLE_LAUNCH</code> 7 to <span class="ph">8.5</span> m/s
+          (rank II <span class="ph">10</span>).</p></div>
+      </div>
+
+      <h4>System boons, new</h4>
+      <div class="grid2">
+        <div class="item t-boon"><h4>Aftermark</h4><p><small>Breaker sign. New, rule bend. C2</small></p>
+          <p>A breaker landing leaves its element's state on everyone it hits: storm <i>charged</i>, ice
+          <i>frozen</i>, magma <i>buried</i>, dark <i>bound</i>. Every breaker starts the next payoff.</p></div>
+        <div class="item t-boon"><h4>Free Fall</h4><p><small>Breaker sign. New, rule bend. C2</small></p>
+          <p>A PERFECT breaker resets the dash cooldown and gives one air dash on the way down. Perfect, then dash
+          straight into the next string.</p></div>
+        <div class="item t-boon"><h4>Slow Bell</h4><p><small>Breaker sign. New, two constants. C1. Two ranks.</small></p>
+          <p>The breaker window closes <span class="ph">0.06 s</span> later and the perfect is
+          <span class="ph">0.01 s</span> wider (<code>_WINDOW</code> close 0.62, perfect 0.06).</p></div>
+        <div class="item t-boon"><h4>Static Parry</h4><p><small>Counter sign. New, rule bend. C2</small></p>
+          <p>Every Backlash leaves the attacker <i>charged</i>. On a perfect, Ricochet's landing pays Arc through
+          every charged foe near it.</p></div>
+        <div class="item t-boon"><h4>Riposte Chain</h4><p><small>Counter sign. New, rule bend. C2</small></p>
+          <p>After any counter, for <span class="ph">2 s</span>, your next counter counts as perfect anywhere in the
+          <span class="ph">0.25 s</span> window. Once per counter.</p></div>
+        <div class="item t-boon"><h4>Cold Step</h4><p><small>Dash sign. New, rule bend. C2</small></p>
+          <p>Dashing through a foe leaves it <i>frozen</i> for <span class="ph">1 s</span>. The dash, the game's
+          escape, becomes a set-up.</p></div>
+        <div class="item t-boon"><h4>Open Eyes</h4><p><small>Awakening sign. New, rule bend. C2</small></p>
+          <p>While Awakened, your own element pays its own state's rule too (<code>RULE_OWN</code> is ignored):
+          storm on charged is Arc, ice on frozen is Shatter.</p></div>
+        <div class="item t-boon"><h4>Reckoning Bell</h4><p><small>Awakening sign. New, rule bend. C2</small></p>
+          <p>Waking pays every state on every foe in the burst (<code>AWAKEN_BURST_RADIUS</code>
+          <span class="ph">7 m</span>). Set up the room, then wake.</p></div>
+      </div>
+      <p class="note">Long Thaw touches every state. It sits in the frozen sign only so it has one icon. If that
+      feels wrong in play, give it the breaker sign. It is not worth an eleventh sign.</p>
+      <p>That is 22 samples: 9 data-only and 13 new. Of the new ones, 3 are number boons (C1) and 10 are rule bends
+      on states and windows that already exist (C2). None needs a new effect sheet. Each reuses its rule's tell and
+      word.</p>
+    </section>
+
+    <section id="builds">
+      <h2>4. How the three layers make a build</h2>
+      <p><span class="t-technique">Techniques</span> and Attunements are defined on <a href="kits.html">Simple
+      kits</a>. Each build follows them: two Attunements (each gives its ender and big move), and
+      <a href="run.html#cadence">run.html</a>'s 5 Techniques, three of them the pair's crossovers. Each takes run.html's
+      5 Boons. The move names below are the game's today.</p>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Thunder Cage</h3>
+          <ul class="plain">
+            <li><b>Attunements:</b> <span class="el-storm">storm</span>, <span class="el-ice">ice</span>.</li>
+            <li><b>Techniques:</b> the crossovers Galvanize, Impale and Hailstorm; Live Wire air (Worldbreaker); Short
+              Circuit. (The Attunements gave Live Wire with Grounded, and Harpoon.)</li>
+            <li><b>Gear:</b> Censer Chain (Graft, Hallowed), Loose Link (Shackle, Iron).</li>
+            <li><b>Boons:</b> Overload, Superconduct, Long Thaw, Free Fall, Slow Bell.</li>
+            <li><b>How it plays:</b> Harpoon the room, charge it with Live Wire, and one more storm hit sets the
+              whole cage off at once; you fight crowds from range and never stand in them.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Gravedigger</h3>
+          <ul class="plain">
+            <li><b>Attunements:</b> <span class="el-magma">magma</span>, <span class="el-storm">storm</span>.</li>
+            <li><b>Techniques:</b> the crossovers Lava Leash, Galvanize and Fault Line (with Rockslide's buried as its
+              step); Meteor Shower; Tempest. (The Attunements gave Molten Palm, and Undertow with Meteor Fall.)</li>
+            <li><b>Gear:</b> Unconsecrated Hammer (Graft, Profane), Bellrope Link (Shackle, Hallowed).</li>
+            <li><b>Boons:</b> Smother, Wildfire, Deep Grave, Meteor Spike, Aftermark.</li>
+            <li><b>How it plays:</b> every Molten Palm starts a fire that spreads and every hit drives something into
+              the floor, so you stand in the middle of the pile and hit each foe twice.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>The Gallows</h3>
+          <ul class="plain">
+            <li><b>Attunements:</b> <span class="el-ice">ice</span>, <span class="el-magma">magma</span>.</li>
+            <li><b>Techniques:</b> the crossovers Impale (Anvil), Lava Leash and Steam Burst; Slapshot; Black Tide.
+              (Dash Stab and Backlash are in the base kit.)</li>
+            <li><b>Gear:</b> Knotted Cuff (Graft, Iron), Gallows Chain (Shackle, Profane).</li>
+            <li><b>Boons:</b> Static Parry, Riposte Chain, Cold Step, Torn Off, Brittle Crowd.</li>
+            <li><b>How it plays:</b> you wait for them to swing, answer every strike, hang the attacker and shatter
+              the frozen ones round it; a duelist, not a brawler.</li>
+          </ul>
+        </div>
+      </div>
+      <p>The three differ in where you stand (at range, in the middle, at the edge), what you press most
+      (<kbd>H</kbd> holds, <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>, the dash) and what wins a room (a
+      chain, a pile, a counter). That is what "different characters" should mean.</p>
+    </section>
+
+    <section id="stacking">
+      <h2>Where Gear and Boons multiply, and how it stays sane</h2>
+      <div class="grid2">
+        <div class="panel">
+          <h4>Unconsecrated Hammer x Wildfire</h4>
+          <p>The Hammer makes Molten Palm leave molten on a line of foes. Wildfire makes each Burst leave molten on
+          the foes its burn catches. Together: one palm, then any hit, and the fire walks across the pack.</p>
+          <p><b>Kept sane by:</b> the code's rule that a state set during a move cannot pay in the same move
+          (<code>improvise()</code> reads every foe before any pays), plus a per-foe wait of
+          <span class="ph">1.5 s</span> before Burst can fire on it again. It spreads one ring per hit, never the
+          whole room in one frame.</p>
+        </div>
+        <div class="panel">
+          <h4>Censer Chain x Overload</h4>
+          <p>Harpoon taking 6 means 6 charged foes. Overload makes each zap harder for every other charged foe
+          (<code>OVERLOAD_PER</code> 0.35 each), so the total grows with the count squared.</p>
+          <p><b>Kept sane by:</b> a ceiling on Overload's multiplier (<span class="ph">x2.4</span>, five others),
+          however many are charged.</p>
+        </div>
+        <div class="panel">
+          <h4>Cuff of the Unshriven x Static Parry</h4>
+          <p>Two counter effects both want to set a state on the attacker. They would fight.</p>
+          <p><b>Kept sane by:</b> exclusivity. A boon and a Profane rite that change the same thing are never both
+          live. The offer does not show Static Parry while you wear the Cuff. Take the Cuff off and it can be offered
+          again.</p>
+        </div>
+        <div class="panel">
+          <h4>Aftermark x Tithe Blade</h4>
+          <p>Every breaker leaves a state, and the plain third light then pays it. Strong, and intended: the build
+          learns to use its whole kit.</p>
+          <p><b>Kept sane by:</b> nothing extra. A payoff spends its state, so it is one payoff per landing.</p>
+        </div>
+      </div>
+
+      <h3>Stacking rules (one table in the data)</h3>
+      <ol>
+        <li><b>Same number: add, never multiply.</b> Gear and boon steps on one number (a reach, a hold, a window)
+          add into one bonus. Two +15% reach is +30%, not x1.32.</li>
+        <li><b>Every tunable has a ceiling.</b> State hold at most <span class="ph">+1.5 s</span>. Breaker window
+          close at most <span class="ph">+0.12 s</span>. Dash cooldown no lower than <span class="ph">0.18 s</span>.
+          Overload at most <span class="ph">x2.4</span>. Air dashes at most <span class="ph">2</span>.</li>
+        <li><b>Chains wait per foe.</b> A boon that sets a state from a payoff (Wildfire, Brittle Crowd, Aftermark)
+          cannot set it on the same foe again for <span class="ph">1.5 s</span>.</li>
+        <li><b>One writer per thing.</b> A Profane rite and a boon that change the same move's result are never
+          offered together.</li>
+        <li><b>No damage-only boons.</b> A boon that is only "+x% damage" is cut. Damage lives on Gear lines, capped
+          by rule 1.</li>
+      </ol>
+    </section>
+
+    <section id="pools">
+      <h2>5. Pool sizes and the polish cost</h2>
+
+      <h3>Cost classes</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Class</th><th>What</th><th>Example</th><th>Rough cost to Zak</th></tr></thead>
+        <tbody>
+          <tr><td><b>C0</b></td><td>Data flip of something already built and judged</td><td>Shard Cut
+          (<code>shard_cut</code>)</td><td>A card's text; one play to confirm</td></tr>
+          <tr><td><b>C1</b></td><td>A number tweak: one or two existing constants</td><td>Quick Step, Long Thaw,
+          Slow Bell</td><td>An hour; one play</td></tr>
+          <tr><td><b>C2</b></td><td>A rule bend on an existing state, window or move, reusing its tell and
+          word</td><td>Aftermark, Cold Step, Unconsecrated Hammer</td><td>A day; a few plays; a check</td></tr>
+          <tr><td><b>C3</b></td><td>A new visible behaviour: a move does something it never did, with existing
+          sheets</td><td>Tithe Blade, Gallows Chain</td><td>Several days; film and judge</td></tr>
+          <tr><td><b>C4</b></td><td>A new effect: a sheet, a word, a model change</td><td>A Profane weapon head
+          mesh</td><td>A week or more</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>The first pools</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Pool</th><th>Size</th><th>By class</th></tr></thead>
+        <tbody>
+          <tr><td>Boons</td><td><span class="ph">16</span></td><td>8 C0 (the cells above except Torn Off), 3 C1
+          (Long Thaw, Hang Time, Slow Bell), 5 C2 (Aftermark, Free Fall, Cold Step, Static Parry, Wildfire)</td></tr>
+          <tr><td>Graft lines</td><td>8</td><td>7 C1, 1 C2</td></tr>
+          <tr><td>Shackle lines</td><td>8</td><td>8 C1</td></tr>
+          <tr><td>Profane items</td><td><span class="ph">3</span></td><td>Unconsecrated Hammer and Cuff of the
+          Unshriven (C2), Gallows Chain (C3)</td></tr>
+        </tbody>
+      </table></div>
+      <p>That is 8 C0, 18 C1, 8 C2 and 1 C3. Nothing in C4. The other samples, and the other 9 cells in
+      <code>IMPROV_UPGRADE</code>, are the second pool.</p>
+
+      <h3>Do runs differ with that? The arithmetic</h3>
+      <ul class="plain">
+        <li><b>Gear per slot:</b> 8 Iron + 28 Hallowed (8 choose 2) + 1 or 2 Profane = about <b>38</b> distinct
+          pieces. Two slots: about <b>1,400</b> pairs.</li>
+        <li><b>Boons:</b> a run ends with <span class="ph">5</span> boons (<a href="run.html#cadence">the run</a>'s
+          count), and 16 choose 5 is <b>4,368</b> sets before the filter, still thousands after.</li>
+        <li><b>Attunements:</b> a run holds two of three (<a href="kits.html#attunements">kits.html</a>), so 3 pairs,
+          and the filter means each pair sees a different part of the boon pool.</li>
+        <li><b>What a player feels</b> is not the count but the build's centre: its top two signs and its Profane,
+          if any. 10 signs give 45 sign pairs. With 3 Attunement pairs and 4 Profane cases (none, or one of 3), that
+          is over <b>500</b> recognisably different centres. Two runs in a row will rarely share one.</li>
+      </ul>
+      <p>The floor: about <b>12 boons across at least 6 signs</b> and <b>1 Profane per slot</b>. Below that, offers
+      repeat inside one run.</p>
+    </section>
+
+    <section id="reading">
+      <h2>6. Reading it in the fight</h2>
+      <p>The game already speaks three ways: comic words on payoffs, the combo guide on his right, and breaker names
+      called out on landings. Gear and Boons use those, and add one strip.</p>
+      <ul class="plain">
+        <li><b>The word tells you which boon fired.</b> A cell boon already has its own word: Shard Cut is SHA-KRAK!,
+          not Shatter's SHA-KRASH!. A new rule bend plays its rule's word with a small sign pip under it. You learn
+          "that was my boon" because the word changed.</li>
+        <li><b>The combo guide tells you what a string will pay.</b> It already tags a row "+ Shatter" from
+          <code>hero_moves.pays()</code>. With a boon, the tag shows the boon's name instead ("+ Shard Cut",
+          "+ Wildfire"). A move changed by a Profane rite gets a crimson dot by its name.</li>
+        <li><b>The strip:</b> bottom left, one row. Two gear chips (Graft and Shackle, in their rarity's colour, a
+          one-word name), then the boons as small sign icons grouped by sign, rank II drawn with a second ring. When
+          a boon fires, its icon flashes once. Nothing else is added in a fight.</li>
+        <li><b>The pause page, one screen:</b> "This run". Left column: Attunements and Techniques
+          (<a href="kits.html">kits.html</a>'s list). Middle: the two gear cards in full. Right: boons by sign, one
+          line each. Every line names the move or state it changes, in the move list's words.</li>
+      </ul>
+    </section>
+
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <ol>
+        <li class="decision"><b>Two layers, with the test "names a move or form is Gear; names a state, window or
+          system is a Boon"?</b> <span class="pick">Yes.</span></li>
+        <li class="decision"><b>How many gear slots?</b> <span class="pick">Two: Graft (the arm) and Shackle (the
+          wrist).</span></li>
+        <li class="decision"><b>How many rarities, and do items scale with depth?</b> <span class="pick">Three (Iron,
+          Hallowed, Profane). No scaling.</span></li>
+        <li class="decision"><b>Is gear lost when the run ends?</b> <span class="pick">Yes, all of it.</span></li>
+        <li class="decision"><b>Do the 18 existing upgrade cells become boons?</b> <span class="pick">Yes. They are
+          the first pool and nearly free. They are Boons, not Techniques.</span></li>
+        <li class="decision"><b>How are boons grouped?</b> <span class="pick">Ten signs: the six states, and
+          breaker, counter, dash, Awakening.</span></li>
+        <li class="decision"><b>Does the offer show only what you can use?</b> <span class="pick">Yes: no state your
+          kit cannot leave, no payoff for an element you do not hold.</span></li>
+        <li class="decision"><b>Do boons rank up?</b> <span class="pick">Number boons to rank II only. Rule bends
+          never.</span></li>
+        <li class="decision"><b>Rerolls?</b> <span class="pick">No.</span></li>
+        <li class="decision"><b>Which ships first?</b> <span class="pick">Boons. Gear after Boons are judged in
+          play.</span></li>
+      </ol>
+    </section>
+
+    <section id="risks">
+      <h2>Risks</h2>
+      <div class="risk"><b>Not every state is reachable early.</b> Today molten comes only from Lava Leash, Hellseam,
+      Meteor Shower, Meltdown and Eruption, and none of them is in the magma Attunement. If the kit leaves out the moves
+      that set a state, that sign's boons never appear. The filter hides the gap; it does not fill it. The fix is
+      <a href="kits.html#attunements">kits.html</a>'s proposal that Molten Palm leave molten (a decision on the
+      <a href="index.html#decisions">hub</a>); Unconsecrated Hammer is a partial fix until then. Early sign: count
+      how often each sign is offered over ten test runs.</div>
+      <div class="risk"><b>Some rule bends are invisible.</b> Deep Grave and Long Thaw change timing, and a player
+      may never notice. Every new boon must pass one test in play: can Zak tell it fired without looking at the
+      strip?</div>
+      <div class="risk"><b>Profane can outshine Boons.</b> A Profane that defines a build makes the boon offer feel
+      small. Keep Profane to one per slot and keep each rite on one move.</div>
+      <div class="risk"><b>Chains are where feel breaks.</b> Wildfire, Brittle Crowd, Aftermark and Overload all
+      spread. The waits and ceilings are guesses until played in a full room.</div>
+      <div class="risk"><b>The floor card in a fight.</b> If drops land mid-fight, the card may never feel safe to
+      read. "The card waits while a foe winds up" needs a feel check.</div>
+      <div class="risk"><b>Words get noisy.</b> Eight boons firing is a lot of comic words. If the screen clutters,
+      cell words stay and rule bends use only the pip.</div>
+    </section>
+
+    <section id="later">
+      <h2>Not yet</h2>
+      <div class="later"><b>A third slot (Horns, for the Awakening).</b> It touches the hood, the part that must stay
+      clean. Add it only if two slots feel thin.</div>
+      <div class="later"><b>Profane weapon head models.</b> C4 each. A tint first; a mesh once the item has proved
+      itself.</div>
+      <div class="later"><b>Sets, crafting, salvage, selling, a stash, item levels.</b> The spreadsheet half of loot
+      games. It is what "simpler" leaves out.</div>
+      <div class="later"><b>Rank III, rerolls, curses, trades.</b> The old run had them. They added choices about
+      numbers, not about play.</div>
+      <div class="later"><b>Gear that carries between runs.</b> <a href="run.html">The run</a> owns what carries.
+      This page recommends none.</div>
+      <div class="later"><b>Room-piece boons.</b> <code>gallows</code>, <code>ice_rink</code> and
+      <code>brazier_spill</code> are Kit ids already, but they only work in rooms with those pieces. Add them when
+      <a href="run.html">the run</a>'s rooms carry the pieces reliably.</div>
+    </section>
+
+    <section id="order">
+      <h2>Build order</h2>
+      <p>The master order is <a href="run.html#slices">run.html</a>'s ten slices. These steps are this page's
+      detail inside three of them: run slice 4 (Boons), run slice 5 (Gear) and run slice 8 (the full run).</p>
+      <ol>
+        <li class="slice" data-in="4"><h3>The offer, six cells</h3><p>A boon card screen (3 cards, take 1) that calls
+          <code>Kit.set_on()</code>. Six data-only boons: Shard Cut, Gale Lift, Overload, Superconduct, Meteor Spike,
+          Torn Loose. Until <a href="run.html">the run</a>'s rooms exist, open it from a debug key in training.
+          Judge: does picking one change how you play the next minute?</p></li>
+        <li class="slice" data-in="4"><h3>Signs and the filter</h3><p>The ten signs, "only what you can use", "lean in", the
+          guide's "+ boon name" tag and the strip. Judge: can you say what you hold without pausing?</p></li>
+        <li class="slice" data-in="4"><h3>Four rule bends</h3><p>Aftermark, Free Fall, Cold Step, Static Parry. Judge each alone,
+          then all four together.</p></li>
+        <li class="slice" data-in="5"><h3>Graft only</h3><p>Iron and Hallowed, the 8 Graft lines, the chest drop, the floor card
+          and the <kbd>E</kbd> swap. Judge: is pick-up-or-leave under three seconds?</p></li>
+        <li class="slice" data-in="5"><h3>Shackle and two Profanes</h3><p>The Shackle lines, Unconsecrated Hammer, Cuff of the
+          Unshriven, the exclusivity rule. Judge: does a Profane change the run without drowning out the
+          boons?</p></li>
+        <li class="slice" data-in="8"><h3>Fill the first pools and the ceilings</h3><p>16 boons, 3 Profanes, the stacking rules
+          in one data table. Judge with three full runs, each aiming at one of the three builds above.</p></li>
+      </ol>
+      <p>Data shape when it is built: one table (a <code>LOOT</code> dictionary beside <code>Kit.UPGRADES</code>),
+      one row per boon and per affix, each with its sign or slot, cost class, rank step and ceiling. Like
+      <code>RULES</code> and <code>BREAKERS</code>, the tuning lives in the table.</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>

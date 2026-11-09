@@ -1,0 +1,230 @@
+/* Awaken design drafts: the shared stylesheet for docs/wiki/design/*.html.
+   Part 1 is lifted from the inline <style> of ../index.html (the field guide), so these pages look like the same site.
+   Part 2 is the design-doc vocabulary (_template.html renders every class once).
+   The classes work on a div, li, section, article or p, inside .grid2 or not. */
+
+/* ================= Part 1: the wiki's tokens and base ================= */
+:root {
+  color-scheme: dark;
+  --floor: #16122a; --slab: #211b3b; --slab-2: #2b2450; --line: #403665; --ink: #050308;
+  --paper: #f6edd1; --paper-dim: #b5abc9; --gold: #ffc74d; --hot: #ff8014;
+  --storm: #b8ff24; --ice: #6bc7ff; --magma: #ff610d; --dark: #a35cff; --spirit: #47ebd6;
+  --display: "Bangers", Impact, "Arial Black", sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  /* The three layers of a run build. Kept off the element colours so a layer never reads as an element. */
+  --technique: #47ebd6;  /* teal: moves added to the kit */
+  --gear: #c9d3e6;       /* steel: things found and worn */
+  --boon: #ff5fb4;       /* magenta: rules bent */
+  --risk: #ff5a4d;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--floor); color: var(--paper); font: 16px/1.6 var(--body);
+  background-image: radial-gradient(rgba(163,92,255,.09) 1.2px, transparent 1.3px); background-size: 9px 9px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-wrap: break-word; }
+a { color: var(--gold); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 36px 80px; display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 44px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 22px; padding-block: 20px 60px; } }
+nav.rail { position: sticky; top: 20px; align-self: start; display: grid; gap: 3px; }
+nav.rail .mark { font: 44px/0.9 var(--display); color: var(--gold); letter-spacing: .03em; margin-bottom: 12px;
+  -webkit-text-stroke: 1.5px var(--ink); text-shadow: 3px 3px 0 var(--ink); transform: rotate(-3deg); }
+nav.rail a { color: var(--paper-dim); text-decoration: none; font-size: 14.5px; padding: 4px 0 4px 12px; border-left: 3px solid var(--line); }
+nav.rail a:hover, nav.rail a.on { color: var(--paper); border-left-color: var(--gold); }
+nav.rail small { display: grid; gap: 2px; padding-left: 12px; }
+nav.rail small a { font-size: 13px; border-left-width: 1px; }
+@media (max-width: 860px) {
+  nav.rail { position: static; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  nav.rail .mark { grid-column: 1 / -1; } nav.rail small { display: none; } }
+main { min-width: 0; display: grid; gap: 70px; }
+section { display: grid; gap: 18px; scroll-margin-top: 20px; min-width: 0; }
+h1, h2 { font-family: var(--display); font-weight: 400; letter-spacing: .03em; margin: 0; color: var(--gold);
+  -webkit-text-stroke: 1px var(--ink); text-shadow: 3px 3px 0 var(--ink); }
+h1 { font-size: clamp(56px, 11vw, 112px); line-height: .9; transform: rotate(-2deg); transform-origin: left; }
+h2 { font-size: clamp(34px, 5vw, 46px); line-height: 1; }
+h3 { font: 700 19px/1.3 var(--body); margin: 10px 0 0; color: var(--paper); }
+h4 { font: 700 16px/1.3 var(--body); margin: 0; color: var(--paper); }
+p { margin: 0; max-width: 72ch; }
+.lede { color: var(--paper-dim); }
+.big { font-size: 18.5px; }
+ul.plain, ol.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 74ch; }
+kbd { font: 600 12.5px/1 var(--mono); background: var(--slab-2); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 5px; padding: 3px 6px; white-space: nowrap; color: var(--paper); }
+code { font: 13.5px/1.4 var(--mono); color: var(--gold); overflow-wrap: anywhere; }
+.panel { background: var(--slab); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); border-radius: 6px; padding: 14px 18px; }
+.note { border-left: 4px solid var(--spirit); background: var(--slab); padding: 12px 16px; border-radius: 0 6px 6px 0; max-width: 76ch; }
+.note.gold { border-left-color: var(--gold); }
+/* the design pages put several paragraphs, lists and headings in one panel: space them */
+div.panel, div.note, a.panel { display: grid; gap: 8px; align-content: start; }
+div.panel > *, div.note > * { margin: 0; }
+.panel ol, .panel ul:not(.plain) { padding-left: 20px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
+ul.grid2, ol.grid2, ul.grid3, ol.grid3 { list-style: none; margin: 0; padding: 0; }
+.card h3 { margin: 0 0 6px; font: 26px/1 var(--display); letter-spacing: .03em; color: var(--gold); }
+.card p, .card li { font-size: 15px; color: var(--paper-dim); }
+.card ul { margin: 0; padding-left: 18px; }
+.tbl { overflow-x: auto; border: 2px solid var(--ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--ink); background: var(--slab); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 640px; }
+.tbl.narrow table { min-width: 0; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--paper-dim); background: var(--slab-2); position: sticky; top: 0; }
+.chip { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: .05em; padding: 4px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--paper-dim); white-space: nowrap; margin: 1px 0; }
+.dim { color: var(--paper-dim); }
+details { background: var(--slab); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); border-radius: 6px; padding: 12px 16px; }
+details summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 12px; }
+footer { color: var(--paper-dim); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+/* ================= Part 2: the design-doc vocabulary ================= */
+
+/* --- draft: the banner that opens every page (pulled up toward the h1 against main's 70px gap) --- */
+.draft { justify-self: start; max-width: 100%; margin: 0 0 -46px; font: 600 12px/1.4 var(--mono); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink); padding: 6px 12px; border: 2px solid var(--ink); border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, var(--hot) 0 12px, #ff9a45 12px 24px); box-shadow: 3px 3px 0 var(--ink); }
+
+/* a lede or summary straight under the h1 sits closer than main's 70px gap */
+main > h1 + .lede, main > h1 + .summary, main > .lede + .summary { margin-top: -40px; }
+
+/* --- summary: the 30-second box (a class, never the <summary> element) --- */
+.summary:not(summary) { background: var(--slab); border: 3px solid var(--ink); outline: 2px solid var(--gold); outline-offset: -8px;
+  box-shadow: 6px 6px 0 var(--ink); border-radius: 6px; padding: 20px 24px 20px; display: grid; gap: 10px; font-size: 17.5px;
+  max-width: 82ch; list-style: none; margin: 0; }
+.summary:not(summary)::before { content: "The short version"; justify-self: start; font: 20px/1 var(--display); letter-spacing: .05em;
+  color: var(--ink); background: var(--gold); padding: 4px 10px 3px; border-radius: 3px; transform: rotate(-1.5deg); }
+.summary:not(summary) > * { margin: 0; }
+.summary ul, .summary ol { padding-left: 20px; display: grid; gap: 4px; }
+
+/* --- numbering: decisions and slices count themselves within a top-level section or a list --- */
+main > section:not(.decision):not(.slice), main > article:not(.decision):not(.slice),
+ol:not(.flow):not(.decision):not(.slice), ul:not(.flow):not(.decision):not(.slice) { counter-reset: dec slc; }
+li.decision, li.slice, li.option, li.risk, li.later, li.item { list-style: none; }
+ol:has(> .decision), ul:has(> .decision), ol:has(> .slice), ul:has(> .slice),
+ol:has(> .risk), ul:has(> .risk), ol:has(> .later), ul:has(> .later),
+ol:has(> .option), ul:has(> .option), ol:has(> .item), ul:has(> .item) {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+ol.grid2:has(> *), ul.grid2:has(> *) { gap: 16px; }
+
+/* --- decision: one "Decisions for Zak" item: <b> question, <span class="pick"> recommended answer --- */
+.decision { counter-increment: dec; position: relative; display: block; max-width: 82ch; margin: 0;
+  background: var(--slab); border: 2px solid var(--ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--ink);
+  padding: 12px 16px 12px 62px; min-height: 60px; }
+.decision::before { content: counter(dec); position: absolute; left: 12px; top: 11px; width: 36px; height: 36px;
+  display: grid; place-items: center; font: 24px/1 var(--display); color: var(--ink); background: var(--gold);
+  border: 2px solid var(--ink); border-radius: 50%; box-shadow: 2px 2px 0 var(--ink); }
+.decision b:first-child, .decision strong:first-child { display: block; color: var(--paper); font-size: 16.5px; margin-bottom: 4px; }
+.decision .pick:not(.option), span.pick { display: block; color: var(--paper-dim); }
+.decision .pick:not(.option)::before, span.pick::before { content: "\2192\00a0Pick:\00a0"; color: var(--gold); font-weight: 700; }
+.decision p { margin: 4px 0 0; color: var(--paper-dim); font-size: 15px; }
+
+/* --- option: a choice card; .pick marks the recommended one --- */
+.option { position: relative; display: grid; gap: 8px; align-content: start; margin: 0; min-width: 0;
+  background: var(--slab); border: 2px solid var(--ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--ink); padding: 14px 18px; }
+.option > * { margin: 0; }
+.option h3, .option h4 { margin: 0; font: 24px/1.05 var(--display); letter-spacing: .03em; color: var(--paper); }
+.option p, .option li { font-size: 15px; }
+.option ul { margin: 0; padding-left: 18px; }
+.option.pick { outline: 3px solid var(--gold); outline-offset: -3px; box-shadow: 6px 6px 0 var(--ink); }
+.option.pick::before { content: "Recommended"; justify-self: start; font: 18px/1 var(--display); letter-spacing: .05em;
+  color: var(--ink); background: var(--gold); padding: 4px 9px 3px; border-radius: 3px; transform: rotate(-2deg); }
+.option.pick h3, .option.pick h4 { color: var(--gold); }
+
+/* --- risk, and later (a "Not yet" item) --- */
+.risk, .later { display: block; margin: 0; max-width: 80ch; padding: 10px 16px 10px 46px; position: relative; border-radius: 0 6px 6px 0; }
+.risk { background: rgba(255,90,77,.09); border-left: 4px solid var(--risk); }
+.risk::before { content: "!"; position: absolute; left: 13px; top: 11px; width: 21px; height: 21px; display: grid; place-items: center;
+  font: 17px/1 var(--display); color: var(--ink); background: var(--risk); border: 2px solid var(--ink); border-radius: 3px; }
+.risk b:first-child, .later b:first-child, .risk strong:first-child, .later strong:first-child { color: var(--paper); }
+.later { border: 2px dashed var(--line); border-left: 4px dashed var(--paper-dim); color: var(--paper-dim); }
+.later::before { content: "\2715"; position: absolute; left: 16px; top: 10px; font: 600 14px/1.6 var(--mono); color: var(--paper-dim); }
+.risk p, .later p { margin: 4px 0 0; }
+
+/* --- slice: one build-order step, labelled "Slice 1, 2, ..." --- */
+.slice { counter-increment: slc; display: grid; gap: 6px; margin: 0; max-width: 82ch; position: relative;
+  background: var(--slab); border: 2px solid var(--ink); border-left: 8px solid var(--spirit); border-radius: 6px;
+  box-shadow: 4px 4px 0 var(--ink); padding: 12px 16px; }
+.slice::before { content: "Slice " counter(slc); justify-self: start; font: 600 11.5px/1 var(--mono); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink); background: var(--spirit); padding: 4px 8px; border-radius: 3px; }
+/* a page's own step inside a master slice of run.html: <div class="slice" data-in="2"> reads "Inside run slice 2" */
+.slice[data-in] { counter-increment: none; border-left-color: var(--line); }
+.slice[data-in]::before { content: "Inside run slice " attr(data-in); background: var(--paper-dim); }
+.slice > * { margin: 0; }
+.slice h3, .slice h4 { margin: 0; }
+.slice ul { margin: 0; padding-left: 18px; }
+
+/* --- item: a sample Technique, Gear piece or Boon card. The layer is the tab, the top bar and the corner shape --- */
+.item { --layer: var(--paper-dim); --layer-name: "Item"; position: relative; display: grid; gap: 6px; align-content: start;
+  margin: 0; min-width: 0; max-width: 46ch; background: var(--slab); border: 2px solid var(--ink); border-top: 6px solid var(--layer);
+  border-radius: 6px; box-shadow: 4px 4px 0 var(--ink); padding: 10px 14px 12px; font-size: 15px; }
+.grid2 > .item, .grid3 > .item { max-width: none; }
+.item::before { content: var(--layer-name); justify-self: start; font: 600 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink); background: var(--layer); padding: 4px 7px; border-radius: 0 0 4px 4px; margin: -10px 0 2px; }
+.item > * { margin: 0; }
+.item > b:first-of-type, .item > strong:first-of-type, .item h3, .item h4 { display: block; margin: 0; font: 22px/1.05 var(--display); letter-spacing: .03em; color: var(--paper); }
+.item p, .item li { color: var(--paper-dim); }
+.item ul { margin: 0; padding-left: 18px; }
+.item.t-technique { --layer: var(--technique); --layer-name: "Technique"; }
+.item.t-gear { --layer: var(--gear); --layer-name: "Gear"; border-radius: 1px; }
+.item.t-gear::before { border-radius: 0; }
+.item.t-boon { --layer: var(--boon); --layer-name: "Boon"; border-radius: 14px 14px 6px 6px; }
+.item.t-boon::before { border-radius: 0 0 9px 9px; }
+/* rarity: pips top right; rarer is louder */
+.item.r-1::after, .item.r-2::after, .item.r-3::after { position: absolute; top: 5px; right: 10px; font: 13px/1 var(--mono); letter-spacing: .12em; color: var(--layer); }
+.item.r-1::after { content: "\25C6\25C7\25C7"; }
+.item.r-2::after { content: "\25C6\25C6\25C7"; }
+.item.r-3::after { content: "\25C6\25C6\25C6"; }
+.item.r-2 { box-shadow: 4px 4px 0 var(--ink), inset 0 0 0 1px var(--layer); }
+.item.r-3 { box-shadow: 4px 4px 0 var(--layer), 7px 7px 0 var(--ink); background: linear-gradient(180deg, var(--slab-2), var(--slab) 75%); }
+/* a layer word in running text: <span class="t-boon">Boons</span> */
+:not(.item).t-technique { color: var(--technique); font-weight: 700; }
+:not(.item).t-gear { color: var(--gear); font-weight: 700; }
+:not(.item).t-boon { color: var(--boon); font-weight: 700; }
+
+/* --- ph: a placeholder number to tune --- */
+.ph { font-family: var(--mono); font-size: .92em; color: var(--paper); background: rgba(255,128,20,.15);
+  border-bottom: 2px dotted var(--hot); padding: 0 3px; border-radius: 2px; }
+
+/* --- element colours (text; with .chip they get a matching border) --- */
+.el-dark { color: var(--dark); font-weight: 700; }
+.el-storm { color: var(--storm); font-weight: 700; }
+.el-ice { color: var(--ice); font-weight: 700; }
+.el-magma { color: var(--magma); font-weight: 700; }
+.chip.el-dark { border-color: rgba(163,92,255,.55); } .chip.el-storm { border-color: rgba(184,255,36,.45); }
+.chip.el-ice { border-color: rgba(107,199,255,.45); } .chip.el-magma { border-color: rgba(255,97,13,.5); }
+
+/* --- ol.flow: boxes joined by arrows; turns vertical on a phone --- */
+ol.flow, ul.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 14px 34px; align-items: stretch; }
+ol.flow > li, ul.flow > li { position: relative; flex: 1 1 130px; max-width: 240px; min-width: 0; background: var(--slab-2); border: 2px solid var(--ink);
+  border-radius: 6px; box-shadow: 3px 3px 0 var(--ink); padding: 9px 12px; font-size: 14.5px; line-height: 1.35; }
+ol.flow > li > b:first-child, ul.flow > li > b:first-child { display: block; font: 19px/1.05 var(--display); letter-spacing: .03em; color: var(--gold); }
+ol.flow > li:not(:last-child)::after, ul.flow > li:not(:last-child)::after { content: ""; position: absolute; top: 50%; right: -28px;
+  width: 20px; height: 16px; margin-top: -8px; background: var(--gold); clip-path: polygon(0 25%, 55% 25%, 55% 0, 100% 50%, 55% 100%, 55% 75%, 0 75%); }
+@media (max-width: 600px) {
+  ol.flow, ul.flow { flex-direction: column; gap: 28px; }
+  ol.flow > li, ul.flow > li { max-width: none; flex: 0 0 auto; }
+  ol.flow > li:not(:last-child)::after, ul.flow > li:not(:last-child)::after { top: auto; bottom: -26px; right: auto; left: 22px;
+    width: 16px; height: 20px; margin: 0; clip-path: polygon(25% 0, 75% 0, 75% 55%, 100% 55%, 50% 100%, 0 55%, 25% 55%); }
+}
+
+/* --- the hub's page map: a whole card is the link --- */
+a.card { display: grid; gap: 8px; align-content: start; text-decoration: none; color: var(--paper); }
+a.card:hover { outline: 3px solid var(--gold); outline-offset: -3px; }
+a.card h3 { margin: 0; }
+a.card .go { font: 600 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); margin-top: 4px; }
+
+/* --- motion: tiny hover lifts, none when reduced --- */
+.option, .item, a.card { transition: transform .12s ease-out; }
+.option:hover, .item:hover, a.card:hover { transform: translate(-1px, -1px); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .option:hover, .item:hover, a.card:hover { transform: none; }
+}
+
+/* --- phone width --- */
+@media (max-width: 520px) {
+  .summary:not(summary) { padding: 16px 18px; font-size: 16.5px; }
+  .decision { padding-left: 54px; }
+  .decision::before { left: 9px; width: 32px; height: 32px; font-size: 21px; }
+}

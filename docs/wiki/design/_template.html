@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design Page Vocabulary</title>
+<meta name="description" content="Every class of the design drafts' stylesheet, rendered once, for the lanes that write the pages.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>Vocabulary</h1>
+
+    <section id="summary">
+      <h2>Summary and text</h2>
+      <div class="summary">
+        <p>The <code>summary</code> box. The recommendation in plain sentences a tired reader gets in 30 seconds.</p>
+        <p>Layer words in text: <span class="t-technique">Techniques</span>, <span class="t-gear">Gear</span>, <span class="t-boon">Boons</span>.</p>
+      </div>
+      <p class="big">A <code>big</code> paragraph. Elements: <span class="el-dark">dark</span>, <span class="el-storm">storm</span>, <span class="el-ice">ice</span>, <span class="el-magma">magma</span>. Shatter pays x<span class="ph">1.6</span> (a <code>ph</code> placeholder). Inputs: <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd>.</p>
+      <p class="lede">A <code>lede</code> paragraph, dimmer.</p>
+      <div class="grid2">
+        <div class="panel"><p>A <code>panel</code> in a <code>grid2</code>.</p></div>
+        <div class="note gold"><p>A <code>note gold</code>. Plain <code>note</code> is teal.</p></div>
+      </div>
+      <ul class="plain"><li><code>ul.plain</code>, item one.</li><li>Item two.</li></ul>
+      <div class="tbl"><table>
+        <thead><tr><th>Slot</th><th>Move</th><th>Input</th><th>Verdict</th></tr></thead>
+        <tbody><tr><td>Light ender 1</td><td>Updraft Lash</td><td><kbd>L</kbd> <kbd>H</kbd></td><td>Keep (a <code>tbl</code> scrolls on a phone)</td></tr></tbody>
+      </table></div>
+    </section>
+
+    <section id="items">
+      <h2>Items</h2>
+      <div class="grid2">
+        <div class="item t-technique r-1"><b>Storm Pitch</b><p>Technique, rarity <code>r-1</code>. <kbd>Dash</kbd> <kbd>H</kbd> <kbd>L</kbd>: Tow Line hurls the bunch, lightning off them.</p></div>
+        <div class="item t-gear r-2"><b>Sample Gear</b><p>Gear, rarity <code>r-2</code>. Breaker window <span class="ph">+0.1</span> s.</p></div>
+        <div class="item t-boon r-3"><b>Sample Boon</b><p>Boon, rarity <code>r-3</code>. Frozen foes shatter twice.</p></div>
+        <div class="item t-boon"><b>No rarity</b><p>An <code>item</code> without <code>r-*</code>.</p></div>
+      </div>
+    </section>
+
+    <section id="choices">
+      <h2>Options and decisions</h2>
+      <div class="grid2">
+        <div class="option"><h3>Option A</h3><p>An <code>option</code>. Cost: one line.</p></div>
+        <div class="option pick"><h3>Option B</h3><p>An <code>option pick</code>: the recommended one.</p></div>
+      </div>
+      <ol>
+        <li class="decision"><b>A question Zak answers in one sentence?</b> <span class="pick">The recommended answer.</span></li>
+        <li class="decision"><b>The next question?</b> <span class="pick">Numbers itself with a counter.</span></li>
+      </ol>
+    </section>
+
+    <section id="order">
+      <h2>Build order, risks, not yet</h2>
+      <ol class="flow"><li><b>Room</b>A fight.</li><li><b>Reward</b>Pick one of three.</li><li><b>Next room</b>Harder.</li><li><b>Boss</b>The run's end.</li></ol>
+      <ol>
+        <li class="slice"><h3>The thinnest slice</h3><p>A <code>slice</code>: one build step, playable and judgeable.</p></li>
+        <li class="slice"><h3>The next slice</h3><p>Numbers itself.</p></li>
+      </ol>
+      <div class="risk"><b>A risk.</b> Stated honestly, with what would show it early.</div>
+      <div class="later"><b>A "Not yet" item.</b> What to leave out, and why.</div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

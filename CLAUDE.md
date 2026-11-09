@@ -70,4 +70,6 @@ from film), `land-worktree` (worktrees, rebase, land, locks), `windows-patching`
 ## Where things are written down
 `docs/architecture.md` (how the code works), `docs/features/` (one doc per feature), `docs/agents.md` (the worktree
 protocol), `ROADMAP.md` (`## Now`: open items and Zak's calls), `docs/history/` (every past audit, round list and
-the 2026-11-08 cleanup report), `docs/characters/` (design docs), `CREDITS.md` (CC0 sources).
+the 2026-11-08 cleanup report), `docs/characters/` (design docs), `CREDITS.md` (CC0 sources). `docs/wiki/design/` (HTML drafts for Zak's review:
+the roguelike direction, the small base kit, Techniques / Gear / Boons, the run and its ten-slice build order;
+proposals until Zak answers the hub's decisions, so do not build from them unasked).

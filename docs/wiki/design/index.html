@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Awaken Design Hub</title>
+<meta name="description" content="Design drafts for Awaken's roguelike run: a smaller base kit, and a run build made of Techniques, Gear and Boons.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html" class="on">Design hub</a>
+    <small>
+      <a href="#pitch">The pitch</a>
+      <a href="#layers">Three layers</a>
+      <a href="#numbers">One run in numbers</a>
+      <a href="#plan">The plan</a>
+      <a href="#decisions">Decisions</a>
+      <a href="#disagreed">Where pages disagreed</a>
+      <a href="#risks">Risks</a>
+      <a href="#map">The pages</a>
+    </small>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>Design hub</h1>
+
+    <section id="summary">
+      <div class="summary">
+        <p>Start each run with a small kit: eight slots, no input longer than three presses, one signature (the tentacle).</p>
+        <p>Everything else the heretic does today comes back during the run, as rewards in three layers: <span class="t-technique">Techniques</span>, <span class="t-gear">Gear</span> and <span class="t-boon">Boons</span>.</p>
+        <p>Pools stay small, and every reward changes what you do or see, not only a number. Two runs should play like two different heretics.</p>
+        <p>Build it in ten thin slices. The first is three rooms with today's full kit, to learn whether the heretic is fun against a live crowd.</p>
+      </div>
+    </section>
+
+    <section id="pitch">
+      <h2>The pitch</h2>
+      <h3>Why the base kit shrinks</h3>
+      <p>Today the heretic starts with everything. That is 24 slots in 10 groups, 15 timed breaker windows, 6 crossover moves, 4 elements and 6 foe states, with inputs up to 6 presses (Hailstorm into Meltdown is <kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>H</kbd> <kbd>L</kbd>). The combat feels good. But two things follow from it.</p>
+      <ul class="plain">
+        <li><b>A new player cannot hold it.</b> The first room teaches a few strings. The rest is noise until the player is ready for it.</li>
+        <li><b>A run has nothing to give.</b> If you already own every move, a reward can only be a bigger number. Bigger numbers do not make a run feel different.</li>
+      </ul>
+      <p>So most of the kit moves out of the starting hand. Nothing is thrown away. The moves are already built and polished, so they become the run's best rewards. Only one move is gated this way today: Storm Pitch (<kbd>Dash</kbd> <kbd>H</kbd> <kbd>L</kbd>) sits behind <code>Kit.has("storm_pitch")</code> in <code>scripts/kit_slots.gd</code>. The <code>upgrades</code> gate already works; the plan uses it for much more of the kit.</p>
+      <p>The base kit is the dark alone (<a href="kits.html#base">Simple kits</a>): the light string, Reap, Singularity, Overwhelm, Dash Stab, Tow Line, Backlash and the Awakening. With no element held, H after the string is the grab, so <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd> is the string, the grab, Singularity and Collapse.</p>
+      <p class="lede">The kit grammar stays. Every character still fills the same slots with the same inputs. The small kit is eight slots of that card. A run fills in about eight more.</p>
+
+      <h3>What a run looks like</h3>
+      <p>You enter with the small kit. Room 1 pays an Attunement: say <span class="el-ice">ice</span>. The spear turns ice-blue, <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> becomes Frost Spear, and Harpoon freezes a crowd into a row of cubes. The next Technique offer always holds Impale, ice's crossover with the dark. Gear drops from fights: Censer Chain on the arm makes Harpoon take six foes. A Boon bends a rule for every move: with Brittle Crowd, every Shatter freezes the foe beside it. Floor 2 opens with a second Attunement, <span class="el-magma">magma</span>, and Steam Burst, the ice and magma crossover, comes in the next offer. By the last warden you play a frost-and-fire heretic built around rows and walls. Next run you take <span class="el-storm">storm</span> first, and play a launching, chaining heretic with different answers.</p>
+      <ol class="flow">
+        <li><b>Small kit</b>8 slots, the dark alone.</li>
+        <li><b>Room 1</b>The first Attunement.</li>
+        <li><b>Rooms</b>Two doors after each: Technique, Gear or Boon.</li>
+        <li><b>Floor 2</b>The second Attunement.</li>
+        <li><b>Final warden</b>About 16 slots, a build you chose.</li>
+      </ol>
+
+      <h3>What we learned last time</h3>
+      <p>An earlier version of Awaken had a whole run: reward cards, powers with paths and fusions, a bone altar, daily seeds, trials, a run map. It was cut so the heretic's combat could get good first (see <a href="run.html#postmortem">The run we had</a>). The lesson is that it was wide before the combat was good. This plan is narrow on purpose. The run's rewards are mostly the moves that are already finished, and every new item costs a feel pass, so pools start small.</p>
+    </section>
+
+    <section id="layers">
+      <h2>Three layers</h2>
+      <p>A run build has exactly three layers. Each page uses these words and these colours. One test sorts every reward:</p>
+      <div class="grid3">
+        <div class="item t-technique"><b>Techniques</b><p><b>Adds something you press:</b> a new input, or a new ending in a breaker window. Mostly the moves moved out of the base kit, and all six crossovers. <b>Attunements</b> are Techniques too: taking an element for this run gives its weapon colour, its ender, and its big move with the H ending.</p></div>
+        <div class="item t-gear"><b>Gear</b><p><b>Changes how a named move or weapon form behaves,</b> and carries the plain numbers. Two slots you can see on him (the Graft, the Shackle), three rarities (Iron, Hallowed, Profane), short affix lists. Found in the run, lost at its end.</p></div>
+        <div class="item t-boon"><b>Boons</b><p><b>Bends a rule for every move:</b> a foe state's payoff, the breaker window, the counter, the dash, the Awakening. Pick 1 of 3, keep it all run. The 18 old element cells (<code>IMPROV_UPGRADE</code>) are the first pool.</p></div>
+      </div>
+      <ul class="plain">
+        <li><b>A crossover exists only while you hold both its elements.</b> Each is a Technique; once you hold both, it is always in the next Technique offer.</li>
+        <li><b>Input length:</b> the base kit caps at 3 presses. Anything a run adds caps at 5. The 6-press Hailstorm into Meltdown stays parked.</li>
+        <li><b>One new idea per room.</b> An Attunement's ender and big move count as one idea, because the big move is the ender plus one more H (ice is the one exception; see <a href="kits.html#attunements">Simple kits</a>).</li>
+        <li><b>Boons ship first, and can ship alone.</b> Boons alone already make a roguelike, and the first pool is nearly free. Gear comes after Boons are judged in play. If picking Gear then feels like picking a Boon, merge them (decision 11).</li>
+      </ul>
+    </section>
+
+    <section id="numbers">
+      <h2>One run in numbers</h2>
+      <p>The run page owns these. Every page quotes them. All are placeholders to tune.</p>
+      <div class="tbl narrow"><table>
+        <thead><tr><th>What</th><th>Count</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Rooms</td><td><span class="ph">12</span> + 3 wardens</td><td>Three floors of four rooms, a warden after each. About <span class="ph">25</span> minutes.</td></tr>
+          <tr><td>Reward picks</td><td><span class="ph">14</span></td><td>One per room and per floor warden; the final warden ends the run.</td></tr>
+          <tr><td>Attunements</td><td>2</td><td>Forced, in floor 1 room 1 and floor 2 room 1. Two of the three elements.</td></tr>
+          <tr><td>Techniques</td><td><span class="ph">5</span></td><td>Three of them the pair's crossovers. Offer: 1 of 2, or skip.</td></tr>
+          <tr><td>Boons</td><td><span class="ph">5</span></td><td>Offer: 1 of 3. A Rest room's heal can take the place of one.</td></tr>
+          <tr><td>Gear drops</td><td><span class="ph">2 to 3</span></td><td>Keep or leave, into two slots. Elites drop one rarity up.</td></tr>
+          <tr><td>Kit at the end</td><td>about <span class="ph">16</span> slots</td><td>8 base, 4 from the Attunements, 3 crossovers, about 1 more. Today: 24.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="lede">Worked out room by room in <a href="run.html#cadence">The run</a>'s example: 2 Attunements, 5 Techniques, 4 Boons and a heal, 2 Gear, ending at 16 slots.</p>
+    </section>
+
+    <section id="plan">
+      <h2>The plan</h2>
+      <p>One build order: <a href="run.html#slices">The run</a>'s ten slices. Each adds one thing, and Zak plays it ten times before the next. <a href="kits.html#build-order">Simple kits</a> and <a href="loot.html#order">Gear and boons</a> each list their own steps inside these slices.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Slice</th><th>What it adds</th><th>The question it answers</th></tr></thead>
+        <tbody>
+          <tr><td><b>1</b></td><td>Three real rooms, today's full kit, existing foes, a pick between rooms from the 19 ids already behind <code>Kit.has()</code>, a seed</td><td>Is the heretic fun against a live crowd?</td></tr>
+          <tr><td><b>2</b></td><td>The 8-slot base kit, and Techniques as the picks</td><td>Does room 1 feel complete, and does one new idea per room feel like growth?</td></tr>
+          <tr><td><b>3</b></td><td>Attunements: room 1 is always one; two per run</td><td>Do two runs with different pairs feel like two characters?</td></tr>
+          <tr><td><b>4</b></td><td>Boons, starting with the old element cells</td><td>Does a Boon change what he does, or only a number?</td></tr>
+          <tr><td><b>5</b></td><td>Gear: the Graft, then the Shackle</td><td>Does Gear give something Boons do not? If not, merge them.</td></tr>
+          <tr><td><b>6</b></td><td>Two doors after each room, each showing its reward</td><td>Does the player steer toward a build?</td></tr>
+          <tr><td><b>7</b></td><td>One floor and the Turnkey, a warden from parts</td><td>Is one floor a satisfying session?</td></tr>
+          <tr><td><b>8</b></td><td>Three floors and one real boss</td><td>Does the build carry the whole run, and is the end a climax?</td></tr>
+          <tr><td><b>9</b></td><td>Tithe and the stall, only if needed</td><td>Does a currency reward leaving Gear behind and playing well?</td></tr>
+          <tr><td><b>10</b></td><td>Unlocks between runs</td><td>Do the first runs feel simpler, and do deeds make players try new items?</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <p>Each one is answerable in a sentence, with a recommended answer. They are ordered by how early they block work. The pages keep their full lists; the link goes to the section that argues each one.</p>
+      <p class="note gold"><b>The first four block slices 1 and 2.</b> The rest can wait until their slice comes up.</p>
+      <ol>
+        <li class="decision"><b>Is slice 1 the next thing to build: three real rooms, today's full kit, existing foes, a pick between rooms from the 19 ids behind <code>Kit.has()</code>?</b> <span class="pick">Yes. Its one question is whether the heretic is fun against a live crowd. (<a href="run.html#slices">The run</a>)</span></li>
+        <li class="decision"><b>Do core foes get the spar's extra hp in a run?</b> <span class="pick">Yes: warrior and shield 3x, rogue 1.5x. Fodder and shooters stay as today. (<a href="run.html#fights">The run</a>)</span></li>
+        <li class="decision"><b>Is the base kit the dark alone: the light string, Reap, Singularity, Overwhelm, Dash Stab, Tow Line, Backlash and the Awakening?</b> <span class="pick">Yes. Black Tide is the one tentacle verb that becomes a Technique. (<a href="kits.html#base">Simple kits</a>)</span></li>
+        <li class="decision"><b>With no element held, is H after the string the grab?</b> <span class="pick">Yes. The code already falls back to it, and it teaches "H is the tentacle". (<a href="kits.html#verdict">Simple kits</a>)</span></li>
+        <li class="decision"><b>What does an Attunement give?</b> <span class="pick">Its weapon's colour, its ender, and its big move with the H ending. Every crossover is a Technique, always in the next offer once both its elements are held, so the kit grows one idea at a time. The alternative, Simple kits' first draft: all at once, with the dark crossover and the pair's crossover given free. (<a href="kits.html#attunements">Simple kits</a>)</span></li>
+        <li class="decision"><b>Is the first reward of every run an Attunement, and does a run hold two of the three elements?</b> <span class="pick">Yes to both. If an unattuned room 1 is dull, start each run with one element held instead. (<a href="run.html#cadence">The run</a>)</span></li>
+        <li class="decision"><b>Ice's big move in a run: Harpoon or Deep Freeze?</b> <span class="pick">Harpoon: three presses, works anywhere, and both ice crossovers start from it. Deep Freeze becomes a Technique. (<a href="kits.html#attunements">Simple kits</a>)</span></li>
+        <li class="decision"><b>Should Molten Palm leave molten for about <span class="ph">2</span> s (new behaviour)?</b> <span class="pick">Yes, so the magma Attunement feeds its own Burst rule and molten Boons can be offered. Unconsecrated Hammer's rite then needs a new job. (<a href="kits.html#attunements">Simple kits</a>, <a href="loot.html#risks">Gear and boons</a>)</span></li>
+        <li class="decision"><b>Are Boons grouped by ten signs, and does an offer show only what the kit can use?</b> <span class="pick">Yes: the six states plus breaker, counter, dash and Awakening, and no card the build cannot trigger. (<a href="loot.html#boons">Gear and boons</a>)</span></li>
+        <li class="decision"><b>Gear: two slots (Graft, Shackle), three rarities (Iron, Hallowed, Profane), no item levels, all lost at run end?</b> <span class="pick">Yes. (<a href="loot.html#gear">Gear and boons</a>)</span></li>
+        <li class="decision"><b>If picking Gear feels like picking a Boon once slice 5 is played, merge the two layers?</b> <span class="pick">Yes. Two layers that feel alike are one layer polished twice. (<a href="run.html#slices">The run</a>)</span></li>
+        <li class="decision"><b>The full run: three floors of four rooms, two doors after each room and no map, the Turnkey warden from parts, one real boss at the end?</b> <span class="pick">Yes, about 25 minutes. Build one floor first. (<a href="run.html#shape">The run</a>)</span></li>
+      </ol>
+      <p class="lede">Still on the pages only: currency and what carries between runs (<a href="run.html#decisions">The run</a>); boon ranks and rerolls (<a href="loot.html#decisions">Gear and boons</a>); Impale absorbing Backdraft, Meltdown parked, void-coloured weapons (<a href="kits.html#decisions">Simple kits</a>).</p>
+    </section>
+
+    <section id="disagreed">
+      <h2>Where the pages disagreed</h2>
+      <p>The three pages were written at the same time and disagreed in places. Each line is how it was settled. Any of them can be overruled.</p>
+      <div class="panel">
+        <ul class="plain">
+          <li><b>What each layer is.</b> Settled by one test: a Technique adds a press, Gear changes a named move, a Boon bends a rule for every move.</li>
+          <li><b>The 18 element cells.</b> Simple kits made them Techniques; Gear and boons made them Boons. They add no press, so they are Boons.</li>
+          <li><b>The room flourishes</b> (Gallows, Ice Rink, Brazier Spill). The run used them as early Boons. They are Boons, under Not yet until rooms carry their pieces.</li>
+          <li><b>Input length.</b> The base kit caps at 3 presses, anything a run adds at 5, and the 6-press input stays parked.</li>
+          <li><b>What an Attunement grants.</b> Simple kits lit four things at once and gave the crossovers free; the run wanted one new input per room. Now it is the colour, the ender and the big move, and every crossover is a Technique that is always in the next offer. This is decision 5.</li>
+          <li><b>Counts per run.</b> Simple kits assumed 5 Techniques without the crossovers, Gear and boons 7 Boons, the run 4 Techniques, 5 Boons and 4 Gear. The run's numbers rule, adjusted so they add up: 5 Techniques with the crossovers, 5 Boons, 2 to 3 Gear.</li>
+          <li><b>"One rarity up" for Boons.</b> The run gave elites and wardens a rarer reward, but Boons have no rarity. Elites now drop Gear one rarity up, and wardens give a plain Boon offer.</li>
+          <li><b>Three build orders.</b> The run's ten slices are the master order. The other two pages' steps are labelled with the run slice they belong to.</li>
+          <li><b>Invented names.</b> The run's sample Gear ("Grounding Chain", "Rimed Hook") became Gear and boons' real samples. The run's elite traits and the Turnkey stay.</li>
+          <li><b>Molten.</b> Gear and boons said only Meltdown sets molten. In the code, Lava Leash, Hellseam, Meteor Shower, Meltdown and Eruption set it, and none of them is in the magma Attunement. Simple kits' fix is decision 8.</li>
+          <li><b>Gear and boons' sample builds</b> had one Attunement each and listed route steps as Techniques. They now hold two Attunements and five real Techniques.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="risks">
+      <h2>Risks</h2>
+      <p>The top five across the pages. Each page lists its own in full.</p>
+      <div class="risk"><b>The kit may not survive a crowd.</b> Every string was tuned on still dummies. If slice 1 says no, combat work comes before the run. (<a href="run.html#risks">The run</a>)</div>
+      <div class="risk"><b>The run outgrows the combat again.</b> Agents can build a slice a day; Zak can judge one every few days. The order only works if each slice waits for its ten runs. (<a href="run.html#risks">The run</a>)</div>
+      <div class="risk"><b>Room 1 may feel grey.</b> The base kit has no element, and the colours are the fun. The fix is a fast first Attunement, not a bigger base kit. (<a href="kits.html#risks">Simple kits</a>)</div>
+      <div class="risk"><b>Gear and Boons may blur.</b> Both are passive and add no presses. If players cannot tell them apart, one layer is wasted polish, and decision 11 merges them. (<a href="loot.html#risks">Gear and boons</a>)</div>
+      <div class="risk"><b>Gates can quietly break routes.</b> The checks test today's full card. They must also test the base kit, each Attunement and each pair. (<a href="kits.html#risks">Simple kits</a>)</div>
+    </section>
+
+    <section id="map">
+      <h2>The pages</h2>
+      <div class="grid3">
+        <a class="panel card" href="kits.html"><h3>Simple kits</h3><p>What stays in the base kit, slot by slot, and what moves out to become Techniques and Attunements. The template every future character fills.</p><span class="go">Read Simple kits</span></a>
+        <a class="panel card" href="loot.html"><h3>Gear and boons</h3><p>Gear slots, rarities and affixes, the Boon pool, and how the two combine with Techniques into a build.</p><span class="go">Read Gear and boons</span></a>
+        <a class="panel card" href="run.html"><h3>The run</h3><p>Rooms, pacing, when each layer is offered, currencies, difficulty, what carries between runs, and the ten-slice build order.</p><span class="go">Read The run</span></a>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
