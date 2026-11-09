@@ -17,7 +17,6 @@ const WEAPON := ["L1", "L2", "L3", "DL", "AL1"]
 class Foe extends CharacterBody3D:
 	var radius := 0.5
 	var hp := 5000.0
-	var elite := false
 	var hits := 0
 	var frozen := false
 	func chill(_t: float, _m: float) -> void: pass
@@ -33,7 +32,6 @@ class Foe extends CharacterBody3D:
 func _initialize() -> void:
 	await process_frame
 	game = root.get_node("Game")
-	game.comic_style = true
 	LOOK = load("res://scripts/comic_look.gd")
 	world = Node3D.new()
 	root.add_child(world)

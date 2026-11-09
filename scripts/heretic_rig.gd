@@ -212,7 +212,6 @@ func setup(arm: Node, skel: Skeleton3D) -> void:
 	_tighten_awaken_rim(arm.hero)
 	_scale_model(arm.hero.model, skel)
 	skel.add_child(self)
-	_warm_fx(skel)
 	_add_springs(skel)
 	_add_eyes(skel)
 	_add_grin(skel)
@@ -593,23 +592,6 @@ func _step_face(delta: float) -> void:
 		var m: Node3D = grin.get_child(0)
 		var sc := Vector2(m.scale.x, m.scale.y).lerp(mouth, minf(delta * SQUINT_SPEED, 1.0))
 		m.scale = Vector3(sc.x, sc.y, 1.0)
-
-
-## One empty triangle in the burst's material, so its shader is ready before the first swing.
-func _warm_fx(skel: Skeleton3D) -> void:
-	var mesh := ArrayMesh.new()
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
-	arrays[Mesh.ARRAY_COLOR] = PackedColorArray([Color.BLACK, Color.BLACK, Color.BLACK])
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, FORM_FX.material())
-	var warm := MeshInstance3D.new()
-	warm.name = "FormFxWarm"
-	warm.mesh = mesh
-	warm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	warm.set_meta("no_ghost", true)
-	skel.add_child(warm)
 
 
 func form_weight(form: String) -> float:

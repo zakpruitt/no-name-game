@@ -11,7 +11,7 @@ extends SceneTree
 ## facing at move_speed, so planted feet that skate slide on the floor between shots.
 
 const FRONT := ["hero", "dummy", "minion", "rogue", "shield", "warrior"]
-const BACK := ["mage", "archer", "bomber", "necromancer", "warden"]
+const BACK := ["mage", "archer"]
 const STEP := 2.0  # m between models in a row
 const FRONT_Z := 3.0  # m in front of the hero's spot (towards the camera)
 const BACK_Z := 0.0
@@ -81,7 +81,7 @@ func _initialize() -> void:
 	for kind: String in placed:
 		if nodes.has(kind):
 			continue
-		nodes[kind] = main._spawn_boss() if kind == "warden" else main._spawn(kind, false, placed[kind])
+		nodes[kind] = main._spawn(kind, false, placed[kind])
 		nodes[kind].global_position = placed[kind]
 		nodes[kind].set_physics_process(false)  # no chase, no windup rings
 	await create_timer(1.4).timeout

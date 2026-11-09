@@ -1,7 +1,7 @@
 extends Node
 ## Tendrils out of the floor that have hold of foes for a while: Undertow drags them waist-deep, Overwhelm
-## piles on, Black Tide has none and is only the floor. Small foes are pinned where they stand, big ones are only slowed, and everyone takes
-## damage as it goes. See docs/features/void-element.md.
+## piles on, Black Tide has none and is only the floor. Small foes are pinned where they stand, big ones (radius
+## 0.9+; none in play) are only slowed, and everyone takes damage as it goes. See docs/features/void-element.md.
 
 const ELEMENTS := preload("res://scripts/elements.gd")
 const TENDRIL := preload("res://scripts/void_tendril.gd")
@@ -45,9 +45,9 @@ static func bind(by: CharacterBody3D, foes: Array, opts := {}) -> Node:
 
 
 func _take(e: Node3D) -> void:
-	var big: bool = float(e.get("radius")) >= 0.9 or e.has_method("is_boss") or e.get("elite") == true
+	var big: bool = float(e.radius) >= 0.9
 	var rows := []
-	var r := float(e.get("radius")) + ROPE_SPREAD
+	var r := float(e.radius) + ROPE_SPREAD
 	var count: int = ropes + (2 if big and ropes > 0 else 0)
 	for i in count:
 		var a := TAU * i / float(count) + randf() * 0.5
@@ -105,7 +105,7 @@ func _physics_process(delta: float) -> void:
 			var body: Variant = e.get("model")
 			if sink > 0.0 and body != null:
 				body.position.y = -_depth
-		var coil := float(e.get("radius")) + 0.05
+		var coil := float(e.radius) + 0.05
 		var first := true
 		for rope: Dictionary in s.ropes:
 			rope.tendril.draw(rope.from, e.global_position + Vector3.UP * (0.3 if sink > 0.0 else 0.9), smoothstep(0.0, ROPE_OUT, _t), 0.08, coil if first else 0.0, _t)

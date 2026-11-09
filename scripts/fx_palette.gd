@@ -1,12 +1,12 @@
 extends RefCounted
-## One palette per element for the flat comic effects (comic_pop, comic_bolt, comic_gale, comic_geyser,
+## One palette per element for the flat comic effects (comic_pop, comic_bolt, comic_gale,
 ## comic_fist, comic_comet, comic_crack, dark_fx, frost_spear), so a string reads as one designed set
 ## rather than a pile of colours (Zak, round 33: "sleeker and more put together ... very thick colours").
 ## Each element has five tones, darkest to lightest: ink (the line, a near-black of the element), deep
 ## (shadow tone), body (the flat colour), light (the rim / edge light) and hot (the core, near white).
 ## The sleek rules every drawer follows:
 ##   - Lines are thin: LINE m of ink round a shape, not a hull 1.2-2x its size.
-##   - Fills are not opaque slabs: the body fades out toward its edges (EDGE_ALPHA) or its tail, and the
+##   - Fills are not opaque slabs: the body fades out toward its edges or its tail, and the
 ##     light tone is a rim along the leading edge, not a second filled shape.
 ##   - One hot core per hit, small.
 ## Words and damage numbers keep their hot red-yellow (an element colour sinks into its own effect).
@@ -25,7 +25,6 @@ const PX_PER_M := 48.0  # screen px per metre at the game camera, 1080p (a 0.42 
 ## A text outline in font px that comes out `TEXT_INK_PX` on screen for text drawn at `px_per_font_px`.
 static func text_ink(px_per_font_px: float) -> int:
 	return maxi(1, roundi(TEXT_INK_PX / maxf(px_per_font_px, 0.01)))
-const EDGE_ALPHA := 0.55  # a fill's alpha at its outer edge (its middle is opaque)
 
 const ELEMENTS := {
 	## Storm = lightning (fx-air): electric lime round a white-hot core. Was one green for wind and bolts alike; the

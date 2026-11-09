@@ -84,10 +84,7 @@ func _turn() -> void:
 		_catch()
 	_hit.clear()
 	var tip := Vector3(_from.x, HEIGHT, _from.z) + dir * reach
-	if Game.comic_style and Fx.DESIGNED.on():  # fx-polygons: the snap is a drawn star in the lash's element
-		Fx.DESIGNED.hit(get_parent(), tip, el, 1.0)
-	else:
-		Fx.flare(get_parent(), tip, Color(color, 0.9), size * 0.9, 0.12, "star8", true)
+	Fx.DESIGNED.hit(get_parent(), tip, el, 1.0)  # the snap: a drawn star in the lash's element
 
 
 ## Round 55: the lash goes for the straggler. Round the line to the foe he lunged at (his aim lock, else his aim), the
@@ -172,8 +169,7 @@ func _let_go(arrived: bool) -> void:
 		Game.register_hit("cast")
 		Game.hitstop(CATCH_STOP)
 		Game.shake(0.2)
-		if Game.comic_style and Fx.DESIGNED.on():
-			Fx.DESIGNED.hit(get_parent(), e.global_position + Vector3.UP * HEIGHT, "void", 1.1)
+		Fx.DESIGNED.hit(get_parent(), e.global_position + Vector3.UP * HEIGHT, "void", 1.1)
 
 
 func _exit_tree() -> void:

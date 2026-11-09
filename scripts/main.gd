@@ -1,7 +1,8 @@
 extends Node3D
 ## The training room: builds the arena, spawns the hero, camera, HUD and a few
 ## training dummies that never fight back or die (training_dummy.gd), and
-## shows each string's damage. Esc opens the training pause menu.
+## shows each string's damage. Esc opens the training pause menu. `_spawn()` is
+## for `--spar=` (spar.gd) and the tests; nothing else spawns foes.
 ##
 ## `-- --autotest` adds the bot (training_bot.gd): it plays the room for a
 ## few seconds, prints `[autotest]`, `[training]` and `[perf]` lines and quits.
@@ -11,7 +12,6 @@ const PLAYER := preload("res://scripts/player.gd")
 const ENEMY := preload("res://scripts/enemy.gd")
 const CAMERA := preload("res://scripts/camera_rig.gd")
 const HUD := preload("res://scripts/hud.gd")
-const BOSS := preload("res://scripts/boss.gd")
 const PAUSE := preload("res://scripts/pause_menu.gd")
 const DUMMY := preload("res://scripts/training_dummy.gd")
 const SPAR := preload("res://scripts/spar.gd")
@@ -22,7 +22,6 @@ const ROOMS := preload("res://scripts/rooms.gd")
 const BOT := preload("res://scripts/training_bot.gd")
 const DUMMY_SPOTS := [Vector3(-1.6, 0.0, -4.5), Vector3(1.6, 0.0, -4.5), Vector3(-4.2, 0.0, -3.2), Vector3(4.2, 0.0, -3.2)]  # from the hero, all in view
 const ENEMY_TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
-const BOSS_SPEC: Dictionary = preload("res://scripts/enemy_types.gd").BOSS
 const PILLARS: Array = ROOMS.PILLARS
 const PILLAR_R := 0.75  # m: the pillars' collider (and env_target's structure radius)
 const HINT_GAP := 7.0
@@ -42,8 +41,8 @@ var _time := 0.0
 var _occluders: Array[Node3D] = []
 # The near-edge rubble row; fades the same way.
 var _edge_rubble: Array[Node3D] = []
-# Character models by name, loaded once up front: loading a .glb mid-fight hitched ~150ms.
-var _models := {}
+# Occluder -> its MeshInstance3Ds, gathered once when it is placed (_fade_occluders runs every frame).
+var _occluder_meshes := {}
 
 var _dummy: Node  # the first of _dummies
 var _dummies := []
@@ -66,12 +65,10 @@ func _ready() -> void:
 	if autotest:
 		Game.save_hints = false
 		Game._hints_seen.clear()  # show them all, without touching the saved ones
-	_build_environment()
+	ComicLook.build_environment(self)
 	_build_arena()
-	for spec: Dictionary in ENEMY_TYPES.values() + [BOSS_SPEC]:
-		_model(spec.model)
 
-	player = (load("res://scripts/prince/prince.gd") if Game.hero == "prince" else PLAYER).new()  # --hero=prince
+	player = PLAYER.new()
 	add_child(player)
 	player.died.connect(_on_player_died)
 	player.ELEMENTS.prewarm(self, player.global_position)
@@ -84,8 +81,7 @@ func _ready() -> void:
 
 	hud = HUD.new()
 	add_child(hud)
-	if Game.comic_style:
-		add_child(ComicFx.new())
+	add_child(ComicFx.new())
 	hud.bind_player(player)
 
 	add_child(PAUSE.new())
@@ -108,7 +104,7 @@ func _start_training() -> void:
 	hud.wave_label.text = "TRAINING"  # (no big centre banner: it sat over the first strings)
 	for spot: Vector3 in DUMMY_SPOTS:
 		var dummy: Node = DUMMY.new()
-		_set_model(dummy, "dummy", "Skeleton_Warrior")  # the comic punching bag (assets/comic/dummy.glb)
+		_set_model(dummy, "dummy")  # the comic punching bag (assets/comic/dummy.glb)
 		dummy.set_meta("kind", "dummy")
 		add_child(dummy)
 		dummy.home = player.global_position + spot
@@ -181,15 +177,15 @@ func _on_player_died() -> void:
 
 # --- Foes -----------------------------------------------------------------------
 
-## A foe of ENEMY_TYPES `kind`, on a ring around the player unless `at` is given.
-func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
+## A foe of ENEMY_TYPES `kind`, on a ring around the player unless `at` is given (`_elite` is a spent
+## flag the tests still pass; every foe is plain now).
+func _spawn(kind: String, _elite := false, at := Vector3.INF) -> Node:
 	var e := ENEMY.new()
 	var spec: Dictionary = ENEMY_TYPES[kind]
-	_set_model(e, kind, spec.model)
+	_set_model(e, kind)
 	for key in spec:
 		if key not in ["model", "title"]:  # (`title` is display data enemy.gd has no field for)
 			e.set(key, spec[key])
-	e.elite = elite
 	e.set_meta("kind", kind)
 	add_child(e)
 	if at != Vector3.INF:
@@ -202,66 +198,13 @@ func _spawn(kind: String, elite := false, at := Vector3.INF) -> Node:
 	return e
 
 
-func _spawn_boss() -> Node:
-	var b := BOSS.new()
-	_set_model(b, "warden", BOSS_SPEC.model)
-	for key in BOSS_SPEC:
-		if key != "model":
-			b.set(key, BOSS_SPEC[key])
-	add_child(b)
-	b.global_position = Vector3(0.0, 0.0, -9.0)
-	b.summon.connect(func(count: int) -> void:
-		for i in count:
-			_spawn("minion"))
-	hud.show_boss(b)
-	return b
-
-
-func _model(model_name: String) -> PackedScene:
-	if not _models.has(model_name):
-		_models[model_name] = load("res://assets/kaykit/characters/%s.glb" % model_name)
-	return _models[model_name]
-
-
-## The comic GLB when Game.comic_style is on and it exists, else the KayKit model.
-func _set_model(e: Node, kind: String, kaykit: String) -> void:
-	var comic := ComicLook.scene(kind)
-	e.model_scene = comic if comic != null else _model(kaykit)
-	e.comic_kind = kind if comic != null else ""
+## The kind's comic GLB (assets/comic/<kind>.glb; every kind has one).
+func _set_model(e: Node, kind: String) -> void:
+	e.model_scene = ComicLook.scene(kind)
+	e.comic_kind = kind
 
 
 # --- World ------------------------------------------------------------------
-
-func _build_environment() -> void:
-	if Game.comic_style:
-		ComicLook.build_environment(self)
-		return
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.05, 0.05, 0.09)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.55, 0.6, 0.8)
-	env.ambient_light_energy = 0.45
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.glow_enabled = true
-	env.glow_intensity = 0.6
-	env.glow_bloom = 0.05
-	env.ssao_enabled = true
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
-	sun.light_energy = 1.1
-	sun.light_color = Color(1.0, 0.95, 0.88)
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 60.0
-	# The camera is fixed and looks down, so 2 cascades cover it (each cascade
-	# redraws every shadow caster).
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	add_child(sun)
-
 
 func _build_arena() -> void:
 	env = ENV_TARGET.new()
@@ -304,7 +247,9 @@ func _build_arena() -> void:
 
 	# Low rubble line marks the open near edge.
 	for i in range(-HALF_TILES, HALF_TILES):
-		_edge_rubble.append(_place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0))
+		var rubble := _place("rubble_half", Vector3((i + 0.5) * TILE, 0.0, ARENA_HALF - 0.4), randf() * 360.0)
+		_edge_rubble.append(rubble)
+		_occluder_meshes[rubble] = rubble.find_children("*", "MeshInstance3D", true, false)
 
 	# The room's pieces (rooms.gd): pillars, torches, banners, the corner clutter, and with pieces the training layout.
 	for e: Dictionary in ROOMS.layout(room):
@@ -314,13 +259,8 @@ func _build_arena() -> void:
 		var n := ENV_PIECE.place(self, e.tag, e.at, e.get("yaw", 0.0), "", opts)
 		if e.get("occlude", false):
 			_occluders.append(n)
-		if e.get("light", false) and not Game.comic_style:  # (comic: glow is drawn, not lit: the toon shader would only step it)
-			var l := OmniLight3D.new()
-			l.light_color = Color(1.0, 0.6, 0.3)
-			l.light_energy = 2.0
-			l.omni_range = 9.0
-			l.position = Vector3(e.at.x, 3.0, -ARENA_HALF + 1.2)
-			add_child(l)
+			_occluder_meshes[n] = n.find_children("*", "MeshInstance3D", true, false)
+		# (`light`: a torch's glow is drawn, not lit; the toon shader would only step a light)
 
 
 func _place(piece: String, pos: Vector3, yaw_deg := 0.0) -> Node3D:
@@ -352,8 +292,9 @@ func _fade_occluders(delta: float) -> void:
 		var d := o.global_position - hp
 		var blocking := d.z > 0.0 and d.z < 7.0 and absf(d.x) < 1.8 + (TILE * 0.5 if o in _edge_rubble else 0.0)
 		var target := 0.7 if blocking else 0.0
-		for mi: MeshInstance3D in o.find_children("*", "MeshInstance3D", true, false):
-			mi.transparency = move_toward(mi.transparency, target, delta * 4.0)
+		for mi: MeshInstance3D in _occluder_meshes.get(o, []):
+			if mi.transparency != target:
+				mi.transparency = move_toward(mi.transparency, target, delta * 4.0)
 
 
 func _process(delta: float) -> void:

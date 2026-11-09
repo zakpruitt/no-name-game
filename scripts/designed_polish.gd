@@ -1,8 +1,7 @@
 extends RefCounted
 ## Round 48 (fx-polygons, docs/features/designed-fx.md "fx-polygons"): the last runtime polygon effects as designed
 ## ones. Sheets: tools/vfx_gen/gen_polygons.py (registered here through DESIGNED.extra_sheets); the timeline node,
-## palette and shaders are designed_fx.gd's. Every caller branches on DESIGNED.on() and keeps its old path
-## (--fx=classic).
+## palette and shaders are designed_fx.gd's.
 ##   chips()       every Fx.burst in comic style (rank-ups, landings, casts, breakers' sparks): one drawn chip spray
 ##   trail_mesh()  the breaker dive's comet (comic_comet.gd): dive_trail (brush), dive_ink (dark), bolt_strip (storm)
 ##   Loop          a looping sheet riding a node: the state tells (comic_state_tell.gd), Black Ice's frozen pool
@@ -43,8 +42,6 @@ static func register() -> void:
 
 ## Draw every material once at real size (elements.prewarm).
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	for n: String in SHEETS:
 		var mi := MeshInstance3D.new()

@@ -49,7 +49,7 @@ func _initialize() -> void:
 	cases += 1
 	for frames: int in [0, 1, 3]:
 		var d: Node = load("res://scripts/training_dummy.gd").new()
-		d.model_scene = _main._model("Skeleton_Warrior")
+		_main._set_model(d, "dummy")
 		_main.add_child(d)
 		d.home = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
 		d.global_position = d.home

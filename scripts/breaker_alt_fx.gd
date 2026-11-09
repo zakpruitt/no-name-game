@@ -7,7 +7,6 @@ extends RefCounted
 ##   pinwheel_wall(): Pinwheel, a foe slammed into a wall or a pillar (ground stamp, wind burst on it, the word, a stop);
 ##   twister(): Tempest, the storm column that takes the crowd up.
 ## Designed sheets only (designed_fx / designed_elements / designed_twister / designed_ink): no polygons, no crystals.
-## --fx=classic falls back to the old shared builders.
 
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_INK := preload("res://scripts/designed_ink.gd")
@@ -48,28 +47,21 @@ static func meteor_drop(parent: Node, from: Vector3, e: Node3D, fall: float, lan
 			at = Vector3(e.global_position.x, 0.0, e.global_position.z)
 		if is_instance_valid(shell):
 			shell.queue_free()
-		if DESIGNED.on():
-			DESIGNED.meteor(parent, at, DROP_SPLASH)
-		else:
-			Fx.scorch(parent, at, PAL.of("earth").body, DROP_SPLASH, 1.2)
+		DESIGNED.meteor(parent, at, DROP_SPLASH)
 		landed.call(at))
 
 
 ## Pinwheel's whirl: a twister round him for the swing (`time` s), the held kebab riding round inside it.
 static func pinwheel_ring(parent: Node, at: Vector3, radius: float, time: float) -> void:
-	if DESIGNED.on():
-		TWISTER.spawn(parent, at, 3.2, radius, time)
-	else:
-		load("res://scripts/elements.gd").nova(parent, at, "wind", radius, 8)
+	TWISTER.spawn(parent, at, 3.2, radius, time)
 
 
 ## A Pinwheel foe hitting a wall or a pillar at `spot` (its feet), thrown along `dir`.
 static func pinwheel_wall(parent: Node, spot: Vector3, dir: Vector3) -> void:
 	var at := Vector3(spot.x, 0.0, spot.z)
-	if DESIGNED.on():
-		DESIGNED_INK.shock(parent, at, PAL.of("wind").light, WALL_STAMP, 0.3)
-		DESIGNED.hit(parent, at + dir * 0.5 + Vector3.UP * 1.1, "wind", 1.6)
-		DESIGNED.streaks(parent, at + Vector3.UP * 1.1, dir, "wind", true)
+	DESIGNED_INK.shock(parent, at, PAL.of("wind").light, WALL_STAMP, 0.3)
+	DESIGNED.hit(parent, at + dir * 0.5 + Vector3.UP * 1.1, "wind", 1.6)
+	DESIGNED.streaks(parent, at + Vector3.UP * 1.1, dir, "wind", true)
 	ComicFx.say(WALL_WORD, at + Vector3.UP * 1.7, WALL_WORD_SIZE)
 	Game.hitstop(WALL_STOP)
 	Game.shake(0.55)
@@ -82,10 +74,9 @@ static func pinwheel_wall(parent: Node, spot: Vector3, dir: Vector3) -> void:
 ## `el` (Collapse's spits: void; Avalanche's cubes: water): Pinwheel's wall beat in that element, and `word` if given.
 static func cool_wall(parent: Node, spot: Vector3, dir: Vector3, el: String, word := "") -> void:
 	var at := Vector3(spot.x, 0.0, spot.z)
-	if DESIGNED.on():
-		DESIGNED_INK.shock(parent, at, PAL.of(el).light, WALL_STAMP, 0.3)
-		DESIGNED.hit(parent, at + dir * 0.5 + Vector3.UP * 1.1, el, 1.6)
-		DESIGNED.streaks(parent, at + Vector3.UP * 1.1, dir, el, true)
+	DESIGNED_INK.shock(parent, at, PAL.of(el).light, WALL_STAMP, 0.3)
+	DESIGNED.hit(parent, at + dir * 0.5 + Vector3.UP * 1.1, el, 1.6)
+	DESIGNED.streaks(parent, at + Vector3.UP * 1.1, dir, el, true)
 	if word != "" and Time.get_ticks_msec() - int(_word_ms.get(word, -100000)) > COOL_WORD_GAP_MS:
 		_word_ms[word] = Time.get_ticks_msec()  # (one word for a volley of hits on the same wall)
 		ComicFx.say(word, at + Vector3.UP * 1.7, WALL_WORD_SIZE)
@@ -98,10 +89,7 @@ static func cool_wall(parent: Node, spot: Vector3, dir: Vector3, el: String, wor
 
 ## Tempest's column: a fat twister `high` m tall, `radius` round, for `time` s.
 static func twister(parent: Node, at: Vector3, high: float, radius: float, time: float) -> void:
-	if DESIGNED.on():
-		TWISTER.spawn(parent, at, high, radius, time)
-	else:
-		load("res://scripts/elements.gd").nova(parent, at, "wind", radius, 8)
+	TWISTER.spawn(parent, at, high, radius, time)
 
 # --- Uproot (round 51, env-pieces lane: Abyss's LMB; gameplay in void_element.gd `_uproot`) -------------------------
 # The pillar is the comic dungeon piece itself; the rest is designed sheets: the tentacle's drawn skin (void_tendril),
@@ -165,9 +153,8 @@ static func uproot_tear(parent: Node, hero: Node3D, pillar: Node3D) -> void:
 		pillar.transform = Transform3D(Basis(axis, UPROOT_LEAN * e) * home.basis, home.origin + Vector3.UP * UPROOT_LIFT * e)
 		if is_instance_valid(tendril) and is_instance_valid(hero):
 			tendril.draw(_hand(hero), _grip(pillar), 1.0, 0.05, 0.6 * (1.0 - k) + 0.25, k), 0.0, 1.0, UPROOT_TEAR)
-	if DESIGNED.on():
-		DESIGNED.dust(parent, foot, 1.6)
-		DESIGNED_INK.shock(parent, foot, PAL.of("void").light, 1.4, 0.3)
+	DESIGNED.dust(parent, foot, 1.6)
+	DESIGNED_INK.shock(parent, foot, PAL.of("void").light, 1.4, 0.3)
 	var env: Node = load("res://scripts/env_target.gd").of(parent.get_tree())
 	if env != null:
 		for i in UPROOT_CHUNKS:
@@ -262,15 +249,13 @@ static func _uproot_land(parent: Node, base: Vector3, dir: Vector3) -> void:
 	var env: Node = load("res://scripts/env_target.gd").of(parent.get_tree())
 	for i in 3:
 		var at := base + dir * (length * (0.25 + 0.35 * i))
-		if DESIGNED.on():
-			DESIGNED_INK.shock(parent, at, PAL.of("void").light, UPROOT_STAMP, 0.32)
-			DESIGNED.dust(parent, at, 1.3)
+		DESIGNED_INK.shock(parent, at, PAL.of("void").light, UPROOT_STAMP, 0.32)
+		DESIGNED.dust(parent, at, 1.3)
 		if env != null:
 			var side := dir.cross(Vector3.UP) * (1.0 if i % 2 == 0 else -1.0)
 			env._chunk(at + Vector3.UP * 0.3, (side * 3.0 + dir * 1.5) + Vector3.UP * 4.5, i)
 	var head := base + dir * length
-	if DESIGNED.on():
-		DESIGNED.hit(parent, head + Vector3.UP * 0.8, "void", 1.8)
+	DESIGNED.hit(parent, head + Vector3.UP * 0.8, "void", 1.8)
 	Game.hitstop(UPROOT_STOP)
 	Game.shake(0.9)
 	if Game.camera_rig:
@@ -280,7 +265,6 @@ static func _uproot_land(parent: Node, base: Vector3, dir: Vector3) -> void:
 
 ## No pillar in reach: the tentacle comes down on the foe from the sky alone, a small slam.
 static func uproot_open(parent: Node, at: Vector3) -> void:
-	if DESIGNED.on():
-		DESIGNED_INK.shock(parent, at, PAL.of("void").light, 1.2, 0.25)
-		DESIGNED.hit(parent, at + Vector3.UP * 0.8, "void", 1.0)
+	DESIGNED_INK.shock(parent, at, PAL.of("void").light, 1.2, 0.25)
+	DESIGNED.hit(parent, at + Vector3.UP * 0.8, "void", 1.0)
 	Game.shake(0.4)

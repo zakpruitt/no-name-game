@@ -10,7 +10,7 @@ extends SceneTree
 ## Run: godot --headless --path . -s tests/ice_block_check.gd
 
 const TOLERANCE := 0.04  # m: under the block's ink line (the hit freeze shudders the model 0.07 m round its spot; fx-ice3: 0.02 flaked on the rogue, 2 vertices at 0.02)
-const KINDS := ["dummy", "minion", "warrior", "mage", "rogue", "archer", "shield", "necromancer", "bomber"]
+const KINDS := ["dummy", "minion", "warrior", "mage", "rogue", "archer", "shield"]
 
 var _fails: Array[String] = []
 var _main: Node
@@ -27,10 +27,6 @@ func _initialize() -> void:
 	_main = load("res://scenes/main.tscn").instantiate()
 	get_root().add_child(_main)
 	await create_timer(0.3).timeout
-	if not _el.DESIGNED.on():
-		print("[ice_block] FAIL designed effects are off")
-		quit(1)
-		return
 	var dummy: Node3D = null
 	for d in get_nodes_in_group("enemies"):
 		dummy = d

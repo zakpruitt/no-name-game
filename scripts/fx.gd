@@ -8,26 +8,17 @@ const TEX := {
 	"dot": preload("res://assets/vfx/circle_05.png"),
 	"ring": preload("res://assets/vfx/circle_03.png"),
 	"flare": preload("res://assets/vfx/magic_05.png"),
-	"star": preload("res://assets/vfx/star_06.png"),
-	"smoke": preload("res://assets/vfx/smoke_04.png"),
-	"scorch": preload("res://assets/vfx/scorch_02.png"),
-	"spark": preload("res://assets/vfx/spark_05.png"),
 	"star8": preload("res://assets/vfx/star_08.png"),
 }
 ## Combo-counter thresholds where hit sparks escalate (chain_tier).
 const CHAIN_TIERS := [10, 20, 35]
-## How much bigger a sprite's quad is than the solid shape it replaced (soft edges).
-const TEX_SCALE := {"dot": 2.0, "smoke": 1.5}
-const SWOOSH_SHADER := preload("res://shaders/swoosh.gdshader")
-const NOISE := preload("res://assets/vfx/noise_soft.png")
-const COMIC_INK_PX := 1.6  # Game.comic_style's hull width (default 3.5): a hero is only ~130 px tall
+const COMIC_INK_PX := 1.6  # the comic hull width (the shader's default is 3.5): a hero is only ~130 px tall
 const COMIC_INK_WOBBLE := 0.25  # how much of the width varies over the form
 const COMIC_INK_PUSH := 0.08  # m behind the model, so a part's hull doesn't cover its neighbours
 ## Telegraph rim (edge_ring): a light ring just inside the radius with a dark outline just outside it.
 const EDGE_WIDTH := 0.16  # m, light rim
 const EDGE_OUTLINE := 0.07  # m, dark outline
-## Game.comic_style draws the per-hit flourishes as flat inked shapes on twos (scripts/comic_pop.gd)
-## instead of glowing flares and dot sprays, which read as a different game next to inked heroes.
+## The per-hit flourishes are flat inked shapes on twos (scripts/comic_pop.gd) or designed flipbooks (designed_*.gd).
 const COMIC_POP := preload("res://scripts/comic_pop.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
 const VOID_ELEMENT := preload("res://scripts/void_element.gd")
@@ -36,11 +27,10 @@ const COMIC_CRACK := preload("res://scripts/comic_crack.gd")
 const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 const CALLOUT_CAP := preload("res://scripts/callout_cap.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
-const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # round 44: ground stamps, element hit pops  # round 43: authored flipbook effects (--fx=classic: off)
-const DESIGNED_POLISH := preload("res://scripts/designed_polish.gd")  # round 48 (fx-polygons): chips, comet, tells, kills
-const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")  # round 46: the Awakening, halos, daze stars, combo burst
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # ground stamps, element hit pops
+const DESIGNED_POLISH := preload("res://scripts/designed_polish.gd")  # chips, comet, tells, kills
+const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")  # the Awakening, halos, daze stars, combo burst
 const COMIC_CRACK_SIZE := 0.8  # of the scorch's radius: the scorch texture only filled about half its quad, but cracks reach their tips
-const COMIC_BURST_CHIPS := 6  # most chips a comic burst throws
 const COMIC_GHOST_STEP := 1.0 / 12.0  # s: the comic afterimage's two steps, on twos
 const COMIC_FLASH := Color(1.0, 0.97, 0.88)  # a comic hit flash's paper ink
 
@@ -75,23 +65,8 @@ static func unshaded_mat(color := Color.WHITE, tex := "", add := false) -> Stand
 	return mat
 
 
-## A floating billboard label (damage numbers, heals): the caller animates and frees it.
-static func _label(text: String, font_size: int, color: Color, outline_color: Color) -> Label3D:
-	var l := Label3D.new()
-	l.text = text
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.font_size = font_size
-	l.outline_size = 18
-	l.pixel_size = 0.006
-	l.modulate = color
-	l.outline_modulate = outline_color
-	return l
-
-
-## Melee swing arc: a flat crescent around `pos` facing `fwd`, out to `radius`
-## across `arc_deg` (360 = full spin), sweeping across it over `time`.
-## `flip` swings right-to-left instead of left-to-right.
+## Melee swing arc: the authored brush stroke (designed_fx.slash) around `pos` facing `fwd`, out to `radius`
+## across `arc_deg` (360 = full spin), sweeping across it over `time`. `flip` swings right-to-left.
 ## While the hero is Awakened (feel audit 2026-11-04 item 4: his gold crescents were opaque sheets 4-5x his
 ## height) the swoosh is only its inked outer band (AWAKEN_SWOOSH_BAND) and hero_fx.swoosh's second, wider
 ## ender arc (the one raised past SWOOSH_SECOND_HEIGHT) is dropped.
@@ -100,39 +75,7 @@ static func swoosh(parent: Node, pos: Vector3, fwd: Vector3, radius: float, arc_
 	var gold := _hero_awakened(parent)
 	if gold and height > SWOOSH_SECOND_HEIGHT:
 		return
-	if DESIGNED.on():  # the authored brush stroke on the same arc (designed_fx.slash)
-		DESIGNED.slash(parent, pos, fwd, radius, arc_deg, "gold" if gold else PAL.nearest(color), flip, time, height, lines_only or gold)
-		return
-	var arc := deg_to_rad(clampf(arc_deg, 20.0, 360.0))
-	var inner := radius * 0.4
-	var segs := maxi(10, int(arc_deg / 6.0))
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-	for i in segs + 1:
-		var u := float(i) / segs
-		var a := (-arc * 0.5 + arc * u) * (-1.0 if flip else 1.0)
-		var d := Vector3(sin(a), 0.0, cos(a))
-		st.set_uv(Vector2(u, 0.0))
-		st.add_vertex(d * inner)
-		st.set_uv(Vector2(u, 1.0))
-		st.add_vertex(d * radius)
-	var mat := ShaderMaterial.new()
-	mat.shader = SWOOSH_SHADER
-	mat.set_shader_parameter("noise", NOISE)
-	var a_mult := 0.5 if Game.reduce_flashing else 1.0
-	mat.set_shader_parameter("color", Color(color, color.a * a_mult))
-	mat.set_shader_parameter("edge_color", Color(color.lerp(Color.WHITE, 0.45), a_mult))
-	mat.set_shader_parameter("band", AWAKEN_SWOOSH_BAND if gold or lines_only else 0.0)  # (lines_only: the spirit echo, whose ghost blade is the body)
-	var m := MeshInstance3D.new()
-	m.mesh = st.commit()
-	m.material_override = mat
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(m)
-	m.global_position = pos + Vector3.UP * height
-	m.rotation.y = atan2(fwd.x, fwd.z)
-	var tw := m.create_tween()
-	tw.tween_method(func(p: float) -> void: mat.set_shader_parameter("progress", p), 0.0, 1.0, time)
-	tw.tween_callback(m.queue_free)
+	DESIGNED.slash(parent, pos, fwd, radius, arc_deg, "gold" if gold else PAL.nearest(color), flip, time, height, lines_only or gold)
 
 
 ## The palette name of the hero's current blow (round 33: one palette per element across a string): the
@@ -167,7 +110,7 @@ static func in_breaker(node: Node) -> bool:
 ## In a breaker the frame's hits draw ONE star at the middle of them (the pile's centre), and the strokes and halo
 ## once per frame. Outside a breaker every hit keeps its own.
 static var _leap_state := -2  # the hero's State.LEAP, read once
-static var _crowd_stars := []  # [parent, at, size, pal] this frame, in a breaker
+static var _crowd_stars := []  # [parent, at, size, element] this frame, in a breaker
 static var _crowd_frame := {}  # what -> the process frame it last drew in a breaker
 static var crowd_merged := 0  # stars folded into another (fx_sleek_check)
 
@@ -198,11 +141,7 @@ static func _flush_crowd_stars() -> void:
 	if parent == null or not parent.is_inside_tree():
 		return
 	crowd_merged += batch.size() - 1
-	var pal: Dictionary = batch[0][3]
-	if DESIGNED.on():
-		DESIGNED_INK.pop(parent, mid / float(batch.size()), str(batch[0][4]), big)
-		return
-	COMIC_POP.spawn(parent, mid / float(batch.size()), {"star": big * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
+	DESIGNED_INK.pop(parent, mid / float(batch.size()), str(batch[0][3]), big)
 
 
 static func _hero_awakened(node: Node) -> bool:
@@ -214,42 +153,21 @@ static func _hero_awakened(node: Node) -> bool:
 
 ## `foe`: who took it, so the comic number merges that foe's hits (comic_number.gd).
 static func damage_number(parent: Node, pos: Vector3, amount: float, big := false, foe: Object = null) -> void:
-	if Game.comic_style:  # one chunky inked number per foe, growing as hits add in, drifting off the pile
-		COMIC_NUMBER.add(parent, pos, amount, big, foe)
-		return
-	var l := _label(str(roundi(amount)), 96 if big else 64,
-		Color(1.0, 0.85, 0.3) if big else Color.WHITE, Color(0.1, 0.05, 0.1))
-	parent.add_child(l)
-	var jitter := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.2, 0.2))
-	l.global_position = pos + Vector3.UP * 2.2 + jitter
-	var tw := l.create_tween().set_parallel()
-	tw.tween_property(l, "global_position:y", l.global_position.y + 1.0, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(l, "modulate:a", 0.0, 0.25).set_delay(0.35)
-	tw.chain().tween_callback(l.queue_free)
+	COMIC_NUMBER.add(parent, pos, amount, big, foe)  # one chunky inked number per foe, growing as hits add in
 
 
-## Round 33, sleek 4: every hit on a foe (and the Warden, which drew 1.5 / 1.0) uses these star sizes: one grammar,
-## star + word + number, the same weight everywhere.
+## Every hit on a foe uses these star sizes: one grammar, star + word + number, the same weight everywhere.
 const HIT_STAR := 0.9
 const HIT_STAR_BIG := 1.3
-static func hit_spark(parent: Node, pos: Vector3, color := Color(1.0, 0.9, 0.6), size := HIT_STAR) -> void:
+static func hit_spark(parent: Node, pos: Vector3, _color := Color(1.0, 0.9, 0.6), size := HIT_STAR) -> void:
 	var at := pos + Vector3.UP * 1.1
-	if Game.comic_style:  # the hot inked star in the blow's palette; impact() adds the strokes
-		var pal := PAL.of(_blow_element(parent))
-		if in_breaker(parent):  # one star for the frame's hits, at their middle (_flush_crowd_stars)
-			if _crowd_stars.is_empty():
-				_flush_crowd_stars.call_deferred()
-			_crowd_stars.append([parent, at, size, pal, _blow_element(parent)])
-			return
-		if DESIGNED.on():  # the authored impact pop in the blow's element (designed_ink.pop; capped in a crowd)
-			DESIGNED_INK.pop(parent, at, _blow_element(parent), size)
-			return
-		COMIC_POP.spawn(parent, at, {"star": size * 0.5, "steps": 3, "star_color": pal.body, "star_core": pal.light})
+	var el := _blow_element(parent)
+	if in_breaker(parent):  # one star for the frame's hits, at their middle (_flush_crowd_stars)
+		if _crowd_stars.is_empty():
+			_flush_crowd_stars.call_deferred()
+		_crowd_stars.append([parent, at, size, el])
 		return
-	# Pale colours vanish on the light floor tiles: push the flare's saturation up.
-	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.75), 1.0, color.a)
-	flare(parent, at, vivid, size * 3.0, 0.16, "flare")
-	flare(parent, at, Color(1.0, 1.0, 1.0, color.a), size * 1.2, 0.1, "dot", true)
+	DESIGNED_INK.pop(parent, at, el, size)  # the authored hit pop in the blow's element (capped in a crowd); impact() adds the strokes
 
 
 ## 0..3: how far the combo counter has climbed past CHAIN_TIERS.
@@ -261,78 +179,34 @@ static func chain_tier(count: int) -> int:
 	return t
 
 
-## Extra hit flourish that grows with the combo counter, in the hero's colour:
-## tier 1 a star flare, 2 adds a spray of spark streaks, 3 a shock ring flare.
-static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, dir := Vector3.UP) -> void:
+## Extra hit flourish that grows with the combo counter: a drawn sparkle halo in the hero's colour behind the
+## hit's star, bigger each tier (designed_finish.halo); once a frame in a crowd.
+static func chain_spark(parent: Node, pos: Vector3, color: Color, tier: int, _dir := Vector3.UP) -> void:
 	if tier <= 0:
 		return
 	var at := pos + Vector3.UP * 1.1
-	if Game.comic_style:  # a halo in his colour behind the hit's star, more strokes each tier
-		if not _once_in_breaker(parent, "chain"):
-			return
-		if DESIGNED.on() and not DESIGNED_INK.once_a_frame("chain"):  # (round 44: one halo a frame in a crowd)
-			return
-		if DESIGNED.on():  # round 46: a drawn sparkle halo per tier (designed_finish.halo)
-			DESIGNED_FINISH.halo(parent, at, color, tier)
-			return
-		COMIC_POP.spawn(parent, at, {"star": 0.32 + 0.06 * tier, "star_color": color, "star_core": color.lightened(0.5),
-			"spikes": 7 + tier, "layer": -0.5, "steps": 2, "strokes": 0 if tier < 2 else tier,
-			"dir": dir, "spread": 1.1, "stroke_color": color.lightened(0.35), "stroke_len": 0.4 + 0.08 * tier})
+	if not _once_in_breaker(parent, "chain"):
 		return
-	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.8), 1.0)
-	flare(parent, at, vivid, 1.6 + tier * 0.6, 0.14, "star8")
-	if tier >= 2:
-		burst(parent, at, vivid, 6 + tier * 3, 13.0, 0.16, 0.22, dir, 70.0, -6.0, 0.0, "spark")
-	if tier >= 3:
-		flare(parent, at, Color(vivid, 0.85), 3.4, 0.18, "ring")
-
-
-## Debris off the hero's element-coated axes on each hit (player._do_hit):
-## spirit wisps, wind streaks, obsidian chips and embers, ice shards and frost.
-static func element_hit(parent: Node, pos: Vector3, element: String, dir: Vector3, big := false) -> void:
-	var at := pos + Vector3.UP * 1.0
-	var k := 1.5 if big else 1.0
-	if Game.comic_style:  # chunky chips of the element, flung along the blow
-		if DESIGNED.on():  # (round 44: the hit's designed pop is drawn in the element's shape; chips were clutter)
-			return
-		var el := _blow_element(parent)
-		var chip: Color = PAL.of(element if el == "hit" else el).body
-		COMIC_POP.spawn(parent, at, {"chips": int(3 * k), "chip": chip,
-			"chip_size": 0.11 * k, "chip_speed": 6.0, "dir": dir, "spread": 0.6, "steps": 3})
+	if not DESIGNED_INK.once_a_frame("chain"):
 		return
-	match element:
-		"wind":
-			burst(parent, at, Color(0.45, 1.0, 0.55), int(6 * k), 12.0, 0.15, 0.2, dir, 40.0, 0.0, 0.0, "spark")
-		"earth":
-			shards(parent, at, Color(0.18, 0.14, 0.13), int(4 * k), dir, 7.0, 0.13, 0.5)
-			burst(parent, at, Color(1.0, 0.45, 0.1), int(6 * k), 6.0, 0.08, 0.45, Vector3.UP, 60.0, -3.0, 0.2, "dot", true)
-		"water":
-			shards(parent, at, Color(0.7, 0.9, 1.0), int(5 * k), dir, 8.0, 0.12, 0.45)
-			flare(parent, at, Color(0.55, 0.85, 1.0), 1.2 * k, 0.12, "star8")
-		_:
-			burst(parent, at, Color(0.3, 0.95, 0.85), int(5 * k), 3.0, 0.12, 0.5, Vector3.UP, 50.0, -1.5, 0.25, "dot", true)
+	DESIGNED_FINISH.halo(parent, at, color, tier)
 
 
-## A named combo landing (hero_fx.combo_callout): star flare, ground ring and a
-## spark spray at the hero, scaled by the combo's tier (1-3).
+## Debris off the hero's axes on each hit (player._do_hit). Draws nothing: the hit's pop (designed_ink.pop) is
+## already in the element's shape and chips were clutter. Kept as a no-op for its callers.
+static func element_hit(_parent: Node, _pos: Vector3, _element: String, _dir: Vector3, _big := false) -> void:
+	pass
+
+
+## A named combo landing (hero_fx.combo_callout): drawn burst lines round the hero (designed_finish.burst),
+## scaled by the combo's tier (1-3).
 static func combo_pop(parent: Node, pos: Vector3, color: Color, tier: int) -> void:
 	var at := pos + Vector3.UP * 1.2
 	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.7), 1.0)
-	if Game.comic_style:  # strokes bursting out all round him, never a star over him
-		var hero: Node = parent.get_tree().get_first_node_in_group("player") if parent.is_inside_tree() else null
-		if hero != null and "_move_id" in hero and not CALLOUT_CAP.names_move(hero._move_id):
-			return  # feel audit 2, item 3: a light mid keeps its word only (callout_cap.names_move)
-		if DESIGNED.on():  # round 46: drawn burst lines round him (designed_finish.burst)
-			DESIGNED_FINISH.burst(parent, at, vivid, tier)
-			return
-		COMIC_POP.spawn(parent, at, {"strokes": 7 + tier * 2, "radial": true, "gap": 0.85 + tier * 0.1,
-			"stroke_len": 0.55 + tier * 0.15, "stroke_w": 0.2 + tier * 0.03, "stroke_color": vivid,
-			"hold": 2 if tier >= 3 else 1, "steps": 3})
-		return
-	flare(parent, at, vivid, 2.2 + tier * 1.0, 0.18, "star8")
-	flare(parent, at, Color(1, 1, 1, 0.9), 0.9 + tier * 0.3, 0.1, "dot", true)
-	ring(parent, pos, Color(vivid, 0.85), 1.6 + tier * 0.7, 0.3)
-	burst(parent, at, vivid, 8 + tier * 6, 11.0 + tier * 2.0, 0.17, 0.3, Vector3.UP, 180.0, -8.0, 0.3, "spark")
+	var hero: Node = parent.get_tree().get_first_node_in_group("player") if parent.is_inside_tree() else null
+	if hero != null and "_move_id" in hero and not CALLOUT_CAP.names_move(hero._move_id):
+		return  # a light mid keeps its word only (callout_cap.names_move)
+	DESIGNED_FINISH.burst(parent, at, vivid, tier)
 
 
 ## Camera-facing sprite that pops to `size` (m across) and fades over `time`.
@@ -360,57 +234,15 @@ static func flare(parent: Node, at: Vector3, color: Color, size: float, time := 
 	tw.chain().tween_callback(m.queue_free)
 
 
-## One-shot particle burst. `dir` biases the spray (e.g. knockback direction).
+## One drawn chip spray (designed_polish.chips). `dir` biases it (e.g. knockback direction); a wide `spread`
+## or no direction throws it all round. Smoke and single-particle asks (elements.prewarm) draw nothing.
 static func burst(parent: Node, pos: Vector3, color: Color, amount := 14, speed := 7.0,
-		size := 0.12, lifetime := 0.3, dir := Vector3.UP, spread := 70.0, gravity := -12.0,
-		radius := 0.0, tex := "dot", add := false) -> void:
-	if Game.comic_style:  # a few chunky two-tone chips, no smoke and no dot spray
-		if tex == "smoke" or amount <= 1:  # (1: elements.prewarm; the chips' material is already warm)
-			return
-		var c := Color(color, 1.0)
-		var wide := spread >= 120.0 or dir.length() < 0.01
-		if DESIGNED.on():  # fx-polygons: one drawn chip spray, not a handful of polygon chips
-			DESIGNED_POLISH.chips(parent, pos, c, amount, speed, dir, wide)
-			return
-		COMIC_POP.spawn(parent, pos, {"chips": clampi(amount / 3, 2, COMIC_BURST_CHIPS), "chip": c,
-			"chip_size": clampf(size * 0.9, 0.08, 0.17), "chip_speed": clampf(speed * 0.6, 2.5, 6.0),
-			"dir": Vector3.ZERO if wide else dir, "spread": deg_to_rad(clampf(spread, 20.0, 80.0)), "steps": 3})
+		_size := 0.12, _lifetime := 0.3, dir := Vector3.UP, spread := 70.0, _gravity := -12.0,
+		_radius := 0.0, tex := "dot", _add := false) -> void:
+	if tex == "smoke" or amount <= 1:
 		return
-	# CPU particles: no shader compile hitch on first spawn, cheap at these counts.
-	var p := CPUParticles3D.new()
-	size *= TEX_SCALE.get(tex, 1.0)
-	p.angle_min = 0.0
-	p.angle_max = 360.0  # random spin so repeated sprites don't line up
-	p.one_shot = true
-	p.explosiveness = 1.0
-	p.amount = amount
-	p.lifetime = lifetime
-	p.local_coords = true  # emitter never moves; world-space emission misplaces the first burst
-	p.direction = dir.normalized() if dir.length() > 0.01 else Vector3.UP
-	p.spread = spread
-	p.initial_velocity_min = speed * 0.5
-	p.initial_velocity_max = speed
-	p.gravity = Vector3(0.0, gravity, 0.0)
-	p.damping_min = speed * 0.6
-	p.damping_max = speed * 1.2
-	if radius > 0.0:
-		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-		p.emission_sphere_radius = radius
-	p.scale_amount_min = 0.6
-	p.scale_amount_max = 1.3
-	var fade := Gradient.new()
-	fade.set_color(0, color)
-	fade.set_color(1, Color(color.r, color.g, color.b, 0.0))
-	p.color_ramp = fade
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * size
-	quad.material = particle_mat(tex, add)
-	p.mesh = quad
-	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	p.position = parent.to_local(pos) if parent is Node3D else pos
-	parent.add_child(p)
-	p.emitting = true
-	p.finished.connect(p.queue_free)
+	var wide := spread >= 120.0 or dir.length() < 0.01
+	DESIGNED_POLISH.chips(parent, pos, Color(color, 1.0), amount, speed, dir, wide)
 
 
 static func particle_mat(tex: String, add: bool) -> StandardMaterial3D:
@@ -423,412 +255,118 @@ static func particle_mat(tex: String, add: bool) -> StandardMaterial3D:
 	return _particle_mats[key]
 
 
-## Solid low-poly chunks (bone, rock, ice) flung along `dir` that tumble and fall.
-## Shaded, not glowing: debris should read as stuff, not light.
+## Flat inked two-tone chips (comic_pop) flung along `dir` that tumble and fall.
 static func shards(parent: Node, pos: Vector3, color: Color, amount := 10, dir := Vector3.UP,
 		speed := 8.0, size := 0.18, lifetime := 0.7) -> void:
-	if Game.comic_style:  # flat inked two-tone chips, not shaded boxes
-		COMIC_POP.spawn(parent, pos, {"chips": clampi(int(amount * 0.6), 2, 14), "chip": color,
-			"chip_size": size * 0.85, "chip_speed": speed * 0.7, "dir": dir, "spread": 1.2,
-			"steps": clampi(int(lifetime * 10.0), 4, 7)})
-		return
-	var p := CPUParticles3D.new()
-	p.one_shot = true
-	p.explosiveness = 1.0
-	p.amount = amount
-	p.lifetime = lifetime
-	p.local_coords = true
-	p.direction = (dir.normalized() + Vector3.UP * 0.8).normalized() if dir.length() > 0.01 else Vector3.UP
-	p.spread = 55.0
-	p.initial_velocity_min = speed * 0.5
-	p.initial_velocity_max = speed
-	p.gravity = Vector3(0.0, -26.0, 0.0)
-	p.angular_velocity_min = -720.0
-	p.angular_velocity_max = 720.0
-	p.angle_min = 0.0
-	p.angle_max = 360.0
-	p.scale_amount_min = 0.5
-	p.scale_amount_max = 1.3
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 0.3
-	var shrink := Curve.new()  # pieces shrink away at the end instead of popping out
-	shrink.add_point(Vector2(0.0, 1.0))
-	shrink.add_point(Vector2(0.7, 1.0))
-	shrink.add_point(Vector2(1.0, 0.0))
-	p.scale_amount_curve = shrink
-	p.color = color
-	var box := BoxMesh.new()
-	box.size = Vector3(size, size * 0.6, size * 1.4)
-	box.material = shard_mat()
-	p.mesh = box
-	p.position = parent.to_local(pos) if parent is Node3D else pos
-	parent.add_child(p)
-	p.emitting = true
-	p.finished.connect(p.queue_free)
+	COMIC_POP.spawn(parent, pos, {"chips": clampi(int(amount * 0.6), 2, 14), "chip": color,
+		"chip_size": size * 0.85, "chip_speed": speed * 0.7, "dir": dir, "spread": 1.2,
+		"steps": clampi(int(lifetime * 10.0), 4, 7)})
 
 
-static func shard_mat() -> StandardMaterial3D:
-	if not _particle_mats.has("shard"):
-		var mat := StandardMaterial3D.new()
-		mat.vertex_color_use_as_albedo = true
-		mat.roughness = 0.9
-		_particle_mats["shard"] = mat
-	return _particle_mats["shard"]
-
-
-## An enemy going down: kill flash, shock ring, bone shards along the
-## knockback, a smoke puff. `color` tints the shards (bone by default).
+## An enemy going down: a big held star, a burst of strokes thrown along the blow, a dust puff where he drops.
 static func death(parent: Node, pos: Vector3, dir: Vector3, big := false,
-		color := Color(0.93, 0.89, 0.78)) -> void:
+		_color := Color(0.93, 0.89, 0.78)) -> void:
 	var at := pos + Vector3.UP * 0.9
-	if Game.comic_style and DESIGNED.on():  # round 45: the drawn kill: a big held star, a burst of strokes thrown
-		# along the blow, a dust puff where he drops (the bone chips were loose polygons)
-		var star := DESIGNED.spawn(parent, "hit_spark", at, DESIGNED.HIT_SIZE * (1.6 if big else 1.3), "hit", DESIGNED_INK.KILL_TIMES, Vector2(0.55, 1.0))
-		star.real_until = 1
-		star.pop = 0.15
-		star.vary(PI, true)
-		DESIGNED.streaks(parent, at, dir, "hit", true)
-		DESIGNED.dust(parent, pos, 1.1 if big else 0.85)
-		return
-	if Game.comic_style:  # a held kill star, strokes all round, bone chips; no smoke, no soft ring
-		COMIC_POP.spawn(parent, at, {"star": 1.15 if big else 0.9, "spikes": 11, "hold": 2, "steps": 3,
-			"strokes": 8, "radial": true, "gap": 0.7, "stroke_len": 0.6, "stroke_w": 0.18,
-			"chips": 7 if big else 5, "chip": color, "chip_size": 0.17, "chip_speed": 6.5, "chip_ink": 4, "dir": dir, "spread": 1.3})
-		return
-	# Saturated gold: cream and white vanish on the light floor tiles.
-	flare(parent, at, Color(1.0, 0.62, 0.15), 4.4 if big else 3.4, 0.22, "flare")
-	flare(parent, at, Color(1.0, 1.0, 1.0), 1.6 if big else 1.2, 0.1, "dot", true)
-	ring(parent, pos, Color(1.0, 0.55, 0.12, 0.9), 3.2 if big else 2.4, 0.32)
-	shards(parent, at, color, 18 if big else 12, dir, 10.0 if big else 8.5, 0.28)
-	dust(parent, pos, 12, 0.7)
+	var star := DESIGNED.spawn(parent, "hit_spark", at, DESIGNED.HIT_SIZE * (1.6 if big else 1.3), "hit", DESIGNED_INK.KILL_TIMES, Vector2(0.55, 1.0))
+	star.real_until = 1
+	star.pop = 0.15
+	star.vary(PI, true)
+	DESIGNED.streaks(parent, at, dir, "hit", true)
+	DESIGNED.dust(parent, pos, 1.1 if big else 0.85)
 
 
-## Speed streak on the floor along a dash: `length` m from `from` along `dir`,
-## narrowing and fading over `time`.
-static func dash_streak(parent: Node, from: Vector3, dir: Vector3, length: float, color: Color,
-		time := 0.3, width := 2.2) -> void:
-	if Game.comic_style and DESIGNED.on():  # round 45: drawn speed strokes thrown back off his kick-off, in his colour
-		var d0 := Vector3(dir.x, 0.0, dir.z).normalized()
-		if DESIGNED_INK.once_a_frame("dash"):
-			DESIGNED.streaks(parent, from + Vector3.UP * 0.5 - d0 * 0.2, -d0, DESIGNED.PAL.nearest(color))
-		return
-	# The dot stretched along the dash: a soft speed smear.
-	var mat := unshaded_mat(Color(color, color.a * (0.5 if Game.reduce_flashing else 1.0)), "dot")
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(width, length)
-	plane.material = mat
-	var m := MeshInstance3D.new()
-	m.mesh = plane
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(m)
-	var d := Vector3(dir.x, 0.0, dir.z).normalized()
-	m.global_position = from + d * length * 0.5 + Vector3.UP * 0.08
-	m.rotation.y = atan2(d.x, d.z)
-	var tw := m.create_tween().set_parallel()
-	tw.tween_property(m, "scale:x", 0.25, time).set_ease(Tween.EASE_IN)
-	tw.tween_property(mat, "albedo_color:a", 0.0, time).set_ease(Tween.EASE_IN)
-	tw.chain().tween_callback(m.queue_free)
+## Speed strokes thrown back off the hero's kick-off along a dash, in his colour (once a frame).
+static func dash_streak(parent: Node, from: Vector3, dir: Vector3, _length: float, color: Color,
+		_time := 0.3, _width := 2.2) -> void:
+	var d0 := Vector3(dir.x, 0.0, dir.z).normalized()
+	if DESIGNED_INK.once_a_frame("dash"):
+		DESIGNED.streaks(parent, from + Vector3.UP * 0.5 - d0 * 0.2, -d0, DESIGNED.PAL.nearest(color))
 
 
-const BEAM_SLEEK_R := 0.42  # of the asked radius, comic style (round 33, sleek 5: 0.7 was a 2 m gold slab over a
-## breaker's pile whenever the meter filled on its landing)
-const BEAM_SLEEK_TIME := 0.55  # of the asked time (sleek 5: 0.7)
+## Awakening activation at `pos`: one thin inked column, held past a breaker landing (awaken_flourish.gd).
+static func awaken_burst(parent: Node, pos: Vector3, _color: Color, _radius := 7.0) -> void:
+	AWAKEN_FLOURISH.spawn(parent, pos)
 
 
-## Column of light that shoots up from `pos` and collapses inward over `time`:
-## a coloured shell around a white-hot core.
-static func beam(parent: Node, pos: Vector3, color: Color, height := 10.0, radius := 1.3,
-		time := 0.55) -> void:
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.global_position = pos
-	var mats: Array[StandardMaterial3D] = []
-	var layers := [[radius, Color(color, 0.7)], [radius * 0.45, Color(1.0, 1.0, 1.0, 0.9)]]
-	if Game.comic_style:  # round 33 (sleek): a see-through column with a thin hot core, not a gold slab over the pile
-		radius *= BEAM_SLEEK_R
-		layers = [[radius, Color(color, 0.32)], [radius * 0.22, Color(1.0, 1.0, 1.0, 0.75)]]
-		time *= BEAM_SLEEK_TIME
-	for layer: Array in layers:
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = layer[0] * 0.7
-		cyl.bottom_radius = layer[0]
-		cyl.height = height
-		cyl.cap_top = false
-		cyl.cap_bottom = false
-		cyl.radial_segments = 16  # faceted on purpose: low-poly look
-		var mat := unshaded_mat(layer[1])
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		if Game.reduce_flashing:
-			mat.albedo_color.a *= 0.4
-		cyl.material = mat
-		mats.append(mat)
-		var m := MeshInstance3D.new()
-		m.mesh = cyl
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.position.y = height * 0.5
-		root.add_child(m)
-	root.scale = Vector3(1.0, 0.05, 1.0)
-	var tw := root.create_tween()
-	tw.tween_property(root, "scale", Vector3(1.0, 1.0, 1.0), time * 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(root, "scale", Vector3(0.05, 1.15, 0.05), time * 0.85).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
-	for mat in mats:
-		tw.parallel().tween_property(mat, "albedo_color:a", 0.0, time * 0.85).set_ease(Tween.EASE_IN)
-	tw.tween_callback(root.queue_free)
+## Two drawn spirit wisps curling up off a corpse as it sinks away.
+static func soul(parent: Node, pos: Vector3, _color := Color(0.3, 0.75, 1.0, 0.9)) -> void:
+	DESIGNED_POLISH.soul(parent, pos)
 
 
-## Awakening activation at `pos`: light pillar, flash, double shockwave
-## (`radius` = the blast), rising motes and a dust blast.
-static func awaken_burst(parent: Node, pos: Vector3, color: Color, radius := 7.0) -> void:
-	if Game.comic_style:  # feel audit 2, item 1: one thin inked column, held past a breaker landing (awaken_flourish.gd)
-		AWAKEN_FLOURISH.spawn(parent, pos)
-		return
-	beam(parent, pos, color, 12.0, 1.5, 0.6)
-	flare(parent, pos + Vector3.UP * 1.2, color, 11.0, 0.4, "flare")
-	flare(parent, pos + Vector3.UP * 1.2, Color.WHITE, 3.5, 0.18, "dot", true)
-	ring(parent, pos, Color(color, 0.95), radius, 0.45)
-	ring(parent, pos, Color(1.0, 1.0, 1.0, 0.85), radius * 0.45, 0.3)
-	burst(parent, pos + Vector3.UP * 0.4, color, 40, 12.0, 0.2, 0.7, Vector3.UP, 35.0, -4.0, 1.0, "dot")
-	burst(parent, pos + Vector3.UP * 0.4, Color.WHITE, 16, 14.0, 0.12, 0.5, Vector3.UP, 25.0, -4.0, 0.6, "dot", true)
-	dust(parent, pos, 24, 1.2)
-
-
-## Pale motes rising off a corpse as it sinks away.
-static func soul(parent: Node, pos: Vector3, color := Color(0.3, 0.75, 1.0, 0.9)) -> void:
-	if Game.comic_style and DESIGNED.on():  # fx-polygons: two drawn spirit wisps curling up off it
-		DESIGNED_POLISH.soul(parent, pos)
-		return
-	burst(parent, pos + Vector3.UP * 0.3, color, 16, 2.5, 0.2, 0.9, Vector3.UP, 25.0, 3.0, 0.5, "dot")
-	burst(parent, pos + Vector3.UP * 0.3, Color(0.85, 0.95, 1.0), 6, 3.0, 0.1, 0.7, Vector3.UP, 20.0, 3.0, 0.4, "dot", true)
-
-
+## The authored streaks thrown along the blow (designed_fx.streaks), once a frame; hit_spark has the star.
 static func impact(parent: Node, pos: Vector3, dir: Vector3, big := false) -> void:
 	var at := pos + Vector3.UP * 1.1
 	if big:
 		last_big_hit_ms = Time.get_ticks_msec()
-	if Game.comic_style:  # fat speed strokes along the blow and ink flecks; hit_spark has the star
-		if not _once_in_breaker(parent, "impact"):
-			return
-		if DESIGNED.on():  # the authored streaks thrown along the blow (designed_fx.streaks), once a frame
-			DESIGNED_INK.streaks(parent, at, dir, _blow_element(parent), big)  # (none on a crowd hit: designed_ink.pop's merge)
-			return
-		COMIC_POP.spawn(parent, at, {"strokes": 4 if big else 3, "dir": dir, "spread": 0.45,
-			"stroke_len": 0.8 if big else 0.55, "stroke_w": 0.17 if big else 0.13, "chip_ink": 4 if big else 2,
-			"chip_size": 0.09, "chip_speed": 5.5, "steps": 3})
+	if not _once_in_breaker(parent, "impact"):
 		return
-	flare(parent, at, Color(1.0, 0.5, 0.08), 3.6 if big else 2.4, 0.15, "flare")
-	flare(parent, at, Color(1.0, 0.97, 0.85), 1.2 if big else 0.8, 0.08, "dot", true)
-	flare(parent, at, Color(1.0, 0.6, 0.2, 0.9), 2.2 if big else 1.4, 0.2, "ring")
-	burst(parent, at, Color(1.0, 0.6, 0.15), 24 if big else 14, 14.0 if big else 10.0, 0.22, 0.35, dir, 50.0)
-	burst(parent, at, Color(1.0, 0.97, 0.85), 8 if big else 4, 18.0, 0.18, 0.2, dir, 30.0, 0.0, 0.0, "dot", true)
+	DESIGNED_INK.streaks(parent, at, dir, _blow_element(parent), big)  # (none on a crowd hit: designed_ink.pop's merge)
 
 
-const DUST_MIN := 8  # Fx.dust calls under this many motes (footsteps, small skids) draw no designed puff
+const DUST_MIN := 8  # Fx.dust calls under this many motes (footsteps, small skids) draw no puff
+## One drawn puff for a landing or a slam; no smoke (the landing's ring and cracks carry it).
 static func dust(parent: Node, pos: Vector3, amount := 10, size := 0.45) -> void:
-	if Game.comic_style:
-		if DESIGNED.on() and amount >= DUST_MIN:  # round 43: one drawn puff for a landing or a slam
-			DESIGNED.dust(parent, pos, clampf(size / 0.6, 0.7, 1.6))
-		return  # no smoke in the comic look: the landing's ring and cracks carry it
-	burst(parent, pos + Vector3.UP * 0.2, Color(0.62, 0.57, 0.5, 0.6), amount, 4.0, size, 0.55, Vector3.UP, 80.0, 1.0, 0.45, "smoke")
+	if amount >= DUST_MIN:
+		DESIGNED.dust(parent, pos, clampf(size / 0.6, 0.7, 1.6))
 
 
-## Expanding flat ring on the ground (shockwaves, Awakening burst).
+## Expanding inked hoop on the ground (shockwaves): comic_pop's ring, which is designed_ink.shock. Callers often
+## lay a colour hoop and a white one on the same spot at once; one deliberate hoop reads cleaner than two nested
+## ones, so the second within RING_PAIR_MS is dropped.
 static func ring(parent: Node, pos: Vector3, color: Color, radius: float, time := 0.35) -> void:
-	if Game.comic_style:  # a hard inked hoop on twos, not a soft glowing disc
-		# Round 33 (sleek): callers often lay a colour hoop and a white one on the same spot at once; one
-		# deliberate hoop reads cleaner than two nested ones, so the second within RING_PAIR_MS is dropped.
-		var now := Time.get_ticks_msec()
-		var flat := Vector3(pos.x, 0.0, pos.z)
-		if now - _last_ring_ms <= RING_PAIR_MS and flat.distance_to(_last_ring_at) < RING_PAIR_M:
-			return
-		_last_ring_ms = now
-		_last_ring_at = flat
-		COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 5)})
+	var now := Time.get_ticks_msec()
+	var flat := Vector3(pos.x, 0.0, pos.z)
+	if now - _last_ring_ms <= RING_PAIR_MS and flat.distance_to(_last_ring_at) < RING_PAIR_M:
 		return
-	var m := MeshInstance3D.new()
-	var mesh := PlaneMesh.new()
-	mesh.size = Vector2.ONE * 2.2  # the texture's ring sits just inside the quad: outer edge ~1 m
-	# Soft edges read fainter than the solid torus did, so the alpha is pushed up.
-	var mat := unshaded_mat(Color(color, minf(color.a * 1.3, 1.0)), "ring")
-	mesh.material = mat
-	m.mesh = mesh
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(m)
-	m.global_position = pos + Vector3.UP * 0.15
-	m.scale = Vector3(0.3, 0.05, 0.3)
-	var tw := m.create_tween().set_parallel()
-	tw.tween_property(m, "scale", Vector3(radius, 0.05, radius), time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.6).set_delay(time * 0.4)
-	tw.chain().tween_callback(m.queue_free)
+	_last_ring_ms = now
+	_last_ring_at = flat
+	COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": color, "steps": clampi(int(time * 12.0) + 1, 3, 5)})
 
 
 const THIN_HOOP_W := 0.12  # m asked of comic_pop (it draws half: a 0.06 m band, the breaker cue's)
 
 
-## Round 33, part 3 (sleek): a thin inked floor hoop in an element's palette (light tone band, its ink either
-## side), the breaker cue rings' weight. Comic only; the plain look calls ring().
+## A thin inked floor hoop in an element's palette (light tone band, its ink either side), the breaker cue
+## rings' weight.
 static func thin_hoop(parent: Node, pos: Vector3, element: String, radius: float, time := 0.3) -> void:
 	var pal: Dictionary = PAL.of(element)
 	COMIC_POP.spawn(parent, pos, {"ring": radius, "ring_color": pal.light, "ring_w": THIN_HOOP_W,
 		"steps": clampi(int(time * 12.0) + 1, 3, 5)})
 
 
-## Where a foe was spiked into the floor (enemy._crater): a dark hole (a hard
-## disc CRATER_HOLE of the radius) under a ragged splat, both popping out to
-## `radius`, a dust ring past it, the lot fading over `time`.
-const CRATER_COLOR := Color(0.16, 0.12, 0.1, 0.85)  # soot brown, reads on the light tiles
-const CRATER_HOLE := 0.45  # the solid disc's radius, as a share of `radius`
-const CRATER_SPLAT := 1.6  # the splat quad's half-size, as a share of `radius` (its texture fills ~half of it)
-const CRATER_SEGMENTS := 14  # a chunky low-poly edge, not a perfect circle
-const CRATER_RING := Color(0.62, 0.57, 0.5, 0.75)  # the dust colour of dust()
-const CRATER_RING_OUT := 1.5  # the dust ring's reach, in crater radii
+## Where a foe was spiked into the floor (enemy._crater): an inked dent (comic_crack) a little under `radius`,
+## in the dust's warm tone. The dust puff carries the rest: no hoop per crater.
 const CRATER_COMIC := Color(0.62, 0.5, 0.42)  # the dust's warm tone: comic_crack cools it a little, not to soot
 const CRATER_COMIC_SIZE := 0.7  # of the radius
 const CRATER_COMIC_TIME := 0.6  # s
-const CRATER_COMIC_RING_OUT := 1.1  # of the radius: the comic dust hoop (CRATER_RING_OUT 1.5 with a 0.2 m band)
-static func crater(parent: Node, pos: Vector3, radius: float, time := 1.4) -> void:
-	if Game.comic_style:  # round 33, sleek 4: the soft soot discs read as a brown smudge for 1.4 s; an inked dent instead
-		COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
-		# Round 33, sleek 5: one thin dust hoop just past the dent (a 2.4 m 0.1 m band round every cube Deep Freeze
-		# drove down was four cream rings over the crowd).
-		if not DESIGNED.on():  # (round 44: designed, the dent and the dust puff carry it; no hoop per cube)
-			COMIC_POP.spawn(parent, pos, {"ring": radius * CRATER_COMIC_RING_OUT, "ring_color": CRATER_RING, "ring_w": THIN_HOOP_W, "steps": 3})
-		return
-	_crater_layer(parent, pos + Vector3.UP * 0.05, radius * CRATER_HOLE, "", time)
-	_crater_layer(parent, pos + Vector3.UP * 0.06, radius * CRATER_SPLAT, "scorch", time)
-	ring(parent, pos, CRATER_RING, radius * CRATER_RING_OUT, 0.3)
+static func crater(parent: Node, pos: Vector3, radius: float, _time := 1.4) -> void:
+	COMIC_CRACK.spawn(parent, pos, CRATER_COMIC, radius * CRATER_COMIC_SIZE, CRATER_COMIC_TIME)
 
 
-static func _crater_layer(parent: Node, at: Vector3, radius: float, tex: String, time: float) -> void:
-	var m := MeshInstance3D.new()
-	var mesh: PrimitiveMesh
-	if tex == "":  # the hole: a hard-edged flat disc, 1 m radius
-		var disc := CylinderMesh.new()
-		disc.top_radius = 1.0
-		disc.bottom_radius = 1.0
-		disc.height = 0.01
-		disc.radial_segments = CRATER_SEGMENTS
-		disc.rings = 1
-		mesh = disc
-	else:
-		var quad := PlaneMesh.new()
-		quad.size = Vector2.ONE * 2.0
-		mesh = quad
-	var mat := unshaded_mat(CRATER_COLOR, tex)
-	mesh.material = mat
-	m.mesh = mesh
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(m)
-	m.global_position = at + Vector3.UP * randf() * 0.01  # jitter: overlapping marks don't z-fight
-	m.rotation.y = randf() * TAU
-	m.scale = Vector3(radius * 0.3, 1.0, radius * 0.3)
-	var tw := m.create_tween()
-	tw.tween_property(m, "scale", Vector3(radius, 1.0, radius), 0.08).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_interval(time * 0.5)
-	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5)
-	tw.tween_callback(m.queue_free)
-
-
-## Cartoon dizzy stars circling a dazed head (training_dummy._shake_off):
-## DAZE_STARS solid five-point stars inked in ComicFx.INK, on a DAZE_RING m
-## ring `height` above `node`, spinning DAZE_SPIN rad/s, popping in and
-## shrinking away over `time`. Named "DazeStars".
-const DAZE_STARS := 2  # round 33 (sleek): three stars on each of four dummies was a crown of clutter
+## Cartoon dizzy stars circling a dazed head (training_dummy._shake_off): two drawn stars on a DAZE_RING m
+## ring `height` above `node`, spinning DAZE_SPIN rad/s for `time` (designed_finish.daze). Named "DazeStars".
 const DAZE_RING := 0.5  # m, the ring's radius
-const DAZE_SIZE := 0.16  # m, a star's outer radius
-const DAZE_INNER := 0.45  # a star's inner points, as a share of its outer radius
-const DAZE_INK := 1.2  # the ink star behind, as a share of the star
 const DAZE_SPIN := 7.0  # rad/s
-const DAZE_COLOR := Color(1.0, 0.86, 0.2)
-static var _star_mesh: ArrayMesh
 static func daze(node: Node3D, height: float, time := 0.9) -> void:
-	if DESIGNED.on():  # round 46: two drawn cartoon stars (designed_finish.daze)
-		DESIGNED_FINISH.daze(node, height, time, DAZE_RING, DAZE_SPIN)
-		return
-	if _star_mesh == null:
-		_star_mesh = _star(DAZE_SIZE, DAZE_INNER)
-	var pivot := Node3D.new()
-	pivot.name = "DazeStars"
-	node.add_child(pivot)
-	pivot.position.y = height
-	var fill := unshaded_mat(DAZE_COLOR)
-	fill.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	fill.render_priority = 1  # over its ink
-	var ink := unshaded_mat(Color(0.012, 0.01, 0.02))
-	ink.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	ink.billboard_keep_scale = true  # a billboard drops the node's scale otherwise: the ink would hide
-	for i in DAZE_STARS:
-		var a := TAU * i / DAZE_STARS
-		for layer in 2:
-			var star := MeshInstance3D.new()
-			star.mesh = _star_mesh
-			star.material_override = ink if layer == 0 else fill
-			star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			star.position = Vector3(cos(a), 0.0, sin(a)) * DAZE_RING
-			star.scale = Vector3.ONE * (DAZE_INK if layer == 0 else 1.0)
-			pivot.add_child(star)
-	pivot.scale = Vector3.ONE * 0.2
-	var tw := pivot.create_tween().set_parallel()
-	tw.tween_property(pivot, "rotation:y", DAZE_SPIN * time, time)
-	tw.tween_property(pivot, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(pivot, "scale", Vector3.ONE * 0.01, 0.15).set_delay(time - 0.15)
-	tw.chain().tween_callback(pivot.queue_free)
+	DESIGNED_FINISH.daze(node, height, time, DAZE_RING, DAZE_SPIN)
 
 
-## A flat five-point star facing +z, `outer` m to its points, `inner` of that to its notches.
-static func _star(outer: float, inner: float) -> ArrayMesh:
-	var verts := PackedVector3Array()
-	for i in 10:
-		var a := PI * 0.5 + TAU * i / 10.0
-		var r := outer if i % 2 == 0 else outer * inner
-		var p := Vector3(cos(a) * r, sin(a) * r, 0.0)
-		var q_a := PI * 0.5 + TAU * (i + 1) / 10.0
-		var q_r := outer if (i + 1) % 2 == 0 else outer * inner
-		verts.append_array([Vector3.ZERO, Vector3(cos(q_a) * q_r, sin(q_a) * q_r, 0.0), p])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
-
-
-## Burn mark on the floor: a ragged scorch decal that flashes in `color`, cools to
-## soot and fades over `time` (magma, breaker landings). Blend mix so it reads on light tiles.
+## Burn mark on the floor: a flat inked splat and cracks (comic_crack), hot in `color` then soot, over `time`
+## (magma, breaker landings).
 static func scorch(parent: Node, pos: Vector3, color: Color, radius: float, time := 1.2) -> void:
-	if Game.comic_style:  # a flat inked splat and cracks, hot then soot; not a soft glowing decal
-		COMIC_CRACK.spawn(parent, pos, Color.from_hsv(color.h, maxf(color.s, 0.85), 1.0), radius * COMIC_CRACK_SIZE, time)
-		return
-	var m := MeshInstance3D.new()
-	var mesh := PlaneMesh.new()
-	mesh.size = Vector2.ONE * 2.0
-	var mat := unshaded_mat(Color(Color.from_hsv(color.h, 0.95, 1.0), 0.95), "scorch")
-	mesh.material = mat
-	m.mesh = mesh
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(m)
-	m.global_position = pos + Vector3.UP * (0.04 + randf() * 0.02)  # jitter: overlapping marks don't z-fight
-	m.rotation.y = randf() * TAU
-	m.scale = Vector3(radius * 0.6, 1.0, radius * 0.6)
-	var tw := m.create_tween()
-	tw.tween_property(m, "scale", Vector3(radius, 1.0, radius), 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(mat, "albedo_color", Color(0.18, 0.1, 0.08, 0.7), time * 0.35)
-	tw.tween_property(mat, "albedo_color:a", 0.0, time * 0.5)
-	tw.tween_callback(m.queue_free)
+	COMIC_CRACK.spawn(parent, pos, Color.from_hsv(color.h, maxf(color.s, 0.85), 1.0), radius * COMIC_CRACK_SIZE, time)
 
 
-## Frozen translucent copy of a (skinned) model in its current pose.
+## A flat inked silhouette of a (skinned) model in its current pose: one step in `color`, then ink, on twos.
 static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # the dummy renderer has no skeletons to bake from
-	var comic := Game.comic_style
-	if comic and Time.get_ticks_msec() - last_afterimage_ms < int(COMIC_GHOST_STEP * 1000.0):
+	if Time.get_ticks_msec() - last_afterimage_ms < int(COMIC_GHOST_STEP * 1000.0):
 		return  # on twos: a dash asks every 0.035 s, which stacked into a solid bar
 	last_afterimage_ms = Time.get_ticks_msec()
-	# Comic: a flat inked silhouette, not a see-through copy: one step in his colour, then ink, on twos.
-	var mat := unshaded_mat(Color(Color.from_hsv(color.h, maxf(color.s, 0.6), 0.95), 1.0) if comic else color)
-	if comic:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-		mat.next_pass = ink_material()
+	var mat := unshaded_mat(Color(Color.from_hsv(color.h, maxf(color.s, 0.6), 0.95), 1.0))
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	mat.next_pass = ink_material()
 	var ghost := Node3D.new()
 	parent.add_child(ghost)
 	var poses := {}  # his skeleton -> a frozen copy of its pose: skinned on the GPU, not baked
@@ -851,12 +389,9 @@ static func afterimage(parent: Node, model: Node3D, color: Color, time := 0.25) 
 		elif mi.skin:
 			copy.mesh = mi.bake_mesh_from_current_skeleton_pose()
 	var tw := ghost.create_tween()
-	if comic:
-		tw.tween_interval(COMIC_GHOST_STEP)
-		tw.tween_callback(func() -> void: mat.albedo_color = ComicLook.INK)
-		tw.tween_interval(maxf(time - COMIC_GHOST_STEP, COMIC_GHOST_STEP))
-	else:
-		tw.tween_property(mat, "albedo_color:a", 0.0, time)
+	tw.tween_interval(COMIC_GHOST_STEP)
+	tw.tween_callback(func() -> void: mat.albedo_color = ComicLook.INK)
+	tw.tween_interval(maxf(time - COMIC_GHOST_STEP, COMIC_GHOST_STEP))
 	tw.tween_callback(ghost.queue_free)
 
 
@@ -879,7 +414,7 @@ static func _frozen_pose(skel: Skeleton3D, parent: Node3D) -> Skeleton3D:
 
 ## Briefly paint every mesh under `root` white.
 static func flash(root: Node, duration := 0.08) -> void:
-	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
+	if not Game.reduce_flashing and _own_inks(root).size() > 0:
 		flash_tint(root, COMIC_FLASH, duration)  # (a foe: its ink flashes, not a white blob over it)
 		return
 	if _flash_mat == null:
@@ -896,7 +431,7 @@ static func flash_tint(root: Node, color: Color, duration := 0.08) -> void:
 		_tint_mats[key] = unshaded_mat()
 	var mat: StandardMaterial3D = _tint_mats[key]
 	mat.albedo_color = Color(color, 0.3 if Game.reduce_flashing else 0.85)
-	if Game.comic_style and not Game.reduce_flashing and _own_inks(root).size() > 0:
+	if not Game.reduce_flashing and _own_inks(root).size() > 0:
 		# Comic: the foe's own ink goes paper, then his colour, for two short steps, round its own tones.
 		# An overlay fill (even a solid one) turned each foe into a flat inkless blob over a zapped crowd.
 		var inks := _own_inks(root)
@@ -954,7 +489,6 @@ static func _own_inks(root: Node) -> Array:
 static func release() -> void:
 	_flash_mat = null
 	_tint_mats.clear()
-	_star_mesh = null
 	_rim_mat = null
 	_outline_mat = null
 	_outlined.clear()
@@ -975,11 +509,10 @@ static func outline(root: Node) -> void:
 	if _outline_mat == null:
 		_outline_mat = ShaderMaterial.new()
 		_outline_mat.shader = load("res://shaders/outline.gdshader")
-	if Game.comic_style:  # thicker, darker ink, swelling over the form like a brush
-		_outline_mat.set_shader_parameter("width_px", COMIC_INK_PX)
-		_outline_mat.set_shader_parameter("wobble", COMIC_INK_WOBBLE)
-		_outline_mat.set_shader_parameter("depth_push", COMIC_INK_PUSH)
-		_outline_mat.set_shader_parameter("outline_color", ComicLook.INK)
+	_outline_mat.set_shader_parameter("width_px", COMIC_INK_PX)  # thick dark ink, swelling over the form like a brush
+	_outline_mat.set_shader_parameter("wobble", COMIC_INK_WOBBLE)
+	_outline_mat.set_shader_parameter("depth_push", COMIC_INK_PUSH)
+	_outline_mat.set_shader_parameter("outline_color", ComicLook.INK)
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
 			continue

@@ -13,6 +13,7 @@ const BREAKER_CUE := preload("res://scripts/breaker_cue.gd")
 const BREAKER_PROMPT := preload("res://scripts/breaker_prompt.gd")
 const ELEMENTS := preload("res://scripts/elements.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
+const COMIC_COMET := preload("res://scripts/comic_comet.gd")  # the dive's comet beats
 
 # Combo breakers (VOID_ELEMENT.BREAKERS, timed finishers). The move leaps into the air at `leap`
 # (fraction of its anim), hops `back` m while rising `height` m over `rise` s
@@ -44,7 +45,7 @@ static func entry_for(id: String) -> Dictionary:
 ## and ring the landing with the timing cue.
 static func start(hero: CharacterBody3D, id: String, entry: Dictionary) -> void:
 	hero._brk_id = id
-	hero._brk = entry
+	hero._brk = entry.duplicate()  # (entry() is shared: the `alt` merge and the dive's stretch write to this copy)
 	hero._brk_phase = 0
 	hero._brk_press = -1.0
 	hero._brk_locked = false
@@ -137,7 +138,6 @@ static func tick(hero: CharacterBody3D, delta: float) -> void:
 			if opts.size() > 1:  # two endings: the closing ring in both colours until he picks (_start_dive)
 				cue.color = opts[1].color
 				cue.alt_color = opts[0].color
-			cue.crisp = true
 			cue.open = b.open - b.cue
 			cue.sweet = b.sweet - b.cue
 			cue.close = b.close - b.cue
@@ -388,7 +388,7 @@ static func _end(hero: CharacterBody3D) -> void:
 ## One beat of a breaker dive's comet (every 0.02 s as he drops): one fat inked streak that ends in a
 ## held impact star when the beats stop (comic_comet.gd).
 static func _comet(hero: CharacterBody3D, c: Color) -> void:
-	load("res://scripts/comic_comet.gd").beat(hero.get_parent(), hero.model, c)
+	COMIC_COMET.beat(hero.get_parent(), hero.model, c)
 
 
 ## The breaker timing prompt (breaker_prompt.gd) reads this every frame:
@@ -440,10 +440,10 @@ static func color(hero: CharacterBody3D) -> Color:
 	return VOID_ELEMENT.ELEMENTS.LOOK[b.erupt].color if b.has("erupt") else hero._fx_color()
 
 
-## The element a breaker's effects come in: his own, unless the breaker says otherwise.
+## The element a breaker's effects come in: what it lands in (`erupt`), else his own.
 static func element(hero: CharacterBody3D) -> String:
 	var b: Dictionary = hero._brk
-	return VOID_ELEMENT.breaker_element(b) if b.has("erupt") else hero.element()
+	return b.erupt if b.has("erupt") else hero.element()
 
 
 ## The breaker in play's name for the current element.

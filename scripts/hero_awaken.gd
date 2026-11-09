@@ -5,6 +5,7 @@ extends RefCounted
 ## Static functions over the hero's state, like void_element.gd: `awakened`, the light and the rim stay
 ## on player.gd.
 
+const FOES := preload("res://scripts/foes.gd")
 const AWAKEN_BURST_RADIUS := 7.0  # the activation shockwave blows foes back this far
 const AWAKEN_BURST_DAMAGE := 10.0
 const AWAKEN_COLOR := Color(1.0, 0.78, 0.3)  # Awakening's ancestral gold: light, rim, trails, burst
@@ -53,16 +54,15 @@ static func try_awaken(hero: CharacterBody3D) -> void:
 	Fx.awaken_burst(hero.get_parent(), hero.global_position, AWAKEN_COLOR, r)
 	if Game.camera_rig:
 		Game.camera_rig.punch(0.85, 0.35)
-	for e in hero.get_tree().get_nodes_in_group("enemies"):
+	for e: Node3D in hero.get_tree().get_nodes_in_group("enemies"):
 		if not e.is_alive():
 			continue
-		var to: Vector3 = e.global_position - hero.global_position
-		to.y = 0.0
+		var to := FOES.to_flat(hero, e)
 		if to.length() < r:
 			e.take_hit(AWAKEN_BURST_DAMAGE, to.normalized() * 12.0, 5.0, true)
 
 
-## Turn the buff on or off: the meter lock, speed and damage, size, light, rim, trails, the axe's element.
+## Turn the buff on or off: the meter lock, speed and damage, size, light, rim, trails, the orbiting motes.
 static func set_awakened(hero: CharacterBody3D, on: bool) -> void:
 	hero.awakened = on
 	Game.awaken_locked = on
@@ -87,8 +87,5 @@ static func set_awakened(hero: CharacterBody3D, on: bool) -> void:
 		mi.material_overlay = rim if on else null
 	for trail in hero._trails:
 		trail.color = Color(c, 0.9) if on else hero.HERO_FX.trail_rest_color(hero)
-	for coat: Node in hero._coats:  # ComicLook.infuse_axes: the axe's element flares up
-		if is_instance_valid(coat):
-			coat.charge(on)
 	hero._orbit.setup(hero.element(), on)
 	hero.awakened_changed.emit(on)

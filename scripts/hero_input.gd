@@ -8,6 +8,7 @@ extends RefCounted
 const HERO_MOVES := preload("res://scripts/hero_moves.gd")
 const HERO_LEAP := preload("res://scripts/hero_leap.gd")
 const HERO_AWAKEN := preload("res://scripts/hero_awaken.gd")
+const FOES := preload("res://scripts/foes.gd")
 
 ## Input feel (round 30; tests/rhythm_check.gd).
 ## A press of L / right click / dash / R is remembered this long and fires on the first frame it's legal
@@ -154,11 +155,10 @@ static func dash_hands_over(hero: CharacterBody3D) -> bool:
 		return true
 	if t < DASH_ARRIVE_MIN:
 		return false
-	for e in hero.get_tree().get_nodes_in_group("enemies"):
+	for e: Node3D in hero.get_tree().get_nodes_in_group("enemies"):
 		if not e.is_alive():
 			continue
-		var to: Vector3 = e.global_position - hero.global_position
-		to.y = 0.0
+		var to := FOES.to_flat(hero, e)
 		if to.length() <= DASH_ARRIVE and to.length() > 0.01 and rad_to_deg(hero._dash_dir.angle_to(to.normalized())) <= DASH_ARRIVE_ARC:
 			return true
 	return false
@@ -226,19 +226,16 @@ static func aim_want(hero: CharacterBody3D, held := false) -> Vector3:
 	var dir := mouse_dir(hero) if mouse else input_dir(hero)
 	var want: Vector3 = dir.normalized() if dir.length() > 0.1 else hero._facing()
 	var lock: Variant = hero._aim_lock  # (untyped: it can be a freed foe, and a typed var won't take one)
-	if held and is_instance_valid(lock) and lock.is_alive():
-		var to_lock: Vector3 = lock.global_position - hero.global_position
-		to_lock.y = 0.0
+	if held and FOES.alive(lock):
+		var to_lock: Vector3 = FOES.flat(lock.global_position - hero.global_position)
 		if to_lock.length() > 0.01 and rad_to_deg(want.angle_to(to_lock.normalized())) <= AIM_LOCK_BREAK:
 			return to_lock
 	var max_angle: float = AIM_ASSIST_MOUSE_ANGLE if mouse else hero.aim_assist_angle
 	var best: Node3D = null
 	var best_score := INF
-	for e in hero.get_tree().get_nodes_in_group("enemies"):
-		if not e.is_alive():
-			continue
-		var to: Vector3 = e.global_position - hero.global_position
-		to.y = 0.0
+	# (FOES.near pads the range by each foe's radius; the distance test below keeps the old reach exactly)
+	for e: Node3D in FOES.near(hero.get_tree(), hero.global_position, hero.aim_assist_range):
+		var to := FOES.to_flat(hero, e)
 		var d := to.length()
 		if d > hero.aim_assist_range or d < 0.01:
 			continue
@@ -250,8 +247,7 @@ static func aim_want(hero: CharacterBody3D, held := false) -> Vector3:
 			best_score = score
 			best = e
 	if best:
-		want = best.global_position - hero.global_position
-		want.y = 0.0
+		want = FOES.to_flat(hero, best)
 	if not held:
 		hero._aim_lock = best
 	return want

@@ -1,6 +1,6 @@
 class_name ComicLook
 extends RefCounted
-## The comic-book look (Game.comic_style): palette, model swap, clip names and
+## The comic-book look: palette, model swap, clip names and
 ## lighting. See docs/features/comic-style.md. The tones are copied from
 ## vendor_src/shaman_redesign/comic_poc (comic_lib.shared_materials + each
 ## enemy_*.py's extras), keyed by the material names the GLBs carry.
@@ -9,7 +9,6 @@ const TOON_SHADER := "res://shaders/comic_toon.gdshader"
 const EMIT_SHADER := "res://shaders/comic_emit.gdshader"
 const MODEL_PATH := "res://assets/comic/%s.glb"
 const PIECE_PATH := "res://assets/comic/dungeon/%s.glb"
-const KAYKIT_PIECE_PATH := "res://assets/kaykit/dungeon/%s.glb"
 const OUTLINE_SHADER := "res://shaders/outline.gdshader"
 
 ## Material name -> toon tones (comic_lib.toon's arguments, sRGB). Optional keys:
@@ -52,10 +51,6 @@ const TONES := {
 	# enemy_*.py extras
 	"P_Rust": {"shadow": Color(0.14, 0.04, 0.03), "mid": Color(0.55, 0.24, 0.09), "light": Color(0.8, 0.45, 0.2), "hi": Color(1, 0.82, 0.55), "rim": Color(0.3, 0.12, 0.04), "brush": 0.3},
 	"P_Wood": {"shadow": Color(0.15, 0.06, 0.06), "mid": Color(0.42, 0.23, 0.13), "light": Color(0.72, 0.47, 0.25), "hi": Color(0.95, 0.74, 0.44), "rim": Color(0.22, 0.1, 0.05), "brush": 0.32, "inner": 0.1},
-	"P_Bomb": {"shadow": Color(0.02, 0.02, 0.05), "mid": Color(0.065, 0.065, 0.115), "light": Color(0.14, 0.145, 0.23), "hi": Color(0.34, 0.37, 0.52), "rim": Color(0.75, 0.24, 0.05), "brush": 0.12, "inner": 0.12},
-	"P_Shroud": {"shadow": Color(0.08, 0.015, 0.06), "mid": Color(0.32, 0.05, 0.11), "light": Color(0.58, 0.12, 0.16), "hi": Color(0.84, 0.3, 0.24), "rim": Color(0.3, 0.05, 0.1), "brush": 0.16},
-	"P_WardenIron": {"shadow": Color(0.04, 0.05, 0.11), "mid": Color(0.16, 0.19, 0.3), "light": Color(0.36, 0.42, 0.56), "hi": Color(0.72, 0.8, 0.92), "rim": Color(0.14, 0.24, 0.4), "brush": 0.16, "inner": 0.2},
-	"P_Edge": {"shadow": Color(0.2, 0.24, 0.34), "mid": Color(0.55, 0.62, 0.72), "light": Color(0.9, 0.95, 1), "hi": Color(1, 1, 1), "rim": Color(0.3, 0.4, 0.5), "brush": 0.1, "inner": 0.1},
 	"P_IronPlain": {"shadow": Color(0.05, 0.06, 0.14), "mid": Color(0.2, 0.25, 0.38), "light": Color(0.46, 0.54, 0.68), "hi": Color(0.86, 0.92, 1), "rim": Color(0.18, 0.3, 0.5), "brush": 0.16, "inner": 0.2},
 	"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.3, 0.36, 0.5), "light": Color(0.56, 0.64, 0.76), "hi": Color(0.8, 0.86, 0.92), "rim": Color(0.26, 0.36, 0.5), "brush": 0.16, "inner": 0.1},
 	"P_Coat": {"shadow": Color(0.05, 0.06, 0.36), "mid": Color(0.1, 0.15, 0.62), "light": Color(0.22, 0.32, 0.92), "hi": Color(0.52, 0.64, 1), "rim": Color(0.2, 0.16, 0.6), "brush": 0.16, "spot": 0.02},
@@ -90,7 +85,6 @@ const EMITS := {
 	"P_EyeBlue": [Color(0.1, 0.45, 1), Color(0.7, 0.95, 1)],
 	"P_Pupil": [Color(0.012, 0.01, 0.02), Color(0.012, 0.01, 0.02)],
 	"P_Necro": [Color(0.2, 0.85, 0.3), Color(0.9, 1, 0.55)],
-	"P_Hot": [Color(1, 0.72, 0.12), Color(1, 1, 0.78)],
 	"P_Arcane": [Color(0.55, 0.16, 1), Color(0.96, 0.86, 1)],
 	"P_Ember": [Color(1, 0.42, 0.05), Color(1, 0.93, 0.55)],
 	# the foe families' eyes and glows (refine_pass.py FAMILY)
@@ -116,11 +110,9 @@ const KIND_TONES := {
 	# Round 39 b: the minion's cleaver is a flat steel slab held upright, so the sun barely reaches its face; pale
 	# steel tones keep it reading in shade, brush 0 keeps it one tone
 	"minion": {"P_Iron": {"shadow": Color(0.36, 0.42, 0.56), "mid": Color(0.56, 0.63, 0.76), "light": Color(0.78, 0.84, 0.94), "hi": Color(0.94, 0.97, 1), "rim": Color(0.3, 0.38, 0.52), "brush": 0.0, "inner": 0.0}},
-	# Round 39 b, crowd read: the archer (legion, earth orange) wore the grave family's green and the necromancer
-	# (grave, wind green) a red no family has, so a crowd sorted by colour put the archer with the Warden. The
-	# archer's cloth goes to a burnt orange under its orange bow, the necromancer's shroud to a deep grave green.
+	# Crowd read: the archer is legion (earth orange), so its cloth goes to a burnt orange under its orange bow
+	# instead of the kit's green.
 	"archer": {"P_Forest": {"shadow": Color(0.3, 0.08, 0.03), "mid": Color(0.66, 0.26, 0.08), "light": Color(0.9, 0.44, 0.14), "hi": Color(1.0, 0.72, 0.4), "rim": Color(0.34, 0.1, 0.03), "brush": 0.16, "spot": 0.02}},
-	"necromancer": {"P_Shroud": {"shadow": Color(0.02, 0.1, 0.08), "mid": Color(0.06, 0.3, 0.2), "light": Color(0.14, 0.5, 0.3), "hi": Color(0.4, 0.8, 0.5), "rim": Color(0.04, 0.24, 0.14), "brush": 0.16}},
 	"rogue": {"P_Steel": {"shadow": Color(0.08, 0.1, 0.2), "mid": Color(0.32, 0.38, 0.52), "light": Color(0.62, 0.7, 0.82), "hi": Color(0.88, 0.93, 1), "rim": Color(0.26, 0.36, 0.5), "brush": 0.12, "inner": 0.08}},
 	# His weapons grow out of the claw, so they carry its paint: fx_palette's void (round 40). Hafts are the
 	# claw's violet, heads and blades the void's deep and ink, and each keeps one element accent of its own
@@ -136,16 +128,6 @@ const KIND_TONES := {
 ## asked for, so a re-export that adds one wins by itself.
 const CLIPS := {
 	"heretic": {"Throw": "Ab_L2"},
-	"necromancer": {"Running_A": "Walking_D_Skeletons", "Spawn_Ground_Skeletons": "Idle_Combat"},
-	"warden": {
-		"Spawn_Ground_Skeletons": "Idle_Combat",
-		"Hit_B": "Hit_A",
-		"Lie_StandUp": "Idle_Combat",
-		# boss.gd's beats inside Attack_Slam / Attack_Nova / Attack_Cage
-		"Jump_Idle": "",
-		"Jump_Land": "",
-		"Spellcast_Shoot": "",
-	},
 }
 ## The hero: the Meshy heretic (assets/comic/heretic.glb), one painted texture.
 const HERETIC := "heretic"
@@ -213,10 +195,6 @@ const PIECE_INK_PUSH := 0.04  # m, as Fx.COMIC_INK_PUSH
 ## On every table's `inner`. The POC's values were chosen for close-up renders; at the game's
 ## camera the same facing ratio covers most of a small model in ink.
 const INNER_SCALE := 0.5
-## Model name -> scale on its rig node. enemy.gd's model_scale also sizes collision, so
-## it stays as tuned; the Warden is modelled at full size (3.2 m) where the KayKit boss
-## relied on model_scale 1.8. The others match KayKit's height (~2.2 m bounds) as built.
-const RIG_SCALE := {"warden": 1.0 / 1.8}
 ## Foes in the hero's hand (round 29): the chibi hero's shadow is his paint times
 ## PAINTED's shadow, a cool lilac at about half value, while the kit's foe tables shade
 ## into deep warm browns. Every foe toon material (any kind but HERETIC) moves its shadow
@@ -225,14 +203,14 @@ const RIG_SCALE := {"warden": 1.0 / 1.8}
 ## off the sun (`foe_shots.gd -- --side`), bone's shadow/mid ratio comes to (0.43, 0.36, 0.50)
 ## against the hero's (0.42, 0.38, 0.56); at 0.5 it was (0.43, 0.33, 0.42) and still read brown.
 const FOE_SHADE_MATCH := 0.8
-## Used (with a warning) for a material the tables don't know yet.
-## The nine foes get a heavy outer line on top of Fx.outline (shaders/foe_silhouette.gdshader): a second
+## The foes get a heavy outer line on top of Fx.outline (shaders/foe_silhouette.gdshader): a second
 ## hull sharing each skinned mesh, SILHOUETTE_PX wide and pushed SILHOUETTE_PUSH m back, so it shows only
 ## round the outside of the foe (art direction: thicker ink on the silhouette, thin inside).
-const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "bomber", "necromancer", "warden", "dummy"]
+const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "dummy"]
 const SILHOUETTE_SHADER := "res://shaders/foe_silhouette.gdshader"
 const SILHOUETTE_PX := 4.0
 const SILHOUETTE_PUSH := 0.3
+## Used (with a warning) for a material the tables don't know yet.
 const FALLBACK_TONE := "P_Trousers"
 ## Every line and solid black. Near the floor's own shadow tone rather than true black:
 ## at the game's camera black lines read as heavy and clunky.
@@ -259,10 +237,8 @@ static var _piece_ink := {}  # width -> shared outline ShaderMaterial
 static var _silhouette_mat: ShaderMaterial  # the foes' heavy outer line (silhouette())
 
 
-## The comic model for `kind`, or null (flag off, or no GLB yet: caller keeps KayKit).
+## The comic model for `kind` (assets/comic/<kind>.glb), or null when there is no such GLB.
 static func scene(kind: String) -> PackedScene:
-	if not Game.comic_style:
-		return null
 	var file := kind
 	if kind == HERETIC:
 		file = HERETIC_MODELS.get(Game.hero_model, HERETIC)
@@ -272,10 +248,9 @@ static func scene(kind: String) -> PackedScene:
 	return _scenes[file]
 
 
-## A new comic dungeon piece, or null (flag off, or no GLB: caller keeps KayKit).
-static func comic_piece(piece_name: String) -> Node3D:
-	if not Game.comic_style:
-		return null
+## A new dungeon piece (assets/comic/dungeon/<name>.glb, every piece the rooms name has one), in its
+## comic materials; null when there is no such GLB.
+static func piece(piece_name: String) -> Node3D:
 	if not _pieces.has(piece_name):
 		var path := PIECE_PATH % piece_name
 		_pieces[piece_name] = load(path) if ResourceLoader.exists(path) else null
@@ -286,14 +261,7 @@ static func comic_piece(piece_name: String) -> Node3D:
 	return n
 
 
-## A new dungeon piece: comic when flagged and present, else KayKit's. Same names,
-## sizes and pivots, so callers don't care which.
-static func piece(piece_name: String) -> Node3D:
-	var n := comic_piece(piece_name)
-	return n if n != null else load(KAYKIT_PIECE_PATH % piece_name).instantiate()
-
-
-## The clip to play on this model for a clip name the game asks for.
+## The kind the hero's model is keyed by (tones, clips): the heretic is the only hero.
 static func hero_kind() -> String:
 	return HERETIC
 
@@ -393,14 +361,12 @@ static func hero_blades(model: Node3D) -> Array[MeshInstance3D]:
 	return made
 
 
-## The element on the hero's axe: blade and edge recoloured, tongues along the edge, motes
-## behind the swing and a mark where the blade scrapes the floor. Returns the auras so the caller can
-## free them.
+## The element on the hero's axe: blade and edge recoloured, and a mark where the blade scrapes the floor
+## (comic_axe_aura.gd). Returns the auras so the caller can free them.
 static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 	var made: Array[Node3D] = []
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var aura_as: String = HERO_AURA_AS.get(element, element)
-	var meshes := AXE_AURA.build_meshes(aura_as)
 	for bone: String in HERO_AXES:
 		var i := skel.find_bone(bone)
 		var bit: MeshInstance3D = model.find_child(HERO_AXES[bone], true, false)
@@ -413,7 +379,7 @@ static func infuse_axes(model: Node3D, element: String) -> Array[Node3D]:
 		var aura: BoneAttachment3D = AXE_AURA.new()
 		aura.bone_name = bone
 		skel.add_child(aura)
-		aura.setup(aura_as, meshes, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
+		aura.setup(aura_as, _along_edge(edge.mesh, to_hand), to_hand * bit.mesh.get_aabb().get_center(), model)
 		made.append(aura)
 	return made
 
@@ -437,14 +403,6 @@ static func _axe_material(mi: MeshInstance3D, mat_name: String) -> void:
 	var mat: ShaderMaterial = material(mat_name).duplicate()
 	mat.next_pass = was.next_pass
 	mi.set_surface_override_material(0, mat)
-
-
-## Scale the rig under the model's root (the root belongs to model_scale and _squash).
-static func fit(model: Node3D, kind: String) -> void:
-	if RIG_SCALE.has(kind):
-		for child in model.get_children():
-			if child is Node3D:
-				child.scale *= RIG_SCALE[kind]
 
 
 ## The shared comic material for a GLB material name.
@@ -566,7 +524,7 @@ static func known_material(mat_name: String) -> bool:
 
 ## comic_lib.comic_scene: flat dark indigo, untonemapped, one hard sun with real
 ## cast shadows and a weak blue fill. No glow: glow is drawn, not lit. Toon materials
-## ignore the ambient; it's only there so KayKit pieces under the flag stay readable.
+## ignore the ambient; it only lights the odd StandardMaterial3D effect.
 static func build_environment(parent: Node) -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR

@@ -112,9 +112,6 @@ var dummies_swing := false
 ## autotest plays the plain room unless `--room=` is given.
 var room_setting := "plain"
 var room := "plain"
-## Comic-book art style (docs/features/comic-style.md): always on, the hero is a comic
-## model. Kept as a flag the art code reads, where it still falls back to KayKit per piece.
-var comic_style := true
 ## Which heretic model the hero is (ComicLook.HERETIC_MODELS): "chibi" (default since round 29,
 ## assets/comic/heretic_chibi.glb; an orchestrator call Zak can veto), "v3" (the Meshy v3 redesign on the same
 ## rig, heretic_v3.glb: docs/characters/heretic.md; not the default, Zak decides) or "heretic" (the round-28
@@ -124,9 +121,6 @@ const HERO_DEFAULT := "chibi"
 var hero_model := HERO_DEFAULT
 var hero_setting := HERO_DEFAULT
 const HERO_MODELS := {"heretic": "Heretic", "chibi": "Chibi heretic", "v3": "Heretic v3"}
-## Which hero plays: "heretic" (player.gd, the default) or "prince" (scripts/prince/prince.gd, the dragon prince
-## slice: docs/characters/dragon-prince.md), from --hero=prince for this process only. main.gd reads it.
-var hero := "heretic"
 var save_hints := true  # off in the autotest so it doesn't use up real hints
 var _hints_seen: Array = []
 ## True while the hero is Awakened: gains are ignored so Awakening can't be chained.
@@ -162,8 +156,6 @@ func _ready() -> void:
 			room = a.trim_prefix("--room=")
 		if a.begins_with("--hero=") and HERO_MODELS.has(a.trim_prefix("--hero=")):
 			hero_model = a.trim_prefix("--hero=")
-		elif a == "--hero=prince":
-			hero = "prince"
 	for i in SFX_VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -194,7 +186,6 @@ func _exit_tree() -> void:
 	stop_all_sfx()
 	Fx.release()
 	preload("res://scripts/elements.gd").release()
-	preload("res://scripts/breaker_quake.gd").release()
 	_sfx_streams.clear()
 
 

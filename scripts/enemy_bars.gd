@@ -1,7 +1,6 @@
 extends Control
 ## Small health bars over enemies: shown for SHOW_TIME s after an enemy takes
-## damage (then fade), always on elites. A pale trail shows the chunk just
-## lost. The boss has its own bar in the HUD, so it's skipped here.
+## damage (then fade). A pale trail shows the chunk just lost.
 
 const SHOW_TIME := 3.0
 const FADE := 0.5
@@ -10,7 +9,6 @@ const HEAD_HEIGHT := 2.4  # metres above the feet (scaled by model_scale), for a
 const TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const TRAIL_SPEED := 0.9  # bar fractions per second
 const FILL_COLOR := Color(0.95, 0.25, 0.2)
-const ELITE_COLOR := Color(1.0, 0.75, 0.25)
 const TRAIL_COLOR := Color(1.0, 0.95, 0.85)
 const BACK_COLOR := Color(0.05, 0.03, 0.08, 0.8)
 ## Bars never go above this (the HP / room band at the top of the HUD), so
@@ -47,10 +45,10 @@ func _draw() -> void:
 	var now := Time.get_ticks_msec()
 	var screen := get_viewport_rect().size
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if e.has_method("is_boss") or e.state == e.State.SPAWN:
+		if e.state == e.State.SPAWN:
 			continue
 		var age: float = (now - e.last_hit_ms) / 1000.0
-		var alpha: float = 1.0 if e.elite else clampf((SHOW_TIME - age) / FADE, 0.0, 1.0)
+		var alpha: float = clampf((SHOW_TIME - age) / FADE, 0.0, 1.0)
 		if alpha <= 0.0:
 			continue
 		var head: Vector3 = e.global_position + Vector3.UP * bar_height(e) * e.model_scale
@@ -63,8 +61,7 @@ func _draw() -> void:
 		var trail: float = maxf(_trail.get(e.get_instance_id(), ratio), ratio)
 		draw_rect(Rect2(at - Vector2.ONE, SIZE + Vector2.ONE * 2.0), Color(BACK_COLOR, BACK_COLOR.a * alpha))
 		draw_rect(Rect2(at, Vector2(SIZE.x * trail, SIZE.y)), Color(TRAIL_COLOR, 0.8 * alpha))
-		var fill := ELITE_COLOR if e.elite else FILL_COLOR
-		draw_rect(Rect2(at, Vector2(fill_px(e.hp, e.max_hp), SIZE.y)), Color(fill, alpha))
+		draw_rect(Rect2(at, Vector2(fill_px(e.hp, e.max_hp), SIZE.y)), Color(FILL_COLOR, alpha))
 
 
 ## The fill's width for `hp` of `max_hp`: SLIVER_PX at least while it lives, 0 only when dead.

@@ -41,8 +41,6 @@ static func register() -> void:
 
 
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	var mi := MeshInstance3D.new()
 	mi.mesh = QuadMesh.new()
@@ -139,7 +137,7 @@ func _land(one: Dictionary) -> void:
 
 
 func _column(one: Dictionary) -> void:
-	if not DESIGNED.on() or not Game.comic_style or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	register()
 	var size: float = COLUMN_SIZE * (1.0 if int(one.i) == 0 else 0.85)

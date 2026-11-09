@@ -6,10 +6,9 @@ extends Node3D
 ## Each effect is one of these nodes with a timeline: per-frame holds (anticipation short, the peak held, the
 ## rest on twos), then the shader's erosion eats it with an ink (or hot) burn line.
 ##
-## On by default; `--fx=classic` (or `DESIGNED.enabled = false`) plays the old polygon effects, so before and
-## after film from the same build. Every call site branches on `DESIGNED.on()` and keeps its old code path.
+## These are the only effects (the polygon `--fx=classic` path was removed 2026-11-08). Usage:
 ##   const DESIGNED := preload("res://scripts/designed_fx.gd")
-##   if DESIGNED.on(): DESIGNED.hit(parent, at, "earth", 0.9)
+##   DESIGNED.hit(parent, at, "earth", 0.9)
 
 const SELF := preload("res://scripts/designed_fx.gd")
 const PAL := preload("res://scripts/fx_palette.gd")
@@ -86,9 +85,6 @@ const BOLT_TILE := 3.2  # the strip's length on the mesh, in widths: zigzags kee
 const DUST_SIZE := 1.3
 const GROUND_LIFT := 0.065  # m: floor quads sit over the floor stones (their tallest is 0.05; at 0.03 only the grooves showed)
 
-static var enabled := true
-static var game_time_only := false  # tests that film with slow readbacks: real-time steps would jump frames
-static var _args_read := false
 static var _mats := {}
 static var _palette: ImageTexture
 static var _quad: QuadMesh
@@ -103,16 +99,6 @@ static var _ink: GDScript  # designed_ink (the crowd merge)
 
 static func sheet_of(name_: String) -> Dictionary:
 	return SHEETS[name_] if SHEETS.has(name_) else extra_sheets[name_]
-
-
-## Designed effects on? (`--fx=classic` turns them off for a before / after.)
-static func on() -> bool:
-	if not _args_read:
-		_args_read = true
-		for a: String in OS.get_cmdline_user_args() + OS.get_cmdline_args():
-			if a == "--fx=classic":
-				enabled = false
-	return enabled
 
 
 static func row(element: String) -> float:
@@ -217,8 +203,6 @@ func _build(size: float, element: String) -> void:
 	for t: float in times:
 		_life += t
 	_last_us = Time.get_ticks_usec()
-	if standing:
-		STANDING.add(self)
 
 
 ## Random turn and mirror in the screen plane (sprites), so repeats never look stamped.
@@ -249,7 +233,7 @@ func _process(delta: float) -> void:
 			global_position = follow.global_position + follow_off
 		else:
 			follow = null
-	tick(real if not game_time_only and (real_time or _frame < real_until) else delta)
+	tick(real if real_time or _frame < real_until else delta)
 
 
 ## Public so a test can step it.
@@ -451,7 +435,7 @@ static func ice_shatter(parent: Node, at: Vector3, size := 1.0) -> Node3D:
 
 ## A lightning bolt from `a` to `b` (comic_bolt.spawn: strikes out of the sky and the arcs between foes): the
 ## authored bolt strip on a camera-facing ribbon, its rows boiling on twos; with `star` it lands in a storm burst.
-static func bolt(parent: Node, a: Vector3, b: Vector3, width := 0.24, star := 0.0, _forks := 1) -> Node3D:
+static func bolt(parent: Node, a: Vector3, b: Vector3, width := 0.24, star := 0.0) -> Node3D:
 	if a.y - b.y > STRIKE_DROP:  # out of the sky: the authored strike (designed_strike.gd)
 		if _strike == null:  # (loaded once and held: designed_strike preloads this script)
 			_strike = load("res://scripts/designed_strike.gd")
@@ -590,14 +574,6 @@ static func bolt_path(parent: Node, points: PackedVector3Array, width := 0.24) -
 	for i in points.size() - 1:
 		out.append(bolt(parent, points[i], points[i + 1], width))
 	return out
-
-
-## A small electric pop on a foe (fx-air, for the combo-lightning lane): the storm burst's star and crawling arcs,
-## at `size` of a strike's, standing on the floor under `at`.
-static func zap(parent: Node, at: Vector3, size := 0.6) -> Node3D:
-	var fx := spawn(parent, "storm_burst", Vector3(at.x, 0.0, at.z), STRIKE_BURST * size, "wind", STORM_TIMES, Vector2(0.45, 1.0))
-	fx.real_until = 1
-	return fx.set_spin(0.0, -1.0 if randf() < 0.5 else 1.0)
 
 
 ## Small arcs crawling over a struck foe for a few frames (arc_crawl), riding it as it flies: the sky strike's struck

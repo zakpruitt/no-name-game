@@ -484,7 +484,6 @@ func _pillar_slam() -> void:
 		hero._hits_done = 1
 		grab.on_move("GR", "")
 		grab._target = foe
-		grab._target_heavy = false
 		await physics_frame
 		_check(env.current.get("ctx", "") == "pillar_slam" and env.current.s.kind == "pillar", "grab held by a pillar: the indicator on it (%s)" % str(env.current.get("ctx")))
 		hero._move_id = "VS"

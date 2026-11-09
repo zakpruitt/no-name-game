@@ -9,7 +9,6 @@ extends RefCounted
 ##   CALLOUT_CAP.watch(hero)
 
 const STANDING := preload("res://scripts/standing_fx.gd")
-const DESIGNED := preload("res://scripts/designed_fx.gd")
 ## Breaker spectacle: designed, a breaker's name goes up on the ending's callout banner (designed_breaker.gd's
 ## Screen, with the landing's total), so the label here keeps its place and timing but is not drawn.
 static var banner_hidden := 0  # breaker labels left undrawn for the banner (checks)
@@ -137,9 +136,9 @@ static func _watch(hero: Node) -> void:
 		_shown_ms = now  # (the pop starts here; the hold too, so the name lasts the hang's first beat)
 		if tw is Tween and tw.is_valid():
 			tw.kill()  # (it tweens position and scale over his head)
-	if _is_breaker or _lifted:
+	if _lifted:
 		_place(hero, label, now)
-	if _is_breaker and DESIGNED.on() and label.modulate.a > 0.0:
+	if _is_breaker and label.modulate.a > 0.0:  # the ending's banner carries the name (designed_breaker.Screen): never drawn
 		label.modulate.a = 0.0
 		banner_hidden += 1
 	if _fade_from_ms < 0:

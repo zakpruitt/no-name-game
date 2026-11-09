@@ -1,6 +1,5 @@
 extends SceneTree
-## The void arm, headless: right click's routing and targeting, the grab pulling a foe in, the big foe
-## pulling him, R's swings and fling, a dash out of one, the slam, the strings and their breakers, thrown
+## The void arm, headless: right click's routing and targeting, the grab pulling a foe in, R's swings and fling, a dash out of one, the slam, the strings and their breakers, thrown
 ## ice cubes, and the arm's shapes per move.
 ## Runs the real comic hero against stand-in foes. Prints PASS/FAIL.
 ## Run: godot --headless --path . -s tests/void_arm_check.gd
@@ -14,7 +13,6 @@ var GRAB: GDScript
 class Foe extends CharacterBody3D:
 	var radius := 0.5
 	var hp := 500.0
-	var elite := false
 	var hits := 0
 	var last_big := false
 	var frozen := false
@@ -38,7 +36,6 @@ class Foe extends CharacterBody3D:
 func _initialize() -> void:
 	await process_frame
 	var game: Node = root.get_node("Game")
-	game.comic_style = true
 	GRAB = load("res://scripts/void_grab.gd")
 	world = Node3D.new()
 	root.add_child(world)
@@ -58,7 +55,6 @@ func _initialize() -> void:
 	_picking()
 	_shapes_at_rest()
 	await _grab()
-	await _pull()
 	await _swing()
 	await _sky_swing()
 	await _swing_into_wall()
@@ -149,8 +145,6 @@ func _picking() -> void:
 	near.add_to_group("enemies")
 	_check(GRAB.pick(at, ahead, [off, far], [pillar]).node == pillar, "foes out of the cone or range: the pillar")
 	_check(GRAB.pick(at, ahead, [off, far], []).kind == "none", "nothing there: a whip")
-	near.elite = true
-	_check(GRAB.pick(at, ahead, [near], []).kind == "heavy", "an elite is too big to throw")
 	near.free()
 	off.free()
 	far.free()
@@ -193,21 +187,6 @@ func _grab() -> void:
 	_check(d < 2.2 and d < start.distance_to(hero.global_position), "the foe was yanked to him (%.2f m)" % d)
 	_check(not hero._void.tendril.visible, "the tentacle's away after")
 	f.free()
-
-
-func _pull() -> void:
-	var f := _foe(hero.global_position + Vector3(0, 0, 7))
-	f.elite = true
-	hero._face(Vector3(0, 0, 1))
-	hero._start_attack("GR")
-	_check(hero.state == hero.State.SWING, "right click at something big sends him travelling")
-	await _until(func() -> bool: return hero.state != hero.State.SWING, 1.5)
-	var d: float = f.global_position.distance_to(hero.global_position)
-	_check(d < 3.0, "he got to it (%.2f m)" % d)
-	_check(f.global_position.distance_to(hero.global_position + Vector3(0, 0, d)) < 1.5, "it didn't move")
-	_check(hero._move_id == "L1" and hero.state == hero.State.ATTACK, "he arrives swinging")
-	f.free()
-	await _settle()
 
 
 func _press_r() -> void:
@@ -464,7 +443,7 @@ func _cold_front() -> void:
 	hero._face(Vector3(0, 0, 1))
 	var near := _foe(Vector3(0, 0, 2.5))
 	var big := _foe(Vector3(0, 0, 7))
-	big.elite = true
+	big.radius = 1.0  # (heavy: radius 0.9+)
 	var seized_hp := 0.0
 	hero.bot_enabled = true
 	hero.bot_alt = true
@@ -495,7 +474,7 @@ func _cold_front() -> void:
 	var far_foe := _foe(Vector3(0, 0, 30))
 	var alone := look.cube_target(near, [near], Vector3.ZERO, [near, far_foe], Vector3(0, 0, 1)) as Vector3
 	_check(alone.distance_to(far_foe.global_position) > 1.0, "a cube won't chase someone miles away")
-	_check(look.cube_target(near, [near, big], Vector3.ZERO, [near, big], Vector3(0, 0, 1)).distance_to(look._flat(big.global_position)) < 0.1, "with nobody else it goes for another it held")
+	_check(look.cube_target(near, [near, big], Vector3.ZERO, [near, big], Vector3(0, 0, 1)).distance_to(look.FOES.flat(big.global_position)) < 0.1, "with nobody else it goes for another it held")
 	far_foe.free()
 	hero.bot_enabled = false
 	hero.bot_alt = false
@@ -563,7 +542,7 @@ func _short_circuit() -> void:
 	hero._face(Vector3(0, 0, 1))
 	var near := _foe(Vector3(0, 0, 2.5))
 	var out := _foe(Vector3(-6.0, 0, 6.0))  # (far past the landing's spill)
-	out.elite = true  # (can't be held)
+	out.radius = 1.0  # (heavy: radius 0.9+)  # (can't be held)
 	hero.bot_enabled = true
 	hero.bot_alt = true
 	hero._start_attack("EE")
@@ -619,7 +598,7 @@ func _ice() -> void:
 	var b := _foe(Vector3(5.0, 0, 0.5))
 	var c := _foe(Vector3(-1.5, 0, -3.5))
 	var big := _foe(Vector3(-3.0, 0, 5))
-	big.elite = true
+	big.radius = 1.0  # (heavy: radius 0.9+)
 	var off := _foe(Vector3(12.5, 0, -2.0))  # (past HARPOON_REACH even grown by a top-tier chain: x1.45, _cast_grow)
 	var start_ms := 0
 	hero._start_attack("EF")
@@ -682,7 +661,7 @@ func _ice() -> void:
 	var a2 := _foe(Vector3(0, 0, 4))
 	var b2 := _foe(Vector3(0.5, 0, 7))
 	var big2 := _foe(Vector3(-0.5, 0, 9))
-	big2.elite = true
+	big2.radius = 1.0  # (heavy: radius 0.9+)
 	var off2 := _foe(Vector3(6, 0, 4))
 	a = a2
 	b = b2
@@ -777,7 +756,7 @@ func _spear_string() -> void:
 	var far := _foe(Vector3(-2, 0, 6))
 	var out := _foe(Vector3(0, 0, 25))
 	var big := _foe(Vector3(3, 0, 1))
-	big.elite = true
+	big.radius = 1.0  # (heavy: radius 0.9+)
 	var hp := near.hp
 	hero._start_attack("IP")
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
@@ -857,7 +836,7 @@ func _spear_string() -> void:
 	await _until(func() -> bool: return hero._hits_done > 0, 3.0)
 	var second: Node3D = SPEAR.current(self)
 	_check(second != null and second != first, "one spear at a time")
-	await create_timer(SPEAR.LIFE + SPEAR.MELT + 0.2).timeout
+	await create_timer(SPEAR.LIFE + 0.2).timeout
 	_check(SPEAR.current(self) == null, "and it melts in the end")
 	await _settle()
 
@@ -868,7 +847,7 @@ func _magma() -> void:
 	hero._face(Vector3(0, 0, 1))
 	var a := _foe(Vector3(0, 0, 3))
 	var big := _foe(Vector3(1.0, 0, 4))
-	big.elite = true
+	big.radius = 1.0  # (heavy: radius 0.9+)
 	var hp := a.hp
 	var big_hp := big.hp
 	hero._start_attack("EM")
@@ -1121,7 +1100,7 @@ func _crossovers() -> void:
 	hero._void.dark_spot = Vector3(0, 0, 4)
 	el.freeze_pool(hero)
 	_check(el.in_cube(pooled), "Black Ice freezes the pool with it in")
-	var b: Dictionary = el.entry("VD")
+	var b: Dictionary = el.entry("VD").duplicate()  # (entry() is shared)
 	b.merge(b.alt, true)
 	var pool_at: Vector3 = pooled.global_position
 	el.breaker_impact(hero, b, Vector3(0, 0, 2), [], 1.0)
@@ -1555,7 +1534,7 @@ func _dark() -> void:
 	var held := _foe(Vector3(0, 0, 3))
 	var other := _foe(Vector3(5, 0, 3))
 	var big := _foe(Vector3(-4, 0, 3))
-	big.elite = true
+	big.radius = 1.0  # (heavy: radius 0.9+)
 	var far := _foe(Vector3(40, 0, 40))
 	hero._start_attack("GR")
 	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
@@ -1591,7 +1570,7 @@ func _dark() -> void:
 	held.global_position = Vector3(1, 0, 4)
 	other.global_position = Vector3(-3, 0, 4)
 	big.global_position = Vector3(0, 0, -3)
-	big.elite = false
+	big.radius = 0.5
 	hp = held.hp
 	hero._start_attack("VR")
 	await _until(func() -> bool: return hero._hits_done > 0, 2.0)
@@ -1672,7 +1651,7 @@ func _tentacle_alone() -> void:
 	var hp := 0.0
 	# Overwhelm: pins a small one, holds on to a big one.
 	var big := _foe(hero.global_position + hero._facing() * 5.0)
-	big.elite = true
+	big.radius = 1.0  # (heavy: radius 0.9+)
 	a.global_position = big.global_position + Vector3(1.5, 0, 0)
 	b.global_position = Vector3(40, 0, 40)
 	var big_hp := big.hp

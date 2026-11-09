@@ -35,7 +35,6 @@ func _initialize() -> void:
 	_check_complete(card)
 	_check_bot(card)
 	_check_gates(card)
-	_check_prince()
 	var filled := KitSlots.SLOTS.filter(func(s: Dictionary) -> bool: return not card.fill[s.id].is_empty())
 	print("[kit] slots filled=%d/%d pending=%s" % [filled.size(), KitSlots.SLOTS.size(),
 		",".join(KitSlots.SLOTS.filter(func(s: Dictionary) -> bool: return KitSlots.pending(card, s.id)).map(func(s: Dictionary) -> String: return s.id))])
@@ -191,18 +190,6 @@ func _check_gates(card: Dictionary) -> void:
 				else:
 					_check(got == id and reached.has(id), "%s ('%s') not reachable with %s %s (got %s)" % [id, up.moves[id], u, "on" if on else "off", got])
 		Kit.set_on(u, false)
-
-
-## The prince's card is a TODO (paused): shaped like the heretic's, its filled moves his own.
-func _check_prince() -> void:
-	var card: Dictionary = KitSlots.of("prince")
-	_check(card.get("todo", false), "the prince's card is marked todo until his lane fills it")
-	for s: Dictionary in KitSlots.SLOTS:
-		_check(card.fill.has(s.id), "the prince's card has slot %s" % s.id)
-	var pm: GDScript = load("res://scripts/prince/prince_moves.gd")
-	for s: String in card.fill:
-		for id: String in card.fill[s]:
-			_check(pm.MOVES.has(id), "the prince's %s %s is one of his moves" % [s, id])
 
 
 ## The elements along an input's moves (ELEMENT_OF, the weapons' WEAPON_ELEMENT).

@@ -44,8 +44,6 @@ static func register() -> void:
 
 
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	var mi := MeshInstance3D.new()
 	mi.mesh = QuadMesh.new()
@@ -127,7 +125,7 @@ func _set_shell(s: Dictionary) -> void:
 	var e: Node3D = s.foe
 	if on_set.is_valid():
 		on_set.call(e, int(s.i))
-	if DESIGNED.on() and Game.comic_style and is_inside_tree():
+	if is_inside_tree():
 		register()
 		var foot := _flat(e.global_position)
 		var fx: Node3D = DESIGNED.spawn(get_parent(), "steam_shell", foot, SHELL_SIZE * (0.9 + 0.2 * float(e.get("radius") if e.get("radius") != null else 0.5)),
@@ -151,11 +149,11 @@ func _link(k: int) -> void:
 	var foe := e as Node3D
 	if on_link.is_valid():
 		on_link.call(foe, k)
-	if not Game.comic_style or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	if k > 0:
 		ComicFx.say(LINK_WORD, foe.global_position + Vector3.UP * 2.0, WORD_SIZE + 0.06 * k)
-	if DESIGNED.on() and k + 1 < chain.size() and _alive(chain[k + 1]):  # the frost line racing on to the next shell
+	if k + 1 < chain.size() and _alive(chain[k + 1]):  # the frost line racing on to the next shell
 		var a := _flat(foe.global_position)
 		var b := _flat((chain[k + 1] as Node3D).global_position)
 		var run := b - a

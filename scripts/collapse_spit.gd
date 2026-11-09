@@ -72,8 +72,6 @@ static func register() -> void:
 
 
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	var mi := MeshInstance3D.new()
 	mi.mesh = QuadMesh.new()
@@ -181,7 +179,7 @@ func _spit(one: Dictionary) -> void:
 		on_spit.call(e, int(one.i))
 	if not one.heavy:
 		_trails.append({"foe": e, "until": _t + TRAIL_S})
-	if DESIGNED.on() and Game.comic_style and is_inside_tree():
+	if is_inside_tree():
 		register()
 		bursts += 1
 		var crown: Node3D = DESIGNED.spawn(get_parent(), "spit_burst", hole + Vector3.UP * BURST_UP, BURST_SIZE * (1.0 if one.i == 0 else 0.85), "void", BURST_TIMES, Vector2(0.55, 1.0))

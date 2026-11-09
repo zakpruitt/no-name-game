@@ -22,7 +22,6 @@ func _initialize() -> void:
 	p.set_process(false)
 	var bk: GDScript = load("res://scripts/designed_breaker.gd")
 	var num: GDScript = load("res://scripts/comic_number.gd")
-	_ok(bk.DESIGNED.on(), "designed effects on")
 
 	# The landing's stop shape.
 	game.slam_stop(0.06, 0.1, 0.3)

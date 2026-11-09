@@ -1,9 +1,9 @@
 extends Node3D
 ## A comic hit flourish: a flat inked impact star, short fat speed-strokes in the hit's direction (or
 ## all round, `radial`), and chunky two-tone chips, all facing the camera and redrawn on twos. Peaks on
-## its first frame and is gone in about a quarter of a second, before the next swing lands. This is what
-## Fx.hit_spark, impact, chain_spark, element_hit, combo_pop, death and shards draw with the comic
-## style, instead of glowing flares and dot sprays. Uses heretic_form_fx's shared material.
+## its first frame and is gone in about a quarter of a second, before the next swing lands. What Fx.shards'
+## chips, Fx.thin_hoop, comic_column's star and breaker_quake's vents still draw with; its `ring` is forwarded
+## to designed_ink.shock. Uses heretic_form_fx's shared material.
 ##   ComicPop.spawn(parent, at, {"star": 0.6, "strokes": 3, "dir": kb, "chips": 4, "chip": Color})
 
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
@@ -84,9 +84,9 @@ static var _pool := []  # (untyped: a pooled pop someone freed must not error on
 
 
 static func spawn(parent: Node, at: Vector3, opts: Dictionary) -> Node3D:
-	if float(opts.get("ring", 0.0)) > 0.0 and INK_FX.DESIGNED.on():
-		# Round 44 (fx-cohesion): the flat floor hoop is a designed ground stamp now (a broken inked brush shock
-		# line, designed_ink.shock); the pop keeps whatever else it was asked for.
+	if float(opts.get("ring", 0.0)) > 0.0:
+		# The flat floor hoop is a designed ground stamp (a broken inked brush shock line, designed_ink.shock);
+		# the pop keeps whatever else it was asked for.
 		var w := clampf(float(opts.get("ring_w", DEFAULTS.ring_w)) * 2.1, INK_FX.SHOCK_THIN_W, INK_FX.SHOCK_W)
 		INK_FX.shock(parent, at, opts.get("ring_color", HOT), opts.ring, int(opts.get("steps", 4)) / STEPS_PER_S + 0.1, w)
 		opts = opts.duplicate()

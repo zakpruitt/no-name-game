@@ -40,8 +40,6 @@ static func register() -> void:
 
 
 static func prewarm(root: Node3D) -> void:
-	if not DESIGNED.on():
-		return
 	register()
 	var mi := MeshInstance3D.new()
 	var p := PlaneMesh.new()
@@ -138,7 +136,7 @@ func _throw(one: Dictionary, i: int) -> void:
 
 func _spill() -> void:
 	_spilled = true
-	if not DESIGNED.on() or not Game.comic_style or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	register()
 	var run := maxf(reach, SPILL_MIN)

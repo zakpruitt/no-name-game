@@ -5,7 +5,6 @@ extends CharacterBody3D
 ## launched/juggled.
 
 signal died(enemy: Node)
-signal raise_requested(enemy: Node)
 
 enum State { SPAWN, CHASE, WINDUP, RECOVER, HURT, AIRBORNE, DODGE, DEAD }
 
@@ -16,7 +15,7 @@ const FOE_LEAN := preload("res://scripts/foe_lean.gd")
 const STATE_TELL := preload("res://scripts/comic_state_tell.gd")
 
 @export var model_scene: PackedScene
-## ComicLook model name when model_scene is a comic GLB ("" = KayKit, nothing changes).
+## ComicLook model name of model_scene (every spawnable kind has a comic GLB; main._set_model sets it).
 var comic_kind := ""
 var _clip_hold_ms := 0  # comic: run/idle don't replace a held clip until then (_hold_clip)
 @export var max_hp := 30.0
@@ -57,54 +56,14 @@ const CHOP_HIT_AT := 0.45
 ## neutral; once hit, combos land normally).
 @export var dodge_chance := 0.0
 @export var dodge_cooldown := 1.6
-## Elite: tougher, bigger, gold aura, and pays out extra Awakening on death.
-@export var elite := false
-const ELITE_HP_MULT := 2.5
-const ELITE_DAMAGE_MULT := 1.4
-const ELITE_SCALE_MULT := 1.3
-const ELITE_POISE_BONUS := 6.0
-const ELITE_AWAKEN_BONUS := 15.0
 ## Shield bearer: blocks hits from the front while walking/recovering (not
 ## while attacking). Big hits and launchers break the guard for a while;
 ## hits from the side or behind always land.
 @export var shield := false
-const SHIELD_SCENE := preload("res://assets/kaykit/props/Skeleton_Shield_Large_A.gltf")
 const SHIELD_BREAK_TIME := 2.0
 ## Crossbow archer (attack_kind "line").
-const CROSSBOW_SCENE := preload("res://assets/kaykit/props/Skeleton_Crossbow.gltf")
 const AIM_LOCK := 0.7
 const LINE_COLOR := Color(1.0, 0.55, 0.15)
-## Flat colour for the model's hood/cape/cloak meshes (alpha 0 = keep the
-## texture). Lets types that share a model read differently (archer vs rogue).
-@export var cloth_color := Color(0, 0, 0, 0)
-## Multiplies every surface's colour (white = untouched); bombers are scorched.
-@export var body_tint := Color.WHITE
-const CLOTH_MESHES := ["Hood", "Cape", "Cloak", "Hat"]
-## Bomber (attack_kind "bomb"): walks up and lights a fuse (attack_windup s,
-## orange ring = blast_radius). The fuse keeps burning through hits and
-## launches, so knock it into a crowd: the blast hurts the hero and skeletons
-## alike. Killed while lit, it blows up on the spot (chains into other bombs).
-@export var blast_radius := 3.2
-@export var blast_enemy_damage := 40.0
-@export var blast_enemy_launch := 7.0
-const BOMB_COLOR := Color(1.0, 0.5, 0.1)
-var _fuse := -1.0  # seconds left once lit; < 0 = not lit
-## Volatile (elite room twist): bursts VOLATILE_DELAY s after dying, with a
-## smaller blast_radius and much less damage to other skeletons; the ring warns where.
-var volatile := false
-const VOLATILE_DELAY := 0.7
-const VOLATILE_RADIUS := 2.4
-const VOLATILE_ENEMY_DAMAGE := 12.0  # to other skeletons (bombers do blast_enemy_damage)
-const VOLATILE_ENEMY_LAUNCH := 0.0  # stagger only; a launch left crowds helpless
-var _spark: MeshInstance3D
-## Necromancer (attack_kind "raise"): hangs back and raises up to raise_count
-## fallen minions (main.gd keeps the graves; `can_raise` asks it whether any
-## are near). With none to raise it shoots a bolt like a mage.
-@export var raise_count := 2
-@export var raise_cooldown := 5.0
-const RAISE_COLOR := Color(0.45, 1.0, 0.4)
-var can_raise: Callable
-var _raising := false
 ## Seconds this enemy alone freezes on hit (on top of global hitstop).
 @export var hit_freeze := 0.06
 @export var hit_freeze_big := 0.11
@@ -202,11 +161,9 @@ const CRATER_RADIUS := 1.6  # m, the floor mark
 const CRATER_SHAKE := 0.22  # Game.shake amount (a plain knockdown 0.1)
 const ROLL_BIAS := 1.0  # |local x| > ROLL_BIAS * |local z| rolls
 
-static var dodges := 0  # running count, reported by the autotest
 static var _wave_frame := -1  # physics frame of the last hit taken by any enemy, and
 static var _wave_n := 0  # how many took one that frame (_wave_slot)
 static var blocks := 0
-static var blasts := 0
 
 var radius := 0.55
 var hp := 0.0
@@ -252,17 +209,11 @@ var _skid_dust_t := 0.0
 var _orbit_side := 1.0
 var _dodge_cd := 0.0
 var _guard_broken_t := 0.0
-var _shield_node: Node3D
 var _aim_dir := Vector3.FORWARD
 var _aim_line: Node3D
 
 
 func _ready() -> void:
-	if elite:
-		max_hp *= ELITE_HP_MULT
-		attack_damage *= ELITE_DAMAGE_MULT
-		model_scale *= ELITE_SCALE_MULT
-		poise += ELITE_POISE_BONUS
 	hp = max_hp
 	add_to_group("enemies")
 	collision_layer = 4
@@ -280,20 +231,7 @@ func _ready() -> void:
 	radius *= model_scale
 	add_child(model)
 	if comic_kind != "":
-		ComicLook.fit(model, comic_kind)
 		ComicLook.apply(model, comic_kind)
-	if shield and comic_kind == "":
-		_attach_shield()
-	if body_tint != Color.WHITE and comic_kind == "":
-		_tint_body()
-	if cloth_color.a > 0.0 and comic_kind == "":
-		_tint_cloth()
-	if attack_kind == "bomb":
-		_attach_bomb()
-	if attack_kind == "line" and comic_kind == "":
-		var bow: Node3D = CROSSBOW_SCENE.instantiate()
-		bow.rotation_degrees.y = 90.0  # point down the aim
-		_attach_to_hand("handslot.r", bow)
 	_ink_mat = Fx.outline_own(model)
 	if _ink_mat != null:
 		_ink_px = _ink_mat.get_shader_parameter("width_px")
@@ -310,8 +248,6 @@ func _ready() -> void:
 			anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 
 	_build_telegraph()
-	if elite:
-		_build_elite_aura()
 	_player = get_tree().get_first_node_in_group("player")
 	if dodge_chance > 0.0 and _player:
 		_player.attack_started.connect(_on_player_attack)
@@ -324,7 +260,7 @@ func _ready() -> void:
 
 ## Shoots from a distance (doesn't need a melee slot).
 func is_ranged() -> bool:
-	return attack_kind in ["ranged", "line", "raise"]
+	return attack_kind in ["ranged", "line"]
 
 
 ## Targetable: spawned, not dead, and not mid-dodge.
@@ -343,7 +279,7 @@ func is_airborne() -> bool:
 func held() -> bool:
 	if has_meta(HELD_FLYING) or frozen_t > 0.0:
 		return true
-	return has_meta(HELD_BOUND) and not (has_method("is_boss") or elite or radius >= 0.9)
+	return has_meta(HELD_BOUND) and radius < 0.9
 
 
 const HELD_FLYING := "thrown_foe_flying"  # (thrown_foe.FLYING)
@@ -398,8 +334,6 @@ func _physics_process(delta: float) -> void:
 	_attack_cd -= delta
 	_dodge_cd -= delta
 	_guard_broken_t -= delta
-	if _fuse >= 0.0 and state != State.DEAD:
-		_burn_fuse(delta)
 	velocity.y -= _gravity() * delta
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
@@ -466,21 +400,12 @@ func _state_chase(delta: float) -> void:
 	to.y = 0.0
 	var d := to.length()
 	_face(to)
-	if attack_kind == "bomb":
-		if d <= attack_range and _fuse < 0.0:
-			_light_fuse()
-	elif d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()) and not held():
+	if d <= attack_range and _attack_cd <= 0.0 and (is_ranged() or _melee_slot_free()) and not held():
 		_set_state(State.WINDUP)
 		_aim_dir = to / maxf(d, 0.001)
-		_raising = attack_kind == "raise" and can_raise.is_valid() and can_raise.call(self)
-		if attack_kind == "raise":
-			var c := RAISE_COLOR if _raising else Color(0.7, 0.3, 1.0)
-			_telegraph_mat.albedo_color = Color(c, _telegraph_mat.albedo_color.a)
 		if attack_kind == "line":
 			_play("2H_Ranged_Aiming", 0.1)
 			Game.sfx("swing", -12.0, 0.15)
-		elif _raising:
-			_play("Spellcasting", 0.1, 0.8)
 		elif is_ranged():
 			_play("Spellcasting", 0.1, 1.2)
 		else:
@@ -579,10 +504,6 @@ func _state_windup(delta: float) -> void:
 		if attack_kind == "line":
 			_shoot_line()
 			_attack_cd = randf_range(1.8, 2.8)
-		elif _raising:
-			_play("Spellcast_Summon", 0.05, 1.2, true)
-			raise_requested.emit(self)
-			_attack_cd = raise_cooldown
 		elif is_ranged():
 			_shoot()
 			_attack_cd = randf_range(1.6, 2.6)
@@ -593,8 +514,7 @@ func _state_windup(delta: float) -> void:
 
 
 ## Strike telemetry for the dash counter (counter.gd, docs/features/counter.md): game seconds until this foe's
-## melee strike lands (the windup's end, longer under a chill), or -1 when none is coming. Shots, raises and the
-## bomber's fuse are not strikes.
+## melee strike lands (the windup's end, longer under a chill), or -1 when none is coming. Shots are not strikes.
 func strike_in() -> float:
 	if state != State.WINDUP or attack_kind != "melee":
 		return -1.0
@@ -697,16 +617,14 @@ func freeze(time: float, mult: float) -> void:
 		mat.emission_enabled = true
 		mat.emission = Color(0.2, 0.45, 0.6)
 		_ice.material_override = mat
-		if Game.comic_style:  # flat two-tone ice the foe shows through (the shaded teal glass hid it)
-			preload("res://scripts/thrown_foe.gd").comic_ice(_ice, radius + 0.2, m.height)
+		preload("res://scripts/thrown_foe.gd").comic_ice(_ice, radius + 0.2, m.height)  # flat two-tone ice the foe shows through
 		add_child(_ice)
 		_ice.position.y = m.height * 0.5
 	if _lean_tween:  # frozen solid standing up (fx-ice2): a hit's lean would tip it out of its block
 		_lean_tween.kill()
 	model.rotation.x = 0.0
 	model.rotation.z = 0.0
-	if Game.comic_style and Fx.DESIGNED.on():  # fx-ice2: the block fitted to the model as it stands, every freeze
-		preload("res://scripts/designed_elements.gd").fit_block(self, _ice)
+	preload("res://scripts/designed_elements.gd").fit_block(self, _ice)  # the block fitted to the model as it stands
 	_ice.visible = true
 	_clip_speed(_clip_want)  # (frozen solid: the clip holds until the thaw)
 	Game.sfx("cage_shut", -10.0, 0.1)
@@ -722,10 +640,7 @@ func _thaw(shattered: bool) -> void:
 	if cube != null:
 		cube.queue_free()
 	if shattered:
-		if Fx.DESIGNED.on():  # round 43: drawn faceted shards (designed_fx.ice_shatter)
-			Fx.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.9)
-		else:
-			Fx.burst(get_parent(), global_position + Vector3.UP * 0.9, Color(0.75, 0.95, 1.0), 16, 7.0, 0.14, 0.35, Vector3.UP, 90.0)
+		Fx.DESIGNED.ice_shatter(get_parent(), global_position + Vector3.UP * 0.9)  # drawn faceted shards
 		Game.register_hit("shatter_ice")
 
 
@@ -749,7 +664,6 @@ func _on_player_attack(_move_id: String) -> void:
 	if away.length() > 3.5:
 		return
 	_dodge_cd = dodge_cooldown
-	dodges += 1
 	# Hop back and to the side, out of the swing.
 	var side := Vector3(-away.z, 0.0, away.x).normalized() * _orbit_side
 	var dir := (away.normalized() + side * 0.6).normalized()
@@ -1100,173 +1014,16 @@ func _shield_blocks(knockback: Vector3, launch: float, big: bool) -> bool:
 	return true
 
 
-func _attach_shield() -> void:
-	var s: Node3D = SHIELD_SCENE.instantiate()
-	s.rotation_degrees.y = 90.0  # face forward instead of edge-on
-	_attach_to_hand("handslot.l", s)
-	_shield_node = s
-
-
 ## Torn off for good. True if there was one.
 func rip_shield() -> bool:
 	if not shield:
 		return false
 	shield = false
-	if is_instance_valid(_shield_node):
-		_shield_node.visible = false
 	Game.announced.emit("GUARD BREAK")
 	return true
 
 
-func _tint_body() -> void:
-	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
-		for i in mi.mesh.get_surface_count():
-			var mat := mi.get_active_material(i).duplicate() as StandardMaterial3D
-			if mat:
-				mat.albedo_color *= body_tint
-				mi.set_surface_override_material(i, mat)
-
-
-func _tint_cloth() -> void:
-	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
-		if not CLOTH_MESHES.any(func(part: String) -> bool: return part in mi.name):
-			continue
-		for i in mi.mesh.get_surface_count():
-			var mat := mi.get_active_material(i).duplicate() as StandardMaterial3D
-			if mat:
-				mat.albedo_texture = null
-				mat.albedo_color = cloth_color
-				mi.set_surface_override_material(i, mat)
-
-
-func _attach_to_hand(bone: String, item: Node3D) -> void:
-	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
-	var hand := BoneAttachment3D.new()
-	hand.bone_name = bone
-	skel.add_child(hand)
-	hand.add_child(item)
-
-
-func _attach_bomb() -> void:
-	if comic_kind != "":
-		_attach_comic_spark()
-		return
-	var bomb := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.36
-	ball.height = 0.72
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.12, 0.1, 0.12)
-	mat.roughness = 0.4
-	ball.material = mat
-	bomb.mesh = ball
-	_spark = MeshInstance3D.new()
-	var tip := SphereMesh.new()
-	tip.radius = 0.08
-	tip.height = 0.16
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = BOMB_COLOR
-	tip.material = glow
-	_spark.mesh = tip
-	_spark.position.y = 0.4
-	_spark.scale = Vector3.ONE * 0.6  # a smoulder until lit
-	bomb.add_child(_spark)
-	_attach_to_hand("handslot.r", bomb)
-
-
-## The comic bomber carries its own bomb; only the fuse's spark is live.
-func _attach_comic_spark() -> void:
-	_spark = MeshInstance3D.new()
-	var tip := SphereMesh.new()
-	tip.radius = 0.08
-	tip.height = 0.16
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = BOMB_COLOR
-	tip.material = glow
-	_spark.mesh = tip
-	_spark.scale = Vector3.ONE * 0.6
-	_attach_to_hand("spark", _spark)
-
-
-func _light_fuse() -> void:
-	if comic_kind != "":
-		_hold_clip("Bomb_Windup", 0.1, anim.get_animation("Bomb_Windup").length / attack_windup)
-	_fuse = attack_windup
-	_spark.visible = true
-	_telegraph.visible = true
-	_scale_fill(1.0)
-	Game.sfx("swing", -10.0, 0.2)
-
-
-## Flash the ring (faster near the end) and keep chasing until it blows.
-func _burn_fuse(delta: float) -> void:
-	_fuse -= delta
-	var k := 1.0 - _fuse / attack_windup
-	_telegraph.visible = true
-	_telegraph_mat.albedo_color.a = 0.15 + 0.4 * absf(sin(k * k * 30.0))
-	_spark.scale = Vector3.ONE * randf_range(0.8, 1.6)
-	if _fuse <= 0.0:
-		_die(Vector3.ZERO)
-
-
-func _volatile_pop() -> void:
-	blast_radius = VOLATILE_RADIUS
-	blast_enemy_damage = VOLATILE_ENEMY_DAMAGE
-	blast_enemy_launch = VOLATILE_ENEMY_LAUNCH
-	var warn := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = blast_radius
-	disc.bottom_radius = blast_radius
-	disc.height = 0.02
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(BOMB_COLOR, 0.15)
-	disc.material = mat
-	warn.mesh = disc
-	warn.top_level = true
-	warn.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(warn)
-	warn.global_position = Vector3(global_position.x, 0.08, global_position.z)
-	create_tween().tween_property(mat, "albedo_color:a", 0.5, VOLATILE_DELAY)
-	await get_tree().create_timer(VOLATILE_DELAY, false).timeout
-	warn.queue_free()
-	_blast()
-
-
-func _blast() -> void:
-	blasts += 1
-	_telegraph.visible = false
-	if _spark:
-		_spark.visible = false
-	var at := global_position
-	Game.shake(0.5)
-	Game.sfx("hit_big", 0.0, 0.1)
-	Fx.ring(get_parent(), at, Color(BOMB_COLOR, 0.9), blast_radius, 0.35)
-	Fx.burst(get_parent(), at + Vector3.UP * 0.5, BOMB_COLOR, 30, 10.0, 0.18, 0.4, Vector3.UP, 120.0)
-	Fx.dust(get_parent(), at, 20, 1.4)
-	if is_instance_valid(_player) and not _player.is_dead():
-		var to: Vector3 = _player.global_position - at
-		to.y = 0.0
-		if to.length() <= blast_radius:
-			_player.take_hit(attack_damage, to.normalized() * 10.0, self)
-	for e in get_tree().get_nodes_in_group("enemies"):
-		var to: Vector3 = e.global_position - at
-		to.y = 0.0
-		if e != self and e.is_alive() and to.length() <= blast_radius:
-			e.take_hit(blast_enemy_damage, to.normalized() * 6.0, blast_enemy_launch, true)
-			Game.register_hit("bomb")
-
-
 func _die(knockback: Vector3) -> void:
-	if _fuse >= 0.0:
-		_fuse = -1.0
-		remove_from_group("enemies")  # so chained blasts don't hit it again
-		_blast()
-	elif volatile:
-		_volatile_pop()
 	_set_state(State.DEAD)
 	remove_from_group("enemies")
 	collision_layer = 0
@@ -1274,12 +1031,12 @@ func _die(knockback: Vector3) -> void:
 	velocity = Vector3(knockback.x * 1.3, 4.0, knockback.z * 1.3)
 	_play("Death_A", 0.05, 1.4, true)
 	var pop := func() -> void:
-		Fx.death(get_parent(), global_position, knockback, elite, Color(1.0, 0.85, 0.45) if elite else Color(0.93, 0.89, 0.78))
+		Fx.death(get_parent(), global_position, knockback, false, Color(0.93, 0.89, 0.78))
 	if _wave_delay > 0.0:  # a crowd killed by one blow pops one after another, as its reactions do
 		create_tween().tween_callback(pop).set_delay(_wave_delay)
 	else:
 		pop.call()
-	Game.add_awakening(4.0 + (ELITE_AWAKEN_BONUS if elite else 0.0))
+	Game.add_awakening(4.0)
 	Game.sfx("enemy_death", -2.0, 0.15)
 	died.emit(self)
 	Game.enemy_killed.emit(self)
@@ -1386,32 +1143,6 @@ func _squash(amount: Vector3, time := SQUASH_TIME, hold := 0.0) -> void:
 	_squash_tween.tween_property(model, "scale", Vector3.ONE * model_scale, time) 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
-func _build_elite_aura() -> void:
-	var ring := MeshInstance3D.new()
-	var mesh := TorusMesh.new()
-	mesh.inner_radius = 0.75
-	mesh.outer_radius = 0.95
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.8, 0.2, 0.8)
-	mesh.material = mat
-	ring.mesh = mesh
-	ring.scale = Vector3(1.0, 0.05, 1.0) * model_scale
-	ring.position.y = 0.06
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(ring)
-	var pulse := ring.create_tween().set_loops()
-	pulse.tween_property(mat, "albedo_color:a", 0.35, 0.6).set_trans(Tween.TRANS_SINE)
-	pulse.tween_property(mat, "albedo_color:a", 0.85, 0.6).set_trans(Tween.TRANS_SINE)
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.75, 0.3)
-	light.light_energy = 1.2
-	light.omni_range = 3.5
-	light.position.y = 1.4
-	add_child(light)
-
-
 ## Telegraph rim (Fx.edge_ring): pulses faster as the windup runs out.
 const EDGE_PULSE_HZ := Vector2(3.0, 9.0)  # pulses/s at windup start, end
 
@@ -1429,11 +1160,6 @@ func _scale_fill(s: float) -> void:
 		_edge.scale = Vector3(1.0 / s, 0.3 / s, 1.0 / s)  # edge_ring's own scale is (1, 0.3, 1)
 
 
-## Match the rim to a ring of radius r (boss.gd resizes its telegraph).
-func fit_edge(r: float) -> void:
-	Fx.fit_edge(_edge, r)
-
-
 func _pulse_edge(delta: float) -> void:
 	var k := clampf(_state_t / maxf(attack_windup, 0.01), 0.0, 1.0) if state == State.WINDUP else 1.0
 	_edge_t += delta * lerpf(EDGE_PULSE_HZ.x, EDGE_PULSE_HZ.y, k)
@@ -1445,17 +1171,13 @@ func _build_telegraph() -> void:
 	var mesh := CylinderMesh.new()
 	# Melee rings show the reach; shooters get a small ring at their feet.
 	var r := 1.1 if is_ranged() else attack_range + 0.3
-	if attack_kind == "bomb":
-		r = blast_radius
 	mesh.top_radius = r
 	mesh.bottom_radius = r
 	mesh.height = 0.02
 	_telegraph_mat = StandardMaterial3D.new()
 	_telegraph_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_telegraph_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_telegraph_mat.albedo_color = Color(0.7, 0.3, 1.0, 0.3) if attack_kind in ["ranged", "raise"] else Color(1.0, 0.15, 0.1, 0.3)
-	if attack_kind == "bomb":
-		_telegraph_mat.albedo_color = Color(BOMB_COLOR, 0.3)
+	_telegraph_mat.albedo_color = Color(0.7, 0.3, 1.0, 0.3) if attack_kind == "ranged" else Color(1.0, 0.15, 0.1, 0.3)
 	mesh.material = _telegraph_mat
 	_telegraph.mesh = mesh
 	_telegraph.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

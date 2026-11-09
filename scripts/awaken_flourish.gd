@@ -9,20 +9,10 @@ extends Node3D
 ##   const AWAKEN_FLOURISH := preload("res://scripts/awaken_flourish.gd")
 ##   AWAKEN_FLOURISH.spawn(parent, pos)   # ComicFx calls AWAKEN_FLOURISH.note(hero) every frame
 
-const PAL := preload("res://scripts/fx_palette.gd")
-const SPIRIT_ECHO := preload("res://scripts/spirit_echo.gd")
-const DESIGNED := preload("res://scripts/designed_fx.gd")
 const DESIGNED_FINISH := preload("res://scripts/designed_finish.gd")
 
 const AFTER_BREAKER_S := 0.4  # real s after a breaker landing before the flourish shows
 const WAIT_MAX_S := 1.6  # it never waits longer than this (a breaker that never lands)
-const HIGH := 5.0  # m: the column (the beam was 12)
-const RADIUS := 0.24  # m at its foot, 1.3x at the top (the beam's sleek shell was 0.63)
-const POP_S := 0.06  # real s it snaps open
-const HOLD_S := 0.1
-const FADE_S := 0.2  # whole life POP_S + HOLD_S + FADE_S = 0.36 s (the beam: 0.33 s at 12 m, plus 0.45 s of hoop)
-const HOOP_R := 2.6  # m: one thin gold hoop at his feet (the 7 m blast hoop is gone: the foes flying out show it)
-const HOOP_S := 0.3
 
 static var _landed_seen := 0  # the hero's breakers_landed when last read
 static var _landed_ms := -100000  # real ms of the last breaker landing seen
@@ -93,28 +83,5 @@ func _show() -> void:
 		return
 	var at: Vector3 = hero.global_position if hero != null else _at  # where he is now, not where he pressed
 	global_position = Vector3(at.x, 0.0, at.z)
-	if DESIGNED.on():  # round 46: the authored event (designed_finish.awaken: lines pulled in, a crown of gold flame)
-		DESIGNED_FINISH.awaken(get_parent(), hero, global_position)
-		queue_free()
-		return
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = RADIUS * 1.3
-	cyl.bottom_radius = RADIUS
-	cyl.height = HIGH
-	cyl.radial_segments = 12
-	cyl.rings = 1
-	cyl.cap_top = false
-	cyl.cap_bottom = false
-	var gold: Color = PAL.of("gold").body
-	var col := SPIRIT_ECHO.ghost(cyl, gold)
-	col.set_instance_shader_parameter("fade_height", HIGH * 0.85)
-	SPIRIT_ECHO.set_alpha(1.0, col)
-	col.position.y = HIGH * 0.5
-	add_child(col)
-	scale = Vector3(0.3, 0.6, 0.3)
-	var tw := create_tween().set_ignore_time_scale(true)  # (his own Awakening freeze must not hold it)
-	tw.tween_property(self, "scale", Vector3.ONE, POP_S).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_interval(HOLD_S)
-	tw.tween_method(SPIRIT_ECHO.set_alpha.bind(col), 1.0, 0.0, FADE_S)
-	tw.tween_callback(queue_free)
-	Fx.thin_hoop(get_parent(), global_position, "gold", HOOP_R, HOOP_S)
+	DESIGNED_FINISH.awaken(get_parent(), hero, global_position)  # (lines pulled in, a crown of gold flame)
+	queue_free()

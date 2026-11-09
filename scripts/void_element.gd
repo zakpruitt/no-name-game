@@ -3,9 +3,14 @@ extends RefCounted
 ## has the tentacle do that element's thing, and right click in the slow-motion window is the breaker.
 ## See docs/features/void-element.md.
 ## player.gd routes (void_route) and calls fire() on a move's first hit; void_grab.gd holds the seized
-## foes and calls zap() and breaker_impact().
+## foes and calls jolt(), hero_leap.gd breaker_impact(). Foe picks (nearest, nearest first, the densest spot)
+## and the one hit call (take_hit + Game.register_hit) are foes.gd's: FOES.near / nearest / sorted_near /
+## sorted_from / densest / hit.
 
 const FOES := preload("res://scripts/foes.gd")
+const DESIGNED_INK := preload("res://scripts/designed_ink.gd")  # the ground stamps (shock)
+const FLOURISH := preload("res://scripts/env_flourish.gd")  # brazier_spill: Hellseam runs the spilled coals too
+const MOVE_LIST := preload("res://scripts/move_list.gd")  # the upgrade cells' names (improv_name)
 const ELEMENTS := preload("res://scripts/elements.gd")
 const COMIC_FIST := preload("res://scripts/comic_fist.gd")
 const FORM_FX := preload("res://scripts/heretic_form_fx.gd")
@@ -14,8 +19,7 @@ const THROWN := preload("res://scripts/thrown_foe.gd")
 const BIND := preload("res://scripts/floor_bind.gd")
 const SPEAR := preload("res://scripts/frost_spear.gd")
 const DARK := preload("res://scripts/dark_fx.gd")
-const COMIC_BOULDER := preload("res://scripts/comic_boulder.gd")  # crossover looks (round 37)
-const COMIC_FAULT := preload("res://scripts/comic_fault.gd")
+const COMIC_FAULT := preload("res://scripts/comic_fault.gd")  # crossover looks (round 37)
 const COMIC_STEAM := preload("res://scripts/comic_steam.gd")
 const COMIC_FREEZE := preload("res://scripts/comic_freeze_over.gd")
 const COMIC_ARC := preload("res://scripts/comic_arc.gd")
@@ -23,7 +27,6 @@ const LIVE_CURRENT := preload("res://scripts/live_current.gd")
 const COMIC_BOLT := preload("res://scripts/comic_bolt.gd")
 const COMIC_HAIL := preload("res://scripts/comic_hail.gd")  # three-element looks (round 37, second pass)
 const COMIC_MELT := preload("res://scripts/comic_melt.gd")
-const COMIC_ERUPT := preload("res://scripts/comic_erupt.gd")
 const COMIC_IMPALE := preload("res://scripts/comic_impale.gd")
 const COMIC_BACKDRAFT := preload("res://scripts/comic_backdraft.gd")
 const COMIC_ANVIL := preload("res://scripts/comic_anvil.gd")
@@ -91,15 +94,29 @@ const SPEAR_RUN := ["IJ", "IS"]  # moves that take him to the planted spear
 ## Presses off these go on down their own string, not up the spear (Impale's string plants one first).
 const NO_VAULT := ["TW", "XK", "XW", "XT"]
 
-const _WINDOW := {"rise": 0.2, "height": 1.8, "back": 0.6, "spikes": 0, "zone": 1.5, "spread": 0.0, "spike_damage": 0.0,
-	"detonate": 0.0, "throw": 0.04, "cue": 0.08, "open": 0.3, "sweet": 0.44, "close": 0.62, "perfect": 0.06, "dive": 0.12,
-	"radius": 0.0, "launch": 0.0, "perfect_mult": 1.5, "fall": 0.22, "tentacle": true}
+## Every window's defaults (hero_leap reads them off entry()): `rise` s up `height` m hopping `back` m, the floor cue
+## `zone` m ahead from `cue` s, the press between `open` and `close` (rings meet at `sweet`, PERFECT within `perfect`,
+## x `perfect_mult`), the dive `dive` s, a miss floats down in `fall` s; `radius` / `launch` an extra hit round the landing.
+const _WINDOW := {"rise": 0.2, "height": 1.8, "back": 0.6, "zone": 1.5, "cue": 0.08, "open": 0.3, "sweet": 0.44, "close": 0.62,
+	"perfect": 0.06, "dive": 0.12, "radius": 0.0, "launch": 0.0, "perfect_mult": 1.5, "fall": 0.22}
 const BREAKER_HANG := 0.1  # s from the top of the rise to the window opening: the beat to see the cue
 const BREAKER_TO_SWEET := 0.14  # s from open to the rings meeting
 const BREAKER_TO_CLOSE := 0.32  # s from open to close
-## The breakers: `erupt` is what the slam lands in, under each foe. `wire` runs lightning along the
-## tentacles through the hang. `alt` is what L in the window changes it to, instead of right click.
-## Copies of _WINDOW in effect (entry()).
+## The breakers (one row each; entry() lays it over _WINDOW). The keys every row may carry:
+##   erupt            the element the slam lands in (under each foe, the landing's colour and sfx)
+##   damage, leap     the landing's damage; the clip fraction the leap comes at
+##   awaken, awaken_perfect   Awakening meter paid on the landing / on a PERFECT
+##   names            {"spirit": the ending's name} (the callout, the prompt's chip, endings_seen)
+##   alt              the row L picks in the window instead (its keys lay over this row's: hero_leap._start_dive)
+##   height, rise, back, dive, fall, zone, open   this row's own numbers over _WINDOW's
+##   at_spot, short   he comes down at void_grab.dark_spot (where the string gathered them), `short` m this side of it
+##   pause            the leap is after the move's cancel: a press before it goes on down the string (Harpoon, Impale)
+## The hold (void_grab.seize): `wire` Live Wire's pulses along the tentacles; `no_hold` no tentacles; `hold_cubes`
+## Harpoon's row where it stands; `press` Avalanche's cubes stacked; `reel` Anvil's haul back towards him; `only`
+## the dash counter's attacker alone (counter.gd sets it); `cubes` frozen where they hang (Cold Front); `pinwheel` whirled.
+## The ending (breaker_impact dispatches on the first it finds, in its order): counter, shower, hellseam, pinwheel,
+## tempest, slapshot, thunder, cubes, refreeze, press, meteor, cataclysm, short_circuit, black_ice, eruption, anvil,
+## collapse, maw, uproot, abyss; none of them: the generic landing (the held slammed, `erupt` under each).
 const BREAKERS := {
 	"EE": {"erupt": "wind", "wire": true, "damage": 28.0, "leap": GR_HIT + LEAP_AFTER_GRAB, "awaken": 8.0, "awaken_perfect": 16.0,
 		"names": {"spirit": "Grounded"},
@@ -184,7 +201,7 @@ const CUTTER_DAMAGE := 10.0
 const CUTTER_PULL := 7.0
 const CUTTER_LAUNCH := 9.5
 const WIRE_DAMAGE := 4.5  # each jolt, each foe (round 44: 3.5 at a 0.09 s step; the pulses come every 0.1 s and later)
-const HARPOON_STEPS := 8  # (Molten Palm's lava seam steps)
+const PALM_SEAM_STEPS := 8  # Molten Palm's lava seam: fissure steps along the punch
 ## Harpoon (round 47, harpoon_gather.gd): a tentacle to every foe this near him, all round (Galvanize's GALV_REACH),
 ## nearest first and HARPOON_MAX at most, set down frozen in a rank across his aim HARPOON_SET m ahead, each
 ## HARPOON_GAP clear of the next, short of walls (harpoon_slots). Big ones freeze where they stand.
@@ -293,7 +310,6 @@ const DF_FIRST_MULT := 1.5
 const DF_LINK := 3.2
 const DF_MOST := 8
 const DF_POP_STOP := 0.035
-static var deep_waves := 0  # (checks)
 static var _df_pending := {}  # foe id -> its pop, the wave's blocks still to come (deep_freeze_flush)
 const PRESS_REACH := 10.0  # m: how far the tentacles go for a cube
 const CRUSH_HIGH := 2.5  # m the cubes go up
@@ -310,7 +326,6 @@ const PALM_WALL_REACH := 10.5
 const PALM_SPEED := 24.0
 const PALM_WALL_MULT := 2.5  # the splat, on the damage below
 const PALM_SPLAT := 12.0
-const FIST_RADIUS := 1.15
 const FIST_TIME := 0.2  # s out
 const UNDERTOW_RADIUS := 7.0
 const UNDERTOW_TIME := 1.6  # s
@@ -318,14 +333,7 @@ const UNDERTOW_SINK := 0.9  # m
 const UNDERTOW_TICK := 3.5
 const METEOR_DOWN := 6.0  # m/s into the floor on Meteor Fall's landing: it craters (enemy._is_spike)
 const UNDERTOW_CHASE := 18.0  # m it'll follow those Molten Palm just shoved
-const METEOR_GEYSERS := 3  # thin rim geysers (round 33, sleek 5: five full ones walled the pile in)
-const METEOR_GEYSER_OUT := 2.8  # m round where he lands
-const METEOR_R := 0.8  # m
-const METEOR_TAIL := 3.0  # m
-const METEOR_TONGUES := 5  # the tail is flames, not one long cone
-const METEOR_TONGUE_R := 0.42  # m
-const METEOR_COLOR := Color(1.0, 0.36, 0.08, 0.72)
-const METEOR_HOT := Color(1.0, 0.82, 0.25, 0.9)
+const METEOR_HOT := Color(1.0, 0.82, 0.25, 0.9)  # the sparks off the meteor's shell in the dive (hero_leap)
 const REAP_REACH := 6.5  # m
 const REAP_HALF_ANGLE := 1.35  # radians either side of his aim
 const REAP_DAMAGE := 14.0
@@ -369,8 +377,7 @@ const TIDE_STEP := 0.15
 const TIDE_KNOCK := 1.2  # (4 put Black Tide past Lava Leash's 1.3x in its own best situation: lava_leash_check)
 const TIDE_KNOCK_PER := 0.5
 const TIDE_GULP_STOP := 0.06
-static var tide_drags := 0  # (checks)
-static var tide_knocks := 0
+static var tide_knocks := 0  # (checks)
 const COLLAPSE_RADIUS := 6.5  # m
 const COLLAPSE_THROW := 9.0
 ## Round 50: with a wall or pillar within env_target.COLLAPSE_REACH of the hole (the one the indicator marks; the
@@ -467,7 +474,6 @@ const CARRY_DAMAGE := 22.0
 const CARRY_LENGTH := 9.0  # m it flies off a swing
 const FREEZE_TIME := ELEMENT_HOLD  # s (was 1.8): long enough for a dash and a magma move after it to steam them
 const FREEZE_BREAK := 1.6  # the next hit's damage: Frostline into the hammer shatters them
-const BOSS_CHILL := 0.5  # bosses never freeze: they slow
 const GEYSER_RADIUS := 0.9
 const GEYSER_HIGH := 3.2  # m: taller hid the hero and blew out at the game's camera
 const BREAK_AREA := 4.5  # m round the landing, beyond whoever was seized
@@ -517,7 +523,6 @@ const ROCKSLIDE_RADIUS := 5.0  # m round it
 const ROCKSLIDE_DAMAGE := 12.0
 const ROCKSLIDE_AIR_MULT := 2.0  # on a foe the gale had up: wind lifts, earth brings it down
 const ROCKSLIDE_DOWN := 6.0  # m/s into the floor (enemy._is_spike): the whole group craters
-const ROCKSLIDE_IN := 3.0  # m/s of it towards the hammer, so they come down together
 ## Round 55 cool pass 4: Rockslide's pick and beats (_rockslide, _rockslide_land): the landing within ROCKSLIDE_PICK_REACH,
 ## the gale takes the airborne within ROCKSLIDE_GALE_R in to ROCKSLIDE_RING m round it, the boulder drops from
 ## ROCKSLIDE_DROP_Y m in ROCKSLIDE_FALL s (game), a ROCKSLIDE_STOP stop as it lands.
@@ -763,7 +768,7 @@ static func vaults(hero: CharacterBody3D, from: String, attacking: bool, post_da
 		return false
 	if attacking:
 		return from == "IP"
-	var to := _flat(s.global_position - hero.global_position)
+	var to := FOES.flat(s.global_position - hero.global_position)
 	if to.length() > (SPEAR_PICK_REACH + 1.0 if from == "IP" else VAULT_REACH):
 		return false
 	return to.length() < 0.3 or rad_to_deg(hero._facing().angle_to(to.normalized())) <= VAULT_ARC
@@ -773,18 +778,26 @@ static func is_element_move(id: String) -> bool:
 	return ELEMENT_OF.has(id)
 
 
-## The breaker entry for a key in BREAKERS. Its window keeps one rhythm whatever the element (round 30): it
-## opens BREAKER_HANG s after the rise tops out, the sweet spot BREAKER_TO_SWEET later and it closes
-## BREAKER_TO_CLOSE after opening, unless the breaker sets `open` itself. With the default rise (0.2)
-## that's _WINDOW's 0.3 / 0.44 / 0.62; Meteor Fall's longer rise (0.28) used to open 0.02 s after the top.
+## The breaker entry for a key in BREAKERS: its row over _WINDOW. Its window keeps one rhythm whatever the element: it
+## opens BREAKER_HANG s after the rise tops out, the sweet spot BREAKER_TO_SWEET later and it closes BREAKER_TO_CLOSE
+## after opening, unless the breaker sets `open` itself. Built once per key and shared (player asks for it every attack
+## frame): read-only. A caller that writes to it (hero_leap.start, counter._window) takes a duplicate() first.
+static var _entries := {}
 static func entry(key: String) -> Dictionary:
-	var made: Dictionary = _WINDOW.duplicate()
-	made.merge(BREAKERS[key], true)
-	if not BREAKERS[key].has("open"):
-		made.open = made.rise + BREAKER_HANG
-		made.sweet = made.open + BREAKER_TO_SWEET
-		made.close = made.open + BREAKER_TO_CLOSE
-	return made
+	if not _entries.has(key):
+		var made: Dictionary = _WINDOW.duplicate()
+		made.merge(BREAKERS[key], true)
+		if not BREAKERS[key].has("open"):
+			made.open = made.rise + BREAKER_HANG
+			made.sweet = made.open + BREAKER_TO_SWEET
+			made.close = made.open + BREAKER_TO_CLOSE
+		_entries[key] = made
+	return _entries[key]
+
+
+## A breaker landing's damage: the row's, the hero's multiplier and the press (perfect x cast power).
+static func _breaker_damage(hero: CharacterBody3D, b: Dictionary, mult: float) -> float:
+	return b.damage * hero._dmg_mult * mult
 
 
 ## The colour for this move's shared effects. Otherwise they come out in his axe's teal.
@@ -792,30 +805,24 @@ static func color_of(id: String, fallback: Color) -> Color:
 	return ELEMENTS.LOOK[ELEMENT_OF[id]].color if ELEMENT_OF.has(id) else fallback
 
 
-## Freezes a foe and puts it in a cube. Bosses only slow, with no cube.
+## Freezes a foe and puts it in a cube.
 static func encase(e: Variant) -> void:
 	if not is_instance_valid(e) or not e.is_alive():
 		return
 	chill_or_freeze(e)
-	if not e.has_method("is_boss"):
-		THROWN.cube_on(e)
-
-
-## What a breaker lands in, as an element the shared effects understand.
-static func breaker_element(b: Dictionary) -> String:
-	return b.erupt
+	THROWN.cube_on(e)
 
 
 ## The move's first hit. Returns how many foes it reached, so a whiff stays quiet. A base element move first cashes
 ## in whatever state its element pays on the foes near him (improvise(), the element matrix), then does its own thing.
 static func fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
-	var paid := improvise(hero, id, _flat(hero.global_position), hero._dmg_mult * hero._cast_power(), fwd)
+	var paid := improvise(hero, id, FOES.flat(hero.global_position), hero._dmg_mult * hero._cast_power(), fwd)
 	return maxi(_fire(hero, id, fwd), paid)
 
 
 static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 	var parent: Node = hero.get_parent()
-	var at := _flat(hero.global_position)
+	var at := FOES.flat(hero.global_position)
 	var power: float = hero._dmg_mult * hero._cast_power()
 	var grow: float = hero._cast_grow()
 	Game.sfx(ELEMENTS.LOOK[ELEMENT_OF[id]].sfx, -2.0, 0.1)
@@ -863,8 +870,7 @@ static func _fire(hero: CharacterBody3D, id: String, fwd: Vector3) -> int:
 		"TW":
 			for e: Node3D in _tow_line(hero, at):  # airborne into dark: ripped out of the air
 				if e.is_airborne() and not hero._void.is_heavy(e):
-					e.take_hit(TOW_DAMAGE * power * (TOW_AIR_MULT - 1.0), Vector3.ZERO, 0.0, true)
-					Game.register_hit("cast")
+					FOES.hit(e, TOW_DAMAGE * power * (TOW_AIR_MULT - 1.0), Vector3.ZERO, 0.0, true, "cast")
 					COMIC_RIP.spawn(hero.get_parent(), e, at)  # (a void tear across it as it's ripped down)
 			return _tow(hero, at, fwd, TOW_DAMAGE * power)
 		"XR":
@@ -928,10 +934,10 @@ static func _plant(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> int:
 	# Round 55 cool pass 4: by default it goes in at the nearest group in reach (spear_auto, the bracket's auto pick),
 	# not along his facing, so the frost lines always reach someone; the cursor still overrides.
 	var at_foe: Node3D = ENV.picked_foe(hero, "spear")
-	if at_foe == null or _flat(at_foe.global_position - at).length() > SPEAR_PICK_REACH + 0.5:
+	if at_foe == null or FOES.flat(at_foe.global_position - at).length() > SPEAR_PICK_REACH + 0.5:
 		at_foe = spear_auto(hero, at)
-	if at_foe != null and _flat(at_foe.global_position - at).length() <= SPEAR_PICK_REACH + 0.5:
-		var to := _flat(at_foe.global_position - at)
+	if at_foe != null and FOES.flat(at_foe.global_position - at).length() <= SPEAR_PICK_REACH + 0.5:
+		var to := FOES.flat(at_foe.global_position - at)
 		spot = at + to.normalized() * maxf(to.length() - 0.3, 0.5) if to.length() > 0.01 else spot
 		hero._face(to)
 	var s: Node3D = SPEAR.plant(hero.get_parent(), spot)
@@ -947,21 +953,7 @@ static func _plant(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> int:
 ## Frost Spear's default plant (round 55): the foe in SPEAR_PICK_REACH with the most others within SPEAR_GROUP_R of it
 ## (the nearest group), nearest him on a tie; null with no two standing together (then it goes in ahead of him).
 static func spear_auto(hero: CharacterBody3D, at: Vector3) -> Node3D:
-	var near: Array = spear_candidates(hero, at)
-	var best: Node3D = null
-	var best_n := -1
-	var best_d := INF
-	for e: Node3D in near:
-		var n := 0
-		for o: Node3D in near:
-			if o != e and _flat(o.global_position - e.global_position).length() <= SPEAR_GROUP_R:
-				n += 1
-		var d := _flat(e.global_position - at).length()
-		if n > best_n or (n == best_n and d < best_d):
-			best = e
-			best_n = n
-			best_d = d
-	return best if best_n > 0 else null  # (nobody standing together: no group, he plants ahead as before)
+	return FOES.densest(spear_candidates(hero, at), SPEAR_GROUP_R, at, Callable(), 1)
 
 
 ## Who Frost Spear's plant may be thrown at (round 54): anyone within SPEAR_PICK_REACH.
@@ -974,7 +966,7 @@ static func run_to_spear(hero: CharacterBody3D, delta: float) -> void:
 	var s: Node3D = SPEAR.current(hero.get_tree())
 	if s == null:
 		return
-	var to := _flat(s.global_position - hero.global_position)
+	var to := FOES.flat(s.global_position - hero.global_position)
 	if to.length() <= SPEAR_GAP:
 		hero.velocity.x = 0.0
 		hero.velocity.z = 0.0
@@ -990,7 +982,7 @@ static func run_to_spear(hero: CharacterBody3D, delta: float) -> void:
 static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> int:
 	var parent: Node = hero.get_parent()
 	var s: Node3D = SPEAR.current(hero.get_tree())
-	var spot: Vector3 = _flat(s.global_position) if s != null else at
+	var spot: Vector3 = FOES.flat(s.global_position) if s != null else at
 	if s != null:
 		s.shatter()
 	SPEAR.frost_ring(parent, spot, DEEP_FREEZE_RADIUS, 0.3)
@@ -1004,7 +996,6 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 	# a frost line from the nearest block already set; past the frost's edge it reaches anyone within DF_LINK m of the
 	# first block, so picking the side a straggler stands on takes it too. Best: a crowd with one out on its edge.
 	var order: Array = deep_freeze_order(hero, spot)
-	deep_waves += 1
 	for i in order.size():
 		var e: Node3D = order[i][0]
 		var prev: Variant = order[i][1]
@@ -1014,7 +1005,7 @@ static func _deep_freeze(hero: CharacterBody3D, at: Vector3, damage: float) -> i
 		var key := e.get_instance_id()
 		_df_pending[key] = _df_pop.bind(hero, e, prev, damage, i, order.size())  # (bound, not a lambda: a freed foe stays a Variant)
 		hero.get_tree().create_timer(DF_STEP * i, false).timeout.connect(_df_go.bind(key))
-	if order.is_empty() and Game.comic_style:
+	if order.is_empty():
 		ComicFx.say(ComicFx.MOVE_WORDS["IS"], spot + Vector3.UP * 1.5, MID_WORD_SIZE)
 	return order.size()
 
@@ -1038,11 +1029,7 @@ static func deep_freeze_flush() -> Array:
 		out.append(args[1])
 		j += 1
 		(args[0] as Node).get_tree().create_timer(DF_FLUSH_STEP * j, false, false, true).timeout.connect(_df_pop_args.bind(args))
-	deep_flushed += out.size()
 	return out
-
-
-static var deep_flushed := 0  # blocks the hold flushed as a fast wave (checks)
 
 
 static func _df_pop_args(args: Array) -> void:
@@ -1059,7 +1046,7 @@ static func _df_go(key: int) -> void:
 static func deep_freeze_order(hero: CharacterBody3D, spot: Vector3) -> Array:
 	var pool: Array = FOES.near(hero.get_tree(), spot, DEEP_FREEZE_RADIUS + DF_LINK * 2.0)
 	var first: Node3D = ENV.picked_foe(hero, "deep_freeze")
-	if first == null or not first in pool or _flat(first.global_position - spot).length() > DEEP_FREEZE_RADIUS:
+	if first == null or not first in pool or FOES.flat(first.global_position - spot).length() > DEEP_FREEZE_RADIUS:
 		first = deep_freeze_auto(hero, spot)
 	if first == null:
 		return []
@@ -1072,17 +1059,17 @@ static func deep_freeze_order(hero: CharacterBody3D, spot: Vector3) -> Array:
 		for e: Node3D in pool:
 			if e in done:
 				continue
-			var inside := _flat(e.global_position - spot).length() <= DEEP_FREEZE_RADIUS
+			var inside := FOES.flat(e.global_position - spot).length() <= DEEP_FREEZE_RADIUS
 			var link: Node3D = null
 			var link_d := INF
 			for f: Node3D in done:
-				var dd := _flat(e.global_position - f.global_position).length()
+				var dd := FOES.flat(e.global_position - f.global_position).length()
 				if dd < link_d:
 					link_d = dd
 					link = f
-			if not inside and _flat(e.global_position - first.global_position).length() > DF_LINK:
+			if not inside and FOES.flat(e.global_position - first.global_position).length() > DF_LINK:
 				continue  # (past the frost's edge only round the first block: the side you picked)
-			var d := _flat(e.global_position - first.global_position).length()
+			var d := FOES.flat(e.global_position - first.global_position).length()
 			if d < best_d:
 				best_d = d
 				best = e
@@ -1096,27 +1083,19 @@ static func deep_freeze_order(hero: CharacterBody3D, spot: Vector3) -> Array:
 
 ## Deep Freeze's first block by default: the foe nearest the spear within its radius, or null.
 static func deep_freeze_auto(hero: CharacterBody3D, spot: Vector3) -> Node3D:
-	var best: Node3D = null
-	var best_d := INF
-	for e: Node3D in FOES.near(hero.get_tree(), spot, DEEP_FREEZE_RADIUS):
-		var d := _flat(e.global_position - spot).length()
-		if d < best_d:
-			best_d = d
-			best = e
-	return best
+	return FOES.nearest(hero.get_tree(), spot, DEEP_FREEZE_RADIUS)
 
 
 static func _df_pop(hero: Variant, e: Variant, prev: Variant, damage: float, i: int, n: int, stop := true) -> void:
 	if not is_instance_valid(e) or not e.is_alive() or not is_instance_valid(hero):
 		return
 	var parent: Node = (hero as Node).get_parent()
-	e.take_hit(damage, Vector3.DOWN * DEEP_FREEZE_DOWN, 0.0, true)
-	Game.register_hit("cast")
+	FOES.hit(e, damage, Vector3.DOWN * DEEP_FREEZE_DOWN, 0.0, true, "cast")
 	encase(e)
-	var foot := _flat((e as Node3D).global_position)
-	if Game.comic_style and DESIGNED.on() and is_instance_valid(parent):
+	var foot := FOES.flat((e as Node3D).global_position)
+	if is_instance_valid(parent):
 		if is_instance_valid(prev):
-			var from := _flat((prev as Node3D).global_position)
+			var from := FOES.flat((prev as Node3D).global_position)
 			var d := from.distance_to(foot)
 			if d > 0.8:
 				DESIGNED_EL.fissure(parent, from, foot - from, d, maxi(2, int(d / 0.9)), "water", 1.0, 0.02)
@@ -1125,7 +1104,7 @@ static func _df_pop(hero: Variant, e: Variant, prev: Variant, damage: float, i: 
 		Game.hitstop(DF_POP_STOP)
 	if i > 0:
 		Game.shake(0.2)
-	if i == n - 1 and Game.comic_style:
+	if i == n - 1:
 		ComicFx.say(ComicFx.MOVE_WORDS["IS"], foot + Vector3.UP * 1.6, MID_WORD_SIZE)
 
 
@@ -1141,13 +1120,12 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: fl
 	var slots := harpoon_slots(hero, at, fwd, light)
 	var grabs := []
 	for e: Node3D in foes:  # (nearest first: they latch in that order)
-		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
+		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, FOES.flat(e.global_position))})
 	var g: Node3D = HARPOON_GATHER.start(hero, grabs)
 	hero._void.gather = g
 	var latched := [0]  # (only the first latch of this gather stops)
 	g.on_latch = func(e: Node3D) -> void:
-		e.take_hit(damage, Vector3.ZERO, 0.0, false)
-		Game.register_hit("cast")
+		FOES.hit(e, damage, Vector3.ZERO, 0.0, false, "cast")
 		if latched[0] == 0:
 			Game.hitstop(LATCH_STOP)
 		latched[0] += 1
@@ -1155,19 +1133,13 @@ static func _harpoon(hero: CharacterBody3D, at: Vector3, fwd: Vector3, reach: fl
 			e.stagger(1.0)
 	g.on_set = func(e: Node3D) -> void:
 		encase(e)
-		if Fx.DESIGNED.on():  # fx-ice3: frost cracks under the block, not ice chips (Zak: no crystals)
-			preload("res://scripts/designed_elements.gd").frost_mark(hero.get_parent(), _flat(e.global_position), 0.7, 0.5)
-		else:
-			Fx.shards(hero.get_parent(), e.global_position + Vector3.UP * 0.4, Color(0.88, 0.97, 1.0), 6, Vector3.UP, 4.0, 0.12, 0.4)
+		DESIGNED_EL.frost_mark(hero.get_parent(), FOES.flat(e.global_position), 0.7, 0.5)  # (frost cracks under the block, no crystals)
 	return foes.size()
 
 
 ## Who Harpoon takes: every living foe within `reach` of him, nearest first, HARPOON_MAX at most.
 static func harpoon_targets(hero: CharacterBody3D, at: Vector3, reach: float) -> Array:
-	var foes: Array = FOES.near(hero.get_tree(), at, reach).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
-	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
-	return foes.slice(0, HARPOON_MAX)
+	return FOES.sorted_near(hero.get_tree(), at, reach, HARPOON_MAX)
 
 
 ## Each foe's slot in the rank: across his aim HARPOON_SET m ahead (closer when a wall is nearer), side by side in
@@ -1197,13 +1169,13 @@ static func harpoon_slots(hero: CharacterBody3D, at: Vector3, fwd: Vector3, foes
 		var half: float = widths[i] * 0.5
 		var spot: Vector3 = at + fwd * ahead + side * (x + half)
 		x += widths[i] + HARPOON_GAP
-		var line := _flat(spot - at)
+		var line := FOES.flat(spot - at)
 		var reach: float = line.length()
 		if reach > 0.01:  # (a wall across a slot's line pulls it in)
 			var clear: float = hero._clear_ahead(line / reach, reach + half + HARPOON_WALL) - half - HARPOON_WALL
 			if clear < reach:
 				spot = at + line / reach * maxf(clear, HARPOON_SET_MIN * 0.6)
-		out[e] = _flat(spot)
+		out[e] = FOES.flat(spot)
 	return out
 
 
@@ -1216,28 +1188,26 @@ static func ice_radius(e: Node3D) -> float:
 		var box: AABB = cube.mesh.get_aabb()
 		var flat := Vector2(cube.position.x, cube.position.z).length()
 		return maxf(box.size.x, box.size.z) * 0.5 * ICE_CORNER + flat
-	if Game.comic_style and DESIGNED.on() and e.get("model") is Node3D:
-		var fit: Dictionary = ELEMENTS.DESIGNED_EL.block_fit(ELEMENTS.DESIGNED_EL.model_points(e), -0.08 - e.global_position.y)
+	if e.get("model") is Node3D:
+		var fit: Dictionary = DESIGNED_EL.block_fit(DESIGNED_EL.model_points(e), -0.08 - e.global_position.y)
 		return float(fit.r) / cos(PI / 6.0) * ICE_CORNER + Vector2(fit.centre.x, fit.centre.z).length()
-	return float(e.get("radius")) + 0.1
+	return float(e.radius) + 0.1
 
 
 ## Freezes the nearest foe, the frozen first, and bowls it along his aim. Everyone it passes freezes.
 static func _ice_cube(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float) -> int:
-	# Round 51 (fluidity): Ice Cube pressed while Harpoon's tentacles still carried the row found nobody (all of them
-	# flying) and played at x1.00 (feel audit 4, left open); the carries land in their slots now and it bowls the row.
 	if is_instance_valid(hero._void.gather) and not hero._void.gather.done():
-		hero._void.gather.finish_now()
+		hero._void.gather.finish_now()  # (Harpoon's carries still in the air land in their slots first, so it bowls the row)
 	var foes: Array = hero._void.reachable().filter(func(e: Node3D) -> bool:
-		return not hero._void.is_heavy(e) and not THROWN.flying(e) and _flat(e.global_position - at).length() <= BOWL_REACH)
+		return not hero._void.is_heavy(e) and not THROWN.flying(e) and FOES.flat(e.global_position - at).length() <= BOWL_REACH)
 	if foes.is_empty():
 		return 0
-	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		var fa: bool = float(a.get("frozen_t") if a.get("frozen_t") != null else 0.0) > 0.0
-		var fb: bool = float(b.get("frozen_t") if b.get("frozen_t") != null else 0.0) > 0.0
+	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (the frozen first, then the nearest)
+		var fa := frozen_left(a) > 0.0
+		var fb := frozen_left(b) > 0.0
 		if fa != fb:
 			return fa
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+		return FOES.flat(a.global_position - at).length() < FOES.flat(b.global_position - at).length())
 	var e: Node3D = foes[0]
 	encase(e)
 	_pop(hero.get_parent(), e.global_position, "spear")
@@ -1251,16 +1221,18 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	var parent: Node = hero.get_parent()
 	var length: float = minf(PALM_LENGTH * grow, hero._clear_ahead(fwd, PALM_LENGTH * grow) + 0.5)
 	hero._void.fist = _fist(parent, at, fwd, length)
-	ELEMENTS.fissure(parent, at, fwd, length, HARPOON_STEPS, "earth", 1.0)
-	if not DESIGNED.on(): Fx.scorch(parent, at + fwd * length * 0.5, ELEMENTS.LOOK.earth.color, length * 0.5, 1.4)  # (designed: the fissure's seam is the mark)
+	ELEMENTS.fissure(parent, at, fwd, length, PALM_SEAM_STEPS, "earth", 1.0)  # (the fissure's seam is the floor's mark)
 	var foes := _ahead(hero, at, fwd, length, PALM_HALF_WIDTH)
 	hero._void.shoved = foes
+	var skip: Array[RID] = []  # one wall ray's exclude list for the whole crowd
+	if not foes.is_empty():
+		skip = THROWN.exclude_rids(hero)
 	for e: Node3D in foes:
 		e.take_hit(PALM_DAMAGE * power, fwd * 4.0, 0.0, true)
 		e.set_meta(PALM_META, Time.get_ticks_msec())  # (Meteor Fall only dives on these: meteor_spot)
 		Game.register_hit("cast")
 		if not hero._void.is_heavy(e) and e.is_alive():
-			var walled: bool = THROWN.clear_from(hero, e, e.global_position, fwd, PALM_WALL_REACH) < PALM_WALL_REACH
+			var walled: bool = THROWN.clear_from(hero, e, e.global_position, fwd, PALM_WALL_REACH, skip) < PALM_WALL_REACH
 			if walled:
 				e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + PALM_CUE_MS)
 			THROWN.launch(hero, e, e.global_position + fwd * (PALM_WALL_REACH if walled else PALM_SHOVE), PALM_SPLAT * power,
@@ -1268,49 +1240,16 @@ static func _palm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, grow: float,
 	return foes.size()
 
 
-## A fist of the arm's own stuff, flying out along `fwd`.
+## A fist of the arm's own stuff, flying out along `fwd`: the flat inked fist (comic_fist.gd).
 static func _fist(parent: Node, at: Vector3, fwd: Vector3, length: float) -> Node3D:
-	if Game.comic_style: return COMIC_FIST.spawn(parent, at, fwd, length, FIST_TIME)  # the flat inked fist
-	var root := Node3D.new()
-	parent.add_child(root)
-	var from := at + fwd * 1.0 + Vector3.UP * 1.0
-	root.global_position = from
-	root.look_at(from + fwd, Vector3.UP)
-	var mat: Material = null
-	if DisplayServer.get_name() != "headless":
-		mat = ComicLook.material("P_Tendril", ComicLook.hero_kind()).duplicate()
-		mat.next_pass = Fx.ink_material()
-	var parts := [[Vector3.ZERO, FIST_RADIUS]]
-	for i in 4:  # knuckles, along the front
-		parts.append([Vector3((i - 1.5) * FIST_RADIUS * 0.5, FIST_RADIUS * 0.35, -FIST_RADIUS * 0.8), FIST_RADIUS * 0.34])
-	for p: Array in parts:
-		var ball := SphereMesh.new()
-		ball.radius = p[1]
-		ball.height = p[1] * 2.0
-		ball.radial_segments = 12
-		ball.rings = 6
-		var mi := MeshInstance3D.new()
-		mi.mesh = ball
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.set_meta("no_ghost", true)
-		mi.position = p[0]
-		root.add_child(mi)
-	root.scale = Vector3.ONE * 0.4
-	var tw := root.create_tween()
-	tw.set_parallel()
-	tw.tween_property(root, "global_position", at + fwd * length + Vector3.UP * 1.0, FIST_TIME).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(root, "scale", Vector3.ONE, FIST_TIME * 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.chain().tween_property(root, "scale", Vector3.ONE * 0.1, 0.12).set_delay(0.08)
-	tw.chain().tween_callback(root.queue_free)
-	return root
+	return COMIC_FIST.spawn(parent, at, fwd, length, FIST_TIME)
 
 
 ## Tendrils up through the floor take everyone near him down into lava, where they stay and burn.
 static func _undertow(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 	var foes: Array = FOES.near(hero.get_tree(), at, UNDERTOW_RADIUS)
 	for e: Variant in hero._void.shoved:  # (it follows them, however far they went)
-		if is_instance_valid(e) and e.is_alive() and not e in foes and _flat(e.global_position - at).length() <= UNDERTOW_CHASE:
+		if is_instance_valid(e) and e.is_alive() and not e in foes and FOES.flat(e.global_position - at).length() <= UNDERTOW_CHASE:
 			foes.append(e)
 	hero._void.shoved = []
 	hero._void.bound = foes
@@ -1320,57 +1259,10 @@ static func _undertow(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 	return foes.size()
 
 
-## What he comes down inside on Meteor Fall: a ball of fire with flames streaming back up the way he came.
+## What he comes down inside on Meteor Fall: the drawn fireball (designed_elements.meteor_shell; breaker_alt_fx's
+## Meteor Shower drops the same one).
 static func meteor_shell(parent: Node, travel: Vector3) -> Node3D:
-	if DESIGNED.on(): return ELEMENTS.DESIGNED_EL.meteor_shell(parent, travel)  # (designed: the drawn fireball)
-	var root := Node3D.new()
-	parent.add_child(root)
-	root.look_at_from_position(Vector3.ZERO, travel.normalized(), Vector3.RIGHT if absf(travel.normalized().y) > 0.95 else Vector3.UP)
-	var outer := _meteor_mat(METEOR_COLOR, true)
-	var hot := _meteor_mat(METEOR_HOT, false)
-	_meteor_part(root, _meteor_ball(METEOR_R), outer, Vector3.ZERO)
-	_meteor_part(root, _meteor_ball(METEOR_R * 0.6), hot, Vector3.ZERO)
-	for i in METEOR_TONGUES:
-		var a := TAU * i / METEOR_TONGUES
-		var side := Vector3(cos(a), sin(a), 0.0) * METEOR_R * 0.55
-		var long := METEOR_TAIL * (1.0 if i % 2 == 0 else 0.65)
-		var cone := CylinderMesh.new()
-		cone.top_radius = METEOR_TONGUE_R
-		cone.bottom_radius = 0.0
-		cone.height = long
-		cone.radial_segments = 6
-		var flame := _meteor_part(root, cone, outer if i % 2 == 0 else hot, side + Vector3(0.0, 0.0, long * 0.5))
-		flame.rotation.x = -PI * 0.5  # the wide end at the ball, the point behind it (+Z, away from where it faces)
-	return root
-
-
-static func _meteor_mat(color: Color, ink: bool) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = color
-	if ink and DisplayServer.get_name() != "headless":
-		mat.next_pass = Fx.ink_material()
-	return mat
-
-
-static func _meteor_ball(r: float) -> SphereMesh:
-	var ball := SphereMesh.new()
-	ball.radius = r
-	ball.height = r * 2.0
-	ball.radial_segments = 10
-	ball.rings = 5
-	return ball
-
-
-static func _meteor_part(root: Node3D, mesh: Mesh, mat: Material, at: Vector3) -> MeshInstance3D:
-	var m := MeshInstance3D.new()
-	m.mesh = mesh
-	m.material_override = mat
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(m)
-	m.position = at
-	return m
+	return DESIGNED_EL.meteor_shell(parent, travel)
 
 
 ## A black pool opens under whoever he's aiming at, and tendrils come up out of it and pile on. Big foes
@@ -1379,10 +1271,10 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = at + fwd * minf(OVERWHELM_AHEAD, hero._clear_ahead(fwd, OVERWHELM_AHEAD))
 	var aim: Node3D = ENV.picked_foe(hero, "overwhelm")  # (round 51: the charge's bracket, the cursor's or the auto one)
-	if aim == null or _flat(aim.global_position - at).length() > OVERWHELM_REACH + 1.0:
+	if aim == null or FOES.flat(aim.global_position - at).length() > OVERWHELM_REACH + 1.0:
 		aim = overwhelm_aim(hero, at, fwd)
 	if aim != null:
-		spot = _flat(aim.global_position)
+		spot = FOES.flat(aim.global_position)
 	hero._void.dark_spot = spot
 	var pool: Node3D = DARK.pool(parent, spot, OVERWHELM_RADIUS, OVERWHELM_TIME)
 	DARK.burst(parent, spot, 1.4)
@@ -1403,25 +1295,24 @@ static func _overwhelm(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 static func _overwhelm_pin(hero: CharacterBody3D, spot: Vector3, aim: Variant, foes: Array, power: float, pool: Node3D = null) -> void:
 	ow_pins += 1
 	var parent: Node = hero.get_parent()
-	var toward := _flat(hero.global_position) - spot
+	var toward := FOES.flat(hero.global_position) - spot
 	var side: Vector3 = toward.normalized() if toward.length() > 0.1 else Vector3.BACK
 	var i := 0
 	for e: Node3D in foes:
 		if e == aim or hero._void.is_heavy(e) or THROWN.flying(e):
 			continue
-		var off := _flat(e.global_position) - spot
+		var off := FOES.flat(e.global_position) - spot
 		var dir: Vector3 = off.normalized() if off.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
 		var to: Vector3 = spot + dir * OW_PILE_RING
-		var d := _flat(e.global_position).distance_to(to)
+		var d := FOES.flat(e.global_position).distance_to(to)
 		if d > 0.4:
 			THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "el": "void", "speed": maxf(d / OW_DRAG, 6.0), "land_y": 0.0,
 				"tether": true, "rope_from": spot + Vector3.UP * 0.05})
 		i += 1
 	if not is_instance_valid(aim) or hero._void.is_heavy(aim):
-		if Game.comic_style:
-			ComicFx.say(ComicFx.MOVE_WORDS["OW"], spot + Vector3.UP * 1.6, MID_WORD_SIZE)
+		ComicFx.say(ComicFx.MOVE_WORDS["OW"], spot + Vector3.UP * 1.6, MID_WORD_SIZE)
 		return
-	var foot := _flat((aim as Node3D).global_position)
+	var foot := FOES.flat((aim as Node3D).global_position)
 	if is_instance_valid(pool) and pool.has_method("thin"):
 		pool.thin(OW_POOL_THIN, OW_UP, OW_HOLD + OW_DOWN + OW_POOL_AFTER, OW_POOL_BACK)
 	var g: Node3D = TENTACLE_HAUL.start(hero, [{"foe": aim, "root": foot + side * 1.1, "top": foot + Vector3.UP * OW_LIFT,
@@ -1434,42 +1325,33 @@ static func _overwhelm_pin(hero: CharacterBody3D, spot: Vector3, aim: Variant, f
 		Game.sfx("hit_big", -3.0, 0.1)
 		if Game.camera_rig:
 			Game.camera_rig.punch(0.92, 0.12)
-		if Game.comic_style and is_instance_valid(parent):
+		if is_instance_valid(parent):
 			DARK.burst(parent, foot, 1.5)
 			ComicFx.say(ComicFx.MOVE_WORDS["OW"], foot + Vector3.UP * 1.6, MID_WORD_SIZE)
-			if DESIGNED.on():
-				load("res://scripts/designed_ink.gd").shock(parent, foot, DARK.VIOLET, OVERWHELM_RADIUS * 0.7, 0.3)
+			DESIGNED_INK.shock(parent, foot, DARK.VIOLET, OVERWHELM_RADIUS * 0.7, 0.3)
 
 
-## Who Overwhelm pins by default: the nearest foe in his aim cone within OVERWHELM_REACH, or null.
+## Who Overwhelm pins by default: the nearest foe in his aim cone (void_grab.CONE) within OVERWHELM_REACH, or null.
 static func overwhelm_aim(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Node3D:
-	var aim: Node3D = null
-	var best := INF
-	for e: Node3D in FOES.near(hero.get_tree(), at, OVERWHELM_REACH):
-		var to := _flat(e.global_position - at)
-		if to.length() > 0.01 and rad_to_deg(fwd.angle_to(to.normalized())) > hero._void.CONE:
-			continue
-		if to.length() < best:
-			best = to.length()
-			aim = e
-	return aim
+	return FOES.nearest(hero.get_tree(), at, OVERWHELM_REACH, func(e: Node3D) -> bool:
+		var to := FOES.flat(e.global_position - at)
+		return to.length() <= 0.01 or rad_to_deg(fwd.angle_to(to.normalized())) <= hero._void.CONE)
 
 
 ## H H: what it holds comes down, and a black hole tears open where it hits (dark_fx.Hole).
 static func _singularity(hero: CharacterBody3D, power: float) -> int:
-	var spot: Vector3 = _flat(hero._void._aim_at)
+	var spot: Vector3 = FOES.flat(hero._void._aim_at)
 	# Round 54 cool pass 3: the hole's placement. With the cursor on a foe in SING_PICK_REACH (the bracket in the slam's
 	# start-up), the held one is slammed onto it and the hole tears open under that foe, so it pulls the crowd in round
 	# it (a pile by the wall for Collapse's spit, or one far off brought to the rest). Default: where the slam lands.
 	var onto: Node3D = ENV.foe_chosen(hero, "singularity")
 	var held: Variant = hero._void._target
-	if onto != null and onto != held and _flat(onto.global_position - hero.global_position).length() <= SING_PICK_REACH + 0.5:
-		spot = _flat(onto.global_position)
+	if onto != null and onto != held and FOES.flat(onto.global_position - hero.global_position).length() <= SING_PICK_REACH + 0.5:
+		spot = FOES.flat(onto.global_position)
 		hero._void._aim_at = spot
 		if is_instance_valid(held) and held.is_alive() and not hero._void.is_heavy(held):
 			THROWN.launch(hero, held, spot, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "void", "speed": SING_THROW_SPEED, "land_y": 0.0})
-		onto.take_hit(SING_ONTO_DAMAGE * power, Vector3.ZERO, 0.0, true)
-		Game.register_hit("cast")
+		FOES.hit(onto, SING_ONTO_DAMAGE * power, Vector3.ZERO, 0.0, true, "cast")
 		onto.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 900)
 	hero._void.dark_spot = spot
 	var hole := DARK.Hole.new()
@@ -1495,11 +1377,10 @@ static func _reap(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: floa
 	DARK.reap(hero.get_parent(), at, fwd, REAP_REACH, REAP_HALF_ANGLE)
 	var n := 0
 	for e: Node3D in FOES.near(hero.get_tree(), at, REAP_REACH):
-		var to := _flat(e.global_position - at)
+		var to := FOES.flat(e.global_position - at)
 		if to.length() > 0.3 and fwd.angle_to(to.normalized()) > REAP_HALF_ANGLE:
 			continue
-		e.take_hit(damage, to.normalized() * 3.0 if to.length() > 0.01 else Vector3.ZERO, 0.0, true)
-		Game.register_hit("cast")
+		FOES.hit(e, damage, to.normalized() * 3.0 if to.length() > 0.01 else Vector3.ZERO, 0.0, true, "cast")
 		DARK.mark(e)
 		n += 1
 	n += _reap_hook(hero, at, fwd, damage)
@@ -1512,22 +1393,21 @@ static func _reap(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: floa
 ## REAP_TIDE_MULT, Galvanize links it first). Best: a straggler you want in the next pile. Returns 1 if it hooked.
 static func _reap_hook(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float) -> int:
 	var e: Node3D = ENV.picked_foe(hero, "reap")
-	if e == null or _flat(e.global_position - at).length() > REAP_HOOK_REACH + 0.5 or THROWN.flying(e):
+	if e == null or FOES.flat(e.global_position - at).length() > REAP_HOOK_REACH + 0.5 or THROWN.flying(e):
 		e = reap_auto(hero, at, fwd)
 	if e == null:
 		return 0
 	var to := at + fwd * minf(REAP_YANK_TO, hero._clear_ahead(fwd, REAP_YANK_TO))
 	var cut := DARK.marked(e)
-	e.take_hit(damage * (REAP_HOOK_MULT if not cut else REAP_HOOK_MULT * 0.5), Vector3.ZERO, 0.0, true)
-	Game.register_hit("cast")
+	FOES.hit(e, damage * (REAP_HOOK_MULT if not cut else REAP_HOOK_MULT * 0.5), Vector3.ZERO, 0.0, true, "cast")
 	DARK.mark(e)
 	mark(e, "reaped")
 	MID_BEATS.hook(hero.get_parent(), e, hero.global_position)
 	e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + REAP_CUE_MS)
 	# (only one the crescent missed is yanked in: a foe it already cut stays where it was, for Black Tide to fetch)
-	var off := _flat(e.global_position - at)
+	var off := FOES.flat(e.global_position - at)
 	var missed := off.length() > REAP_REACH or (off.length() > 0.3 and fwd.angle_to(off.normalized()) > REAP_HALF_ANGLE)
-	if missed and not hero._void.is_heavy(e) and _flat(e.global_position - to).length() > 0.8:
+	if missed and not hero._void.is_heavy(e) and FOES.flat(e.global_position - to).length() > 0.8:
 		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "tether": true, "el": "void", "speed": REAP_YANK_SPEED, "land_y": 0.0})
 	return 1
 
@@ -1539,7 +1419,7 @@ static func reap_auto(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Node3
 	var best_d := -1.0
 	var best_out := false
 	for e: Node3D in reap_candidates(hero, at):
-		var to := _flat(e.global_position - at)
+		var to := FOES.flat(e.global_position - at)
 		var out := to.length() > REAP_REACH or (to.length() > 0.3 and fwd.angle_to(to.normalized()) > REAP_HALF_ANGLE)
 		if to.length() > 0.3 and fwd.angle_to(to.normalized()) > REAP_HOOK_CONE:
 			continue
@@ -1575,14 +1455,12 @@ static func _black_tide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 	var root: Vector3 = spot + Vector3.UP * 0.05
 	var come: Array = [0]
 	var dragged: int = foes.filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e)).size()
-	tide_drags += 1
 	for i in foes.size():
 		var e: Node3D = foes[i]
 		DARK.unmark(e)
 		var reaped := marked(e, "reaped")
 		unmark(e, "reaped")
-		e.take_hit(TIDE_DAMAGE * power * (REAP_TIDE_MULT if reaped else 1.0), Vector3.ZERO, 0.0, true)
-		Game.register_hit("cast")
+		FOES.hit(e, TIDE_DAMAGE * power * (REAP_TIDE_MULT if reaped else 1.0), Vector3.ZERO, 0.0, true, "cast")
 		if hero._void.is_heavy(e):
 			continue
 		var a := TAU * i / maxf(foes.size(), 1.0)
@@ -1593,9 +1471,9 @@ static func _black_tide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 			_tide_knock(hero, f, spot, come, dragged, power)
 		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "el": "void", "speed": speed, "land_y": 0.0,
 			"tether": true, "rope_from": root, "on_end": on_land})
-		if Game.comic_style and i < 4:
+		if i < 4:
 			MID_BEATS.trail(parent, e, arrive + 0.05)
-	if dragged == 0 and Game.comic_style:  # (nobody to haul in: the word goes with the pool)
+	if dragged == 0:  # (nobody to haul in: the word goes with the pool)
 		ComicFx.say(ComicFx.MOVE_WORDS["VD"], spot + Vector3.UP * 1.5, MID_WORD_SIZE)
 	if not foes.is_empty():
 		BIND.bind(hero, foes, {"time": TIDE_TIME, "tick_damage": 2.0 * power, "ropes": 0, "sink": 0.5, "color": DARK.VIOLET})
@@ -1613,19 +1491,18 @@ static func _tide_knock(hero: Variant, e: Variant, spot: Vector3, come: Array, t
 	Game.register_hit("cast")
 	tide_knocks += 1
 	var parent: Node = (hero as Node).get_parent()
-	if Game.comic_style and is_instance_valid(parent):
-		DARK.burst(parent, _flat((e as Node3D).global_position), 0.8)
+	if is_instance_valid(parent):
+		DARK.burst(parent, FOES.flat((e as Node3D).global_position), 0.8)
 	if n + 1 < total:
 		Game.shake(0.15)
 		return
 	Game.hitstop(TIDE_GULP_STOP)
 	Game.shake(0.45)
 	Game.sfx("hit_big", -4.0, 0.1)
-	if Game.comic_style and is_instance_valid(parent):
+	if is_instance_valid(parent):
 		DARK.burst(parent, spot, 1.6)
 		ComicFx.say(ComicFx.MOVE_WORDS["VD"], spot + Vector3.UP * 1.5, MID_WORD_SIZE)  # (its own word, said late)
-		if DESIGNED.on():
-			load("res://scripts/designed_ink.gd").shock(parent, spot, DARK.VIOLET, TIDE_POOL_R * 0.8, 0.3)
+		DESIGNED_INK.shock(parent, spot, DARK.VIOLET, TIDE_POOL_R * 0.8, 0.3)
 
 
 ## Whoever's on the line he just dashed or swung along is yanked together in front of him.
@@ -1634,17 +1511,15 @@ static func _tow(hero: CharacterBody3D, at: Vector3, fwd: Vector3, damage: float
 	var to := at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD))
 	var n := 0
 	var anchor: Node3D = ENV.foe_chosen(hero, "tow")  # (round 52: the cursor's foe: they're yanked into it)
-	if anchor != null and _flat(anchor.global_position - at).length() <= TOW_PICK_REACH + 0.5 and not THROWN.flying(anchor):
+	if anchor != null and FOES.flat(anchor.global_position - at).length() <= TOW_PICK_REACH + 0.5 and not THROWN.flying(anchor):
 		foes.erase(anchor)
-		to = _flat(anchor.global_position)
-		anchor.take_hit(damage * TOW_ANCHOR_MULT, Vector3.ZERO, 0.0, true)
-		Game.register_hit("cast")
+		to = FOES.flat(anchor.global_position)
+		FOES.hit(anchor, damage * TOW_ANCHOR_MULT, Vector3.ZERO, 0.0, true, "cast")
 		anchor.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 700)
 		n += 1
 	for e: Node3D in foes:
 		if hero._void.is_heavy(e):
-			e.take_hit(damage * 0.5, Vector3.ZERO, 0.0, true)
-			Game.register_hit("cast")
+			FOES.hit(e, damage * 0.5, Vector3.ZERO, 0.0, true, "cast")
 		else:
 			THROWN.launch(hero, e, to, damage, {"el": "void", "tether": true, "speed": TOW_SPEED, "land_y": 0.0})
 		n += 1
@@ -1666,14 +1541,14 @@ static func tow_auto(hero: CharacterBody3D, at: Vector3, snare: Array) -> Node3D
 	var to := at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD))
 	var best: Node3D = null
 	for e: Node3D in snare:
-		if best == null or _flat(e.global_position).distance_to(to) < _flat(best.global_position).distance_to(to):
+		if best == null or FOES.flat(e.global_position).distance_to(to) < FOES.flat(best.global_position).distance_to(to):
 			best = e
 	return best
 
 
 ## Who Tow Line takes: whoever's on the line he just dashed along, or near him if nobody is.
 static func _tow_line(hero: CharacterBody3D, at: Vector3) -> Array:
-	var from: Vector3 = _flat(hero._dash_from)
+	var from: Vector3 = FOES.flat(hero._dash_from)
 	var line := at - from
 	var foes: Array = []
 	if line.length() > 0.5:
@@ -1703,10 +1578,10 @@ static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = at + fwd * minf(ROCKSLIDE_AHEAD, hero._clear_ahead(fwd, ROCKSLIDE_AHEAD))
 	var aim: Node3D = ENV.picked_foe(hero, "rockslide")
-	if aim == null or _flat(aim.global_position - at).length() > ROCKSLIDE_PICK_REACH + 0.5 or THROWN.flying(aim):
+	if aim == null or FOES.flat(aim.global_position - at).length() > ROCKSLIDE_PICK_REACH + 0.5 or THROWN.flying(aim):
 		aim = rockslide_auto(hero, at)
 	if aim != null:
-		spot = _flat(aim.global_position)
+		spot = FOES.flat(aim.global_position)
 	var radius: float = ROCKSLIDE_RADIUS * hero._cast_grow()
 	hero._void.buried = []
 	rockslides += 1
@@ -1714,12 +1589,12 @@ static func _rockslide(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 		return not THROWN.flying(e) and e.is_airborne() and not hero._void.is_heavy(e))
 	for i in gale.size():
 		var e: Node3D = gale[i]
-		var off := _flat(e.global_position) - spot
+		var off := FOES.flat(e.global_position) - spot
 		var dir: Vector3 = off.normalized() if off.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
 		var to: Vector3 = spot + dir * ROCKSLIDE_RING
 		var d := e.global_position.distance_to(to)
 		THROWN.launch(hero, e, to, 0.0, {"quiet": true, "solid": false, "el": "wind", "speed": maxf(d / ROCKSLIDE_FALL, 6.0), "land_y": 0.0})
-		if Game.comic_style and DESIGNED.on() and i < 3:
+		if i < 3:
 			DESIGNED.gust(parent, e.global_position, to - e.global_position, 1.2, true)
 	MID_BEATS.boulder_drop(parent, spot, ROCKSLIDE_FALL, ROCKSLIDE_DROP_Y)
 	var hit: Array = FOES.near(hero.get_tree(), spot, radius).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
@@ -1734,40 +1609,23 @@ static func _rockslide_land(hero: Variant, spot: Vector3, radius: float, power: 
 		return
 	var parent: Node = (hero as Node).get_parent()
 	var foes: Array = FOES.near((hero as Node).get_tree(), spot, radius).filter(func(e: Node3D) -> bool: return not THROWN.flying(e) or e in gale)
-	if not DESIGNED.on():
-		COMIC_BOULDER.spawn(parent, spot, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
 	Fx.scorch(parent, spot, ELEMENTS.LOOK.earth.color, 2.2, 0.6)
 	for e: Node3D in foes:
 		var up: bool = e in gale or e.is_airborne()
-		e.take_hit(ROCKSLIDE_DAMAGE * power * (ROCKSLIDE_AIR_MULT if up else 1.0), Vector3.DOWN * ROCKSLIDE_DOWN, 0.0, true)
-		Game.register_hit("cast")
+		FOES.hit(e, ROCKSLIDE_DAMAGE * power * (ROCKSLIDE_AIR_MULT if up else 1.0), Vector3.DOWN * ROCKSLIDE_DOWN, 0.0, true, "cast")
 		if up:
 			hero._void.buried.append(e)
 			mark(e, "buried")
 	Game.hitstop(ROCKSLIDE_STOP)
 	Game.shake(0.55)
-	if Game.comic_style:
-		ComicFx.say(ComicFx.MOVE_WORDS["XR"], spot + Vector3.UP * 1.7, MID_WORD_SIZE)
+	ComicFx.say(ComicFx.MOVE_WORDS["XR"], spot + Vector3.UP * 1.7, MID_WORD_SIZE)
 
 
 ## Where Rockslide's boulder lands by default (round 55): the foe within ROCKSLIDE_PICK_REACH with the most others round
 ## it (ROCKSLIDE_GALE_R, those in the air counting twice: the gale's), nearest him on a tie; null with nobody near.
 static func rockslide_auto(hero: CharacterBody3D, at: Vector3) -> Node3D:
-	var near: Array = rockslide_candidates(hero, at)
-	var best: Node3D = null
-	var best_n := -1
-	var best_d := INF
-	for e: Node3D in near:
-		var n := 2 if e.is_airborne() else 1
-		for o: Node3D in near:
-			if o != e and _flat(o.global_position - e.global_position).length() <= ROCKSLIDE_GALE_R * 0.6:
-				n += 2 if o.is_airborne() else 1
-		var d := _flat(e.global_position - at).length()
-		if n > best_n or (n == best_n and d < best_d):
-			best = e
-			best_n = n
-			best_d = d
-	return best
+	return FOES.densest(rockslide_candidates(hero, at), ROCKSLIDE_GALE_R * 0.6, at,
+		func(e: Node3D) -> float: return 2.0 if e.is_airborne() else 1.0)
 
 
 static func rockslide_candidates(hero: CharacterBody3D, at: Vector3) -> Array:
@@ -1783,7 +1641,7 @@ static func _fault_line(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 	if foes.is_empty():
 		COMIC_FAULT.spawn(parent, at, [at + fwd * 4.0])
 		return 0
-	COMIC_FAULT.spawn(parent, at, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
+	COMIC_FAULT.spawn(parent, at, foes.map(func(e: Node3D) -> Vector3: return FOES.flat(e.global_position)))
 	for e: Node3D in foes:
 		var buried: bool = e in hero._void.buried
 		e.take_hit(FAULT_DAMAGE * power * (FAULT_BURIED_MULT if buried else 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else FAULT_LAUNCH, true)
@@ -1806,10 +1664,10 @@ static func _steam_burst(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power
 	if not frozen.is_empty():
 		var mid := Vector3.ZERO
 		for e: Node3D in frozen:
-			mid += _flat(e.global_position)
+			mid += FOES.flat(e.global_position)
 		mid /= float(frozen.size())
-		reach = clampf(_flat(mid - at).length(), 2.0, PALM_LENGTH)
-		var to := _flat(mid - at)
+		reach = clampf(FOES.flat(mid - at).length(), 2.0, PALM_LENGTH)
+		var to := FOES.flat(mid - at)
 		if to.length() > 0.5:
 			hero._face(to)
 			fwd = to.normalized()
@@ -1817,26 +1675,23 @@ static func _steam_burst(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power
 	if frozen.is_empty():
 		var near := _ahead(hero, at, fwd, STEAM_FIST, PALM_HALF_WIDTH)
 		for e: Node3D in near:
-			e.take_hit(PALM_DAMAGE * power * 0.5, fwd * 4.0, 0.0, true)
-			Game.register_hit("cast")
+			FOES.hit(e, PALM_DAMAGE * power * 0.5, fwd * 4.0, 0.0, true, "cast")
 		return near.size()
 	var scalded := {}
 	# (round 54 cool pass 3: the lava runs from the fist to each block and the steam goes up out of it, one after another)
-	MID_BEATS.steam_fuse(parent, at + fwd * 0.8, frozen.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)))
+	MID_BEATS.steam_fuse(parent, at + fwd * 0.8, frozen.map(func(e: Node3D) -> Vector3: return FOES.flat(e.global_position)))
 	for e: Node3D in frozen:
-		var spot := _flat(e.global_position)
+		var spot := FOES.flat(e.global_position)
 		THROWN.remove_cube(e)
-		e.take_hit(STEAM_DAMAGE * power, Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else STEAM_LAUNCH, true)  # (frozen: x FREEZE_BREAK)
-		Game.register_hit("cast")
+		FOES.hit(e, STEAM_DAMAGE * power, Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else STEAM_LAUNCH, true, "cast")  # (frozen: x FREEZE_BREAK)
 		Fx.shards(parent, spot + Vector3.UP * 0.9, THROWN.CUBE_COLOR, 6, Vector3.UP, 9.0, 0.16, 0.5)
 		COMIC_STEAM.spawn(parent, spot)
 		for o: Node3D in FOES.near(hero.get_tree(), spot, STEAM_SPLASH):
 			if o in frozen or scalded.has(o):
 				continue
 			scalded[o] = true
-			var out := _flat(o.global_position - spot)
-			o.take_hit(STEAM_SPLASH_DAMAGE * power, (out.normalized() if out.length() > 0.01 else fwd) * 4.0, 0.0, false)
-			Game.register_hit("cast")
+			var out := FOES.flat(o.global_position - spot)
+			FOES.hit(o, STEAM_SPLASH_DAMAGE * power, (out.normalized() if out.length() > 0.01 else fwd) * 4.0, 0.0, false, "cast")
 	Game.shake(0.55)
 	return frozen.size() + scalded.size()
 
@@ -1847,9 +1702,7 @@ static func _steam_burst(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power
 static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
 	var spot: Vector3 = at + fwd * PITCH_AHEAD
-	var foes: Array = FOES.near(hero.get_tree(), spot, PITCH_GRAB)
-	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+	var foes: Array = FOES.sorted_from(FOES.near(hero.get_tree(), spot, PITCH_GRAB), at)
 	var hand := at + Vector3.UP * 1.3 + fwd * 0.6
 	var last := hand
 	for i in foes.size():
@@ -1857,14 +1710,13 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 		COMIC_ARC.jump(parent, last, e.global_position + Vector3.UP)
 		last = e.global_position + Vector3.UP
 		if hero._void.is_heavy(e):
-			e.take_hit(PITCH_DAMAGE * power * 0.6, Vector3.ZERO, 0.0, true)
-			Game.register_hit("cast")
+			FOES.hit(e, PITCH_DAMAGE * power * 0.6, Vector3.ZERO, 0.0, true, "cast")
 			continue
 		THROWN.cut(e)  # (still on Tow Line's tether: the axe takes it from there)
 		mark(e, "charged")
 		var side := (float(i) - (foes.size() - 1) * 0.5) * PITCH_SPREAD
 		var dir := fwd.rotated(Vector3.UP, side)
-		var flight: Node = THROWN.launch(hero, e, _flat(e.global_position) + dir * PITCH_LENGTH, PITCH_DAMAGE * power,
+		var flight: Node = THROWN.launch(hero, e, FOES.flat(e.global_position) + dir * PITCH_LENGTH, PITCH_DAMAGE * power,
 			{"el": "wind", "solid": true, "speed": PITCH_SPEED, "zap": true})
 		COMIC_ARC.ride(parent, e, flight)  # (the storm rides it for the flight)
 	return foes.size()
@@ -1877,15 +1729,13 @@ static func _pitch(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: floa
 static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var tree := hero.get_tree()
 	var linked: Array = FOES.near(tree, at, GALV_MARK_REACH).filter(func(e: Node3D) -> bool:
-		return not THROWN.flying(e) and (DARK.marked(e) or _flat(e.global_position - at).length() <= GALV_REACH))
+		return not THROWN.flying(e) and (DARK.marked(e) or FOES.flat(e.global_position - at).length() <= GALV_REACH))
 	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (the marked first past the cap)
 		var ma: bool = DARK.marked(a)
 		if ma != DARK.marked(b):
 			return ma
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
-	linked = linked.slice(0, GALV_LINKS)
-	linked.sort_custom(func(a: Node3D, b: Node3D) -> bool:  # (nearest first: they latch in that order)
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
+		return FOES.flat(a.global_position - at).length() < FOES.flat(b.global_position - at).length())
+	linked = FOES.sorted_from(linked.slice(0, GALV_LINKS), at)  # (nearest first: they latch in that order)
 	var marked := {}
 	for e: Node3D in linked:
 		if DARK.marked(e):
@@ -1902,7 +1752,7 @@ static func _galvanize(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 	c.together = GALV_TOGETHER
 	c.fat = GALV_FAT
 	c.on_zap = func(e: Node3D, _p: int) -> void:  # a real hit: star, flash, number, and the jolt (a stagger)
-		var out := _flat(e.global_position - hero.global_position)
+		var out := FOES.flat(e.global_position - hero.global_position)
 		e.take_hit(each * (GALV_MARK_MULT if marked.has(e) else 1.0), (out.normalized() if out.length() > 0.01 else fwd) * 2.0, 0.0, true)
 		if not hero._void.is_heavy(e) and e.has_method("stagger"):
 			e.stagger(GALV_STUN)
@@ -1946,13 +1796,12 @@ static func _lava_leash(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 	var now := Time.get_ticks_msec()
 	for e: Node3D in foes:  # (nearest first: they latch in that order)
 		e.set_meta(CAMERA_CUE, now + LEASH_CUE_MS)  # (the far one, at the wall, stays in the framing)
-		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, _flat(e.global_position))})
+		grabs.append({"foe": e, "heavy": hero._void.is_heavy(e), "to": slots.get(e, FOES.flat(e.global_position))})
 	var g: Node3D = LAVA_LEASH.start(hero, grabs, pile)
 	var latched := [0]  # (only the first latch stops)
 	g.on_latch = func(e: Node3D) -> void:
 		THROWN.cut(e)  # (still on the palm's shove: the leash takes it from here)
-		e.take_hit(LEASH_DAMAGE * power, Vector3.ZERO, 0.0, false)
-		Game.register_hit("cast")
+		FOES.hit(e, LEASH_DAMAGE * power, Vector3.ZERO, 0.0, false, "cast")
 		if latched[0] == 0:
 			Game.hitstop(LATCH_STOP)
 		latched[0] += 1
@@ -1962,9 +1811,8 @@ static func _lava_leash(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power:
 		e.set_meta(LEASH_META, metres)
 		var d: float = leash_drag_damage(metres, wall_fresh(e)) * power  # (torn off the wall the palm splatted it on)
 		if d > 0.0:
-			var into := _flat(pile - e.global_position)
-			e.take_hit(d, (into.normalized() if into.length() > 0.01 else fwd) * 1.5, 0.0, true)
-			Game.register_hit("cast")
+			var into := FOES.flat(pile - e.global_position)
+			FOES.hit(e, d, (into.normalized() if into.length() > 0.01 else fwd) * 1.5, 0.0, true, "cast")
 	g.on_erupt = func(piled: Array) -> void:
 		var n := piled.size()
 		var each: float = leash_erupt_damage(n) * power
@@ -1987,9 +1835,7 @@ static func leash_targets(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> A
 	var foes: Array = FOES.near(hero.get_tree(), at, LEASH_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
 	if foes.is_empty():
 		foes = _ahead(hero, at, fwd, PALM_LENGTH, PALM_HALF_WIDTH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
-	foes.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
-	return foes.slice(0, LEASH_MAX)
+	return FOES.sorted_from(foes, at, LEASH_MAX)
 
 
 ## Where each lands in the pile: round its middle LEASH_RING m out, in the order they stand across his aim, so no two
@@ -1999,7 +1845,7 @@ static func leash_slots(pile: Vector3, fwd: Vector3, foes: Array) -> Dictionary:
 	if foes.is_empty():
 		return out
 	if foes.size() == 1:
-		out[foes[0]] = _flat(pile)
+		out[foes[0]] = FOES.flat(pile)
 		return out
 	var side := fwd.cross(Vector3.UP).normalized()
 	var order := foes.duplicate()
@@ -2007,7 +1853,7 @@ static func leash_slots(pile: Vector3, fwd: Vector3, foes: Array) -> Dictionary:
 		return (a.global_position - pile).dot(side) < (b.global_position - pile).dot(side))
 	for i in order.size():  # an arc on the far side of the pile, from one side of his aim round to the other
 		var a := lerpf(-PI * 0.8, PI * 0.8, float(i) / (order.size() - 1))
-		out[order[i]] = _flat(pile + (fwd * cos(a) + side * sin(a)) * LEASH_RING)
+		out[order[i]] = FOES.flat(pile + (fwd * cos(a) + side * sin(a)) * LEASH_RING)
 	return out
 
 
@@ -2025,13 +1871,13 @@ static func leash_erupt_damage(n: int) -> float:
 ## it; then the eruption runs back out along every seam a foe was dragged down (lava_leash.seams()), a geyser every
 ## HELLSEAM_STEP m, and anyone else standing on one takes HELLSEAM_SEAM of it.
 static func _hellseam(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var tree := hero.get_tree()
 	var spot: Vector3 = hero._void.dark_spot
 	var seams: Array = LAVA_LEASH.seams(hero)
-	var spilled: Array = load("res://scripts/env_flourish.gd").spill_seams(tree)  # round 53, brazier_spill: the coals erupt too
+	var spilled: Array = FLOURISH.spill_seams(tree)  # brazier_spill: the coals erupt too
 	if not spilled.is_empty():
-		damage *= load("res://scripts/env_flourish.gd").SPILL_HELLSEAM
+		damage *= FLOURISH.SPILL_HELLSEAM
 		seams = seams + spilled  # (a new array: the leash keeps its own)
 	LAVA_LEASH.let_go(hero)  # (the leash's tentacles and its bind: the landing takes them)
 	var struck := {}
@@ -2045,11 +1891,11 @@ static func _hellseam(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: f
 		struck[e] = true
 	if seams.is_empty():  # (no leash to run down: one seam straight out ahead of the landing)
 		var fwd: Vector3 = hero._facing()
-		seams = [[_flat(spot + fwd * 5.0), _flat(spot)]]
+		seams = [[FOES.flat(spot + fwd * 5.0), FOES.flat(spot)]]
 	var now := Time.get_ticks_msec()
 	for s: Array in seams:
 		var from: Vector3 = s[1]  # the pile end
-		var run := _flat(s[0] - from)  # out to where it was taken from
+		var run := FOES.flat(s[0] - from)  # out to where it was taken from
 		var steps := maxi(1, int(run.length() / HELLSEAM_STEP))
 		for k in range(1, steps + 1):
 			var p: Vector3 = from + run * (float(k) / steps)
@@ -2064,10 +1910,7 @@ static func _seam_geyser(hero: Variant, p: Vector3, damage: float, struck: Dicti
 	if not is_instance_valid(hero) or not hero.is_inside_tree():
 		return
 	var parent: Node = hero.get_parent()
-	if Game.comic_style and DESIGNED.on():
-		ELEMENTS.DESIGNED_EL.geyser(parent, p, HELLSEAM_GEYSER)
-	else:
-		ELEMENTS.geyser(parent, p, 0.6, HELLSEAM_GEYSER)
+	DESIGNED_EL.geyser(parent, p, HELLSEAM_GEYSER)
 	for e: Node3D in FOES.near(hero.get_tree(), p, HELLSEAM_SEAM_R):
 		if struck.has(e):
 			continue
@@ -2106,30 +1949,29 @@ static func freeze_pool(hero: CharacterBody3D) -> void:
 ## Black Ice lands: the frozen pool gives, and everyone in it shatters down into the floor.
 static func _black_ice(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var spot: Vector3 = hero._void.dark_spot
 	COMIC_FREEZE.shatter(parent, spot, MAW_RADIUS + 0.3)  # (the frozen pool breaks up: was a splat, spikes and shards each)
 	# round 52: the blocks skid out across the black ice away from where he landed, each bursting where it stops
-	var from := _flat(hero.global_position)
+	var from := FOES.flat(hero.global_position)
 	var wall := pinwheel_target(hero, spot, "black_ice", BLACK_ICE_REACH)  # (the indicator's pick; a raycast in a bare room)
 	var pooled: Array = FOES.near(hero.get_tree(), spot, MAW_RADIUS + 0.5).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
-	pooled.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(from) < _flat(c.global_position).distance_to(from))
+	pooled = FOES.sorted_from(pooled, from)  # (nearest him first)
 	for i in pooled.size():
 		var e: Node3D = pooled[i]
-		e.take_hit(damage * BLACK_ICE_SHATTER, Vector3.ZERO, 0.0, true)  # (frozen: x FREEZE_BREAK, and it shatters)
-		Game.register_hit("breaker")
+		FOES.hit(e, damage * BLACK_ICE_SHATTER, Vector3.ZERO, 0.0, true, "breaker")  # (frozen: x FREEZE_BREAK, and it shatters)
 		var to: Vector3
 		if wall.get("found", false):
 			e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + BLACK_ICE_CUE_MS)
 			var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
-			var aim: Vector3 = face - _flat(e.global_position)
-			to = _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
+			var aim: Vector3 = face - FOES.flat(e.global_position)
+			to = FOES.flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
 		else:
-			var out := _flat(e.global_position) - from
-			out = out.normalized() if out.length() > 0.05 else _flat(spot - from).normalized()
+			var out := FOES.flat(e.global_position) - from
+			out = out.normalized() if out.length() > 0.05 else FOES.flat(spot - from).normalized()
 			if out.length() < 0.5:
 				out = Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
-			to = _flat(e.global_position) + out * BLACK_ICE_SKID
+			to = FOES.flat(e.global_position) + out * BLACK_ICE_SKID
 		var tw := parent.create_tween()
 		tw.tween_interval(0.06 + i * BLACK_ICE_STAGGER)
 		tw.tween_callback(THROWN.launch.bind(hero, e, to, damage * BLACK_ICE_SKID_MULT,
@@ -2145,29 +1987,26 @@ static func _black_ice_burst(f: Node3D, walled: bool, dir: Vector3, parent: Node
 		return
 	if walled:
 		ALT_FX.cool_wall(parent, f.global_position, dir, "water", BLACK_ICE_WORD)
-	elif DESIGNED.on():
+	else:
 		DESIGNED.ice_shatter(parent, f.global_position + Vector3.UP * 0.8, 1.0)
 
 
 ## Short Circuit lands (SC_*): the held take a little and are spent; the charge arcs out to everyone else in reach.
 static func _short_circuit(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var held: Array = seized.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
 	for e: Node3D in held:
 		e.take_hit(damage * SC_HELD_MULT, Vector3.ZERO, 0.0, true)
 		unmark(e, "charged")  # (spent)
 		Game.register_hit("breaker")
-	var out: Array = FOES.near(hero.get_tree(), at, SC_REACH).filter(func(e: Node3D) -> bool:
-		return not e in held and not THROWN.flying(e))
-	out.sort_custom(func(a: Node3D, c: Node3D) -> bool:
-		return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
+	var out: Array = FOES.sorted_near(hero.get_tree(), at, SC_REACH).filter(func(e: Node3D) -> bool: return not e in held)
 	for g: Node3D in ENV_PIECE.live_grates(hero.get_tree()):  # round 51 (Live Floor): the grate carries it too
-		for e: Node3D in FOES.near(hero.get_tree(), _flat(g.global_position), SC_REACH):
+		for e: Node3D in FOES.near(hero.get_tree(), FOES.flat(g.global_position), SC_REACH):
 			if not e in held and not e in out and not THROWN.flying(e):
 				out.append(e)
 	for t: Node3D in ENV_PIECE.conducting_torches(hero.get_tree()):  # round 52 (torches conduct): each torch reaches too
-		for e: Node3D in FOES.near(hero.get_tree(), _flat(t.global_position), ENV_PIECE.CONDUCT_REACH):
+		for e: Node3D in FOES.near(hero.get_tree(), FOES.flat(t.global_position), ENV_PIECE.CONDUCT_REACH):
 			if not e in held and not e in out and not THROWN.flying(e):
 				out.append(e)
 	out = out.slice(0, SC_ARCS)
@@ -2203,7 +2042,7 @@ static func _sc_loop(hero: Variant, out: Array, held: Array, damage: float) -> v
 			break
 	var a: Vector3 = (links[links.size() - 1] as Node3D).global_position + Vector3.UP * 0.9
 	var b: Vector3 = ((first as Node3D).global_position if first != null else (hero as Node3D).global_position) + Vector3.UP * 0.9
-	if Game.comic_style and is_instance_valid(parent):
+	if is_instance_valid(parent):
 		COMIC_BOLT.spawn(parent, a, b, 0.34, 0.7, 2)
 	var each: float = damage * (LOOP_MULT + LOOP_PER * links.size())
 	for e: Node3D in links:
@@ -2228,7 +2067,7 @@ static func _sc_arc(hero: Variant, e: Variant, from: Array, each: float, i: int)
 	if src != null and ENV_PIECE.tag_of(src) == "torch":  # (round 52: out of its flame)
 		a = src.global_position + Vector3.UP * ENV_PIECE.CONDUCT_FLAME
 	COMIC_BOLT.spawn(hero.get_parent(), a, e.global_position + Vector3.UP * 0.9, 0.26 + 0.02 * i, 0.5 + 0.06 * i, 2)
-	var away := _flat(e.global_position - a)
+	var away := FOES.flat(e.global_position - a)
 	e.take_hit(each, (away.normalized() if away.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, true)
 	if not hero._void.is_heavy(e) and e.has_method("stagger"):
 		e.stagger(SC_STUN)
@@ -2242,12 +2081,12 @@ static func _sc_arc(hero: Variant, e: Variant, from: Array, each: float, i: int)
 ## the earth up under each one. Anyone else near takes some and is thrown clear.
 static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var spots := []
 	for e: Node3D in seized:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
-		spots.append(_flat(e.global_position))
+		spots.append(FOES.flat(e.global_position))
 		e.take_hit(damage, Vector3.DOWN * CATACLYSM_DOWN, 0.0, true)
 		mark(e, "charged")  # (the strike out of the sky stays in them)
 		Game.register_hit("breaker")
@@ -2255,9 +2094,8 @@ static func _cataclysm(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if e in seized:
 			continue
-		var from := _flat(e.global_position - at)
-		e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
-		Game.register_hit("breaker")
+		var from := FOES.flat(e.global_position - at)
+		FOES.hit(e, damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true, "breaker")
 	Game.shake(0.7)
 	# Round 54 cool pass 3: the aftershock. AFTERSHOCK_AT s later the fault goes again out to each crater and a bolt comes
 	# down in it: the ones still in their craters take x AFTERSHOCK_MULT (a few held: its best; Tempest takes a crowd).
@@ -2272,13 +2110,10 @@ static func _aftershock(hero: Variant, at: Vector3, held: Array, damage: float) 
 	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
 	if live.is_empty() or not is_instance_valid(parent):
 		return
-	live.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(at) < _flat(c.global_position).distance_to(at))
-	live = live.slice(0, AFTERSHOCK_MOST)
-	if Game.comic_style:
-		COMIC_FAULT.spawn(parent, at, live.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)), false)
+	live = FOES.sorted_from(live, at, AFTERSHOCK_MOST)
+	COMIC_FAULT.spawn(parent, at, live.map(func(e: Node3D) -> Vector3: return FOES.flat(e.global_position)), false)
 	for e: Node3D in live:
-		if Game.comic_style:
-			ELEMENTS.storm_strike(parent, _flat(e.global_position), "wind")
+		ELEMENTS.storm_strike(parent, FOES.flat(e.global_position), "wind")
 		e.take_hit(damage * AFTERSHOCK_MULT, Vector3.DOWN * CATACLYSM_DOWN * 0.5, 0.0, true)
 		mark(e, "charged")
 		Game.register_hit("breaker")
@@ -2297,25 +2132,42 @@ static func _aftershock(hero: Variant, at: Vector3, held: Array, damage: float) 
 # frozen into magma (Molten Palm steams them, fire() "EM"), buried into storm (Updraft Lash, Storm Pitch:
 # _cash_buried), airborne into dark (Tow Line rips them out of the air, fire() "TW").
 
-## A crossover's state on a foe ("buried", "molten", "skewered"), good for ELEMENT_HOLD s of real time.
+## The states' metas on a foe (comic_state_tell reads them by these names), built once: mark() and marked() run per hit.
+const STATE_META := {"buried": &"x_buried", "molten": &"x_molten", "skewered": &"x_skewered", "charged": &"x_charged", "reaped": &"x_reaped"}
+
+
+static func _state_key(state: String) -> StringName:
+	return STATE_META.get(state, StringName("x_" + state))
+
+
+## A crossover's state on a foe ("buried", "molten", "skewered"), good for ELEMENT_HOLD s of real time (the charge
+## CHARGED_HOLD: it outlasts a magma string's three swings).
 static func mark(e: Variant, state: String) -> void:
 	if is_instance_valid(e):
-		var hold := CHARGED_HOLD if state == "charged" else ELEMENT_HOLD  # (round 44 b: the charge outlasts a magma string's three swings)
-		e.set_meta("x_" + state, Time.get_ticks_msec() + int(hold * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
-		ENV_PIECE.marked(e, state)  # (round 51: magma by a barrel, storm on a grate)
+		var hold := CHARGED_HOLD if state == "charged" else ELEMENT_HOLD
+		e.set_meta(_state_key(state), Time.get_ticks_msec() + int(hold * 1000.0 / Game.slow))  # (real ms: longer in training's slow motion)
+		ENV_PIECE.marked(e, state)  # (magma by a barrel, storm on a grate)
 
 
 static func marked(e: Variant, state: String) -> bool:
-	return is_instance_valid(e) and int(e.get_meta("x_" + state, 0)) > Time.get_ticks_msec()
+	return is_instance_valid(e) and int(e.get_meta(_state_key(state), 0)) > Time.get_ticks_msec()
 
 
 static func unmark(e: Variant, state: String) -> void:
-	if is_instance_valid(e) and e.has_meta("x_" + state):
-		e.remove_meta("x_" + state)
+	if is_instance_valid(e):
+		var key := _state_key(state)
+		if e.has_meta(key):
+			e.remove_meta(key)
+
+
+## The foe's freeze left (enemy.frozen_t), 0 for one without the field (the checks' stand-ins).
+static func frozen_left(e: Node) -> float:
+	var t: Variant = e.get("frozen_t")
+	return float(t) if t != null else 0.0
 
 
 static func is_frozen(e: Node) -> bool:
-	return in_cube(e) or float(e.get("frozen_t") if e.get("frozen_t") != null else 0.0) > 0.0
+	return in_cube(e) or frozen_left(e) > 0.0
 
 
 ## Anyone frozen (and not flying) in the strip ahead of him: Molten Palm goes off as a Steam Burst on them.
@@ -2332,14 +2184,13 @@ static func _cash_buried(hero: CharacterBody3D, at: Vector3, radius: float, dama
 	for e: Node3D in FOES.near(hero.get_tree(), at, radius):
 		if marked(e, "buried") and not THROWN.flying(e):
 			unmark(e, "buried")
-			e.take_hit(damage * (FAULT_BURIED_MULT - 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else launch, true)
-			Game.register_hit("cast")
+			FOES.hit(e, damage * (FAULT_BURIED_MULT - 1.0), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else launch, true, "cast")
 
 
 ## Ice that stays on a foe in the air: enemy.freeze() staggers, which drops it out of the air, so the ice is set by
-## hand (ELEMENT_HOLD, FREEZE_BREAK on the next hit) and the cube put on. Bosses never freeze.
+## hand (ELEMENT_HOLD, FREEZE_BREAK on the next hit) and the cube put on.
 static func freeze_aloft(e: Variant) -> void:
-	if not is_instance_valid(e) or not e.is_alive() or e.has_method("is_boss"):
+	if not is_instance_valid(e) or not e.is_alive():
 		return
 	if e.get("frozen_t") != null:
 		e.frozen_t = maxf(float(e.frozen_t), ELEMENT_HOLD)
@@ -2366,15 +2217,13 @@ static func _hailstorm(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 		var heavy: bool = hero._void.is_heavy(e)
 		if is_frozen(e):
 			THROWN.cut(e)  # (Ice Cube's bowl too: the gale takes the cube out of its roll)
-			if lifted.is_empty() or not DESIGNED.on():
-				COMIC_HAIL.ride(parent, e)  # (a tight whirlwind riding it up: was a full wind pillar each)
-			e.take_hit(HAIL_DAMAGE * power, Vector3.ZERO, 0.0 if heavy else HAIL_LAUNCH, true)  # (frozen: x FREEZE_BREAK)
-			Game.register_hit("cast")
+			if lifted.is_empty():
+				COMIC_HAIL.ride(parent, e)  # (a tight whirlwind riding it up)
+			FOES.hit(e, HAIL_DAMAGE * power, Vector3.ZERO, 0.0 if heavy else HAIL_LAUNCH, true, "cast")  # (frozen: x FREEZE_BREAK)
 			freeze_aloft(e)
 			n += 1
-		elif _flat(e.global_position - at).length() <= HAIL_WARM_REACH:
-			e.take_hit(HAIL_DAMAGE * power * 0.5, Vector3.ZERO, 0.0 if heavy else HAIL_WARM_LAUNCH, false)
-			Game.register_hit("cast")
+		elif FOES.flat(e.global_position - at).length() <= HAIL_WARM_REACH:
+			FOES.hit(e, HAIL_DAMAGE * power * 0.5, Vector3.ZERO, 0.0 if heavy else HAIL_WARM_LAUNCH, false, "cast")
 			n += 1
 	if n == 0:
 		ELEMENTS.pillar(parent, at + hero._facing() * 2.0, "wind", 2.4, 0.9)
@@ -2403,7 +2252,7 @@ static func _meltdown(hero: CharacterBody3D, at: Vector3, power: float) -> int:
 	melts += 1
 	for i in foes.size():
 		var e: Node3D = foes[i]
-		var lit: bool = i == 0 or _flat(e.global_position - from).length() <= MELT_SPLASH_R
+		var lit: bool = i == 0 or FOES.flat(e.global_position - from).length() <= MELT_SPLASH_R
 		if i == 0:
 			_melt_hit(hero, e, power * MELT_HEART_MULT, true, i)
 			continue
@@ -2422,16 +2271,13 @@ static func _melt_hit(hero: Variant, e: Variant, power: float, lit: bool, i: int
 	COMIC_MELT.foe(parent, e, is_frozen(e))  # (ice off it, burning down, a hot splat where it lands)
 	if is_frozen(e):
 		THROWN.remove_cube(e)
-	e.take_hit(MELT_DAMAGE * power * (MELT_AIR_MULT if up else 1.0), Vector3.DOWN * MELT_DOWN, 0.0, true)
-	Game.register_hit("cast")
+	FOES.hit(e, MELT_DAMAGE * power * (MELT_AIR_MULT if up else 1.0), Vector3.DOWN * MELT_DOWN, 0.0, true, "cast")
 	if lit:
 		mark(e, "molten")
 	if i == 0:
 		Game.hitstop(MELT_HEART_STOP)
-		if Game.comic_style:
-			ComicFx.say(ComicFx.MOVE_WORDS["XM"], (e as Node3D).global_position + Vector3.UP * 1.4, MID_WORD_SIZE)
-			if DESIGNED.on():
-				DESIGNED_FINISH.erupt(parent, (e as Node3D).global_position, [(e as Node3D).global_position], [true])
+		ComicFx.say(ComicFx.MOVE_WORDS["XM"], (e as Node3D).global_position + Vector3.UP * 1.4, MID_WORD_SIZE)
+		DESIGNED_FINISH.erupt(parent, (e as Node3D).global_position, [(e as Node3D).global_position], [true])
 
 
 ## Who Meltdown takes: everyone up there with him within MELT_REACH, and the frozen.
@@ -2447,7 +2293,7 @@ static func meltdown_auto(foes: Array) -> Node3D:
 	for e: Node3D in foes:
 		var n := 0
 		for o: Node3D in foes:
-			if o != e and _flat(o.global_position - e.global_position).length() <= MELT_SPLASH_R:
+			if o != e and FOES.flat(o.global_position - e.global_position).length() <= MELT_SPLASH_R:
 				n += 1
 		if n > best_n:
 			best = e
@@ -2464,7 +2310,7 @@ static func _impale(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: flo
 	var planted := s != null
 	if not planted:
 		s = SPEAR.plant(parent, at + fwd * minf(TOW_AHEAD, hero._clear_ahead(fwd, TOW_AHEAD)))
-	var spot: Vector3 = _flat(s.global_position) if is_instance_valid(s) else at + fwd * TOW_AHEAD
+	var spot: Vector3 = FOES.flat(s.global_position) if is_instance_valid(s) else at + fwd * TOW_AHEAD
 	COMIC_IMPALE.burst(parent, spot, IMPALE_RING + 1.4)  # (ice racing out of its foot: was frost_ring's torus)
 	_pop(parent, spot, "spear")
 	var foes: Array = FOES.near(hero.get_tree(), at, IMPALE_GRAB)
@@ -2473,8 +2319,7 @@ static func _impale(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: flo
 	var slot := 0
 	for e: Node3D in foes:
 		THROWN.cut(e)  # (still on Tow Line's tether: the tentacle takes it from there)
-		e.take_hit(damage, Vector3.ZERO, 0.0, true)
-		Game.register_hit("cast")
+		FOES.hit(e, damage, Vector3.ZERO, 0.0, true, "cast")
 		encase(e)
 		mark(e, "skewered")
 		if hero._void.is_heavy(e):
@@ -2494,19 +2339,18 @@ static func _impale(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: flo
 static func _backdraft(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: float) -> int:
 	var parent: Node = hero.get_parent()
 	var s: Node3D = SPEAR.current(hero.get_tree())
-	var spot: Vector3 = _flat(s.global_position) if s != null else at + fwd * TOW_AHEAD
+	var spot: Vector3 = FOES.flat(s.global_position) if s != null else at + fwd * TOW_AHEAD
 	if s != null:
 		s.shatter()
 	COMIC_BACKDRAFT.blast(parent, spot)  # (was a 2.6 m wind pillar)
 	var foes: Array = FOES.near(hero.get_tree(), spot, BACKDRAFT_REACH).filter(func(e: Node3D) -> bool: return not THROWN.flying(e))
 	var hand := at + Vector3.UP * 1.3 + fwd * 0.6
 	for e: Node3D in foes:
-		var back := _flat(at - e.global_position)
+		var back := FOES.flat(at - e.global_position)
 		var skewered := marked(e, "skewered")
 		unmark(e, "skewered")
 		var kb: Vector3 = back.normalized() * BACKDRAFT_PULL if back.length() > 0.6 else Vector3.ZERO
-		e.take_hit(BACKDRAFT_DAMAGE * power * (1.0 if skewered else 0.6), kb, 0.0 if hero._void.is_heavy(e) else BACKDRAFT_LAUNCH, true)
-		Game.register_hit("cast")
+		FOES.hit(e, BACKDRAFT_DAMAGE * power * (1.0 if skewered else 0.6), kb, 0.0 if hero._void.is_heavy(e) else BACKDRAFT_LAUNCH, true, "cast")
 		COMIC_BACKDRAFT.haul(parent, e, hand, skewered)  # (a wind ribbon to his hand: was a lightning arc each)
 	return foes.size()
 
@@ -2516,7 +2360,7 @@ static func _backdraft(hero: CharacterBody3D, at: Vector3, fwd: Vector3, power: 
 ## and they drop back into the floor. Meltdown's `molten` take every beat hardest (ERUPT_MOLTEN_MULT).
 static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var foes: Array = []
 	for e: Variant in seized + FOES.near(hero.get_tree(), at, ERUPT_RING):
 		if not foes.has(e) and is_instance_valid(e) and e.is_alive() and not THROWN.flying(e):
@@ -2529,22 +2373,17 @@ static func _eruption(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized:
 	var wall := pinwheel_target(hero, at, "eruption", ERUPT_REACH)  # (the indicator's pick; a raycast in a bare room)
 	var g: Node3D = ERUPTION_HURL.start(hero, at, foes, wall.get("found", false), hero._void.is_heavy)
 	g.on_heave = func(e: Node3D, _i: int) -> void:
-		e.take_hit(damage * ERUPT_HEAVE_MULT * float(hot.get(e, 1.0)), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else ERUPT_LAUNCH, true)
-		Game.register_hit("breaker")
+		FOES.hit(e, damage * ERUPT_HEAVE_MULT * float(hot.get(e, 1.0)), Vector3.ZERO, 0.0 if hero._void.is_heavy(e) else ERUPT_LAUNCH, true, "breaker")
 		Game.sfx("hit_big", -4.0, 0.1)
 	g.on_hurl = _eruption_hurl.bind(hero, wall, damage, hot, g)
 	g.on_drop = func(e: Node3D, _i: int) -> void:
-		e.take_hit(damage * ERUPT_DROP_MULT * float(hot.get(e, 1.0)), Vector3.DOWN * MELT_DOWN, 0.0, true)
-		Game.register_hit("breaker")
-		under(parent, _flat(e.global_position), "earth")
+		FOES.hit(e, damage * ERUPT_DROP_MULT * float(hot.get(e, 1.0)), Vector3.DOWN * MELT_DOWN, 0.0, true, "breaker")
+		under(parent, FOES.flat(e.global_position), "earth")
 	g.on_slide = func(e: Node3D, _i: int) -> void:
 		e.take_hit(damage * ERUPT_SLIDE_MULT * float(hot.get(e, 1.0)), Vector3.ZERO, 0.0, true)
 		mark(e, "molten")  # (it slid down burning: still alight)
 		Game.register_hit("breaker")
-		if DESIGNED.on():
-			DESIGNED_EL.pool(parent, e.global_position, 0.9)
-	if not DESIGNED.on():
-		COMIC_ERUPT.spawn(parent, at, foes.map(func(e: Node3D) -> Vector3: return _flat(e.global_position)), foes.map(func(e: Node3D) -> bool: return hot[e] > 1.0))
+		DESIGNED_EL.pool(parent, e.global_position, 0.9)
 	_pop(parent, at, "hammer")
 	Game.shake(0.7)
 
@@ -2555,9 +2394,9 @@ static func _eruption_hurl(e: Node3D, _i: int, hero: Variant, wall: Dictionary, 
 	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
 		return
 	var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
-	var aim: Vector3 = face - _flat(e.global_position)
+	var aim: Vector3 = face - FOES.flat(e.global_position)
 	var parent: Node = hero.get_parent()
-	THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage * ERUPT_HURL_MULT * float(hot.get(e, 1.0)),
+	THROWN.launch(hero, e, FOES.flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage * ERUPT_HURL_MULT * float(hot.get(e, 1.0)),
 		{"solid": false, "el": "earth", "speed": ERUPT_WALL_SPEED, "land_y": ERUPTION_HURL.SPLAT_Y, "wall_mult": ERUPT_WALL_MULT,
 		"splash": false, "on_burst": _eruption_splat.bind(parent, g)})
 
@@ -2573,7 +2412,7 @@ static func _eruption_splat(f: Node3D, walled: bool, dir: Vector3, parent: Node,
 ## Flash Freeze's dive (hero_leap._start_dive, round 52): the steam rolls out from where he will land over everyone
 ## within FF_CLOUD_R, setting into a shell on each, nearest first (frost_shell.gd). Returns the node (the landing breaks it).
 static func flash_freeze_dive(hero: CharacterBody3D) -> Node3D:
-	var zone: Vector3 = _flat(hero._brk_zone)
+	var zone: Vector3 = FOES.flat(hero._brk_zone)
 	var foes: Array = []
 	for e: Variant in hero._void.held_foes() + FOES.near(hero.get_tree(), zone, FF_CLOUD_R):
 		if not foes.has(e) and is_instance_valid(e) and e.is_alive():
@@ -2581,8 +2420,7 @@ static func flash_freeze_dive(hero: CharacterBody3D) -> Node3D:
 	var damage: float = BREAKERS.XS.damage * hero._dmg_mult
 	var g: Node3D = FROST_SHELL.start(hero, zone, foes)
 	g.on_set = func(e: Node3D, _i: int) -> void:
-		e.take_hit(damage * FF_SET_MULT, Vector3.ZERO, 0.0, false)
-		Game.register_hit("breaker")
+		FOES.hit(e, damage * FF_SET_MULT, Vector3.ZERO, 0.0, false, "breaker")
 		encase(e)
 	hero.set_meta(FF_META, g)
 	return g
@@ -2592,7 +2430,7 @@ static func flash_freeze_dive(hero: CharacterBody3D) -> Node3D:
 ## "flash_freeze": the cursor's foe, or the one nearest the landing), a beat harder each link (FF_LINK_PER).
 static func _flash_freeze(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var g: Variant = hero.get_meta(FF_META) if hero.has_meta(FF_META) else null
 	hero.remove_meta(FF_META)
 	if not is_instance_valid(g):
@@ -2604,7 +2442,7 @@ static func _flash_freeze(hero: CharacterBody3D, b: Dictionary, at: Vector3, mul
 		Game.register_hit("breaker")
 		Game.hitstop(0.03)
 		Game.sfx("hit_big", -3.0, 0.1)
-		if DESIGNED.on() and is_instance_valid(parent):
+		if is_instance_valid(parent):
 			DESIGNED.ice_shatter(parent, e.global_position + Vector3.UP * 0.9, 1.1 + 0.1 * k)
 	for e: Node3D in g.shelled():
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 900)
@@ -2617,22 +2455,21 @@ static func _flash_freeze(hero: CharacterBody3D, b: Dictionary, at: Vector3, mul
 ## ANVIL_AIR_MULT; anyone else near who's still up comes down with them, the rest are thrown clear.
 static func _anvil(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var craters := []
 	for e: Node3D in seized:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
-		e.take_hit(damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
-		Game.register_hit("breaker")
-		craters.append(_flat(e.global_position))
+		FOES.hit(e, damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true, "breaker")
+		craters.append(FOES.flat(e.global_position))
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if e in seized:
 			continue
 		if e.is_airborne():
 			e.take_hit(damage * ANVIL_AIR_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
-			craters.append(_flat(e.global_position))
+			craters.append(FOES.flat(e.global_position))
 		else:
-			var from := _flat(e.global_position - at)
+			var from := FOES.flat(e.global_position - at)
 			e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
 		Game.register_hit("breaker")
 	COMIC_ANVIL.spawn(parent, at, craters)  # (a crater each, nearest first: was three earth spikes each)
@@ -2649,31 +2486,29 @@ static func anvil_again(hero: CharacterBody3D, at: Vector3, seized: Array, damag
 	for e: Variant in seized:
 		if not is_instance_valid(e) or not e.is_alive() or hero._void.is_heavy(e):
 			continue
-		var p := _flat((e as Node3D).global_position)
+		var p := FOES.flat((e as Node3D).global_position)
 		items.append({"foe": e, "root": hand, "t0": ANVIL_YANK_AT, "top": p + Vector3.UP * ANVIL_YANK_Y, "end": p,
 			"up": 0.12, "hold": 0.05, "down": 0.06})
 	if items.is_empty():
 		return null
 	var g: Node3D = TENTACLE_HAUL.start(hero, items)
 	var parent: Node = hero.get_parent()
-	var to := _flat(at)
+	var to := FOES.flat(at)
 	g.on_end = func(e: Node3D, i: int) -> void:
-		e.take_hit(damage * ANVIL_TWO_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true)
-		Game.register_hit("breaker")
-		var p := _flat(e.global_position)
+		FOES.hit(e, damage * ANVIL_TWO_MULT, Vector3.DOWN * ANVIL_DOWN, 0.0, true, "breaker")
+		var p := FOES.flat(e.global_position)
 		if i == 0:
 			Game.hitstop(0.05)
 			Game.sfx("hit_big", -2.0, 0.1)
 			Game.shake(0.6)
-		if not Game.comic_style or not is_instance_valid(parent):
+		if not is_instance_valid(parent):
 			return
 		if i == 0:
 			ComicFx.say(ANVIL_TWO_WORD, p + Vector3.UP * 2.2, ALT_FX.WALL_WORD_SIZE)
 		COMIC_ANVIL.spawn(parent, to, [p])
-		if DESIGNED.on():
-			for k in ANVIL_FISSURES:
-				var a := TAU * (float(k) / ANVIL_FISSURES) + i * 0.9
-				DESIGNED_EL.fissure(parent, p, Vector3(sin(a), 0.0, cos(a)), 2.2, 4, "earth", 0.8, 0.03)
+		for k in ANVIL_FISSURES:
+			var a := TAU * (float(k) / ANVIL_FISSURES) + i * 0.9
+			DESIGNED_EL.fissure(parent, p, Vector3(sin(a), 0.0, cos(a)), 2.2, 4, "earth", 0.8, 0.03)
 	return g
 
 
@@ -2690,21 +2525,21 @@ static func meteor_target(at: Vector3, spots: Array, fresh: Array, reach := METE
 	var best_score := -1.0
 	var best_d := INF
 	for i in spots.size():
-		var me: Vector3 = _flat(spots[i])
+		var me: Vector3 = FOES.flat(spots[i])
 		var r: float = splat_reach if fresh[i] else reach  # (he goes as far as the palm carried them to the wall)
-		if _flat(me - at).length() > r:
+		if FOES.flat(me - at).length() > r:
 			continue
 		var score := 0.0
 		var mid := Vector3.ZERO
 		var n := 0
 		for j in spots.size():
-			var other: Vector3 = _flat(spots[j])
-			if other.distance_to(me) <= radius and _flat(other - at).length() <= r + radius:
+			var other: Vector3 = FOES.flat(spots[j])
+			if other.distance_to(me) <= radius and FOES.flat(other - at).length() <= r + radius:
 				score += METEOR_WALL_WEIGHT if fresh[j] else 1.0
 				mid += other
 				n += 1
 		mid /= float(n)
-		var d := _flat(mid - at).length()
+		var d := FOES.flat(mid - at).length()
 		if score > best_score + 0.001 or (absf(score - best_score) <= 0.001 and d < best_d):
 			best_score = score
 			best_d = d
@@ -2729,7 +2564,7 @@ static func palm_fresh(e: Object) -> bool:
 ## meteor_target over the living foes round the hero that this string's Molten Palm hit (the ones it pressed into a
 ## wall among them, and worth more). Nobody else draws the dive; with none, he lands ahead of him.
 static func meteor_spot(hero: CharacterBody3D, use_pick := true) -> Dictionary:
-	var at := _flat(hero.global_position)
+	var at := FOES.flat(hero.global_position)
 	var foes: Array = meteor_candidates(hero)
 	var picked := ENV.chosen(hero, "meteor") if use_pick else {}  # (round 50: the cursor on a wall or pillar: the pile by it)
 	if not picked.is_empty():
@@ -2738,13 +2573,13 @@ static func meteor_spot(hero: CharacterBody3D, use_pick := true) -> Dictionary:
 			foes = by
 	var pf: Node3D = ENV.picked_foe(hero, "meteor") if use_pick else null  # (round 52: the cursor on a foe: the pile it is in)
 	if pf != null and foes.has(pf):
-		foes = foes.filter(func(e: Node3D) -> bool: return _flat(e.global_position).distance_to(_flat(pf.global_position)) <= METEOR_PILE_R)
+		foes = foes.filter(func(e: Node3D) -> bool: return FOES.flat(e.global_position).distance_to(FOES.flat(pf.global_position)) <= METEOR_PILE_R)
 	return meteor_target(at, foes.map(func(e: Node3D) -> Vector3: return e.global_position), foes.map(func(e: Node3D) -> bool: return wall_fresh(e)))
 
 
 ## Who Meteor Fall may dive on: the living foes this string's Molten Palm hit, within METEOR_SPLAT_REACH of him.
 static func meteor_candidates(hero: CharacterBody3D) -> Array:
-	return FOES.near(hero.get_tree(), _flat(hero.global_position), METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
+	return FOES.near(hero.get_tree(), FOES.flat(hero.global_position), METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
 
 
 ## How many piles `foes` stand in (each foe within METEOR_PILE_R of a pile's first one is in it): two or more and the
@@ -2752,7 +2587,7 @@ static func meteor_candidates(hero: CharacterBody3D) -> Array:
 static func meteor_piles(foes: Array) -> int:
 	var seeds: Array = []
 	for e: Node3D in foes:
-		var p := _flat(e.global_position)
+		var p := FOES.flat(e.global_position)
 		if not seeds.any(func(s: Vector3) -> bool: return s.distance_to(p) <= METEOR_PILE_R):
 			seeds.append(p)
 	return seeds.size()
@@ -2762,11 +2597,10 @@ static func meteor_piles(foes: Array) -> int:
 ## and on those still fresh off a wall splat (METEOR_SPLAT_MULT). Undertow lets go; shields come off for good.
 static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	if is_instance_valid(hero._void.undertow):
 		hero._void.undertow._let_go()  # (up out of the lava for the crater)
 	for e: Node3D in FOES.near(hero.get_tree(), at, METEOR_PILE_R):
-		var spot := _flat(e.global_position)
 		THROWN.cut(e)
 		var body: Variant = e.get("model")
 		if body != null:
@@ -2774,20 +2608,9 @@ static func _meteor_landing(hero: CharacterBody3D, b: Dictionary, at: Vector3, m
 		if e.has_method("rip_shield"):
 			e.rip_shield()
 		var k: float = (METEOR_HEAVY_MULT if hero._void.is_heavy(e) else 1.0) * (METEOR_SPLAT_MULT if wall_fresh(e) else 1.0)
-		e.take_hit(damage * k, Vector3.DOWN * METEOR_DOWN, 0.0, true)
-		Game.register_hit("breaker")
-		if not DESIGNED.on():
-			Fx.shards(parent, spot + Vector3.UP * 0.9, ELEMENTS.LOOK.earth.color, 6, Vector3.UP, 10.0, 0.2, 0.7)
-			ELEMENTS.spikes(parent, spot, "earth", CRYSTAL_SIZE, 2, 1.0)
+		FOES.hit(e, damage * k, Vector3.DOWN * METEOR_DOWN, 0.0, true, "breaker")
 	_pop(parent, at, "hammer")
-	if DESIGNED.on():  # round 43: the drawn crown burst, lava wave, rim splashes and crust (designed_fx.meteor)
-		DESIGNED.meteor(parent, at, METEOR_PILE_R)
-		Game.shake(0.8)
-		return
-	for i in METEOR_GEYSERS:
-		var a := TAU * (i + 0.5) / METEOR_GEYSERS  # (one behind the pile, none in front of it)
-		ELEMENTS.rim_geyser(parent, at + Vector3(sin(a), 0.0, cos(a)) * METEOR_GEYSER_OUT, GEYSER_RADIUS, GEYSER_HIGH, false)
-	Fx.scorch(parent, at, ELEMENTS.LOOK.earth.color, METEOR_GEYSER_OUT * 1.6, 1.6)
+	DESIGNED.meteor(parent, at, METEOR_PILE_R)  # the drawn crown burst, lava wave, rim splashes and crust
 	Game.shake(0.8)
 
 
@@ -2801,8 +2624,8 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		var spear: Node3D = SPEAR.current(hero.get_tree())  # melts (it stood its 5 s and the next string's Dash L H vaulted)
 		if spear != null:
 			spear.melt()
-	if b.has("counter"):  # Ricochet, the dash counter's ending (load: counter.gd preloads this file)
-		load("res://scripts/counter.gd").ricochet(hero, b, at, seized, mult)
+	if b.has("counter"):  # Ricochet, the dash counter's ending
+		_counter().ricochet(hero, b, at, seized, mult)
 		return
 	if b.has("shower"):
 		_meteor_shower(hero, b, at, mult)
@@ -2862,13 +2685,13 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 		_abyss(hero, b, mult)
 		return
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var struck := {}
 	for e: Node3D in seized:
 		if not is_instance_valid(e) or not e.is_alive():
 			continue
 		struck[e] = true
-		var spot := _flat(e.global_position)
+		var spot := FOES.flat(e.global_position)
 		e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH, true)
 		if b.erupt == "wind":
 			mark(e, "charged")  # (Grounded: the storm it lands in stays in them)
@@ -2877,9 +2700,8 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 	for e: Node3D in FOES.near(hero.get_tree(), at, BREAK_AREA):
 		if struck.has(e):
 			continue
-		var from := _flat(e.global_position - at)
-		e.take_hit(damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true)
-		Game.register_hit("breaker")
+		var from := FOES.flat(e.global_position - at)
+		FOES.hit(e, damage * 0.6, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 5.0, BREAK_LAUNCH, true, "breaker")
 	under(parent, at, b.erupt)
 	_pop(parent, at, {"wind": "axe", "water": "spear", "earth": "hammer"}[b.erupt])
 	if b.erupt == "wind" or b.erupt == "earth":  # round 54 cool pass 3: Grounded's earthing, Worldbreaker's heave
@@ -2895,15 +2717,14 @@ static func breaker_impact(hero: CharacterBody3D, b: Dictionary, at: Vector3, se
 ##     floor heaves it back up in a geyser as it arrives: x HEAVE_MULT (the open floor's ending; Cold Front, its LMB,
 ##     bowls the cubes into a wall).
 static func _ground_beat(hero: CharacterBody3D, el: String, at: Vector3, struck: Array, damage: float) -> void:
-	var live: Array = struck.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
-	live.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(at) < _flat(c.global_position).distance_to(at))
+	var live: Array = FOES.sorted_from(FOES.live(struck), at)
 	var parent: Node = hero.get_parent()
 	for i in live.size():
 		var e: Node3D = live[i]
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + 900)
 		var wait: float = GROUND_AT + i * (GROUND_STEP if el == "wind" else HEAVE_STEP)
-		if el == "earth" and DESIGNED.on() and Game.comic_style:
-			var to := _flat(e.global_position) - at
+		if el == "earth":
+			var to := FOES.flat(e.global_position) - at
 			if to.length() > 1.3:
 				hero.get_tree().create_timer(GROUND_AT, false).timeout.connect(func() -> void:
 					if is_instance_valid(parent) and parent.is_inside_tree():
@@ -2916,10 +2737,10 @@ static func _ground_hit(hero: Variant, el: String, e: Variant, prev: Variant, at
 	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
 		return
 	var parent: Node = hero.get_parent()
-	var spot := _flat((e as Node3D).global_position)
-	var draws: bool = Game.comic_style and is_instance_valid(parent) and parent.is_inside_tree()
+	var spot := FOES.flat((e as Node3D).global_position)
+	var draws: bool = is_instance_valid(parent) and parent.is_inside_tree()
 	if el == "wind":
-		var from: Vector3 = (_flat((prev as Node3D).global_position) if is_instance_valid(prev) else at) + Vector3.UP * 0.15
+		var from: Vector3 = (FOES.flat((prev as Node3D).global_position) if is_instance_valid(prev) else at) + Vector3.UP * 0.15
 		if draws:
 			COMIC_BOLT.spawn(parent, from, spot + Vector3.UP * 0.15, 0.2, 0.0, 1)  # (along the floor: the charge going to ground)
 			ELEMENTS.storm_strike(parent, spot, "wind")
@@ -2927,7 +2748,7 @@ static func _ground_hit(hero: Variant, el: String, e: Variant, prev: Variant, at
 		mark(e, "charged")
 		Game.hitstop(0.03 + 0.008 * i)
 	else:
-		if draws and DESIGNED.on():
+		if draws:
 			DESIGNED_EL.geyser(parent, spot, 2.0)
 		e.take_hit(damage * HEAVE_MULT, Vector3.ZERO, HEAVE_LAUNCH, true)
 		Game.hitstop(0.035)
@@ -2940,17 +2761,15 @@ static func _ground_hit(hero: Variant, el: String, e: Variant, prev: Variant, at
 ## The foes Meteor Shower calls a fireball down on: every living one Molten Palm hit (palm_fresh) within
 ## METEOR_SPLAT_REACH of him, nearest first, at most SHOWER_MAX.
 static func shower_targets(hero: CharacterBody3D) -> Array:
-	var at := _flat(hero.global_position)
-	var foes: Array = FOES.near(hero.get_tree(), at, METEOR_SPLAT_REACH).filter(func(e: Node3D) -> bool: return palm_fresh(e))
-	foes.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position - at).length() < _flat(c.global_position - at).length())
-	return foes.slice(0, SHOWER_MAX)
+	var at := FOES.flat(hero.global_position)
+	return FOES.sorted_from(meteor_candidates(hero), at, SHOWER_MAX)
 
 
 ## Meteor Shower (Meteor Fall's LMB ending) has landed: a fireball out of the sky onto each target in turn (ALT_FX.meteor_drop),
 ## each a crater on its foe alone; the last lets Undertow go. Nobody the palm hit: one onto the floor ahead of him.
 static func _meteor_shower(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var foes := shower_targets(hero)
 	for e: Node3D in foes:
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SHOWER_CUE_MS)
@@ -2958,7 +2777,7 @@ static func _meteor_shower(hero: CharacterBody3D, b: Dictionary, at: Vector3, mu
 		var tw0 := parent.create_tween().set_ignore_time_scale(true)
 		tw0.tween_interval(SHOWER_DELAY)
 		tw0.tween_callback(func() -> void:
-			if is_instance_valid(parent) and DESIGNED.on():
+			if is_instance_valid(parent):
 				DESIGNED.meteor(parent, at + hero._brk_dir * 3.0, ALT_FX.DROP_SPLASH))
 		if is_instance_valid(hero._void.undertow):
 			hero._void.undertow._let_go()
@@ -3003,10 +2822,7 @@ static func pinwheel_target(hero: CharacterBody3D, at: Vector3, ctx := "pinwheel
 		return env
 	var start := Vector3(at.x, 0.9, at.z)
 	var space := hero.get_world_3d().direct_space_state
-	var skip: Array[RID] = [hero.get_rid()]
-	for o: Node in hero.get_tree().get_nodes_in_group("enemies"):
-		if o is CollisionObject3D:
-			skip.append((o as CollisionObject3D).get_rid())
+	var skip: Array[RID] = THROWN.exclude_rids(hero)
 	var best := {"found": false, "dist": INF}
 	for i in PINWHEEL_RAYS:
 		var a := TAU * i / PINWHEEL_RAYS
@@ -3018,7 +2834,7 @@ static func pinwheel_target(hero: CharacterBody3D, at: Vector3, ctx := "pinwheel
 			continue
 		var dist: float = start.distance_to(hit.position)
 		if dist < best.dist:
-			best = {"found": true, "at": _flat(hit.position), "dir": d, "dist": dist}
+			best = {"found": true, "at": FOES.flat(hit.position), "dir": d, "dist": dist}
 	return best
 
 
@@ -3027,26 +2843,25 @@ static func pinwheel_target(hero: CharacterBody3D, at: Vector3, ctx := "pinwheel
 ## along its swing and lands. Anyone else the whirl passed takes PINWHEEL_SWEEP and is blown clear.
 static func _pinwheel(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var target := pinwheel_target(hero, at)
 	var live: Array = held.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
 	for e: Node3D in FOES.near(hero.get_tree(), at, PINWHEEL_R + 1.2):
 		if e in live:
 			continue
-		var from := _flat(e.global_position - at)
-		e.take_hit(damage * PINWHEEL_SWEEP, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 6.0, BREAK_LAUNCH, true)
-		Game.register_hit("breaker")
+		var from := FOES.flat(e.global_position - at)
+		FOES.hit(e, damage * PINWHEEL_SWEEP, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 6.0, BREAK_LAUNCH, true, "breaker")
 	_pop(parent, at, "axe")
 	Game.shake(0.5)
 	for i in live.size():
 		var e: Node3D = live[i]
 		THROWN.remove_cube(e)
-		var out := _flat(e.global_position - at)
+		var out := FOES.flat(e.global_position - at)
 		out = out.normalized() if out.length() > 0.05 else hero._facing()
-		var to: Vector3 = _flat(e.global_position) + out * PINWHEEL_OPEN
+		var to: Vector3 = FOES.flat(e.global_position) + out * PINWHEEL_OPEN
 		if target.found:
-			var aim: Vector3 = target.at - _flat(e.global_position)
-			to = _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
+			var aim: Vector3 = target.at - FOES.flat(e.global_position)
+			to = FOES.flat(e.global_position) + aim.normalized() * (aim.length() + 1.5)
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + PINWHEEL_CUE_MS)
 		THROWN.launch(hero, e, to, damage, {"solid": false, "el": "wind", "speed": PINWHEEL_SPEED, "land_y": 0.0,
 			"wall_mult": PINWHEEL_WALL_MULT, "splash": false, "on_burst": _pinwheel_hit.bind(parent)})
@@ -3067,8 +2882,7 @@ static func tempest_riders(hero: CharacterBody3D, mid: Vector3) -> Dictionary:
 		if THROWN.flying(e):
 			continue
 		(big if hero._void.is_heavy(e) else ride).append(e)
-	ride.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position - mid).length() < _flat(c.global_position - mid).length())
-	return {"ride": ride.slice(0, TEMPEST_MAX), "big": big}
+	return {"ride": FOES.sorted_from(ride, mid, TEMPEST_MAX), "big": big}
 
 
 ## Tempest (Cataclysm's LMB ending) lands: the twister goes up on the pile (ALT_FX.twister) and takes the riders up it
@@ -3081,19 +2895,18 @@ static func _tempest(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Ar
 	if not live.is_empty():
 		mid = Vector3.ZERO
 		for e: Node3D in live:
-			mid += _flat(e.global_position)
+			mid += FOES.flat(e.global_position)
 		mid /= float(live.size())
 		mid += hero._brk_dir * TEMPEST_OUT  # (off him: the column stood on him and a rider hid him)
 	var who := tempest_riders(hero, mid)
 	var riders: Array = who.ride
-	var each: float = b.damage * hero._dmg_mult * mult * (1.0 + TEMPEST_PER * maxi(riders.size() - 1, 0))
+	var each: float = _breaker_damage(hero, b, mult) * (1.0 + TEMPEST_PER * maxi(riders.size() - 1, 0))
 	var life: float = TEMPEST_FIRST + TEMPEST_STEP * riders.size() + 0.25
 	ALT_FX.twister(parent, mid, TEMPEST_COLUMN, TEMPEST_R + 0.5, life + TEMPEST_FREEZE)
 	_pop(parent, mid, "axe")
 	Game.shake(0.6)
 	for e: Node3D in who.big:
-		e.take_hit(each * TEMPEST_BIG, Vector3.ZERO, 0.0, true)
-		Game.register_hit("breaker")
+		FOES.hit(e, each * TEMPEST_BIG, Vector3.ZERO, 0.0, true, "breaker")
 	for i in riders.size():
 		var e: Node3D = riders[i]
 		THROWN.cut(e)
@@ -3101,7 +2914,7 @@ static func _tempest(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Ar
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + TEMPEST_CUE_MS)
 		if e.has_method("stagger"):
 			e.stagger(life + 0.3)
-		var off := _flat(e.global_position - mid)
+		var off := FOES.flat(e.global_position - mid)
 		var a0 := atan2(off.x, off.z)
 		var r0 := off.length()
 		var y0: float = e.global_position.y
@@ -3137,7 +2950,7 @@ static func _tempest_bolt(hero: Variant, e: Variant, mid: Vector3, damage: float
 	var parent: Node = hero.get_parent()
 	var at: Vector3 = (e as Node3D).global_position + Vector3.UP * 0.9
 	COMIC_BOLT.spawn(parent, at + Vector3(0.6, 9.0, -0.4), at, 0.3, 0.9 if first else 0.6, 2)
-	var out := _flat((e as Node3D).global_position - mid)
+	var out := FOES.flat((e as Node3D).global_position - mid)
 	out = out.normalized() if out.length() > 0.05 else Vector3.FORWARD
 	e.take_hit(damage, out * TEMPEST_THROW, TEMPEST_LAUNCH, true)
 	mark(e, "charged")
@@ -3152,18 +2965,17 @@ static func _tempest_bolt(hero: Variant, e: Variant, mid: Vector3, damage: float
 ## landing's impact frame (SHATTER_DELAY), which hid Short Circuit's arcs.
 static func _shatterstorm(hero: CharacterBody3D, b: Dictionary, at: Vector3, held: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var row: Array = held.duplicate()
 	var mid := Vector3.ZERO
 	for e: Node3D in row:
-		mid += _flat(e.global_position)
+		mid += FOES.flat(e.global_position)
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + SC_CUE_MS)
 	if row.is_empty():
 		ELEMENTS.storm_strike(parent, at + hero._facing() * 2.0, "wind")
 		return
 	mid /= float(row.size())
-	row.sort_custom(func(a: Node3D, c: Node3D) -> bool:  # (from the middle out: the crash spreads)
-		return _flat(a.global_position).distance_to(mid) < _flat(c.global_position).distance_to(mid))
+	FOES.sorted_from(row, mid)  # (from the middle out: the crash spreads)
 	for i in row.size():
 		var tw := parent.create_tween()
 		tw.tween_interval(SHATTER_DELAY + i * SHATTER_STEP)
@@ -3183,7 +2995,7 @@ static func _chain_link(hero: Variant, a: Variant, e: Variant, damage: float, i:
 		return
 	var parent: Node = hero.get_parent()
 	var from: Vector3 = ((a as Node3D).global_position if is_instance_valid(a) else (e as Node3D).global_position) + Vector3.UP * 0.9
-	if Game.comic_style and is_instance_valid(parent):
+	if is_instance_valid(parent):
 		COMIC_BOLT.spawn(parent, from, (e as Node3D).global_position + Vector3.UP * 0.9, 0.24 + 0.02 * i, 0.4, 1)
 	zap_hit(e, damage * CHAIN_MULT)
 	mark(e, "charged")
@@ -3196,10 +3008,9 @@ static func _thunder_on(hero: Variant, e: Variant, damage: float, first: bool) -
 	if not is_instance_valid(hero) or not is_instance_valid(e) or not e.is_alive():
 		return
 	var parent: Node = hero.get_parent()
-	var spot := _flat((e as Node3D).global_position)
+	var spot := FOES.flat((e as Node3D).global_position)
 	ELEMENTS.storm_strike(parent, spot, "wind")
-	if DESIGNED.on():
-		DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9, 1.2)
+	DESIGNED.ice_shatter(parent, spot + Vector3.UP * 0.9, 1.2)
 	THROWN.remove_cube(e)
 	e.take_hit(damage, Vector3.ZERO, BREAK_LAUNCH * 0.6, true)
 	mark(e, "charged")
@@ -3220,13 +3031,13 @@ static func _slapshot(hero: CharacterBody3D, _b: Dictionary, at: Vector3, held: 
 	if not picked.is_empty():
 		var to: Vector3 = ENV.surface(picked, at).at - at
 		if to.length() > 0.5:
-			fwd = _flat(to).normalized()
+			fwd = FOES.flat(to).normalized()
 			hero._brk_dir = fwd
 			hero._face(fwd)
 	var base: float = SLIDE_DAMAGE * hero._dmg_mult * mult
 	var near := INF
 	for e: Node3D in held:
-		near = minf(near, _flat(e.global_position - at).dot(fwd) - float(e.radius))
+		near = minf(near, FOES.flat(e.global_position - at).dot(fwd) - float(e.radius))
 	if held.is_empty():
 		near = 1.5
 	var length: float = maxf(near + SLIDE_FIST_PAST, 1.2)
@@ -3271,7 +3082,7 @@ static func _slid(f: Node3D, walled: bool, dir: Vector3, parent: Node) -> void:
 ## Each frozen foe is hurled at someone: anyone it wasn't holding first, then the others it was.
 static func _cold_front(hero: CharacterBody3D, b: Dictionary, at: Vector3, seized: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	ELEMENTS.nova(parent, at, "water", 3.0, 8)
 	_pop(parent, at, "spear")
 	# round 52: a tentacle from him tethers each cube and hoists it before the throw (past the impact frame, so it is
@@ -3295,7 +3106,7 @@ static func _cold_front(hero: CharacterBody3D, b: Dictionary, at: Vector3, seize
 		if not is_instance_valid(hero):
 			return
 		if bowl:
-			var from := _flat(e.global_position)
+			var from := FOES.flat(e.global_position)
 			var aim: Vector3 = ENV.surface(wall.s, from).at - from
 			var spread: Vector3 = aim.cross(Vector3.UP).normalized() * COLD_BOWL_SPREAD * (float(i % 3) - 1.0)
 			var to2: Vector3 = from + aim + spread + aim.normalized() * 1.5
@@ -3311,20 +3122,19 @@ static func _cold_front(hero: CharacterBody3D, b: Dictionary, at: Vector3, seize
 
 ## A Cold Front cube bursts (round 52): a cold snap, frost out over the floor and a word.
 static func _cold_snap(f: Node3D, _walled: bool, dir: Vector3, parent: Node) -> void:
-	if not is_instance_valid(parent) or not Game.comic_style:
+	if not is_instance_valid(parent):
 		return
 	ComicFx.say(COLD_SNAP_WORD, f.global_position + Vector3.UP * 2.0, 0.55)
-	if DESIGNED.on():
-		DESIGNED.ice_shatter(parent, f.global_position + Vector3.UP * 0.8, 1.1)
-		var d := _flat(dir)
-		DESIGNED_EL.fissure(parent, _flat(f.global_position), d if d.length() > 0.1 else Vector3.FORWARD, 2.4, 3, "water", 0.8, 0.03)
+	DESIGNED.ice_shatter(parent, f.global_position + Vector3.UP * 0.8, 1.1)
+	var d := FOES.flat(dir)
+	DESIGNED_EL.fissure(parent, FOES.flat(f.global_position), d if d.length() > 0.1 else Vector3.FORWARD, 2.4, 3, "water", 0.8, 0.03)
 
 
 ## Collapse (round 51 cool pass): the hole falls in on itself and swallows everyone near it, a tentacle out of it on
 ## each (collapse_spit.gd), then spits them back out one at a time: into the wall or pillar the indicator marks
 ## (env_target "collapse", within COLLAPSE_REACH of the hole), or up out of the floor in the open.
 static func _collapse(hero: CharacterBody3D, b: Dictionary, at: Vector3, mult: float) -> void:
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var spot: Vector3 = hero._void.dark_spot
 	if is_instance_valid(hero._void.hole):
 		hero._void.hole.collapse()
@@ -3353,17 +3163,16 @@ static func _collapse_spit(e: Node3D, i: int, hero: Variant, spot: Vector3, wall
 	Game.sfx("hit_big", -3.0, 0.12)
 	Game.hitstop(0.03)
 	if hero._void.is_heavy(e):
-		e.take_hit(damage, Vector3.ZERO, 0.0, true)
-		Game.register_hit("breaker")
+		FOES.hit(e, damage, Vector3.ZERO, 0.0, true, "breaker")
 		return
 	if wall.get("found", false):
 		var face: Vector3 = ENV.surface(wall.s, e.global_position).at if wall.has("s") else wall.at
-		var aim: Vector3 = face - _flat(e.global_position)
-		THROWN.launch(hero, e, _flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage,
+		var aim: Vector3 = face - FOES.flat(e.global_position)
+		THROWN.launch(hero, e, FOES.flat(e.global_position) + aim.normalized() * (aim.length() + 1.5), damage,
 			{"solid": false, "el": "void", "speed": COLLAPSE_WALL_SPEED, "land_y": 0.0, "wall_mult": COLLAPSE_WALL_MULT,
 			"splash": false, "on_burst": _cool_wall.bind(hero.get_parent(), "void")})
 	else:
-		var out := _flat(e.global_position - spot)
+		var out := FOES.flat(e.global_position - spot)
 		out = out.normalized() if out.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
 		e.take_hit(damage, out * COLLAPSE_THROW * 0.5, COLLAPSE_SPIT_UP, true)
 	Game.register_hit("breaker")
@@ -3377,7 +3186,7 @@ static func _cool_wall(f: Node3D, walled: bool, dir: Vector3, parent: Node, el: 
 
 ## Jaws of darkness shut on the pool, and on everyone in it.
 static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var spot: Vector3 = hero._void.dark_spot
 	var jaws: Node3D = hero._void.dark_maw
 	if not is_instance_valid(jaws):
@@ -3395,20 +3204,19 @@ static func _maw(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 ## Maw's after-beat (round 52): the pool's tentacles hoist the bitten (nearest the middle first, MAW_KNOCK_MOST),
 ## knock them together over its middle and slam the heap into it. Returns the haul (checks).
 static func maw_knock(hero: CharacterBody3D, spot: Vector3, bitten: Array, damage: float) -> Node3D:
-	var live: Array = bitten.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive() and not hero._void.is_heavy(e))
-	live.sort_custom(func(a: Node3D, c: Node3D) -> bool: return _flat(a.global_position).distance_to(spot) < _flat(c.global_position).distance_to(spot))
-	live = live.slice(0, MAW_KNOCK_MOST)
+	var live: Array = FOES.live(bitten).filter(func(e: Node3D) -> bool: return not hero._void.is_heavy(e))
+	live = FOES.sorted_from(live, spot, MAW_KNOCK_MOST)
 	if live.is_empty():
 		return null
-	var mid := _flat(spot)
-	var toward := _flat(hero.global_position) - mid
+	var mid := FOES.flat(spot)
+	var toward := FOES.flat(hero.global_position) - mid
 	if toward.length() > 0.2:
 		mid += toward.normalized() * minf(MAW_HEAP_TOWARD, toward.length())
 	var items: Array = []
 	for i in live.size():
 		var e: Node3D = live[i]
 		e.set_meta(CAMERA_CUE, Time.get_ticks_msec() + MAW_CUE_MS)
-		var off := _flat(e.global_position) - mid
+		var off := FOES.flat(e.global_position) - mid
 		var dir := off.normalized() if off.length() > 0.05 else Vector3(sin(i * 2.4), 0.0, cos(i * 2.4))
 		# (round 55: they meet over the middle at the top, KONK, then the heap is driven down together)
 		items.append({"foe": e, "root": mid, "t0": MAW_HOIST_AT, "top": mid + dir * MAW_HEAP + Vector3.UP * MAW_HOIST_Y,
@@ -3430,24 +3238,22 @@ static func maw_knock(hero: CharacterBody3D, spot: Vector3, bitten: Array, damag
 			Game.shake(0.45)
 			if Game.camera_rig:
 				Game.camera_rig.punch(0.88, 0.15)
-			if Game.comic_style and is_instance_valid(parent):
+			if is_instance_valid(parent):
 				var top := mid + Vector3.UP * (MAW_HOIST_Y + 0.6)
 				ComicFx.say(MAW_KNOCK_WORD, top + Vector3.UP * 0.7, ALT_FX.WALL_WORD_SIZE * 1.4)
 				DARK.burst(parent, top, 2.2)
-				if DESIGNED.on():
-					DESIGNED.hit(parent, top, "void", 2.2)
+				DESIGNED.hit(parent, top, "void", 2.2)
 	g.on_end = func(e: Node3D, i: int) -> void:
 		DARK.quiet_hit(e, damage * MAW_SLAM_MULT, true, Vector3.DOWN * MAW_DOWN)
 		Game.register_hit("breaker")
 		if i == 0:
 			Game.sfx("quake", -6.0, 0.1)
 			Game.shake(0.7)
-			if Game.comic_style and is_instance_valid(parent):
+			if is_instance_valid(parent):
 				DARK.burst(parent, mid, 1.6)
 				DARK.splat(parent, mid + Vector3.UP * 0.4, MAW_RADIUS * 0.7, true)
-				if DESIGNED.on():
-					DESIGNED.dust(parent, mid, 1.6)
-					load("res://scripts/designed_ink.gd").shock(parent, mid, DARK.VIOLET, MAW_RADIUS * 0.9, 0.35)
+				DESIGNED.dust(parent, mid, 1.6)
+				DESIGNED_INK.shock(parent, mid, DARK.VIOLET, MAW_RADIUS * 0.9, 0.35)
 	return g
 
 
@@ -3455,7 +3261,7 @@ static func maw_knock(hero: CharacterBody3D, spot: Vector3, bitten: Array, damag
 ## first: a column of tentacles carries each up out of the floor, holds it, and slams it straight back down
 ## (abyss_rise.gd). One foe takes it all, a big one more (ABYSS_BIG_MULT); a crowd shares it (ABYSS_SHARE).
 static func _abyss(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var spot: Vector3 = hero._void.dark_spot
 	var foes: Array = []
 	if is_instance_valid(hero._void.dark_bind):
@@ -3505,14 +3311,7 @@ static func uproot_pillar(hero: CharacterBody3D, spot: Vector3) -> Node3D:
 
 ## The foe Uproot clubs: the nearest living one to Overwhelm's spot.
 static func uproot_target(hero: CharacterBody3D, spot: Vector3) -> Node3D:
-	var best: Node3D = null
-	var best_d := INF
-	for e: Node3D in FOES.near(hero.get_tree(), spot, OVERWHELM_RADIUS):
-		var d := _flat(e.global_position - spot).length()
-		if d < best_d:
-			best_d = d
-			best = e
-	return best
+	return FOES.nearest(hero.get_tree(), spot, OVERWHELM_RADIUS)
 
 
 ## Who Abyss gives back first by default: the biggest of `foes` (a heavy one before the rest), or null.
@@ -3522,7 +3321,7 @@ static func abyss_first(hero: CharacterBody3D, foes: Array) -> Node3D:
 	for e: Variant in foes:
 		if not is_instance_valid(e):
 			continue
-		var r: float = float((e as Node).get("radius")) + (10.0 if hero._void.is_heavy(e) else 0.0)
+		var r: float = float(e.radius) + (10.0 if hero._void.is_heavy(e) else 0.0)
 		if r > best_r:
 			best_r = r
 			best = e
@@ -3534,7 +3333,7 @@ static func abyss_first(hero: CharacterBody3D, foes: Array) -> Node3D:
 static func uproot_dive(hero: CharacterBody3D) -> void:
 	if is_instance_valid(hero._void.dark_bind):
 		hero._void.dark_bind.sink = 0.0
-	var spot: Vector3 = _flat(hero._void.dark_spot)
+	var spot: Vector3 = FOES.flat(hero._void.dark_spot)
 	var p := uproot_pillar(hero, spot)
 	if p == null:
 		hero.remove_meta(UPROOT_META)
@@ -3548,8 +3347,8 @@ static func uproot_dive(hero: CharacterBody3D) -> void:
 ## Uproot lands: the pillar comes down on the foe along the line pillar -> foe (ALT_FX.uproot_club), the hits on the
 ## club's arrival; the pillar stays down as rubble. With none torn out, a short slam on the foe alone.
 static func _uproot(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
-	var damage: float = b.damage * hero._dmg_mult * mult
-	var spot: Vector3 = _flat(hero._void.dark_spot)
+	var damage := _breaker_damage(hero, b, mult)
+	var spot: Vector3 = FOES.flat(hero._void.dark_spot)
 	var target := uproot_target(hero, spot)
 	if is_instance_valid(hero._void.dark_bind):
 		hero._void.dark_bind._let_go()
@@ -3557,15 +3356,14 @@ static func _uproot(hero: CharacterBody3D, b: Dictionary, mult: float) -> void:
 	var p: Variant = hero.get_meta(UPROOT_META) if hero.has_meta(UPROOT_META) else null
 	hero.remove_meta(UPROOT_META)
 	if not is_instance_valid(p):
-		var at: Vector3 = _flat(target.global_position) if target != null else spot
+		var at: Vector3 = FOES.flat(target.global_position) if target != null else spot
 		ALT_FX.uproot_open(parent, at)
 		if target != null:
-			target.take_hit(UPROOT_OPEN * hero._dmg_mult * mult, Vector3.DOWN * UPROOT_DOWN, 0.0, true)
-			Game.register_hit("breaker")
+			FOES.hit(target, UPROOT_OPEN * hero._dmg_mult * mult, Vector3.DOWN * UPROOT_DOWN, 0.0, true, "breaker")
 		return
 	var pillar: Node3D = p
-	var base := _flat(pillar.global_position)
-	var head: Vector3 = _flat(target.global_position) if target != null else spot
+	var base := FOES.flat(pillar.global_position)
+	var head: Vector3 = FOES.flat(target.global_position) if target != null else spot
 	var dir := head - base
 	dir = dir.normalized() if dir.length() > 0.05 else hero._facing()
 	var reach: float = (head - base).length() - UPROOT_REACH_IN
@@ -3592,7 +3390,7 @@ static func _uproot_hit(hero: Variant, target: Variant, base: Vector3, line_end:
 	for e: Node3D in FOES.near(h.get_tree(), (base + line_end) * 0.5, UPROOT_LENGTH * 0.5 + UPROOT_LINE_R):
 		if struck.has(e):
 			continue
-		var p := _flat(e.global_position)
+		var p := FOES.flat(e.global_position)
 		var ab := line_end - base
 		var k := clampf((p - base).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
 		if p.distance_to(base + ab * k) > UPROOT_LINE_R + float(e.radius):
@@ -3609,11 +3407,10 @@ static func _abyss_slam(e: Node3D, i: int, hero: Variant, damage: float) -> void
 		return
 	var big: bool = hero._void.is_heavy(e)
 	var share: float = 1.0 if i == 0 else ABYSS_SHARE
-	e.take_hit(damage * share * ABYSS_SLAM_MULT * (ABYSS_BIG_MULT if big else 1.0), Vector3.DOWN * MAW_DOWN, 0.0, true)
-	Game.register_hit("breaker")
+	FOES.hit(e, damage * share * ABYSS_SLAM_MULT * (ABYSS_BIG_MULT if big else 1.0), Vector3.DOWN * MAW_DOWN, 0.0, true, "breaker")
 	Game.sfx("hit_big", -2.0, 0.1)
 	ALT_FX.cool_wall(hero.get_parent(), e.global_position, Vector3.DOWN, "void", ABYSS_WORD if i == 0 else "")
-	DARK.burst(hero.get_parent(), _flat(e.global_position), 1.3 if big else 1.0)
+	DARK.burst(hero.get_parent(), FOES.flat(e.global_position), 1.3 if big else 1.0)
 
 
 ## Where a cube is on its way up and into the pile, `k` 0 to 1 through the dive: up fast and a little way in,
@@ -3646,13 +3443,12 @@ static func in_cube(e: Node) -> bool:
 ## Anyone else in the fall's strip is caught and frozen.
 static func _avalanche(hero: CharacterBody3D, b: Dictionary, cubes: Array, mult: float) -> void:
 	var parent: Node = hero.get_parent()
-	var damage: float = b.damage * hero._dmg_mult * mult
+	var damage := _breaker_damage(hero, b, mult)
 	var mid: Vector3 = hero._void.dark_spot
 	var stack: Array = cubes.filter(func(e: Variant) -> bool: return is_instance_valid(e) and e.is_alive())
 	var plan := avalanche_plan(hero, mid)
 	_pop(parent, mid, "spear")
-	if DESIGNED.on():
-		DESIGNED.ice_shatter(parent, mid + Vector3.UP * 0.9, 1.3)
+	DESIGNED.ice_shatter(parent, mid + Vector3.UP * 0.9, 1.3)
 	for e: Node3D in stack:
 		DARK.quiet_hit(e, damage * AVALANCHE_CRUSH, true)
 		encase(e)  # (the crush mustn't break them out: the cubes are what falls)
@@ -3664,7 +3460,7 @@ static func _avalanche(hero: CharacterBody3D, b: Dictionary, cubes: Array, mult:
 	for e: Node3D in hero.get_tree().get_nodes_in_group("enemies"):
 		if e in stack or not e.is_alive():
 			continue
-		var rel := _flat(e.global_position - mid)
+		var rel := FOES.flat(e.global_position - mid)
 		var along := rel.dot(dir)
 		if rel.length() <= CRUSH_RADIUS or (along > 0.0 and along <= float(plan.run) and absf(rel.dot(side)) <= AVALANCHE_STRIP + float(e.radius)):
 			DARK.quiet_hit(e, damage * PRESS_NO_CUBE, true)
@@ -3682,11 +3478,11 @@ static func _avalanche(hero: CharacterBody3D, b: Dictionary, cubes: Array, mult:
 static func avalanche_plan(hero: CharacterBody3D, mid: Vector3) -> Dictionary:
 	var wall := pinwheel_target(hero, mid, "avalanche", AVALANCHE_REACH)  # (the indicator's pick; a raycast in a bare room)
 	if wall.get("found", false):
-		var d: Vector3 = _flat(wall.dir)
+		var d: Vector3 = FOES.flat(wall.dir)
 		return {"found": true, "wall": wall, "dir": d.normalized() if d.length() > 0.01 else hero._facing(), "run": float(wall.dist) + 1.5}
-	var away := _flat(mid - hero.global_position)
+	var away := FOES.flat(mid - hero.global_position)
 	if away.length() < 0.3:
-		away = _flat(hero._brk_dir) if hero._brk_dir.length() > 0.01 else hero._facing()
+		away = FOES.flat(hero._brk_dir) if hero._brk_dir.length() > 0.01 else hero._facing()
 	return {"found": false, "wall": {}, "dir": away.normalized(), "run": AVALANCHE_OPEN}
 
 
@@ -3720,14 +3516,14 @@ static func cube_target(e: Node3D, seized: Array, at: Vector3, all: Array, facin
 		for o: Node3D in pool:
 			if o == e or not is_instance_valid(o) or not o.is_alive():
 				continue
-			var d := _flat(o.global_position - e.global_position).length()
+			var d := FOES.flat(o.global_position - e.global_position).length()
 			if d < best_d and d <= CUBE_SEEK:
 				best = o
 				best_d = d
 		if best != null:
-			return _flat(best.global_position)
-	var out := _flat(e.global_position - at)
-	return _flat(e.global_position) + (out.normalized() if out.length() > 0.2 else facing) * CUBE_REACH
+			return FOES.flat(best.global_position)
+	var out := FOES.flat(e.global_position - at)
+	return FOES.flat(e.global_position) + (out.normalized() if out.length() > 0.2 else facing) * CUBE_REACH
 
 
 ## The element coming up through the floor at `spot`.
@@ -3749,38 +3545,29 @@ static func under(parent: Node, spot: Vector3, el: String) -> void:
 
 # --- Helpers ------------------------------------------------------------------
 
-## Living foes in a strip ahead of him.
+## Living foes in a strip ahead of him: `length` m along `fwd` from `at` (a little behind it too), `half_width` m
+## either side, each foe's body counting (its radius pads both).
 static func _ahead(hero: CharacterBody3D, at: Vector3, fwd: Vector3, length: float, half_width: float) -> Array:
 	return hero.get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
-		return e.is_alive() and hero._in_strip(_flat(e.global_position - at), fwd, length, half_width, e.radius))
+		if not e.is_alive():
+			return false
+		var to := FOES.flat(e.global_position - at)
+		var along := to.dot(fwd)
+		var side := (to - fwd * along).length()
+		return along > -0.5 and along <= length + e.radius and side <= half_width + e.radius)
 
 
 ## Everything near `at` is hit and dragged towards it.
 static func _pull(hero: CharacterBody3D, at: Vector3, radius: float, damage: float, strength: float, launch: float) -> int:
 	var foes: Array = FOES.near(hero.get_tree(), at, radius)
 	for e: Node3D in foes:
-		var to := _flat(at - e.global_position)
-		e.take_hit(damage, (to.normalized() if to.length() > 0.01 else Vector3.ZERO) * strength, launch, false)
-		Game.register_hit("cast")
+		var to := FOES.flat(at - e.global_position)
+		FOES.hit(e, damage, (to.normalized() if to.length() > 0.01 else Vector3.ZERO) * strength, launch, false, "cast")
 	return foes.size()
 
 
-## Everything near `at` is hit and thrown out from it. Returns who.
-static func _strike(hero: CharacterBody3D, at: Vector3, radius: float, damage: float, launch: float, big: bool) -> Array:
-	var foes: Array = FOES.near(hero.get_tree(), at, radius)
-	for e: Node3D in foes:
-		var from := _flat(e.global_position - at)
-		e.take_hit(damage, (from.normalized() if from.length() > 0.01 else Vector3.ZERO) * 4.0, launch, big)
-		Game.register_hit("cast")
-	return foes
-
-
 static func chill_or_freeze(e: Node3D) -> void:
-	if not is_instance_valid(e) or not e.is_alive():
-		return
-	if e.has_method("is_boss"):
-		e.chill(FREEZE_TIME, BOSS_CHILL)
-	elif e.has_method("freeze"):
+	if is_instance_valid(e) and e.is_alive() and e.has_method("freeze"):
 		e.freeze(FREEZE_TIME, FREEZE_BREAK)
 
 
@@ -3788,8 +3575,12 @@ static func _pop(parent: Node, at: Vector3, form: String) -> void:
 	FORM_FX.spawn(parent, at + Vector3.UP * 0.8, form, Vector3.ZERO, 0.0)
 
 
-static func _flat(v: Vector3) -> Vector3:
-	return Vector3(v.x, 0.0, v.z)
+## counter.gd preloads this file, so it is fetched once on first use instead (a preload here would be a cycle).
+static var _counter_script: GDScript
+static func _counter() -> GDScript:
+	if _counter_script == null:
+		_counter_script = load("res://scripts/counter.gd")
+	return _counter_script
 
 
 
@@ -3844,7 +3635,6 @@ const IMPROV_UPGRADE := {
 ## are frozen too: with neither of its upgrades on, a skewered foe pays the frozen rule). Charged is last: the lightning
 ## goes into nearly everyone (every Live Wire jolt), so it's what pays when nothing rarer is there.
 const IMPROV_ORDER := ["skewered", "molten", "buried", "bound", "frozen", "airborne", "charged"]
-const IMPROV_REACH := 5.0  # m round him: a move with no hit shape of its own (improv_reach()) reaches this far
 const IMPROV_DAMAGE := 8.0  # each payoff's hit (x FREEZE_BREAK on the ice, as any hit on it)
 const IMPROV_MULT := 1.5  # the harder payoffs (crater, snap, burst; the cells swallow, smother, spike, tear, loose)
 const IMPROV_LAUNCH := 8.0  # m/s up: lift, fan, loose (a fresh launch: at least enemy.RELAUNCH_MIN)
@@ -3900,7 +3690,7 @@ static func cell_state(cell: String) -> String:
 static func improv_name(cell: String) -> String:
 	if RULE_NAMES.has(cell):
 		return RULE_NAMES[cell]
-	return load("res://scripts/move_list.gd").mix_name(cell_state(cell), cell.get_slice("_x_", 1))  # (load: move_list preloads this)
+	return MOVE_LIST.mix_name(cell_state(cell), cell.get_slice("_x_", 1))
 
 
 ## The state on `e` the element `el` pays, or "" (improv_cell()'s state).
@@ -3948,10 +3738,10 @@ static func improvise(hero: CharacterBody3D, id: String, at: Vector3, power: flo
 const IMPROV_ROLL_HALF_WIDTH := 1.0  # m either side of Ice Cube's roll: the cube and whoever it passes
 
 
-## Round 4: who a base move's payoff reaches is who the move itself lands on, the shape you see it hit (was everyone
-## IMPROV_REACH round him, so a foe behind him paid for a harpoon thrown ahead). Each shape reads the move body's
-## own numbers; read before the move fires, so nobody has been thrown yet. A move with no hit of its own (the vault)
-## reaches nobody; an id with no shape here falls back to its MOVES `range` / `arc` / `width`, then IMPROV_REACH.
+## Who a base move's payoff reaches: who the move itself lands on, the shape you see it hit (a foe behind him never
+## pays for a harpoon thrown ahead). Each shape reads the move body's own numbers; read before the move fires, so
+## nobody has been thrown yet. A move with no hit of its own (the vault) reaches nobody. Every base id has its arm
+## (improvise() returns first for the X* ids and anything not in ELEMENT_OF).
 static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Vector3) -> Array:
 	var tree := hero.get_tree()
 	var grow: float = hero._cast_grow()
@@ -3963,12 +3753,11 @@ static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Ve
 			return hero._void.reachable()
 		"EA":  # the one it bowls, and the line the cube rolls down
 			var bowl: Array = hero._void.reachable().filter(func(e: Node3D) -> bool:
-				return _flat(e.global_position - at).length() <= BOWL_REACH)
+				return FOES.flat(e.global_position - at).length() <= BOWL_REACH)
 			if bowl.is_empty():
 				return []
-			bowl.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-				return _flat(a.global_position - at).length() < _flat(b.global_position - at).length())
-			var from := _flat(bowl[0].global_position)
+			FOES.sorted_from(bowl, at)
+			var from := FOES.flat(bowl[0].global_position)
 			var path := _ahead(hero, from, fwd, BOWL_LENGTH, IMPROV_ROLL_HALF_WIDTH)
 			return path if bowl[0] in path else [bowl[0]] + path
 		"EF":  # the tentacles' reach round him (round 47: everyone near, not a line)
@@ -3980,21 +3769,21 @@ static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Ve
 			return []
 		"IS":  # the frost ring round the spear (or him)
 			var s: Node3D = SPEAR.current(tree)
-			return FOES.near(tree, _flat(s.global_position) if s != null else at, DEEP_FREEZE_RADIUS)
+			return FOES.near(tree, FOES.flat(s.global_position) if s != null else at, DEEP_FREEZE_RADIUS)
 		"EM":  # the fist's lava line
 			var length: float = minf(PALM_LENGTH * grow, hero._clear_ahead(fwd, PALM_LENGTH * grow) + 0.5)
 			return _ahead(hero, at, fwd, length, PALM_HALF_WIDTH)
 		"EV":  # the tendrils round him, and whoever the palm shoved
 			var foes: Array = FOES.near(tree, at, UNDERTOW_RADIUS)
 			for e: Variant in hero._void.shoved:
-				if is_instance_valid(e) and e.is_alive() and not e in foes and _flat(e.global_position - at).length() <= UNDERTOW_CHASE:
+				if is_instance_valid(e) and e.is_alive() and not e in foes and FOES.flat(e.global_position - at).length() <= UNDERTOW_CHASE:
 					foes.append(e)
 			return foes
 		"VS":  # the hole where the slam comes down
-			return FOES.near(tree, _flat(hero._void._aim_at), DARK.Hole.RADIUS)
+			return FOES.near(tree, FOES.flat(hero._void._aim_at), DARK.Hole.RADIUS)
 		"VR":  # the crescent in front of him
 			return FOES.near(tree, at, REAP_REACH).filter(func(e: Node3D) -> bool:
-				var to := _flat(e.global_position - at)
+				var to := FOES.flat(e.global_position - at)
 				return to.length() <= 0.3 or fwd.angle_to(to.normalized()) <= REAP_HALF_ANGLE)
 		"VD":  # whoever the tide drags: the marked, or with none, those near
 			var marked_foes: Array = FOES.near(tree, at, TIDE_REACH).filter(func(e: Node3D) -> bool: return DARK.marked(e))
@@ -4003,37 +3792,21 @@ static func improv_reach(hero: CharacterBody3D, id: String, at: Vector3, fwd: Ve
 			return FOES.near(tree, _overwhelm_spot(hero, at, fwd), OVERWHELM_RADIUS)
 		"TW":  # the line he just dashed along (near him with nobody on it)
 			return _tow_line(hero, at)
-	var m: Dictionary = hero.MOVES.get(id, {})
-	if float(m.get("range", 0.0)) > 0.0:
-		return tree.get_nodes_in_group("enemies").filter(func(e: Node3D) -> bool:
-			var to := _flat(e.global_position - at)
-			if not e.is_alive():
-				return false
-			if m.has("width"):
-				return hero._in_strip(to, fwd, m.range, m.width, e.radius)
-			return to.length() <= m.range + e.radius and (to.length() <= 0.4 or rad_to_deg(fwd.angle_to(to.normalized())) <= m.arc * 0.5))
-	return FOES.near(tree, at, IMPROV_REACH)
+	return []
 
 
-## Where Overwhelm's pool opens: on the nearest foe in his aim's cone, else ahead (the aim _overwhelm() makes).
+## Where Overwhelm's pool opens: on the nearest foe in his aim's cone (overwhelm_aim), else ahead.
 static func _overwhelm_spot(hero: CharacterBody3D, at: Vector3, fwd: Vector3) -> Vector3:
-	var spot: Vector3 = at + fwd * minf(OVERWHELM_AHEAD, hero._clear_ahead(fwd, OVERWHELM_AHEAD))
-	var best := INF
-	for e: Node3D in FOES.near(hero.get_tree(), at, OVERWHELM_REACH):
-		var to := _flat(e.global_position - at)
-		if to.length() > 0.01 and rad_to_deg(fwd.angle_to(to.normalized())) > hero._void.CONE:
-			continue
-		if to.length() < best:
-			best = to.length()
-			spot = _flat(e.global_position)
-	return spot
+	var aim: Node3D = overwhelm_aim(hero, at, fwd)
+	if aim != null:
+		return FOES.flat(aim.global_position)
+	return at + fwd * minf(OVERWHELM_AHEAD, hero._clear_ahead(fwd, OVERWHELM_AHEAD))
 
 
 ## One payoff (a RULES kind, or an upgrade cell's from IMPROV): one hit, and a state, a chain to the neighbour, a launch
 ## or a crater. `el` is the hitting element (a rule's tell is tinted by it).
 static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, at: Vector3, power: float, cell := "", el := "") -> void:
 	var parent: Node = hero.get_parent()
-	var spot := _flat(e.global_position)
 	var heavy: bool = hero._void.is_heavy(e)
 	var damage := IMPROV_DAMAGE * power
 	var down := Vector3.DOWN * IMPROV_DOWN
@@ -4085,7 +3858,7 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 			next = _chain(hero, e, 0.0, "skewered")
 		"tear":  # skewered x dark: torn off the spear towards him
 			THROWN.remove_cube(e)
-			var back := _flat(at - e.global_position)
+			var back := FOES.flat(at - e.global_position)
 			e.take_hit(damage * IMPROV_MULT, back.normalized() * IMPROV_PULL if back.length() > 0.6 else Vector3.ZERO, 0.0, true)
 		"freeze":  # airborne x ice: frozen up there; it comes down a cube
 			e.take_hit(damage, Vector3.ZERO, 0.0, false)
@@ -4108,8 +3881,7 @@ static func _pay(hero: CharacterBody3D, e: Node3D, kind: String, state: String, 
 			var k := 1.0 + OVERLOAD_PER * (_overload_n - 1)
 			e.take_hit(damage * k, Vector3.ZERO, 0.0, true)
 			next = _overload(hero, e, at, IMPROV_CHAIN_DAMAGE * power * k)
-	if Game.comic_style:
-		COMIC_IMPROV.spawn(parent, cell, e, at, next, el)
+	COMIC_IMPROV.spawn(parent, cell, e, at, next, el)
 	Game.register_hit("cast")
 
 
@@ -4139,11 +3911,7 @@ static func _arc(hero: CharacterBody3D, from: Node3D, damage: float) -> Variant:
 		last = o
 	if path.size() < 2:
 		return null
-	if DESIGNED.on():
-		DESIGNED.bolt_path(hero.get_parent(), path, 0.24)
-	else:
-		for i in path.size() - 1:
-			COMIC_BOLT.spawn(hero.get_parent(), path[i], path[i + 1], 0.24, 0.4)
+	DESIGNED.bolt_path(hero.get_parent(), path, 0.24)
 	return path[1] - Vector3.UP * 0.9
 
 
@@ -4207,18 +3975,17 @@ static func _arc_flash(hero: CharacterBody3D, from: Node3D, power: float) -> Var
 	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, FLASH_R):
 		if o == from or THROWN.flying(o):
 			continue
-		var out := _flat(o.global_position - from.global_position)
+		var out := FOES.flat(o.global_position - from.global_position)
 		if out.length() < 0.05:
-			out = _flat(o.global_position - hero.global_position)
+			out = FOES.flat(o.global_position - hero.global_position)
 		out = out.normalized() if out.length() > 0.01 else hero._facing()
-		o.take_hit(FLASH_DAMAGE * power, Vector3.ZERO, 0.0, false)
-		Game.register_hit("cast")
+		FOES.hit(o, FLASH_DAMAGE * power, Vector3.ZERO, 0.0, false, "cast")
 		if first == null:
 			first = o.global_position
 		if hero._void.is_heavy(o):
 			continue
 		var reach: float = THROWN.clear_from(hero, o, o.global_position, out, FLASH_THROW)
-		THROWN.launch(hero, o, _flat(o.global_position) + out * reach, FLASH_SPLAT * power,
+		THROWN.launch(hero, o, FOES.flat(o.global_position) + out * reach, FLASH_SPLAT * power,
 			{"quiet": true, "solid": false, "el": "earth", "speed": FLASH_SPEED, "land_y": 0.0, "wall_mult": PALM_WALL_MULT})
 	Game.shake(0.35)
 	return first
@@ -4250,23 +4017,14 @@ static func _overload(hero: CharacterBody3D, from: Node3D, at: Vector3, damage: 
 ## The chain to the neighbour: the nearest other foe within IMPROV_CHAIN_R takes `damage` and, for "molten" /
 ## "skewered", the state too (the skewered frozen in a cube). Returns where it jumped to (world), or null.
 static func _chain(hero: CharacterBody3D, from: Node3D, damage: float, state: String) -> Variant:
-	var best: Node3D = null
-	var best_d := INF
-	for o: Node3D in FOES.near(hero.get_tree(), from.global_position, IMPROV_CHAIN_R):
-		var d: float = _flat(o.global_position - from.global_position).length()
-		if o != from and not THROWN.flying(o) and d < best_d and not (state != "" and in_state(o, state)):
-			best = o
-			best_d = d
+	var best: Node3D = FOES.nearest(hero.get_tree(), from.global_position, IMPROV_CHAIN_R, func(o: Node3D) -> bool:
+		return o != from and not THROWN.flying(o) and not (state != "" and in_state(o, state)))
 	if best == null:
 		return null
-	var to: Vector3 = best.global_position
-	if not Game.comic_style:
-		var tone: String = {"molten": "earth", "skewered": "water"}.get(state, "void")
-		ELEMENTS.arc(hero.get_parent(), from.global_position + Vector3.UP, to + Vector3.UP, ELEMENTS.LOOK[tone].color)
+	var to: Vector3 = best.global_position  # (the payoff's tell draws the jump: comic_improv)
 	if damage > 0.0:
-		var out := _flat(best.global_position - from.global_position)
-		best.take_hit(damage, (out.normalized() if out.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, false)
-		Game.register_hit("cast")
+		var out := FOES.flat(best.global_position - from.global_position)
+		FOES.hit(best, damage, (out.normalized() if out.length() > 0.01 else Vector3.ZERO) * 3.0, 0.0, false, "cast")
 	if state == "skewered":
 		encase(best)
 	if state != "":

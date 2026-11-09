@@ -4,9 +4,12 @@ The Blender scripts behind `assets/comic/`. Everything in the comic style is gen
 characters, animations, dungeon pieces and the ability reels.
 
 **This folder is a snapshot.** The live copy is `vendor_src/shaman_redesign/comic_poc` (with
-`style_poc` beside it). `vendor_src/` is gitignored, so without this copy the art couldn't be
-rebuilt from the repo. The scripts hardcode that `vendor_src` path, so copy them back there to run
-them. Renders, `.blend` outputs and GLBs aren't stored here; they total about 1.9 GB.
+`style_poc` beside it: `build_poc.py`, `rig_poc.py` and `shaman_poc.blend`, which `comic_lib.py`
+and the shaman scripts read; only the kit scripts are kept here). `vendor_src/` is gitignored, so
+without this copy the art couldn't be rebuilt from the repo. The scripts hardcode that `vendor_src`
+path, so copy them back there to run them. Renders, `.blend` outputs and GLBs aren't stored here;
+they total about 1.9 GB. The Bone Warden, bomber and necromancer builders went with those foes
+(2026-11-08); `enemy_minion.py` is still the template for a new one.
 
 | File | Makes |
 |---|---|
@@ -19,7 +22,6 @@ them. Renders, `.blend` outputs and GLBs aren't stored here; they total about 1.
 | `env_kit.py`, `env_room.py` | The 25 dungeon pieces and a composed room |
 | `env_brazier.py`, `env_hook.py`, `env_pool.py`, `env_ledge.py`, `env_extra.py` | The four pieces with no KayKit twin (brazier lit / spilled, hook and chain, pool, ledge), on env_kit without editing it. These run from the repo (`blender -b -P tools/comic_art/env_pool.py`) and read the kit from the integration checkout's `vendor_src`; outputs go to this worktree's `vendor_src/env_art/out/` (gitignored, `ENV_ART_OUT` overrides) |
 | `comic_vfx.py`, `ability_vfx.py`, `render_abilities.py`, `reel_room.py` | The comic effects and showcase reels. Blender only; not in the game |
-| `style_poc/` | What the kit builds on: `build_poc.py`, `rig_poc.py` and `shaman_poc.blend`, which holds the baked retargets |
 
 Run with Blender 5.2, headless, from `comic_poc`:
 

@@ -57,9 +57,8 @@ static func punch(parent: Node, spot: Vector3) -> void:
 ## A cube shattering on a wall at `spot` (its feet), thrown along `dir`.
 static func wall(parent: Node, spot: Vector3, dir: Vector3) -> void:
 	var at := Vector3(spot.x, 0.0, spot.z)
-	if DESIGNED.on():
-		DESIGNED.ice_shatter(parent, at + dir * 0.4 + Vector3.UP * 1.0, WALL_SHATTER)
-		DESIGNED_INK.shock(parent, at, PAL.of("water").light, WALL_STAMP, 0.3)
+	DESIGNED.ice_shatter(parent, at + dir * 0.4 + Vector3.UP * 1.0, WALL_SHATTER)
+	DESIGNED_INK.shock(parent, at, PAL.of("water").light, WALL_STAMP, 0.3)
 	Fx.shards(parent, at + Vector3.UP * 1.0, PAL.of("water").light, 16, -dir + Vector3.UP * 0.6, 9.0, 0.2, 0.6)
 	ComicFx.say(WALL_WORD, at + Vector3.UP * 1.6, WALL_WORD_SIZE)
 	Game.hitstop(WALL_STOP)

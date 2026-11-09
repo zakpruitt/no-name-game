@@ -8,12 +8,11 @@ extends Node3D
 ## tapering to a pointed claw tip, a living swell along it on twos, and an authored skin
 ## (shaders/tentacle.gdshader + assets/vfx/designed/tentacle_skin.png: back shadow, wrinkle ticks, light belly
 ## with suckers, highlight dash, a fixed-width ink line, a light claw tip). A fast lash leaves a drawn smear
-## between its last pose and this one (tentacle_smear). `--fx=classic` draws the old three-layer flat ribbon.
+## between its last pose and this one (tentacle_smear).
 ##
 ## For other lanes: `points()` is the tentacle's last drawn world polyline (root to tip), `tip()` its end, and
 ## `electrify(amount, color)` washes the body (not the ink) in a colour.
 
-const DARK := preload("res://scripts/dark_fx.gd")
 const DESIGNED := preload("res://scripts/designed_fx.gd")
 const SKIN_SHADER := preload("res://shaders/tentacle.gdshader")
 const SMEAR_SHADER := preload("res://shaders/tentacle_smear.gdshader")
@@ -36,9 +35,6 @@ const WRAP_TURNS := 1.35  # the designed coil (two full turns stacked into a str
 const COIL_OUT := 0.1  # m the coil sits off the foe's radius (its front shows over the body)
 const COIL_W := 0.15  # half width where the coil starts
 const CLAW_HOOK := 0.32  # m: the claw flicks out past the coil's end
-# The old flat ribbon (`--fx=classic`): ink edge, violet body, hot core line. Width of the ink, m towards the camera.
-const LAYERS := [[1.0, 0.0], [0.6, 0.015], [0.2, 0.03]]
-const SEGMENTS := 4
 const SAG := 0.05  # of its length, at the middle
 const WAVE_COUNT := 9.0  # radians of wave along it
 const WAVE_SPEED := 30.0
@@ -48,7 +44,6 @@ const MIN_REACH := 0.02
 ## pin something in place: Deep Freeze's cords to each cube were 0.5 m three-layer ribbons in a crowd of cubes.
 const LINE_ROOT_W := 0.075  # m, the ink's half-width at his hand
 const LINE_TIP_W := 0.05
-const LINE_LAYERS := [[1.0, 0.0], [0.5, 0.015]]  # ink, violet
 const LINE_COIL_TURNS := 1.0
 ## The smear: drawn when the tip moves faster than this (m a frame at 60 Hz, ~15 m/s), for SMEAR_HOLD s.
 const SMEAR_MIN := 0.25
@@ -56,8 +51,9 @@ const SMEAR_MAX := 2.2  # m a frame: past this it is a new pose, not a lash
 const SMEAR_HOLD := 0.07
 const SMEAR_SAMPLES := 16
 
-static var _flat: StandardMaterial3D
 static var _skin: ShaderMaterial
+static var _headless_known := false
+static var _headless := false  # the dummy renderer: no skin or smear material, the spine still computed for the checks
 static var _smear_mat: ShaderMaterial
 
 var _mi: MeshInstance3D
@@ -75,16 +71,11 @@ var _tint := Color(0, 0, 0, 0)
 var line := false  # one thin line (LINE_*); the pool owner sets it per hold
 
 
-## Unshaded vertex colour, depth tested (so a coil goes behind what it holds), both sides. (`--fx=classic`.)
-static func material() -> StandardMaterial3D:
-	if _flat == null:
-		_flat = StandardMaterial3D.new()
-		_flat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_flat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_flat.vertex_color_use_as_albedo = true
-		_flat.vertex_color_is_srgb = true
-		_flat.disable_fog = true
-	return _flat
+static func headless() -> bool:
+	if not _headless_known:
+		_headless_known = true
+		_headless = DisplayServer.get_name() == "headless"
+	return _headless
 
 
 ## The designed skin (shared by every tentacle; per-tentacle values are instance uniforms).
@@ -111,10 +102,6 @@ static func smear_material() -> ShaderMaterial:
 	return _smear_mat
 
 
-static func designed() -> bool:
-	return DESIGNED.on()
-
-
 func _ready() -> void:
 	top_level = true
 	global_transform = Transform3D.IDENTITY
@@ -125,18 +112,17 @@ func _ready() -> void:
 	_mi.set_meta("no_ghost", true)
 	_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # (reaching off screen, it threw a long black line)
 	add_child(_mi)
-	if DisplayServer.get_name() != "headless":
-		_mat = skin_material() if designed() else material()
-		if designed():
-			_smear_mesh = ArrayMesh.new()
-			_smear_mi = MeshInstance3D.new()
-			_smear_mi.mesh = _smear_mesh
-			_smear_mi.set_meta("no_ghost", true)
-			_smear_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			_smear_mi.visible = false
-			add_child(_smear_mi)
-			_mi.set_instance_shader_parameter("pal_row", DESIGNED.row("void"))
-			_smear_mi.set_instance_shader_parameter("pal_row", DESIGNED.row("void"))
+	if not headless():
+		_mat = skin_material()
+		_smear_mesh = ArrayMesh.new()
+		_smear_mi = MeshInstance3D.new()
+		_smear_mi.mesh = _smear_mesh
+		_smear_mi.set_meta("no_ghost", true)
+		_smear_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_smear_mi.visible = false
+		add_child(_smear_mi)
+		_mi.set_instance_shader_parameter("pal_row", DESIGNED.row("void"))
+		_smear_mi.set_instance_shader_parameter("pal_row", DESIGNED.row("void"))
 	visible = false
 
 
@@ -167,36 +153,10 @@ func draw(from: Vector3, to: Vector3, reach: float, wave: float, coil: float, ti
 		return
 	visible = true
 	var tq := floorf(time / STEP_S) * STEP_S
-	var turns := LINE_COIL_TURNS if line else COIL_TURNS
-	if _mat is ShaderMaterial or DisplayServer.get_name() == "headless" and designed():
-		var res := spine_designed(from, to, reach, wave, coil, tq, LINE_COIL_TURNS if line else WRAP_TURNS, 1 if line else SMOOTH)
-		_pts = res.pts
-		_build_skin(res.pts, res.widths, tq)
-		_update_smear(tq)
-	else:
-		var pts := spine(from, to, reach, wave, coil, tq, turns)
-		_pts = pts
-		_build(pts, STEPS + 1)
-
-
-## The tube's centre line (the classic ribbon's). Static so a check can read it without drawing.
-static func spine(from: Vector3, to: Vector3, reach: float, wave: float, coil: float, time: float, turns := COIL_TURNS) -> PackedVector3Array:
-	var tip_at := from.lerp(to, reach)
-	var along := tip_at - from
-	var side := along.cross(Vector3.UP)
-	side = side.normalized() if side.length() > 0.01 else Vector3.RIGHT
-	var pts := PackedVector3Array()
-	for i in STEPS + 1:
-		var f := float(i) / STEPS
-		var swell := sin(f * PI)
-		pts.append(from + along * f + side * sin(f * WAVE_COUNT - time * WAVE_SPEED) * wave * swell
-			+ Vector3.DOWN * along.length() * SAG * swell)
-	if coil > 0.0 and reach >= 1.0:
-		for j in range(1, COIL_STEPS + 1):
-			var k := float(j) / COIL_STEPS
-			var a := k * turns * TAU
-			pts.append(tip_at + Vector3(cos(a) * coil, (k - 0.5) * 0.6, sin(a) * coil))
-	return pts
+	var res := spine_designed(from, to, reach, wave, coil, tq, LINE_COIL_TURNS if line else WRAP_TURNS, 1 if line else SMOOTH)
+	_pts = res.pts
+	_build_skin(res.pts, res.widths, tq)
+	_update_smear(tq)
 
 
 ## The designed spine: {pts, widths} (half widths, metres), smoothed. The reach runs to the point where its line
@@ -429,52 +389,3 @@ func _update_smear(time: float) -> void:
 	_smear_mi.visible = true
 	_smear_mi.set_instance_shader_parameter("alpha", clampf(_smear_t / SMEAR_HOLD, 0.0, 1.0))
 	_smear_mi.set_instance_shader_parameter("frame", float(int(time / STEP_S) % 2))
-
-
-## The classic ribbon (`--fx=classic`): `straight` points are the reach (tapering, in segments); any after are
-## the coil, at the tip's width.
-func _build(pts: PackedVector3Array, straight: int) -> void:
-	var n := pts.size()
-	var eye := _eye(pts[0])
-	var sides := PackedVector3Array()
-	var halves := PackedFloat32Array()
-	var views := PackedVector3Array()
-	for i in n:
-		var t := pts[mini(i + 1, n - 1)] - pts[maxi(i - 1, 0)]
-		var view := (eye - pts[i]).normalized()
-		var side := t.cross(view)
-		side = side.normalized() if side.length() > 0.0001 else Vector3.RIGHT
-		var f := clampf(float(i) / (straight - 1), 0.0, 1.0)
-		var w := lerpf(LINE_ROOT_W, LINE_TIP_W, f) if line else lerpf(0.26, 0.13, f)
-		if i < straight:
-			w *= 1.0 - 0.3 * fmod(f * SEGMENTS, 1.0)
-		if i == n - 1:
-			w *= 0.35  # a point
-		sides.append(side)
-		halves.append(w)
-		views.append(view)
-	var verts := PackedVector3Array()
-	var colors := PackedColorArray()
-	var cols := [DARK.INK, DARK.VIOLET, DARK.HOT]
-	var layers: Array = LINE_LAYERS if line else LAYERS
-	for k in layers.size():
-		var lw: float = layers[k][0]
-		var lift: float = layers[k][1]
-		var c: Color = cols[k]
-		for i in n - 1:
-			var a := pts[i] + views[i] * lift
-			var b := pts[i + 1] + views[i + 1] * lift
-			var al := a + sides[i] * halves[i] * lw
-			var ar := a - sides[i] * halves[i] * lw
-			var bl := b + sides[i + 1] * halves[i + 1] * lw
-			var br := b - sides[i + 1] * halves[i + 1] * lw
-			verts.append_array([al, ar, bl, bl, ar, br])
-			colors.append_array([c, c, c, c, c, c])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_COLOR] = colors
-	_mesh.clear_surfaces()
-	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	if _mat:
-		_mesh.surface_set_material(0, _mat)

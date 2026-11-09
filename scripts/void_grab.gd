@@ -1,7 +1,7 @@
 extends Node
-## The void arm reaches out. Right click grabs what's in front of him: a foe is yanked to him, something
-## too big drags him to it, nothing gets a whip, and right click again heaves what it holds overhead and
-## slams it. R swings him (traverse()). Also owns the arm's shapes (axe, spear, hammer, bare), which
+## The void arm reaches out. Right click grabs what's in front of him: a foe is yanked to him, nothing gets
+## a whip, and right click again heaves what it holds overhead and slams it. R swings him round a pillar or
+## off the top of the screen (traverse()). Also owns the arm's shapes (axe, spear, hammer, bare), which
 ## each move asks for, and the tentacles that hold foes through a breaker.
 ## The comic hero only; player.gd makes one of these and calls in. See docs/features/void-arm.md.
 
@@ -22,11 +22,6 @@ const YANK_TO := 1.7  # m in front of him
 const YANK_END := 0.46  # move progress when the foe has arrived (hits[0] is when it starts)
 const RETRACT_END := 0.62
 const WHIP_REACH := 6.0  # m
-
-const PULL_SPEED := 26.0  # m/s
-const PULL_STOP := 1.6  # m from the big thing's edge
-const PULL_MAX_T := 0.7  # s
-const PULL_LIFT := 0.8  # m
 
 const SWING_R := 2.8  # m from the pillar
 const SWING_SPEED := 17.0  # m/s
@@ -102,7 +97,6 @@ var _carry_rope: Node3D
 var _skel: Skeleton3D
 var _hand := -1
 var _target: Node3D  # the foe the tentacle has
-var _target_heavy := false
 var _from := Vector3.ZERO  # where the held thing started
 var _aim_at := Vector3.ZERO  # where it lands, or a whiff ends
 var _pillar_at := Vector3.INF  # the slam goes into a pillar here (round 50), else INF
@@ -113,7 +107,7 @@ var _done := false  # the move's hit has happened
 var _time := 0.0
 
 # travelling (player.State.SWING)
-var _kind := ""  # "pull", "swing" round a pillar, or "sky"
+var _kind := ""  # "swing" round a pillar, or "sky"
 var _dir := Vector3.FORWARD  # "sky": which way he's going
 var _pivot := Vector3.ZERO  # "sky": where the tentacle grips
 var _anchor: Node3D
@@ -134,7 +128,7 @@ func setup(p: CharacterBody3D, void_arm: Node, skel: Skeleton3D) -> void:
 	p.add_child(tendril)
 
 
-## What the arm goes for from `from`, aiming along `dir`: {kind: "foe" | "heavy" | "anchor" | "none", node}.
+## What the arm goes for from `from`, aiming along `dir`: {kind: "foe" | "anchor" | "none", node}.
 ## The nearest thing to the middle of his aim wins. Pure, so the check can walk it.
 static func pick(from: Vector3, dir: Vector3, foes: Array, anchors: Array) -> Dictionary:
 	var best := {"kind": "none", "node": null}
@@ -145,7 +139,7 @@ static func pick(from: Vector3, dir: Vector3, foes: Array, anchors: Array) -> Di
 		var s := _score(from, dir, e.global_position, FOE_RANGE)
 		if s < best_score:
 			best_score = s
-			best = {"kind": "heavy" if is_heavy(e) else "foe", "node": e}
+			best = {"kind": "foe", "node": e}
 	for a in anchors:
 		var s := _score(from, dir, a.global_position, ANCHOR_RANGE) + ANCHOR_HANDICAP
 		if s < best_score:
@@ -164,9 +158,10 @@ static func _score(from: Vector3, dir: Vector3, at: Vector3, reach: float) -> fl
 	return INF if angle > CONE else angle + d * 3.0
 
 
-## Too big to throw about.
+## Too big to throw about (radius 0.9+). No foe in play is: the dummies and the spar kinds are 0.55-0.63; the checks'
+## stand-ins set the radius to test the big branches.
 static func is_heavy(e: Node) -> bool:
-	return e.has_method("is_boss") or e.get("elite") == true or float(e.get("radius")) >= 0.9
+	return float(e.radius) >= 0.9
 
 
 func _aim_dir() -> Vector3:
@@ -186,18 +181,13 @@ func _hand_pos() -> Vector3:
 
 # --- Right click from neutral -----------------------------------------------
 
-## True if the grab sends him travelling (State.SWING) instead of playing the move.
+## The grab's target: the foe in his aim, or the whip's end with nobody there. Returns false: the grab plays the move
+## (player._start_attack reads it; it was true when something too big to yank pulled him to it: no foe is now).
 func begin() -> bool:
 	var p := _pick_now()
 	_clear_target()
-	var to: Vector3 = p.node.global_position - hero.global_position if p.node else Vector3.ZERO
-	to.y = 0.0
-	if p.kind == "heavy" and to.length() > float(p.node.radius) + PULL_STOP + 1.0:
-		_begin_pull(p.node, hero.PULL_INVULN)
-		return true
-	if p.kind == "foe" or p.kind == "heavy":
+	if p.kind == "foe":
 		_target = p.node
-		_target_heavy = p.kind == "heavy"
 		_aim_at = _target.global_position
 	else:
 		_aim_at = hero.global_position + _aim_dir() * WHIP_REACH
@@ -206,7 +196,6 @@ func begin() -> bool:
 
 func _clear_target() -> void:
 	_target = null
-	_target_heavy = false
 	tendril.visible = false
 
 
@@ -274,7 +263,7 @@ func _tick_grab(t: float) -> void:
 	if t < hit:
 		var to := _target_chest() if _target_alive() else _aim_at + CHEST
 		tendril.draw(_hand_pos(), to, smoothstep(0.04, hit, t), 0.14, 0.0, _time)
-	elif _target_alive() and not _target_heavy and t < YANK_END:
+	elif _target_alive() and t < YANK_END:
 		var k := (t - hit) / (YANK_END - hit)
 		var dest := hero.global_position + _flat_to(_target.global_position) * YANK_TO
 		_target.global_position = _from.lerp(dest, 1.0 - (1.0 - k) * (1.0 - k))
@@ -294,7 +283,7 @@ func strike() -> void:
 	var dir := _flat_to(_target.global_position)
 	_from = _target.global_position
 	_target.take_hit(hero._move.damage * hero._dmg_mult, dir * hero._move.knockback, 0.0, false)
-	if _target_alive() and not _target_heavy and _target.has_method("stagger"):
+	if _target_alive() and _target.has_method("stagger"):
 		_target.stagger(HOLD)
 	Game.register_hit("GR")
 	hero._connected = true
@@ -305,24 +294,15 @@ func strike() -> void:
 
 func _begin_slam() -> void:
 	# Whoever the grab still has, or the best thing in reach.
-	if not _target_alive() or _target_heavy:
+	if not _target_alive():
 		var p := _pick_now()
 		_clear_target()
-		if p.kind == "foe" or p.kind == "heavy":
-			var to: Vector3 = p.node.global_position - hero.global_position
-			to.y = 0.0
-			if to.length() <= SLAM_REACH:
-				_target = p.node
-				_target_heavy = p.kind == "heavy"
+		if p.kind == "foe" and FOES.to_flat(hero, p.node).length() <= SLAM_REACH:
+			_target = p.node
 	if _target_alive():
 		hero._face(_flat_to(_target.global_position))
 		_from = _target.global_position
-		if _target_heavy:
-			# It stays put, so the slam comes to it: reach out as far as it stands.
-			var to := _target.global_position - hero.global_position
-			to.y = 0.0
-			hero._move.range = maxf(hero._move.range, to.length())
-		elif _target.has_method("stagger"):
+		if _target.has_method("stagger"):
 			_target.stagger(HOLD)
 	else:
 		_from = hero.global_position + _aim_dir() * SLAM_AT
@@ -337,9 +317,7 @@ func _tick_slam(t: float) -> void:
 	var ground: Vector3 = hero.global_position + fwd * SLAM_AT
 	if _pillar_at != Vector3.INF:
 		ground = _pillar_at
-	var carried := _target_alive() and not _target_heavy
-	if _target_alive() and _target_heavy:
-		ground = _target.global_position
+	var carried := _target_alive()
 	if t >= hit:
 		var to := (_aim_at if _done else ground) + Vector3.UP * 0.1
 		tendril.draw(_hand_pos(), to, 1.0 - smoothstep(hit + 0.1, SLAM_RETRACT_END, t), 0.03, 0.0, _time)
@@ -365,7 +343,7 @@ func _tick_slam(t: float) -> void:
 ## The grab has a foe the slam can carry: the pillar slam's indicator shows (env_target "pillar_slam") from the grab's
 ## hit until the slam decides.
 func holds_for_slam() -> bool:
-	if not _target_alive() or _target_heavy:
+	if not _target_alive():
 		return false
 	if hero._move_id == "GR":
 		return hero._hits_done > 0
@@ -378,7 +356,7 @@ func pillar_slam_on() -> bool:
 
 ## The slam's haul: H still held and a pillar in reach (the cursor's pick, else the nearest) sends it into the pillar.
 func _decide_pillar() -> void:
-	if not _target_alive() or _target_heavy or not Input.is_action_pressed("attack_heavy"):
+	if not _target_alive() or not Input.is_action_pressed("attack_heavy"):
 		return
 	var p := ENV.pick(hero, "pillar_slam", hero.global_position, ENV.PILLAR_SLAM_REACH)
 	if not p.get("found", false) or p.s.kind != "pillar":
@@ -394,11 +372,8 @@ func _decide_pillar() -> void:
 
 ## VS comes down this frame, before player._do_hit looks for what it struck.
 func slam_lands() -> void:
-	var fwd: Vector3 = hero._facing()
-	_aim_at = _target.global_position if _target_alive() and _target_heavy else hero.global_position + fwd * SLAM_AT
-	if _pillar_at != Vector3.INF:
-		_aim_at = _pillar_at
-	if _target_alive() and not _target_heavy:
+	_aim_at = _pillar_at if _pillar_at != Vector3.INF else hero.global_position + hero._facing() * SLAM_AT
+	if _target_alive():
 		_target.global_position = _aim_at
 		if _pillar_at != Vector3.INF:  # into the pillar: it takes the stone, and the pillar plays its beat
 			pillar_slams += 1
@@ -639,22 +614,14 @@ func release_seized() -> void:
 
 # --- Travelling (player.State.SWING) ------------------------------------------
 
-## R: a pillar or something big where he's aiming, or the tentacle goes up off the top of the screen.
+## R: a pillar where he's aiming, or the tentacle goes up off the top of the screen.
 func traverse() -> void:
 	_clear_target()
-	var big := get_tree().get_nodes_in_group("enemies").filter(func(e: Node) -> bool: return e.is_alive() and is_heavy(e))
 	var anchors := get_tree().get_nodes_in_group("grab_anchors").filter(func(a: Node3D) -> bool:
 		return a.global_position.y > -1.0)  # (a room's old pillars sink away)
-	var p := pick(hero.global_position, _aim_dir(), big, anchors)
+	var p := pick(hero.global_position, _aim_dir(), [], anchors)
 	if p.kind == "anchor":
 		_begin_swing(p.node)
-	elif p.kind == "heavy":
-		var to: Vector3 = p.node.global_position - hero.global_position
-		to.y = 0.0
-		if to.length() > float(p.node.radius) + PULL_STOP + 1.0:
-			_begin_pull(p.node, 0.0)
-		else:
-			_begin_sky()
 	else:
 		_begin_sky()
 
@@ -667,16 +634,8 @@ func _begin_sky() -> void:
 	_dir.y = 0.0
 	_dir = _dir.normalized()
 	_pivot = hero.global_position + _dir * SKY_LEAD + Vector3.UP * SKY_HIGH
-	_start_travel(0.0)
+	_start_travel()
 	hero._face(_dir)
-
-
-func _begin_pull(e: Node3D, invuln: float) -> void:
-	_kind = "pull"
-	_target = e
-	_t = 0.0
-	_start_travel(invuln)
-	hero._face(_flat_to(e.global_position))
 
 
 func _begin_swing(a: Node3D) -> void:
@@ -694,13 +653,12 @@ func _begin_swing(a: Node3D) -> void:
 	if push.length() <= 0.1:
 		push = hero._facing()
 	_sign = -1.0 if out.cross(push).y > 0.0 else 1.0
-	_start_travel(0.0)
+	_start_travel()
 
 
-func _start_travel(invuln: float) -> void:
+func _start_travel() -> void:
 	hero._dash_from = hero.global_position  # (what he passes is what Tow Line finds)
 	arm.shape("hand")
-	hero._invuln_t = maxf(hero._invuln_t, invuln)
 	hero._set_state(hero.State.SWING)
 	hero._play("Ab_Swing", 0.05, true)
 	Game.sfx("swing_heavy", -3.0, 0.12)
@@ -713,15 +671,13 @@ func travel_tick(delta: float) -> void:
 		_release(false)
 		hero._start_dash()
 		return
-	if _kind != "pull" and hero._buffered == "heavy" and not is_instance_valid(_carry):
+	if hero._buffered == "heavy" and not is_instance_valid(_carry):
 		var e := _carry_pick()
 		if e != null:
 			hero._buffered = ""
 			_carry = e
 	_tick_carry()
-	if _kind == "pull":
-		_tick_pull(delta)
-	elif _kind == "sky":
+	if _kind == "sky":
 		_tick_sky(delta)
 	else:
 		_tick_swing(delta)
@@ -800,29 +756,6 @@ func _tick_sky(delta: float) -> void:
 		_release(false)  # into a wall
 
 
-func _tick_pull(delta: float) -> void:
-	if not _target_alive() or _t >= PULL_MAX_T:
-		_release(false)
-		return
-	var to := _target.global_position - hero.global_position
-	to.y = 0.0
-	var shoot := smoothstep(0.0, SWING_SHOOT, _t)
-	tendril.draw(_hand_pos(), _target_chest(), shoot, 0.04, 0.0, _time)
-	if shoot < 1.0:
-		hero.velocity.x = 0.0
-		hero.velocity.z = 0.0
-		return
-	if to.length() <= float(_target.radius) + PULL_STOP:
-		hero.velocity = Vector3.ZERO
-		_clear_target()
-		hero._start_attack("L1")  # arrives swinging
-		return
-	var v := to.normalized() * PULL_SPEED
-	hero.velocity.x = v.x
-	hero.velocity.z = v.z
-	hero.model.position.y = move_toward(hero.model.position.y, PULL_LIFT, 8.0 * delta)
-
-
 func _tick_swing(delta: float) -> void:
 	if not is_instance_valid(_anchor):
 		_release(false)
@@ -855,12 +788,8 @@ func _tick_swing(delta: float) -> void:
 
 ## Whatever he swings through takes his boots, once a swing.
 func _rake() -> void:
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if _struck.has(e) or not e.is_alive():
-			continue
-		var to: Vector3 = e.global_position - hero.global_position
-		to.y = 0.0
-		if to.length() > SWING_HIT_RANGE + float(e.radius):
+	for e: Node3D in FOES.near(get_tree(), hero.global_position, SWING_HIT_RANGE):
+		if _struck.has(e):
 			continue
 		_struck[e] = true
 		e.take_hit(SWING_DAMAGE * hero._dmg_mult, _tangent() * 8.0, 0.0, false)

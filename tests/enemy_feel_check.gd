@@ -84,7 +84,6 @@ func _extra() -> void:
 	await _bag()
 	await _air_kill()
 	await _slams()
-	await _boss()
 	await _spar()
 
 
@@ -118,7 +117,7 @@ func _bag() -> void:
 	for old in _main.get_tree().get_nodes_in_group("enemies"):
 		old.queue_free()
 	var d: Node = load("res://scripts/training_dummy.gd").new()
-	_main._set_model(d, "dummy", "Skeleton_Warrior")  # the comic bag, as main._start_training
+	_main._set_model(d, "dummy")  # the comic bag, as main._start_training
 	_main.add_child(d)
 	d.home = _main.player.global_position + Vector3(0.0, 0.0, 4.0)
 	d.global_position = d.home
@@ -432,36 +431,6 @@ func _slams() -> void:
 		seen.append("%s %.2f" % [move, e.last_squash.y])
 		await create_timer(0.3).timeout
 	print("[enemy_feel] slams: %s" % ", ".join(seen))
-
-
-## The Warden's reduced set: a tap only flashes; a big launching hit flashes, swells its ink and squashes a
-## little, but never leans, tumbles or leaves the floor (super armour).
-func _boss() -> void:
-	for old in _main.get_tree().get_nodes_in_group("enemies"):
-		old.queue_free()
-	var b: Node = _main._spawn_boss()
-	b.global_position = _main.player.global_position + Vector3(0.0, 0.0, 5.0)
-	b.max_hp = 5000.0
-	b.hp = 5000.0
-	b.break_damage = 100000.0
-	await create_timer(1.2).timeout
-	b.attack_damage = 0.0
-	b.move_speed = 0.0
-	b.take_hit(1.0, Vector3(0.0, 0.0, 6.0), 0.0, false)
-	var tinted: MeshInstance3D = b.model.find_children("*", "MeshInstance3D", true, false)[0]
-	_check(tinted.material_overlay != null and b.last_squash == Vector3.ONE and b.last_ink == 1.0,
-		"a tap only flashes the Warden (squash %.2f ink %.1f)" % [b.last_squash.y, b.last_ink])
-	await create_timer(0.2).timeout
-	b.take_hit(1.0, Vector3(6.0, 0.0, 0.0), 9.0, true)
-	var tilt := 0.0
-	for i in 20:
-		await physics_frame
-		tilt = maxf(tilt, absf(b.model.rotation.x) + absf(b.model.rotation.z))
-	_check(b.last_squash == b.BOSS_SQUASH and b.last_ink == b.BOSS_INK, "a big hit squashes the Warden %.2f and swells its ink %.1fx" % [b.last_squash.y, b.last_ink])
-	_check(tilt < 0.001 and b.state != b.State.AIRBORNE and b.global_position.y < 0.05,
-		"and it never leans, tumbles or lifts (tilt %.3f, y %.2f)" % [tilt, b.global_position.y])
-	print("[enemy_feel] boss: big hit squash %.2f ink %.1fx, tilt %.3f" % [b.last_squash.y, b.last_ink, tilt])
-	b.queue_free()
 
 
 ## --spar=<kind>: off without the flag, one live foe of that kind at 1/3 damage with it, its hits counted.

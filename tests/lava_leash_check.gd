@@ -14,7 +14,6 @@ var hero: CharacterBody3D
 class Foe extends CharacterBody3D:
 	var radius := 0.5
 	var hp := 500.0
-	var elite := false
 	var hits := 0
 	var last_big := false
 	var frozen := false
@@ -38,7 +37,6 @@ class Foe extends CharacterBody3D:
 func _initialize() -> void:
 	await process_frame
 	var game: Node = root.get_node("Game")
-	game.comic_style = true
 	world = Node3D.new()
 	root.add_child(world)
 	var floor_body := StaticBody3D.new()

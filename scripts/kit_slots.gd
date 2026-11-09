@@ -1,7 +1,7 @@
 class_name KitSlots
 ## The kit grammar's slot table as data (docs/characters/kit-grammar.md sections 2 and 5; how to fill a card:
 ## docs/features/kit-slots.md). Every character fills the same slots with the same input shapes; the moves, elements
-## and best situations are its own. `KitSlots.of(Game.hero)` is a character's card: which move id fills each slot and
+## and best situations are its own. `KitSlots.of()` is the heretic's card: which move id fills each slot and
 ## the input that starts it, its route steps (hits that walk to a crossover; not slots), and its demoted upgrades
 ## (still in the game behind `Kit.has()`, off the base kit).
 ##
@@ -121,32 +121,9 @@ const HERETIC := {
 	},
 }
 
-## The dragon prince (paused, docs/characters/dragon-prince.md): his slice laid on the card where it is obvious.
-## TODO (when his lane resumes): the empty slots, and whether Talon Fury (L L L, sword out) is his light string's
-## other form or a route step. kit_check skips a card marked `todo`.
-const PRINCE := {
-	"name": "Prince Aurex", "signature": "crown", "elements": ["fire", "", ""], "todo": true,
-	"fill": {
-		"light_string": {"P_SLASH": "L", "P_RIPOSTE": "L L", "P_CLEAVE": "L L L"},
-		"ender_1": {"P_FLICK": "L H"},
-		"ender_2": {"P_JAVELIN": "L L H"},
-		"ender_3": {"P_BREATH": "L L L H"},  # (his LLLH_FALLBACK until the third ender exists)
-		"big_1": {},
-		"big_2": {"P_SMASH": "L L H H"},  # Skyfall: H while the thrown sword is out, Javelin's payoff
-		"big_3": {}, "air_route": {},
-		"sig_mark": {}, "sig_gather": {}, "sig_drag": {}, "sig_pin": {},
-		"dash_l": {}, "dash_h": {}, "dash_ender_l": {}, "dash_ender_h": {},
-		"cross_storm_magma": {}, "cross_ice_magma": {}, "cross_dark_storm": {}, "cross_ice_storm": {},
-		"cross_dark_ice": {}, "cross_dark_magma": {}, "counter": {}, "awakening": {},
-	},
-	"route": {"P_TALON1": "L", "P_TALON2": "L L", "P_TALON3": "L L L", "P_RECALL": "hold L"},  # (sword out)
-	"upgrades": {},
-}
-
-
-## A character's card (Game.hero: "heretic" or "prince").
-static func of(hero: String) -> Dictionary:
-	return PRINCE if hero == "prince" else HERETIC
+## The card in play: the heretic is the only hero.
+static func of(_hero: String = "") -> Dictionary:
+	return HERETIC
 
 
 static func slot(id: String) -> Dictionary:

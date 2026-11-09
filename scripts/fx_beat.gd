@@ -55,11 +55,6 @@ static func settle(k: int) -> float:
 	return float(SETTLE[clampi(k, 0, SETTLE.size() - 1)])
 
 
-## Metres for `px` screen pixels at the game camera (ink widths, minimum sizes).
-static func px_m(px: float) -> float:
-	return px / PAL.PX_PER_M
-
-
 ## fx-language rule 7 at runtime (tools/vfx_gen/vfxlib.py `cluster_angles`, the same layout): `n` radial angles in
 ## `clusters` uneven fans with clear gaps, never an even ring. Returns [Vector2(angle, weight)], weight 1 in a fan's
 ## middle (its longest stroke) falling to ~0.45 at its edges. `spread` is each fan's width as a share of its slot.

@@ -87,7 +87,6 @@ func spawn() -> void:
 	if not kind in RANGED or _hp_flag():
 		foe.max_hp *= hp_scale()
 	foe.hp = foe.max_hp
-	foe.blast_enemy_damage *= DAMAGE_SCALE
 	foe.set_meta("spar", true)
 	foe.died.connect(_on_died)
 	if _blocks0 < 0:

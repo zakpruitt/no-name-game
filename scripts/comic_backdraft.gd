@@ -1,15 +1,13 @@
 extends "res://scripts/comic_flat.gd"
 ## Backdraft (L L H, Dash H H L: ice into storm), two pieces:
-##   ComicBackdraft.blast(parent, spot): the gale off the axe hitting the spear: eight inked wind strokes burst out
-##     of its foot round a small hot star, then two light rings of strokes; 0.3 s. Replaces the 2.6 m wind pillar
-##     (the spear's own shatter throws its ice).
+##   ComicBackdraft.blast(parent, spot): the gale off the axe hitting the spear: the air language's burst (a floor
+##     swirl and gusts over the heads, designed_fx.wind_burst). The spear's own shatter throws its ice.
 ##   ComicBackdraft.haul(parent, foe, hand, skewered): the haul back to him. A see-through wind ribbon from the foe
 ##     to his hand (wind body to clear at his end, bowed), three speed strokes on the foe pointing his way, and for
 ##     the skewered the ice cracking off on the first frame. Rides the foe; 0.45 s. Replaces the lightning arcs
 ##     (a storm look on a wind move: three green zigzags across the frame).
 
 const SELF := preload("res://scripts/comic_backdraft.gd")
-const STROKES := 8
 const CHEST := 0.9
 const RIBBON_W := 0.16
 const RIBBON_MAX := 2.6  # m of it out of the foe: a far foe's whole ribbon bowed into a loop across the frame
@@ -19,7 +17,6 @@ const DESIGNED := preload("res://scripts/designed_fx.gd")
 const HAUL_GUST := 1.2  # designed gusts behind a hauled foe (fx-air round 2)
 const HAUL_GUST_UP := 0.7  # m over the chest
 
-var mode := "blast"
 var foe: Variant
 var hand := Vector3.ZERO  # world
 var skewered := false
@@ -30,21 +27,14 @@ var _bow_side := 1.0
 
 
 static func blast(parent: Node, spot: Vector3) -> Node3D:
-	if DESIGNED.on():  # fx-modern: the air language's burst (floor swirl + gusts over the heads), not 8 ink wedges in a ring
-		DESIGNED.wind_burst(parent, spot)
-		return null
-	var b: Node3D = SELF.new()
-	b.mode = "blast"
-	b.life = 0.3
-	b.begin(parent, Vector3(spot.x, CHEST, spot.z))
-	return b
+	DESIGNED.wind_burst(parent, spot)
+	return null
 
 
 static func haul(parent: Node, e: Variant, to: Vector3, was_skewered: bool) -> Node3D:
 	if not is_instance_valid(e):
 		return null
 	var b: Node3D = SELF.new()
-	b.mode = "haul"
 	b.foe = e
 	b.hand = to
 	b.skewered = was_skewered
@@ -56,14 +46,12 @@ static func haul(parent: Node, e: Variant, to: Vector3, was_skewered: bool) -> N
 func _build() -> void:
 	_p = PAL.of("air")  # fx-air: wind looks like air; lightning keeps the storm row
 	_ice = PAL.of("water")
-	for i in STROKES + CHIPS:
+	for i in CHIPS:
 		_turns.append(_rng.randf() * TAU)
 	_bow_side = 1.0 if _rng.randf() < 0.5 else -1.0
 
 
 func _follow(_delta: float) -> void:
-	if mode != "haul":
-		return
 	if not is_instance_valid(foe):
 		queue_free()
 		return
@@ -72,17 +60,6 @@ func _follow(_delta: float) -> void:
 
 func _draw(s: int) -> void:
 	var fade := clampf((_t / life - 0.55) / 0.45, 0.0, 1.0)
-	if mode == "blast":
-		if s == 0:
-			var star := PackedFloat32Array([1.0, 0.7, 1.0, 0.7, 1.0, 0.7, 1.0, 0.7])
-			_fan(Vector3.ZERO, _star_ring(star, 0.55, 0.35), HOT_CORE, PAL.fade(_p.light, 0.8))
-		var out := 0.35 + 0.4 * mini(s, 2)  # (a burst at the spear, not leaves blown over the pile)
-		for i in STROKES:
-			var a := TAU * i / STROKES + _turns[0]
-			var d := _screen(a)
-			_wedge(d * out, d, 0.9, 0.24 + PAL.LINE * 2.0, PAL.fade(INK, 1.0 - fade))
-			_wedge(d * (out + 0.03), d, 0.85, 0.2, PAL.fade(_p.body if s < 2 else _p.light, 1.0 - fade))
-		return
 	var to := hand - global_position
 	var length := minf(to.length(), RIBBON_MAX)
 	if length > 0.4:
@@ -99,11 +76,11 @@ func _draw(s: int) -> void:
 		for i in 3:  # speed strokes on it, pointing his way
 			var off := side * (i - 1) * 0.35 - d * 0.6
 			_wedge(off - d * 0.5, d, 1.0, 0.16, PAL.fade(_p.light, 1.0 - fade))
-		if s <= 2 and DESIGNED.on():  # fx-air: designed gusts trailing the foe, over the pile (the ribbon hid in it)
+		if s <= 2:  # designed gusts trailing the foe, over the pile (the ribbon hid in it)
 			DESIGNED.gust(get_parent(), global_position - d * 0.5 + Vector3.UP * HAUL_GUST_UP, d, HAUL_GUST, true)
 	if skewered and s <= 2:  # the ice going off it
 		for i in CHIPS:
-			var a := _turns[STROKES + i]
+			var a := _turns[i]
 			var at := _screen(a) * (0.35 + 0.5 * s)
 			var ring := PackedVector3Array()
 			for j in 3:
