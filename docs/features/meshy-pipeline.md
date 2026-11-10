@@ -2,6 +2,8 @@
 
 ## What it is
 
+**For a standard body (two arms, two legs, no long cloth) use [meshy-foes.md](meshy-foes.md) instead:** one command, shared clips, no rig rebuild. This page is the hand-built route for bodies that route cannot take, such as the heretic's tentacle arm.
+
 A way to make characters: generate the model in Meshy, rebuild its rig with scripts, and bring it in behind a flag. One model has been through it so far, the heretic hero ([heretic-hero.md](heretic-hero.md)). Treat what follows as what that model taught us, not a proven process.
 
 The split is simple. Meshy supplies the mesh and the texture. Its auto-rig assumes a human, so non-human parts get bound to the nearest human bone, and we rebuild the rig.

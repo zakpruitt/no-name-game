@@ -24,7 +24,7 @@ straight into training. `docs/architecture.md` explains how the code fits togeth
 | Foes | `scripts/enemy.gd` (AI + hit reactions), `enemy_types.gd`, `foe_lean.gd`, `projectile.gd`, `enemy_bars.gd`, `threat_arrows.gd` | `features/enemy-hit-reactions.md` |
 | UI | `scripts/hud.gd`, `hud_ink.gd`, `combo_guide.gd`, `move_list.gd`, `breaker_prompt.gd`, `breaker_cue.gd`, `pause_menu.gd`, `menu_screen.gd` | `features/combo-guide.md` |
 | Effects | `scripts/designed_*.gd` (authored flipbook sheets, the only effects), `fx.gd` (dispatch), `fx_palette.gd`, `fx_beat.gd`, `elements.gd`, `dark_fx.gd`, `comic_*.gd`, `spirit_echo.gd`, `claw_lash.gd`, `standing_fx.gd`, `shaders/`, sheets from `tools/vfx_gen/gen_*.py` into `assets/vfx/designed/` | `features/fx-language.md` (read before any effect), `designed-fx.md`, `spirit-casts.md` |
-| Look | `scripts/comic_look.gd`, `comic_fx.gd`, `camera_rig.gd`, `weapon_trail.gd`, `assets/comic/` (GLBs), `tools/comic_art/`, `tools/hero_build/`, `tools/meshy_rig/` | `features/comic-style.md`, `camera.md`, `heretic-hero.md`, `meshy-pipeline.md`, `art-direction.md` |
+| Look | `scripts/comic_look.gd`, `comic_fx.gd`, `camera_rig.gd`, `weapon_trail.gd`, `assets/comic/` (GLBs), `tools/comic_art/`, `tools/hero_build/`, `tools/meshy_rig/`, `tools/meshy/` (new foes: Meshy model + shared clips, one command) | `features/comic-style.md`, `camera.md`, `heretic-hero.md`, `meshy-foes.md`, `meshy-pipeline.md`, `art-direction.md` |
 | Dev only | `scripts/training_bot.gd` (`--autotest`), `perf_probe.gd`, `warmup.gd` / `warmup_shaders.gd`, `tools/agent.sh`, `tools/dead_refs.py`, `tools/wiki.py` (`docs/wiki/`) | `docs/agents.md`, `features/wiki.md` |
 
 ## Rules
@@ -58,6 +58,7 @@ straight into training. `docs/architecture.md` explains how the code fits togeth
 | Looks (windowed) | `tests/element_shots.gd [-- --only=<combo>]`, `tests/heretic_shots.gd`, `tests/foe_shots.gd`, `tests/comic_shots.gd`, `tests/improv_shots.gd`, `tests/piece_shots.gd` |
 | Dead names | `python -I tools/dead_refs.py [--docs]` |
 | New worktree / land / remove | `bash tools/agent.sh new <name>` / `land` / `remove <name>` |
+| New foe from a Meshy rig (`meshy-foe` skill) | `python tools/meshy/meshy.py build <kind>` |
 | Regenerate | sheets `python tools/vfx_gen/gen_<family>.py`, sfx `tools/gen_sfx.py`, music `tools/gen_music.py`, wiki `tools/wiki.py`, engine API `tools/gen_engine_api.py` |
 | Flags | `--cam-dist= --cam-fov= --cam-frame=` (camera.md), `--swing`, `--bag-*=` (training.md), `--room=plain|pieces|cistern|forge`, `--hero=chibi|v3|heretic` |
 
@@ -65,7 +66,8 @@ straight into training. `docs/architecture.md` explains how the code fits togeth
 `roadmap-item` (one change end to end), `combo-feel` (strings, routing, rhythm), `combo-breaker` (timed finishers),
 `spirit-cast` (spectral axes), `godot-headless-test` (writing and reading the checks), `film-and-judge` (feel and look
 from film), `land-worktree` (worktrees, rebase, land, locks), `windows-patching` (CRLF edits from a shell),
-`perf-probe` (`[perf]` lines, hitches, shader warmup), `bot-strings` (`BOT_STRINGS` and the autotest counters).
+`perf-probe` (`[perf]` lines, hitches, shader warmup), `bot-strings` (`BOT_STRINGS` and the autotest counters),
+`meshy-foe` (a new foe or standard-bodied character through Meshy: 26 credits, no hand rigging).
 
 ## Where things are written down
 `docs/architecture.md` (how the code works), `docs/features/` (one doc per feature), `docs/agents.md` (the worktree
