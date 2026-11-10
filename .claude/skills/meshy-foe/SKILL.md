@@ -1,6 +1,6 @@
 ---
 name: meshy-foe
-description: Make a new foe (or any standard two-armed, two-legged character) for Awaken with Meshy and get it into the game, animated, in about fifteen minutes and 26 credits. Use this whenever the user asks for a new enemy, foe, mob, boss body or NPC, wants "another character like the brute", asks what a new character costs, or wants a new animation clip for the Meshy foes, even if they never say Meshy.
+description: Turn a 2D image or concept art (Zak's own, or one generated here) into a modelled, rigged, animated character in Awaken with Meshy, in about fifteen minutes and 20 to 26 credits. Use this whenever the user hands over concept art, a drawing, a sketch or a reference image and wants it in 3D or in the game, asks for a new enemy, foe, mob, boss body or NPC, wants "another character like the brute", asks what a new character costs, or wants a new animation clip, even if they never say Meshy.
 ---
 
 # A new foe with Meshy
@@ -9,7 +9,7 @@ One route, proven on the brute and the cultist (2026-11-10). Meshy makes the mod
 come from a shared library in the repo, so a new character costs no animation credits. Feature doc:
 `docs/features/meshy-foes.md`.
 
-**Cost per foe: 26 credits** (concept 6, model 15, rig 5). Ask Zak before spending; say the number. Log every
+**Cost per foe: 26 credits** (concept 6, model 15, rig 5), or **20 from Zak's own image** (no concept step). Ask Zak before spending; say the number. Log every
 task in `docs/meshy-spend.md` with its id.
 
 ## The body rules (they are what makes this cheap)
@@ -22,6 +22,22 @@ A foe that breaks one of these needs the old hand-built route (`meshy-asset-pipe
 - T-pose, arms straight out, legs apart.
 - Art direction (`docs/features/art-direction.md`): chibi, head a third of the height, three or four flat colours,
   light values that read on the indigo floor, one oversized feature.
+
+## Starting from Zak's image
+
+When Zak hands over concept art, skip step 1 and pass the file to step 2 as `file_path` (an absolute path; never
+`input_task_id`, never base64). First read the image and check it against the body rules, and say plainly which it breaks:
+
+- **Usable as is**: one character, whole body in frame, front view, arms away from the body, plain background.
+- **Fix first with `meshy_image_to_image`** (6 credits, `nano-banana-2`, `reference_file_paths: [the file]`): an action
+  pose, a three-quarter view, a busy background, a held weapon, or arms against the body. Prompt: "the same character,
+  same colours and design, full body front view, standing straight in a T-pose with both arms straight out to the sides,
+  legs apart, no weapon, plain white background". Show Zak the result before the 15-credit model.
+- **Not this route**: extra limbs, a tail, wings, a robe or cape he wants kept. Say so and offer the hand-built route
+  (`meshy-asset-pipeline`) or a redesign that fits; do not quietly drop the feature.
+
+Several images of the same character (front, side, back) go to `meshy_multi_image_to_3d` instead; not tried here yet.
+Copy his image to `tools/meshy/foes/<kind>/concept.png` so the source stays with the foe.
 
 ## Steps
 
