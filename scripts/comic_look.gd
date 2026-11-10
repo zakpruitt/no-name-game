@@ -136,7 +136,11 @@ const HERETIC := "heretic"
 ## (tones, clips, heretic_rig.gd) works for each. Default: Game.HERO_DEFAULT ("chibi").
 const HERETIC_MODELS := {"heretic": "heretic", "chibi": "heretic_chibi", "v3": "heretic_v3"}
 ## Materials drawn from their own texture through the cut tones, not from a TONES palette.
-const PAINTED := {"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12}}
+const PAINTED := {
+	"P_HereticPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12},
+	# every Meshy foe (tools/meshy/meshy.py names its one material this): the hero's cool lilac shadow
+	"P_MeshyPaint": {"shadow": Color(0.42, 0.38, 0.56), "mid": Color(0.8, 0.77, 0.86), "light": Color(1.0, 1.0, 1.0), "brush": 0.12},
+}
 ## How much further one axis must lead before the run changes clip: on a diagonal a cursor
 ## nudge would otherwise flip between two clips every frame.
 const RUN_STICK := 1.25
@@ -206,7 +210,7 @@ const FOE_SHADE_MATCH := 0.8
 ## The foes get a heavy outer line on top of Fx.outline (shaders/foe_silhouette.gdshader): a second
 ## hull sharing each skinned mesh, SILHOUETTE_PX wide and pushed SILHOUETTE_PUSH m back, so it shows only
 ## round the outside of the foe (art direction: thicker ink on the silhouette, thin inside).
-const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "dummy"]
+const SILHOUETTE_KINDS := ["minion", "rogue", "shield", "warrior", "mage", "archer", "dummy", "brute", "cultist"]
 const SILHOUETTE_SHADER := "res://shaders/foe_silhouette.gdshader"
 const SILHOUETTE_PX := 4.0
 const SILHOUETTE_PUSH := 0.3

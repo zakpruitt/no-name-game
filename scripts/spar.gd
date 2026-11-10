@@ -1,13 +1,13 @@
 extends Node
-## Sparring: `--spar=minion|rogue|shield|warrior|archer|mage` puts one live foe of that type (enemy_types.TYPES) in the
+## Sparring: `--spar=<kind>` (any kind in enemy_types.TYPES: minion, rogue, shield, warrior, archer, mage, brute,
+## cultist) puts one live foe of that type in the
 ## training room next to the dummies, to try strings on something that moves, dodges or blocks. It hits
 ## the hero at DAMAGE_SCALE of its damage and comes back RESPAWN s after it dies. Off by default; the
 ## autotest prints `[spar] type= hits_taken= kills=` at the end when it's on. main._start_training calls
 ## start(); preload it (no class_name, so a checkout needs no re-import).
 
 const ENEMY := preload("res://scripts/enemy.gd")
-const KINDS := ["minion", "rogue", "shield", "warrior", "archer", "mage"]
-const RANGED := ["archer", "mage"]  # (their bolts parry back: counter.gd)
+const TYPES: Dictionary = preload("res://scripts/enemy_types.gd").TYPES
 const FLAG := "--spar="
 const DAMAGE_SCALE := 1.0 / 3.0
 ## Spar pass two: its hp is HP_SCALE times its kind's (`--spar-hp=N` for one run). At 1x the warrior (75) died in 37 of
@@ -42,14 +42,24 @@ var _hurt_ms: Array[int] = []
 var _main: Node
 
 
-## The spar kind asked for in `args`, or "" (none, or not one of KINDS).
+## Every kind there is to spar with: the foe table's keys, so a new row is a new `--spar=`.
+static func kinds() -> Array:
+	return TYPES.keys()
+
+
+## Does `k` shoot (its bolts parry back: counter.gd)? Read from its row's attack_kind.
+static func ranged(k: String) -> bool:
+	return str((TYPES.get(k, {}) as Dictionary).get("attack_kind", "melee")) != "melee"
+
+
+## The spar kind asked for in `args`, or "" (none, or not one of kinds()).
 static func kind_from(args: PackedStringArray) -> String:
 	for arg in args:
 		if arg.begins_with(FLAG):
 			var k := arg.substr(FLAG.length())
-			if k in KINDS:
+			if k in kinds():
 				return k
-			push_warning("--spar: '%s' is not one of %s" % [k, KINDS])
+			push_warning("--spar: '%s' is not one of %s" % [k, kinds()])
 	return ""
 
 
@@ -84,7 +94,7 @@ func spot() -> Vector3:
 func spawn() -> void:
 	foe = _main._spawn(kind, false, spot())
 	foe.attack_damage *= DAMAGE_SCALE
-	if not kind in RANGED or _hp_flag():
+	if not ranged(kind) or _hp_flag():
 		foe.max_hp *= hp_scale()
 	foe.hp = foe.max_hp
 	foe.set_meta("spar", true)

@@ -43,8 +43,8 @@ func _initialize() -> void:
 	hero.bot_enabled = true
 	hero.bot_move = Vector3.ZERO
 	main.clear_room()
-	for kind: String in SPAR.KINDS:
-		if kind in SPAR.RANGED:
+	for kind: String in SPAR.kinds():
+		if SPAR.ranged(kind):
 			await _bolt(kind)
 		else:
 			await _kind(kind)
@@ -300,7 +300,7 @@ func _bot(kind: String) -> void:
 	hero = main.player
 	main._spar = SPAR.start(main, PackedStringArray(["--spar=" + kind]))
 	var BOT: GDScript = load("res://scripts/training_bot.gd")
-	var ranged: bool = kind in SPAR.RANGED
+	var ranged: bool = SPAR.ranged(kind)
 	var picked: Array = BOT.BOT_STRINGS.filter(func(b: Dictionary) -> bool:
 		return b.has("spar") and not b.has("room") and (b.spar == "ranged") == ranged)
 	var labels: Array = []

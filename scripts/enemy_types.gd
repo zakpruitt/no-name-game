@@ -25,4 +25,10 @@ const TYPES := {
 		"attack_recover": 0.9, "projectile_speed": 30.0, "run_anim": "Running_A"},
 	"shield": {"model": "Skeleton_Minion", "title": "shield skeleton", "bar_height": 2.45, "run_foot_speed": 3.07, "attack_hit": 17.0, "max_hp": 40.0, "move_speed": 3.2, "attack_damage": 12.0,
 		"attack_windup": 0.7, "shield": true, "model_scale": 1.05, "run_anim": "Walking_D_Skeletons"},
+	# Meshy foes (tools/meshy/meshy.py build <kind>, docs/features/meshy-foes.md): no `model`, the GLB is assets/comic/<kind>.glb
+	"brute": {"title": "brute", "bar_height": 2.75, "run_foot_speed": 3.58, "attack_hit": 24.0, "max_hp": 120.0, "move_speed": 2.4, "attack_damage": 22.0,
+		"attack_windup": 1.0, "attack_recover": 0.9, "poise": 14.0},
+	"cultist": {"title": "cultist", "bar_height": 2.15, "run_foot_speed": 2.27, "max_hp": 26.0, "move_speed": 3.2, "attack_kind": "ranged",
+		"attack_range": 10.0, "preferred_range": 7.0, "attack_damage": 12.0, "attack_windup": 0.9,
+		"attack_recover": 0.5, "projectile_speed": 9.0},
 }

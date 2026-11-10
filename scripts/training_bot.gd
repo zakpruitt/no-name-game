@@ -675,7 +675,7 @@ static func _spar_ok(b: Dictionary) -> bool:
 	var k := spar_kind()
 	if k == "":
 		return false
-	return (k in load("res://scripts/spar.gd").RANGED) == (b.spar == "ranged")
+	return bool(load("res://scripts/spar.gd").ranged(k)) == (b.spar == "ranged")
 
 
 ## A BOT_STRINGS entry's labels: its slot id(s), or its upgrade.
