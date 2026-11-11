@@ -160,6 +160,8 @@ static func upgrade_of(id: String, card: Dictionary = HERETIC) -> String:
 
 ## Whether the routing may reach `id`: false for a "route"-gated upgrade's move whose Kit upgrade is off.
 static func open(id: String, card: Dictionary = HERETIC) -> bool:
+	if not Spirits.allows(id):  # an element move with no spirit of that element held (scripts/spirits.gd)
+		return false
 	var u := upgrade_of(id, card)
 	return u == "" or card.upgrades[u].gates != "route" or Kit.has(u)
 

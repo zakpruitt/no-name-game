@@ -251,7 +251,7 @@ static func void_route(kind: String, from: String, attacking: bool, chain: int, 
 
 ## void_route(), plus the vault: off the plant, or a fresh press facing the standing spear near it (VOID_ELEMENT.vaults).
 static func routed(hero: CharacterBody3D, kind: String, from: String, attacking: bool, chain: int, post_dash: bool) -> String:
-	if VOID_ELEMENT.vaults(hero, from, attacking, post_dash):
+	if Spirits.allows("IJ") and VOID_ELEMENT.vaults(hero, from, attacking, post_dash):
 		return "IJ"
 	return void_route(kind, from, attacking, chain, post_dash)
 

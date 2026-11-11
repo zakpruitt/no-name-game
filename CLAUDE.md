@@ -3,7 +3,8 @@
 Fast-paced 3D combo hack and slash. Godot 4.7, GDScript. Original characters only (no licensed IP in the repo).
 
 The game today is the heretic's combat in a training room: his strings, their timed breakers, the element
-matrix and the dash counter, against dummies and an optional live spar foe. No run, no title screen; it boots
+matrix and the dash counter, against dummies and an optional live spar foe. In play he starts with the base kit and
+claims one of three spirits (E) to open an element's moves; `--spirit=all` plays the whole kit. No run, no title screen; it boots
 straight into training. `docs/architecture.md` explains how the code fits together; read it once.
 
 ## Design pillars
@@ -19,7 +20,7 @@ straight into training. `docs/architecture.md` explains how the code fits togeth
 |---|---|---|
 | Global state | `scripts/game.gd` (autoload `Game`: hitstop and time scale, combo / style rank, Awakening meter, sfx, music, settings, input map), `impact_frame.gd` | `features/impact-feedback.md` |
 | The room | `scripts/main.gd` (builds everything in code), `rooms.gd`, `env_piece.gd`, `env_target.gd`, `env_flourish.gd`, `frost_wall.gd`, `training_dummy.gd`, `spar.gd` | `features/training.md`, `rooms.md`, `env-pieces.md`, `environment.md` |
-| The hero | `scripts/player.gd` (node, state machine, fields) + static-function files `hero_moves.gd` (MOVES, COMBOS, `void_route()`), `hero_input.gd`, `hero_leap.gd`, `hero_awaken.gd`, `hero_fx.gd`, `counter.gd` / `counter_fx.gd`, `kit_slots.gd` / `kit.gd`, `heretic_rig.gd` | `features/heretic-hero.md`, `combo-breakers.md`, `counter.md`, `kit-slots.md` |
+| The hero | `scripts/player.gd` (node, state machine, fields) + static-function files `hero_moves.gd` (MOVES, COMBOS, `void_route()`), `hero_input.gd`, `hero_leap.gd`, `hero_awaken.gd`, `hero_fx.gd`, `counter.gd` / `counter_fx.gd`, `kit_slots.gd` / `kit.gd`, `spirits.gd` (the held spirit opens its element's moves) / `spirit_companion.gd`, `heretic_rig.gd` | `features/heretic-hero.md`, `combo-breakers.md`, `counter.md`, `kit-slots.md`, `spirits.md` |
 | Right click | `scripts/void_element.gd` (every element move, crossover, breaker landing, the matrix), `void_grab.gd` / `void_arm.gd` / `void_tendril.gd` (the tentacle), `thrown_foe.gd`, `floor_bind.gd`, `frost_spear.gd`, `foes.gd` (shared foe queries), the per-ending scripts (`harpoon_gather`, `lava_leash`, `collapse_spit`, `avalanche_topple`, `abyss_rise`, `eruption_hurl`, `frost_shell`, `tentacle_haul`, `live_current`, `mid_beats`, `breaker_alt_fx`) | `features/void-element.md`, `void-arm.md`, `element-matrix.md` |
 | Foes | `scripts/enemy.gd` (AI + hit reactions), `enemy_types.gd`, `foe_lean.gd`, `projectile.gd`, `enemy_bars.gd`, `threat_arrows.gd` | `features/enemy-hit-reactions.md` |
 | UI | `scripts/hud.gd`, `hud_ink.gd`, `combo_guide.gd`, `move_list.gd`, `breaker_prompt.gd`, `breaker_cue.gd`, `pause_menu.gd`, `menu_screen.gd` | `features/combo-guide.md` |
@@ -60,7 +61,7 @@ straight into training. `docs/architecture.md` explains how the code fits togeth
 | New worktree / land / remove | `bash tools/agent.sh new <name>` / `land` / `remove <name>` |
 | New foe from a Meshy rig (`meshy-foe` skill) | `python tools/meshy/meshy.py build <kind>` |
 | Regenerate | sheets `python tools/vfx_gen/gen_<family>.py`, sfx `tools/gen_sfx.py`, music `tools/gen_music.py`, wiki `tools/wiki.py`, engine API `tools/gen_engine_api.py` |
-| Flags | `--cam-dist= --cam-fov= --cam-frame=` (camera.md), `--swing`, `--bag-*=` (training.md), `--room=plain|pieces|cistern|forge`, `--hero=chibi|v3|heretic` |
+| Flags | `--cam-dist= --cam-fov= --cam-frame=` (camera.md), `--swing`, `--bag-*=` (training.md), `--room=plain|pieces|cistern|forge`, `--hero=chibi|v3|heretic`, `--spirit=all|none|storm|ice|magma` (spirits.md; play starts with none, checks with all) |
 
 ## Skills (`.claude/skills/`)
 `roadmap-item` (one change end to end), `combo-feel` (strings, routing, rhythm), `combo-breaker` (timed finishers),

@@ -115,6 +115,8 @@ func _start_training() -> void:
 	Game.combo_changed.connect(_train_combo)
 	_train_text()
 	_spar = SPAR.start(self)
+	if Spirits.gated():  # play: the base kit, and the three spirits to claim (docs/features/spirits.md)
+		load("res://scripts/spirit_companion.gd").place(self, player)
 
 
 func _train_hit(damage: float) -> void:

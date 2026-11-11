@@ -617,6 +617,7 @@ func _setup_input() -> void:
 	_bind("dash", [KEY_SPACE, KEY_SHIFT], [], [JOY_BUTTON_A])
 	_bind("awaken", [KEY_Q, KEY_L], [], [JOY_BUTTON_RIGHT_SHOULDER])
 	_bind("traverse", [KEY_R], [], [JOY_BUTTON_LEFT_SHOULDER])
+	_bind("interact", [KEY_E], [], [JOY_BUTTON_B])  # claim a spirit (spirit_companion.gd)
 	_bind("pause", [KEY_ESCAPE], [], [JOY_BUTTON_START])
 	_bind("slowmo", [KEY_T], [], [JOY_BUTTON_BACK])
 

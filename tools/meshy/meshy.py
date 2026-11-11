@@ -6,6 +6,7 @@
                                                         # read the seconds for `start` / `end` off them
     python tools/meshy/meshy.py library <clips.glb>...  # add Meshy animation files to the shared clip library
     python tools/meshy/meshy.py clips                   # list the library and what the game clips map to
+    python tools/meshy/meshy.py spirit <name> <model.glb>   # an unrigged Meshy model -> assets/comic/spirits/<name>.glb
 
 `build` reads tools/meshy/foes/<kind>/foe.json and rigged.glb (Meshy's auto-rig download), puts the
 shared clips on it, writes the GLB, a sheet of stills (tools/meshy/out/<kind>_sheet.png) and prints
@@ -113,6 +114,31 @@ def cmd_build(kind, stills=5, raw=False):
         print("stills: " + sheet)
 
 
+def cmd_spirit(name, path):
+    """A floating spirit: no rig, no clips. Only the material and image names change, so the game paints it
+    through the cut tones (ComicLook.PAINTED) and Godot extracts <name>_paint.png."""
+    import struct
+    data = open(path, "rb").read()
+    magic, version, length = struct.unpack("<4sII", data[:12])
+    if magic != b"glTF" or version != 2 or length != len(data):
+        raise SystemExit("%s: not a complete GLB" % path)
+    json_len = struct.unpack("<I", data[12:16])[0]
+    doc = json.loads(data[20:20 + json_len])
+    for m in doc.get("materials", []):
+        m["name"] = load_map()["material"]
+    for im in doc.get("images", []):
+        im["name"] = "paint"
+    body = json.dumps(doc, separators=(",", ":")).encode()
+    body += b" " * (-len(body) % 4)
+    rest = data[20 + json_len:]
+    out = os.path.join(ROOT, "assets", "comic", "spirits", name + ".glb")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "wb") as f:
+        f.write(struct.pack("<4sII", b"glTF", 2, 20 + len(body) + len(rest)) + struct.pack("<I4s", len(body), b"JSON") + body + rest)
+    tris = sum(doc["accessors"][p["indices"]]["count"] // 3 for m in doc["meshes"] for p in m["primitives"])
+    print("%s: %d tris, %d KB -> assets/comic/spirits/%s.glb" % (name, tris, os.path.getsize(out) // 1024, name))
+
+
 def contact_sheet(kind, sheet_dir, clips, stills):
     try:
         from PIL import Image, ImageDraw
@@ -142,6 +168,8 @@ def main():
             cmd_build(kind, stills, raw)
     elif len(args) >= 2 and args[0] == "library":
         cmd_library(args[1:])
+    elif len(args) == 3 and args[0] == "spirit":
+        cmd_spirit(args[1], args[2])
     elif args == ["clips"]:
         cmd_clips()
     else:
