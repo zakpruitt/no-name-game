@@ -20,6 +20,7 @@ const SPIN := 0.5  # rad/s: it turns slowly while it waits
 var element := ""
 var home := Vector3.ZERO
 var hero: Node3D
+var bond: Node  # the bond prompt the three share (scripts/bond_prompt.gd); without one E claims outright
 var _prompt: Label3D
 var _t := 0.0
 
@@ -27,8 +28,11 @@ var _t := 0.0
 ## The three spirits, at SPOTS from the hero.
 static func place(room: Node, player: Node3D) -> void:
 	var script: GDScript = load("res://scripts/spirit_companion.gd")
+	var prompt: Node = (load("res://scripts/bond_prompt.gd") as GDScript).new()
+	room.add_child(prompt)
 	for el: String in Spirits.ELEMENTS:
 		var s: Node3D = script.new()
+		s.bond = prompt
 		s.element = el
 		s.hero = player
 		s.home = player.global_position + SPOTS[el] + Vector3.UP * HOVER
@@ -59,6 +63,12 @@ func _ready() -> void:
 	add_child(_prompt)
 
 
+## He takes this spirit: the one he held goes home.
+func _bond() -> void:
+	Spirits.claim(element)
+	Game.sfx(ELEMENTS.LOOK[element].sfx, -4.0, 0.1)
+
+
 ## Scale the model to SIZE tall and centre it on this node.
 func _fit(model: Node3D) -> void:
 	var box := AABB()
@@ -85,8 +95,10 @@ func _process(delta: float) -> void:
 		and global_position.distance_to(home) < 1.0
 	_prompt.visible = near
 	if near and Input.is_action_just_pressed("interact"):
-		Spirits.claim(element)
-		Game.sfx(ELEMENTS.LOOK[element].sfx, -4.0, 0.1)
+		if is_instance_valid(bond):
+			bond.call("ask", element, _bond)  # the prompt lists what it opens; Bond claims it
+		else:
+			_bond()
 		return
 	var k := 1.0 - exp(-FOLLOW * delta)
 	if mine:

@@ -101,23 +101,12 @@ func _build(title: String, subtitle: String, items: Array, footer: String, dim: 
 	col.add_child(gap)
 
 	for item in items:
-		var b := Button.new()
-		b.text = item[0]
-		b.custom_minimum_size = Vector2(button_width, 58)
-		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		b.add_theme_font_size_override("font_size", 26)
-		b.add_theme_stylebox_override("normal", _style(Color(0.12, 0.1, 0.18), Color(0.4, 0.35, 0.55)))
-		b.add_theme_stylebox_override("hover", _style(Color(0.2, 0.15, 0.28), Color(1.0, 0.7, 0.3)))
-		b.add_theme_stylebox_override("focus", _style(Color(0.2, 0.15, 0.28), Color(1.0, 0.7, 0.3)))
-		b.add_theme_stylebox_override("pressed", _style(Color(0.3, 0.2, 0.1), Color(1.0, 0.8, 0.4)))
-		b.pressed.connect(item[1])
+		var b := _button(col, item[0], item[1])
 		if item.size() > 2 and item[2]:  # optional third entry: disabled
 			b.disabled = true
 			b.add_theme_stylebox_override("disabled", _style(Color(0.08, 0.07, 0.1), Color(0.25, 0.22, 0.3)))
 			b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
 			b.focus_mode = Control.FOCUS_NONE
-		col.add_child(b)
-		_buttons.append(b)
 
 	if footer != "":
 		var gap2 := Control.new()
@@ -129,6 +118,23 @@ func _build(title: String, subtitle: String, items: Array, footer: String, dim: 
 	await get_tree().process_frame
 	if is_instance_valid(col):
 		col.position = (_root.size - col.size) * 0.5
+
+
+## One button in the menus' style, added to `parent` and to `_buttons`; `width` 0 is `button_width`.
+func _button(parent: Control, text: String, on_press: Callable, width := 0) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(width if width > 0 else button_width, 58)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 26)
+	b.add_theme_stylebox_override("normal", _style(Color(0.12, 0.1, 0.18), Color(0.4, 0.35, 0.55)))
+	b.add_theme_stylebox_override("hover", _style(Color(0.2, 0.15, 0.28), Color(1.0, 0.7, 0.3)))
+	b.add_theme_stylebox_override("focus", _style(Color(0.2, 0.15, 0.28), Color(1.0, 0.7, 0.3)))
+	b.add_theme_stylebox_override("pressed", _style(Color(0.3, 0.2, 0.1), Color(1.0, 0.8, 0.4)))
+	b.pressed.connect(on_press)
+	parent.add_child(b)
+	_buttons.append(b)
+	return b
 
 
 func _label(parent: Control, text: String, size: int, color: Color) -> Label:

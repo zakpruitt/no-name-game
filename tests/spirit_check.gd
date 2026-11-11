@@ -37,12 +37,45 @@ func _initialize() -> void:
 	Spirits.claim("water")
 	_check(Spirits.allows("XK") and Spirits.allows("XW") and Spirits.allows("IJ"), "ice opens Impale, Backdraft and the vault")
 	_check(not Spirits.allows("XG"), "ice alone doesn't open Hailstorm (ice x storm)")
+	# the bond prompt's list: what each spirit opens, its breakers' endings, nothing from another element
+	var storm := Spirits.offers("wind")
+	_is(_ids(storm.combos), "EC EE EW XC", "storm offers its ender, big moves and Dark x storm")
+	_is(_names(storm.breakers), "Grounded, Short Circuit, Worldbreaker, Cold Front", "storm offers its windows' endings")
+	_is(_ids(Spirits.offers("water").combos), "IP IS EF XK XW IJ EA", "ice offers its moves, then its route steps")
+	_is(_ids(Spirits.offers("earth").combos), "EM EV XL", "magma offers its moves and Lava Leash")
+	var harpoon: Dictionary = Spirits.offers("water").breakers[1]
+	_is(harpoon.input, "Dash L H, pause, H", "a paused window's input says so")
+	_is(harpoon.element, "wind", "an ending wears the element it lands in")
+	# the prompt itself: it pauses, Bond runs the claim, Esc's close doesn't
+	Spirits.claim("")
+	var prompt: Node = (load("res://scripts/bond_prompt.gd") as GDScript).new()
+	root.add_child(prompt)
+	prompt.call("ask", "water", Spirits.claim.bind("water"))
+	_check(prompt.call("is_open") and paused, "the prompt opens and pauses")
+	prompt.call("close_menu")
+	_check(Spirits.held == "" and not paused, "closing it claims nothing and unpauses")
+	prompt.call("ask", "water", Spirits.claim.bind("water"))
+	var buttons: Array = prompt.get("_buttons")
+	(buttons[0] as Button).pressed.emit()
+	_check(Spirits.held == "water" and not paused and not prompt.call("is_open"), "Bond claims it and closes")
+	Spirits.claim("wind")
+	prompt.call("ask", "earth", Spirits.claim.bind("earth"))  # (the swap line's path)
+	prompt.call("close_menu")
+	prompt.queue_free()
 	Spirits.claim("")
 	Spirits.set_all(true)
 	for f in _fails:
 		print("[spirit] FAIL ", f)
 	print("[spirit] %s" % ("PASS" if _fails.is_empty() else "FAIL %d" % _fails.size()))
 	quit(0 if _fails.is_empty() else 1)
+
+
+func _ids(rows: Array) -> String:
+	return " ".join(rows.map(func(r: Dictionary) -> String: return r.id))
+
+
+func _names(rows: Array) -> String:
+	return ", ".join(rows.map(func(r: Dictionary) -> String: return r.name))
 
 
 func _is(got: String, want: String, what: String) -> void:

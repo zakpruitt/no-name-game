@@ -14,6 +14,8 @@ const ELEMENTS := ["wind", "water", "earth"]
 const FLAG := "--spirit="
 ## Route steps into a two-element crossover that their own element alone doesn't describe.
 const EXTRA := {"XR": ["wind", "earth"]}  # Air Slash's hammer, on the way to Fault Line (storm x magma)
+## What a spirit does while held, beyond the moves it opens: the bond prompt's PASSIVE line ("" = nothing yet).
+const PASSIVES := {"wind": "", "water": "", "earth": ""}
 
 static var held := ""  # "wind" / "water" / "earth", or "" for none
 static var _all := true
@@ -60,6 +62,53 @@ static func needs(id: String) -> Array:
 		_element_of = load("res://scripts/void_element.gd").ELEMENT_OF
 	var el: String = _element_of.get(id, "")
 	return [el] if el != "" else []
+
+
+## Does `element`'s spirit open move `id`: closed with none held, open with that one alone?
+static func opens(id: String, element: String) -> bool:
+	var found := false
+	for el: String in needs(id):
+		if el == element:
+			found = true
+		elif el != "void":
+			return false
+	return found
+
+
+## What bonding with `element`'s spirit adds, for the bond prompt (scripts/bond_prompt.gd):
+##   combos    [{id, input, name, tag}]: the moves it opens, in the card's order, then the route steps
+##   breakers  [{input, name, element}]: the endings of those moves' windows (H's, then L's `alt`), each with
+##             the element it lands in
+##   passive   PASSIVES' line ("" = none)
+static func offers(element: String) -> Dictionary:
+	var moves: GDScript = load("res://scripts/hero_moves.gd")
+	var windows: Dictionary = load("res://scripts/void_element.gd").BREAKERS
+	var card := KitSlots.of()
+	var fill: Dictionary = card.fill
+	var inputs := {}
+	for s: String in fill:
+		inputs.merge(fill[s])
+	inputs.merge(card.route)
+	var combos: Array[Dictionary] = []
+	var breakers: Array[Dictionary] = []
+	for id: String in inputs:
+		if not opens(id, element):
+			continue
+		var input: String = inputs[id]
+		var move_name: String = moves.guide_name(id)
+		combos.append({"id": id, "input": input, "name": move_name, "tag": KitSlots.tag_of(id)})
+		if not windows.has(id):
+			continue
+		var row: Dictionary = windows[id]
+		var lands: String = row.get("erupt", element)
+		var lead := "%s, %s" % [input, "pause, " if row.get("pause", false) else "then "]
+		breakers.append({"input": lead + "H", "name": row.names.spirit, "element": lands})
+		if row.has("alt"):
+			var alt: Dictionary = row.alt
+			var alt_lands: String = alt.get("erupt", lands)
+			breakers.append({"input": lead + "L", "name": alt.names.spirit, "element": alt_lands})
+	var passive: String = PASSIVES.get(element, "")
+	return {"combos": combos, "breakers": breakers, "passive": passive}
 
 
 static func _parse() -> void:
