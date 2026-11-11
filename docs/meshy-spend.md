@@ -37,3 +37,18 @@ Balance before: 992. Spent **94**: the clip library once (42) and two foes (26 e
 | clips | `01a1c5f3-c56a-727c-8bd0-a39c44f8c372` | animation x4 (156, 138, 224, 231) | | 12 | library |
 
 Files: `tools/meshy/foes/`, `tools/meshy/library/` (committed).
+
+## Spirit samples, 2026-11-10 (same 300 cap)
+
+Three floating spirit models for Zak to judge, no rig. Spent **63**; running total against the cap 157. Balance after: 835.
+
+| Stage | Task id | Kind | Model | Credits | Output |
+|---|---|---|---|---|---|
+| concept | `01a1c903-8f1b-701d-b8ac-c986d4101645` | text-to-image | nano-banana-2 | 6 | magma wyrm |
+| concept | `01a1c903-8f8a-75f3-afdb-a25bb46d7732` | text-to-image | nano-banana-2 | 6 | storm cloud |
+| concept | `01a1c903-8ff0-75cd-b21b-10bc9b1a7c1d` | text-to-image | nano-banana-2 | 6 | ice owl |
+| model | `01a1c904-496f-7122-aca7-c4bde19d3070` | image-to-3d, smart topology 6k | meshy-t2.5 + meshy-n1 | 15 | magma |
+| model | `01a1c904-4c6e-7130-97eb-2ebbc332595b` | image-to-3d, smart topology 6k | meshy-t2.5 + meshy-n1 | 15 | storm |
+| model | `01a1c904-4e62-7726-8d85-f8d01bf8ea61` | image-to-3d, smart topology 6k | meshy-t2.5 + meshy-n1 | 15 | ice |
+
+Files: `vendor_src/meshy/spirits/` in the integration checkout (gitignored): GLBs, concepts, `lineup_front.png`, `lineup_game.png`.
