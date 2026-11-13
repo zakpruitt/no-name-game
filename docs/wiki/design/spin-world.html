@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The World Builds Back</title>
+<meta name="description" content="Design draft, unique-spins lane: the build lives in the prison, its rooms and its foes, plus structures borrowed from outside action roguelikes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="spins.html">Unique spins</a>
+    <a href="spin-world.html" class="on">The world builds back</a>
+    <small>
+      <a href="#idea">The idea</a>
+      <a href="#glance">At a glance</a>
+      <a href="#breaches">1. Breaches</a>
+      <a href="#writs">2. Writs</a>
+      <a href="#bearers">3. Bearers</a>
+      <a href="#haul">4. The Haul</a>
+      <a href="#augury">5. The Augury</a>
+      <a href="#patch">6. Patch Notes</a>
+      <a href="#specialists">7. Specialists</a>
+      <a href="#conventional">Keep conventional</a>
+      <a href="#pick">The pick</a>
+      <a href="#decisions">Decisions</a>
+      <a href="#clashes">Doc clashes</a>
+    </small>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>The world builds back</h1>
+    <p class="lede">One of four "unique spin" lanes. This one puts part of the build outside the hero: in the
+    prison's rooms, its pieces and its foes. The second half borrows structures from outside action roguelikes.</p>
+
+    <section id="summary">
+      <div class="summary">
+        <p><b>Recommendation: Breaches, with Writs as the wardens' reward.</b> One card in every
+        <span class="t-boon">Boon</span> offer is a <b>Breach</b>: a crack in the prison, not a change to the heretic.
+        Take it and every later room in the run is built differently. "Powder Store" puts a powder line of kegs in
+        every room. "Rusted Chain" hangs two hooks in every room and turns on the gallows.</p>
+        <p>A Breach brings its own pieces with it, so it is never dead. It is offered only if the held spirit (or the
+        dark) answers those pieces. Under the hood a Breach is one room key that the run keeps and merges into every
+        later room. The keys are the ones <code>rooms.gd</code> already reads: a layer, <code>links</code>,
+        <code>flourishes</code>, <code>rebuild</code>. Most Breaches are C1.</p>
+        <p>A floor warden does not give a Boon offer. It gives its <b>Writ</b>, the room rule its fight was built
+        around. The Turnkey's room rebuilds broken pieces. Beat him and every later room does too.</p>
+        <p>Why this one: the spirit made the hero's growth feel like Awaken. Breaches do the same for the run's
+        growth, and they use the most finished thing in the game besides the strings, the pieces and their verbs.
+        The other Boons, the Gear lines and the doors stay conventional.</p>
+      </div>
+    </section>
+
+    <section id="idea">
+      <h2>The idea in one paragraph</h2>
+      <p>The prison was built to hold the four powers, so every piece is half a conductor
+      (<code>docs/design/environment-lore.md</code>). The heretic's moves already act on pieces: Molten Palm carries
+      foes into a keg, Frost Spear on a grate raises a Frost Wall, Overwhelm's Uproot tears out a pillar, a perfect
+      Ricochet hangs a foe on a hook. Today those pieces sit in training rooms. In a run they can be <b>what you
+      build</b>. You choose what the next rooms contain, you take rules off the wardens, and how a foe dies decides
+      what it leaves. The hero's kit stays small. The room grows instead.</p>
+      <p class="note gold">Scope rule for this page: no new effect sheets, no new hero states, nothing that makes a
+      piece hurt the hero (round 57's hero-safe call stands). Every idea names the already-built verb it leans on. The
+      old run was cut for being wide before the combat was good, so each proposal says what it <i>replaces</i>.</p>
+    </section>
+
+    <section id="glance">
+      <h2>The seven at a glance</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Name</th><th>Half</th><th>Hook</th><th>Replaces</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>Breaches</b></td><td>World</td><td>Some Boons crack the prison: every later room changes.</td><td>About a third of the Boon pool</td><td>C1 each, C2 once for the overlay</td></tr>
+          <tr><td>2</td><td><b>Writs</b></td><td>World</td><td>A warden fights under one room rule; beat it, the rule is yours.</td><td>The floor warden's Boon offer</td><td>C1 (Turnkey) to C3 per new warden</td></tr>
+          <tr><td>3</td><td><b>Bearers</b></td><td>World</td><td>Gear is worn by an elite who fights with it.</td><td>Elite traits and chest drops, merged</td><td>C2 per trait (3)</td></tr>
+          <tr><td>4</td><td><b>The Haul</b></td><td>Borrowed: deckbuilder</td><td>How a foe dies mints a piece card; <kbd>E</kbd> plants one mid-fight.</td><td>Gear, if it wins</td><td>C3, the real departure</td></tr>
+          <tr><td>5</td><td><b>The Augury</b></td><td>Borrowed: tarot</td><td>A four-card spread shows the floor's rooms; reverse one.</td><td>The random layout draw</td><td>C1 data, C2 screen</td></tr>
+          <tr><td>6</td><td><b>Patch Notes</b></td><td>Borrowed: fighting games</td><td>Every reward is shown as a line changed on your move list.</td><td>Nothing; how rewards read</td><td>C0 to C1, the cheap one</td></tr>
+          <tr><td>7</td><td><b>Specialists</b></td><td>Both: the prison adapts</td><td>The church sends one counter-foe for your favourite payoff.</td><td>Part of floors 2 and 3's mix</td><td>C2 to C3 per kind</td></tr>
+        </tbody>
+      </table></div>
+      <p>Cost classes are <a href="loot.html#pools">loot.html</a>'s: C0 a data flip, C1 a constant or two, C2 a rule
+      bend reusing a tell, C3 a new visible behaviour from existing sheets, C4 a new sheet or model.</p>
+    </section>
+
+    <!-- ===================================== 1 ===================================== -->
+    <section id="breaches">
+      <h2>1. Breaches: Boons that crack the prison</h2>
+      <p class="big"><b>Hook:</b> some Boons change the prison, not the heretic, and every room after that is built
+      differently.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The card.</b> Every Boon offer of three holds at most one Breach. It reads like a Boon card, with a
+          room icon instead of a sign icon.</li>
+        <li><b>What it changes.</b> One room key, kept by the run and merged into every later room's
+          <code>ROOM_DEFS</code> entry. Three kinds: <i>add a layer</i> (a small placement list, the shape a room
+          already uses), <i>turn a rule on</i> (<code>links</code>, <code>flourishes</code>, <code>rebuild</code>),
+          or <i>change a piece's starting state</i> (the <code>state</code> field <code>place()</code> already
+          takes).</li>
+        <li><b>It brings its pieces.</b> A Breach that turns on a flourish also adds the pieces the flourish needs.
+          This is what moves the three flourishes out of <a href="loot.html#later">loot.html's Not yet</a>, where they
+          wait "until rooms carry the pieces reliably".</li>
+        <li><b>The filter.</b> Offered only if the held spirit, or the dark, answers its pieces
+          (<code>env_piece.usable()</code>). Pillars and hooks are dark, so those Breaches suit every run. A keg Breach
+          needs <span class="el-magma">magma</span>. A grate Breach needs <span class="el-storm">storm</span> or
+          <span class="el-ice">ice</span>. Pools answer every element (water, frozen, live, steam).</li>
+        <li><b>Caps.</b> At most <span class="ph">3</span> Breaches a run, and a layer never lands on a tile that is
+          taken (the rooms check's overlap rule). Breaches never stack the same key twice.</li>
+      </ul>
+
+      <h3>The first pool</h3>
+      <div class="grid2">
+        <div class="item t-boon"><h4>Powder Store</h4><p><small>Layer + flourish. <span class="el-magma">Magma</span>. C1</small></p>
+          <p>Every later room places the forge's powder line: three kegs <span class="ph">3 m</span> apart between two
+          lit braziers. <code>brazier_spill</code> on. Molten Palm into any keg walks the whole line.</p></div>
+        <div class="item t-boon"><h4>Rusted Chain</h4><p><small>Layer + flourish. <span class="el-dark">Dark</span>. C1</small></p>
+          <p>Every later room hangs two hooks on pillar faces, and <code>gallows</code> is on. Every perfect Ricochet
+          has a hook within <code>GALLOWS_REACH</code>.</p></div>
+        <div class="item t-boon"><h4>Water Table</h4><p><small>Layer + rule. Any element. C1</small></p>
+          <p>Every later room has a two-pool channel along a wall, linked (<code>links: ["pool"]</code>).
+          <code>ice_rink</code> on. Ice freezes the channel; storm makes it live.</p></div>
+        <div class="item t-boon"><h4>Cold Iron Bond</h4><p><small>Layer + rule. <span class="el-storm">Storm</span> or
+          <span class="el-ice">ice</span>. C1</small></p>
+          <p>Every later room adds a row of three grates and links them (<code>links: ["grate"]</code>). One storm mark
+          makes the row live; a Frost Spear on it raises a Frost Wall.</p></div>
+        <div class="item t-boon"><h4>Deep Footings</h4><p><small>Layer. <span class="el-dark">Dark</span>. C1</small></p>
+          <p>Every later room gets <span class="ph">2</span> more pillars in the open floor. Uproot by a pillar pays
+          244 against 71 in the open (<code>cool_pass_check</code>), so this is an Overwhelm build's Breach.</p></div>
+        <div class="item t-boon"><h4>Rotten Floor</h4><p><small>Layer. Anyone. C1</small></p>
+          <p>Every later room scatters <span class="ph">3</span> rubble and <span class="ph">2</span> spike tiles
+          under the spawn points. Breaker landings on rubble throw chunks; thrown foes take x1.5 on spikes.</p></div>
+      </div>
+
+      <h3>Worked example</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>Offer</th><th>Took</th><th>What changed</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R2 (drill hall)</td><td>Smother / Hang Time / <b>Powder Store</b></td><td>Powder Store</td><td>Nothing yet; the room he is in keeps its layout.</td></tr>
+          <tr><td>F1 R3 (plain layout)</td><td></td><td></td><td>The bare hall now has a powder line. <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd>: Molten Palm carries the first wave into the middle keg, Undertow pins them, the line goes up, both braziers tip and Hellseam erupts along the coals x1.25.</td></tr>
+          <tr><td>F1 R4 (cistern)</td><td>Deep Footings / Free Fall / Wildfire</td><td>Wildfire (a hero Boon)</td><td>Kegs by the water. The cistern was "nothing burns" before; with Powder Store it is a fire room with an aqueduct.</td></tr>
+          <tr><td>F2 R2</td><td>Rusted Chain / Overload / Long Thaw</td><td>Rusted Chain</td><td>From here, every room has hooks: he starts waiting for warrior swings to hang them, then sets the hung one off with a keg.</td></tr>
+        </tbody>
+      </table></div>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> about a third of the Boon pool. The state Boons and the 18 old cells stay. Gear and
+          Techniques are untouched.</li>
+        <li><b>Reuses:</b> <code>ROOM_DEFS</code> layers and the four room keys, <code>env_flourish.on()</code> (which
+          already reads a room's <code>flourishes</code> list), <code>env_piece.place()</code> and its
+          <code>state</code>, the cistern's aqueduct and the forge's powder line as ready-made layers,
+          <code>rooms_check</code>'s fit and overlap rules.</li>
+        <li><b>Cost:</b> one C2 for the overlay (a run-wide dictionary that <code>rooms.rule()</code> and
+          <code>layout()</code> merge over each room), then C1 per Breach: a placement list per layout, checked by
+          <code>rooms_check</code>.</li>
+        <li><b>Nearest in other games:</b> <i>Into the Breach</i> and <i>Spelunky</i> have rooms whose terrain is the
+          puzzle. Isaac items that change every later floor ("Treasure Map", the curses) change the world for the
+          rest of a run. The difference here: a Breach does not add a stat or a hazard. It adds things a named string
+          already knows how to use, so the payoff is a combo you could already play in the forge, now in every room.</li>
+      </ul>
+      <div class="risk"><b>Risk: every room looks the same by floor 3.</b> Three Breaches put kegs, hooks and pools in
+      every room, and the layouts stop mattering. Hedges: the cap of 3, each layer placed by the layout (not
+      everywhere), and Breaches never repeat. Early sign: Zak can no longer tell the cistern from the forge in floor
+      3.</div>
+    </section>
+
+    <!-- ===================================== 2 ===================================== -->
+    <section id="writs">
+      <h2>2. Writs: take the warden's rule</h2>
+      <p class="big"><b>Hook:</b> each floor warden fights in a room built around one prison rule; beat it and that
+      rule is yours for the rest of the run.</p>
+
+      <h3>How it works in play</h3>
+      <p>A Writ is a Breach-sized room key, forced and stronger. The warden's room has it on, and the warden is built
+      so the rule is how you beat him. When he falls, the Writ goes into the run's overlay. That replaces
+      <a href="run.html#shape">run.html</a>'s warden reward (a Boon, 1 of 3). Only the two floor wardens give one; the
+      final warden ends the run.</p>
+      <div class="grid2">
+        <div class="item t-boon r-2"><h4>The Turnkey: Writ of Repair</h4><p><small>Floor 1. Key: <code>rebuild</code> on. C1</small></p>
+          <p><b>His fight:</b> run.html's warden from parts, an outsized skeleton warrior that a launcher does not lift.
+          His room has four pillars and <code>rebuild</code> true, the training hall's rule: a toppled pillar comes back
+          <code>REBUILD_S</code> 6 s later. Launches do nothing to him, so the damage is Overwhelm, then Uproot, again
+          and again as the pillars return.</p>
+          <p><b>Taken:</b> every later room rebuilds what you use up. Two kegs per keg spot, two Uproots per
+          pillar.</p></div>
+        <div class="item t-boon r-2"><h4>The Sluicekeeper: Writ of the Flood</h4><p><small>Floor 2. Key:
+          <code>links: ["pool"]</code> + a channel layer. C3 (new warden, a Meshy body)</small></p>
+          <p><b>His fight:</b> a Warded wader (blocks from every side until launched or grabbed) in a room cut by a
+          long channel. The pools take every element: ice freezes the channel and a knocked escort slides the length
+          of it (<code>RINK_SLIDE_MIN</code>); storm makes the water live; magma turns it to steam. Each is a way
+          to strip his escorts while you work him open with a grab.</p>
+          <p><b>Taken:</b> Water Table, but every pool in every later room is linked into one body.</p></div>
+      </div>
+      <p>Later wardens on the same pattern: <b>the Hangman</b> (Rusted Chain, the gallows; a foe that only drops guard
+      when hung), <b>the Pitchwarden</b> (Powder Store; kegs ring his arena). A floor draws one of
+      <span class="ph">2</span> wardens, so two runs meet different Writs. Each new warden is one Meshy foe (26
+      credits, no hand rigging, <a href="../../features/meshy-foes.md">meshy-foes.md</a>) plus a room.</p>
+
+      <h3>Worked example</h3>
+      <p>Ice run. F1 warden: the Turnkey. Frost Spear on his grate raises a Frost Wall, Harpoon's cubes Shatter on it,
+      and every 6 s the pillars come back for another Uproot. He falls; Writ of Repair is taken. F2 R1 is the forge
+      layout: the Frost Wall's grate rebuilds, so he can raise a second wall in the same fight. F2's warden is the
+      Sluicekeeper: Harpoon freezes the channel and the cube row goes 24 m down it. Writ of the Flood taken. Floor 3:
+      every pool in every room is one channel.</p>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> the floor warden's Boon offer.</li>
+        <li><b>Reuses:</b> <code>rebuild</code> (the Turnkey's Writ is a C0 key; his trait is the C1), the cistern's
+          channel rules, the planned elite traits (Rooted, Warded), the Meshy foe route.</li>
+        <li><b>Cost:</b> the Turnkey C1. Each new warden C3: a model, a trait, a room. No new effect sheets.</li>
+        <li><b>Nearest in other games:</b> <i>Mega Man</i>: beat the boss, take its weapon. The difference: you take a
+          rule of the room, not a gun, and the boss fight is the tutorial for the rule you take.</li>
+      </ul>
+      <div class="risk"><b>Risk: a Writ that the held spirit cannot use.</b> A warden built on kegs is a bad fight for
+      an ice heretic. Rule: a Writ's pieces must answer to the dark or to every element (pillars, hooks, pools,
+      rebuild). Keg and grate wardens only appear when the held spirit answers them.</div>
+    </section>
+
+    <!-- ===================================== 3 ===================================== -->
+    <section id="bearers">
+      <h2>3. Bearers: elites wear the Gear</h2>
+      <p class="big"><b>Hook:</b> Gear does not come out of chests; an elite wears it, fights with it, and you take it
+      off his body.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The trait is the item's family.</b> run.html plans one trait per elite. Here the trait says what kind of
+          item he wears. <i>Rooted</i> (a launcher does not lift it) bears a Graft from the force lines: Heavy Head,
+          Long Reach, Hard Landing. <i>Skittish</i> (dodges like a rogue) bears a Shackle from the step lines: Quick
+          Step, Long Step, Sky Grip. <i>Warded</i> (blocks from every side until launched or grabbed) bears a Shackle
+          from the counter lines: Wide Watch, Iron Answer, Hurled.</li>
+        <li><b>You see it at the door.</b> The elite door shows the item's floor card (loot.html's compare, unchanged).
+          You choose the room by the item.</li>
+        <li><b>You see it on him.</b> A Graft bearer has the glowing tentacle knot grown into his arm; a Shackle bearer
+          wears the iron band. Rarity colour as on the floor.</li>
+        <li><b>He drops it where he dies.</b> Then the floor card and the <kbd>E</kbd> swap, exactly as loot.html has
+          it.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <p>F1 R4 doors: Rest, or an elite warrior bearing <b>Prison Weight</b> (Shackle, Hallowed: Wide Watch, Hurled).
+      He is Warded, so the strings bounce off him; what opens him is the counter: Backlash on his windup, then Ricochet.
+      Prison Weight is a counter item. By the time it drops he has spent a minute teaching it. F2: a brute bearing
+      <b>Hooked Barb</b> (Long Reach), Rooted, so the answer is Overwhelm and the pin. The Graft that drops makes Reap,
+      Black Tide and Overwhelm reach further.</p>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> chest drops and the separate elite trait list. Elite room and Gear become one thing.
+          Gear per run stays 2 to 3: one elite per floor, plus the rare foe drop.</li>
+        <li><b>Reuses:</b> loot.html's items, lines and floor card; the elite traits run.html already plans; elites as
+          their kind at x2 hp; the brute and the cultist as bearer bodies.</li>
+        <li><b>Cost:</b> C2 per trait (3 of them, planned anyway). The band and knot on a foe are a separate mesh on
+          <code>hand.r</code> (meshy-foes.md lists held meshes as not built): C2 for a tinted band, C4 for a real
+          knot.</li>
+        <li><b>Nearest in other games:</b> <i>Monster Hunter</i> (the gear is made from the thing you fought) and
+          <i>Shadow of Mordor</i> captains. The difference: the item does not copy the elite's power; the trait points
+          at the tool in your kit that beats it, and the item rewards that tool.</li>
+      </ul>
+      <div class="risk"><b>Risk: three traits are a thin item pool.</b> If a trait always maps to the same three lines,
+      bearers become predictable. That is also the point (you can read the door), so the hedge is Hallowed rolls two
+      lines from the family, and Profane items come only from wardens.</div>
+    </section>
+
+    <!-- ===================================== 4 ===================================== -->
+    <section id="haul">
+      <h2>4. The Haul: a deck of pieces, minted by kills</h2>
+      <p class="big"><b>Hook:</b> how a foe dies decides what piece it leaves; the arm hauls those pieces from room to
+      room as a small deck, and <kbd>E</kbd> plants one mid-fight.</p>
+
+      <h3>What a deckbuilder does, and what this does</h3>
+      <p><i>Slay the Spire</i>: you build a deck between fights, draw a hand each fight, and some cards exhaust
+      (gone for that fight once played). Here the cards are <b>pieces</b>, the deck is minted by your kills, and
+      playing one is not a turn: it is a press in a real-time fight. The card's effect is not written on the card.
+      It is whatever your strings already do to that piece.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>Minting.</b> A kill that pays a rule leaves remains that match it. Burst kill: a <b>pitch keg</b>.
+          Shatter kill: an <b>ice slab</b> (a short Frost Wall). Arc kill: a <b>cold iron grate</b>. Snap kill: a
+          <b>bone pillar</b>. Crater kill: <b>rubble</b>. At the room's end you take <span class="ph">1</span> of the
+          remains you made into the deck. Max deck <span class="ph">5</span>.</li>
+        <li><b>Drawing.</b> Each room deals <span class="ph">2</span> cards. They show as two small icons by the combo
+          guide.</li>
+        <li><b>Planting.</b> <kbd>E</kbd> (free since the old E move went; the bond prompt uses it only by a spirit)
+          slams the top card into the floor where the tentacle points, snapped to a tile. It is a real piece with every
+          verb.</li>
+        <li><b>Exhaust.</b> A planted piece used up (a keg burst, a pillar uprooted, a slab shattered) leaves the deck
+          for good. One never used comes back next room.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <p><span class="el-magma">Magma</span> spirit. R1: a minion dies in a Burst; the deck takes a pitch keg. R2,
+      hand: pitch keg. He plants it in the middle of the first wave, then <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd>
+      <kbd>H</kbd>: Molten Palm carries them into it, KA-BLOOOM, all molten. The keg is gone. R2 also: a warrior dies
+      to a Snap in Overwhelm's tendrils; a bone pillar joins the deck. R3: the brute. He plants the pillar beside it,
+      Overwhelm, Uproot: 244 by a pillar, 71 in the open.</p>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> Gear, if it wins. Both are "the thing you carry and choose". Running both is two find
+          layers.</li>
+        <li><b>Reuses:</b> <code>env_piece.place()</code> and every verb, <code>frost_wall.raise()</code> for the slab,
+          <code>env_target.add_prop()</code>, <code>improv_paid</code> for which rule killed, the brazier and pillar
+          models.</li>
+        <li><b>Cost:</b> C3. The plant press, placement checks mid-fight (a floor piece replaces its tile), the hand
+          icons. C4 if the plant needs its own arm animation.</li>
+        <li><b>Nearest in other games:</b> <i>Slay the Spire</i> for the deck and exhaust; <i>Risk of Rain</i>'s
+          Engineer and <i>Dead Cells</i>' traps for placing things in a real-time fight. The difference: the pieces are
+          not turrets. They do nothing alone. They are set-ups the existing strings pay off.</li>
+      </ul>
+      <div class="risk"><b>Risk: a press that breaks the string.</b> If <kbd>E</kbd> mid-fight costs the combo's
+      rhythm, nobody plants. Test first in the training hall with debug cards: can Zak plant and go straight into
+      <kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd> <kbd>H</kbd> in under a second? If not, plant only between waves.</div>
+    </section>
+
+    <!-- ===================================== 5 ===================================== -->
+    <section id="augury">
+      <h2>5. The Augury: the floor as a tarot spread</h2>
+      <p class="big"><b>Hook:</b> at each floor's start you see its four rooms as four cards, and you may reverse one.</p>
+
+      <h3>What tarot does, and what this does</h3>
+      <p>A tarot spread lays cards in positions (past, present, future); a reversed card reads as the inverse. In
+      <i>Cult of the Lamb</i> the tarot is a boon you draw. Here the cards are not powers. They are the rooms, read in
+      advance, so you can pick Boons for rooms you know are coming.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>Four cards, in order.</b> Each is a room: its layout (The Drill Hall, The Cistern, The Forge, or one of
+          run.html's <span class="ph">4</span> new layouts, such as a hook-lined Gallows) and its foe mix in one line. Shown in the training-hall door before floor 1 and at each warden's
+          exit.</li>
+        <li><b>One reversal per floor.</b> A reversed card flips its pieces' starting state. The Cistern reversed:
+          The Frozen Cistern (pools start frozen). The Forge reversed: Damp Powder (kegs need two magma hits, and
+          braziers start out). The Drill Hall reversed: Collapsing (pillars start cracked).</li>
+        <li><b>Doors stay.</b> Doors still show the reward layer. The Augury only fixes which room is behind them.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <p>Floor 2 spread: Drill Hall, Forge, Cistern, Gallows. <span class="el-ice">Ice</span> spirit. The Forge's kegs
+      are useless to him, so he reverses the Cistern to the Frozen Cistern. Now room 3 opens with a frozen channel,
+      and he takes Brittle Crowd at room 2 knowing every Harpoon row in room 3 will slide 24 m and Shatter.</p>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> run.html's random layout draw, and its "door shows the room's piece family, later"
+          idea.</li>
+        <li><b>Reuses:</b> <code>ROOM_DEFS</code>, piece <code>state</code>, the run seed.</li>
+        <li><b>Cost:</b> C1 for the reversed states (data), C2 for the spread screen.</li>
+        <li><b>Nearest in other games:</b> <i>FTL</i> and <i>Slay the Spire</i> show the route ahead. The difference:
+          you do not pick a path. You read one fixed floor and bend one room of it.</li>
+      </ul>
+      <div class="risk"><b>Risk: a screen before the fight.</b> run.html's rule is "if a choice needs a panel, cut it".
+      The spread must read in five seconds: four room names, four piece icons, one reverse. If it needs more, cut it
+      to "reverse the next room" on the door.</div>
+    </section>
+
+    <!-- ===================================== 6 ===================================== -->
+    <section id="patch">
+      <h2>6. Patch Notes: your build as a move-list diff</h2>
+      <p class="big"><b>Hook:</b> every reward is shown as the lines it changes on your move list, written like a
+      fighting game's patch notes.</p>
+
+      <h3>What fighting games do, and what this does</h3>
+      <p>Fighting-game players live in the move list, the training mode and the patch notes ("Dash Stab: recovery -3
+      frames"). Awaken already has a move list (<code>move_list.gd</code>), a combo guide that tags a row
+      "+ Shatter" (<code>hero_moves.pays()</code>), and a bond prompt that lists what a spirit opens. Patch Notes uses
+      that language for every reward, so the build reads as <i>your version</i> of the heretic.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The card body is the diff.</b> "Dash Stab (<kbd>Dash</kbd> <kbd>L</kbd>): now leaves frozen,
+          <span class="ph">1 s</span>." "Ricochet: hangs the attacker on a hook within 10 m." "All rooms: + powder
+          line."</li>
+        <li><b>The pause MOVES panel marks changed rows</b> with the reward's name beside them.</li>
+        <li><b>The run ends with its notes:</b> "Heretic, this run" and every line, in the order taken. Win or die.</li>
+      </ul>
+      <p><b>Worked example:</b> after F1, the notes read: "Molten Palm (<kbd>L</kbd> <kbd>L</kbd> <kbd>L</kbd>
+      <kbd>H</kbd>): + Burst on molten foes (Wildfire spreads it). All rooms: + powder line (Powder Store). Every
+      room rebuilds (Writ of Repair)." Three lines, one glance, the whole build.</p>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> nothing. It is how loot.html section 6 (reading it in the fight) is written.</li>
+        <li><b>Reuses:</b> <code>move_list.gd</code> rows, <code>hero_moves.pays()</code>,
+          <code>Spirits.offers()</code>'s pattern of listing rows.</li>
+        <li><b>Cost:</b> C0 to C1. Text and one mark on the move list.</li>
+        <li><b>Nearest in other games:</b> real patch notes, and <i>Balatro</i>'s plain joker text. The difference: it is
+          your own patch, in the move list you train on.</li>
+      </ul>
+      <div class="risk"><b>Risk: a wall of text.</b> Each line must name one row. A reward that cannot be written in one
+      line on the move list fails loot.html's naming test anyway.</div>
+    </section>
+
+    <!-- ===================================== 7 ===================================== -->
+    <section id="specialists">
+      <h2>7. Specialists: the prison answers your build</h2>
+      <p class="big"><b>Hook:</b> the church keeps a ledger of how you kill, and floors 2 and 3 each add one foe sent
+      to answer your favourite payoff.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The ledger</b> is <code>improv_paid</code>, already counted per state. The most-paid rule on a floor
+          picks the next floor's specialist.</li>
+        <li><b>A specialist answers its rule in an aura, and dies fast.</b> A cultist body
+          (<span class="ph">26</span> hp), one per wave at most. Shatter build: the <b>Thaw-priest</b> thaws frozen foes
+          within <span class="ph">4 m</span>. Arc build: the <b>Lightning Rod</b>, where arcs end on him. Burst build:
+          the <b>Quencher</b>, who puts out molten near him. Snap build: the <b>Unbinder</b>.</li>
+        <li><b>The answer is a target, not a wall.</b> Kill him first and the build is back. Kill him with the rule he
+          counters and he pays it double.</li>
+      </ul>
+      <p><b>Worked example:</b> floor 1 was all Shatter. Floor 2's second wave brings a Thaw-priest behind the
+      shields. Harpoon's cubes thaw if they drift near him, so the room asks for Tow Line on him first, then the
+      row.</p>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> part of floors 2 and 3's foe mix (run.html's "flankers and a shooter screen").</li>
+        <li><b>Reuses:</b> <code>improv_paid</code>, the cultist model, the state clear functions
+          (<code>_break_ice()</code>, <code>floor_bind.let_go_of()</code>).</li>
+        <li><b>Cost:</b> C2 per specialist (aura, tell), C3 with its own look.</li>
+        <li><b>Nearest in other games:</b> <i>Left 4 Dead</i>'s director and its special infected, each built to break
+          one habit. The difference: here the special is chosen by your build, not your position.</li>
+      </ul>
+      <div class="risk"><b>Risk: it punishes commitment.</b> A roguelike rewards going deep, and this pushes back. It is
+      the one proposal here I would not build before the run is fun. If kept, the "pays double" rule must make the
+      specialist feel like a gift to the build, not a tax.</div>
+    </section>
+
+    <!-- ===================================== KEEP ===================================== -->
+    <section id="conventional">
+      <h2>Keep conventional</h2>
+      <p>Zak: "we don't need to make EVERYTHING unique". These stay as loot.html and run.html have them, on
+      purpose:</p>
+      <ul class="plain">
+        <li><b>The Boon offer: 1 of 3, kept all run, no rerolls.</b> Players know it instantly. The spin goes into
+          one card in three (a Breach), not into how the offer works.</li>
+        <li><b>The state Boons and the 18 old cells.</b> They are already unique, because the combat is. Shard Cut
+          has its own word and look. Giving them a new frame adds nothing.</li>
+        <li><b>Gear's number lines and three rarities.</b> "+15% reach" is fine. The find is the fun, and Bearers
+          change where it is found, not what it says.</li>
+        <li><b>Two doors, no map, no currency.</b> The Augury only fixes which room is behind a door.</li>
+        <li><b>Hazards stay hero-safe.</b> Breaches and Writs make rooms richer for him, never deadlier. A room that
+          hurts him is a difficulty layer, which is a different page.</li>
+      </ul>
+    </section>
+
+    <!-- ===================================== PICK ===================================== -->
+    <section id="pick">
+      <h2>This lane's pick</h2>
+      <div class="grid2">
+        <div class="option pick"><h3>Breaches, with the Turnkey's Writ</h3>
+          <p>Cheapest unique spin with the biggest visible change. Almost all of it is room data that exists. It
+          finally gives the three flourishes and the two showcase rooms a job in a run. It changes the world, which no
+          other lane covers. Build order: the overlay and three Breaches (Powder Store, Rusted Chain, Water Table)
+          inside run.html's slice 4; the Writ of Repair with the Turnkey in slice 7.</p></div>
+        <div class="option"><h3>Next, if it lands: The Haul</h3>
+          <p>The real mechanical departure, and the deepest. Prototype it in the training hall with debug cards
+          before any run uses it. Only one of the Haul and Gear should ship.</p></div>
+        <div class="option"><h3>Free to do anytime: Patch Notes</h3>
+          <p>Text only. Helps every layer read, including the other lanes' ideas.</p></div>
+      </div>
+    </section>
+
+    <!-- ===================================== DECISIONS ===================================== -->
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <ol>
+        <li class="decision"><b>Can one card in a Boon offer be a Breach, a room key that changes every later room?</b>
+          <span class="pick">Yes, at most one per offer and <span class="ph">3</span> per run.</span></li>
+        <li class="decision"><b>Does a Breach bring the pieces it needs, so the gallows, ice rink and brazier spill
+          leave Not yet?</b> <span class="pick">Yes. A Breach is never offered unless its pieces will be there and the
+          held spirit or the dark answers them.</span></li>
+        <li class="decision"><b>Do floor wardens give their Writ instead of a Boon offer?</b> <span class="pick">Yes,
+          starting with the Turnkey's Writ of Repair (<code>rebuild</code> on), which costs almost nothing.</span></li>
+        <li class="decision"><b>Prototype the Haul (<kbd>E</kbd> plants a piece minted by a kill)?</b>
+          <span class="pick">Yes, but in the training hall only, after Boons are judged. It ships only if it replaces
+          Gear.</span></li>
+        <li class="decision"><b>Do elites wear the Gear they drop (trait = item family)?</b> <span class="pick">Yes,
+          when Gear is built (slice 5). It costs the traits run.html already plans.</span></li>
+      </ol>
+    </section>
+
+    <!-- ===================================== CLASHES ===================================== -->
+    <section id="clashes">
+      <h2>Where the docs disagree with this lane's brief</h2>
+      <div class="note"><ul class="plain">
+        <li><b>One spirit or two Attunements.</b> spirits.md: he holds one spirit at a time; claiming another swaps;
+          a crossover (Fault Line, Hailstorm, Steam Burst) "needs both, so one spirit never opens it". The hub, kits.html
+          and run.html assume two Attunements per run and three crossovers as Techniques. This page filters Breaches by
+          the held spirit, which works either way, but the other pages' sample builds (Thunder Cage, storm and ice) do
+          not exist under one spirit.</li>
+        <li><b>"Frost walls" are not a room piece.</b> A Frost Wall is raised by Frost Spear on a grate
+          (<code>frost_wall.gd</code>). The piece is the grate.</li>
+        <li><b>The world-changing items already have a draft.</b> environment-lore.md's "How items could alter rooms"
+          lists Sapper's Map, Cold Iron Bond, Water Table, Rusted Chain and Fallen Column. Breaches build on it. What is
+          new here: they sit in the Boon offer, bring their own pieces, follow the spirit filter, and the wardens give
+          them out.</li>
+        <li><b>The foe roster has grown.</b> run.html's role table lists six skeleton kinds. <code>enemy_types.gd</code>
+          also has the Meshy brute (120 hp, poise 14) and cultist (ranged, 26 hp). Both are used above.</li>
+      </ul></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

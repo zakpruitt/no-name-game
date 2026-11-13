@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Earned in the Fight</title>
+<meta name="description" content="Design draft: a unique spin on Boons and Gear where the build is shaped by how you fight, not by a card screen between fights.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="spins.html">Unique spins</a>
+    <a href="spin-earned.html" class="on">Earned in the fight</a>
+    <small>
+      <a href="#summary">Summary</a>
+      <a href="#idea">The idea</a>
+      <a href="#last-word">1. The Last Word</a>
+      <a href="#window-learns">2. The Window Learns</a>
+      <a href="#trophy">3. Trophy Grafts</a>
+      <a href="#book">4. The Combo Book</a>
+      <a href="#vows">5. Spirit Vows</a>
+      <a href="#cut">Left out</a>
+      <a href="#conventional">Keep conventional</a>
+      <a href="#compare">Side by side</a>
+      <a href="#decisions">Pick and decisions</a>
+    </small>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>Earned in the fight</h1>
+    <p class="lede">One of the four "unique spin" lanes. This one asks: what if the build is shaped by how you fight,
+    not chosen from a card screen between fights?</p>
+
+    <section id="summary">
+      <div class="summary">
+        <p><b>Best single idea: The Window Learns.</b> A breaker's second ending is not a reward card. You learn it in
+        the fight. Land the first ending while the room is in the situation the second ending is built for, and the
+        game stamps the second ending as learned. From then on, that window shows both chips.</p>
+        <p>Example: Undertow's Meteor Fall lands while Molten Palm has scattered the foes. Meteor Shower is built for
+        scattered foes, so it is learned on that landing. No menu, no grind. It teaches the "L wins when..., H wins
+        when..." line that every window already has.</p>
+        <p>The endings are already built and each one already has a tested best situation. The work is a gate, a check
+        at the landing and a stamp: about <b>C2</b> once, then <b>C1</b> per ending.</p>
+        <p><b>Cheap one to ship with Boons: The Last Word.</b> How the room's last foe dies picks the sign of one card
+        in the next Boon offer, and a peak style rank of S adds a fourth card. Nothing ever takes a card away.</p>
+        <p>Keep the Boon card screen, the Gear compare card and the numbers on Gear conventional. They are quick to
+        read. The combat is where the novelty belongs.</p>
+      </div>
+    </section>
+
+    <section id="idea">
+      <h2>The idea, and the trap</h2>
+      <p>The spirit already feels like Awaken's own: you walk up to it, it rides on your shoulder, and it opens moves.
+      <span class="t-boon">Boons</span> and <span class="t-gear">Gear</span> are what other games have. This lane
+      lets the combat systems we already have decide what you are offered: named strings, timed breakers with a
+      PERFECT, two-ending windows, the six foe states, the dash counter and the style rank. Sometimes they also
+      decide what the reward is.</p>
+      <p>The trap is a system that pays only players who are already good, or that makes people farm one move on fodder
+      instead of fighting well. Every proposal below passes three rules:</p>
+      <ul class="plain">
+        <li><b>Situations, not counts.</b> Nothing is earned by doing the same thing N times. Things are earned by
+          doing something once in the right place.</li>
+        <li><b>Skill adds, never subtracts.</b> A weak room gives what the current plan gives. A strong room gives a
+          bit more choice, not more power.</li>
+        <li><b>Never stop the fight.</b> No card or menu opens while foes are alive. Anything taken mid-fight is taken
+          with a verb he already has.</li>
+      </ul>
+      <p class="note">Words used here: "spirit" is the built thing (<code>spirits.gd</code>). The design pages call
+      the same reward an "Attunement". The cost classes C0 to C4 are <a href="loot.html#pools">loot.html</a>'s.</p>
+    </section>
+
+    <!-- ============================== 1 ============================== -->
+    <section id="last-word">
+      <h2>1. The Last Word <small>(cheap: one rule on the Boon offer)</small></h2>
+      <p class="big">The way the room's last foe dies decides the sign of one card in the next Boon offer.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li>The last foe's killing blow is tagged with a cause. Every cause maps onto one of loot.html's ten signs, so
+          no new grouping is needed:
+          <div class="tbl"><table>
+            <thead><tr><th>Last foe dies to...</th><th>Sign of one card</th></tr></thead>
+            <tbody>
+              <tr><td>a rule payoff: Shatter, Arc, Burst, Snap, Juggle, Crater (or its upgrade cell)</td><td>that state</td></tr>
+              <tr><td>a breaker landing (<code>State.LEAP</code>)</td><td>breaker</td></tr>
+              <tr><td>Backlash or Ricochet</td><td>counter</td></tr>
+              <tr><td>Dash Stab, Tow Line, an air-dash cut</td><td>dash</td></tr>
+              <tr><td>any hit while Awakened</td><td>Awakening</td></tr>
+              <tr><td>anything else (a plain light, a stray hit)</td><td>no steer: the plain offer</td></tr>
+            </tbody>
+          </table></div></li>
+        <li>The room's <b>peak</b> style rank, not its final rank, sets the card count. S or higher: <span class="ph">4</span>
+          cards. Below S: 3, which is what the plan already gives. Style already rewards variety over mashing
+          (<code>Game.register_hit</code>: a new move is worth 3, a repeat 1.5), so the rank asks for mixing, not
+          for speed.</li>
+        <li>The look: the last-kill slow motion already plays. On top of it, the sign's mark (the one
+          <code>comic_state_tell.gd</code> draws on foes) stamps onto the body in ink. When the offer opens, the steered
+          card carries the same stamp.</li>
+        <li>loot.html's "only what you can use" filter still applies. If the steered sign has nothing your kit can
+          trigger, the card falls back to a plain one.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>What happened</th><th>Offer</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R2</td><td>Storm spirit. Galvanize charged the pack; the last skeleton dies when Reap arcs through it. Peak rank A.</td><td>3 cards, one from the charged sign (Conduct). He takes it.</td></tr>
+          <tr><td>F1 R3</td><td>He ends the room in Grounded's hang. Peak rank S.</td><td>4 cards, one from the breaker sign (Aftermark).</td></tr>
+          <tr><td>F1 R4</td><td>A rough room: hit often, peak rank B, the last foe dies to Triple Chop.</td><td>3 plain cards, the same as the current plan. Nothing lost.</td></tr>
+        </tbody>
+      </table></div>
+
+      <ul class="plain">
+        <li><b>A struggling player:</b> sees exactly today's plan. Steering comes from where they choose to finish,
+          not from execution. Ending a room with a counter is hard; ending it on a frozen foe is easy.</li>
+        <li><b>Replaces:</b> nothing. It is a rule on loot.html's offer. It also steers better than the door icon alone,
+          because it shows up where the player's attention already is.</li>
+        <li><b>Reuses:</b> the ten signs, the state tells, the last-kill slow motion, <code>Game.rank()</code>, the rule
+          names from <code>_pay()</code>.</li>
+        <li><b>Cost: C1.</b> A kill-cause tag on the foe's death, one offer rule and the stamp, using an existing tell.
+          It needs the Boon offer screen from run slice 4, which is planned anyway.</li>
+      </ul>
+      <div class="risk"><b>Risk: nobody notices the steer.</b> If the stamp reads as decoration, the rule is invisible.
+      Test: after five rooms, can Zak say why a card was offered? If not, add one line on the card: "Your last word:
+      frozen."</div>
+      <p><b>Nearest thing elsewhere.</b> Hades shows which god's boon is behind a door, and Devil May Cry grades a
+      mission and pays orbs for the grade. The difference here: you steer in the middle of the fight by how you finish
+      it, and the grade only ever adds a choice. It never adds power.</p>
+    </section>
+
+    <!-- ============================== 2 ============================== -->
+    <section id="window-learns">
+      <h2>2. The Window Learns <small>(the pick)</small></h2>
+      <p class="big">A breaker's second ending is learned by landing the first ending in the situation the second
+      ending is built for.</p>
+
+      <h3>How it works in play</h3>
+      <p>Every built two-ending window has a best situation for each ending. <code>void_arm_check._breaker_pairs()</code>
+      asserts it: each ending beats its sibling in its own situation and loses in the other one. At the start of a run,
+      each window shows only its RMB ending. When you land that ending while the room is in the LMB ending's
+      situation, the game stamps the LMB ending as learned. From then on, the prompt shows both chips.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Window (RMB ending)</th><th>Learn the LMB ending</th><th>...by landing RMB when</th><th>Existing check</th></tr></thead>
+        <tbody>
+          <tr><td>Undertow (Meteor Fall)</td><td><b>Meteor Shower</b></td><td>the palm scattered them: no group of <span class="ph">3</span> within <code>METEOR_PILE_R</code></td><td><code>meteor_target()</code></td></tr>
+          <tr><td>Fault Line (Cataclysm)</td><td><b>Tempest</b></td><td>a crowd of four or more is near the strike</td><td>the pairs' five-vs-two case</td></tr>
+          <tr><td>Impale / Backdraft (Anvil)</td><td><b>Pinwheel</b></td><td>a wall or pillar is within 10 m</td><td><code>env_target</code> bracket</td></tr>
+          <tr><td>Live Wire (Grounded)</td><td><b>Short Circuit</b></td><td>foes stand past the tentacles' reach (<code>SEIZE_RANGE</code> 8 m)</td><td><code>void_grab.reachable()</code></td></tr>
+          <tr><td>Black Tide (Maw)</td><td><b>Black Ice</b></td><td>a structure is in reach of the pool</td><td><code>env_target</code></td></tr>
+          <tr><td>Harpoon (Shatterstorm)</td><td><b>Slapshot</b></td><td>a wall or Frost Wall is in reach of the row</td><td><code>env_target</code></td></tr>
+          <tr><td>Overwhelm (Abyss)</td><td><b>Uproot</b></td><td>a pillar stands near the pinned foe</td><td>the env-pieces pillar test</td></tr>
+        </tbody>
+      </table></div>
+      <ul class="plain">
+        <li><b>Any landing counts.</b> No PERFECT is needed. A miss or a lockout teaches nothing, but costs nothing
+          either.</li>
+        <li><b>The stamp:</b> on that landing, after the callout banner, the second chip draws in ink under the
+          circle with "LEARNED". The HUD's "New combo: ... 5 / 16 found" hint gets a sibling: "New ending: Meteor
+          Shower (L in Undertow's window)".</li>
+        <li><b>The guide teaches it.</b> While the LMB ending is unlearned and its situation is live, the prompt draws
+          a dim ghost chip. The player sees "this could have been something else here" before it is learned.</li>
+        <li><b>Cold Front stays a card.</b> It has no situation of its own (combo-breakers.md, cool pass round 52).
+          It remains an ordinary <span class="t-technique">Technique</span>.</li>
+        <li><b>Learned for the run only.</b> The next run starts with RMB endings again. That is fine, because every
+          run meets walls, crowds and scatters.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>What happened</th><th>Kit change</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R1</td><td>Bonds the ice spirit. Harpoon gathers a row and he lands Shatterstorm next to the room's east wall.</td><td>Slapshot learned. Harpoon's window now offers punching the row into the wall.</td></tr>
+          <tr><td>F1 R2</td><td>Overwhelm on a shield foe beside a pillar. Abyss lands.</td><td>Uproot learned. The ghost chip was there during the hang.</td></tr>
+          <tr><td>F1 R3</td><td>Black Tide in the open. Maw lands, with no structure in reach.</td><td>Nothing. Black Ice stays unlearned.</td></tr>
+          <tr><td>F2 R1</td><td>Swaps to magma. The palm sends three foes three ways, and Meteor Fall lands on the biggest.</td><td>Meteor Shower learned on his first Undertow of the run.</td></tr>
+        </tbody>
+      </table></div>
+
+      <ul class="plain">
+        <li><b>A struggling player:</b> learns endings from where foes happen to stand, not from execution. They also
+          get the clearest lesson the game can give: this ending is for this situation. A player who never meets a
+          crowd never gets Tempest, and does not need it.</li>
+        <li><b>Replaces:</b> the "new ending in a breaker window" kind of <span class="t-technique">Technique</span>
+          card. Those card slots go back to moves and crossovers. A Technique offer shrinks to "a new input".</li>
+        <li><b>Reuses:</b> seven built and judged endings, their situation tests, the prompt's chips
+          (<code>hero_leap.options()</code> just filters out the unlearned <code>alt</code>), the found-combo hint, and the
+          <code>Kit.has()</code> gate pattern.</li>
+        <li><b>Cost: C2 once</b> (the gate in <code>options()</code>, a situation check at <code>_impact()</code>, the ghost
+          chip, the stamp), then <b>C1 per ending</b> (one condition each, mostly a call to an existing function). No
+          new sheets. The checks need a bot string per ending that sets its situation first. The breaker-pairs layouts
+          already do this (<code>spread</code>, <code>wall</code>).</li>
+      </ul>
+      <div class="risk"><b>Risk: a button that did nothing.</b> Before the ending is learned, L in that window is
+      dead. A player who presses L by habit gets nothing. Fix: before learning, L dives as RMB does. Test it in
+      <code>prompt_follow_check</code> with the alt gated.</div>
+      <div class="risk"><b>Risk: the situation is ambiguous.</b> "A wall in reach" is clear. "Scattered" is fuzzier. Use
+      the same pure functions the breakers already aim with, so the game and the stamp never disagree.</div>
+      <p><b>Nearest thing elsewhere.</b> Final Fantasy IX teaches abilities through use, and fighting games have combo
+      trials. The difference here: you learn by meeting a situation once, not by repeating something, and what you
+      learn is the answer to the situation you were just in.</p>
+    </section>
+
+    <!-- ============================== 3 ============================== -->
+    <section id="trophy">
+      <h2>3. Trophy Grafts <small>(a reskin of Gear drops)</small></h2>
+      <p class="big">The arm eats what it kills. An elite's drop is shaped by the move that killed it.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li>Fiction: "the arm is the character" (heretic.md). When an elite dies, the tentacle tears off a piece of it,
+          and that piece is the <span class="t-gear">Graft</span> or <span class="t-gear">Shackle</span>.</li>
+        <li>The killing blow picks one affix line from loot.html's pools. The move that killed it decides the line:
+          <div class="tbl"><table>
+            <thead><tr><th>Killing move</th><th>Line</th></tr></thead>
+            <tbody>
+              <tr><td>Slice, Hurl, Triple Chop</td><td>Quick Form (Graft)</td></tr>
+              <tr><td>Reap, Black Tide, Overwhelm</td><td>Long Reach (Graft)</td></tr>
+              <tr><td>Harpoon, Shatterstorm</td><td>Many Tips (Graft)</td></tr>
+              <tr><td>any breaker landing</td><td>Hard Landing (Graft) or Kindling (Shackle)</td></tr>
+              <tr><td>Backlash, Ricochet</td><td>Iron Answer or Hurled (Shackle)</td></tr>
+              <tr><td>Dash Stab, Tow Line</td><td>Long Step or Tow Weight (Shackle)</td></tr>
+            </tbody>
+          </table></div>
+          The rest of the piece follows loot.html: the elite's one-rarity-up, and a random second line on a Hallowed.</li>
+        <li><b>A PERFECT on the killing breaker or counter gives a choice, not power.</b> Two pieces fall, both carrying
+          the killing line. You keep one.</li>
+        <li><b>Taken with the tentacle.</b> If the slot is empty, the piece flies into the arm. If not, it lies on the
+          floor as loot.html describes, and the grab (<kbd>H</kbd> from neutral, near the piece) swaps it as
+          <kbd>E</kbd> does. The compare card stays shut while foes are alive.</li>
+        <li>Chest drops stay random. Only elites are trophies (wardens give Boons, run.html).</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>Kill</th><th>Drop</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R4 elite (shield)</td><td>PERFECT counter, Ricochet into the hook</td><td>Two Hallowed Shackles, both with Hurled. He keeps the one that also has Wide Watch (Prison Weight).</td></tr>
+          <tr><td>F2 R4 elite (warrior)</td><td>Shatterstorm on a row of cubes</td><td>Hallowed Graft with Many Tips (Censer Chain).</td></tr>
+          <tr><td>F3 R2 elite, a player who mashes</td><td>Triple Chop</td><td>Hallowed Graft with Quick Form: it makes the thing they actually do faster.</td></tr>
+        </tbody>
+      </table></div>
+
+      <ul class="plain">
+        <li><b>A struggling player:</b> always gets the drop, and it improves the move they used. PERFECT only adds a
+          second option.</li>
+        <li><b>Replaces:</b> the random affix roll on elite drops. The slots, rarities and compare card stay.</li>
+        <li><b>Reuses:</b> loot.html's 16 lines, the chest piece, the grab (<code>GR</code>), the counter's
+          <code>counter_perfects</code>, <code>breaker_perfects</code>.</li>
+        <li><b>Cost: C1</b> (the kill-to-line table) plus <b>C2</b> for pickup by the grab, which needs a feel check so the
+          grab never grabs loot when a foe is in reach.</li>
+      </ul>
+      <div class="risk"><b>Risk: stray kills.</b> If a burn tick or an Arc link kills the elite, the "killing move" is
+      noise. Rule: credit the last named combo that hit it within <span class="ph">1.5</span> s.</div>
+      <p><b>Nearest thing elsewhere.</b> Mega Man takes each boss's weapon, and Devil May Cry's devil arms come from
+      bosses. The difference here: how you killed it decides the piece, not whom you killed.</p>
+    </section>
+
+    <!-- ============================== 4 ============================== -->
+    <section id="book">
+      <h2>4. The Combo Book <small>(a real departure for Boons)</small></h2>
+      <p class="big">Some boons are ink. Ink binds to the next named string you land, and it changes that string for
+      the run.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li>Fiction: the heretic broke into the church's vaults. The move list is his stolen book of rites, and a
+          <b>gloss</b> is what he writes in its margin.</li>
+        <li>Some cards in a Boon offer are glosses. Each names a payload, not a target:
+          <ul class="plain">
+            <li><b>Cold Ink</b>: the string's last hit leaves <i>frozen</i> <span class="ph">1 s</span>.</li>
+            <li><b>Spark Ink</b>: the string's last hit leaves <i>charged</i>.</li>
+            <li><b>Grave Ink</b>: the string's last hit leaves <i>buried</i>.</li>
+            <li><b>Bell Ink</b>: the string's breaker window closes <span class="ph">0.08 s</span> later.</li>
+            <li><b>Step Ink</b>: the string's last hit resets the dash.</li>
+          </ul></li>
+        <li>Once taken, the gloss is a blot of ink on the arm. The <b>next named combo you land</b> takes it. It is
+          then written on that string's row in the pause MOVES panel and tagged on its combo guide row. That is the
+          build screen: the move list you already have.</li>
+        <li>For players who want to choose: the pause book lets you pick the string by hand before the blot is used.
+          Once written, it stays for the run.</li>
+        <li>One gloss per string. A string can be both a gloss's host and a Last Word cause.</li>
+        <li>The 18 element cells stay ordinary Boons. They are already per state and per element, so they need no
+          host.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>Gloss</th><th>Landed on</th><th>What changes</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R2</td><td>Cold Ink</td><td>Reap (<kbd>H</kbd> <kbd>L</kbd>)</td><td>The crescent leaves the crowd frozen. Singularity right after pays Shatter on all of them.</td></tr>
+          <tr><td>F1 R3</td><td>Step Ink</td><td>Updraft Lash (<kbd>L</kbd> <kbd>H</kbd>)</td><td>Launch, dash at once, Dash Stab the next foe: a new route that is not on the card.</td></tr>
+          <tr><td>F2 R2, a player who mostly plays the light string</td><td>Spark Ink</td><td>Triple Chop</td><td>The plain string now sets up Arc. The ink went where they already play.</td></tr>
+        </tbody>
+      </table></div>
+
+      <ul class="plain">
+        <li><b>A struggling player:</b> the ink lands on the strings they use most, so it strengthens what they can
+          already do. Nobody is asked to land a string they cannot.</li>
+        <li><b>Replaces:</b> loot.html's new rule-bend Boons that only make sense on a few moves (Cold Step, Slow Bell
+          in part). Also the Profane rites' role of changing one move. A gloss is a player-placed rite, so Profane
+          could drop to one per slot or go away.</li>
+        <li><b>Reuses:</b> the state setters (freeze, charge, bury), the dash reset from Free Fall's design, the
+          breaker <code>_WINDOW</code> keys, the guide's tag slot (the one "+ Shatter" uses), the MOVES panel rows.</li>
+        <li><b>Cost: C3.</b> One generic hook on a named combo's last connected hit and on its window is C2. But every
+          payload on every string is a combination someone must play: 5 glosses on about 16 strings is 80 pairs.</li>
+      </ul>
+      <div class="risk"><b>Risk: the combinations.</b> Some pairs will break a route or a payoff (Cold Ink on Frost
+      Spear is pointless, since ice on ice refreezes; Step Ink on a breaker's ender may cancel its leap). Fix: each gloss
+      lists the hosts it refuses, and the blot skips them. Start with two glosses and judge them first.</div>
+      <div class="risk"><b>Risk: binding by accident.</b> A blot meant for Live Wire lands on Hurl. The hand-pick in the
+      pause book is the safety valve. If Zak feels it is needed every time, make the hand-pick the default and keep the
+      auto-bind as an option.</div>
+      <p><b>Nearest thing elsewhere.</b> Path of Exile's support gems are linked to one skill. Diablo III has runes on
+      skills, and Hades' Daedalus Hammer changes one attack. The difference here: you link the gloss by landing the
+      string in a fight, and the result lives on the combo guide row.</p>
+    </section>
+
+    <!-- ============================== 5 ============================== -->
+    <section id="vows">
+      <h2>5. Spirit Vows <small>(risk as currency, without punishing)</small></h2>
+      <p class="big">At the door, the spirit asks for a deed in the next room. Do it, and the spirit ranks up early.</p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li>The planned spirit rank-up (more moves, then a passive) happens at a fixed pace, say at each warden. A vow is
+          a way to get there sooner.</li>
+        <li>At each door the spirit offers one vow from three, or none: one easy, one middle, one hard. The vow is
+          always something you do, never something you avoid:
+          <ul class="plain">
+            <li>Easy: "Land <span class="ph">3</span> different named combos."</li>
+            <li>Middle: "End <span class="ph">2</span> foes with a breaker."</li>
+            <li>Hard: "Counter a strike, then land a breaker on that same foe."</li>
+            <li>Element flavoured: storm "Arc through <span class="ph">4</span> foes at once", ice "Shatter a cube
+              into a wall", magma "Burst a foe beside a burning keg".</li>
+          </ul></li>
+        <li>Kept: the spirit ranks up at the room's end, not at the warden. A rank only arrives earlier. It is never
+          bigger.</li>
+        <li>Broken or not taken: nothing is lost. The spirit ranks up on its normal schedule.</li>
+        <li>The vow sits as one line under the style rank and ticks as you progress. The spirit flares its element's
+          colour when the vow is kept.</li>
+      </ul>
+
+      <h3>Worked example</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Room</th><th>Vow</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>F1 R2</td><td>Middle: end 2 foes with a breaker</td><td>Kept. Storm spirit rank 2 now: Live Wire's air route opens, two rooms early.</td></tr>
+          <tr><td>F1 R3</td><td>Hard: counter, then a breaker on the same foe</td><td>Broken (the Ricochet killed it). Nothing lost.</td></tr>
+          <tr><td>F1 R4</td><td>None taken</td><td>The spirit reaches rank 3 at the warden as normal.</td></tr>
+        </tbody>
+      </table></div>
+
+      <ul class="plain">
+        <li><b>A struggling player:</b> can ignore vows and lose nothing. The easy vow asks for variety, the same thing
+          style rank asks for.</li>
+        <li><b>Replaces:</b> nothing in Boons or Gear. It gives the planned spirit rank-up a way to be earned.</li>
+        <li><b>Reuses:</b> counters the game already keeps (<code>combos_landed</code>, <code>breakers_landed</code>,
+          <code>counters</code>, <code>endings_seen</code>, the rule payoffs' <code>[improv]</code> counts), the spirit
+          companion, the door.</li>
+        <li><b>Cost: C2</b> for the vow tracker and the line under the rank. It assumes the spirit rank-up exists, which
+          is not built.</li>
+      </ul>
+      <div class="risk"><b>Risk: players feel they must take the vow.</b> If a vow is always worth it, it becomes
+      homework. Keep the reward small (earlier, never bigger) and keep the room's main reward separate.</div>
+      <p><b>Nearest thing elsewhere.</b> Hades' Chaos boons and its Pact of Punishment, and the challenge missions in
+      Devil May Cry and Bayonetta. The difference here: a vow is a deed, never a handicap. Breaking it costs nothing,
+      and what it pays is time, not power.</p>
+    </section>
+
+    <!-- ============================== CUT ============================== -->
+    <section id="cut">
+      <h2>Considered and left out</h2>
+      <div class="later"><b>Moves that grow by use count</b> ("land Reap 20 times, it grows"). This is the grind trap:
+      it pays spamming one move on fodder, which works against style rank's variety rule. The Window Learns is the
+      situation-based form of the same wish.</div>
+      <div class="later"><b>Style rank sets rarity.</b> The rich get richer: a struggling player gets weaker gear and
+      falls further behind. Rank adds one card in the Last Word, and that is all.</div>
+      <div class="later"><b>No-hit rewards.</b> They teach players to play scared, and the dash counter is already the
+      game's defensive verb. Reward counters, never avoidance.</div>
+      <div class="later"><b>Choosing a reward inside a breaker's hang</b> (L takes one card, R the other). The hang is
+      about 0.6 s real time. Nobody can read two cards in that time, and the hang belongs to the breaker.</div>
+    </section>
+
+    <section id="conventional">
+      <h2>Keep conventional</h2>
+      <ul class="plain">
+        <li><b>The 1-of-3 Boon card.</b> It is fast, read once and understood by everyone. The Last Word changes
+          what is on it, not how it looks.</li>
+        <li><b>The 18 element cells as plain Boons.</b> They are already finished and per state. Making them special
+          adds nothing.</li>
+        <li><b>Gear's two slots, three rarities and compare card.</b> The loot moment works because it is familiar.
+          Trophy Grafts changes only which line you get.</li>
+        <li><b>Fixed numbers on Gear lines.</b> A plain "+15% reach" is a relief next to the strings.</li>
+        <li><b>Doors, Rest and the heal.</b> Run structure is not where this game is different.</li>
+      </ul>
+      <p>The reason: every new behaviour costs a feel pass, and Zak's feel passes are the bottleneck. Spend them on what
+      touches the combat, and let everything around it read instantly.</p>
+    </section>
+
+    <section id="compare">
+      <h2>Side by side</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Proposal</th><th>Layer</th><th>Cost</th><th>Struggling player</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td>The Last Word</td><td><span class="t-boon">Boons</span> (the offer)</td><td>C1</td><td>Gets today's plan</td><td>With run slice 4</td></tr>
+          <tr><td>The Window Learns</td><td><span class="t-technique">Techniques</span> (endings)</td><td>C2 + C1 each</td><td>Learns from the room, not from execution</td><td>With run slice 2 or 3, when windows are gated</td></tr>
+          <tr><td>Trophy Grafts</td><td><span class="t-gear">Gear</span> (elite drops)</td><td>C1 + C2</td><td>Gear improves the move they use</td><td>With run slice 5</td></tr>
+          <tr><td>The Combo Book</td><td><span class="t-boon">Boons</span> (rule bends)</td><td>C3</td><td>Ink lands on their favourite string</td><td>After slice 4 is judged, two glosses first</td></tr>
+          <tr><td>Spirit Vows</td><td>The spirit's rank</td><td>C2</td><td>Can ignore it, loses nothing</td><td>After the spirit rank-up exists</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="decisions">
+      <h2>The pick, and decisions for Zak</h2>
+      <div class="grid2">
+        <div class="option pick"><h3>Pick: The Window Learns</h3><p>It is the most "this game" of the five. It turns
+        the combat's own design rule (every combo has a best situation) into the build, and it reuses seven finished
+        endings. It also answers your round 43 note: "we can later incentivize people to do one or the other". Ship
+        The Last Word next to it as the cheap Boon spin.</p></div>
+        <div class="option"><h3>Runner-up: The Combo Book</h3><p>It is the biggest departure and the most distinctive
+        Boon layer. But it is C3 with a combination count that needs real play. Try two glosses after Boons are
+        judged.</p></div>
+      </div>
+      <ol>
+        <li class="decision"><b>Are second endings learned in the window (by landing the first ending in the second
+          ending's best situation) instead of offered as Technique cards?</b> <span class="pick">Yes, for the seven with
+          a situation. Cold Front stays a card.</span></li>
+        <li class="decision"><b>Before an ending is learned, does L in its window do the RMB ending?</b>
+          <span class="pick">Yes. A dead button reads as a bug.</span></li>
+        <li class="decision"><b>Does the room's last kill steer one card's sign in the next Boon offer?</b>
+          <span class="pick">Yes, using the ten signs as they are.</span></li>
+        <li class="decision"><b>Can style rank ever shrink an offer or lower a rarity?</b> <span class="pick">No. A peak of S
+          adds a fourth card. Nothing takes one away.</span></li>
+        <li class="decision"><b>Does an elite's killing move pick its drop's affix line (Trophy Grafts)?</b>
+          <span class="pick">Yes, for elite drops. Chests stay random.</span></li>
+      </ol>
+    </section>
+  </main>
+</div>
+</body>
+</html>

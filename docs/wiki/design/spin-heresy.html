@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Heretic's Fiction</title>
+<meta name="description" content="Design draft, unique-spin lane: let who the heretic is and the church's prison reshape Boons, Gear and the run, not only rename them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="spins.html">Unique spins</a>
+    <a href="spin-heresy.html" class="on">The heretic's fiction</a>
+    <small>
+      <a href="#glance">At a glance</a>
+      <a href="#catechism">1. Torn Catechism</a>
+      <a href="#keys">2. Keys of the Prison</a>
+      <a href="#grave">3. Grave Heresies</a>
+      <a href="#eats">4. The Arm Eats</a>
+      <a href="#writ">5. Writ of Anathema</a>
+      <a href="#confession">6. Confession</a>
+      <a href="#conventional">Keep conventional</a>
+      <a href="#pick">The pick</a>
+      <a href="#decisions">Decisions</a>
+    </small>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>The heretic's fiction</h1>
+    <p class="lede">One of the unique-spin lanes. It starts from who he is: a novice who robbed the church's vaults,
+    paid the dark with his arm, was chained in the prison built for the powers he stole, and broke the shackle. The
+    question is which of those facts can change a decision the player makes, not only the word on a card.</p>
+
+    <section id="summary">
+      <div class="summary">
+        <p><b>Make the Shackle slot the prison's keys.</b> Each Shackle piece is something a warden carried to run the
+        prison: a lamplighter's hook, a sluice key, a gaoler's chain. Wearing it changes the rooms ahead, not the
+        hero: braziers start lit, grates are bonded, every wall gets a hook. The Graft keeps
+        <a href="loot.html#gear">Gear and boons</a>' job (how a move works).</p>
+        <p>This gives Gear a job Boons cannot do, which is the hub's top layer risk ("Gear and Boons may blur"). It
+        uses room data that already exists (<code>ROOM_DEFS</code> layers, <code>links</code>, flourishes, piece
+        states). It is the world doc's own line made into loot: "the hero did not change, the prison did."</p>
+        <p>For free, present every Boon as a <b>heresy</b>: a line of the church's catechism he tears out. Same pool,
+        same cards, new words.</p>
+        <p>Later, if the Boon offer feels flat: one <b>grave heresy</b> per offer, stronger, that costs a move from his
+        kit. The dark took his arm as its price. This is the same deal, smaller.</p>
+      </div>
+    </section>
+
+    <section id="glance">
+      <h2>At a glance</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Proposal</th><th>Kind</th><th>Replaces</th><th>Cost</th><th>New decision for the player</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#catechism"><b>1. The Torn Catechism</b></a></td><td>Reskin</td><td>Boon names and the offer screen</td><td>C0 per boon, one screen skin</td><td>None. Tone only.</td></tr>
+          <tr><td><a href="#keys"><b>2. Keys of the Prison</b></a></td><td>Departure</td><td>The Shackle pool</td><td>Mostly C1, Profanes C2 to C3</td><td>Which door to take, given what your key does to rooms</td></tr>
+          <tr><td><a href="#grave"><b>3. Grave Heresies</b></a></td><td>Departure</td><td>Nothing; a new card in the Boon offer</td><td>C2 once (the gate), payloads C0 to C2</td><td>Which of my moves can I live without?</td></tr>
+          <tr><td><a href="#eats"><b>4. The Arm Eats</b></a></td><td>Small twist</td><td>"Walk away" on the floor card</td><td>C1 to C2</td><td>Wear it now, or keep a little of it forever</td></tr>
+          <tr><td><a href="#writ"><b>5. Writ of Anathema</b></a></td><td>Departure</td><td>Random room weighting; part of the warden</td><td>C1 rooms, C3 warden ward</td><td>Lean in for the rooms, or spread out for the warden</td></tr>
+          <tr><td><a href="#confession"><b>6. Confession</b></a></td><td>Mostly reskin</td><td>Tithe and the Rest room stall</td><td>C1 to C2</td><td>Recant a heresy, or swear a vow for the next floor</td></tr>
+        </tbody>
+      </table></div>
+      <p>Cost classes are <a href="loot.html#pools">Gear and boons'</a>: C0 a data flip, C1 a constant, C2 a rule bend
+      on something that exists, C3 a new visible behaviour, C4 a new effect or model.</p>
+      <p class="note gold">The look rules hold everywhere on this page (<code>docs/characters/heretic.md</code> sections
+      2 and 8): no ornaments, no keys hanging off him, no relics on his belt. Only the arm and the wrist shackle change,
+      and only in colour and band, as <a href="loot.html#gear">Gear and boons</a> already proposes.</p>
+    </section>
+
+    <section id="catechism">
+      <h2>1. The Torn Catechism</h2>
+      <p class="big">Every Boon is a line of the church's doctrine, and taking it means tearing it out.</p>
+      <p><span class="chip">Reskin</span> <span class="chip">Boons</span></p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The offer</b> is three torn strips from the church's book. Each shows the church's tenet on top, in the
+          church's voice, and his heresy under it. The heresy is the Boon's real rule, in the move list's words.</li>
+        <li><b>The ten signs become the catechism's ten articles</b>: Of the Frozen, Of the Charged, Of the Molten, Of
+          the Bound, Of the Buried, Of the Raised (airborne), Of the Bell (breakers), Of Answering (the counter), Of the
+          Step (the dash), Of Waking (the Awakening). Icons stay the foe-state marks from
+          <code>comic_state_tell.gd</code>, so the card still reads at a glance.</li>
+        <li><b>Taking one:</b> the arm snatches the strip and eats it. One short beat on the card screen, nothing in the
+          fight.</li>
+        <li><b>The pause page</b> ("This run") is the book with his pages missing. A rank II number boon is the same
+          heresy "repeated".</li>
+      </ul>
+
+      <div class="grid3">
+        <div class="item t-boon"><h4>Shard Cut</h4><p><small>Of the Frozen. Data-only, <code>shard_cut</code>. C0</small></p>
+          <p><i>Tenet: What the cold takes, it keeps still.</i></p>
+          <p><b>Heresy: The ice cuts.</b> Dark on a frozen foe crushes the ice and the shards cut the foe beside it.</p></div>
+        <div class="item t-boon"><h4>Overload</h4><p><small>Of the Charged. Data-only, <code>overload</code>. C0</small></p>
+          <p><i>Tenet: The storm is bled into cold iron.</i></p>
+          <p><b>Heresy: The storm comes back all at once.</b> Any storm hit sets off every charged foe within
+          <span class="ph">8 m</span>.</p></div>
+        <div class="item t-boon"><h4>Riposte Chain</h4><p><small>Of Answering. New, C2</small></p>
+          <p><i>Tenet: The penitent does not strike back.</i></p>
+          <p><b>Heresy: He always strikes back.</b> After a counter, your next counter is perfect anywhere in the
+          window for <span class="ph">2 s</span>.</p></div>
+      </div>
+
+      <h3>Worked example</h3>
+      <ol class="flow">
+        <li><b>Room 1</b>He bonds the <span class="el-ice">ice</span> spirit. No offer yet.</li>
+        <li><b>Room 2</b>Of the Frozen, Of the Step, Of the Bell. He tears "The ice cuts" (Shard Cut).</li>
+        <li><b>Room 4</b>"Lean in" puts Of the Frozen first again: "The cold walks" (Brittle Crowd).</li>
+        <li><b>Pause</b>The book shows two pages gone from Of the Frozen. That is his build, in one look.</li>
+      </ol>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> Boon names and the offer screen's dressing. Nothing in the rules.</li>
+        <li><b>Reuses:</b> the whole Boon plan, the 18 cells, <code>Kit.set_on()</code>, every word and tell.</li>
+        <li><b>Cost:</b> C0 per boon (two lines of text). The card screen's skin is a one-time C1 to C2 (paper strip,
+          a tear, the arm's snatch as a UI flourish, not an in-world effect).</li>
+        <li><b>Risk:</b> text bloat. Tenets must stay at <span class="ph">8</span> words or fewer, or the card stops
+          being readable in three seconds. Write the heresy line first; drop the tenet if it does not fit.</li>
+        <li><b>Nearest:</b> Hades' boons, each framed as a god's gift with a voice line; Blasphemous' prayers and
+          rosary beads. <b>Different here:</b> nothing is given. The church never offers; he takes. It changes no
+          decision, and that is fine for a reskin.</li>
+      </ul>
+    </section>
+
+    <section id="keys">
+      <h2>2. Keys of the Prison</h2>
+      <p class="big">Shackle gear is what the wardens carried to run the prison, and wearing it changes the rooms
+      ahead, not him.</p>
+      <p><span class="chip">Departure</span> <span class="chip">Gear: the Shackle slot</span></p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The slot stays.</b> Two slots, three rarities, the floor card, the <kbd>E</kbd> swap: all as
+          <a href="loot.html#gear">Gear and boons</a> has them. Only what a Shackle line does changes.</li>
+        <li><b>A Shackle line is a room key.</b> It uses one of the four kinds the world doc lists
+          (<code>docs/design/environment-lore.md</code>, "How items could alter rooms"): <b>change a piece's state</b>,
+          <b>add a layer</b>, <b>turn a rule on</b>, <b>keep what was used</b>. Each is one key on a room in
+          <code>ROOM_DEFS</code>.</li>
+        <li><b>It applies from the next room on,</b> while worn. Take it off and the next room is plain again.</li>
+        <li><b>The door shows it.</b> Run slice 6's door card already shows the reward behind it. With a key worn, it
+          also shows the room's piece icons, with the key's change marked ("+2 grates, bonded").</li>
+        <li><b>The filter:</b> a key is offered only if its pieces answer to the dark or the spirit he holds
+          (<code>env_piece.EXCLUSIVE</code>). A storm-less run never finds the grate key.</li>
+        <li><b>The dash and counter lines move to the Graft.</b> They name a move (Backlash, Ricochet, Tow Line, the
+          dash), which is the Graft's test anyway. The Graft pool grows from 8 to <span class="ph">12</span>; the
+          weakest four of the sixteen are cut.</li>
+      </ul>
+
+      <h3>Sample keys</h3>
+      <div class="grid2">
+        <div class="item t-gear r-1"><h4>Lamplighter's Hook</h4><p><small>Shackle, Iron. Piece state. C1</small></p>
+          <p>Every brazier and torch starts lit. Magma has fire to spill at once (<code>brazier_spill</code>), storm has
+          torches to conduct through.</p></div>
+        <div class="item t-gear r-1"><h4>Sapper's Tally</h4><p><small>Shackle, Iron. Add a layer. C1</small></p>
+          <p>Every room also places the forge hall's powder line: <span class="ph">3</span> barrels between two
+          braziers. One spark walks the line.</p></div>
+        <div class="item t-gear r-2"><h4>Bonding Iron</h4><p><small>Shackle, Hallowed. Layer + rule. C1 + C1</small></p>
+          <p>+<span class="ph">2</span> grates in every room, and every room links its grates (the forge's rule):
+          storm on one is storm on all.</p></div>
+        <div class="item t-gear r-2"><h4>Sluice Key</h4><p><small>Shackle, Hallowed. Layer + rule. C1 + C1</small></p>
+          <p>Every room gets a pool along its back wall, and pools are linked (the cistern's rule): ice on one runs the
+          channel, and a cube struck down it does not stop.</p></div>
+        <div class="item t-gear r-3"><h4>Gaoler's Chain</h4><p><small>Shackle, Profane. Rule. Rite: C2</small></p>
+          <p><b>Rite:</b> every room has hooks and the <code>gallows</code> flourish, and hooks hang any foe a breaker
+          throws, not only Ricochet's target. Affix: +<span class="ph">1</span> hook per room.</p></div>
+        <div class="item t-gear r-3"><h4>Turnkey's Ring</h4><p><small>Shackle, Profane. Keep what was used. Rite: C3</small></p>
+          <p><b>Rite:</b> a pillar he topples stays down, as a fallen wall in the open, in every later room of the
+          floor and in the warden's room. The prison comes apart behind him and he fights in the wreck.</p></div>
+      </div>
+
+      <h3>Worked example</h3>
+      <ol class="flow">
+        <li><b>F1 room 1</b>Bonds the <span class="el-storm">storm</span> spirit.</li>
+        <li><b>F1 room 2</b>The chest gives Bonding Iron. He swaps it in.</li>
+        <li><b>F1 room 3</b>The drill hall has 4 grates, bonded. Updraft Lash (<kbd>L</kbd> <kbd>H</kbd>) on one
+          makes all of them live. Foes walking in come out charged; one more storm hit is Arc through the room.</li>
+        <li><b>Door</b>Cistern or forge. The forge already bonds its plates, so the key adds grates to a room that was
+          storm's anyway. He takes the cistern instead, where the key gives storm floor it never had.</li>
+        <li><b>Turnkey</b>The warden's room has bonded grates too. The fight is about luring it onto iron.</li>
+      </ol>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> <a href="loot.html#gear">Gear and boons</a>' 8 Shackle lines (they move to the Graft
+          pool). The Shackle's look (band metal by rarity) stays.</li>
+        <li><b>Reuses:</b> <code>rooms.gd</code> <code>ROOM_DEFS</code> (layers, <code>links</code>,
+          <code>flourishes</code>, <code>rebuild</code>), <code>place()</code>'s per-piece <code>state</code>,
+          <code>env_flourish.gd</code> (gallows, ice_rink, brazier_spill), the structure indicator, the chest piece. The
+          world doc already names Sapper's Map, Cold Iron Bond, Water Table, Rusted Chain and Fallen Column; these
+          are those, as Shackle lines.</li>
+        <li><b>Cost:</b> state and layer keys C1 each (data on a room). Linking rules C1 (they exist for the forge and
+          cistern). Gaoler's Chain C2. Turnkey's Ring C3 (used-up pieces must carry across rooms). Door piece icons:
+          one C2, shared by every key.</li>
+        <li><b>Risk:</b> it leans on real rooms existing. Gear and boons parked room-piece boons for exactly this
+          reason. A key half fixes it, because a layer key brings its own pieces. Second risk: a room change is felt
+          less than a move change. Test: over ten runs, does Zak ever pick a door because of his key?</li>
+        <li><b>Nearest:</b> Slay the Spire relics that change what rooms hold (Tiny Chest, Juzu Bracelet), and Risk of
+          Rain's artifacts that rewrite the run's rules. <b>Different here:</b> the key changes the arena's toys inside
+          the fight, and those toys answer only to his elements. It is loot that changes the level, not the
+          character.</li>
+      </ul>
+    </section>
+
+    <section id="grave">
+      <h2>3. Grave Heresies</h2>
+      <p class="big">The strongest heresies cost a move from his kit, the way the dark took his arm.</p>
+      <p><span class="chip">Departure</span> <span class="chip">Boons</span></p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>From floor 2,</b> a Boon offer may hold one grave heresy (at most one per offer, never in the first).
+          It is two boons on one card, from one sign: a rule bend plus a cell, or a cell plus a number boon at rank
+          II.</li>
+        <li><b>Its price is one move he holds,</b> named on the card, closed for the rest of the run. The card shows
+          the input and what it does afterwards, using the combo guide's own read (<code>void_route()</code>).</li>
+        <li><b>Never priced:</b> the light string, the dash, the grab, Backlash and the held spirit's ender. A price is
+          always a move with a way round it.</li>
+        <li><b>The look:</b> the move list strikes the move through in crimson. Nothing on the model changes. In the
+          fiction, the arm kept it.</li>
+      </ul>
+
+      <div class="grid2">
+        <div class="item t-boon r-3"><h4>The Bound Do Not Rise</h4><p><small>Of the Bound. Grave. Payload C2 + C0</small></p>
+          <p><b>Heresy:</b> Snap holds <span class="ph">+0.5 s</span>, and ice on a bound foe freezes it where it is
+          held (Frozen in the Dark, <code>frozen_dark</code>).</p>
+          <p><b>Price: Singularity</b> (<kbd>H</kbd> <kbd>H</kbd>). The second H does what it does with no hole to
+          make.</p></div>
+        <div class="item t-boon r-3"><h4>The Bell Has No End</h4><p><small>Of the Bell. Grave. Payload C2 + C1</small></p>
+          <p><b>Heresy:</b> Aftermark (every breaker landing leaves its element's state) and Slow Bell at rank II.</p>
+          <p><b>Price: Tow Line.</b> No pull-in after a dash: he has to walk to the crowd.</p></div>
+      </div>
+
+      <h3>Worked example</h3>
+      <ol class="flow">
+        <li><b>F1</b><span class="el-ice">Ice</span> spirit, Shard Cut, Cold Step. He opens fights with Overwhelm
+          to bind, then freezes.</li>
+        <li><b>F2 room 1</b>The offer holds "The Bound Do Not Rise", priced at Singularity. He has used Singularity
+          twice all run.</li>
+        <li><b>He takes it.</b><kbd>H</kbd> <kbd>H</kbd> is gone; every Overwhelm now sets up a long, frozen
+          Snap.</li>
+        <li><b>F3</b>He fights narrow and deep: bind, freeze, cut. A player who loves Singularity never takes this
+          card, and plays a different run.</li>
+      </ol>
+
+      <ul class="plain">
+        <li><b>Replaces:</b> nothing. A rarer card in the Boon offer.</li>
+        <li><b>Reuses:</b> the gate the spirits already use (<code>KitSlots.open()</code> asks
+          <code>Spirits.allows()</code>; a priced move is one more "closed" set), the fallback routing in
+          <code>void_route()</code>, the guide showing only what a press will do, the move list.</li>
+        <li><b>Cost:</b> the price gate and the card: C2, once. Each grave card's payload is boons that are already
+          C0 to C2. Plus checks: every priced move must be tested closed (<a href="kits.html#risks">Simple kits'</a>
+          "gates can quietly break routes").</li>
+        <li><b>Risk:</b> fewer moves means less variety, and style rank pays for variety. That tension is the point,
+          but it may feel bad. Early signs: nobody takes one (cut it), or everyone prices the same move (then that move
+          is dead weight in the base kit, which is worth knowing).</li>
+        <li><b>Nearest:</b> The Binding of Isaac's devil deals (pay max health for an item); Hades' Chaos boons (a
+          curse for a few rooms, then a blessing). <b>Different here:</b> the price is a press from your own kit,
+          permanent, and you choose it knowing how you play. The run narrows into a style rather than getting
+          weaker.</li>
+      </ul>
+    </section>
+
+    <section id="eats">
+      <h2>4. The Arm Eats</h2>
+      <p class="big">A relic he does not want, the arm eats, and keeps a taste of it.</p>
+      <p><span class="chip">Small twist</span> <span class="chip">Gear: the Graft slot</span></p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The floor card gets a third answer.</b> <kbd>E</kbd> swaps, as now. Hold <kbd>E</kbd>
+          (<span class="ph">0.6 s</span>) and the arm eats the piece on the floor.</li>
+        <li><b>An eaten piece is gone.</b> Its first line stays, at half value, for the run: a <b>taste</b>. Long Reach
+          eaten is +<span class="ph">7%</span> reach on Reap, Black Tide and Overwhelm, whatever Graft he wears.</li>
+        <li><b>At most <span class="ph">3</span> tastes.</b> Each is a ring on the arm's deep purple cuff, the place
+          the rarity band already sits. A Profane eaten gives its affix, never its rite.</li>
+        <li><b>Tastes add</b> with worn lines under the stacking rules (add, never multiply, every number capped).</li>
+      </ul>
+      <ol class="flow">
+        <li><b>Room 3</b>He wears Hooked Barb (Long Reach). A Keen Leaf drops; he has no spear moves, so a taste
+          of it is worthless. He leaves it.</li>
+        <li><b>Room 5</b>Censer Chain drops (Many Tips, Wide Crescent). Better than Hooked Barb. He swaps, then eats
+          the Hooked Barb he just dropped: a taste of Long Reach.</li>
+        <li><b>Room 9</b>The arm reaches a bit further than the Graft says, and the cuff has one ring.</li>
+      </ol>
+      <ul class="plain">
+        <li><b>Replaces:</b> "walk away". Today a piece you leave is simply gone.</li>
+        <li><b>Reuses:</b> the Graft lines and their constants, the stacking table, the cuff band.</li>
+        <li><b>Cost:</b> tastes C1 (the same constants at half). The hold on the floor card C1. The ring on the cuff C2
+          (a texture band, like the rarity band).</li>
+        <li><b>Risk:</b> it is salvage, which <a href="loot.html#later">Gear and boons</a> left out on purpose. And if
+          eating is always right, every drop becomes a compare plus a second compare. Keep the cap low.</li>
+        <li><b>Nearest:</b> Isaac's Void (absorbs active items for their stats); salvage in Diablo. <b>Different
+          here:</b> no menu and no material. A few seconds on the floor, one line kept, and you can see it on the
+          arm.</li>
+      </ul>
+    </section>
+
+    <section id="writ">
+      <h2>5. Writ of Anathema</h2>
+      <p class="big">The church learns what he is and builds against it, and what it builds to hold his power is
+      what his power uses.</p>
+      <p><span class="chip">Departure</span> <span class="chip">The run</span></p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>The run counts</b> which state he pays most (every payoff already goes through <code>improvise()</code>
+          and <code>improv_cell()</code>; count by state).</li>
+        <li><b>At each floor's end a writ is read</b>, one line over the warden's door: "Anathema: the one who
+          freezes."</li>
+        <li><b>Rooms on the next floor lean toward the pieces built against that power</b> (pools and grates for ice,
+          grates and torches for storm, barrels and braziers for magma, pillars and hooks for the dark). In the world
+          doc's terms every piece is half a conductor, so the church's answer is more toys for him. This is the world
+          doc's open question 5 answered by play, not by a menu.</li>
+        <li><b>The next warden is warded</b> against that state. The first <span class="ph">2</span> times it would
+          take it, it does not: a seal flashes and the state slides off. He has to open on it with something
+          else.</li>
+      </ul>
+      <ol class="flow">
+        <li><b>Floor 1</b><span class="el-ice">Ice</span> spirit. About <span class="ph">60%</span> of his payoffs are
+          Shatter.</li>
+        <li><b>Writ</b>"Anathema: the one who freezes."</li>
+        <li><b>Floor 2 rooms</b>The flooded cistern comes up twice. Linked pools, ice_rink: his best rooms.</li>
+        <li><b>Floor 2 Turnkey</b>Harpoon slides off it twice. He binds it with Overwhelm, Snaps it, then the ward is
+          spent and Frost Spear lands.</li>
+      </ol>
+      <ul class="plain">
+        <li><b>Replaces:</b> random room weighting in <a href="run.html#shape">the run</a>, and gives the Turnkey a
+          build-aware answer (run slice 7's "change course if the Turnkey dies to the same string").</li>
+        <li><b>Reuses:</b> <code>ROOM_DEFS</code> as the room list, the state tells (<code>comic_state_tell.gd</code>),
+          the parry flash or a breaker seal as the ward's look, <code>Game</code>'s style rank (the ward pushes
+          variety, which it already pays for).</li>
+        <li><b>Cost:</b> the counter and room weighting C1. The writ line C1. The ward C3: a new visible behaviour on
+          one foe, with an existing flash, and its word.</li>
+        <li><b>Risk:</b> a ward reads as punishment. Keep it to wardens, two charges, and never on the state his only
+          spirit can make with nothing else in the kit (the dark can always bind). Second: if a run has only one way to
+          set a state early, the counter always picks it, and the writ says nothing new.</li>
+        <li><b>Nearest:</b> Shadow of Mordor's Nemesis (foes remember you); Hades' Heat (chosen difficulty).
+          <b>Different here:</b> the reaction comes from your play, not a menu, and half of it helps you.</li>
+      </ul>
+    </section>
+
+    <section id="confession">
+      <h2>6. Confession</h2>
+      <p class="big">Tithe becomes indulgences, paid by how well he fought, and the Rest room becomes a
+      confessional.</p>
+      <p><span class="chip">Mostly reskin</span> <span class="chip">The run: currency and Rest</span></p>
+
+      <h3>How it works in play</h3>
+      <ul class="plain">
+        <li><b>Indulgences</b> are <a href="run.html">the run's</a> tithe, renamed and paid differently: at a room's
+          end, by the best style rank he reached (<code>Game.RANKS</code>): D <span class="ph">0</span>, C and B
+          <span class="ph">1</span>, A <span class="ph">2</span>, S and up <span class="ph">3</span>. Not dropped by
+          elites, not paid for Gear left behind.</li>
+        <li><b>The confessional</b> (the Rest room's stall) sells three things instead of three items:
+          <ul>
+            <li><b>Indulgence:</b> a Boon offer, 1 of 3.</li>
+            <li><b>Recant:</b> give up one heresy he holds and take 1 of 3 from any article in its place. The only
+              respec in a run.</li>
+            <li><b>Penance:</b> swear a vow for the next floor ("no Backlash", "no string twice in a row"). Kept to the
+              warden, it pays a Profane Graft.</li>
+          </ul></li>
+        <li>The heal stays the Rest room's other choice, as now.</li>
+      </ul>
+      <ol class="flow">
+        <li><b>F1</b>He clears at S, S, A, B: <span class="ph">9</span> indulgences.</li>
+        <li><b>Rest</b>Recant Long Thaw (never felt it); take Wildfire.</li>
+        <li><b>Penance</b>"No Backlash" for floor 2. He learns to dash out instead of answer, and the Turnkey pays a
+          Profane.</li>
+      </ol>
+      <ul class="plain">
+        <li><b>Replaces:</b> tithe's sources and the stall's stock (run slice 9).</li>
+        <li><b>Reuses:</b> <code>Game.rank()</code> and <code>RANKS</code>, the <code>menu_screen.gd</code> pattern of
+          the bond prompt, the Boon offer.</li>
+        <li><b>Cost:</b> the currency C1, the confessional screen C2, each vow C2 (it has to be tracked and
+          shown).</li>
+        <li><b>Risk:</b> paying by rank gives more to players already doing well. Recant breaks Gear and boons'
+          "never swap a boon"; it is offered here because a paid, rare recant is not a reroll button. If Zak wants no
+          respec, drop Recant and keep the rest.</li>
+        <li><b>Nearest:</b> Devil May Cry's orb bonus by style rank; Hades' Charon shop and bounties; Gungeon's
+          challenge shrines. <b>Different here:</b> little. The rank-to-currency link is DMC's. The spin is the
+          fiction and the recant.</li>
+      </ul>
+    </section>
+
+    <section id="conventional">
+      <h2>Keep conventional</h2>
+      <div class="panel">
+        <ul class="plain">
+          <li><b>The offer shape.</b> Pick 1 of 3, no reroll, signs, "only what you can use", "lean in". It is fast and
+            players already know it. Renaming it is enough.</li>
+          <li><b>The Graft.</b> Gear and boons' Graft (lines that name a move or a form, Profane rites) is already
+            "the arm is the character". It needs no new spin; it gets the Shackle's move lines.</li>
+          <li><b>Rarities and fixed-value lines.</b> Iron, Hallowed, Profane already carry the church's voice. No item
+            levels, no ranges.</li>
+          <li><b>The floor card and the stacking rules.</b> Plumbing. Add, never multiply; every number capped.</li>
+          <li><b>States, payoffs, words.</b> The fight's language stays the fight's. No heresy gets a new comic word
+            until it has earned one in play.</li>
+          <li><b>The spirit.</b> It is already the unique piece. Nothing here touches it, except that keys are
+            filtered by the element it carries.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="pick">
+      <h2>This lane's pick</h2>
+      <div class="grid2">
+        <div class="option pick"><h3>Keys of the Prison, with the Catechism skin</h3>
+          <p>Keys give Gear a job Boons cannot do: the Graft changes moves, the Shackle changes rooms, Boons change
+          rules. Three layers, three different things, which the hub's decision 11 worries about. Most keys are C1
+          data on systems already built, and the world doc already wrote them. The Catechism costs nothing and makes
+          the Boon screen sound like this game.</p></div>
+        <div class="option"><h3>Next, if Boons feel flat: Grave Heresies</h3>
+          <p>The most "only in this game" idea here, and cheap because the spirit gate already closes moves. It is
+          also the one most likely to feel bad. Try one card in slice 4's debug offer before building more.</p></div>
+      </div>
+      <p>Writ of Anathema is good but late (it needs real floors and the Turnkey). The Arm Eats and Confession are
+      small and can wait for slices 5 and 9.</p>
+    </section>
+
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <ol>
+        <li class="decision"><b>Is the church's prison the world (the world doc's open question 1)?</b> <span class="pick">Yes. Every idea on this page leans on it.</span></li>
+        <li class="decision"><b>Does the Shackle slot become the prison's keys, with its dash and counter lines moved to the Graft?</b> <span class="pick">Yes, built in run slice 5 right after the Graft, starting with Lamplighter's Hook, Bonding Iron and Sluice Key.</span></li>
+        <li class="decision"><b>Are Boons presented as heresies torn from the catechism?</b> <span class="pick">Yes. Names and the card screen only; settle it before the card screen gets art.</span></li>
+        <li class="decision"><b>Can a heresy cost a move from his kit?</b> <span class="pick">Try one grave card in slice 4's debug offer. Keep it only if you take it willingly in play.</span></li>
+        <li class="decision"><b>Does the church react to the build (rooms weighted by the writ, warden warded against his top state)?</b> <span class="pick">Rooms yes, from slice 6. The ward waits for the Turnkey in slice 7.</span></li>
+      </ol>
+    </section>
+  </main>
+</div>
+</body>
+</html>

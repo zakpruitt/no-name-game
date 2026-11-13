@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Spirit Build</title>
+<meta name="description" content="Design draft, unique-spin lane: the spirit as the build. Boons, rank-ups, a second element and some loot run through the creature the heretic raises during a run.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="rail" aria-label="Design pages">
+    <div class="mark">Awaken</div>
+    <a href="index.html">Design hub</a>
+    <a href="kits.html">Simple kits</a>
+    <a href="loot.html">Gear and boons</a>
+    <a href="run.html">The run</a>
+    <a href="spins.html">Unique spins</a>
+    <a href="spin-spirit.html" class="on">The spirit is the build</a>
+    <small>
+      <a href="#today">Where it stands</a>
+      <a href="#fiction">The fiction</a>
+      <a href="#morsels">1. Morsels</a>
+      <a href="#lessons">2. Lessons</a>
+      <a href="#blow">3. The second blow</a>
+      <a href="#swallowed">4. The swallowed spirit</a>
+      <a href="#vessels">5. Vessels</a>
+      <a href="#temperament">6. Temperament</a>
+      <a href="#conventional">Keep conventional</a>
+      <a href="#pick">The pick</a>
+      <a href="#decisions">Decisions</a>
+    </small>
+    <a href="../index.html">Field guide</a>
+  </nav>
+
+  <main>
+    <p class="draft">Design draft for Zak's review. Not in the game yet.</p>
+    <h1>The spirit is the build</h1>
+    <p class="lede">One of the unique-spin lanes. The question: instead of <span class="t-boon">Boons</span> and
+    <span class="t-gear">Gear</span> sitting beside the spirit as separate menus, what if they run through it?</p>
+
+    <section id="summary">
+      <div class="summary">
+        <p><b>Make the spirit the face of the Boon layer.</b> A Boon offer is three scraps of the prison floating
+        out of a broken piece, and the spirit eats the one you pick. What it ate shows on it, and when a boon fires,
+        the spirit flashes. Mechanically it is loot.html's Boon pool unchanged: same signs, same filter, 1 of 3, kept
+        all run.</p>
+        <p><b>Its rank is how much it has eaten.</b> Every <span class="ph">2</span> morsels it ranks up: rank II
+        opens its element's big move, rank III its passive. The planned spirit rank-up and the Boon layer become
+        one thing instead of two.</p>
+        <p><b>Then give it one job in a fight, and only one:</b> when a breaker lands, it dives in after you and
+        leaves its element's state on the pile. It never acts on its own.</p>
+        <p><b>The run's second element is a second spirit the arm swallows.</b> It opens that element's ender and
+        the crossovers, and stays out of sight, so the one you raise is still the one on your shoulder.</p>
+        <p>Keep Gear's drop-and-compare conventional. The find is the find.</p>
+      </div>
+    </section>
+
+    <section id="today">
+      <h2>Where the spirit stands today</h2>
+      <ul class="plain">
+        <li>Built (<code>docs/features/spirits.md</code>): three spirits in training, <kbd>E</kbd> opens the bond
+          prompt, one held at a time, a swap sends the old one back. It opens its element's moves through
+          <code>Spirits.allows()</code>. It floats at <code>RIDE</code> over his right shoulder and <b>only
+          follows</b>.</li>
+        <li><code>Spirits.PASSIVES</code> is three empty strings. No rank, no growth, no part in breakers.</li>
+        <li>One spirit never opens a crossover (Fault Line, Hailstorm, Steam Burst need two elements). The design
+          hub's run holds <b>two</b> elements. So a second spirit, or something like it, is not optional.</li>
+        <li>The design pages (hub, kits, loot, run) predate the spirits and call taking an element an
+          <b>Attunement</b>. On this page, bonding a spirit is the Attunement.</li>
+      </ul>
+    </section>
+
+    <section id="fiction">
+      <h2>The fiction this page assumes</h2>
+      <p>heretic.md says he broke into the vault and took all four powers, and the dark took his arm. But he starts
+      a run with the dark alone. One small reading squares it: <b>the church kept each power in a living keeper.</b>
+      When he broke the vault, the dark went into his arm and the other three keepers fled into the prison. The
+      spirits are those keepers. He has to win each one back, and the prison was built to starve them, so they are
+      small and hungry. Every grate, keg and chain in it is soaked in the power it was built against
+      (environment-lore.md). That is what they eat.</p>
+      <p class="note">This reading gives every proposal below a reason: the spirit eats the prison (1), watches the
+      heretic (2), fights beside him only when he opens the way (3), and the dark that once held all four powers
+      can hold a second one again (4).</p>
+    </section>
+
+    <section id="morsels">
+      <h2>1. Morsels: the spirit eats your boons</h2>
+      <p class="big">The Boon offer stays exactly as loot.html has it, but the cards are things the spirit eats,
+      and what it eats shows on it. <i>Cheap reskin.</i></p>
+      <ul class="plain">
+        <li><b>How it plays.</b> After a room, a broken piece (a burst keg, a toppled pillar, the room's chest)
+          lets out three morsels: a shard of cistern ice, a forge rivet, a gallows hook link. Each is one boon from
+          the pool, with its sign. Walk up, <kbd>E</kbd>, and the panel reads "Feed the STORM SPIRIT?" with the
+          three boon lines. It eats the one you pick; the others fade. Signs, the "only what you can use" filter
+          and "lean in" are unchanged.</li>
+        <li><b>It shows.</b> Each sign it has eaten adds one small tell to the spirit, using the foe state marks
+          from <code>comic_state_tell.gd</code>: a frost rim (frozen), a crackle (charged), an ember drip (molten), a
+          violet tether (bound), a stone crust (buried), a wind curl (airborne). At most <span class="ph">3</span>
+          tells show, the top signs. When a boon fires, the spirit flashes that tell. The bottom-left boon strip
+          becomes the spirit itself.</li>
+        <li><b>Its rank is its meal count.</b> Bond: the ender. After <span class="ph">2</span> morsels, rank II:
+          the big move with its H ending. After <span class="ph">4</span>, rank III: its passive
+          (<code>Spirits.PASSIVES</code>). The planned rank-up needs no separate reward.</li>
+        <li><b>Worked example.</b></li>
+      </ul>
+      <ol class="flow">
+        <li><b>Room 1</b>Bond the <span class="el-storm">storm</span> spirit. <kbd>L</kbd> <kbd>H</kbd> is Updraft
+          Lash. Rank I.</li>
+        <li><b>Room 2</b>Morsels: Overload, Torn Loose, Hang Time. Eat Overload. It starts to crackle.</li>
+        <li><b>Room 3</b>A Technique door: Galvanize.</li>
+        <li><b>Room 4</b>Eat Hang Time. Rank II: Live Wire (<kbd>L</kbd> <kbd>H</kbd> <kbd>H</kbd>) and Grounded
+          open. The spirit grows a size.</li>
+        <li><b>Room 8</b>Fourth morsel. Rank III: storm's passive. Every Overload makes it flash green.</li>
+      </ol>
+      <ul class="plain">
+        <li><b>Replaces.</b> The boon card screen and the boon strip. Folds the spirit's rank-up into the boon
+          count. A side effect worth having: the bond in room 1 gives one new idea (the ender), and the big move
+          arrives later, which fits the hub's "one new idea per room".</li>
+        <li><b>Reuses.</b> The 18 cells in <code>IMPROV_UPGRADE</code> through <code>Kit.set_on()</code>;
+          <code>bond_prompt.gd</code> and <code>Spirits.offers()</code> (the panel already lists what you get); the
+          state marks as icons; the spirit models.</li>
+        <li><b>Cost.</b> The boons themselves as loot.html (8 cells at C0). The feed prompt C1 (a
+          <code>bond_prompt</code> sibling). The six tells and the flash C2 (small designed sprites riding the
+          spirit). A bigger model per rank C4, later.</li>
+        <li><b>Risk.</b> The spirit is <code>SIZE</code> 0.8 m, behind his shoulder, seen from above at 90 px. The
+          tells may not read at all. If so, the flash on fire is the only tell that matters, and that is still more
+          than a strip. Second: tying rank to boons means a Rest room's heal (which replaces a boon in run.html) also
+          costs rank. That may be fine (a real choice) or annoying.</li>
+        <li><b>Nearest thing.</b> Hades: boons come from a character, so picking one feels like a relationship.
+          Different here: the giver is not a god you visit but the creature you carry, the boons pile up on it where
+          you can see them, and its growth is the boon count.</li>
+      </ul>
+    </section>
+
+    <section id="lessons">
+      <h2>2. Lessons: it learns what you do</h2>
+      <p class="big">The spirit watches which payoffs you land, and the next offer comes from what it saw.
+      <i>Mechanical, small.</i></p>
+      <ul class="plain">
+        <li><b>How it plays.</b> The spirit keeps a tally per sign for the room: every rule it saw paid (Shatter,
+          Arc, Burst, Snap, Juggle, Crater, from <code>_pay()</code>), every breaker landing, every Backlash, every
+          dash through a foe, every Awakening. The next offer draws two cards from your top two signs and one wild.
+          This replaces loot.html's "lean in" rule (one card from a sign you hold) with "lean into what you
+          did".</li>
+        <li><b>Mastery cards.</b> A sign's tally over the whole run past <span class="ph">25</span> unlocks its
+          one mastery card (a rank II number boon, or a rule bend like Wildfire or Deep Grave). You can only be
+          offered it by doing it.</li>
+        <li><b>It says so.</b> The offer has one line under the cards: "It watched 14 Shatters." That line is the
+          whole UI.</li>
+        <li><b>Worked example.</b> <span class="el-ice">Ice</span> spirit. Rooms 1 and 2: you Harpoon
+          (<kbd>Dash</kbd> <kbd>L</kbd> <kbd>H</kbd>) and Tow Line through the cubes, so frozen leads. Offer: Shard
+          Cut, Brittle Crowd, and a wild Cold Step. Rooms 5 and 6, against shield foes, you start countering; the
+          next offer holds Riposte Chain and Static Parry. By room 9 the frozen tally passes 25 and the offer holds
+          frozen's mastery card, Long Thaw II. The build followed the fights you had.</li>
+        <li><b>Replaces.</b> The "lean in" rule. Everything else in the Boon offer stays.</li>
+        <li><b>Reuses.</b> <code>_pay()</code>, <code>player.breakers_landed</code>, <code>counters</code>,
+          <code>counter_perfects</code>: the autotest already counts all of these (<code>[improv]</code>,
+          <code>[counter]</code>).</li>
+        <li><b>Cost.</b> C2: one tally dictionary, the offer's weighting, one text line.</li>
+        <li><b>Risk.</b> A loop: you only see what you already do, and builds narrow early. The wild card is the
+          brake; if runs still feel the same, make it two wild cards.</li>
+        <li><b>Nearest thing.</b> Learning by doing (Final Fantasy II, Skyrim) and Hades keepsakes that level with
+          use. Different here: use does not raise a number, it steers which rule bends you are offered.</li>
+      </ul>
+    </section>
+
+    <section id="blow">
+      <h2>3. The second blow: the spirit strikes on your beats</h2>
+      <p class="big">The spirit never fights on its own. It joins exactly two moments the player earned: a breaker
+      landing and a perfect counter. <i>Real departure.</i></p>
+      <ul class="plain">
+        <li><b>How it plays.</b> When a breaker lands (<code>breaker_impact()</code>), the spirit drops off his
+          shoulder onto the zone <span class="ph">0.25 s</span> later, during his float down, and leaves its
+          element's state on everyone the slam hit: storm <i>charged</i>, ice <i>frozen</i>, magma <i>buried</i>.
+          On a perfect Backlash it strikes the attacker the same way. Then it flies back to <code>RIDE</code>. It
+          has no hp, no AI, no target of its own, and nothing can hit it.</li>
+        <li><b>Why only there.</b> The breaker window and the perfect counter are the game's two timing tests. The
+          spirit's blow is a reward for passing one, not a turret. It turns every breaker into the start of the next
+          payoff, which is loot.html's Aftermark boon, given a body.</li>
+        <li><b>Tricks.</b> Some morsels (proposal 1) teach the blow a trick instead of bending a rule: <b>Linger</b>
+          (it hangs over the zone <span class="ph">2 s</span> and puts its state on anyone who walks in),
+          <b>Fetch</b> (it drags the foe it struck <span class="ph">2 m</span> toward him), <b>Echo</b> (on a
+          PERFECT it strikes twice). One trick at a time.</li>
+        <li><b>Worked example.</b></li>
+      </ul>
+      <ol class="flow">
+        <li><b>Room 2</b><span class="el-storm">Storm</span>. Live Wire into Grounded. The spirit dives and charges
+          the pile. Reap next pays Arc through all of them.</li>
+        <li><b>Room 4</b>Eat the Linger trick. A PERFECT Grounded leaves it hovering; the shield foe walks in and
+          comes out charged.</li>
+        <li><b>Room 7</b>A perfect Backlash on the warrior: the spirit charges it before Ricochet throws it into the
+          crowd. Short Circuit cashes the lot.</li>
+      </ol>
+      <ul class="plain">
+        <li><b>Replaces.</b> The Aftermark boon (it is now what the spirit does, from rank <span class="ph">I</span>
+          or <span class="ph">II</span>). Part of the boon pool becomes tricks.</li>
+        <li><b>Reuses.</b> The <code>spirit_companion</code> node (a tween to the zone and back), the existing state
+          setters (freeze, charge, the buried of Rockslide), <code>spirit_echo.strike()</code> for its hit, the
+          designed sheets for its landing.</li>
+        <li><b>Cost.</b> C3: a new visible behaviour with existing sheets. Each trick C2.</li>
+        <li><b>Risk.</b> The breaker landing is already the loudest frame in the game (crater, war cry, name
+          callout). A dive on top may be noise. It must land after the callout, small, and in the float down. Second:
+          a free state on every landing is strong; the "one state per landing" rule and the per-foe wait from
+          loot.html's stacking rules apply.</li>
+        <li><b>Nearest thing.</b> Devil May Cry 5's V (familiars do the fighting) and Nier Automata's pod (fires
+          all the time). Both are on the other side: the companion carries the damage. Here it carries none of it,
+          and only follows up a beat you landed.</li>
+      </ul>
+    </section>
+
+    <section id="swallowed">
+      <h2>4. The swallowed spirit: the second element goes into the arm</h2>
+      <p class="big">The run's second element is a second spirit, and it does not ride. The arm eats it.
+      <i>Structural departure, little combat change.</i></p>
+      <ul class="plain">
+        <li><b>How it plays.</b> Floor 2 room 1 offers the other two spirits on two doors. Bond one: the tentacle
+          wraps it and swallows it (the dark held all four powers once). It opens its element's ender and every
+          crossover of the pair. It does not eat, rank, or strike. Its colour shows on the tentacle tips only.</li>
+        <li><b>The relation.</b> The rider is the one you raise. The swallowed one is a tool. At a Rest room you
+          may swap them instead of healing: the swallowed comes out at rank I with nothing eaten, and the old rider
+          goes into the arm and keeps the boons it ate (they are in you now), but stops growing. A swap is a second
+          growth track for the last floor, paid for with a heal.</li>
+        <li><b>Worked example.</b> Floor 1 with the <span class="el-storm">storm</span> rider, rank III. Floor 2
+          room 1: take <span class="el-ice">ice</span>. The arm swallows it, the tips go pale cyan, <kbd>L</kbd>
+          <kbd>L</kbd> <kbd>H</kbd> is Frost Spear, and the next Technique offer holds Hailstorm. Floor 3 Rest
+          room: swap. Ice rides from rank I, storm sits in the arm with Overload and Hang Time still on, and the
+          last floor's morsels build an ice side.</li>
+        <li><b>Replaces.</b> The second Attunement. Gives the crossovers a home the one-spirit rule lacks.</li>
+        <li><b>Reuses.</b> <code>Spirits.allows()</code> (it already checks a crossover's <code>pair</code>; it
+          needs "held" to be two), the bond prompt, the element tints on the arm.</li>
+        <li><b>Cost.</b> C2: two held, the swap at Rest, checks for every pair. The tip tint C1. A visible bulge of
+          the swallowed spirit in the arm C4, later.</li>
+        <li><b>Risk.</b> The swap may never be worth a heal, so nobody uses it; fine, it costs little. Bigger:
+          players lose track of which elements are open with only a tint to say so. The combo guide already shows
+          only what routes, which carries most of it.</li>
+        <li><b>Nearest thing.</b> Kirby's swallow-to-copy, and a Pokémon lead with one in reserve. Different here:
+          the second element is deliberately the lesser half, so there is always one creature to raise, and one
+          thing on screen.</li>
+      </ul>
+    </section>
+
+    <section id="vessels">
+      <h2>5. Vessels: the spirit wears the loot</h2>
+      <p class="big">The Shackle slot becomes the spirit's vessel, a prison object it climbs into, so loot shows on
+      the spirit and not on the heretic. <i>Cheap reskin of one Gear slot.</i></p>
+      <ul class="plain">
+        <li><b>Why.</b> heretic.md bans ornaments: no buckles, no jewellery, no pouches. loot.html had to squeeze
+          two slots out of the arm and the shackle. The spirit is a free canvas: anything can hang on it without
+          touching his silhouette.</li>
+        <li><b>How it plays.</b> The second-slot drops are vessels: a Warden's Lantern, a Cracked Bell, a Censer, a
+          Gaol Key. The spirit climbs in and floats as that object, in its element's colour, its own eyes showing
+          through. Lines are the Shackle pool unchanged (dash, counter, Awakening); with proposal 3 they can also
+          carry tricks. Profane vessels carry the rites (Cuff of the Unshriven becomes the Unshriven Censer). The
+          floor card, the <kbd>E</kbd> swap, the rarities and "lost at run end" are loot.html's.</li>
+        <li><b>Worked example.</b> Room 5's chest: a Cracked Bell (Hallowed: Wide Watch, Kindling). The storm
+          spirit climbs in; a green-crackling bell rides his shoulder. Room 9 elite: the Gaol Key (Profane, Gallows
+          Chain's rite). Bell on the floor, key over the shoulder.</li>
+        <li><b>Replaces.</b> The Shackle's look and fiction. Keeps its lines. The Graft stays on the arm.</li>
+        <li><b>Reuses.</b> loot.html's Shackle pool, floor card and swap; the spirit's model slot; the
+          <code>meshy.py spirit</code> pipeline (spirits are unrigged models, the cheap kind).</li>
+        <li><b>Cost.</b> Lines C1 as before. A tinted generic vessel C2. A real model per vessel C4 each.</li>
+        <li><b>Risk.</b> A spirit inside a lantern stops looking like a creature you raise; keep it visible round
+          the object. And it is a fourth thing to read on him (hero, arm, spirit, vessel).</li>
+        <li><b>Nearest thing.</b> Destiny's Ghost shells, almost exactly. Different here: a shell carries real gear
+          lines, drops in the run, and is lost at its end.</li>
+      </ul>
+    </section>
+
+    <section id="temperament">
+      <h2>6. Temperament: what it remembers</h2>
+      <p class="big">At a run's end the spirit keeps one thing: the sign it ate most, as a nudge for next time.
+      <i>Small mechanical, meta.</i></p>
+      <ul class="plain">
+        <li><b>How it plays.</b> Each of the three spirits has one saved field. When a run ends (death or win), its
+          rider's top sign becomes its temperament. Next time you bond it, the prompt says "It remembers:
+          frozen", and its first offer is sure to hold one card of that sign. No free boon, no power, only a
+          nudge. At the end of a run you can instead <b>release</b> it, clearing the field.</li>
+        <li><b>Worked example.</b> Run 1: the ice spirit ate three frozen boons and you died on floor 2. Run 2:
+          bond ice; the prompt says "It remembers: frozen"; room 2's offer holds Shard Cut. Run 3 you want a counter
+          build, so you released it after run 2; room 2's offer is fully open.</li>
+        <li><b>Replaces.</b> Nothing in the run. It is a candidate for run.html's "what carries between runs".</li>
+        <li><b>Reuses.</b> The <code>user://</code> records the game already saves; the offer filter.</li>
+        <li><b>Cost.</b> C1.</li>
+        <li><b>Risk.</b> Any carry-over invites a stronger one next. Keep it a nudge forever. run.html owns this
+          call.</li>
+        <li><b>Nearest thing.</b> Pokémon natures, Rogue Legacy traits. Different here: it is the same creature run
+          to run, and its trait is a record of how you played it.</li>
+      </ul>
+    </section>
+
+    <section id="compare">
+      <h2>The six side by side</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Proposal</th><th>Kind</th><th>Touches</th><th>Cost</th><th>Needs</th></tr></thead>
+        <tbody>
+          <tr><td><b>1. Morsels</b></td><td>Reskin</td><td>Boon offer and strip; spirit rank</td><td>C0 to C2</td><td>Nothing</td></tr>
+          <tr><td><b>2. Lessons</b></td><td>Small mechanical</td><td>"Lean in" rule</td><td>C2</td><td>Boons</td></tr>
+          <tr><td><b>3. The second blow</b></td><td>Departure</td><td>Breakers, counter; Aftermark</td><td>C3, tricks C2</td><td>Boons judged</td></tr>
+          <tr><td><b>4. The swallowed spirit</b></td><td>Structural</td><td>Second Attunement, crossovers</td><td>C2</td><td>Floor 2</td></tr>
+          <tr><td><b>5. Vessels</b></td><td>Reskin</td><td>Shackle slot</td><td>C1 to C4</td><td>Gear</td></tr>
+          <tr><td><b>6. Temperament</b></td><td>Meta</td><td>Between runs</td><td>C1</td><td>run.html's call</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="conventional">
+      <h2>Keep conventional</h2>
+      <ul class="plain">
+        <li><b>The Graft and the find.</b> A drop, a floor card, keep or leave. It is the one moment a run gives
+          you something you did not choose. Players already know how to read it, and it needs no teaching.</li>
+        <li><b>The numbers.</b> Affix lines stay plain ("dash cooldown 0.25 s"). Dressing a number in fiction makes
+          it harder to compare, not more fun.</li>
+        <li><b>Techniques.</b> A new press is already the most distinctive reward the game has. It does not need a
+          spirit wrapper.</li>
+        <li><b>The spirit never gets hp, AI, its own attacks or a mood that changes in a fight.</b> Each of those is
+          a feel pass that competes with the heretic's combat, which is the game's strength. A mood that shifts in
+          real time is the first thing I would cut from any version of this.</li>
+      </ul>
+    </section>
+
+    <section id="pick">
+      <h2>This lane's pick</h2>
+      <div class="grid2">
+        <div class="option pick">
+          <h3>Morsels now, the second blow after</h3>
+          <p>Ship proposal 1 inside run slice 4 (Boons): it costs little over the plain card screen and turns the
+          spirit's rank-up and the Boon layer into one thing. Take proposal 4 when floor 2 is built: the second
+          element needs a home anyway. Try proposal 3 only once Boons are judged; if picking a boon still feels like
+          picking a number, the blow is the fix.</p>
+        </div>
+        <div class="option">
+          <h3>Everything through the spirit</h3>
+          <p>All six. The most distinctive version, and the one that repeats the old run's mistake: wide before the
+          combat is proven against a crowd. Not now.</p>
+        </div>
+        <div class="option">
+          <h3>Reskin only</h3>
+          <p>Proposals 1 and 5. Almost free and the spirit becomes the run's face, but it still only follows. Fine
+          as a floor if 3 fails its feel pass.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <h2>Decisions for Zak</h2>
+      <ol>
+        <li class="decision"><b>Is a Boon something the spirit eats, with its rank counted in meals?</b>
+          <span class="pick">Yes. Same pool and rules as loot.html; rank II at 2, rank III at 4.</span></li>
+        <li class="decision"><b>Does the bond give only the ender, with the big move at rank II?</b>
+          <span class="pick">Yes. One new idea in room 1, and the rank-up means something.</span></li>
+        <li class="decision"><b>Does the spirit ever fight?</b> <span class="pick">Only on a breaker landing and a
+          perfect counter, and only after Boons are judged in play.</span></li>
+        <li class="decision"><b>Is the run's second element a second spirit swallowed into the arm?</b>
+          <span class="pick">Yes. It opens the ender and the crossovers, and only the rider grows.</span></li>
+        <li class="decision"><b>Do the spirits remember anything between runs?</b> <span class="pick">Not yet. If
+          run.html wants a carry-over, temperament (a nudge, never power) is the one to try.</span></li>
+      </ol>
+    </section>
+  </main>
+</div>
+</body>
+</html>
